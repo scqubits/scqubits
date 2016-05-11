@@ -36,7 +36,7 @@ def matrix_element(state1, operator, state2):
         return (np.vdot(state1, operator.dot(state2)))      # No, operator is sparse. Must use its own 'dot' method.
 
 
-def matrixelem_table(operator, vlist, evecs=True):
+def matrixelem_table(operator, vlist, transpose=True, real_valued=False):
     """Calculate a table of matrix elements based on
     operator: numpy array or sparse matrix object
     vlist:    list (or array) of numpy arrays representing the states |v0>, |v1>, ...
@@ -46,19 +46,28 @@ def matrixelem_table(operator, vlist, evecs=True):
     <v1|operator|v0>   <v1|operator|v1>   ...
           ...                 ...
 
-    If evecs=True, then vlist is transposed (scipy's eigsh yields eigenvector array in transposed form)
+    If transpose=True, then vlist is transposed (scipy's eigsh yields eigenvector array in transposed form)
     """
 
-    if evecs:
+    if transpose:
         vec_list = vlist.T
     else:
         vec_list = vlist
+
+    if real_valued:
+        dtp = np.float64
+    else:
+        dtp = np.complex_
+
     tablesize = len(vec_list)
-    mtable = np.empty(shape=[tablesize, tablesize], dtype=np.complex_)
+    mtable = np.empty(shape=[tablesize, tablesize], dtype=dtp)
     for n in range(tablesize):
         for m in range(n + 1):
             mtable[n, m] = matrix_element(vec_list[n], operator, vec_list[m])
-            mtable[m, n] = np.conj(mtable[n, m])
+            if real_valued:
+                mtable[m, n] = mtable[n, m]
+            else:
+                mtable[m, n] = np.conj(mtable[n, m])
     return mtable
 
 
@@ -77,6 +86,13 @@ def sparse_create(dim):
     return sparse_annihilate(dim).transpose().tocsc()
 
 
+def sparse_number(dim, prefac=None):
+    diag = np.arange(dim)
+    if prefac:
+        diag = diag * prefac
+    return sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim), dtype=np.float64)
+
+
 def sparse_potentialmat(prm, potential_func):
     """Returns the potential energy matrix for the potential given by 'potential_func', in sparse
     (dia_matrix) form.
@@ -87,6 +103,15 @@ def sparse_potentialmat(prm, potential_func):
     for j, coord_tuple in enumerate(itertools.product(*Xvals)):
         diag[0][j] = potential_func(*coord_tuple)   # diagonal matrix elements
     return sp.sparse.dia_matrix((diag, [0]), shape=(prm.Hdim, prm.Hdim))
+
+
+def sparse_hubbardmat(dim, j1, j2, prefac=None):
+    hubbardmat = sp.sparse.dok_matrix((dim, dim), dtype=np.float64)
+    if prefac:
+        hubbardmat[j1, j2] = prefac
+    else:
+        hubbardmat[j1, j2] = 1.0
+    return hubbardmat.asformat('dia')
 
 
 # ---Plotting-------------------------------------------------------------------------------
@@ -215,10 +240,10 @@ class QubitBaseClass(object):
         output = self.pm.__repr__()
         return output
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
         pass
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
         pass
 
     def hamiltonian(self):
@@ -484,7 +509,6 @@ def derivative_2nd(var_ind, prms, prefac=1, periodic=False):
     return full_mat
 
 
-
 def derivative_mixed_1sts(var_list, prms, prefac=1, periodic_list=False):
     """Generate sparse derivative matrices of the form \partial_{x_1} \partial_{x_2} ...,
     i.e., a product of first order derivatives (with respect to different variables).
@@ -588,15 +612,18 @@ class QubitSymZeroPi(QubitBaseClass):
     def hamiltonian(self):
         return (self.sparse_kineticmat() + sparse_potentialmat(self.pm, self.potential))
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
-        return evals[::-1]
+        evals = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=False, which='SA')
+        return np.sort(evals)
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
-        return evals[::-1], evecs[::-1]
+        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=True, which='SA')
+        sorted_indices = evals.argsort()  # eigsh does not guarantee consistent ordering within result?! http://stackoverflow.com/questions/22806398
+        evals = evals[sorted_indices]
+        evecs = evecs[:, sorted_indices]
+        return evals, evecs
 
     def i_d_dphi(self):
         """Return the operator i \partial_\phi in sparse.dia_matrix form"""
@@ -605,6 +632,10 @@ class QubitSymZeroPi(QubitBaseClass):
     def i_d_dtheta(self):
         """Return the operator i \partial_\theta (periodic variable) in sparse.dia_matrix form"""
         return derivative_1st(1, self.pm, prefac=1j, periodic=True)
+
+    def d_dtheta(self):
+        """Return the operator i \partial_\theta (periodic variable) in sparse.dia_matrix form"""
+        return derivative_1st(1, self.pm, periodic=True)
 
     # return the operator \phi
     def phi(self):
@@ -623,7 +654,7 @@ class QubitDisZeroPi(QubitSymZeroPi):
 
     """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
     see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
-    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space 
+    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space
     into a simple square/rectangular lattice.
     Expected parameters are:
 
@@ -639,6 +670,8 @@ class QubitDisZeroPi(QubitSymZeroPi):
 
     Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined
     as relative ones.
+
+
     """
 
     _expected_parameters = {
@@ -723,9 +756,9 @@ class QubitSymZeroPiNg(QubitSymZeroPi):
 
 class QubitFullZeroPi(QubitSymZeroPi):
 
-    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples 
+    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
     the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
-    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space 
+    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space
     into a simple cubic lattice.
     Expected parameters are:
 
@@ -741,7 +774,7 @@ class QubitFullZeroPi(QubitSymZeroPi):
     minmaxpts:  array specifying the range and spacing of the discretization lattice
                 [[phimin, phimax, phipts], [thetamin, thetamax, thetapts]]
 
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as 
+    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
     relative ones.
     """
 
@@ -762,7 +795,7 @@ class QubitFullZeroPi(QubitSymZeroPi):
 
     def __init__(self, **kwargs):
         super(QubitFullZeroPi, self).__init__(**kwargs)
-        self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi) with offset charge'
+        self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi), no offset charge'
 
     def sparse_kineticmat(self):
         p = self.pm
@@ -778,9 +811,132 @@ class QubitFullZeroPi(QubitSymZeroPi):
                 2.0 * p.EJ * p.dEJ * np.sin(theta) * np.sin(phi - p.pext / 2) + p.EL * chi**2 + 2.0 * p.EL * p.dEL * phi * chi + 2 * p.EJ * p.dEJ)  # correction terms in presence of disorder
 
 
+class QubitFullZeroPi_ProductBasis(QubitBaseClass):
+
+    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
+    the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
+    Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)
+    Zero-Pi qubit on one hand and the chi LC oscillator on the other hand.
+
+    Expected parameters are:
+
+    EJ:    mean Josephson energy of the two junctions
+    EL:    inductive energy of the two (super-)inductors
+    ECJ:   charging energy associated with the two junctions
+    ECS:   charging energy including the large shunting capacitances
+    EC:    charging energy associated with chi degree of freedom
+    dEJ:   relative disorder in EJ, i.e., (EJ1-EJ2)/EJ(mean)
+    dEL:   relative disorder in EL, i.e., (EL1-EL2)/EL(mean)
+    dCJ:   relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/C(mean)
+    pext:  magnetic flux through the circuit loop
+    l_cut: cutoff in the number of states of the disordered zero-pi qubit
+    minmaxpts:  array specifying the range and spacing of the discretization lattice for phi and theta
+                [[phimin, phimax, phipts], [thetamin, thetamax, thetapts]]
+    a_cut: cutoff in the chi oscillator basis (Fock state basis)
+
+    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
+    relative ones.
+    """
+
+    _expected_parameters = {
+        'EJ': 'Josephson energy',
+        'EL': 'inductive energy',
+        'ECJ': 'junction charging energy',
+        'ECS': 'total charging energy including C',
+        'EC': 'charging energy associated with chi degree of freedom',
+        'dEJ': 'relative deviation between the two EJs',
+        'dCJ': 'relative deviation between the two junction capacitances',
+        'dC': 'relative deviation between the two shunt capacitances',
+        'dEL': 'relative deviation between the two inductances',
+        'pext': 'external magnetic flux in angular units (2pi corresponds to one flux quantum)',
+        'l_cut': 'cutoff in the number of states of the disordered zero-pi qubit',
+        'minmaxpts': """array specifying the range and spacing of the discretization lattice for phi and theta
+                [[phimin, phimax, phipts], [thetamin, thetamax, thetapts]]""",
+        'a_cut': 'cutoff in the chi oscillator basis (Fock state basis)'
+    }
+
+    def __init__(self, **kwargs):
+        super(QubitFullZeroPi_ProductBasis, self).__init__(**kwargs)
+        self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi basis'
+        self.zeropi = QubitDisZeroPi(
+            EJ=self.pm.EJ,
+            EL=self.pm.EL,
+            ECJ=self.pm.ECJ,
+            ECS=self.pm.ECS,
+            dEJ=self.pm.dEJ,
+            dCJ=self.pm.dCJ,
+            pext=self.pm.pext,
+            minmaxpts=self.pm.minmaxpts
+        )
+
+    def hamiltonian(self):
+        lcut = self.pm.l_cut
+        zpi_evals, zpi_evecs = self.zeropi.eigensys(evnum=lcut)
+        zpi_diag_hamiltonian = sp.sparse.dia_matrix((lcut, lcut), dtype=np.float64)
+        zpi_diag_hamiltonian.setdiag(zpi_evals)
+
+        acut = self.pm.a_cut
+        prefactor = math.sqrt(8.0 * self.pm.EL * self.pm.ECS)
+        chi_diag_hamiltonian = sparse_number(acut, prefactor)
+
+        hamiltonian = sp.sparse.kron(zpi_diag_hamiltonian, sp.sparse.identity(acut, format='dia', dtype=np.float64))
+        hamiltonian += sp.sparse.kron(sp.sparse.identity(lcut, format='dia', dtype=np.float64), chi_diag_hamiltonian)
+
+        gmat = self.g_coupling_matrix(zpi_evecs)
+        zpi_coupling = sp.sparse.dia_matrix((lcut, lcut), dtype=np.float64)
+        for l1 in range(lcut):
+            for l2 in range(lcut):
+                zpi_coupling += sparse_hubbardmat(lcut, l1, l2, gmat[l1, l2])
+        hamiltonian += sp.sparse.kron(zpi_coupling, sparse_annihilate(acut) + sparse_create(acut))
+        return hamiltonian
+
+    def _evals_calc(self, num):
+        hmat = self.hamiltonian()
+        evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
+        return np.sort(evals)
+
+    def _esys_calc(self, num):
+        hmat = self.hamiltonian()
+        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
+        sorted_indices = evals.argsort()  # eigsh does not guarantee consistent ordering within result?! http://stackoverflow.com/questions/22806398
+        evals = evals[sorted_indices]
+        evecs = evecs[:, sorted_indices]
+        return evals, evecs
+
+    def g_phi_coupling_matrix(self, zeropi_states, transpose=True):
+        """Returns a matrix of coupling strengths g^\phi_{ll'} [cmp. Dempster et al., Eq. (18)], using the states
+        from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors of the
+        QubitDisZeroPi type, so 'transpose' is enabled by default.
+        """
+        p = self.pm
+        prefactor = p.EL * p.dEL * (8.0 * p.EC / p.EL)**0.25
+        return (prefactor * matrixelem_table(self.zeropi.phi(), zeropi_states, transpose, real_valued=True))
+
+    def g_theta_coupling_matrix(self, zeropi_states, transpose=True):
+        """Returns a matrix of coupling strengths i*g^\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
+        from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors, so 'transpose' is enabled by
+        default.
+        """
+        p = self.pm
+        prefactor = - p.ECS * p.dC * (32.0 * p.EL / p.EC)**0.25
+        return (prefactor * matrixelem_table(self.zeropi.d_dtheta(), zeropi_states, transpose, real_valued=True))
+
+    def g_coupling_matrix(self, zeropi_states, transpose=True, evnum=6):
+        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
+        from 'state_list'.  Most commonly, 'zeropi_states' will contain eigenvectors of the
+        QubitDisZeroPi type, so 'transpose' is enabled by default.
+        If zeropi_states==None, then a set of self.zeropi eigenstates is calculated. Only in that case is evnum
+        used for the eigenstate number (and hence the coupling matrix size).
+
+        """
+        if zeropi_states is None:
+            _, zeropi_states = self.zeropi.eigensys(evnum=evnum)
+        return (self.g_phi_coupling_matrix(zeropi_states, transpose) + self.g_theta_coupling_matrix(zeropi_states, transpose))
+
+
 # ----------------------------------------------------------------------------------------
 
-# 
+
 class QubitModZeroPi(QubitSymZeroPi):
 
     """[still experimental] modified version of the symmetric 0-pi qubit based on replacing inductors 
@@ -811,5 +967,3 @@ class QubitModZeroPi(QubitSymZeroPi):
         dth2 = derivative_2nd(1, p, prefac=-2.0 * p.ECth, periodic=True)     # C + CJ
         dchi2 = derivative_2nd(2, p, prefac=-2.0 * p.ECchi, periodic=True)     # C + CJp
         return (dphi2 + dth2 + dchi2)
-
-
