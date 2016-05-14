@@ -13,7 +13,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 from numpy import linspace
 import scipy as sp
-from scipy import sparse, linalg
+from scipy import sparse, linalg, special
 from scipy.sparse import linalg
 import math
 import cmath
@@ -36,7 +36,7 @@ def matrix_element(state1, operator, state2):
         return (np.vdot(state1, operator.dot(state2)))      # No, operator is sparse. Must use its own 'dot' method.
 
 
-def matrixelem_table(operator, vlist, evecs=True):
+def matrixelem_table(operator, vlist, transpose=True, real_valued=False):
     """Calculate a table of matrix elements based on
     operator: numpy array or sparse matrix object
     vlist:    list (or array) of numpy arrays representing the states |v0>, |v1>, ...
@@ -46,19 +46,28 @@ def matrixelem_table(operator, vlist, evecs=True):
     <v1|operator|v0>   <v1|operator|v1>   ...
           ...                 ...
 
-    If evecs=True, then vlist is transposed (scipy's eigsh yields eigenvector array in transposed form)
+    If transpose=True, then vlist is transposed (scipy's eigsh yields eigenvector array in transposed form)
     """
 
-    if evecs:
+    if transpose:
         vec_list = vlist.T
     else:
         vec_list = vlist
+
+    if real_valued:
+        dtp = np.float_
+    else:
+        dtp = np.complex_
+
     tablesize = len(vec_list)
-    mtable = np.empty(shape=[tablesize, tablesize], dtype=np.complex_)
+    mtable = np.empty(shape=[tablesize, tablesize], dtype=dtp)
     for n in range(tablesize):
         for m in range(n + 1):
             mtable[n, m] = matrix_element(vec_list[n], operator, vec_list[m])
-            mtable[m, n] = np.conj(mtable[n, m])
+            if real_valued:
+                mtable[m, n] = mtable[n, m]
+            else:
+                mtable[m, n] = np.conj(mtable[n, m])
     return mtable
 
 
@@ -77,16 +86,43 @@ def sparse_create(dim):
     return sparse_annihilate(dim).transpose().tocsc()
 
 
+def sparse_number(dim, prefac=None):
+    diag = np.arange(dim)
+    if prefac:
+        diag = diag * prefac
+    return sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim), dtype=np.float_)
+
+
 def sparse_potentialmat(prm, potential_func):
     """Returns the potential energy matrix for the potential given by 'potential_func', in sparse
     (dia_matrix) form.
     """
     Xvals = [linspace(prm.varmin[j], prm.varmax[j], prm.varpts[j]) for j in range(prm.dim)]  # list of coordinate arrays
-    diag = np.empty([1, prm.Hdim], dtype=np.float64)
+    diag = np.empty([1, prm.Hdim], dtype=np.float_)
 
     for j, coord_tuple in enumerate(itertools.product(*Xvals)):
         diag[0][j] = potential_func(*coord_tuple)   # diagonal matrix elements
     return sp.sparse.dia_matrix((diag, [0]), shape=(prm.Hdim, prm.Hdim))
+
+
+def sparse_hubbardmat(dim, j1, j2, prefac=None):
+    hubbardmat = sp.sparse.dok_matrix((dim, dim), dtype=np.float_)
+    if prefac:
+        hubbardmat[j1, j2] = prefac
+    else:
+        hubbardmat[j1, j2] = 1.0
+    return hubbardmat.asformat('dia')
+
+# ---Harmonic oscillator--------------------------------------------------------------------
+
+
+def harm_osc_wavefunction(n, x, losc):
+    """For given quantum number n=0,1,2,... this returns the value of the harmonic oscillator
+    harmonic oscillator wave function \psi_n(x) = N H_n(x/losc) exp(-x^2/2losc), N being the
+    proper normalization factor.
+    """
+    return ((2**n * math.factorial(n) * losc)**(-0.5) * np.pi**(-0.25) *
+            sp.special.eval_hermite(n, x / losc) * np.exp(-(x * x) / (2 * losc * losc)))
 
 
 # ---Plotting-------------------------------------------------------------------------------
@@ -212,16 +248,26 @@ class QubitBaseClass(object):
             self.pm._qubit_type = 'generic - no use other than serving as class template'
 
     def __repr__(self):
+        """Printable representation of the object. Redirects to the parameter object pm to output
+        the qubit parameters.
+        """
         output = self.pm.__repr__()
         return output
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
+        """Must be implemented in child classes"""
         pass
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
+        """Must be implemented in child classes"""
         pass
 
     def hamiltonian(self):
+        """Must be implemented in child classes"""
+        pass
+
+    def plot_wavefunction(self):
+        """Must be implemented in child classes"""
         pass
 
     def eigenvals(self, evnum=6, to_file=None):
@@ -230,7 +276,7 @@ class QubitBaseClass(object):
         evnum:   number of desired eigenvalues (sorted from smallest to largest)
         to_file: write data to file if path and filename are specified
         """
-        evals = self._evals_calc(evnum)
+        evals = np.sort(self._evals_calc(evnum))
         if to_file:
             print("Writing eigenvals data and parameters to {} and {}.".format(to_file + "evals.csv", to_file + ".prm"))
             np.savetxt(to_file + "evals.csv", evals, delimiter=",")
@@ -246,6 +292,9 @@ class QubitBaseClass(object):
         to_file: write data to file if path and filename are specified
         """
         evals, evecs = self._esys_calc(evnum)
+        sorted_indices = evals.argsort()  # eigsh does not guarantee consistent ordering within result?! http://stackoverflow.com/questions/22806398
+        evals = evals[sorted_indices]
+        evecs = evecs[:, sorted_indices]
         if to_file:
             print("Writing eigensys data and parameters to {}, {}, and {}.".format(to_file + "evals.csv", to_file + "evecs.csv", to_file + ".prm"))
             np.savetxt(to_file + "evals.csv", evals, delimiter=",")
@@ -319,6 +368,36 @@ class QubitBaseClass(object):
         plt.show()
         return None
 
+    def _plot_wavefunction1d(self, psi_modsquared_values, potential_values, x_values, offset=0, scaling=1, ylabel='|psi|^2', xlabel='x'):
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(x_values, offset + scaling * psi_modsquared_values)
+        if potential_values is not None:
+            ax.plot(x_values, potential_values)
+            ax.plot(x_values, [offset] * len(x_values), 'b--')
+
+        ax.set_xlim(xmin=x_values[0], xmax=x_values[-1])
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        plt.show()
+        return None
+
+    def _plot_wavefunction1d_discrete(self, psi_modsquared_values, x_values, ylabel='|psi|^2', xlabel='x'):
+        width = .75
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.bar(x_values, psi_modsquared_values, width=width)
+        ax.set_xlim(xmin=x_values[0], xmax=x_values[-1])
+        ax.set_xticks(x_values + width / 2)
+        ax.set_xticklabels(x_values)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        plt.show()
+        return None
+
+    def _plot_wavefunction2d(self):
+        pass
+
 # ---Cooper pair box / transmon-----------------------------------------------------------
 
 
@@ -351,7 +430,7 @@ class QubitTransmon(QubitBaseClass):
         ng = self.pm.ng
         ncut = self.pm.ncut
         dim = 2 * ncut + 1
-        hmat = np.zeros((dim, dim), dtype=np.float64)
+        hmat = np.zeros((dim, dim), dtype=np.float_)
         for i in range(dim):
             hmat[i][i] = 4.0 * EC * (i - ncut - ng)**2
         for i in range(dim - 1):
@@ -367,11 +446,54 @@ class QubitTransmon(QubitBaseClass):
         hmat = self.hamiltonian()
         return sp.linalg.eigh(hmat, eigvals_only=False, eigvals=(0, num - 1))
 
+    def plot_wavefunction(self, esys, basis='number', which=0, nrange=[-10, 10],
+                          phirange=[-np.pi, np.pi], phipts=151):
+        evnum = which + 1
+        if esys is None:
+            evals, evecs = self.eigensys(evnum)
+        else:
+            evals, evecs = esys
+
+        if basis == 'number':
+            n_values, wavefunc_modsquared = self.wavefunction(esys, basis, which, phirange=phirange, phipts=phipts)
+            self._plot_wavefunction1d_discrete(wavefunc_modsquared, n_values)
+
+        elif basis == 'phase':
+            phi_values, wavefunc_modsquared = self.wavefunction(esys, basis, which, phirange=phirange, phipts=phipts)
+            self._plot_wavefunction1d(wavefunc_modsquared, -self.pm.EJ * np.cos(phi_values), phi_values,
+                                      offset=evals[which], scaling=0.3 * self.pm.EJ, xlabel='phi')
+
+    def wavefunction(self, esys, basis='number', which=0, nrange=[-10, 10],
+                     phirange=[-np.pi, np.pi], phipts=251):
+        evnum = max(which + 1, 3)
+        if esys is None:
+            evals, evecs = self.eigensys(evnum)
+        else:
+            evals, evecs = esys
+
+        nmax = (len(evecs[:, which]) - 1) // 2
+        if basis == 'number':
+            n_values = np.arange(nrange[0], nrange[1] + 1)
+            psi_n_values = evecs[(nmax + nrange[0]):(nmax + nrange[1] + 1), which]
+            wavefunc_modsquared = abs(psi_n_values)**2
+            return n_values, wavefunc_modsquared
+        elif basis == 'phase':
+            n_values = np.arange(-nmax, nmax + 1)
+            phi_values = np.linspace(phirange[0], phirange[1], phipts)
+            psi_n_values = evecs[:, which]
+            wavefunc_modsquared = np.empty(phipts, dtype=np.complex_)
+            for k in range(phipts):
+                wavefunc_modsquared[k] = ((1.0 / math.sqrt(2 * np.pi)) *
+                                          np.abs(np.sum(psi_n_values *
+                                          np.exp(1j * phi_values[k] * n_values)))**2)
+            return phi_values, wavefunc_modsquared
+
 
 # ---Fluxonium qubit----------------------------------------------------------------------
 
 
 class QubitFluxonium(QubitBaseClass):
+
     """Class for the fluxonium qubit. Hamiltonian is represented in sparse form. The employed
     basis is the EC-EL harmonic oscillator basis. The cosine term in the potential is handled
     via matrix exponentiation.
@@ -410,25 +532,52 @@ class QubitFluxonium(QubitBaseClass):
         om = math.sqrt(8.0 * EL * EC)         # plasma osc. frequency
 
         diag = [i * om for i in range(dim)]
-        LCmat = sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim)).tocsr()
+        LCmat = sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim))
 
         exp_arg = 1j * (sparse_create(dim) + sparse_annihilate(dim)) * phi0 / math.sqrt(2)
         exp_mat = 0.5 * sp.sparse.linalg.expm(exp_arg) * cmath.exp(1j * pext)
         cos_mat = exp_mat + exp_mat.getH()
-
         hmat = LCmat - EJ * cos_mat
         return hmat
 
     def _evals_calc(self, num):
         hmat = self.hamiltonian()
         evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
-        return evals[::-1]
+        return evals
 
     def _esys_calc(self, num):
         hmat = self.hamiltonian()
         evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
-        return evals[::-1], evecs[::-1]
+        return evals, evecs
 
+    def potential(self, phi):
+        p = self.pm
+        return (0.5 * p.EL * phi * phi - p.EJ * np.cos(phi - p.pext))
+
+    def wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], phipts=251):
+        evnum = max(which + 1, 3)
+        if esys is None:
+            evals, evecs = self.eigensys(evnum)
+        else:
+            evals, evecs = esys
+
+        ncut = len(evecs[:, which])
+        phi_values = np.linspace(phirange[0], phirange[1], phipts)
+        psi_n_values = evecs[:, which]
+        wavefunc_modsquared = np.zeros(phipts, dtype=np.complex_)
+        harmonic_osc_values = np.empty(phipts, dtype=np.float_)
+        phi_losc = (8 * self.pm.EC / self.pm.EL)**0.25
+        for n in range(ncut):
+            harmonic_osc_values = harm_osc_wavefunction(n, phi_values, phi_losc)  # fixed order of hermite polynomial
+            wavefunc_modsquared = wavefunc_modsquared + psi_n_values[n] * harmonic_osc_values
+        wavefunc_modsquared = np.abs(wavefunc_modsquared)**2
+        return phi_values, wavefunc_modsquared, evals[which]
+
+    def plot_wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], phipts=251):
+        phi_values, wavefunc_modsquared, eval = self.wavefunction(esys, which, phirange, phipts)
+        self._plot_wavefunction1d(wavefunc_modsquared, self.potential(phi_values), phi_values,
+                                  offset=eval, scaling=5 * self.pm.EJ, xlabel='phi')
+        return None
 
 # ---Routines for translating 1st and 2nd derivatives by discretization into sparse matrix form-------
 
