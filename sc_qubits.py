@@ -17,7 +17,6 @@ from scipy import sparse, linalg, special
 from scipy.sparse import linalg
 import math
 import cmath
-import copy
 import itertools
 from progress_bar import update_progress  # for displaying progress bars during calculations
 
@@ -128,45 +127,33 @@ def harm_osc_wavefunction(n, x, losc):
 # ---Plotting-------------------------------------------------------------------------------
 
 
-def contourplot_potential(V, prms, levls=None, to_file=False, varying_vars=None, fixed_vals=None):
-    """Contour plot of potential (meaningful in 2d, or as cut in higher dim.)
-    If the potential is n-dimensional (n>2), then the list varying_vars gives
-    the indices of the variables to be varied, e.g., [1,3]. In that case,
-    fixed_vals is an (ordered) list of the fixed values of the remaining variables,
-    e.g., [-3.0, 0.34] means that x_0=0.34 and x_2=-2.11
+def contourplot(x_list, y_list, func, levls=None, aspect_ratio=None, to_file=False):
+    """Contour plot of a 2d function 'func(x,y)'.
+    x_list: (ordered) list of x values for the x-y evaluation grid
+    y_list: (ordered) list of y values for the x-y evaluation grid
+    func: function f(x,y) for which contours are to be plotted
+    levls: contour levels can be specified if so desired
+
     """
-    if varying_vars is None:        # all coordinates are being varied (this is the 2d case)
-        var_list = range(prms.dim)
+    x_grid, y_grid = np.meshgrid(x_list, y_list)
+    z_array = func(x_grid, y_grid)
+    # print(z_array)
+    if aspect_ratio is None:
+        fig = plt.figure(figsize=(x_list[-1] - x_list[0], y_list[-1] - y_list[0]))
     else:
-        var_list = varying_vars     # for dimension d>2, this specifies the sublist of coordinates to be varied
-
-    value_list = copy.copy(fixed_vals)
-
-    grid_vecs = [linspace(prms.varmin[ind], prms.varmax[ind], prms.varpts[ind]) for ind in var_list]
-    grid_array = np.meshgrid(*grid_vecs)    # *xxx unpacks list [a,b] into a sequence of arguments a,b
-    arg_list = [0] * (prms.dim)
-    for j in range(prms.dim):
-        if j not in var_list:
-            arg_list[j] = value_list[0]
-            value_list.pop(0)
-        else:
-            arg_list[j] = grid_array[0]
-            grid_array.pop(0)
-    Vdata = V(*arg_list)
-    fig, ax = plt.subplots(figsize=(prms.varmax[var_list[0]] - prms.varmin[var_list[0]],
-                                    prms.varmax[var_list[1]] - prms.varmin[var_list[1]]))
+        w, h = plt.figaspect(aspect_ratio)
+        fig = plt.figure(figsize=(w, h))
 
     if levls is None:
-        ax.contourf(cmap=plt.cm.viridis, *(grid_array + [Vdata]))
+        plt.contourf(x_grid, y_grid, z_array, cmap=plt.cm.viridis)
     else:
-        ax.contourf(levels=levls, cmap=plt.cm.viridis, *(grid_array + [Vdata]))
+        plt.contourf(x_grid, y_grid, z_array, levels=levls, cmap=plt.cm.viridis)
 
     if to_file:
         out_file = PdfPages(to_file)
         out_file.savefig()
         out_file.close()
     return None
-
 
 # ---Parameter checking and storing----------------------------------------------------------
 
@@ -368,10 +355,11 @@ class QubitBaseClass(object):
         plt.show()
         return None
 
-    def _plot_wavefunction1d(self, psi_modsquared_values, potential_values, x_values, offset=0, scaling=1, ylabel='|psi|^2', xlabel='x'):
+    def _plot_wavefunction1d(self, wavefunc_values, potential_values, x_values, offset=0, scaling=1,
+                             ylabel='wavefunction', xlabel='x'):
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(x_values, offset + scaling * psi_modsquared_values)
+        ax.plot(x_values, offset + scaling * wavefunc_values)
         if potential_values is not None:
             ax.plot(x_values, potential_values)
             ax.plot(x_values, [offset] * len(x_values), 'b--')
@@ -382,11 +370,11 @@ class QubitBaseClass(object):
         plt.show()
         return None
 
-    def _plot_wavefunction1d_discrete(self, psi_modsquared_values, x_values, ylabel='|psi|^2', xlabel='x'):
+    def _plot_wavefunction1d_discrete(self, wavefunc_values, x_values, ylabel='wavefunction', xlabel='x'):
         width = .75
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.bar(x_values, psi_modsquared_values, width=width)
+        ax.bar(x_values, wavefunc_values, width=width)
         ax.set_xlim(xmin=x_values[0], xmax=x_values[-1])
         ax.set_xticks(x_values + width / 2)
         ax.set_xticklabels(x_values)
@@ -395,8 +383,14 @@ class QubitBaseClass(object):
         plt.show()
         return None
 
-    def _plot_wavefunction2d(self):
-        pass
+    def _plot_wavefunction2d(self, wavefunc, prm, figsize, aspect_ratio):
+        plt.figure(figsize=figsize)
+        plt.imshow(wavefunc, extent=[prm.minmaxpts[0][0], prm.minmaxpts[0][1], prm.minmaxpts[1][0],
+                   prm.minmaxpts[1][1]], aspect=aspect_ratio, cmap=plt.cm.viridis)
+        plt.colorbar(fraction=0.017, pad=0.04)
+        plt.show()
+        return None
+
 
 # ---Cooper pair box / transmon-----------------------------------------------------------
 
@@ -447,21 +441,33 @@ class QubitTransmon(QubitBaseClass):
         return sp.linalg.eigh(hmat, eigvals_only=False, eigvals=(0, num - 1))
 
     def plot_wavefunction(self, esys, basis='number', which=0, nrange=[-10, 10],
-                          phirange=[-np.pi, np.pi], phipts=151):
-        evnum = which + 1
-        if esys is None:
-            evals, evecs = self.eigensys(evnum)
-        else:
-            evals, evecs = esys
+                          phirange=[-np.pi, np.pi], phipts=151, mode='mod2'):
+        """Different modes:
+        'mod2': |psi|^2
+        'mod':  |psi|
+        'real': Re(psi)
+        'imag': Im(psi)
+        """
+        mode_dict = {'mod2': (lambda x: np.abs(x)**2),
+                     'mod': (lambda x: np.abs(x)),
+                     'real': (lambda x: np.real(x)),
+                     'imag': (lambda x: np.imag(x))}
+        # evnum = which + 1
+        # if esys is None:
+        #     evals, evecs = self.eigensys(evnum)
+        # else:
+        #     evals, evecs = esys
 
         if basis == 'number':
-            n_values, wavefunc_modsquared = self.wavefunction(esys, basis, which, phirange=phirange, phipts=phipts)
-            self._plot_wavefunction1d_discrete(wavefunc_modsquared, n_values)
+            n_values, wavefunc, _ = self.wavefunction(esys, basis, which, phirange=phirange, phipts=phipts)
+            wavefunc = mode_dict[mode](wavefunc)
+            self._plot_wavefunction1d_discrete(wavefunc, n_values)
 
         elif basis == 'phase':
-            phi_values, wavefunc_modsquared = self.wavefunction(esys, basis, which, phirange=phirange, phipts=phipts)
-            self._plot_wavefunction1d(wavefunc_modsquared, -self.pm.EJ * np.cos(phi_values), phi_values,
-                                      offset=evals[which], scaling=0.3 * self.pm.EJ, xlabel='phi')
+            phi_values, wavefunc, evalue = self.wavefunction(esys, basis, which, phirange=phirange, phipts=phipts)
+            wavefunc = mode_dict[mode](wavefunc)
+            self._plot_wavefunction1d(wavefunc, -self.pm.EJ * np.cos(phi_values), phi_values,
+                                      offset=evalue, scaling=0.3 * self.pm.EJ, xlabel='phi')
 
     def wavefunction(self, esys, basis='number', which=0, nrange=[-10, 10],
                      phirange=[-np.pi, np.pi], phipts=251):
@@ -475,18 +481,16 @@ class QubitTransmon(QubitBaseClass):
         if basis == 'number':
             n_values = np.arange(nrange[0], nrange[1] + 1)
             psi_n_values = evecs[(nmax + nrange[0]):(nmax + nrange[1] + 1), which]
-            wavefunc_modsquared = abs(psi_n_values)**2
-            return n_values, wavefunc_modsquared
+            return n_values, psi_n_values, evals[which]
         elif basis == 'phase':
             n_values = np.arange(-nmax, nmax + 1)
             phi_values = np.linspace(phirange[0], phirange[1], phipts)
             psi_n_values = evecs[:, which]
-            wavefunc_modsquared = np.empty(phipts, dtype=np.complex_)
+            wavefunc = np.empty(phipts, dtype=np.complex_)
             for k in range(phipts):
-                wavefunc_modsquared[k] = ((1.0 / math.sqrt(2 * np.pi)) *
-                                          np.abs(np.sum(psi_n_values *
-                                          np.exp(1j * phi_values[k] * n_values)))**2)
-            return phi_values, wavefunc_modsquared
+                wavefunc[k] = ((1.0 / math.sqrt(2 * np.pi)) *
+                               np.sum(psi_n_values * np.exp(1j * phi_values[k] * n_values)))
+            return phi_values, wavefunc, evals[which]
 
 
 # ---Fluxonium qubit----------------------------------------------------------------------
@@ -564,20 +568,38 @@ class QubitFluxonium(QubitBaseClass):
         ncut = len(evecs[:, which])
         phi_values = np.linspace(phirange[0], phirange[1], phipts)
         psi_n_values = evecs[:, which]
-        wavefunc_modsquared = np.zeros(phipts, dtype=np.complex_)
+        wavefunc = np.zeros(phipts, dtype=np.complex_)
         harmonic_osc_values = np.empty(phipts, dtype=np.float_)
         phi_losc = (8 * self.pm.EC / self.pm.EL)**0.25
         for n in range(ncut):
             harmonic_osc_values = harm_osc_wavefunction(n, phi_values, phi_losc)  # fixed order of hermite polynomial
-            wavefunc_modsquared = wavefunc_modsquared + psi_n_values[n] * harmonic_osc_values
-        wavefunc_modsquared = np.abs(wavefunc_modsquared)**2
-        return phi_values, wavefunc_modsquared, evals[which]
+            wavefunc = wavefunc + psi_n_values[n] * harmonic_osc_values
+        return phi_values, wavefunc, evals[which]
 
-    def plot_wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], phipts=251):
-        phi_values, wavefunc_modsquared, eval = self.wavefunction(esys, which, phirange, phipts)
-        self._plot_wavefunction1d(wavefunc_modsquared, self.potential(phi_values), phi_values,
-                                  offset=eval, scaling=5 * self.pm.EJ, xlabel='phi')
+    def plot_wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], mode='mod2', phipts=251):
+        """Different modes:
+        'mod2': |psi|^2
+        'mod':  |psi|
+        'real': Re(psi)
+        'imag': Im(psi)
+        """
+        mode_dict = {'mod2': (lambda x: np.abs(x)**2),
+                     'mod': (lambda x: np.abs(x)),
+                     'real': (lambda x: np.real(x)),
+                     'imag': (lambda x: np.imag(x))}
+
+        phi_values, wavefunc, evalue = self.wavefunction(esys, which, phirange, phipts)
+        wavefunc = mode_dict[mode](wavefunc)
+        self._plot_wavefunction1d(wavefunc, self.potential(phi_values), phi_values,
+                                  offset=evalue, scaling=5 * self.pm.EJ, xlabel='phi')
         return None
+
+    def _plot_wavefunction1d_discrete(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d_discrete'")
+
+    def _plot_wavefunction2d(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction2'")
+
 
 # ---Routines for translating 1st and 2nd derivatives by discretization into sparse matrix form-------
 
@@ -586,7 +608,7 @@ def derivative_1st(var_ind, prms, prefac=1, periodic=False):
     if isinstance(prefac, complex):
         dtp = np.complex_
     else:
-        dtp = np.float64
+        dtp = np.float_
 
     delta_inv = prefac * prms.varpts[var_ind] / (2 * (prms.varmax[var_ind] - prms.varmin[var_ind]))
     drvtv_mat = sp.sparse.dia_matrix((prms.varpts[var_ind], prms.varpts[var_ind]), dtype=dtp)
@@ -613,7 +635,7 @@ def derivative_1st(var_ind, prms, prefac=1, periodic=False):
 def derivative_2nd(var_ind, prms, prefac=1, periodic=False):
     delta_inv_sqr = prefac * ((prms.varmax[var_ind] - prms.varmin[var_ind]) / prms.varpts[var_ind])**(-2)
 
-    drvtv_mat = sp.sparse.dia_matrix((prms.varpts[var_ind], prms.varpts[var_ind]), dtype=np.float64)
+    drvtv_mat = sp.sparse.dia_matrix((prms.varpts[var_ind], prms.varpts[var_ind]), dtype=np.float_)
     drvtv_mat.setdiag(-2.0 * delta_inv_sqr, k=0)
     drvtv_mat.setdiag(delta_inv_sqr, k=1)
     drvtv_mat.setdiag(delta_inv_sqr, k=-1)
@@ -633,7 +655,6 @@ def derivative_2nd(var_ind, prms, prefac=1, periodic=False):
     return full_mat
 
 
-
 def derivative_mixed_1sts(var_list, prms, prefac=1, periodic_list=False):
     """Generate sparse derivative matrices of the form \partial_{x_1} \partial_{x_2} ...,
     i.e., a product of first order derivatives (with respect to different variables).
@@ -642,7 +663,7 @@ def derivative_mixed_1sts(var_list, prms, prefac=1, periodic_list=False):
     if isinstance(prefac, complex):
         dtp = np.complex_
     else:
-        dtp = np.float64
+        dtp = np.float_
 
     var_nr = len(var_list)
 
@@ -737,15 +758,15 @@ class QubitSymZeroPi(QubitBaseClass):
     def hamiltonian(self):
         return (self.sparse_kineticmat() + sparse_potentialmat(self.pm, self.potential))
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
-        return evals[::-1]
+        evals = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=False, which='SA')
+        return evals
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
-        return evals[::-1], evecs[::-1]
+        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=True, which='SA')
+        return evals, evecs
 
     def i_d_dphi(self):
         """Return the operator i \partial_\phi in sparse.dia_matrix form"""
@@ -755,14 +776,54 @@ class QubitSymZeroPi(QubitBaseClass):
         """Return the operator i \partial_\theta (periodic variable) in sparse.dia_matrix form"""
         return derivative_1st(1, self.pm, prefac=1j, periodic=True)
 
+    def d_dtheta(self):
+        """Return the operator i \partial_\theta (periodic variable) in sparse.dia_matrix form"""
+        return derivative_1st(1, self.pm, periodic=True)
+
     # return the operator \phi
     def phi(self):
-        phi_matrix = sp.sparse.dia_matrix((self.pm.varpts[0], self.pm.varpts[0]), dtype=np.float64)
+        phi_matrix = sp.sparse.dia_matrix((self.pm.varpts[0], self.pm.varpts[0]), dtype=np.float_)
         diag = linspace(self.pm.varmin[0], self.pm.varmax[0], self.pm.varpts[0])
         phi_matrix.setdiag(diag)
         for j in range(1, self.pm.dim):
             phi_matrix = sp.sparse.kron(phi_matrix, sp.sparse.identity(self.pm.varpts[j], format='dia'))
         return phi_matrix
+
+    def plot_potential(self, levls=None, aspect_ratio=None, to_file=None):
+        x_list = linspace(self.pm.varmin[0], self.pm.varmax[0], self.pm.varpts[0])
+        y_list = linspace(self.pm.varmin[1], self.pm.varmax[1], self.pm.varpts[1])
+        contourplot(x_list, y_list, self.potential, levls, aspect_ratio, to_file)
+        return None
+
+    def wavefunction(self, esys, which=0):
+        evnum = max(which + 1, 3)
+        if esys is None:
+            _, evecs = self.eigensys(evnum)
+        else:
+            _, evecs = esys
+        return evecs[:, which].reshape(self.pm.varpts[0], self.pm.varpts[1]).T
+
+    def plot_wavefunction(self, esys, which=0, mode='mod', figsize=(20, 10), aspect_ratio=3):
+        """Different modes:
+        'mod2': |psi|^2
+        'mod':  |psi|
+        'real': Re(psi)
+        'imag': Im(psi)
+        """
+        mode_dict = {'mod2': (lambda x: np.abs(x)**2),
+                     'mod': (lambda x: np.abs(x)),
+                     'real': (lambda x: np.real(x)),
+                     'imag': (lambda x: np.imag(x))}
+        wavefunc = self.wavefunction(esys, which)
+        wavefunc = mode_dict[mode](wavefunc)
+        self._plot_wavefunction2d(wavefunc, self.pm, figsize, aspect_ratio)
+        return None
+
+    def _plot_wavefunction1d_discrete(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d_discrete'")
+
+    def _plot_wavefunction1d(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d'")
 
 
 # ----------------------------------------------------------------------------------------
@@ -772,7 +833,7 @@ class QubitDisZeroPi(QubitSymZeroPi):
 
     """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
     see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
-    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space 
+    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space
     into a simple square/rectangular lattice.
     Expected parameters are:
 
@@ -788,6 +849,8 @@ class QubitDisZeroPi(QubitSymZeroPi):
 
     Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined
     as relative ones.
+
+
     """
 
     _expected_parameters = {
@@ -825,7 +888,7 @@ class QubitSymZeroPiNg(QubitSymZeroPi):
     """Symmetric Zero-Pi Qubit taking into account offset charge ng
     [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
     [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
-    The symmetric model, Eq. (8) in [2], assumes pair-wise identical circuit elements and describes the 
+    The symmetric model, Eq. (8) in [2], assumes pair-wise identical circuit elements and describes the
     phi and theta degrees of freedom (chi decoupled). Including the offset charge leads to the substitution
     T = ... + CS \dot{theta}^2  ==>    T = ... + CS (\dot{theta} + ng)^2
     [This is not described in the two references above.]
