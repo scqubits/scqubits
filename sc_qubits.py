@@ -433,7 +433,7 @@ class QubitFluxonium(QubitBaseClass):
 # ---Fluxonium qubit with SQUID loop----------------------------------------------------------------------
 
 
-class QubitFluxSQUID(QubitBaseClass):
+class QubitFluxSQUID(QubitFluxonium):
     """Class for the fluxonium qubit with two Josephson elements. Hamiltonian is represented in sparse form. The employed
     basis is the EC-EL harmonic oscillator basis. The cosine term in the potential is handled
     via matrix exponentiation.
@@ -491,16 +491,6 @@ class QubitFluxSQUID(QubitBaseClass):
 
         hmat = LCmat - (EJ1 + EJ2) * pre * cos_mat
         return hmat
-
-    def _evals_calc(self, num):
-        hmat = self.hamiltonian()
-        evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
-        return evals[::-1]
-
-    def _esys_calc(self, num):
-        hmat = self.hamiltonian()
-        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
-        return evals[::-1], evecs[::-1]
 
 
 # ---Routines for translating 1st and 2nd derivatives by discretization into sparse matrix form-------
