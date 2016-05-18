@@ -1195,7 +1195,7 @@ class QubitFullZeroPi_ProductBasis(QubitBaseClass):
 
 class QubitModZeroPi(QubitSymZeroPi):
 
-    """[still experimental] modified version of the symmetric 0-pi qubit based on replacing inductors 
+    """[still experimental] modified version of the symmetric 0-pi qubit based on replacing inductors
     by Josephson junctions"""
 
     _expected_parameters = {
@@ -1224,3 +1224,4 @@ class QubitModZeroPi(QubitSymZeroPi):
         dth2 = derivative_2nd(1, p, prefac=-2.0 * p.ECth, periodic=True)     # C + CJ
         dchi2 = derivative_2nd(2, p, prefac=-2.0 * p.ECchi, periodic=True)     # C + CJp
         return (dphi2 + dth2 + dchi2)
+
