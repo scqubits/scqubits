@@ -13,11 +13,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 from numpy import linspace
 import scipy as sp
-from scipy import sparse, linalg
+from scipy import sparse, linalg, special
 from scipy.sparse import linalg
 import math
 import cmath
-import copy
 import itertools
 from progress_bar import update_progress  # for displaying progress bars during calculations
 
@@ -36,7 +35,7 @@ def matrix_element(state1, operator, state2):
         return (np.vdot(state1, operator.dot(state2)))      # No, operator is sparse. Must use its own 'dot' method.
 
 
-def matrixelem_table(operator, vlist, evecs=True):
+def matrixelem_table(operator, vlist, transpose=True, real_valued=False):
     """Calculate a table of matrix elements based on
     operator: numpy array or sparse matrix object
     vlist:    list (or array) of numpy arrays representing the states |v0>, |v1>, ...
@@ -46,19 +45,28 @@ def matrixelem_table(operator, vlist, evecs=True):
     <v1|operator|v0>   <v1|operator|v1>   ...
           ...                 ...
 
-    If evecs=True, then vlist is transposed (scipy's eigsh yields eigenvector array in transposed form)
+    If transpose=True, then vlist is transposed (scipy's eigsh yields eigenvector array in transposed form)
     """
 
-    if evecs:
+    if transpose:
         vec_list = vlist.T
     else:
         vec_list = vlist
+
+    if real_valued:
+        dtp = np.float_
+    else:
+        dtp = np.complex_
+
     tablesize = len(vec_list)
-    mtable = np.empty(shape=[tablesize, tablesize], dtype=np.complex_)
+    mtable = np.empty(shape=[tablesize, tablesize], dtype=dtp)
     for n in range(tablesize):
         for m in range(n + 1):
             mtable[n, m] = matrix_element(vec_list[n], operator, vec_list[m])
-            mtable[m, n] = np.conj(mtable[n, m])
+            if real_valued:
+                mtable[m, n] = mtable[n, m]
+            else:
+                mtable[m, n] = np.conj(mtable[n, m])
     return mtable
 
 
@@ -77,60 +85,75 @@ def sparse_create(dim):
     return sparse_annihilate(dim).transpose().tocsc()
 
 
+def sparse_number(dim, prefac=None):
+    diag = np.arange(dim)
+    if prefac:
+        diag = diag * prefac
+    return sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim), dtype=np.float_)
+
+
 def sparse_potentialmat(prm, potential_func):
     """Returns the potential energy matrix for the potential given by 'potential_func', in sparse
     (dia_matrix) form.
     """
     Xvals = [linspace(prm.varmin[j], prm.varmax[j], prm.varpts[j]) for j in range(prm.dim)]  # list of coordinate arrays
-    diag = np.empty([1, prm.Hdim], dtype=np.float64)
+    diag = np.empty([1, prm.Hdim], dtype=np.float_)
 
     for j, coord_tuple in enumerate(itertools.product(*Xvals)):
         diag[0][j] = potential_func(*coord_tuple)   # diagonal matrix elements
     return sp.sparse.dia_matrix((diag, [0]), shape=(prm.Hdim, prm.Hdim))
 
 
+def sparse_hubbardmat(dim, j1, j2, prefac=None):
+    hubbardmat = sp.sparse.dok_matrix((dim, dim), dtype=np.float_)
+    if prefac:
+        hubbardmat[j1, j2] = prefac
+    else:
+        hubbardmat[j1, j2] = 1.0
+    return hubbardmat.asformat('dia')
+
+# ---Harmonic oscillator--------------------------------------------------------------------
+
+
+def harm_osc_wavefunction(n, x, losc):
+    """For given quantum number n=0,1,2,... this returns the value of the harmonic oscillator
+    harmonic oscillator wave function \psi_n(x) = N H_n(x/losc) exp(-x^2/2losc), N being the
+    proper normalization factor.
+    """
+    return ((2**n * math.factorial(n) * losc)**(-0.5) * np.pi**(-0.25) *
+            sp.special.eval_hermite(n, x / losc) * np.exp(-(x * x) / (2 * losc * losc)))
+
+
 # ---Plotting-------------------------------------------------------------------------------
 
 
-def contourplot_potential(V, prms, levls=None, to_file=False, varying_vars=None, fixed_vals=None):
-    """Contour plot of potential (meaningful in 2d, or as cut in higher dim.)
-    If the potential is n-dimensional (n>2), then the list varying_vars gives
-    the indices of the variables to be varied, e.g., [1,3]. In that case,
-    fixed_vals is an (ordered) list of the fixed values of the remaining variables,
-    e.g., [-3.0, 0.34] means that x_0=0.34 and x_2=-2.11
+def contourplot(x_list, y_list, func, levls=None, aspect_ratio=None, to_file=False):
+    """Contour plot of a 2d function 'func(x,y)'.
+    x_list: (ordered) list of x values for the x-y evaluation grid
+    y_list: (ordered) list of y values for the x-y evaluation grid
+    func: function f(x,y) for which contours are to be plotted
+    levls: contour levels can be specified if so desired
+
     """
-    if varying_vars is None:        # all coordinates are being varied (this is the 2d case)
-        var_list = range(prms.dim)
+    x_grid, y_grid = np.meshgrid(x_list, y_list)
+    z_array = func(x_grid, y_grid)
+    # print(z_array)
+    if aspect_ratio is None:
+        fig = plt.figure(figsize=(x_list[-1] - x_list[0], y_list[-1] - y_list[0]))
     else:
-        var_list = varying_vars     # for dimension d>2, this specifies the sublist of coordinates to be varied
-
-    value_list = copy.copy(fixed_vals)
-
-    grid_vecs = [linspace(prms.varmin[ind], prms.varmax[ind], prms.varpts[ind]) for ind in var_list]
-    grid_array = np.meshgrid(*grid_vecs)    # *xxx unpacks list [a,b] into a sequence of arguments a,b
-    arg_list = [0] * (prms.dim)
-    for j in range(prms.dim):
-        if j not in var_list:
-            arg_list[j] = value_list[0]
-            value_list.pop(0)
-        else:
-            arg_list[j] = grid_array[0]
-            grid_array.pop(0)
-    Vdata = V(*arg_list)
-    fig, ax = plt.subplots(figsize=(prms.varmax[var_list[0]] - prms.varmin[var_list[0]],
-                                    prms.varmax[var_list[1]] - prms.varmin[var_list[1]]))
+        w, h = plt.figaspect(aspect_ratio)
+        fig = plt.figure(figsize=(w, h))
 
     if levls is None:
-        ax.contourf(cmap=plt.cm.viridis, *(grid_array + [Vdata]))
+        plt.contourf(x_grid, y_grid, z_array, cmap=plt.cm.viridis)
     else:
-        ax.contourf(levels=levls, cmap=plt.cm.viridis, *(grid_array + [Vdata]))
+        plt.contourf(x_grid, y_grid, z_array, levels=levls, cmap=plt.cm.viridis)
 
     if to_file:
         out_file = PdfPages(to_file)
         out_file.savefig()
         out_file.close()
     return None
-
 
 # ---Parameter checking and storing----------------------------------------------------------
 
@@ -212,16 +235,26 @@ class QubitBaseClass(object):
             self.pm._qubit_type = 'generic - no use other than serving as class template'
 
     def __repr__(self):
+        """Printable representation of the object. Redirects to the parameter object pm to output
+        the qubit parameters.
+        """
         output = self.pm.__repr__()
         return output
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
+        """Must be implemented in child classes"""
         pass
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
+        """Must be implemented in child classes"""
         pass
 
     def hamiltonian(self):
+        """Must be implemented in child classes"""
+        pass
+
+    def plot_wavefunction(self):
+        """Must be implemented in child classes"""
         pass
 
     def eigenvals(self, evnum=6, to_file=None):
@@ -230,7 +263,7 @@ class QubitBaseClass(object):
         evnum:   number of desired eigenvalues (sorted from smallest to largest)
         to_file: write data to file if path and filename are specified
         """
-        evals = self._evals_calc(evnum)
+        evals = np.sort(self._evals_calc(evnum))
         if to_file:
             print("Writing eigenvals data and parameters to {} and {}.".format(to_file + "evals.csv", to_file + ".prm"))
             np.savetxt(to_file + "evals.csv", evals, delimiter=",")
@@ -246,6 +279,9 @@ class QubitBaseClass(object):
         to_file: write data to file if path and filename are specified
         """
         evals, evecs = self._esys_calc(evnum)
+        sorted_indices = evals.argsort()  # eigsh does not guarantee consistent ordering within result?! http://stackoverflow.com/questions/22806398
+        evals = evals[sorted_indices]
+        evecs = evecs[:, sorted_indices]
         if to_file:
             print("Writing eigensys data and parameters to {}, {}, and {}.".format(to_file + "evals.csv", to_file + "evecs.csv", to_file + ".prm"))
             np.savetxt(to_file + "evals.csv", evals, delimiter=",")
@@ -254,7 +290,7 @@ class QubitBaseClass(object):
                 text_file.write(self.pm.__repr__())
         return evals, evecs
 
-    def get_evals_vs_paramvals(self, param, prmval_list, evnum=6, subtract_ground=False):
+    def get_evals_vs_paramvals(self, param, paramval_list, evnum=6, subtract_ground=False):
         """Calculates a set of eigenvalues as a function of the parameter 'param', where the discrete values
         for 'param' are contained in the list prmval_list. Returns a numpy array where specdata[n] is set
         of eigenvalues calculated for parameter value prmval_list[n]
@@ -267,12 +303,12 @@ class QubitBaseClass(object):
         to_file:         write data to file if path and filename are specified
         """
         saved_prmval = getattr(self.pm, param)
-        nr_paramvals = len(prmval_list)
+        nr_paramvals = len(paramval_list)
         specdata = np.empty((nr_paramvals, evnum))
         print("")
         update_progress(0)
-        for ind, prmval in enumerate(prmval_list):
-            setattr(self.pm, param, prmval)
+        for ind, paramval in enumerate(paramval_list):
+            setattr(self.pm, param, paramval)
             evals = self.eigenvals(evnum)
             specdata[ind] = evals
             if subtract_ground:
@@ -292,7 +328,7 @@ class QubitBaseClass(object):
         The individual points correspond to the parameter values listed in paramval_list.
 
         param:           string, gives name of parameter to be varied
-        prmval_list:     list of parameter values to be plugged in for param
+        paramval_list:     list of parameter values to be plugged in for param
         subtract_ground: if True, then eigenvalues are returned relative to the ground state eigenvalues
                          (useful if transition energies from ground state are the relevant quantity)
         evnum:           number of desired eigenvalues (sorted from smallest to largest)
@@ -318,6 +354,46 @@ class QubitBaseClass(object):
                 text_file.write(self.pm.__repr__())
         plt.show()
         return None
+
+    @staticmethod
+    def _plot_wavefunction1d(wavefunc_values, potential_values, x_values, offset=0, scaling=1,
+                             ylabel='wavefunction', xlabel='x'):
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(x_values, offset + scaling * wavefunc_values)
+        if potential_values is not None:
+            ax.plot(x_values, potential_values)
+            ax.plot(x_values, [offset] * len(x_values), 'b--')
+
+        ax.set_xlim(xmin=x_values[0], xmax=x_values[-1])
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        plt.show()
+        return None
+
+    @staticmethod
+    def _plot_wavefunction1d_discrete(wavefunc_values, x_values, ylabel='wavefunction', xlabel='x'):
+        width = .75
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.bar(x_values, wavefunc_values, width=width)
+        ax.set_xlim(xmin=x_values[0], xmax=x_values[-1])
+        ax.set_xticks(x_values + width / 2)
+        ax.set_xticklabels(x_values)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        plt.show()
+        return None
+
+    @staticmethod
+    def _plot_wavefunction2d(wavefunc, prm, figsize, aspect_ratio):
+        plt.figure(figsize=figsize)
+        plt.imshow(wavefunc, extent=[prm.minmaxpts[0][0], prm.minmaxpts[0][1], prm.minmaxpts[1][0],
+                   prm.minmaxpts[1][1]], aspect=aspect_ratio, cmap=plt.cm.viridis)
+        plt.colorbar(fraction=0.017, pad=0.04)
+        plt.show()
+        return None
+
 
 # ---Cooper pair box / transmon-----------------------------------------------------------
 
@@ -351,7 +427,7 @@ class QubitTransmon(QubitBaseClass):
         ng = self.pm.ng
         ncut = self.pm.ncut
         dim = 2 * ncut + 1
-        hmat = np.zeros((dim, dim), dtype=np.float64)
+        hmat = np.zeros((dim, dim), dtype=np.float_)
         for i in range(dim):
             hmat[i][i] = 4.0 * EC * (i - ncut - ng)**2
         for i in range(dim - 1):
@@ -359,19 +435,74 @@ class QubitTransmon(QubitBaseClass):
             hmat[i + 1][i] = -EJ / 2.0
         return hmat
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
-        return sp.linalg.eigh(hmat, eigvals_only=True, eigvals=(0, num - 1))
+        return sp.linalg.eigh(hmat, eigvals_only=True, eigvals=(0, evnum - 1))
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
         hmat = self.hamiltonian()
-        return sp.linalg.eigh(hmat, eigvals_only=False, eigvals=(0, num - 1))
+        return sp.linalg.eigh(hmat, eigvals_only=False, eigvals=(0, evnum - 1))
+
+    def plot_wavefunction(self, esys, basis='number', which=0, nrange=[-10, 10],
+                          phirange=[-np.pi, np.pi], phipts=151, mode='abs2'):
+        """Different modes:
+        'abs2': |psi|^2
+        'abs':  |psi|
+        'real': Re(psi)
+        'imag': Im(psi)
+        """
+        mode_dict = {'abs2': (lambda x: np.abs(x)**2),
+                     'abs': (lambda x: np.abs(x)),
+                     'real': (lambda x: np.real(x)),
+                     'imag': (lambda x: np.imag(x))}
+        # evnum = which + 1
+        # if esys is None:
+        #     evals, evecs = self.eigensys(evnum)
+        # else:
+        #     evals, evecs = esys
+
+        if basis == 'number':
+            n_values, wavefunc, _ = self.wavefunction(esys, basis, which, phirange=phirange, phipts=phipts)
+            wavefunc = mode_dict[mode](wavefunc)
+            self._plot_wavefunction1d_discrete(wavefunc, n_values)
+
+        elif basis == 'phase':
+            phi_values, wavefunc, evalue = self.wavefunction(esys, basis, which, phirange=phirange, phipts=phipts)
+            intermediate_index = int(len(wavefunc) / 3)    # intermediate position for extracting phase (dangerous in tail or midpoint)
+            wavefunc = wavefunc * cmath.exp(-1j * cmath.phase(wavefunc[intermediate_index]))
+            wavefunc = mode_dict[mode](wavefunc)
+            self._plot_wavefunction1d(wavefunc, -self.pm.EJ * np.cos(phi_values), phi_values,
+                                      offset=evalue, scaling=0.3 * self.pm.EJ, xlabel='phi')
+
+    def wavefunction(self, esys, basis='number', which=0, nrange=[-10, 10],
+                     phirange=[-np.pi, np.pi], phipts=251):
+        evnum = max(which + 1, 3)
+        if esys is None:
+            evals, evecs = self.eigensys(evnum)
+        else:
+            evals, evecs = esys
+
+        nmax = (len(evecs[:, which]) - 1) // 2
+        if basis == 'number':
+            n_values = np.arange(nrange[0], nrange[1] + 1)
+            psi_n_values = evecs[(nmax + nrange[0]):(nmax + nrange[1] + 1), which]
+            return n_values, psi_n_values, evals[which]
+        elif basis == 'phase':
+            n_values = np.arange(-nmax, nmax + 1)
+            phi_values = np.linspace(phirange[0], phirange[1], phipts)
+            psi_n_values = evecs[:, which]
+            wavefunc = np.empty(phipts, dtype=np.complex_)
+            for k in range(phipts):
+                wavefunc[k] = ((1.0 / math.sqrt(2 * np.pi)) *
+                               np.sum(psi_n_values * np.exp(1j * phi_values[k] * n_values)))
+            return phi_values, wavefunc, evals[which]
 
 
 # ---Fluxonium qubit----------------------------------------------------------------------
 
 
 class QubitFluxonium(QubitBaseClass):
+
     """Class for the fluxonium qubit. Hamiltonian is represented in sparse form. The employed
     basis is the EC-EL harmonic oscillator basis. The cosine term in the potential is handled
     via matrix exponentiation.
@@ -410,24 +541,71 @@ class QubitFluxonium(QubitBaseClass):
         om = math.sqrt(8.0 * EL * EC)         # plasma osc. frequency
 
         diag = [i * om for i in range(dim)]
-        LCmat = sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim)).tocsr()
+        LCmat = sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim))
 
         exp_arg = 1j * (sparse_create(dim) + sparse_annihilate(dim)) * phi0 / math.sqrt(2)
         exp_mat = 0.5 * sp.sparse.linalg.expm(exp_arg) * cmath.exp(1j * pext)
         cos_mat = exp_mat + exp_mat.getH()
-
         hmat = LCmat - EJ * cos_mat
         return hmat
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
-        return evals[::-1]
+        evals = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=False, which='SA')
+        return evals
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
-        return evals[::-1], evecs[::-1]
+        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=True, which='SA')
+        return evals, evecs
+
+    def potential(self, phi):
+        p = self.pm
+        return (0.5 * p.EL * phi * phi - p.EJ * np.cos(phi - p.pext))
+
+    def wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], phipts=251):
+        evnum = max(which + 1, 3)
+        if esys is None:
+            evals, evecs = self.eigensys(evnum)
+        else:
+            evals, evecs = esys
+
+        ncut = len(evecs[:, which])
+        phi_values = np.linspace(phirange[0], phirange[1], phipts)
+        psi_n_values = evecs[:, which]
+        wavefunc = np.zeros(phipts, dtype=np.complex_)
+        harmonic_osc_values = np.empty(phipts, dtype=np.float_)
+        phi_losc = (8 * self.pm.EC / self.pm.EL)**0.25
+        for n in range(ncut):
+            harmonic_osc_values = harm_osc_wavefunction(n, phi_values, phi_losc)  # fixed order of hermite polynomial
+            wavefunc = wavefunc + psi_n_values[n] * harmonic_osc_values
+        return phi_values, wavefunc, evals[which]
+
+    def plot_wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], mode='abs2', phipts=251):
+        """Different modes:
+        'abs2': |psi|^2
+        'abs':  |psi|
+        'real': Re(psi)
+        'imag': Im(psi)
+        """
+        mode_dict = {'abs2': (lambda x: np.abs(x)**2),
+                     'abs': (lambda x: np.abs(x)),
+                     'real': (lambda x: np.real(x)),
+                     'imag': (lambda x: np.imag(x))}
+
+        phi_values, wavefunc, evalue = self.wavefunction(esys, which, phirange, phipts)
+        intermediate_index = int(len(wavefunc) / 3)    # intermediate position for extracting phase (dangerous in tail or midpoint)
+        wavefunc = wavefunc * cmath.exp(-1j * cmath.phase(wavefunc[intermediate_index]))
+        wavefunc = mode_dict[mode](wavefunc)
+        self._plot_wavefunction1d(wavefunc, self.potential(phi_values), phi_values,
+                                  offset=evalue, scaling=5 * self.pm.EJ, xlabel='phi')
+        return None
+
+    def _plot_wavefunction1d_discrete(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d_discrete'")
+
+    def _plot_wavefunction2d(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction2'")
 
 
 # ---Routines for translating 1st and 2nd derivatives by discretization into sparse matrix form-------
@@ -437,7 +615,7 @@ def derivative_1st(var_ind, prms, prefac=1, periodic=False):
     if isinstance(prefac, complex):
         dtp = np.complex_
     else:
-        dtp = np.float64
+        dtp = np.float_
 
     delta_inv = prefac * prms.varpts[var_ind] / (2 * (prms.varmax[var_ind] - prms.varmin[var_ind]))
     drvtv_mat = sp.sparse.dia_matrix((prms.varpts[var_ind], prms.varpts[var_ind]), dtype=dtp)
@@ -464,7 +642,7 @@ def derivative_1st(var_ind, prms, prefac=1, periodic=False):
 def derivative_2nd(var_ind, prms, prefac=1, periodic=False):
     delta_inv_sqr = prefac * ((prms.varmax[var_ind] - prms.varmin[var_ind]) / prms.varpts[var_ind])**(-2)
 
-    drvtv_mat = sp.sparse.dia_matrix((prms.varpts[var_ind], prms.varpts[var_ind]), dtype=np.float64)
+    drvtv_mat = sp.sparse.dia_matrix((prms.varpts[var_ind], prms.varpts[var_ind]), dtype=np.float_)
     drvtv_mat.setdiag(-2.0 * delta_inv_sqr, k=0)
     drvtv_mat.setdiag(delta_inv_sqr, k=1)
     drvtv_mat.setdiag(delta_inv_sqr, k=-1)
@@ -484,7 +662,6 @@ def derivative_2nd(var_ind, prms, prefac=1, periodic=False):
     return full_mat
 
 
-
 def derivative_mixed_1sts(var_list, prms, prefac=1, periodic_list=False):
     """Generate sparse derivative matrices of the form \partial_{x_1} \partial_{x_2} ...,
     i.e., a product of first order derivatives (with respect to different variables).
@@ -493,7 +670,7 @@ def derivative_mixed_1sts(var_list, prms, prefac=1, periodic_list=False):
     if isinstance(prefac, complex):
         dtp = np.complex_
     else:
-        dtp = np.float64
+        dtp = np.float_
 
     var_nr = len(var_list)
 
@@ -588,15 +765,15 @@ class QubitSymZeroPi(QubitBaseClass):
     def hamiltonian(self):
         return (self.sparse_kineticmat() + sparse_potentialmat(self.pm, self.potential))
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
-        return evals[::-1]
+        evals = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=False, which='SA')
+        return evals
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
-        return evals[::-1], evecs[::-1]
+        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=True, which='SA')
+        return evals, evecs
 
     def i_d_dphi(self):
         """Return the operator i \partial_\phi in sparse.dia_matrix form"""
@@ -606,14 +783,54 @@ class QubitSymZeroPi(QubitBaseClass):
         """Return the operator i \partial_\theta (periodic variable) in sparse.dia_matrix form"""
         return derivative_1st(1, self.pm, prefac=1j, periodic=True)
 
+    def d_dtheta(self):
+        """Return the operator i \partial_\theta (periodic variable) in sparse.dia_matrix form"""
+        return derivative_1st(1, self.pm, periodic=True)
+
     # return the operator \phi
     def phi(self):
-        phi_matrix = sp.sparse.dia_matrix((self.pm.varpts[0], self.pm.varpts[0]), dtype=np.float64)
+        phi_matrix = sp.sparse.dia_matrix((self.pm.varpts[0], self.pm.varpts[0]), dtype=np.float_)
         diag = linspace(self.pm.varmin[0], self.pm.varmax[0], self.pm.varpts[0])
         phi_matrix.setdiag(diag)
         for j in range(1, self.pm.dim):
             phi_matrix = sp.sparse.kron(phi_matrix, sp.sparse.identity(self.pm.varpts[j], format='dia'))
         return phi_matrix
+
+    def plot_potential(self, levls=None, aspect_ratio=None, to_file=None):
+        x_list = linspace(self.pm.varmin[0], self.pm.varmax[0], self.pm.varpts[0])
+        y_list = linspace(self.pm.varmin[1], self.pm.varmax[1], self.pm.varpts[1])
+        contourplot(x_list, y_list, self.potential, levls, aspect_ratio, to_file)
+        return None
+
+    def wavefunction(self, esys, which=0):
+        evnum = max(which + 1, 3)
+        if esys is None:
+            _, evecs = self.eigensys(evnum)
+        else:
+            _, evecs = esys
+        return evecs[:, which].reshape(self.pm.varpts[0], self.pm.varpts[1]).T
+
+    def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3):
+        """Different modes:
+        'abs2': |psi|^2
+        'abs':  |psi|
+        'real': Re(psi)
+        'imag': Im(psi)
+        """
+        mode_dict = {'abs2': (lambda x: np.abs(x)**2),
+                     'abs': (lambda x: np.abs(x)),
+                     'real': (lambda x: np.real(x)),
+                     'imag': (lambda x: np.imag(x))}
+        wavefunc = self.wavefunction(esys, which)
+        wavefunc = mode_dict[mode](wavefunc)
+        self._plot_wavefunction2d(wavefunc, self.pm, figsize, aspect_ratio)
+        return None
+
+    def _plot_wavefunction1d_discrete(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d_discrete'")
+
+    def _plot_wavefunction1d(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d'")
 
 
 # ----------------------------------------------------------------------------------------
@@ -623,7 +840,7 @@ class QubitDisZeroPi(QubitSymZeroPi):
 
     """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
     see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
-    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space 
+    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space
     into a simple square/rectangular lattice.
     Expected parameters are:
 
@@ -639,6 +856,8 @@ class QubitDisZeroPi(QubitSymZeroPi):
 
     Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined
     as relative ones.
+
+
     """
 
     _expected_parameters = {
@@ -676,7 +895,7 @@ class QubitSymZeroPiNg(QubitSymZeroPi):
     """Symmetric Zero-Pi Qubit taking into account offset charge ng
     [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
     [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
-    The symmetric model, Eq. (8) in [2], assumes pair-wise identical circuit elements and describes the 
+    The symmetric model, Eq. (8) in [2], assumes pair-wise identical circuit elements and describes the
     phi and theta degrees of freedom (chi decoupled). Including the offset charge leads to the substitution
     T = ... + CS \dot{theta}^2  ==>    T = ... + CS (\dot{theta} + ng)^2
     [This is not described in the two references above.]
@@ -723,9 +942,9 @@ class QubitSymZeroPiNg(QubitSymZeroPi):
 
 class QubitFullZeroPi(QubitSymZeroPi):
 
-    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples 
+    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
     the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
-    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space 
+    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space
     into a simple cubic lattice.
     Expected parameters are:
 
@@ -741,7 +960,7 @@ class QubitFullZeroPi(QubitSymZeroPi):
     minmaxpts:  array specifying the range and spacing of the discretization lattice
                 [[phimin, phimax, phipts], [thetamin, thetamax, thetapts]]
 
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as 
+    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
     relative ones.
     """
 
@@ -762,7 +981,7 @@ class QubitFullZeroPi(QubitSymZeroPi):
 
     def __init__(self, **kwargs):
         super(QubitFullZeroPi, self).__init__(**kwargs)
-        self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi) with offset charge'
+        self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi), no offset charge'
 
     def sparse_kineticmat(self):
         p = self.pm
@@ -777,13 +996,206 @@ class QubitFullZeroPi(QubitSymZeroPi):
         return (-2.0 * p.EJ * np.cos(theta) * np.cos(phi - p.pext / 2) + p.EL * phi**2 + 2 * p.EJ +   # symmetric 0-pi contributions
                 2.0 * p.EJ * p.dEJ * np.sin(theta) * np.sin(phi - p.pext / 2) + p.EL * chi**2 + 2.0 * p.EL * p.dEL * phi * chi + 2 * p.EJ * p.dEJ)  # correction terms in presence of disorder
 
+    def plot_potential(self, fixed_arg_key, arg_const, levls=None, aspect_ratio=None, to_file=None):
+        arg_dict = {'phi': 0, 'theta': 1, 'chi': 2}
+        fixed_arg = arg_dict[fixed_arg_key]
+
+        varying_args = list(set([0, 1, 2]) - set([fixed_arg]))
+
+        def reduced_potential(x, y):    # not very elegant, suspect there is a better way of coding this?
+            args = [arg_const] * 3
+            args[varying_args[0]] = x
+            args[varying_args[1]] = y
+            return self.potential(*args)
+
+        x_list = linspace(self.pm.varmin[varying_args[0]], self.pm.varmax[varying_args[0]], self.pm.varpts[varying_args[0]])
+        y_list = linspace(self.pm.varmin[varying_args[1]], self.pm.varmax[varying_args[1]], self.pm.varpts[varying_args[1]])
+        contourplot(x_list, y_list, reduced_potential, levls, aspect_ratio, to_file)
+        return None
+
+    def wavefunction(self, esys, which=0):
+        evnum = max(which + 1, 3)
+        if esys is None:
+            _, evecs = self.eigensys(evnum)
+        else:
+            _, evecs = esys
+        return evecs[:, which]
+
+    def plot_wavefunction(self, esys, fixed_arg_key, arg_const, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3):
+        """Different modes:
+        'abs2': |psi|^2
+        'abs':  |psi|
+        'real': Re(psi)
+        'imag': Im(psi)
+        """
+        mode_dict = {'abs2': (lambda x: np.abs(x)**2),
+                     'abs': (lambda x: np.abs(x)),
+                     'real': (lambda x: np.real(x)),
+                     'imag': (lambda x: np.imag(x))}
+        wavefunc = self.wavefunction(esys, which)
+        wavefunc = mode_dict[mode](wavefunc)
+        wavefunc = wavefunc.reshape(self.pm.varpts[0], self.pm.varpts[1], self.pm.varpts[2])
+
+        arg_dict = {'phi': 0, 'theta': 1, 'chi': 2}
+        fixed_arg = arg_dict[fixed_arg_key]
+
+        argslice = [slice(None), slice(None), slice(None)]
+
+        arg_const_index = int(self.pm.varpts[fixed_arg] * (arg_const - self.pm.varmin[fixed_arg]) /
+                                                          (self.pm.varmax[fixed_arg] - self.pm.varmin[fixed_arg]))
+        argslice[fixed_arg] = arg_const_index
+        wavefunc = wavefunc[tuple(argslice)].T
+        self._plot_wavefunction2d(wavefunc, figsize, aspect_ratio)
+        return None
+
+    def _plot_wavefunction2d(self, wavefunc, figsize, aspect_ratio):
+        plt.figure(figsize=figsize)
+        plt.imshow(wavefunc, cmap=plt.cm.viridis, aspect=aspect_ratio)
+        plt.colorbar(fraction=0.017, pad=0.04)
+        plt.show()
+
+    def _plot_wavefunction1d_discrete(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d_discrete'")
+
+    def _plot_wavefunction1d(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d'")
+
 
 # ----------------------------------------------------------------------------------------
 
-# 
+
+class QubitFullZeroPi_ProductBasis(QubitBaseClass):
+
+    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
+    the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
+    Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)
+    Zero-Pi qubit on one hand and the chi LC oscillator on the other hand.
+
+    Expected parameters are:
+
+    EJ:    mean Josephson energy of the two junctions
+    EL:    inductive energy of the two (super-)inductors
+    ECJ:   charging energy associated with the two junctions
+    ECS:   charging energy including the large shunting capacitances
+    EC:    charging energy associated with chi degree of freedom
+    dEJ:   relative disorder in EJ, i.e., (EJ1-EJ2)/EJ(mean)
+    dEL:   relative disorder in EL, i.e., (EL1-EL2)/EL(mean)
+    dCJ:   relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/C(mean)
+    pext:  magnetic flux through the circuit loop
+    l_cut: cutoff in the number of states of the disordered zero-pi qubit
+    minmaxpts:  array specifying the range and spacing of the discretization lattice for phi and theta
+                [[phimin, phimax, phipts], [thetamin, thetamax, thetapts]]
+    a_cut: cutoff in the chi oscillator basis (Fock state basis)
+
+    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
+    relative ones.
+    """
+
+    _expected_parameters = {
+        'EJ': 'Josephson energy',
+        'EL': 'inductive energy',
+        'ECJ': 'junction charging energy',
+        'ECS': 'total charging energy including C',
+        'EC': 'charging energy associated with chi degree of freedom',
+        'dEJ': 'relative deviation between the two EJs',
+        'dCJ': 'relative deviation between the two junction capacitances',
+        'dC': 'relative deviation between the two shunt capacitances',
+        'dEL': 'relative deviation between the two inductances',
+        'pext': 'external magnetic flux in angular units (2pi corresponds to one flux quantum)',
+        'l_cut': 'cutoff in the number of states of the disordered zero-pi qubit',
+        'minmaxpts': """array specifying the range and spacing of the discretization lattice for phi and theta
+                [[phimin, phimax, phipts], [thetamin, thetamax, thetapts]]""",
+        'a_cut': 'cutoff in the chi oscillator basis (Fock state basis)'
+    }
+
+    def __init__(self, **kwargs):
+        super(QubitFullZeroPi_ProductBasis, self).__init__(**kwargs)
+        self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi basis'
+        self.zeropi = QubitDisZeroPi(
+            EJ=self.pm.EJ,
+            EL=self.pm.EL,
+            ECJ=self.pm.ECJ,
+            ECS=self.pm.ECS,
+            dEJ=self.pm.dEJ,
+            dCJ=self.pm.dCJ,
+            pext=self.pm.pext,
+            minmaxpts=self.pm.minmaxpts
+        )
+
+    def hamiltonian(self):
+        lcut = self.pm.l_cut
+        zpi_evals, zpi_evecs = self.zeropi.eigensys(evnum=lcut)
+        zpi_diag_hamiltonian = sp.sparse.dia_matrix((lcut, lcut), dtype=np.float_)
+        zpi_diag_hamiltonian.setdiag(zpi_evals)
+
+        acut = self.pm.a_cut
+        prefactor = math.sqrt(8.0 * self.pm.EL * self.pm.ECS)
+        chi_diag_hamiltonian = sparse_number(acut, prefactor)
+
+        hamiltonian = sp.sparse.kron(zpi_diag_hamiltonian, sp.sparse.identity(acut, format='dia', dtype=np.float_))
+        hamiltonian += sp.sparse.kron(sp.sparse.identity(lcut, format='dia', dtype=np.float_), chi_diag_hamiltonian)
+
+        gmat = self.g_coupling_matrix(zpi_evecs)
+        zpi_coupling = sp.sparse.dia_matrix((lcut, lcut), dtype=np.float_)
+        for l1 in range(lcut):
+            for l2 in range(lcut):
+                zpi_coupling += sparse_hubbardmat(lcut, l1, l2, gmat[l1, l2])
+        hamiltonian += sp.sparse.kron(zpi_coupling, sparse_annihilate(acut) + sparse_create(acut))
+        return hamiltonian
+
+    def _evals_calc(self, evnum):
+        hmat = self.hamiltonian()
+        evals = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=False, which='SA')
+        return evals
+
+    def _esys_calc(self, evnum):
+        hmat = self.hamiltonian()
+        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=True, which='SA')
+        return evals, evecs
+
+    def g_phi_coupling_matrix(self, zeropi_states, transpose=True):
+        """Returns a matrix of coupling strengths g^\phi_{ll'} [cmp. Dempster et al., Eq. (18)], using the states
+        from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors of the
+        QubitDisZeroPi type, so 'transpose' is enabled by default.
+        """
+        p = self.pm
+        prefactor = p.EL * p.dEL * (8.0 * p.EC / p.EL)**0.25
+        return (prefactor * matrixelem_table(self.zeropi.phi(), zeropi_states, transpose, real_valued=True))
+
+    def g_theta_coupling_matrix(self, zeropi_states, transpose=True):
+        """Returns a matrix of coupling strengths i*g^\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
+        from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors, so 'transpose' is enabled by
+        default.
+        """
+        p = self.pm
+        prefactor = - p.ECS * p.dC * (32.0 * p.EL / p.EC)**0.25
+        return (prefactor * matrixelem_table(self.zeropi.d_dtheta(), zeropi_states, transpose, real_valued=True))
+
+    def g_coupling_matrix(self, zeropi_states, transpose=True, evnum=6):
+        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
+        from 'state_list'.  Most commonly, 'zeropi_states' will contain eigenvectors of the
+        QubitDisZeroPi type, so 'transpose' is enabled by default.
+        If zeropi_states==None, then a set of self.zeropi eigenstates is calculated. Only in that case is evnum
+        used for the eigenstate number (and hence the coupling matrix size).
+
+        """
+        if zeropi_states is None:
+            _, zeropi_states = self.zeropi.eigensys(evnum=evnum)
+        return (self.g_phi_coupling_matrix(zeropi_states, transpose) + self.g_theta_coupling_matrix(zeropi_states, transpose))
+
+    def _plot_wavefunction1d_discrete(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d_discrete'")
+
+    def _plot_wavefunction1d(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d'")
+
+
+# ----------------------------------------------------------------------------------------
+
+
 class QubitModZeroPi(QubitSymZeroPi):
 
-    """[still experimental] modified version of the symmetric 0-pi qubit based on replacing inductors 
+    """[still experimental] modified version of the symmetric 0-pi qubit based on replacing inductors
     by Josephson junctions"""
 
     _expected_parameters = {
@@ -800,6 +1212,7 @@ class QubitModZeroPi(QubitSymZeroPi):
     def __init__(self, **kwargs):
         super(QubitModZeroPi, self).__init__(**kwargs)
         self.pm._qubit_type = 'modified symmetric 0-Pi qubit (EL->EJp)'
+        print("Implementation of this 0-pi device variation is still experimental & not complete")
 
     def potential(self, phi, theta, chi):
         p = self.pm
@@ -811,5 +1224,4 @@ class QubitModZeroPi(QubitSymZeroPi):
         dth2 = derivative_2nd(1, p, prefac=-2.0 * p.ECth, periodic=True)     # C + CJ
         dchi2 = derivative_2nd(2, p, prefac=-2.0 * p.ECchi, periodic=True)     # C + CJp
         return (dphi2 + dth2 + dchi2)
-
 
