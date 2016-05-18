@@ -290,7 +290,7 @@ class QubitBaseClass(object):
                 text_file.write(self.pm.__repr__())
         return evals, evecs
 
-    def get_evals_vs_paramvals(self, param, prmval_list, evnum=6, subtract_ground=False):
+    def get_evals_vs_paramvals(self, param, paramval_list, evnum=6, subtract_ground=False):
         """Calculates a set of eigenvalues as a function of the parameter 'param', where the discrete values
         for 'param' are contained in the list prmval_list. Returns a numpy array where specdata[n] is set
         of eigenvalues calculated for parameter value prmval_list[n]
@@ -303,12 +303,12 @@ class QubitBaseClass(object):
         to_file:         write data to file if path and filename are specified
         """
         saved_prmval = getattr(self.pm, param)
-        nr_paramvals = len(prmval_list)
+        nr_paramvals = len(paramval_list)
         specdata = np.empty((nr_paramvals, evnum))
         print("")
         update_progress(0)
-        for ind, prmval in enumerate(prmval_list):
-            setattr(self.pm, param, prmval)
+        for ind, paramval in enumerate(paramval_list):
+            setattr(self.pm, param, paramval)
             evals = self.eigenvals(evnum)
             specdata[ind] = evals
             if subtract_ground:
@@ -328,7 +328,7 @@ class QubitBaseClass(object):
         The individual points correspond to the parameter values listed in paramval_list.
 
         param:           string, gives name of parameter to be varied
-        prmval_list:     list of parameter values to be plugged in for param
+        paramval_list:     list of parameter values to be plugged in for param
         subtract_ground: if True, then eigenvalues are returned relative to the ground state eigenvalues
                          (useful if transition energies from ground state are the relevant quantity)
         evnum:           number of desired eigenvalues (sorted from smallest to largest)
@@ -355,7 +355,8 @@ class QubitBaseClass(object):
         plt.show()
         return None
 
-    def _plot_wavefunction1d(self, wavefunc_values, potential_values, x_values, offset=0, scaling=1,
+    @staticmethod
+    def _plot_wavefunction1d(wavefunc_values, potential_values, x_values, offset=0, scaling=1,
                              ylabel='wavefunction', xlabel='x'):
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -370,7 +371,8 @@ class QubitBaseClass(object):
         plt.show()
         return None
 
-    def _plot_wavefunction1d_discrete(self, wavefunc_values, x_values, ylabel='wavefunction', xlabel='x'):
+    @staticmethod
+    def _plot_wavefunction1d_discrete(wavefunc_values, x_values, ylabel='wavefunction', xlabel='x'):
         width = .75
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -383,7 +385,8 @@ class QubitBaseClass(object):
         plt.show()
         return None
 
-    def _plot_wavefunction2d(self, wavefunc, prm, figsize, aspect_ratio):
+    @staticmethod
+    def _plot_wavefunction2d(wavefunc, prm, figsize, aspect_ratio):
         plt.figure(figsize=figsize)
         plt.imshow(wavefunc, extent=[prm.minmaxpts[0][0], prm.minmaxpts[0][1], prm.minmaxpts[1][0],
                    prm.minmaxpts[1][1]], aspect=aspect_ratio, cmap=plt.cm.viridis)
@@ -432,24 +435,24 @@ class QubitTransmon(QubitBaseClass):
             hmat[i + 1][i] = -EJ / 2.0
         return hmat
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
-        return sp.linalg.eigh(hmat, eigvals_only=True, eigvals=(0, num - 1))
+        return sp.linalg.eigh(hmat, eigvals_only=True, eigvals=(0, evnum - 1))
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
         hmat = self.hamiltonian()
-        return sp.linalg.eigh(hmat, eigvals_only=False, eigvals=(0, num - 1))
+        return sp.linalg.eigh(hmat, eigvals_only=False, eigvals=(0, evnum - 1))
 
     def plot_wavefunction(self, esys, basis='number', which=0, nrange=[-10, 10],
-                          phirange=[-np.pi, np.pi], phipts=151, mode='mod2'):
+                          phirange=[-np.pi, np.pi], phipts=151, mode='abs2'):
         """Different modes:
-        'mod2': |psi|^2
-        'mod':  |psi|
+        'abs2': |psi|^2
+        'abs':  |psi|
         'real': Re(psi)
         'imag': Im(psi)
         """
-        mode_dict = {'mod2': (lambda x: np.abs(x)**2),
-                     'mod': (lambda x: np.abs(x)),
+        mode_dict = {'abs2': (lambda x: np.abs(x)**2),
+                     'abs': (lambda x: np.abs(x)),
                      'real': (lambda x: np.real(x)),
                      'imag': (lambda x: np.imag(x))}
         # evnum = which + 1
@@ -465,6 +468,8 @@ class QubitTransmon(QubitBaseClass):
 
         elif basis == 'phase':
             phi_values, wavefunc, evalue = self.wavefunction(esys, basis, which, phirange=phirange, phipts=phipts)
+            intermediate_index = int(len(wavefunc) / 3)    # intermediate position for extracting phase (dangerous in tail or midpoint)
+            wavefunc = wavefunc * cmath.exp(-1j * cmath.phase(wavefunc[intermediate_index]))
             wavefunc = mode_dict[mode](wavefunc)
             self._plot_wavefunction1d(wavefunc, -self.pm.EJ * np.cos(phi_values), phi_values,
                                       offset=evalue, scaling=0.3 * self.pm.EJ, xlabel='phi')
@@ -544,14 +549,14 @@ class QubitFluxonium(QubitBaseClass):
         hmat = LCmat - EJ * cos_mat
         return hmat
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
+        evals = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=False, which='SA')
         return evals
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
+        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=True, which='SA')
         return evals, evecs
 
     def potential(self, phi):
@@ -576,19 +581,21 @@ class QubitFluxonium(QubitBaseClass):
             wavefunc = wavefunc + psi_n_values[n] * harmonic_osc_values
         return phi_values, wavefunc, evals[which]
 
-    def plot_wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], mode='mod2', phipts=251):
+    def plot_wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], mode='abs2', phipts=251):
         """Different modes:
-        'mod2': |psi|^2
-        'mod':  |psi|
+        'abs2': |psi|^2
+        'abs':  |psi|
         'real': Re(psi)
         'imag': Im(psi)
         """
-        mode_dict = {'mod2': (lambda x: np.abs(x)**2),
-                     'mod': (lambda x: np.abs(x)),
+        mode_dict = {'abs2': (lambda x: np.abs(x)**2),
+                     'abs': (lambda x: np.abs(x)),
                      'real': (lambda x: np.real(x)),
                      'imag': (lambda x: np.imag(x))}
 
         phi_values, wavefunc, evalue = self.wavefunction(esys, which, phirange, phipts)
+        intermediate_index = int(len(wavefunc) / 3)    # intermediate position for extracting phase (dangerous in tail or midpoint)
+        wavefunc = wavefunc * cmath.exp(-1j * cmath.phase(wavefunc[intermediate_index]))
         wavefunc = mode_dict[mode](wavefunc)
         self._plot_wavefunction1d(wavefunc, self.potential(phi_values), phi_values,
                                   offset=evalue, scaling=5 * self.pm.EJ, xlabel='phi')
@@ -803,15 +810,15 @@ class QubitSymZeroPi(QubitBaseClass):
             _, evecs = esys
         return evecs[:, which].reshape(self.pm.varpts[0], self.pm.varpts[1]).T
 
-    def plot_wavefunction(self, esys, which=0, mode='mod', figsize=(20, 10), aspect_ratio=3):
+    def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3):
         """Different modes:
-        'mod2': |psi|^2
-        'mod':  |psi|
+        'abs2': |psi|^2
+        'abs':  |psi|
         'real': Re(psi)
         'imag': Im(psi)
         """
-        mode_dict = {'mod2': (lambda x: np.abs(x)**2),
-                     'mod': (lambda x: np.abs(x)),
+        mode_dict = {'abs2': (lambda x: np.abs(x)**2),
+                     'abs': (lambda x: np.abs(x)),
                      'real': (lambda x: np.real(x)),
                      'imag': (lambda x: np.imag(x))}
         wavefunc = self.wavefunction(esys, which)
@@ -1014,15 +1021,15 @@ class QubitFullZeroPi(QubitSymZeroPi):
             _, evecs = esys
         return evecs[:, which]
 
-    def plot_wavefunction(self, esys, fixed_arg_key, arg_const, which=0, mode='mod', figsize=(20, 10), aspect_ratio=3):
+    def plot_wavefunction(self, esys, fixed_arg_key, arg_const, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3):
         """Different modes:
-        'mod2': |psi|^2
-        'mod':  |psi|
+        'abs2': |psi|^2
+        'abs':  |psi|
         'real': Re(psi)
         'imag': Im(psi)
         """
-        mode_dict = {'mod2': (lambda x: np.abs(x)**2),
-                     'mod': (lambda x: np.abs(x)),
+        mode_dict = {'abs2': (lambda x: np.abs(x)**2),
+                     'abs': (lambda x: np.abs(x)),
                      'real': (lambda x: np.real(x)),
                      'imag': (lambda x: np.imag(x))}
         wavefunc = self.wavefunction(esys, which)
@@ -1136,14 +1143,14 @@ class QubitFullZeroPi_ProductBasis(QubitBaseClass):
         hamiltonian += sp.sparse.kron(zpi_coupling, sparse_annihilate(acut) + sparse_create(acut))
         return hamiltonian
 
-    def _evals_calc(self, num):
+    def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
+        evals = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=False, which='SA')
         return evals
 
-    def _esys_calc(self, num):
+    def _esys_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
+        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=True, which='SA')
         return evals, evecs
 
     def g_phi_coupling_matrix(self, zeropi_states, transpose=True):
