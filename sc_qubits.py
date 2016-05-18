@@ -935,9 +935,9 @@ class QubitSymZeroPiNg(QubitSymZeroPi):
 
 class QubitFullZeroPi(QubitSymZeroPi):
 
-    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples 
+    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
     the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
-    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space 
+    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space
     into a simple cubic lattice.
     Expected parameters are:
 
@@ -953,7 +953,7 @@ class QubitFullZeroPi(QubitSymZeroPi):
     minmaxpts:  array specifying the range and spacing of the discretization lattice
                 [[phimin, phimax, phipts], [thetamin, thetamax, thetapts]]
 
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as 
+    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
     relative ones.
     """
 
@@ -974,7 +974,7 @@ class QubitFullZeroPi(QubitSymZeroPi):
 
     def __init__(self, **kwargs):
         super(QubitFullZeroPi, self).__init__(**kwargs)
-        self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi) with offset charge'
+        self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi), no offset charge'
 
     def sparse_kineticmat(self):
         p = self.pm
@@ -989,10 +989,203 @@ class QubitFullZeroPi(QubitSymZeroPi):
         return (-2.0 * p.EJ * np.cos(theta) * np.cos(phi - p.pext / 2) + p.EL * phi**2 + 2 * p.EJ +   # symmetric 0-pi contributions
                 2.0 * p.EJ * p.dEJ * np.sin(theta) * np.sin(phi - p.pext / 2) + p.EL * chi**2 + 2.0 * p.EL * p.dEL * phi * chi + 2 * p.EJ * p.dEJ)  # correction terms in presence of disorder
 
+    def plot_potential(self, fixed_arg_key, arg_const, levls=None, aspect_ratio=None, to_file=None):
+        arg_dict = {'phi': 0, 'theta': 1, 'chi': 2}
+        fixed_arg = arg_dict[fixed_arg_key]
+
+        varying_args = list(set([0, 1, 2]) - set([fixed_arg]))
+
+        def reduced_potential(x, y):    # not very elegant, suspect there is a better way of coding this?
+            args = [arg_const] * 3
+            args[varying_args[0]] = x
+            args[varying_args[1]] = y
+            return self.potential(*args)
+
+        x_list = linspace(self.pm.varmin[varying_args[0]], self.pm.varmax[varying_args[0]], self.pm.varpts[varying_args[0]])
+        y_list = linspace(self.pm.varmin[varying_args[1]], self.pm.varmax[varying_args[1]], self.pm.varpts[varying_args[1]])
+        contourplot(x_list, y_list, reduced_potential, levls, aspect_ratio, to_file)
+        return None
+
+    def wavefunction(self, esys, which=0):
+        evnum = max(which + 1, 3)
+        if esys is None:
+            _, evecs = self.eigensys(evnum)
+        else:
+            _, evecs = esys
+        return evecs[:, which]
+
+    def plot_wavefunction(self, esys, fixed_arg_key, arg_const, which=0, mode='mod', figsize=(20, 10), aspect_ratio=3):
+        """Different modes:
+        'mod2': |psi|^2
+        'mod':  |psi|
+        'real': Re(psi)
+        'imag': Im(psi)
+        """
+        mode_dict = {'mod2': (lambda x: np.abs(x)**2),
+                     'mod': (lambda x: np.abs(x)),
+                     'real': (lambda x: np.real(x)),
+                     'imag': (lambda x: np.imag(x))}
+        wavefunc = self.wavefunction(esys, which)
+        wavefunc = mode_dict[mode](wavefunc)
+        wavefunc = wavefunc.reshape(self.pm.varpts[0], self.pm.varpts[1], self.pm.varpts[2])
+
+        arg_dict = {'phi': 0, 'theta': 1, 'chi': 2}
+        fixed_arg = arg_dict[fixed_arg_key]
+
+        argslice = [slice(None), slice(None), slice(None)]
+
+        arg_const_index = int(self.pm.varpts[fixed_arg] * (arg_const - self.pm.varmin[fixed_arg]) /
+                                                          (self.pm.varmax[fixed_arg] - self.pm.varmin[fixed_arg]))
+        argslice[fixed_arg] = arg_const_index
+        wavefunc = wavefunc[tuple(argslice)].T
+        self._plot_wavefunction2d(wavefunc, figsize, aspect_ratio)
+        return None
+
+    def _plot_wavefunction2d(self, wavefunc, figsize, aspect_ratio):
+        plt.figure(figsize=figsize)
+        plt.imshow(wavefunc, cmap=plt.cm.viridis, aspect=aspect_ratio)
+        plt.colorbar(fraction=0.017, pad=0.04)
+        plt.show()
+
+    def _plot_wavefunction1d_discrete(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d_discrete'")
+
+    def _plot_wavefunction1d(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d'")
+
 
 # ----------------------------------------------------------------------------------------
 
-# 
+
+class QubitFullZeroPi_ProductBasis(QubitBaseClass):
+
+    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
+    the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
+    Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)
+    Zero-Pi qubit on one hand and the chi LC oscillator on the other hand.
+
+    Expected parameters are:
+
+    EJ:    mean Josephson energy of the two junctions
+    EL:    inductive energy of the two (super-)inductors
+    ECJ:   charging energy associated with the two junctions
+    ECS:   charging energy including the large shunting capacitances
+    EC:    charging energy associated with chi degree of freedom
+    dEJ:   relative disorder in EJ, i.e., (EJ1-EJ2)/EJ(mean)
+    dEL:   relative disorder in EL, i.e., (EL1-EL2)/EL(mean)
+    dCJ:   relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/C(mean)
+    pext:  magnetic flux through the circuit loop
+    l_cut: cutoff in the number of states of the disordered zero-pi qubit
+    minmaxpts:  array specifying the range and spacing of the discretization lattice for phi and theta
+                [[phimin, phimax, phipts], [thetamin, thetamax, thetapts]]
+    a_cut: cutoff in the chi oscillator basis (Fock state basis)
+
+    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
+    relative ones.
+    """
+
+    _expected_parameters = {
+        'EJ': 'Josephson energy',
+        'EL': 'inductive energy',
+        'ECJ': 'junction charging energy',
+        'ECS': 'total charging energy including C',
+        'EC': 'charging energy associated with chi degree of freedom',
+        'dEJ': 'relative deviation between the two EJs',
+        'dCJ': 'relative deviation between the two junction capacitances',
+        'dC': 'relative deviation between the two shunt capacitances',
+        'dEL': 'relative deviation between the two inductances',
+        'pext': 'external magnetic flux in angular units (2pi corresponds to one flux quantum)',
+        'l_cut': 'cutoff in the number of states of the disordered zero-pi qubit',
+        'minmaxpts': """array specifying the range and spacing of the discretization lattice for phi and theta
+                [[phimin, phimax, phipts], [thetamin, thetamax, thetapts]]""",
+        'a_cut': 'cutoff in the chi oscillator basis (Fock state basis)'
+    }
+
+    def __init__(self, **kwargs):
+        super(QubitFullZeroPi_ProductBasis, self).__init__(**kwargs)
+        self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi basis'
+        self.zeropi = QubitDisZeroPi(
+            EJ=self.pm.EJ,
+            EL=self.pm.EL,
+            ECJ=self.pm.ECJ,
+            ECS=self.pm.ECS,
+            dEJ=self.pm.dEJ,
+            dCJ=self.pm.dCJ,
+            pext=self.pm.pext,
+            minmaxpts=self.pm.minmaxpts
+        )
+
+    def hamiltonian(self):
+        lcut = self.pm.l_cut
+        zpi_evals, zpi_evecs = self.zeropi.eigensys(evnum=lcut)
+        zpi_diag_hamiltonian = sp.sparse.dia_matrix((lcut, lcut), dtype=np.float_)
+        zpi_diag_hamiltonian.setdiag(zpi_evals)
+
+        acut = self.pm.a_cut
+        prefactor = math.sqrt(8.0 * self.pm.EL * self.pm.ECS)
+        chi_diag_hamiltonian = sparse_number(acut, prefactor)
+
+        hamiltonian = sp.sparse.kron(zpi_diag_hamiltonian, sp.sparse.identity(acut, format='dia', dtype=np.float_))
+        hamiltonian += sp.sparse.kron(sp.sparse.identity(lcut, format='dia', dtype=np.float_), chi_diag_hamiltonian)
+
+        gmat = self.g_coupling_matrix(zpi_evecs)
+        zpi_coupling = sp.sparse.dia_matrix((lcut, lcut), dtype=np.float_)
+        for l1 in range(lcut):
+            for l2 in range(lcut):
+                zpi_coupling += sparse_hubbardmat(lcut, l1, l2, gmat[l1, l2])
+        hamiltonian += sp.sparse.kron(zpi_coupling, sparse_annihilate(acut) + sparse_create(acut))
+        return hamiltonian
+
+    def _evals_calc(self, num):
+        hmat = self.hamiltonian()
+        evals = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=False, which='SA')
+        return evals
+
+    def _esys_calc(self, num):
+        hmat = self.hamiltonian()
+        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=num, return_eigenvectors=True, which='SA')
+        return evals, evecs
+
+    def g_phi_coupling_matrix(self, zeropi_states, transpose=True):
+        """Returns a matrix of coupling strengths g^\phi_{ll'} [cmp. Dempster et al., Eq. (18)], using the states
+        from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors of the
+        QubitDisZeroPi type, so 'transpose' is enabled by default.
+        """
+        p = self.pm
+        prefactor = p.EL * p.dEL * (8.0 * p.EC / p.EL)**0.25
+        return (prefactor * matrixelem_table(self.zeropi.phi(), zeropi_states, transpose, real_valued=True))
+
+    def g_theta_coupling_matrix(self, zeropi_states, transpose=True):
+        """Returns a matrix of coupling strengths i*g^\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
+        from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors, so 'transpose' is enabled by
+        default.
+        """
+        p = self.pm
+        prefactor = - p.ECS * p.dC * (32.0 * p.EL / p.EC)**0.25
+        return (prefactor * matrixelem_table(self.zeropi.d_dtheta(), zeropi_states, transpose, real_valued=True))
+
+    def g_coupling_matrix(self, zeropi_states, transpose=True, evnum=6):
+        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
+        from 'state_list'.  Most commonly, 'zeropi_states' will contain eigenvectors of the
+        QubitDisZeroPi type, so 'transpose' is enabled by default.
+        If zeropi_states==None, then a set of self.zeropi eigenstates is calculated. Only in that case is evnum
+        used for the eigenstate number (and hence the coupling matrix size).
+
+        """
+        if zeropi_states is None:
+            _, zeropi_states = self.zeropi.eigensys(evnum=evnum)
+        return (self.g_phi_coupling_matrix(zeropi_states, transpose) + self.g_theta_coupling_matrix(zeropi_states, transpose))
+
+    def _plot_wavefunction1d_discrete(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d_discrete'")
+
+    def _plot_wavefunction1d(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d'")
+
+
+# ----------------------------------------------------------------------------------------
+
+
 class QubitModZeroPi(QubitSymZeroPi):
 
     """[still experimental] modified version of the symmetric 0-pi qubit based on replacing inductors 
@@ -1012,6 +1205,7 @@ class QubitModZeroPi(QubitSymZeroPi):
     def __init__(self, **kwargs):
         super(QubitModZeroPi, self).__init__(**kwargs)
         self.pm._qubit_type = 'modified symmetric 0-Pi qubit (EL->EJp)'
+        print("Implementation of this 0-pi device variation is still experimental & not complete")
 
     def potential(self, phi, theta, chi):
         p = self.pm
@@ -1023,5 +1217,3 @@ class QubitModZeroPi(QubitSymZeroPi):
         dth2 = derivative_2nd(1, p, prefac=-2.0 * p.ECth, periodic=True)     # C + CJ
         dchi2 = derivative_2nd(2, p, prefac=-2.0 * p.ECchi, periodic=True)     # C + CJp
         return (dphi2 + dth2 + dchi2)
-
-
