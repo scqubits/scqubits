@@ -498,30 +498,30 @@ class QubitTransmon(QubitBaseClass):
             return phi_values, wavefunc, evals[which]
 
 
-# ---Fluxonium qubit----------------------------------------------------------------------
+# ---Fluxonium qubit ------------------------------------------------------------------------
 
 
 class QubitFluxonium(QubitBaseClass):
 
-    """Class for the fluxonium qubit. Hamiltonian is represented in sparse form. The employed
+    """Class for the fluxonium qubit. Hamiltonian is represented in dense form. The employed
     basis is the EC-EL harmonic oscillator basis. The cosine term in the potential is handled
     via matrix exponentiation.
     Expected parameters:
         EJ:   Josephson energy
         EC:   charging energy
         EL:   inductive energy
-        pext: external magnetic flux (angular units, 2pi corresponds to one flux quantum)
+        flux: external magnetic flux (angular units, 2pi corresponds to one flux quantum)
         cutoff: number of harm. osc. basis states used in diagonalization
 
     Initialize with, e.g.
-    >>> qubit = QubitFluxonium(EJ=1.0, EC=2.0, EL=0.3, pext=0.2, cutoff=120)
+    >>> qubit = QubitFluxonium(EJ=1.0, EC=2.0, EL=0.3, flux=0.2, cutoff=120)
     """
 
     _expected_parameters = {
         'EJ': 'Josephson energy',
         'EC': 'charging energy',
         'EL': 'inductive energy',
-        'pext': 'external magnetic flux in angular units (2pi corresponds to one flux quantum)',
+        'flux': 'external magnetic flux in units of flux quanta (h/2e)',
         'cutoff': 'number of harm. osc. basis states used in diagonalization',
     }
 
@@ -529,39 +529,52 @@ class QubitFluxonium(QubitBaseClass):
         super(QubitFluxonium, self).__init__(**kwargs)
         self.pm._qubit_type = 'fluxonium'
 
+    def phi(self):
+        """Returns the phi operator in the LC harmonic oscillator basis"""
+        EC = self.pm.EC
+        EL = self.pm.EL
+        dimension = self.pm.cutoff
+        phi0 = (8.0 * EC / EL)**(0.25)        # LC oscillator length
+        return (create(dimension) + annihilate(dimension)) * phi0 / math.sqrt(2)
+
+    def n(self):
+        """Returns the n = - i d/dphi operator in the LC harmonic oscillator basis"""
+        EC = self.pm.EC
+        EL = self.pm.EL
+        dimension = self.pm.cutoff
+        phi0 = (8.0 * EC / EL)**(0.25)        # LC oscillator length
+        return 1j * (create(dimension) - annihilate(dimension)) / (phi0 * math.sqrt(2))
+
     def hamiltonian(self):           # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harm. osc. basis and return as sparse.dia_matrix"""
         EJ = self.pm.EJ
         EC = self.pm.EC
         EL = self.pm.EL
-        pext = self.pm.pext
-        dim = self.pm.cutoff
+        flux = self.pm.flux
+        dimension = self.pm.cutoff
 
-        phi0 = (8.0 * EC / EL)**(0.25)        # LC oscillator length
         om = math.sqrt(8.0 * EL * EC)         # plasma osc. frequency
 
-        diag = [i * om for i in range(dim)]
-        LCmat = sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim))
+        diag = [i * om for i in range(dimension)]
+        LCmat = np.diagflat(diag)
 
-        exp_arg = 1j * (sparse_create(dim) + sparse_annihilate(dim)) * phi0 / math.sqrt(2)
-        exp_mat = 0.5 * sp.sparse.linalg.expm(exp_arg) * cmath.exp(1j * pext)
-        cos_mat = exp_mat + exp_mat.getH()
+        exp_arg = 1j * self.phi()
+        exp_mat = 0.5 * sp.linalg.expm(exp_arg) * cmath.exp(1j * 2 * np.pi * flux)
+        cos_mat = exp_mat + np.conj(exp_mat.T)
         hmat = LCmat - EJ * cos_mat
         return hmat
 
     def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=False, which='SA')
-        return evals
+        return sp.linalg.eigh(hmat, eigvals_only=True, eigvals=(0, evnum - 1))
 
     def _esys_calc(self, evnum):
         hmat = self.hamiltonian()
-        evals, evecs = sp.sparse.linalg.eigsh(hmat, k=evnum, return_eigenvectors=True, which='SA')
-        return evals, evecs
+        return sp.linalg.eigh(hmat, eigvals_only=False, eigvals=(0, evnum - 1))
 
     def potential(self, phi):
         p = self.pm
-        return (0.5 * p.EL * phi * phi - p.EJ * np.cos(phi - p.pext))
+        return (0.5 * p.EL * phi * phi - p.EJ * np.cos(phi - 2.0 * np.pi * p.flux))
 
     def wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], phipts=251):
         evnum = max(which + 1, 3)
@@ -612,6 +625,7 @@ class QubitFluxonium(QubitBaseClass):
 
 
 class QubitFluxSQUID(QubitFluxonium):
+
     """Class for the fluxonium qubit with two Josephson elements. Hamiltonian is represented in sparse form. The employed
     basis is the EC-EL harmonic oscillator basis. The cosine term in the potential is handled
     via matrix exponentiation.
@@ -621,28 +635,28 @@ class QubitFluxSQUID(QubitFluxonium):
         EC1:   charging energy 1
         EC2:   charging energy 2
         EL:   inductive energy
-        pext: external magnetic flux (angular units, 2pi corresponds to one flux quantum)
-        psquid: external magnetic flux through the SQUID loop in angular units
+        flux: external magnetic flux through primary loop in units of flux quanta (h/2e)
+        fluxsquid: external magnetic flux through the SQUID loop in units of flux quanta (h/2e)
         cutoff: number of harm. osc. basis states used in diagonalization
     Initialize with, e.g.
-    >>> qubit = QubitFluxSQUID(EJ1=1.0, EJ2=1.0, EC1=2.0, EC2=2.0, EL=0.3, pext=0.2, psquid=0.1, cutoff=120)
-    """    
-    
+    >>> qubit = QubitFluxSQUID(EJ1=1.0, EJ2=1.0, EC1=2.0, EC2=2.0, EL=0.3, flux=0.2, fluxsquid=0.1, cutoff=120)
+    """
+
     _expected_parameters = {
         'EJ1': 'Josephson energy 1',
         'EJ2': 'Josephson energy 2',
         'EC1': 'Charging energy 1',
         'EC2': 'Charging energy 2',
         'EL': 'inductive energy',
-        'pext': 'external magnetic flux in angular units (2pi corresponds to one flux quantum)',
-        'psquid': 'external magnetic flux through the SQUID loop in angular units',
+        'flux': 'external magnetic flux through primary loop in units of flux quanta (h/2e)',
+        'fluxsquid': 'external magnetic flux through the SQUID loop in units of flux quanta (h/2e)',
         'cutoff': 'number of harm. osc. basis states used in diagonalization',
     }
-    
+
     def _init_(self, **kwargs):
         super(QubitFluxSQUID, self)._init_(**kwargs)
         self.pm._qubit_type = 'Fluxonium SQUID'
- 
+
     def hamiltonian(self):
         """Construct Hamiltonian matrix in harm. osc. basis and return as sparse.dia_matrix"""
         EJ1 = self.pm.EJ1
@@ -650,22 +664,22 @@ class QubitFluxSQUID(QubitFluxonium):
         EC1 = self.pm.EC1
         EC2 = self.pm.EC2
         EL = self.pm.EL
-        pext = self.pm.pext
-        psquid = self.pm.psquid
+        flux = self.pm.flux
+        fluxsquid = self.pm.fluxsquid
         dim = self.pm.cutoff
-   
+
         phi0 = (8.0 * (EC1 + EC2) / EL)**(0.25)        # LC oscillator length
         om = math.sqrt(8.0 * EL * (EC1 + EC2))         # plasma osc. frequency
-        d = (EJ1 - EJ2) / (EJ1 + EJ2)                      
-        chi = math.atan(d * math.tan(psquid * 0.5))        # just a term in the phase argument
-        pre = math.cos(psquid * 0.5) * math.sqrt(1.0 + (d * math.tan(psquid * 0.5))**(2))  # just a prefactor in the transformed EJcos term
+        d = (EJ1 - EJ2) / (EJ1 + EJ2)
+        chi = math.atan(d * math.tan(2.0 * np.pi * fluxsquid * 0.5))        # just a term in the phase argument
+        pre = math.cos(2.0 * np.pi * fluxsquid * 0.5) * math.sqrt(1.0 + (d * math.tan(2.0 * np.pi * fluxsquid * 0.5))**(2))  # just a prefactor in the transformed EJcos term
 
         diag = [i * om for i in range(dim)] - 0.5 * om
-        LCmat = sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim)).tocsr()
+        LCmat = np.diagflat(diag)
 
-        exp_arg = 1j * (sparse_create(dim) + sparse_annihilate(dim)) * phi0 / math.sqrt(2)
-        exp_mat = 0.5 * sp.sparse.linalg.expm(exp_arg) * cmath.exp(1j * (pext + psquid * 0.5 + chi))
-        cos_mat = exp_mat + exp_mat.getH()
+        exp_arg = 1j * (create(dim) + annihilate(dim)) * phi0 / math.sqrt(2)
+        exp_mat = 0.5 * sp.linalg.expm(exp_arg) * cmath.exp(1j * (2.0 * np.pi * flux + 2.0 * np.pi * fluxsquid * 0.5 + chi))
+        cos_mat = exp_mat + np.conj(exp_mat.T)
 
         hmat = LCmat - (EJ1 + EJ2) * pre * cos_mat
         return hmat
