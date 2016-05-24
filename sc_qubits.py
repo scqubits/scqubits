@@ -625,7 +625,7 @@ class QubitFluxoniumSQUID(QubitFluxonium):
         psquid: external magnetic flux through the SQUID loop in angular units
         cutoff: number of harm. osc. basis states used in diagonalization
     Initialize with, e.g.
-    >>> qubit = QubitFluxSQUID(EJ1=1.0, EJ2=1.0, EC1=2.0, EC2=2.0, EL=0.3, pext=0.2, psquid=0.1, cutoff=120)
+    >>> qubit = QubitFluxoniumSQUID(EJ1=1.0, EJ2=1.0, EC1=2.0, EC2=2.0, EL=0.3, pext=0.2, psquid=0.1, cutoff=120)
     """    
     
     _expected_parameters = {
