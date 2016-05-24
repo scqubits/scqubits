@@ -660,7 +660,7 @@ class QubitFluxoniumSQUID(QubitFluxonium):
         chi = math.atan(d * math.tan(psquid * 0.5))        # just a term in the phase argument
         pre = math.cos(psquid * 0.5) * math.sqrt(1.0 + (d * math.tan(psquid * 0.5))**(2))  # just a prefactor in the transformed EJcos term
 
-        diag = [i * om for i in range(dim)] - 0.5 * om
+        diag = [i * om for i in range(dim)] #- 0.5 * om
         LCmat = sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim)).tocsr()
 
         exp_arg = 1j * (sparse_create(dim) + sparse_annihilate(dim)) * phi0 / math.sqrt(2)
@@ -672,7 +672,7 @@ class QubitFluxoniumSQUID(QubitFluxonium):
 
     def potential(self, phi):
         p = self.pm
-        return (0.5 * p.EL * (phi - 2 * np.pi * flux)**(2) - p.EJ1 * np.cos(phi) - p.EJ2 * np.cos(phi - 2 * np.pi * fluxsquid))
+        return (0.5 * p.EL * (phi - 2 * np.pi * p.flux)**(2) - p.EJ1 * np.cos(phi) - p.EJ2 * np.cos(phi - 2 * np.pi * p.fluxsquid))
 
     def wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], phipts=251):
         evnum = max(which + 1, 3)
