@@ -611,7 +611,7 @@ class QubitFluxonium(QubitBaseClass):
 # ---Fluxonium qubit with SQUID loop----------------------------------------------------------------------
 
 
-class QubitFluxSQUID(QubitFluxonium):
+class QubitFluxoniumSQUID(QubitFluxonium):
     """Class for the fluxonium qubit with two Josephson elements. Hamiltonian is represented in sparse form. The employed
     basis is the EC-EL harmonic oscillator basis. The cosine term in the potential is handled
     via matrix exponentiation.
@@ -625,7 +625,7 @@ class QubitFluxSQUID(QubitFluxonium):
         psquid: external magnetic flux through the SQUID loop in angular units
         cutoff: number of harm. osc. basis states used in diagonalization
     Initialize with, e.g.
-    >>> qubit = QubitFluxSQUID(EJ1=1.0, EJ2=1.0, EC1=2.0, EC2=2.0, EL=0.3, pext=0.2, psquid=0.1, cutoff=120)
+    >>> qubit = QubitFluxoniumSQUID(EJ1=1.0, EJ2=1.0, EC1=2.0, EC2=2.0, EL=0.3, pext=0.2, psquid=0.1, cutoff=120)
     """    
     
     _expected_parameters = {
@@ -640,7 +640,7 @@ class QubitFluxSQUID(QubitFluxonium):
     }
     
     def _init_(self, **kwargs):
-        super(QubitFluxSQUID, self)._init_(**kwargs)
+        super(QubitFluxoniumSQUID, self)._init_(**kwargs)
         self.pm._qubit_type = 'Fluxonium SQUID'
  
     def hamiltonian(self):
@@ -660,7 +660,7 @@ class QubitFluxSQUID(QubitFluxonium):
         chi = math.atan(d * math.tan(psquid * 0.5))        # just a term in the phase argument
         pre = math.cos(psquid * 0.5) * math.sqrt(1.0 + (d * math.tan(psquid * 0.5))**(2))  # just a prefactor in the transformed EJcos term
 
-        diag = [i * om for i in range(dim)] - 0.5 * om
+        diag = [i * om for i in range(dim)] #- 0.5 * om
         LCmat = sp.sparse.dia_matrix((diag, [0]), shape=(dim, dim)).tocsr()
 
         exp_arg = 1j * (sparse_create(dim) + sparse_annihilate(dim)) * phi0 / math.sqrt(2)
@@ -669,6 +669,54 @@ class QubitFluxSQUID(QubitFluxonium):
 
         hmat = LCmat - (EJ1 + EJ2) * pre * cos_mat
         return hmat
+
+    def potential(self, phi):
+        p = self.pm
+        return (0.5 * p.EL * (phi - 2 * np.pi * p.flux)**(2) - p.EJ1 * np.cos(phi) - p.EJ2 * np.cos(phi - 2 * np.pi * p.fluxsquid))
+
+    def wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], phipts=251):
+        evnum = max(which + 1, 3)
+        if esys is None:
+            evals, evecs = self.eigensys(evnum)
+        else:
+            evals, evecs = esys
+
+        ncut = len(evecs[:, which])
+        phi_values = np.linspace(phirange[0], phirange[1], phipts)
+        psi_n_values = evecs[:, which]
+        wavefunc = np.zeros(phipts, dtype=np.complex_)
+        harmonic_osc_values = np.empty(phipts, dtype=np.float_)
+        phi_losc = (8 * (self.pm.EC1 + self.pm.EC2) / self.pm.EL)**0.25
+        for n in range(ncut):
+            harmonic_osc_values = harm_osc_wavefunction(n, phi_values, phi_losc)  # fixed order of hermite polynomial
+            wavefunc = wavefunc + psi_n_values[n] * harmonic_osc_values
+        return phi_values, wavefunc, evals[which]
+
+    def plot_wavefunction(self, esys, which=0, phirange=[-6 * np.pi, 6 * np.pi], mode='abs2', phipts=251):
+        """Different modes:
+        'abs2': |psi|^2
+        'abs':  |psi|
+        'real': Re(psi)
+        'imag': Im(psi)
+        """
+        mode_dict = {'abs2': (lambda x: np.abs(x)**2),
+                     'abs': (lambda x: np.abs(x)),
+                     'real': (lambda x: np.real(x)),
+                     'imag': (lambda x: np.imag(x))}
+
+        phi_values, wavefunc, evalue = self.wavefunction(esys, which, phirange, phipts)
+        intermediate_index = int(len(wavefunc) / 3)    # intermediate position for extracting phase (dangerous in tail or midpoint)
+        wavefunc = wavefunc * cmath.exp(-1j * cmath.phase(wavefunc[intermediate_index]))
+        wavefunc = mode_dict[mode](wavefunc)
+        self._plot_wavefunction1d(wavefunc, self.potential(phi_values), phi_values,
+                                  offset=evalue, scaling=5 * self.pm.EJ1, xlabel='phi')
+        return None
+
+    def _plot_wavefunction1d_discrete(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction1d_discrete'")
+
+    def _plot_wavefunction2d(self):
+        raise AttributeError("Qubit object has no attribute '_plot_wavefunction2'")
 
 
 # ---Routines for translating 1st and 2nd derivatives by discretization into sparse matrix form-------
