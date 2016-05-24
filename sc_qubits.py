@@ -788,7 +788,7 @@ class QubitFluxonium(QubitBaseClass):
 # ---Fluxonium qubit with SQUID loop----------------------------------------------------------------------
 
 
-class QubitFluxSQUID(QubitFluxonium):
+class QubitFluxoniumSQUID(QubitFluxonium):
 
     """Class for the fluxonium qubit with two Josephson elements. Hamiltonian is represented in sparse form. The employed
     basis is the EC-EL harmonic oscillator basis. The cosine term in the potential is handled
