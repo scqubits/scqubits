@@ -802,7 +802,7 @@ class QubitFluxoniumSQUID(QubitFluxonium):
         fluxsquid: external magnetic flux through the SQUID loop in units of flux quanta (h/2e)
         cutoff: number of harm. osc. basis states used in diagonalization
     Initialize with, e.g.
-    >>> qubit = QubitFluxSQUID(EJ1=1.0, EJ2=1.0, EC=2.0, EL=0.3, flux=0.2, fluxsquid=0.1, cutoff=120)
+    >>> qubit = QubitFluxoniumSQUID(EJ1=1.0, EJ2=1.0, EC=2.0, EL=0.3, flux=0.2, fluxsquid=0.1, cutoff=120)
     """
 
     _expected_parameters = {
@@ -816,7 +816,7 @@ class QubitFluxoniumSQUID(QubitFluxonium):
     }
 
     def __init__(self, **kwargs):
-        super(QubitFluxSQUID, self)._init_(**kwargs)
+        super(QubitFluxoniumSQUID, self)._init_(**kwargs)
         self.pm._qubit_type = 'Fluxonium SQUID'
 
     def hamiltonian(self):
