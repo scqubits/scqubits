@@ -446,7 +446,7 @@ class QubitBaseClass(object):
         opmatrix = getattr(self, operator)()
         return matrixelem_table(opmatrix, evecs)
 
-    def get_evals_vs_paramvals(self, param, paramval_list, evnum=6, subtract_ground=False):
+    def get_evals_vs_paramvals(self, param, paramval_list, evnum=6, subtract_ground=False, to_file=None):
         """Calculates a set of eigenvalues as a function of the parameter 'param', where the discrete values
         for 'param' are contained in the list prmval_list. Returns a numpy array where specdata[n] is set
         of eigenvalues calculated for parameter value prmval_list[n]
@@ -473,6 +473,13 @@ class QubitBaseClass(object):
                 specdata[ind] = evals
             progress_bar.update_progress((ind + 1) / nr_paramvals)
         setattr(self.pm, param, saved_prmval)
+        if to_file:
+            print("Writing eigenval data and parameters to {}, {}, and {}.".format(to_file + '_' + param + '.csv',
+                  to_file + "_evals.csv", to_file + ".prm"))
+            np.savetxt(to_file + '_' + param + '.csv', paramval_list, delimiter=",")
+            np.savetxt(to_file + "_evals.csv", specdata, delimiter=",")
+            with open(to_file + ".prm", "w") as text_file:
+                text_file.write(self.pm.__repr__())
         if subtract_ground:
             return specdata[:, 1:]
         else:
@@ -1008,14 +1015,11 @@ class QubitSymZeroPi(QubitBaseClass):
     }
 
     def __init__(self, **kwargs):
-        if not valid_parameters(self._expected_parameters, kwargs):
-            raise UserWarning('Parameter mismatch')
-        else:
-            self.pm = Parameters(**kwargs)
-            self.pm._qubit_type = 'symmetric 0-Pi qubit (zero offset charge)'
+        super(QubitSymZeroPi, self).__init__(**kwargs)
+        self.pm._qubit_type = 'symmetric 0-Pi qubit (zero offset charge)'
 
     def hilbertdim(self):
-        return np.prod(self.min_max_pts[:, 2])
+        return np.prod(self.pm.min_max_pts[:, 2])
 
     def potential(self, phi, theta):
         p = self.pm
