@@ -857,8 +857,8 @@ class QubitFluxoniumSQUID(QubitFluxonium):
         return (0.5 * p.EL * (phi)**(2) - p.EJ1 * np.cos(phi + 2 * np.pi * p.flux) - p.EJ2 * np.cos(phi - 2 * np.pi * p.fluxsquid + 2 * np.pi * p.flux))
 
     def param_sweep_plot(self, param1, paramval_list, param2, minimum, maximum, step, evnum=6):
-        "Plots evals against param1 in range paramval_list."
-        "Plots for values of param2 from minimum to maximum with separation step."
+        """Plots evals against param1 in range paramval_list.
+        Plots for values of param2 from minimum to maximum with separation step."""
         param2val = getattr(self.pm, param2)
         self.plot_evals_vs_paramvals(param1, paramval_list, evnum)
         for i in range(int((maximum-minimum)/step)):
