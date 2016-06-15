@@ -823,7 +823,7 @@ class QubitFluxoniumSQUID(QubitFluxonium):
     }
 
     def __init__(self, **kwargs):
-        super(QubitFluxoniumSQUID, self)._init_(**kwargs)
+        super(QubitFluxoniumSQUID, self).__init__(**kwargs)
         self.pm._qubit_type = 'Fluxonium SQUID'
 
     def hamiltonian(self):
@@ -839,14 +839,14 @@ class QubitFluxoniumSQUID(QubitFluxonium):
         phi0 = (8.0 * EC / EL)**(0.25)        # LC oscillator length
         om = math.sqrt(8.0 * EL * EC)         # plasma osc. frequency
         d = (EJ1 - EJ2) / (EJ1 + EJ2)
-        chi = math.atan(d * math.tan(2.0 * np.pi * fluxsquid * 0.5))        # just a term in the phase argument
-        pre = math.cos(2.0 * np.pi * fluxsquid * 0.5) * math.sqrt(1.0 + (d * math.tan(2.0 * np.pi * fluxsquid * 0.5))**(2))  # just a prefactor in the transformed EJcos term
+        chi = math.atan(d * math.tan(-1 * np.pi * fluxsquid))        # just a term in the phase argument
+        pre = math.cos(np.pi * fluxsquid) * math.sqrt(1.0 + (d * math.tan(np.pi * fluxsquid))**(2))  # just a prefactor in the transformed EJcos term
 
         diag = [i * om for i in range(dim)]
         LCmat = np.diagflat(diag)
 
         exp_arg = 1j * (create(dim) + annihilate(dim)) * phi0 / math.sqrt(2)
-        exp_mat = 0.5 * sp.linalg.expm(exp_arg) * cmath.exp(1j * (2.0 * np.pi * flux + 2.0 * np.pi * fluxsquid * 0.5 + chi))
+        exp_mat = 0.5 * sp.linalg.expm(exp_arg) * cmath.exp(1j * (2.0 * np.pi * flux - np.pi * fluxsquid + chi))
         cos_mat = exp_mat + np.conj(exp_mat.T)
 
         hmat = LCmat - (EJ1 + EJ2) * pre * cos_mat
@@ -854,7 +854,18 @@ class QubitFluxoniumSQUID(QubitFluxonium):
 
     def potential(self, phi):
         p = self.pm
-        return (0.5 * p.EL * (phi)**(2) - p.EJ1 * np.cos(phi - 2 * np.pi * p.flux) - p.EJ2 * np.cos(phi + 2 * np.pi * p.fluxsquid - 2 * np.pi * p.flux))
+        return (0.5 * p.EL * (phi)**(2) - p.EJ1 * np.cos(phi + 2 * np.pi * p.flux) - p.EJ2 * np.cos(phi - 2 * np.pi * p.fluxsquid + 2 * np.pi * p.flux))
+
+    def param_sweep_plot(self, param1, paramval_list, param2, minimum, maximum, step, evnum=6):
+        """Plots evals against param1 in range paramval_list.
+        Plots for values of param2 from minimum to maximum with separation step."""
+        param2val = getattr(self.pm, param2)
+        self.plot_evals_vs_paramvals(param1, paramval_list, evnum)
+        for i in range(int((maximum-minimum)/step)):
+            setattr(self.pm, param2, (minimum + step))
+            minimum = minimum + step
+            self.plot_evals_vs_paramvals(param1, paramval_list, evnum)
+        setattr(self.pm, param2, param2val)
 
 
 # ---Routines for translating 1st and 2nd derivatives by discretization into sparse matrix form-------
