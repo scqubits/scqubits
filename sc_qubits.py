@@ -75,6 +75,10 @@ def subtr_gnd(energies):
     subtracting the ground state energy."""
     return (energies - energies[0])
 
+def subtr_energy(energies, e0):
+    """Takes a list of energies (such as obtained by diagonalization) and returns them after
+    subtracting the energy e0."""
+    return (energies - e0)
 
 # ---Matrix elements and operators---------------------------------------------------------
 
