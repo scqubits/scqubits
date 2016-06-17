@@ -1034,7 +1034,7 @@ class QubitSymZeroPi(QubitBaseClass):
         self.pm._qubit_type = 'symmetric 0-Pi qubit (zero offset charge)'
 
     def hilbertdim(self):
-        return np.prod(self.pm.min_max_pts[:, 2])
+        return np.prod(np.asarray(self.pm.min_max_pts)[:, 2])
 
     def potential(self, phi, theta):
         p = self.pm
