@@ -1460,7 +1460,7 @@ class QubitFullZeroPi_ProductBasis(QubitBaseClass):
         """
         p = self.pm
         prefactor = p.EL * p.dEL * (8.0 * p.EC / p.EL)**0.25
-        return (prefactor * matrixelem_table(self.zeropi.phi(), zeropi_states, transpose, real_valued=True))
+        return (prefactor * matrixelem_table(self._zeropi.phi(), zeropi_states, transpose, real_valued=True))
 
     def g_theta_coupling_matrix(self, zeropi_states, transpose=True):
         """Returns a matrix of coupling strengths i*g^\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
