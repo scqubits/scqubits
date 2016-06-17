@@ -293,6 +293,9 @@ def valid_parameters(expected_params_dict, optional_params_dict, given_params_di
     keyword arguments expected for a certain type of qubit (expected_params_dict).
     Returns True when the two match exactly (no missing, no superfluous arguments).
     """
+    if 'force_valid' in given_params_dict:      # this is a hack: may need to allow class instatiation without parameters (see ZeroPiFull_ProductBasis)
+        if given_params_dict['force_valid']:
+            return True
     for expected_key in expected_params_dict:
         if expected_key not in given_params_dict:
             print('>>Error<<: one or multiple parameter(s) have not been assigned values.')
@@ -1413,16 +1416,8 @@ class QubitFullZeroPi_ProductBasis(QubitBaseClass):
     def __init__(self, **kwargs):
         super(QubitFullZeroPi_ProductBasis, self).__init__(**kwargs)
         self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi product basis'
-        self.zeropi = QubitDisZeroPi(
-            EJ=self.pm.EJ,
-            EL=self.pm.EL,
-            ECJ=self.pm.ECJ,
-            ECS=self.pm.ECS,
-            dEJ=self.pm.dEJ,
-            dCJ=self.pm.dCJ,
-            flux=self.pm.flux,
-            min_max_pts=self.pm.min_max_pts
-        )
+        self._zeropi = QubitDisZeroPi(force_valid=True)
+        self._zeropi.pm = self.pm
 
     def hamiltonian(self):
         lcut = self.pm.l_cut
