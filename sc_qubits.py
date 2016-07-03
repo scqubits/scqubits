@@ -181,7 +181,7 @@ def sparse_potentialmat(min_max_pts, potential_func):
     varmin = min_max_pts[:, 0]
     varmax = min_max_pts[:, 1]
     varpts = min_max_pts[:, 2]
-    hilbertdim = np.prod(varpts)
+    hilbertdim = int(np.prod(varpts))
     nr_of_variables = len(varmin)
     Xvals = [np.linspace(varmin[j], varmax[j], varpts[j]) for j in range(nr_of_variables)]  # list of coordinate arrays
     diag = np.empty([1, hilbertdim], dtype=np.float_)
@@ -435,7 +435,7 @@ class QubitBaseClass(object):
         if to_file:
             print("Writing eigensys data and parameters to {}, {}, and {}.".format(to_file + "evals.csv", to_file + "evecs.csv", to_file + ".prm"))
             np.savetxt(to_file + "evals.csv", evals, delimiter=",")
-            np.savetxt(to_file + "evecs.csv", evecs, delimiter=",")
+            np.savetxt(to_file + "evecs.csv", evecs.T, delimiter=",")
             with open(to_file + ".prm", "w") as text_file:
                 text_file.write(self.pm.__repr__())
         return evals, evecs
@@ -556,10 +556,22 @@ class QubitBaseClass(object):
         return None
 
     @staticmethod
-    def _plot_wavefunction2d(wavefunc, min_max_pts, figsize, aspect_ratio):
+    def _plot_wavefunction2d(wavefunc, min_max_pts, figsize, aspect_ratio, zero_calibrate=False):
         plt.figure(figsize=figsize)
+
+        if zero_calibrate:
+            absmax = np.max(np.abs(wavefunc))
+            minval = -absmax
+            maxval = absmax
+            cmap = plt.get_cmap('PRGn')
+        else:
+            minval = np.min(wavefunc)
+            maxval = np.max(wavefunc)
+            cmap = plt.cm.viridis
+
         plt.imshow(wavefunc, extent=[min_max_pts[0][0], min_max_pts[0][1], min_max_pts[1][0],
-                                     min_max_pts[1][1]], aspect=aspect_ratio, cmap=plt.cm.viridis)
+                                     min_max_pts[1][1]], aspect=aspect_ratio, cmap=cmap,
+                   vmin=minval, vmax=maxval)
         plt.colorbar(fraction=0.017, pad=0.04)
         plt.show()
         return None
@@ -955,19 +967,19 @@ def derivative_mixed_1sts(deriv_var_list, min_max_pts, prefac=1, periodic_list=F
     varpts = min_max_pts[:, 2]
     nr_of_variables = len(varmin)
 
-    deriv_order = len(deriv_var_list)
+    deriv_order = len(deriv_var_list)   # total order of derivative (number of variables wrt which first derivatives are taken)
 
-    delta_inv = [0] * deriv_order
+    delta_inv = [0] * deriv_order   # this is 1/delta from f'(x) ~= [f(x+h) - f(x-h)]/2h, delta=2h
     drvtv_mat = [0] * deriv_order
 
     # Loop over the elements of var_list and generate the derivative matrices
     for j in range(deriv_order):
-        delta_inv[j] = varpts[deriv_var_list[j]] / (2 * (varmax[deriv_var_list[j]] - varmin[deriv_var_list[j]]))
+        delta_inv[j] = varpts[deriv_var_list[j]] / (2.0 * (varmax[deriv_var_list[j]] - varmin[deriv_var_list[j]]))
         if j == 0:
-            delta_inv[j] *= prefac
+            delta_inv[j] *= prefac   # first variable has prefactor absorbed into 1/delta
         drvtv_mat[j] = sp.sparse.dia_matrix((varpts[deriv_var_list[j]], varpts[deriv_var_list[j]]), dtype=dtp)
-        drvtv_mat[j].setdiag(delta_inv[j], k=1)
-        drvtv_mat[j].setdiag(-delta_inv[j], k=-1)
+        drvtv_mat[j].setdiag(delta_inv[j], k=1)      # occupy the first off-diagonal to the right
+        drvtv_mat[j].setdiag(-delta_inv[j], k=-1)    # and left
 
         if deriv_var_list[j] in periodic_list:
             drvtv_mat[j].setdiag(-delta_inv[j], k=varpts[deriv_var_list[j]] - 1)
@@ -1037,7 +1049,7 @@ class QubitSymZeroPi(QubitBaseClass):
         self.pm._qubit_type = 'symmetric 0-Pi qubit (zero offset charge)'
 
     def hilbertdim(self):
-        return np.prod(np.asarray(self.pm.min_max_pts)[:, 2])
+        return int(np.prod(np.asarray(self.pm.min_max_pts)[:, 2]))
 
     def potential(self, phi, theta):
         p = self.pm
@@ -1045,9 +1057,9 @@ class QubitSymZeroPi(QubitBaseClass):
 
     def sparse_kineticmat(self):
         p = self.pm
-        dphi2 = derivative_2nd(0, p.min_max_pts, prefac=-2.0 * p.ECJ)    # -2E_{CJ}\partial_\phi^2
-        dth2 = derivative_2nd(1, p.min_max_pts, prefac=-2.0 * p.ECS, periodic=True)  # -2E_{C\Sigma}\partial_\theta^2
-        return (dphi2 + dth2)
+        kmat = derivative_2nd(0, p.min_max_pts, prefac=-2.0 * p.ECJ)    # -2E_{CJ}\partial_\phi^2
+        kmat += derivative_2nd(1, p.min_max_pts, prefac=-2.0 * p.ECS, periodic=True)  # -2E_{C\Sigma}\partial_\theta^2
+        return kmat
 
     def hamiltonian(self):
         return (self.sparse_kineticmat() + sparse_potentialmat(self.pm.min_max_pts, self.potential))
@@ -1105,7 +1117,7 @@ class QubitSymZeroPi(QubitBaseClass):
         varpts = self.pm.min_max_pts[:, 2]
         return evecs[:, which].reshape(varpts[0], varpts[1]).T
 
-    def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3):
+    def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, zero_calibrate=False):
         """Different modes:
         'abs2': |psi|^2
         'abs':  |psi|
@@ -1118,7 +1130,7 @@ class QubitSymZeroPi(QubitBaseClass):
                      'imag': (lambda x: np.imag(x))}
         wavefunc = self.wavefunction(esys, which)
         wavefunc = mode_dict[mode](wavefunc)
-        self._plot_wavefunction2d(wavefunc, self.pm.min_max_pts, figsize, aspect_ratio)
+        self._plot_wavefunction2d(wavefunc, self.pm.min_max_pts, figsize, aspect_ratio, zero_calibrate)
         return None
 
     def _plot_wavefunction1d_discrete(self):
@@ -1173,12 +1185,15 @@ class QubitDisZeroPi(QubitSymZeroPi):
 
     def potential(self, phi, theta):
         p = self.pm
+        # 
+        # 07/01/16 changed '-2.0 * p.EJ * p.dEJ' term into '+2.0 * ...' (cmp. Dempster eq. 15)
+        #
         return (-2.0 * p.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * p.flux / 2.0) + p.EL * phi**2 + 2.0 * p.EJ +
-                (-2.0 * p.EJ * p.dEJ) * np.sin(theta) * np.sin(phi - 2.0 * np.pi * p.flux / 2.0))
+                2.0 * p.EJ * p.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * p.flux / 2.0))
 
     def sparse_kineticmat(self):
-        dphi2 = derivative_2nd(0, self.pm.min_max_pts, prefac=-2.0 * self.pm.ECJ)    # -2E_{CJ}\partial_\phi^2
-        dth2 = derivative_2nd(1, self.pm.min_max_pts, prefac=-2.0 * self.pm.ECS, periodic=True)  # -2E_{C\Sigma}\partial_\theta^2
+        dphi2 = derivative_2nd(0, self.pm.min_max_pts, prefac=-2.0 * self.pm.ECJ)                   # -2E_{CJ}\partial_\phi^2
+        dth2 = derivative_2nd(1, self.pm.min_max_pts, prefac=-2.0 * self.pm.ECS, periodic=True)     # -2E_{C\Sigma}\partial_\theta^2
         dphidtheta = derivative_mixed_1sts([0, 1], self.pm.min_max_pts, prefac=4.0 * self.pm.ECS * self.pm.dCJ, periodic_list=[1])
         return (dphi2 + dth2 + dphidtheta)
 
@@ -1284,16 +1299,20 @@ class QubitFullZeroPi(QubitSymZeroPi):
 
     def sparse_kineticmat(self):
         p = self.pm
-        return (derivative_2nd(0, p.min_max_pts, prefac=-2.0 * p.ECJ) +    # -2E_{CJ}\partial_\phi^2
+        return (derivative_2nd(0, p.min_max_pts, prefac=-2.0 * p.ECJ) +                  # -2E_{CJ}\partial_\phi^2
                 derivative_2nd(1, p.min_max_pts, prefac=-2.0 * p.ECS, periodic=True) +   # -2E_{C\Sigma}\partial_\theta^2
-                derivative_2nd(2, p.min_max_pts, prefac=-2.0 * p.EC) +    # -2E_{C}\partial_\chi^2
-                derivative_mixed_1sts([0, 1], p.min_max_pts, prefac=4.0 * p.ECS * p.dCJ, periodic_list=[2]) +  # 4E_{C\Sigma}(\delta C_J/C_J)\partial_\phi \partial_\theta
-                derivative_mixed_1sts([1, 2], p.min_max_pts, prefac=4.0 * p.ECS * p.dC, periodic_list=[2]))    # 4E_{C\Sigma}(\delta C/C)\partial_\theta \partial_\chi
+                derivative_2nd(2, p.min_max_pts, prefac=-2.0 * p.EC) +                   # -2E_{C}\partial_\chi^2
+                #
+                # NOTE: 06/30/16 change 'periodic_list=[2]' to 'periodic_list=[1]''
+                #
+                derivative_mixed_1sts([0, 1], p.min_max_pts, prefac=4.0 * p.ECS * p.dCJ, periodic_list=[1]) +  # 4E_{C\Sigma}(\delta C_J/C_J)\partial_\phi \partial_\theta
+                derivative_mixed_1sts([1, 2], p.min_max_pts, prefac=4.0 * p.ECS * p.dC, periodic_list=[1]))    # 4E_{C\Sigma}(\delta C/C)\partial_\theta \partial_\chi
 
     def potential(self, phi, theta, chi):
         p = self.pm
         return (-2.0 * p.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * p.flux / 2) + p.EL * phi**2 + 2 * p.EJ +   # symmetric 0-pi contributions
-                2.0 * p.EJ * p.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * p.flux / 2) + p.EL * chi**2 + 2.0 * p.EL * p.dEL * phi * chi + 2 * p.EJ * p.dEJ)  # correction terms in presence of disorder
+                2.0 * p.EJ * p.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * p.flux / 2) + p.EL * chi**2 +       # correction terms in presence of disorder
+                2.0 * p.EL * p.dEL * phi * chi + 2 * p.EJ * p.dEJ)                                                  # correction terms in presence of disorder
 
     def plot_potential(self, fixed_arg_key, arg_const, levls=None, aspect_ratio=None, to_file=None):
         arg_dict = {'phi': 0, 'theta': 1, 'chi': 2}
@@ -1426,7 +1445,11 @@ class QubitFullZeroPi_ProductBasis(QubitBaseClass):
         zpi_diag_hamiltonian.setdiag(zpi_evals)
 
         acut = self.pm.a_cut
-        prefactor = math.sqrt(8.0 * self.pm.EL * self.pm.ECS)
+        #
+        # 07/01/16 fixing prefactor for chi degree of freedom: 'ECS' -> 'EC'
+        prefactor = (8.0 * self.pm.EL * self.pm.EC)**0.5
+        #
+        #
         chi_diag_hamiltonian = sparse_number(acut, prefactor)
 
         hamiltonian = sp.sparse.kron(zpi_diag_hamiltonian, sp.sparse.identity(acut, format='dia', dtype=np.float_))
