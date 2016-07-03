@@ -293,6 +293,9 @@ def valid_parameters(expected_params_dict, optional_params_dict, given_params_di
     keyword arguments expected for a certain type of qubit (expected_params_dict).
     Returns True when the two match exactly (no missing, no superfluous arguments).
     """
+    if 'force_valid' in given_params_dict:      # this is a hack: may need to allow class instatiation without parameters (see ZeroPiFull_ProductBasis)
+        if given_params_dict['force_valid']:
+            return True
     for expected_key in expected_params_dict:
         if expected_key not in given_params_dict:
             print('>>Error<<: one or multiple parameter(s) have not been assigned values.')
@@ -1413,20 +1416,12 @@ class QubitFullZeroPi_ProductBasis(QubitBaseClass):
     def __init__(self, **kwargs):
         super(QubitFullZeroPi_ProductBasis, self).__init__(**kwargs)
         self.pm._qubit_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi product basis'
-        self.zeropi = QubitDisZeroPi(
-            EJ=self.pm.EJ,
-            EL=self.pm.EL,
-            ECJ=self.pm.ECJ,
-            ECS=self.pm.ECS,
-            dEJ=self.pm.dEJ,
-            dCJ=self.pm.dCJ,
-            flux=self.pm.flux,
-            min_max_pts=self.pm.min_max_pts
-        )
+        self._zeropi = QubitDisZeroPi(force_valid=True)
+        self._zeropi.pm = self.pm
 
     def hamiltonian(self):
         lcut = self.pm.l_cut
-        zpi_evals, zpi_evecs = self.zeropi.eigensys(evnum=lcut)
+        zpi_evals, zpi_evecs = self._zeropi.eigensys(evnum=lcut)
         zpi_diag_hamiltonian = sp.sparse.dia_matrix((lcut, lcut), dtype=np.float_)
         zpi_diag_hamiltonian.setdiag(zpi_evals)
 
@@ -1465,7 +1460,7 @@ class QubitFullZeroPi_ProductBasis(QubitBaseClass):
         """
         p = self.pm
         prefactor = p.EL * p.dEL * (8.0 * p.EC / p.EL)**0.25
-        return (prefactor * matrixelem_table(self.zeropi.phi(), zeropi_states, transpose, real_valued=True))
+        return (prefactor * matrixelem_table(self._zeropi.phi(), zeropi_states, transpose, real_valued=True))
 
     def g_theta_coupling_matrix(self, zeropi_states, transpose=True):
         """Returns a matrix of coupling strengths i*g^\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
@@ -1474,7 +1469,7 @@ class QubitFullZeroPi_ProductBasis(QubitBaseClass):
         """
         p = self.pm
         prefactor = - p.ECS * p.dC * (32.0 * p.EL / p.EC)**0.25
-        return (prefactor * matrixelem_table(self.zeropi.d_dtheta(), zeropi_states, transpose, real_valued=True))
+        return (prefactor * matrixelem_table(self._zeropi.d_dtheta(), zeropi_states, transpose, real_valued=True))
 
     def g_coupling_matrix(self, zeropi_states, transpose=True, evnum=6):
         """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
@@ -1485,7 +1480,7 @@ class QubitFullZeroPi_ProductBasis(QubitBaseClass):
 
         """
         if zeropi_states is None:
-            _, zeropi_states = self.zeropi.eigensys(evnum=evnum)
+            _, zeropi_states = self._zeropi.eigensys(evnum=evnum)
         return (self.g_phi_coupling_matrix(zeropi_states, transpose) + self.g_theta_coupling_matrix(zeropi_states, transpose))
 
     def _plot_wavefunction1d_discrete(self):
