@@ -741,6 +741,9 @@ class QubitFluxonium(QubitBaseClass):
         cos_mat = exp_mat + np.conj(exp_mat.T)
         hmat = LCmat - EJ * cos_mat
         return hmat
+    
+    def hilbertdim(self):
+        return (self.pm.cutoff)   
 
     def _evals_calc(self, evnum):
         hmat = self.hamiltonian()
