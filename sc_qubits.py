@@ -285,7 +285,7 @@ def plot_matrixelements(mtable, mode='abs', xlabel='', ylabel='', zlabel='', to_
     return None
 
 
-def cmap_plot(x_param, x_list, y_param, y_vals, t_param, t_vals, norm_min, norm_max, colormap='jet', x_figsize=15, y_figsize=10, line_width=2):
+def cmap_plot(x_param, x_list, y_param, y_vals, t_param, t_vals, norm_min, norm_max, x_min=False, x_max=False, y_min=False, y_max=False, colormap='jet', x_figsize=15, y_figsize=10, line_width=2):
     """Takes a list of x-values, 
     a list of lists with each element containing the y-values corresponding to a particular curve, 
     a list of lists with each element containing the external parameter value (t-value) 
@@ -305,9 +305,25 @@ def cmap_plot(x_param, x_list, y_param, y_vals, t_param, t_vals, norm_min, norm_
         plt.gca().add_collection(lc)
     
     plt.xlabel(x_param)
-    plt.xlim(min(x_list), max(x_list))
+    if x_min and x_max:
+        plt.xlim(x_min, x_max)
+    elif x_min:
+        plt.xlim(x_min, max(x_list))
+    elif x_max:
+        plt.xlim(min(x_list), x_max)
+    else:
+        plt.xlim(min(x_list), max(x_list))
+        
     plt.ylabel(y_param)
-    plt.ylim(min(y), max(y))
+    if y_min and y_max:
+        plt.ylim(y_min, y_max)
+    elif y_min:
+        plt.ylim(y_min, max(y))
+    elif y_max:
+        plt.ylim(min(y), y_max)
+    else:
+        plt.ylim(min(y), max(y))
+    
     axcb = fig.colorbar(lc)
     axcb.set_label(t_param)
     plt.show()
