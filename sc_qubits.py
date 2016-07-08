@@ -285,6 +285,34 @@ def plot_matrixelements(mtable, mode='abs', xlabel='', ylabel='', zlabel='', to_
     return None
 
 
+def cmap_plot(x_param, x_list, y_param, y_vals, t_param, t_vals, norm_min, norm_max, colormap='jet', x_figsize=15, y_figsize=10, line_width=2):
+    """Takes a list of x-values, 
+    a list of lists with each element containing the y-values corresponding to a particular curve, 
+    a list of lists with each element containing the external parameter value (t-value) 
+    that determines the color of each curve at each y-value,
+    and a normalization interval for the t-values."""
+    y = []
+    for i in range(len(y_vals)):
+        for p in range(len(y_vals[i])):
+            y.append(y_vals[i][p])
+    fig = plt.figure(figsize=(x_figsize,y_figsize))
+    for i in range(len(y_vals)):
+        pts = np.array([x_list,y_vals[i]]).T.reshape(-1, 1, 2)
+        segs = np.concatenate([pts[:-1],pts[1:]],axis=1)
+        lc = LineCollection(segs, cmap=plt.get_cmap(colormap),norm=plt.Normalize(norm_min, norm_max))
+        lc.set_array(np.array(t_vals[i]))
+        lc.set_linewidth(line_width)
+        plt.gca().add_collection(lc)
+    
+    plt.xlabel(x_param)
+    plt.xlim(min(x_list), max(x_list))
+    plt.ylabel(y_param)
+    plt.ylim(min(y), max(y))
+    axcb = fig.colorbar(lc)
+    axcb.set_label(t_param)
+    plt.show()
+
+
 # ---Parameter checking and storing----------------------------------------------------------
 
 
