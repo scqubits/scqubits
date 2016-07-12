@@ -291,15 +291,12 @@ def cmap_plot(x_param, x_list, y_param, y_vals, t_param, t_vals, norm_min, norm_
     a list of lists with each element containing the external parameter value (t-value) 
     that determines the color of each curve at each y-value,
     and a normalization interval for the t-values."""
-    y = []
-    for i in range(len(y_vals)):
-        for p in range(len(y_vals[i])):
-            y.append(y_vals[i][p])
+
     fig = plt.figure(figsize=(x_figsize,y_figsize))
     for i in range(len(y_vals)):
         pts = np.array([x_list,y_vals[i]]).T.reshape(-1, 1, 2)
         segs = np.concatenate([pts[:-1],pts[1:]],axis=1)
-        lc = LineCollection(segs, cmap=plt.get_cmap(colormap),norm=plt.Normalize(norm_min, norm_max))
+        lc = mpl.collections.LineCollection(segs, cmap=plt.get_cmap(colormap),norm=plt.Normalize(norm_min, norm_max))
         lc.set_array(np.array(t_vals[i]))
         lc.set_linewidth(line_width)
         plt.gca().add_collection(lc)
@@ -318,11 +315,11 @@ def cmap_plot(x_param, x_list, y_param, y_vals, t_param, t_vals, norm_min, norm_
     if y_min and y_max:
         plt.ylim(y_min, y_max)
     elif y_min:
-        plt.ylim(y_min, max(y))
+        plt.ylim(y_min, np.amax(y_vals))
     elif y_max:
-        plt.ylim(min(y), y_max)
+        plt.ylim(np.amin(y_vals), y_max)
     else:
-        plt.ylim(min(y), max(y))
+        plt.ylim(np.amin(y_vals), np.amax(y_vals))
     
     axcb = fig.colorbar(lc)
     axcb.set_label(t_param)
