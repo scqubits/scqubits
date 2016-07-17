@@ -40,7 +40,7 @@ CHI_INDEX = 2
 
 
 # routine for displaying a progress bar
-def display_progress_bar(progress_in_percent):
+def update_progress_bar(progress_in_percent):
     bar_max_length = 20   # Modify this to change the length of the progress bar
     status_string = ""
 
@@ -58,6 +58,10 @@ def display_progress_bar(progress_in_percent):
     sys.stdout.flush()
     return None
 
+def initialize_progress_bar():
+    print("")
+    update_progress_bar(0)
+    return None
 
 def closest_dressed_energy(bare_energy, dressed_energy_vals):
     index = (np.abs(dressed_energy_vals - bare_energy)).argmin()
@@ -113,60 +117,105 @@ class HilbertSpace(object):
         operator = (qt.destroy(dim))
         return self.identity_wrap(operator, subsystem)
 
-    def difference_spectrum(self, hamiltonian, bare_initial_state=None):
-        """Uses qutip for diagonalization of the 'hamiltonian' (qutip operator). If initial_state is not None, but rather
-        has the form ((sys1, state1_index),(sys2, state2_index)), then the initial state is chosen to be 'close to' the bare
-        product state where sys1 and sys2 are in the states with the specified indices.
-        Caveat: this may fail if subsystems are strongly hybridized and bare energies cannot be identified with dressed
-        energies."""
-        spectrum = hamiltonian.eigenenergies()
-        if bare_initial_state is None:
-            spectrum -= spectrum[0]
-        else:
-            subsys_count = self.subsystem_count
-            bare_evals = np.empty(shape=[subsys_count])
-
-            for subsys_index, subsys_initial_state in enumerate(bare_initial_state):
-                subsys = subsys_initial_state[0]
-                subsys_eval_index = subsys_initial_state[1]
-                evals_count = max(3, subsys_eval_index + 1)
-                bare_evals[subsys_index] = subsys.eigenvals(evals_count=evals_count)[subsys_eval_index]
-
-            bare_state_energy = np.sum(bare_evals)
-            dressed_state_energy = closest_dressed_energy(bare_state_energy, spectrum)
-            spectrum -= dressed_state_energy
-        return spectrum
-
-    def absorption_spectrum(self, hamiltonian, bare_initial_state=None):
-        spectrum = self.difference_spectrum(hamiltonian, bare_initial_state)
-        for index, spectrum_val in enumerate(spectrum):
-            if spectrum_val < 0:
-                spectrum[index] = 0
-        return spectrum
-
-    def emission_spectrum(self, hamiltonian, bare_initial_state):
-        spectrum = (-1) * self.difference_spectrum(hamiltonian, bare_initial_state)
-        for index, spectrum_val in enumerate(spectrum):
-            if spectrum_val < 0:
-                spectrum[index] = 0
-        return spectrum
-
-    def spectrum_vs_paramvals(self, spectrum_func, hamiltonian_func, param_vals, bare_initial_state=None, filename=None):
+    def get_dressed_evals_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10,
+                              bare_initial_state=None, filename=None):
         paramvals_count = len(param_vals)
-        evals_count = self.dimension
         spectrumdata = np.empty((paramvals_count, evals_count))
-        print("")
-        display_progress_bar(0)
+
+        initialize_progress_bar()
         for index, paramval in enumerate(param_vals):
             hamiltonian = hamiltonian_func(paramval)
-            spectrumdata[index] = spectrum_func(hamiltonian, bare_initial_state)
+            spectrumdata[index] = hamiltonian.eigenenergies(eigvals=evals_count)
             progress_in_percent = (index + 1) / paramvals_count
-            display_progress_bar(progress_in_percent)
+            update_progress_bar(progress_in_percent)
         if filename:
             filewrite_csvdata(filename + '_' + 'param', paramval_list)
             filewrite_csvdata(filename + '_specdata', spectrumdata)
             self.filewrite_parameters(filename)
         return spectrumdata
+
+    def get_dressed_and_bare_evals_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, from_stored=True,
+                                                filename=None):
+        paramvals_count = len(param_vals)
+        dressed_evalsdata = np.empty((paramvals_count, evals_count))
+
+        subsys_count = self.subsystem_count
+        bare_evalsdata = [np.empty((paramvals_count, self.subsystem_list[j].truncated_dim)) for j in range(subsys_count)]
+
+        initialize_progress_bar()
+        for param_index, paramval in enumerate(param_vals):
+            hamiltonian = hamiltonian_func(paramval)
+            dressed_evalsdata[param_index] = hamiltonian.eigenenergies(eigvals=evals_count)
+
+            for subsys_index, subsys in enumerate(self.subsystem_list):
+                bare_evalsdata[subsys_index][param_index] = subsys.eigenvals(evals_count=subsys.truncated_dim, from_stored=from_stored)
+
+            progress_in_percent = (param_index + 1) / paramvals_count
+            update_progress_bar(progress_in_percent)
+
+        if filename:
+            filewrite_csvdata(filename + '_' + 'param', paramval_list)
+            filewrite_csvdata(filename + '_dressedevals', dressed_evalsdata)
+            filewrite_csvdata(filename + '_bareevals', bare_evalsdata)
+            self.filewrite_parameters(filename)
+
+        return dressed_evalsdata, bare_evalsdata
+
+    def differencespectrum_bare_initial(self, dressed_evalsdata, bare_evalsdata, bare_initial_state):
+        paramvals_count = len(dressed_evalsdata)
+        evals_count = len(dressed_evalsdata[0])
+        spectrumdata = np.empty((paramvals_count, evals_count))
+
+        initialize_progress_bar()
+        for param_index in range (paramvals_count):
+            dressed_evals = dressed_evalsdata[param_index]
+
+            bare_state_energy = 0.0
+            for subsys_initial_state in bare_initial_state:
+                subsys = subsys_initial_state[0]
+                subsys_index = self.subsystem_list.index(subsys)
+                subsys_eval_index = subsys_initial_state[1]
+                bare_state_energy += bare_evalsdata[subsys_index][param_index][subsys_eval_index]
+
+            dressed_state_energy = closest_dressed_energy(bare_state_energy, dressed_evals)
+            difference_spectrum = dressed_evals - dressed_state_energy
+            spectrumdata[param_index] = difference_spectrum
+
+            progress_in_percent = (param_index + 1) / paramvals_count
+            update_progress_bar(progress_in_percent)
+        return spectrumdata
+
+    def absorptionspectrum_bare_initial(self, dressed_evalsdata, bare_evalsdata, bare_initial_state):
+        spectrumdata = self.differencespectrum_bare_initial(dressed_evalsdata, bare_evalsdata,
+                                                                       bare_initial_state)
+        return spectrumdata.clip(min=0.0)
+
+    def emissionspectrum_bare_initial(self, dressed_evalsdata, bare_evalsdata, bare_initial_state):
+        spectrumdata = (-1.0) * self.differencespectrum_bare_initial(dressed_evalsdata, bare_evalsdata,
+                                                                                bare_initial_state)
+        return spectrumdata.clip(min=0.0)
+
+    def differencespectrum_dressed_initial(self, dressed_evalsdata, dressed_initial_index):
+        paramvals_count = len(dressed_evalsdata)
+        evals_count = len(dressed_evalsdata[0])
+        spectrumdata = np.empty((paramvals_count, evals_count))
+
+        initialize_progress_bar()
+        for param_index in range (paramvals_count):
+            dressed_evals = dressed_evalsdata[param_index]
+            dressed_evals -= dressed_evals[dressed_initial_index]
+            spectrumdata[param_index] = dressed_evals
+            progress_in_percent = (param_index + 1) / paramvals_count
+            update_progress_bar(progress_in_percent)
+        return spectrumdata
+
+    def absorptionspectrum_dressed_initial(self, dressed_evalsdata, dressed_initial_index):
+        spectrumdata = self.differencespectrum_dressed_initial(dressed_evalsdata, dressed_initial_index)
+        return spectrumdata.clip(min=0.0)
+
+    def emissionspectrum_dressed_initial(self, dressed_evalsdata, dressed_initial_index):
+        spectrumdata = (-1.0) * self.differencespectrum_dressed_initial(dressed_evalsdata, dressed_initial_index)
+        return spectrumdata.clip(min=0.0)
 
 
 class WaveFunction(object):
@@ -405,6 +454,7 @@ class GenericQSys(object):
     _EXPECTED_PARAMS_DICT = {}
     _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
 
+
     def print_expected_params_message(self):
         print('Expected parameters are:')
         for k, v in self._EXPECTED_PARAMS_DICT.items():
@@ -454,6 +504,8 @@ class Oscillator(GenericQSys):
     _EXPECTED_PARAMS_DICT = {'omega': 'oscillator frequency'}
     _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
 
+    _eigenvals_stored = None
+
     def __init__(self, **parameter_args):
         super(Oscillator, self).__init__(**parameter_args)
         if not self.are_parameters_valid(parameter_args):
@@ -474,8 +526,12 @@ class Oscillator(GenericQSys):
                 output += '\n' + str(parameter_name) + '\t: ' + str(parameter_val)
         return output
 
-    def eigenvals(self, evals_count=6):
-        evals = [self.omega * n for n in range(evals_count)]
+    def eigenvals(self, evals_count=6, from_stored=False):
+        if from_stored:
+            evals = self._eigenvals_stored
+        else:
+            evals = [self.omega * n for n in range(evals_count)]
+            self._eigenvals_stored = evals
         return np.asarray(evals)
 
 
@@ -487,6 +543,8 @@ class BaseClass(GenericQSys):
 
     _EXPECTED_PARAMS_DICT = {}
     _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
+
+    _eigenvals_stored = None
 
     def __init__(self, **parameter_args):
         super(BaseClass, self).__init__(**parameter_args)
@@ -533,13 +591,17 @@ class BaseClass(GenericQSys):
         hamiltonian_mat = self.hamiltonian()
         return sp.linalg.eigh(hamiltonian_mat, eigvals_only=False, eigvals=(0, evals_count - 1))
 
-    def eigenvals(self, evals_count=6, filename=None):
+    def eigenvals(self, evals_count=6, from_stored=False, filename=None):
         """Calculates eigenvalues (via qubit-specific _evals_calc()), and returns a numpy array of eigenvalues.
 
         evals_count:   number of desired eigenvalues (sorted from smallest to largest)
         filename: write data to file if path and filename are specified
         """
-        evals = np.sort(self._evals_calc(evals_count))
+        if from_stored:
+            evals = self._eigenvals_stored
+        else:
+            evals = np.sort(self._evals_calc(evals_count))
+            self._eigenvals_stored = evals
         if filename:
             self.filewrite_evals(filename, evals)
             self.filewrite_parameters(filename)
@@ -592,8 +654,8 @@ class BaseClass(GenericQSys):
 
         paramvals_count = len(paramval_list)
         spectrumdata = np.empty((paramvals_count, evals_count))
-        print("")
-        display_progress_bar(0)
+        
+        initialize_progress_bar()
         for index, paramval in enumerate(paramval_list):
             setattr(self, parameter_name, paramval)
             evals = self.eigenvals(evals_count)
@@ -601,7 +663,7 @@ class BaseClass(GenericQSys):
             if subtract_ground:
                 spectrumdata[index] -= evals[0]
             progress_in_percent = (index + 1) / paramvals_count
-            display_progress_bar(progress_in_percent)
+            update_progress_bar(progress_in_percent)
         setattr(self, parameter_name, previous_paramval)
         if filename:
             filewrite_csvdata(filename + '_' + parameter_name, paramval_list)
