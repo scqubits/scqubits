@@ -29,7 +29,7 @@ EVECS_FILESUFFIX = '_evecs'
 EVALS_FILESUFFIX = '_evals'
 PARAMETER_FILESUFFIX = '.prm'
 
-MODE_FUNC_DICT = {'abs2': (lambda x: np.abs(x)**2),
+MODE_FUNC_DICT = {'abs_sqr': (lambda x: np.abs(x)**2),
                   'abs': (lambda x: np.abs(x)),
                   'real': (lambda x: np.real(x)),
                   'imag': (lambda x: np.imag(x))}
@@ -69,7 +69,11 @@ def closest_dressed_energy(bare_energy, dressed_energy_vals):
 
 
 class HilbertSpace(object):
-
+    """Class holding information about the full Hilbert space, as composed of multiple subsystems.
+    - Provides methods to turn subsystem operators in operators acting on the full Hilbert space, and
+      establishes the interface to qutip. Returned operators are of the qutip.Qobj type.
+    - Provides methods for obtaining eigenvalues, absorption and emission spectra as a function of an
+      external paramater."""
     def __init__(self, subsystem_list):
         self.subsystem_list = subsystem_list
         self.subsystem_count = len(subsystem_list)
@@ -95,6 +99,7 @@ class HilbertSpace(object):
         return self.identity_wrap(diag_qt_op, subsystem)
 
     def identity_wrap(self, operator, subsystem):
+        """Wrap given operator (array, list or qt.Qobj) in identity operator to form full Hilbert space operator."""
         if type(operator) in [list, np.ndarray]:
             dim = subsystem.truncated_dim
             subsys_operator = qt.Qobj(inpt=operator[:dim, :dim])
@@ -117,8 +122,10 @@ class HilbertSpace(object):
         operator = (qt.destroy(dim))
         return self.identity_wrap(operator, subsystem)
 
-    def get_dressed_evals_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10,
-                              bare_initial_state=None, filename=None):
+    def get_dressed_evals_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, filename=None):
+        """Eigenvalues of the full Hamiltonian as a function of some parameter. Parameter values are specified
+        as a list in `param_vals`. The Hamiltonian `hamiltonian_func` must be a function of that particular parameter,
+        and is expected to internally set subsystem parameters."""
         paramvals_count = len(param_vals)
         spectrumdata = np.empty((paramvals_count, evals_count))
 
@@ -129,7 +136,7 @@ class HilbertSpace(object):
             progress_in_percent = (index + 1) / paramvals_count
             update_progress_bar(progress_in_percent)
         if filename:
-            filewrite_csvdata(filename + '_' + 'param', paramval_list)
+            filewrite_csvdata(filename + '_' + 'param', param_vals)
             filewrite_csvdata(filename + '_specdata', spectrumdata)
             self.filewrite_parameters(filename)
         return spectrumdata
@@ -148,13 +155,13 @@ class HilbertSpace(object):
             dressed_evalsdata[param_index] = hamiltonian.eigenenergies(eigvals=evals_count)
 
             for subsys_index, subsys in enumerate(self.subsystem_list):
-                bare_evalsdata[subsys_index][param_index] = subsys.eigenvals(evals_count=subsys.truncated_dim, from_stored=from_stored)
-
+                bare_evalsdata[subsys_index][param_index] = subsys.eigenvals(evals_count=subsys.truncated_dim,
+                                                                             from_stored=from_stored)
             progress_in_percent = (param_index + 1) / paramvals_count
             update_progress_bar(progress_in_percent)
 
         if filename:
-            filewrite_csvdata(filename + '_' + 'param', paramval_list)
+            filewrite_csvdata(filename + '_' + 'param', param_vals)
             filewrite_csvdata(filename + '_dressedevals', dressed_evalsdata)
             filewrite_csvdata(filename + '_bareevals', bare_evalsdata)
             self.filewrite_parameters(filename)
@@ -167,7 +174,7 @@ class HilbertSpace(object):
         spectrumdata = np.empty((paramvals_count, evals_count))
 
         initialize_progress_bar()
-        for param_index in range (paramvals_count):
+        for param_index in range(paramvals_count):
             dressed_evals = dressed_evalsdata[param_index]
 
             bare_state_energy = 0.0
@@ -261,12 +268,6 @@ def order_eigensystem(evals, evecs):
     evals = evals[ordered_evals_indices]
     evecs = evecs[:, ordered_evals_indices]
     return None
-
-
-def subtract_groundenergy(energy_vals):
-    """Takes a list of energies (such as obtained by diagonalization) and returns them after
-    subtracting the ground state energy."""
-    return (energy_vals - energy_vals[0])
 
 
 def extract_phase(complex_array):
@@ -418,20 +419,22 @@ def spectrum_vs_param_colored_plot(x_param_name, x_vals, y_param_name, y_vals_ma
     that determines the color of each curve at each y-value,
     and a normalization interval for the t-values."""
     fig = plt.figure(figsize=figsize)
+
     for i in range(len(y_vals_matrix)):
         pts = np.asarray([x_vals, y_vals_matrix[i]]).T.reshape(-1, 1, 2)
         segs = np.concatenate([pts[:-1], pts[1:]], axis=1)
         line_collection = mpl.collections.LineCollection(segs, cmap=plt.get_cmap(colormap), norm=plt.Normalize(*norm_range))
-        line_collection.set_array(color_vals_matrix[i])
+        line_collection.set_array(np.array(color_vals_matrix[i]))
         line_collection.set_linewidth(line_width)
         plt.gca().add_collection(line_collection)
 
     plt.xlabel(x_param_name)
-
+    plt.ylabel(y_param_name)
     if not x_range:
         x_range = [np.amin(x_vals), np.amax(x_vals)]
     if not y_range:
         y_range = [np.amin(y_vals_matrix), np.max(y_vals_matrix)]
+
 
     plt.xlim(*x_range)
     plt.ylim(*y_range)
@@ -441,7 +444,7 @@ def spectrum_vs_param_colored_plot(x_param_name, x_vals, y_param_name, y_vals_ma
     plt.show()
 
 
-# ---Generic quantum system container and Qubit base class---------------------------------------------------------------------
+# ---Generic quantum system container and Qubit base class--------------------------------------------------------------
 
 
 class GenericQSys(object):
@@ -488,6 +491,7 @@ class GenericQSys(object):
     def init_parameters(self, **parameter_args):
         for parameter_name, parameter_val in parameter_args.items():
             setattr(self, parameter_name, parameter_val)
+        return None
 
     def __repr__(self):
         output = self.__dict__['_sys_type'] + ' -- PARAMETERS -------'
@@ -514,10 +518,6 @@ class Oscillator(GenericQSys):
             self._sys_type = 'Oscillator'
             self.init_parameters(**parameter_args)
 
-    def init_parameters(self, **parameter_args):
-        for parameter_name, parameter_val in parameter_args.items():
-            setattr(self, parameter_name, parameter_val)
-
     def __repr__(self):
         output = self.__dict__['_sys_type'] + ' -- PARAMETERS -------'
         for parameter_name in self.__dict__.keys():
@@ -536,11 +536,9 @@ class Oscillator(GenericQSys):
 
 
 class BaseClass(GenericQSys):
-
     """Base class for superconducting qubit objects. Provide general mechanisms and routines for
     checking validity of initialization parameters, writing data to files, and plotting.
     """
-
     _EXPECTED_PARAMS_DICT = {}
     _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
 
@@ -605,7 +603,6 @@ class BaseClass(GenericQSys):
         if filename:
             self.filewrite_evals(filename, evals)
             self.filewrite_parameters(filename)
-
         return evals
 
     def eigensys(self, evals_count=6, filename=None):
@@ -617,12 +614,10 @@ class BaseClass(GenericQSys):
         """
         evals, evecs = self._esys_calc(evals_count)
         order_eigensystem(evals, evecs)
-
         if filename:
             self.filewrite_evals(filename, evals)
             self.filewrite_evecs(filename, evecs)
             self.filewrite_parameters(filename)
-
         return evals, evecs
 
     def matrixelements(self, operator, esys, evals_count):
@@ -669,11 +664,7 @@ class BaseClass(GenericQSys):
             filewrite_csvdata(filename + '_' + parameter_name, paramval_list)
             filewrite_csvdata(filename + '_specdata', spectrumdata)
             self.filewrite_parameters(filename)
-
-        if subtract_ground:
-            return spectrumdata[:, 1:]
-        else:
-            return spectrumdata
+        return spectrumdata
 
     def plot_evals_vs_paramvals(self, parameter_name, paramval_list, evals_count=6,
                                 yrange=False, subtract_ground=False, shift=0, filename=None):
@@ -707,12 +698,11 @@ class BaseClass(GenericQSys):
         return None
 
     @staticmethod
-    def _plot_wavefunction1d(wavefunc, potential_vals, offset=0, scaling=1,
-                             ylabel='wavefunction', xlabel='x'):
+    def _plot_wavefunction1d(wavefunc, potential_vals, offset=0, scaling=1, ylabel='wavefunction', xlabel='x'):
         x_vals = wavefunc.basis_vals
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.plot(x_vals, offset + scaling * wavefunc.amplitudes)
+        ax.plot(x_vals, offset + scaling*wavefunc.amplitudes)
         if potential_vals is not None:
             ax.plot(x_vals, potential_vals)
             ax.plot(x_vals, [offset] * len(x_vals), 'b--')
@@ -788,7 +778,7 @@ class Transmon(BaseClass):
         self._sys_type = 'Cooper pair box'
 
     def hamiltonian(self):
-        dimension = 2 * self.ncut + 1
+        dimension = 2*self.ncut + 1
         hamiltonian_mat = np.zeros((dimension, dimension), dtype=np.float_)
         for i in range(dimension):
             hamiltonian_mat[i][i] = 4.0 * self.EC * (i - self.ncut - self.ng)**2
@@ -798,7 +788,7 @@ class Transmon(BaseClass):
         return hamiltonian_mat
 
     def hilbertdim(self):
-        return (2 * self.ncut + 1)
+        return (2*self.ncut + 1)
 
     def n_operator(self):
         """Charge operator in charge basis for the transmon or CPB qubit."""
@@ -812,7 +802,7 @@ class Transmon(BaseClass):
         self._plot_wavefunction1d_discrete(n_wavefunc, nrange)
         return None
 
-    def plot_phi_wavefunction(self, esys, which=0, phi_points=251, mode='abs2'):
+    def plot_phi_wavefunction(self, esys, which=0, phi_points=251, mode='abs_sqr'):
         phi_wavefunc = self.phasebasis_wavefunction(esys, which=which, phi_points=phi_points)
         phase = extract_phase(phi_wavefunc.amplitudes)
         phi_wavefunc.amplitudes *= cmath.exp(-1j * phase)
@@ -912,7 +902,7 @@ class Fluxonium(BaseClass):
         exp_matrix = 0.5 * sp.linalg.expm(exponent) * cmath.exp(1j * 2 * np.pi * self.flux)
         cos_matrix = exp_matrix + np.conj(exp_matrix.T)
 
-        hamiltonian_mat = LC_osc_matrix - self.EJ * cos_matrix
+        hamiltonian_mat = LC_osc_matrix - self.EJ*cos_matrix
         return hamiltonian_mat
 
     def hilbertdim(self):
@@ -937,9 +927,9 @@ class Fluxonium(BaseClass):
             phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[n] * harm_osc_wavefunction(n, phi_basis_vals, phi_osc)
         return WaveFunction(phi_basis_vals, phi_wavefunc_amplitudes, evals[which])
 
-    def plot_wavefunction(self, esys, which=0, phi_range=(-6*np.pi, 6*np.pi), mode='abs2', phi_points=251):
+    def plot_wavefunction(self, esys, which=0, phi_range=(-6*np.pi, 6*np.pi), mode='abs_sqr', phi_points=251):
         """Different modes:
-        'abs2': |psi|^2
+        'abs_sqr': |psi|^2
         'abs':  |psi|
         'real': Re(psi)
         'imag': Im(psi)
@@ -1097,8 +1087,8 @@ def grid_second_derivative(drvtv_var_index, grid, prefactor=1.0, periodic=None):
 def grid_multiple_first_derivatives(deriv_var_list, grid, prefactor=1.0, periodic_var_indices=None):
     """Generate sparse derivative matrices of the form \partial_{x_1} \partial_{x_2} ...,
     i.e., a product of first order derivatives (with respect to different variables).
-    Note: var_list is expected to be ordered!
-    """
+    Uses f'(x) ~= [f(x+h) - f(x-h)]/2h, delta=2h
+    Note: var_list is expected to be ordered!"""
     if isinstance(prefactor, complex):
         dtp = np.complex_
     else:
@@ -1106,23 +1096,24 @@ def grid_multiple_first_derivatives(deriv_var_list, grid, prefactor=1.0, periodi
 
     min_vals, max_vals, pt_counts, var_count = grid.unwrap()
 
-    deriv_order = len(deriv_var_list)   # total order of derivative (number of variables wrt which first derivatives are taken)
+    deriv_order = len(deriv_var_list)   # total order of derivative
 
-    offdiag_elements = [0] * deriv_order   # this is 1/delta from f'(x) ~= [f(x+h) - f(x-h)]/2h, delta=2h
-    drvtv_mat = [0] * deriv_order
+    offdiag_elements = [0.0] * deriv_order
+    drvtv_mat = [0.0] * deriv_order
 
     # Loop over the elements of var_list and generate the derivative matrices
-    for j in range(deriv_order):
-        offdiag_elements[j] = pt_counts[deriv_var_list[j]] / (2.0 * (max_vals[deriv_var_list[j]] - min_vals[deriv_var_list[j]]))
-        if j == 0:
-            offdiag_elements[j] *= prefactor   # first variable has prefactor absorbed into 1/delta
-        drvtv_mat[j] = sp.sparse.dia_matrix((pt_counts[deriv_var_list[j]], pt_counts[deriv_var_list[j]]), dtype=dtp)
-        drvtv_mat[j].setdiag(offdiag_elements[j], k=1)      # occupy the first off-diagonal to the right
-        drvtv_mat[j].setdiag(-offdiag_elements[j], k=-1)    # and left
+    for d_var_index, d_var in enumerate(deriv_var_list):
+        d_var_range = (max_vals[d_var] - min_vals[d_var])
+        offdiag_elements[d_var_index] = pt_counts[d_var] / (2.0 * d_var_range)
+        if d_var_index == 0:
+            offdiag_elements[d_var_index] *= prefactor   # first variable has prefactor absorbed into 1/delta
+        drvtv_mat[d_var_index] = sp.sparse.dia_matrix((pt_counts[d_var], pt_counts[d_var]), dtype=dtp)
+        drvtv_mat[d_var_index].setdiag(offdiag_elements[d_var_index], k=1)      # occupy first off-diagonal to the right
+        drvtv_mat[d_var_index].setdiag(-offdiag_elements[d_var_index], k=-1)    # and left
 
-        if deriv_var_list[j] in periodic_var_indices:
-            drvtv_mat[j].setdiag(-offdiag_elements[j], k=pt_counts[deriv_var_list[j]] - 1)
-            drvtv_mat[j].setdiag(offdiag_elements[j], k=-pt_counts[deriv_var_list[j]] + 1)
+        if d_var in periodic_var_indices:
+            drvtv_mat[d_var_index].setdiag(-offdiag_elements[d_var_index], k=pt_counts[d_var] - 1)
+            drvtv_mat[d_var_index].setdiag(offdiag_elements[d_var_index], k=-pt_counts[d_var] + 1)
 
     # Procedure to generate full matrix as follows. Example: derivatives w.r.t. 2, 4, and 5
     # 0  1  d2   3  d4  d5  6  7  8
@@ -1131,22 +1122,20 @@ def grid_multiple_first_derivatives(deriv_var_list, grid, prefactor=1.0, periodi
     # (c) Fill in identities to the right up to next derivative index or end (ex: 3)
     # (d) Insert next derivative.
     # (e) Repeat (c) and (d) until all variables finished.
-    #
-    # (a) First derivative
-    full_mat = drvtv_mat[0]
-    # (b) Now fill in identity matrices to the left of first variable index
-    for j in range(deriv_var_list[0] - 1, -1, -1):
-        full_mat = sp.sparse.kron(sp.sparse.identity(pt_counts[j], format='dia'), full_mat)
-    # Loop over remaining derivatives up to very last one:
-    for index, deriv_index in enumerate(deriv_var_list[:-1]):
-        # (c) Fill in identities to the right
-        for j in range(deriv_index + 1, deriv_var_list[index + 1]):
-            full_mat = sp.sparse.kron(full_mat, sp.sparse.identity(pt_counts[j], format='dia'))
-        # (d) Insert next derivative
-        full_mat = sp.sparse.kron(full_mat, drvtv_mat[index + 1])
-    # Fill in all remaining identity matrices to the right until last variable covered
-    for j in range(deriv_var_list[-1] + 1, var_count):
-        full_mat = sp.sparse.kron(full_mat, sp.sparse.identity(pt_counts[j], format='dia'))
+
+
+    full_mat = drvtv_mat[0]   # (a) First derivative
+    for var_index in range(deriv_var_list[0] - 1, -1, -1):    # (b) fill in identities to left of first variable
+        full_mat = sp.sparse.kron(sp.sparse.identity(pt_counts[var_index], format='dia'), full_mat)
+
+    for d_var_index, d_var in enumerate(deriv_var_list[:-1]): # loop over remaining derivatives up to very last one:
+        for var_index in range(d_var_index + 1, deriv_var_list[d_var_index + 1]):  # (c) fill in identities to the right
+            full_mat = sp.sparse.kron(full_mat, sp.sparse.identity(pt_counts[var_index], format='dia'))
+
+        full_mat = sp.sparse.kron(full_mat, drvtv_mat[d_var_index + 1]) # (d) Insert next derivative
+
+    for var_index in range(deriv_var_list[-1] + 1, var_count):  # Fill in remaining identities to right
+        full_mat = sp.sparse.kron(full_mat, sp.sparse.identity(pt_counts[var_index], format='dia'))
 
     return full_mat
 
@@ -1264,7 +1253,7 @@ class SymZeroPi(BaseClass):
 
     def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, zero_calibrate=False):
         """Different modes:
-        'abs2': |psi|^2
+        'abs_sqr': |psi|^2
         'abs':  |psi|
         'real': Re(psi)
         'imag': Im(psi)
@@ -1473,7 +1462,7 @@ class FullZeroPi(SymZeroPi):
 
     def plot_wavefunction(self, esys, fixedvar_name, fixedvar_val, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3):
         """Different modes:
-        'abs2': |psi|^2
+        'abs_sqr': |psi|^2
         'abs':  |psi|
         'real': Re(psi)
         'imag': Im(psi)
@@ -1567,14 +1556,14 @@ class FullZeroPi_ProductBasis(BaseClass):
         super(FullZeroPi_ProductBasis, self).__init__(**parameter_args)
         self._sys_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi product basis'
         self._zeropi = DisZeroPi(
-            EJ=self.EJ,
-            EL=self.EL,
-            ECJ=self.ECJ,
-            ECS=self.ECS,
-            dEJ=self.dEJ,
-            dCJ=self.dCJ,
-            flux=self.flux,
-            grid=self.grid
+            EJ = self.EJ,
+            EL = self.EL,
+            ECJ = self.ECJ,
+            ECS = self.ECS,
+            dEJ = self.dEJ,
+            dCJ = self.dCJ,
+            flux = self.flux,
+            grid = self.grid
         )
         self.__initialized = True
 
