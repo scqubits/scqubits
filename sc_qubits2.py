@@ -91,6 +91,13 @@ class HilbertSpace(object):
         with open(filename + PARAMETER_FILESUFFIX, 'w') as target_file:
             target_file.write(self.__repr__())
 
+    def diag_operator(self, diag_elements, subsystem):
+        dim = subsystem.truncated_dim
+        index = range(dim)
+        diag_matrix = np.zeros((dim, dim), dtype = np.float_)
+        diag_matrix[index, index] = diag_elements
+        return self.identity_wrap(diag_matrix, subsystem)
+
     def diag_hamiltonian(self, subsystem):
         """Returns a qt.Qobj which has the eigenenergies of the object 'subsystem' on the diagonal."""
         evals_count = subsystem.truncated_dim
