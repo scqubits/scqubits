@@ -9,19 +9,20 @@ external parameter.
 from __future__ import division
 from __future__ import print_function
 
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import matplotlib.backends.backend_pdf as mplpdf
-import mpl_toolkits.mplot3d as mpl3d
-import numpy as np
-import scipy as sp
-from scipy import sparse, linalg
-from scipy.sparse import linalg
-import math
 import cmath
 import itertools
-import qutip as qt
+import math
 import sys
+
+import matplotlib as mpl
+import matplotlib.backends.backend_pdf as mplpdf
+import matplotlib.pyplot as plt
+import mpl_toolkits.mplot3d as mpl3d
+import numpy as np
+import qutip as qt
+import scipy as sp
+from scipy import sparse
+from scipy.sparse import linalg
 
 import operators as op
 
@@ -392,6 +393,9 @@ def plot_matrixelements(mtable, mode='abs', xlabel='', ylabel='', zlabel='', fil
     nrm = mpl.colors.Normalize(0, max(dz))   # <-- normalize colors to max. data
     colors = plt.cm.viridis(nrm(dz))  # list of colors for each bar
 
+    if filename:
+        out_file = mplpdf.PdfPages(filename)
+
     # plot figure
 
     fig = plt.figure()
@@ -406,12 +410,13 @@ def plot_matrixelements(mtable, mode='abs', xlabel='', ylabel='', zlabel='', fil
 
     cax, kw = mpl.colorbar.make_axes(ax, shrink=.75, pad=.02)  # add colorbar with normalized range
     mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
+    if filename:
+        out_file.savefig()
 
     plt.matshow(modefunction(mtable), cmap=plt.cm.viridis)
-    plt.show()
+#    plt.show()
 
     if filename:
-        out_file = mplpdf.PdfPages(filename)
         out_file.savefig()
         out_file.close()
     return None
@@ -903,13 +908,13 @@ class Fluxonium(BaseClass):
         """Construct Hamiltonian matrix in harm. osc. basis and return as sparse.dia_matrix"""
         dimension = self.hilbertdim()
         diag_elements = [i * self.omega_p() for i in range(dimension)]
-        LC_osc_matrix = np.diagflat(diag_elements)
+        lc_osc_matrix = np.diagflat(diag_elements)
 
         exponent = 1j * self.phi_operator()
         exp_matrix = 0.5 * sp.linalg.expm(exponent) * cmath.exp(1j * 2 * np.pi * self.flux)
         cos_matrix = exp_matrix + np.conj(exp_matrix.T)
 
-        hamiltonian_mat = LC_osc_matrix - self.EJ*cos_matrix
+        hamiltonian_mat = lc_osc_matrix - self.EJ*cos_matrix
         return hamiltonian_mat
 
     def hilbertdim(self):
@@ -1007,13 +1012,13 @@ class FluxoniumSQUID(Fluxonium):
         prefactor = math.cos(np.pi * fluxsquid) * math.sqrt(1.0 + (d * math.tan(np.pi * fluxsquid))**(2))  # just a prefactor in the transformed EJcos term
 
         diag_elements = [i * omega_p for i in range(dim)]
-        LC_osc_matrix = np.diagflat(diag_elements)
+        lc_osc_matrix = np.diagflat(diag_elements)
 
         exponential = 1j * (op.creation(dim) + op.annihilation(dim)) * self.phi_osc() / math.sqrt(2)
         exp_matrix = 0.5 * sp.linalg.expm(exponential) * cmath.exp(1j * (2.0 * np.pi * flux - np.pi * fluxsquid + chi))
         cos_matrix = exp_matrix + np.conj(exp_matrix.T)
 
-        hamiltonian_mat = LC_osc_matrix - (EJ1 + EJ2) * prefactor * cos_matrix
+        hamiltonian_mat = lc_osc_matrix - (EJ1 + EJ2) * prefactor * cos_matrix
         return hamiltonian_mat
 
     def potential(self, phi):
@@ -1327,7 +1332,7 @@ class DisZeroPi(SymZeroPi):
         dphi2 = grid_second_derivative(PHI_INDEX, self.grid, prefactor=-2.0 * self.ECJ)                   # -2E_{CJ}\partial_\phi^2
         dth2 = grid_second_derivative(THETA_INDEX, self.grid, prefactor=-2.0 * self.ECS, periodic=True)     # -2E_{C\Sigma}\partial_\theta^2
         dphidtheta = grid_multiple_first_derivatives([PHI_INDEX, THETA_INDEX], self.grid,
-                                                     prefactor=4.0 * self.ECS * self.dCJ, periodic_var_indices=(THETA_INDEX))
+                                                     prefactor=4.0 * self.ECS * self.dCJ, periodic_var_indices=(THETA_INDEX, ))
         return (dphi2 + dth2 + dphidtheta)
 
 
@@ -1433,9 +1438,9 @@ class FullZeroPi(SymZeroPi):
                 grid_second_derivative(THETA_INDEX, self.grid, prefactor=-2.0 * self.ECS, periodic=True) +   # -2E_{C\Sigma}\partial_\theta^2
                 grid_second_derivative(CHI_INDEX, self.grid, prefactor=-2.0 * self.EC) +                   # -2E_{C}\partial_\chi^2
                 grid_multiple_first_derivatives([PHI_INDEX, THETA_INDEX], self.grid,
-                                                prefactor=4.0 * self.ECS * self.dCJ, periodic_var_indices=(THETA_INDEX)) +  # 4E_{C\Sigma}(\delta C_J/C_J)\partial_\phi \partial_\theta
+                                                prefactor=4.0 * self.ECS * self.dCJ, periodic_var_indices=(THETA_INDEX, )) +  # 4E_{C\Sigma}(\delta C_J/C_J)\partial_\phi \partial_\theta
                 grid_multiple_first_derivatives([THETA_INDEX, CHI_INDEX], self.grid, prefactor=4.0 * self.ECS * self.dC,
-                                                periodic_var_indices=(THETA_INDEX)))    # 4E_{C\Sigma}(\delta C/C)\partial_\theta \partial_\chi
+                                                periodic_var_indices=(THETA_INDEX, )))    # 4E_{C\Sigma}(\delta C/C)\partial_\theta \partial_\chi
 
     def potential(self, phi, theta, chi):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2) + self.EL * phi**2 + 2 * self.EJ +   # symmetric 0-pi contributions
@@ -1579,6 +1584,9 @@ class FullZeroPi_ProductBasis(BaseClass):
         if self.__initialized and parameter_name in self._zeropi._EXPECTED_PARAMS_DICT.keys():
                 self._zeropi.__setattr__(parameter_name, parameter_val)
 
+    def omega_chi(self):
+        return (8.0 * self.EL * self.EC)**0.5
+
     def hamiltonian(self):
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -1586,7 +1594,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         zeropi_diag_hamiltonian.setdiag(zeropi_evals)
 
         chi_dim = self.chi_cutoff
-        prefactor = (8.0 * self.EL * self.EC)**0.5
+        prefactor = self.omega_chi()
         chi_diag_hamiltonian = op.number_sparse(chi_dim, prefactor)
 
         hamiltonian_mat = sp.sparse.kron(zeropi_diag_hamiltonian, sp.sparse.identity(chi_dim, format='dia', dtype=np.float_))
@@ -1629,7 +1637,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         prefactor = - self.ECS * self.dC * (32.0 * self.EL / self.EC)**0.25
         return (prefactor * matrixelem_table(self._zeropi.d_dtheta_operator(), zeropi_states, real_valued=True))
 
-    def g_coupling_matrix(self, zeropi_states, evals_count=6):
+    def g_coupling_matrix(self, zeropi_states=None, evals_count=None):
         """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
         from 'state_list'.  Most commonly, 'zeropi_states' will contain eigenvectors of the
         DisZeroPi type, so 'transpose' is enabled by default.
@@ -1637,6 +1645,8 @@ class FullZeroPi_ProductBasis(BaseClass):
         used for the eigenstate number (and hence the coupling matrix size).
 
         """
+        if evals_count is None:
+            evals_count = self._zeropi.truncated_dim
         if zeropi_states is None:
             _, zeropi_states = self._zeropi.eigensys(evals_count=evals_count)
         return (self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(zeropi_states))
