@@ -1575,7 +1575,7 @@ class FullZeroPi_ProductBasis(BaseClass):
             dEJ = self.dEJ,
             dCJ = self.dCJ,
             flux = self.flux,
-            grid = self.grid
+            grid = self.grid,
             truncated_dim = self.zeropi_cutoff
         )
         self.__initialized = True
