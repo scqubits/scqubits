@@ -32,6 +32,10 @@ import plotting as plot
 
 # routine for displaying a progress bar
 def update_progress_bar(progress_in_percent):
+    """Displays simple, text-based progress bar. The bar length is given by 'progress_in_percent'.
+    @param progress_in_percent: (float) self-explanatory
+    @return (None) only display output
+    """
     bar_max_length = 20   # Modify this to change the length of the progress bar
     status_string = ""
 
@@ -50,6 +54,9 @@ def update_progress_bar(progress_in_percent):
     return None
 
 def initialize_progress_bar():
+    """Set up use of text-based progress bar.
+    @return (None)
+    """
     print("")
     update_progress_bar(0)
     return None
@@ -58,6 +65,13 @@ def initialize_progress_bar():
 
 
 def order_eigensystem(evals, evecs):
+    """
+    Takes eigenvalues and corresponding eigenvectors and orders them according to the eigenvalues (from smallest
+    to largest; real valued eigenvalues are assumed).
+    @param evals: (array, real-valued) array of eigenvalues
+    @param evecs: (array) array containing eigenvectors; evecs[:, 0] is the first eigenvector etc.
+    @return None (evals and evecs are reordered in place!)
+    """
     ordered_evals_indices = evals.argsort()  # eigsh does not guarantee consistent ordering within result?! http://stackoverflow.com/questions/22806398
     evals = evals[ordered_evals_indices]
     evecs = evecs[:, ordered_evals_indices]
@@ -74,14 +88,14 @@ def filewrite_csvdata(filename, numpy_array):
     return None
 
 def filewrite_h5data(filename, numpy_data_list, data_info_strings, param_info_dict):
-    """
-    Write given data (numpy_data_list) along with information for each set (data_info_strings)
+    """Write given data (numpy_data_list) along with information for each set (data_info_strings)
     to the h5 data file with path and name (filename)+'.hdf5'. Additional information about
-    the chosen parameter (param_info_dict) set is added
-    :type filename: str
-    :param numpy_data_list: [np_array1, np_array2, ...]
-    :param data_info_strings: [info_str1, info_str2, ...]
-    :type param_info_dict: dict
+    the chosen parameter (param_info_dict) set is added as well.
+    @param filename: (str) file path and name (not including suffix)
+    @param numpy_data_list: ([np_array1, np_array2, ...]) data sets to be written
+    @param data_info_strings: ([info_str1, info_str2, ...]) strings labeling/describing the individual datasets
+    @param param_info_dict: (dict) record of the parameter info used to generate the data
+    @return (None) only file output
     """
     h5file = h5py.File(filename + '.hdf5', 'w')
     h5group = h5file.create_group('root')
@@ -100,8 +114,9 @@ def filewrite_h5data(filename, numpy_data_list, data_info_strings, param_info_di
 
 def matrix_element(state1, operator, state2):
     """Calculate the matrix element <state1|operator|state2>.
-    state1, state2: numpy arrays
-    operator:       numpy array or sparse matrix object
+    @param state1, state2: (numpy arrays|qt.Qobj) state vectors/kets
+    @param operator: (qt.Qobj|numpy array|numpy sparse object) representation of an operator
+    @return (np.complex_) matrix element <state1|operator|state2>
     """
     if isinstance(operator, qt.Qobj):
         op_matrix = operator.data
@@ -155,17 +170,14 @@ def matrixelem_table(operator, state_table, real_valued=False):
     return mtable
 
 
-# ---Harmonic oscillator--------------------------------------------------------------------
-
-
 def harm_osc_wavefunction(n, x, losc):
     """For given quantum number n=0,1,2,... this returns the value of the harmonic oscillator
     harmonic oscillator wave function \\psi_n(x) = N H_n(x/losc) exp(-x^2/2losc), N being the
     proper normalization factor.
-    :rtype: float
-    :type n: int
-    :type x: float
-    :type losc: float
+    @param n: (int) index of wave function, n=0 is ground state
+    @param x: (float) coordinate where wave function is evaluated
+    @param losc: (float) oscillator length, defined via <0|x^2|0> = losc^2/2
+    @return (float) value of harmonic oscillator wave function
     """
     return ((2.0**n * sp.special.gamma(n+1.0) * losc)**(-0.5) * np.pi**(-0.25) *
             sp.special.eval_hermite(n, x / losc) * np.exp(-(x * x) / (2 * losc * losc)))
@@ -176,15 +188,14 @@ def closest_dressed_energy(bare_energy, dressed_energy_vals):
     return dressed_energy_vals[index]
 
 
-def get_eigenstate_index_maxoverlap(eigenstates_Qobj, bare_state_Qobj):
+def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj):
+    """For given qutip eigenstates object, find index of the eigenstate that has largest
+    overlap with the qutip ket reference_state_Qobj
+    @param eigenstates_Qobj: (array of qutip.Qobj) as obtained from qutip .eigenstates()
+    @param reference_state_Qobj: (qutip.Qobj ket) specific reference state
+    @return (int) index of eigenstates_Qobj state with largest overlap
     """
-    For a given qutip eigenstates object, find the index of the eigenstate that has the largest
-    overlap with the qutip ket bare_state_Qobj
-    :type eigenstates_Qobj: array of qutip.Qobj
-    :type bare_state_Qobj: qutip.Qobj
-    :rtype: int
-    """
-    overlaps = np.asarray([eigenstates_Qobj[j].overlap(bare_state_Qobj) for j in range(len(eigenstates_Qobj))])
+    overlaps = np.asarray([eigenstates_Qobj[j].overlap(reference_state_Qobj) for j in range(len(eigenstates_Qobj))])
     index = (np.abs(overlaps)).argmax()
     return index
 
@@ -209,16 +220,31 @@ class HilbertSpace(object):
         return output
 
     def dict_reformat(self):
+        """Returns HilbertSpace.__dict__ in reformatted form (all strings); needed for .h5 output.
+        @return (dict {str: str,...}) reformatted self.__dict__
+        """
         dict_reformatted = copy.deepcopy(self.__dict__)
         for key, value in dict_reformatted.items():
             dict_reformatted[key] = str(value)
         return dict_reformatted
 
     def filewrite_parameters(self, filename):
+        """Writes system parameters as obtained from .__repr__() to file specified by 'filename'. File name suffix
+        is appended.
+        @param filename: (str) path and name for parameter file to be created
+        @return (None)
+        """
         with open(filename + globals.PARAMETER_FILESUFFIX, 'w') as target_file:
             target_file.write(self.__repr__())
+        return None
 
     def diag_operator(self, diag_elements, subsystem):
+        """For given diagonal elements of a diagonal operator in 'subsystem', return the Qobj operator for the
+        full Hilbert space (perform wrapping in identities for other subsystems).
+        @param diag_elements: (array of floats) diagonal elements of subsystem diagonal operator
+        @param subsystem: (object derived from GenericQSys) subsystem where diagonal operator is defined
+        @return (Qobj operator) full Hilbert space operator
+        """
         dim = subsystem.truncated_dim
         index = range(dim)
         diag_matrix = np.zeros((dim, dim), dtype = np.float_)
@@ -233,11 +259,10 @@ class HilbertSpace(object):
         return self.identity_wrap(diag_qt_op, subsystem)
 
     def identity_wrap(self, operator, subsystem):
-        """Wrap given operator (array, list or qt.Qobj) in identity operators to form full Hilbert space operator.
-        :param operator: operator acting in Hilbert space of `subsystem`
-        :type operator: list, array, or qt.Qobj of operator type
-        :type subsystem: object derived from GenericQSys class
-        :rtype: qt.Qobj of operator type
+        """Wrap given operator in subspace 'subsystem' in identity operators to form full Hilbert space operator.
+        @param operator: (array|list|qt.Qobj) operator acting in Hilbert space of `subsystem`
+        @param subsystem: (object derived from GenericQSys) subsystem where diagonal operator is defined
+        @return (Qobj operator) full Hilbert space operator
         """
         if type(operator) in [list, np.ndarray]:
             dim = subsystem.truncated_dim
@@ -288,11 +313,19 @@ class HilbertSpace(object):
 
     def get_spectrum_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, get_eigenstates=False,
                                   param_name="external_parameter", filename=None):
-        """Eigenvalues, and if desired, eigenstates, of the full Hamiltonian as a function of some parameter. Returns a
-        SpectrumData object. Parameter values are specified as a list or array in `param_vals`. The Hamiltonian `hamiltonian_func`
+        """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as a function of a parameter.
+        Parameter values are specified as a list or array in `param_vals`. The Hamiltonian `hamiltonian_func`
         must be a function of that particular parameter, and is expected to internally set subsystem parameters.
         If a `filename` string is provided, then eigenvalue data is written to that file.
         :param hamiltonian_func: function of one parameter, returning the hamiltonian in qt.Qobj format
+        @param hamiltonian_func: (reference to function) The function hamiltonian_func takes one argument (an element
+                                  of param_vals) and returns the Hamiltonian in qt.Qobj format
+        @param param_vals: (array of floats) array of parameter values
+        @param evals_count: (int) number of desired energy levels
+        @param get_eigenstates: (bool) set to true if eigenstates should be returned as well
+        @param param_name: (str) name for the parameter that is varied in `param_vals`
+        @param filename: (None|str) write data to file if path/filename is provided
+        @return (SpectrumData object) object containing parameter name, values, spectrum data, and system parameters
         """
         paramvals_count = len(param_vals)
         subsys_count = self.subsystem_count
@@ -367,6 +400,8 @@ class HilbertSpace(object):
 
 
 class WaveFunction(object):
+    """Container for wave function amplitudes defined for a specific basis. Optionally, a corresponding
+    energy is saved as well."""
 
     def __init__(self, basis_labels, amplitudes, energy=None):
         self.basis_labels = basis_labels
@@ -375,6 +410,8 @@ class WaveFunction(object):
 
 
 class Grid(object):
+    """Data structure and methods for setting up discretized coordinate grid, generating corresponding derivative
+    matrices."""
 
     def __init__(self, minmaxpts_array):
         self.min_vals = minmaxpts_array[:, 0]
@@ -390,11 +427,14 @@ class Grid(object):
         return output
 
     def unwrap(self):
+        """Auxiliary routine that yields a tuple of the parameters specifying the grid.
+        @return (float array, float array, int array, int) tuple of grid parameters
+        """
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count
 
     def first_derivative_matrix(self, drvtv_var_index, prefactor=1.0, periodic=None):
         if periodic is not None:
-            periodic_var_indices = (0,)
+            periodic_var_indices = (drvtv_var_index,)
         else:
             periodic_var_indices = None
         return self.multi_first_derivatives_matrix([drvtv_var_index], prefactor, periodic_var_indices)
@@ -403,7 +443,11 @@ class Grid(object):
         """Generate sparse derivative matrices of the form \\partial_{x_1} \\partial_{x_2} ...,
         i.e., a product of first order derivatives (with respect to different variables).
         Uses f'(x) ~= [f(x+h) - f(x-h)]/2h, delta=2h
-        Note: var_list is expected to be ordered!"""
+        Note: deriv_var_list is expected to be ordered!
+        @param deriv_var_list: (list of ints) ordered list of variable indices, w.r.t. which derivatives are taken
+        @param prefactor: (float|complex) optional prefactor of the derivative matrix
+        @param periodic_var_indices: (list of ints) ordered sublist of deriv_var_list specifying periodic variables
+        @return (sp.sparse.dia_matrix) sparse first derivative matrix"""
         if isinstance(prefactor, complex):
             dtp = np.complex_
         else:
@@ -481,6 +525,8 @@ class Grid(object):
 
 
 class WaveFunctionOnGrid(object):
+    """Container for wave function amplitudes defined on a coordinate grid. Optionally, a corresponding
+    energy is saved as well."""
 
     def __init__(self, grid, amplitudes, energy=None):
         self.grid = grid
@@ -489,6 +535,10 @@ class WaveFunctionOnGrid(object):
 
 
 class SpectrumData(object):
+    """Container holding energy and state data as a function of a particular parameter that is varied.
+    Also stores all other system parameters used for generating the set, and provides method for writing
+    data to file."""
+
     def __init__(self, param_name, param_vals, energy_table, system_params, state_table=None):
         self.param_name = param_name
         self.param_vals = param_vals
@@ -578,8 +628,8 @@ class GenericQSys(object):
 
 
 class Oscillator(GenericQSys):
+    """General class for mode of an oscillator/resonator."""
 
-    """Oscillator or resonator mode class."""
     _EXPECTED_PARAMS_DICT = {'omega': 'oscillator frequency'}
     _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
 
@@ -750,14 +800,16 @@ class BaseClass(GenericQSys):
     def get_spectrum_vs_paramvals(self, parameter_name, paramval_list, evals_count=6, subtract_ground=False,
                                   get_eigenstates=False, filename=None):
         """Calculates eigenvalues for varying system parameter 'param', where the values for 'param' are elements of
-         paramval_list. Returns a SpectrumData object with energy_data[n] containing eigenvalues calculated for
-         parameter value paramval_list[n].
-        @param param_name: (str) name of parameter to be varied
+        paramval_list. Returns a SpectrumData object with energy_data[n] containing eigenvalues calculated for
+        parameter value paramval_list[n].
+        @param parameter_name: (str) name of parameter to be varied
         @param paramval_list:  (array) parameter values to be plugged in for param
-        @param subtract_ground: (bool)  if True, eigenvalues are returned relative to the ground state eigenvalue
         @param evals_count: (int) number of desired eigenvalues (sorted from smallest to largest)
+        @param subtract_ground: (bool)  if True, eigenvalues are returned relative to the ground state eigenvalue
+        @param get_eigenstates: (bool) return eigenstates along with eigenvalues
         @param filename: (None|str) write data to file if path and filename are specified
-        @return (SpectrumData object) object containing parameter name, parameter values, eigenenergies, and system parameters
+        @return (SpectrumData object) object containing parameter name, parameter values, eigenenergies,
+                                        eigenstates, if desired, and system parameters
         """
         previous_paramval = getattr(self, parameter_name)
 
@@ -904,8 +956,11 @@ class Transmon(BaseClass):
         return None
 
     def numberbasis_wavefunction(self, esys, which=0):
-        """Return the transmon wave function in number basis. The specific index of the wavefunction is: 'which'.
+        """Return the transmon wave function in number basis. The specific index of the wave function is: 'which'.
         'esys' can be provided, but if set to 'None' then it is calculated frst.
+        @param esys: (None | array, array) eigenvalue and eigenvector arrays as obtained from .eigensystem()
+        @param which: (int) eigenfunction index
+        @return (WaveFunction object) object containing charge values, corresponding wave function amplitudes, and eigenvalue
         """
         if esys is None:
             evals_count = max(which + 1, 3)
@@ -917,7 +972,10 @@ class Transmon(BaseClass):
 
     def phasebasis_wavefunction(self, esys, which=0, phi_points=251):
         """Return the transmon wave function in phase basis. The specific index of the wavefunction is: 'which'.
-        'esys' can be provided, but if set to 'None' then it is calculated frst.
+        'esys' can be provided, but if set to 'None' then it is calculated first.
+        @param esys: (None | array, array) eigenvalue and eigenvector arrays as obtained from .eigensystem()
+        @param which: (int) eigenfunction index
+        @return (WaveFunction object) object containing phi values, corresponding wave function amplitudes, and eigenvalue
         """
         if esys is None:
             evals_count = max(which + 1, 3)
@@ -937,7 +995,6 @@ class Transmon(BaseClass):
 
 
 class Fluxonium(BaseClass):
-
     """Class for the fluxonium qubit. Hamiltonian is represented in dense form. The employed
     basis is the EC-EL harmonic oscillator basis. The cosine term in the potential is handled
     via matrix exponentiation.
@@ -966,6 +1023,9 @@ class Fluxonium(BaseClass):
         self._sys_type = 'fluxonium'
 
     def phi_osc(self):
+        """Returns oscillator length for the LC oscillator by fluxonium inductance and capacitance.
+        @return (float) value of oscillator length
+        """
         return (8.0 * self.EC / self.EL)**(0.25)        # LC oscillator length
 
     def omega_p(self):
@@ -1123,12 +1183,6 @@ class FluxoniumSQUID(Fluxonium):
             minimum = minimum + step
             self.plot_evals_vs_paramvals(param1_name, paramval_list, evals_count)
         setattr(self, param2_name, previous_param2val)
-
-
-# ---Routines for translating 1st and 2nd derivatives by discretization into sparse matrix form-------
-
-
-
 
 
 # ---Symmetric 0-pi qubit--------------------------------------------------------------------
