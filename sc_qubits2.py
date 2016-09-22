@@ -546,9 +546,58 @@ class SpectrumData(object):
         self.state_table = state_table
         self.system_params = system_params
 
-    def plot(self):
-        plt.plot(self.param_vals, self.energy_table)
-        plt.show()
+
+    def plotOLD(self, ylim=None,xlim=None, title=None, return_fig=False, *args, **kw):
+        """TODO: double check if ylim, xlim can be passed to axes.plot() directly - maybe not!?
+        Allow for the ability to return the figure object; in case more flexibility is needed.
+        """
+        fig=plt.figure()
+        axes = fig.add_subplot(1, 1, 1) 
+        axes.plot(self.param_vals, self.energy_table, *args, **kw)
+        axes.set_xlabel(self.param_name)
+        if xlim:
+            axes.set_xlim(*xlim)
+        if ylim:
+            axes.set_ylim(*ylim)
+        if title:
+            axes.set_title(title)
+        fig.tight_layout()
+
+        if return_fig:
+            return fig
+        else:
+            plt.show()
+            return None
+
+    def plot(self, axes=None, ylim=None,xlim=None, title=None, *args, **kw):
+        """TODO: double check if ylim, xlim can be passed to axes.plot() directly - maybe not!?
+        If we're given an axes object, update it with a plot, and return it for continence. 
+        Otherwise, just show the plot.
+        """
+
+        if axes is None:
+            axes_provided=False
+            fig=plt.figure()
+            axes = fig.add_subplot(1, 1, 1) 
+        else:
+            axes_provided=True
+
+        axes.plot(self.param_vals, self.energy_table, *args, **kw)
+        axes.set_xlabel(self.param_name)
+        if xlim:
+            axes.set_xlim(*xlim)
+        if ylim:
+            axes.set_ylim(*ylim)
+        if title:
+            axes.set_title(title)
+
+        if axes_provided:
+            return axes
+        else:
+            fig.tight_layout()
+            plt.show()
+            return None
+
 
     def filewrite(self, filename, write_states=False):
         if globals.FILE_FORMAT == 'csv':
@@ -1309,6 +1358,18 @@ class SymZeroPi(BaseClass):
         plot.wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate)
         return None
 
+    # def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, zero_calibrate=False):
+        # """Different modes:
+        # 'abs_sqr': |psi|^2
+        # 'abs':  |psi|
+        # 'real': Re(psi)
+        # 'imag': Im(psi)
+        # """
+        # modefunction = globals.MODE_FUNC_DICT[mode]
+        # wavefunc = self.wavefunction(esys, which)
+        # wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
+        # plot.wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate)
+        # return None
 
 
 # ----------------------------------------------------------------------------------------
@@ -1529,8 +1590,6 @@ class FullZeroPi(SymZeroPi):
         return None
 
 
-
-
 # ----------------------------------------------------------------------------------------
 
 
@@ -1585,6 +1644,10 @@ class FullZeroPi_ProductBasis(BaseClass):
             setattr(self, parameter_name, parameter_val)
 
     def __init__(self, **parameter_args):
+        """
+        TODO (peterg): maybe we should get rid of one of the interdependent vars (ex. ECS) and calculate it 
+        based on the others (ex: ECJ, EC)
+        """
         super(FullZeroPi_ProductBasis, self).__init__(**parameter_args)
         self._sys_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi product basis'
         self._zeropi = DisZeroPi(
@@ -1608,7 +1671,11 @@ class FullZeroPi_ProductBasis(BaseClass):
     def omega_chi(self):
         return (8.0 * self.EL * self.EC)**0.5
 
-    def hamiltonian(self):
+    def hamiltonian(self, return_parts=False):
+        """
+        @param return_parts: Determines if we should also return intermediate components such as
+                             the zeropi esys as well as the coupling matrix. 
+        """
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
         zeropi_diag_hamiltonian = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.float_)
@@ -1627,18 +1694,24 @@ class FullZeroPi_ProductBasis(BaseClass):
             for l2 in range(zeropi_dim):
                 zeropi_coupling += gmat[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
         hamiltonian_mat += sp.sparse.kron(zeropi_coupling, op.annihilation_sparse(chi_dim) + op.creation_sparse(chi_dim))
-        return hamiltonian_mat
+
+        if return_parts:
+            return [hamiltonian_mat, zeropi_evals, zeropi_evecs, gmat]
+        else:
+            return hamiltonian_mat
 
     def hilbertdim(self):
         return (self.zeropi_cutoff * self.chi_cutoff)
 
-    def _evals_calc(self, evals_count):
-        hamiltonian_mat = self.hamiltonian()
+    def _evals_calc(self, evals_count, hamiltonian_mat=None):
+        if hamiltonian_mat is None:
+            hamiltonian_mat = self.hamiltonian()
         evals = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
         return evals
 
-    def _esys_calc(self, evals_count):
-        hamiltonian_mat = self.hamiltonian()
+    def _esys_calc(self, evals_count, hamiltonian_mat=None):
+        if hamiltonian_mat is None:
+            hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
         return evals, evecs
 
@@ -1671,4 +1744,20 @@ class FullZeroPi_ProductBasis(BaseClass):
         if zeropi_states is None:
             _, zeropi_states = self._zeropi.eigensys(evals_count=evals_count)
         return (self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(zeropi_states))
+
+    def get_spectrum_vs_paramvals(self, parameter_name, paramval_list, evals_count=6, subtract_ground=False,
+                                  get_eigenstates=False, filename=None):
+        """We need to be careful here; some of the parameters depend on one another... so if we try to vary just one
+        without adjusting the others, we'd get inconsistent results.
+
+        TODO: Add a checks like this to other ZeroPi classes 
+        """
+        inter_dep_params=["ECS", "ECJ", "EC"] 
+        if parameter_name in inter_dep_params: 
+            raise ValueError("Currently can't vary any of {}, as they are inter-dependent.".format(", ".join(inter_dep_params)))
+
+        return super(FullZeroPi_ProductBasis, self).get_spectrum_vs_paramvals(parameter_name, paramval_list, evals_count=evals_count, subtract_ground=subtract_ground,
+                                  get_eigenstates=get_eigenstates, filename=filename)
+
+    
 

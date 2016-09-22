@@ -70,7 +70,8 @@ def wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate=False):
     return None
 
 
-def contours(x_vals, y_vals, func, contour_vals=None, aspect_ratio=None, filename=None):
+def contours(x_vals, y_vals, func, contour_vals=None, aspect_ratio=None, filename=None, 
+        filled=False, contour_plot_function=plt.contourf, show_colorbar=True):
     """Contour plot of a 2d function 'func(x,y)'.
     x_vals: (ordered) list of x values for the x-y evaluation grid
     y_vals: (ordered) list of y values for the x-y evaluation grid
@@ -88,9 +89,12 @@ def contours(x_vals, y_vals, func, contour_vals=None, aspect_ratio=None, filenam
         plt.figure(figsize=(w, h))
 
     if contour_vals is None:
-        plt.contourf(x_grid, y_grid, z_array, cmap=plt.cm.viridis)
+        contour_plot_function(x_grid, y_grid, z_array, cmap=plt.cm.viridis)
     else:
-        plt.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis)
+        contour_plot_function(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis)
+
+    if show_colorbar:
+        plt.colorbar()
 
     if filename:
         out_file = mplpdf.PdfPages(filename)
