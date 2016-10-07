@@ -10,48 +10,60 @@ import config as globals
 
 
 def wavefunction1d(wavefunc, potential_vals, offset=0, scaling=1, ylabel='wavefunction', xlabel='x',
-                         yrange=None, add_to_ax=None):
-    x_vals = wavefunc.basis_labels
-    if add_to_ax is None:
+                         yrange=None, axes=None):
+    if axes is None:
         fig = plt.figure()
-        ax = fig.add_subplot(111)
-    else:
-        ax = add_to_ax
-    ax.plot(x_vals, offset + scaling * wavefunc.amplitudes)
-    if potential_vals is not None:
-        ax.plot(x_vals, potential_vals)
-        ax.plot(x_vals, [offset] * len(x_vals), 'b--')
+        axes = fig.add_subplot(111)
 
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.set_xlim(xmin=x_vals[0], xmax=x_vals[-1])
+    x_vals = wavefunc.basis_labels
+
+    axes.plot(x_vals, offset + scaling * wavefunc.amplitudes)
+    if potential_vals is not None:
+        axes.plot(x_vals, potential_vals)
+        axes.plot(x_vals, [offset] * len(x_vals), 'b--')
+
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
+    axes.set_xlim(xmin=x_vals[0], xmax=x_vals[-1])
+
     if yrange is not None:
-        ax.set_ylim(*yrange)
-    if add_to_ax is None:
+        axes.set_ylim(*yrange)
+
+    if axes is None:
         plt.show()
+
     return None
 
 
-def wavefunction1d_discrete(wavefunc, nrange, ylabel='wavefunction', xlabel='x'):
+def wavefunction1d_discrete(wavefunc, nrange, ylabel='wavefunction', xlabel='x', axes=None):
+
+    if axes is None:
+        fig = plt.figure()
+        axes = fig.add_subplot(111)
+
     x_vals = wavefunc.basis_labels
     width = .75
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.bar(x_vals, wavefunc.amplitudes, width=width)
-    ax.set_xticks(x_vals + width / 2)
-    ax.set_xticklabels(x_vals)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.set_xlim(nrange)
-    plt.show()
+
+    axes.bar(x_vals, wavefunc.amplitudes, width=width)
+    axes.set_xticks(x_vals + width / 2)
+    axes.set_xticklabels(x_vals)
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
+    axes.set_xlim(nrange)
+    
     return None
 
+def wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate=False, axes=None):
 
-def wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate=False):
+    if axes is None:
+        fig = plt.figure(figsize=figsize)
+        axes = fig.add_subplot(111)
+    else:
+        fig=axes.get_figure()
+
     min_vals = wavefunc.grid.min_vals
     max_vals = wavefunc.grid.max_vals
 
-    plt.figure(figsize=figsize)
     if zero_calibrate:
         absmax = np.amax(np.abs(wavefunc.amplitudes))
         imshow_minval = -absmax
@@ -61,12 +73,11 @@ def wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate=False):
         imshow_minval = np.min(wavefunc.amplitudes)
         imshow_maxval = np.max(wavefunc.amplitudes)
         cmap = plt.cm.viridis
-
-
-    plt.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
+    
+    m=axes.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
                aspect=aspect_ratio, cmap=cmap, vmin=imshow_minval, vmax=imshow_maxval)
-    plt.colorbar(fraction=0.017, pad=0.04)
-    plt.show()
+    cbar=fig.colorbar(m, ax=axes)
+
     return None
 
 

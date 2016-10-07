@@ -546,29 +546,6 @@ class SpectrumData(object):
         self.state_table = state_table
         self.system_params = system_params
 
-
-    def plotOLD(self, ylim=None,xlim=None, title=None, return_fig=False, *args, **kw):
-        """TODO: double check if ylim, xlim can be passed to axes.plot() directly - maybe not!?
-        Allow for the ability to return the figure object; in case more flexibility is needed.
-        """
-        fig=plt.figure()
-        axes = fig.add_subplot(1, 1, 1) 
-        axes.plot(self.param_vals, self.energy_table, *args, **kw)
-        axes.set_xlabel(self.param_name)
-        if xlim:
-            axes.set_xlim(*xlim)
-        if ylim:
-            axes.set_ylim(*ylim)
-        if title:
-            axes.set_title(title)
-        fig.tight_layout()
-
-        if return_fig:
-            return fig
-        else:
-            plt.show()
-            return None
-
     def plot(self, axes=None, ylim=None,xlim=None, title=None, *args, **kw):
         """TODO: double check if ylim, xlim can be passed to axes.plot() directly - maybe not!?
         If we're given an axes object, update it with a plot, and return it for continence. 
@@ -1345,7 +1322,7 @@ class SymZeroPi(BaseClass):
         wavefunc_amplitudes = evecs[:, which].reshape(pt_counts[globals.PHI_INDEX], pt_counts[globals.THETA_INDEX]).T
         return WaveFunctionOnGrid(self.grid, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, zero_calibrate=False):
+    def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, zero_calibrate=False, axes=None):
         """Different modes:
         'abs_sqr': |psi|^2
         'abs':  |psi|
@@ -1355,21 +1332,7 @@ class SymZeroPi(BaseClass):
         modefunction = globals.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        plot.wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate)
-        return None
-
-    # def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, zero_calibrate=False):
-        # """Different modes:
-        # 'abs_sqr': |psi|^2
-        # 'abs':  |psi|
-        # 'real': Re(psi)
-        # 'imag': Im(psi)
-        # """
-        # modefunction = globals.MODE_FUNC_DICT[mode]
-        # wavefunc = self.wavefunction(esys, which)
-        # wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        # plot.wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate)
-        # return None
+        return plot.wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate, axes=axes)
 
 
 # ----------------------------------------------------------------------------------------
@@ -1475,6 +1438,14 @@ class SymZeroPiNg(SymZeroPi):
                                sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 2.0 * self.ECS * (self.ng)**2))
 
 
+    def sparse_kineticmat_org(self):
+        pt_counts = self.grid.pt_counts
+        return (self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ) +  # -2E_{CJ}\\partial_\\phi^2
+                self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True) +   # 2E_{C\\Sigma}(i\\partial_\\theta + n_g)^2
+                self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS * self.ng, periodic=True) +
+                sp.sparse.kron(sp.sparse.identity(pt_counts[globals.PHI_INDEX], format='dia'),
+                               sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 2.0 * self.ECS * (self.ng)**2))
+
 # ----------------------------------------------------------------------------------------
 
 
@@ -1563,7 +1534,7 @@ class FullZeroPi(SymZeroPi):
             _, evecs = esys
         return evecs[:, which]
 
-    def plot_wavefunction(self, esys, fixedvar_name, fixedvar_val, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3):
+    def plot_wavefunction(self, esys, fixedvar_name, fixedvar_val, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, axes=None):
         """Different modes:
         'abs_sqr': |psi|^2
         'abs':  |psi|
@@ -1586,8 +1557,7 @@ class FullZeroPi(SymZeroPi):
         slice_coordinates3d = [slice(None), slice(None), slice(None)]
         slice_coordinates3d[fixedvar_index] = slice_index
         wavefunc = wavefunc[tuple(slice_coordinates3d)].T
-        plot.wavefunction2d(wavefunc, figsize, aspect_ratio)
-        return None
+        return plot.wavefunction2d(wavefunc, figsize, aspect_ratio, axes=axes)
 
 
 # ----------------------------------------------------------------------------------------
