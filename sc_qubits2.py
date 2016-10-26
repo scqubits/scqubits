@@ -188,16 +188,21 @@ def closest_dressed_energy(bare_energy, dressed_energy_vals):
     return dressed_energy_vals[index]
 
 
-def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj):
+def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj, return_overlap=False):
     """For given qutip eigenstates object, find index of the eigenstate that has largest
     overlap with the qutip ket reference_state_Qobj
     @param eigenstates_Qobj: (array of qutip.Qobj) as obtained from qutip .eigenstates()
+    @param return_overlap: (bool) set to true if the value of largest overlap should be also returned
     @param reference_state_Qobj: (qutip.Qobj ket) specific reference state
-    @return (int) index of eigenstates_Qobj state with largest overlap
+    @return (int) index of eigenstates_Qobj state with largest overlap if return_overlap set to False, 
+            otherwise, tuple((int), (float)) tuple with the index as well as the corresponding overlap value.
     """
     overlaps = np.asarray([eigenstates_Qobj[j].overlap(reference_state_Qobj) for j in range(len(eigenstates_Qobj))])
     index = (np.abs(overlaps)).argmax()
-    return index
+    if return_overlap:
+        return (index, np.abs(overlaps[index]))
+    else:
+        return index
 
 
 class HilbertSpace(object):
@@ -978,7 +983,7 @@ class Transmon(BaseClass):
             phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
             potential_vals = -self.EJ * np.cos(phi_wavefunc.basis_labels)
             plot.wavefunction1d(phi_wavefunc, potential_vals,
-                                offset=phi_wavefunc.energy, scaling=0.3*self.EJ, xlabel='phi', add_to_ax = ax)
+                                offset=phi_wavefunc.energy, scaling=0.3*self.EJ, xlabel='phi', axes = ax)
         return None
 
     def numberbasis_wavefunction(self, esys, which=0):
@@ -1133,7 +1138,7 @@ class Fluxonium(BaseClass):
 
             phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
             plot.wavefunction1d(phi_wavefunc, self.potential(phi_wavefunc.basis_labels), offset=phi_wavefunc.energy,
-                                scaling=5*self.EJ, xlabel='phi', yrange=yrange, add_to_ax = ax)
+                                scaling=5*self.EJ, xlabel='phi', yrange=yrange, axes = ax)
         return None
 
 
@@ -1287,12 +1292,20 @@ class SymZeroPi(BaseClass):
         """Return the operator i \\partial_\\phi in sparse.dia_matrix form"""
         return self.grid.first_derivative_matrix(globals.PHI_INDEX, prefactor=1j, periodic=False)
 
+    def d_dphi_operator(self):
+        """Return the operator i \\partial_\\phi in sparse.dia_matrix form
+        TODO: no "i" in description above?? check this.  
+        """
+        return self.grid.first_derivative_matrix(globals.PHI_INDEX, periodic=False)
+
     def i_d_dtheta_operator(self):
         """Return the operator i \\partial_\\theta (periodic variable) in sparse.dia_matrix form"""
         return self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=1j, periodic=True)
 
     def d_dtheta_operator(self):
-        """Return the operator i \\partial_\\theta (periodic variable) in sparse.dia_matrix form"""
+        """Return the operator i \\partial_\\theta (periodic variable) in sparse.dia_matrix form
+        TODO: no "i" in description above?? check this.  
+        """
         return self.grid.first_derivative_matrix(globals.THETA_INDEX, periodic=True)
 
     # return the operator \\phi
