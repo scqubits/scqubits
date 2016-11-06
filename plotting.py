@@ -153,6 +153,8 @@ def plot_matrix(matrix, show_numbers=True, axes=None, **kw):
     """
     if axes is None:
         fig, axes=plt.subplots(1, 1, figsize=(8,6))
+    else:
+        fig=axes.get_figure()
 
     m=axes.matshow(matrix, cmap='jet', interpolation='none', **kw) 
     cbar=fig.colorbar(m, ax=axes)
