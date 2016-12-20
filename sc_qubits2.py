@@ -200,17 +200,18 @@ def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj):
     return index
 
 
-class HilbertSpace(object):
+class HilbertSpace(list):
     """Class holding information about the full Hilbert space, as composed of multiple subsystems.
     - Provides methods to turn subsystem operators in operators acting on the full Hilbert space, and
       establishes the interface to qutip. Returned operators are of the qutip.Qobj type.
     - Provides methods for obtaining eigenvalues, absorption and emission spectra as a function of an
       external paramater."""
-    def __init__(self, subsystem_list):
-        self.subsystem_list = subsystem_list
-        self.subsystem_count = len(subsystem_list)
-        self.subsystem_dims = [subsystem.truncated_dim for subsystem in subsystem_list]
-        self.dimension = np.prod(np.asarray(self.subsystem_dims))
+    def __init__(self, subsystem_list, subsys_names=None):
+        list.__init__(self, subsystem_list)
+
+        if subsys_names is not None:
+            for index, subsysname in enumerate(subsys_names):
+                setattr(self, subsysname, subsystem_list[index])
 
     def __repr__(self):
         output = '====== HILBERT SPACE OBJECT ======'
@@ -218,6 +219,18 @@ class HilbertSpace(object):
             parameter_val = self.__dict__[parameter_name]
             output += '\n' + str(parameter_name) + '\t: ' + str(parameter_val) + '\n'
         return output
+
+    @property
+    def subsystem_dims(self):
+        return [subsystem.truncated_dim for subsystem in self]
+
+    @property
+    def dimension(self):
+        return np.prod(np.asarray(self.subsystem_dims))
+
+    @property
+    def subsystem_count(self):
+        return len(self)
 
     def dict_reformat(self):
         """Returns HilbertSpace.__dict__ in reformatted form (all strings); needed for .h5 output.
@@ -251,11 +264,12 @@ class HilbertSpace(object):
         diag_matrix[index, index] = diag_elements
         return self.identity_wrap(diag_matrix, subsystem)
 
-    def diag_hamiltonian(self, subsystem):
+    def diag_hamiltonian(self, subsystem, evals=None):
         """Returns a qt.Qobj which has the eigenenergies of the object 'subsystem' on the diagonal."""
         evals_count = subsystem.truncated_dim
-        evals = subsystem.eigenvals(evals_count=evals_count)
-        diag_qt_op = qt.Qobj(inpt=np.diagflat(evals))
+        if evals is None:
+            evals = subsystem.eigenvals(evals_count=evals_count)
+        diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))
         return self.identity_wrap(diag_qt_op, subsystem)
 
     def identity_wrap(self, operator, subsystem):
@@ -269,8 +283,8 @@ class HilbertSpace(object):
             subsys_operator = qt.Qobj(inpt=operator[:dim, :dim])
         else:
             subsys_operator = operator
-        operator_identitywrap_list = [qt.operators.qeye(sys.truncated_dim) for sys in self.subsystem_list]
-        subsystem_index = self.subsystem_list.index(subsystem)
+        operator_identitywrap_list = [qt.operators.qeye(sys.truncated_dim) for sys in self]
+        subsystem_index = self.index(subsystem)
         operator_identitywrap_list[subsystem_index] = subsys_operator
         return qt.tensor(operator_identitywrap_list)
 
@@ -371,7 +385,7 @@ class HilbertSpace(object):
             if initial_as_bare:
                 basis_list = [None] * self.subsystem_count
                 for (subsys, state_index) in initial_state_ind:
-                    subsys_index = self.subsystem_list.index(subsys)
+                    subsys_index = self.index(subsys)
                     basis_list[subsys_index] = qt.basis(subsys.truncated_dim, state_index)
                 bare_state = qt.tensor(basis_list)
                 eigenenergy_index = get_eigenstate_index_maxoverlap(spectrum_data.state_table[param_index],
