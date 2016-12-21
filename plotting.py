@@ -148,7 +148,7 @@ def matrixelements(mtable, mode='abs', xlabel='', ylabel='', zlabel=''):
     plt.show()
     return None
 
-def plot_matrix(matrix, show_numbers=True, axes=None, **kw):
+def plot_matrix(matsrix, show_numbers=True, axes=None, **kw):
     """Pretty print a matrix, optionally printing the numerical values of the data.   
     """
     if axes is None:
@@ -160,19 +160,20 @@ def plot_matrix(matrix, show_numbers=True, axes=None, **kw):
     cbar=fig.colorbar(m, ax=axes)
     
     if show_numbers:
-        for x_index in range(matrix.shape[0]):
-            for y_index in range(matrix.shape[1]):
-                axes.text(x_index, y_index, "{:.04f}".format(matrix[x_index,y_index]),
+        for y_index in range(matrix.shape[0]):
+            for x_index in range(matrix.shape[1]):
+                axes.text(x_index, y_index, "{:.04f}".format(matrix[y_index,x_index]),
                              va='center', ha='center', fontsize=8, rotation=45, color='black', fontweight='bold')
     #shift the grid
-    locs=np.arange(matrix.shape[0])
-    for axis in [axes.xaxis, axes.yaxis]:
+    for axis, locs in [(axes.xaxis, np.arange(matrix.shape[1])), (axes.yaxis, np.arange(matrix.shape[0]))]:
         axis.set_ticks(locs + 0.5, minor=True)
         axis.set(ticks=locs, ticklabels=locs)
     axes.grid(True, which='minor')
     axes.grid(False, which='major')
 
-    return axes
+    return fig, axes
+
+
 
 
 def spectrum_with_matrixelement(spectrum_data, matrixelement_table, param_name='external parameter', energy_name='energy',
