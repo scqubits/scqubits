@@ -148,7 +148,7 @@ def matrixelements(mtable, mode='abs', xlabel='', ylabel='', zlabel=''):
     plt.show()
     return None
 
-def plot_matrix(matsrix, show_numbers=True, axes=None, **kw):
+def plot_matrix(matrix, show_numbers=True, axes=None, **kw):
     """Pretty print a matrix, optionally printing the numerical values of the data.   
     """
     if axes is None:
