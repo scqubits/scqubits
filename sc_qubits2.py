@@ -1405,13 +1405,13 @@ class DisZeroPi(SymZeroPi):
 
     def potential(self, phi, theta):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + self.EL * phi**2 + 2.0 * self.EJ +
-                2.0 * self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+                 self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
 
     def sparse_kineticmat(self):
         dphi2 = self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ)                   # -2E_{CJ}\\partial_\\phi^2
         dth2 = self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True)     # -2E_{C\\Sigma}\\partial_\\theta^2
         dphidtheta = self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX],
-                                                              prefactor=4.0 * self.ECS * self.dCJ, periodic_var_indices=(globals.THETA_INDEX, ))
+                                                              prefactor=2.0 * self.ECS * self.dCJ, periodic_var_indices=(globals.THETA_INDEX, ))
         return (dphi2 + dth2 + dphidtheta)
 
 
@@ -1525,16 +1525,16 @@ class FullZeroPi(SymZeroPi):
             self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ) +                  # -2E_{CJ}\\partial_\\phi^2
             self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True) +   # -2E_{C\\Sigma}\\partial_\\theta^2
             self.grid.second_derivative_matrix(globals.CHI_INDEX, prefactor=-2.0 * self.EC) +                   # -2E_{C}\\partial_\\chi^2
-            self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX], prefactor=4.0 * self.ECS * self.dCJ,
+            self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX], prefactor=2.0 * self.ECS * self.dCJ,
                                                      periodic_var_indices=(globals.THETA_INDEX,)) +  # 4E_{C\\Sigma}(\\delta C_J/C_J)\\partial_\\phi \\partial_\\theta
-            self.grid.multi_first_derivatives_matrix([globals.THETA_INDEX, globals.CHI_INDEX], prefactor=4.0 * self.ECS * self.dC,
+            self.grid.multi_first_derivatives_matrix([globals.THETA_INDEX, globals.CHI_INDEX], prefactor=2.0 * self.ECS * self.dC,
                                                      periodic_var_indices=(globals.THETA_INDEX,))     # 4E_{C\\Sigma}(\\delta C/C)\\partial_\\theta \\partial_\\chi
             )
 
     def potential(self, phi, theta, chi):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2) + self.EL * phi**2 + 2 * self.EJ +   # symmetric 0-pi contributions
-                2.0 * self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2) + self.EL * chi**2 +       # correction terms in presence of disorder
-                2.0 * self.EL * self.dEL * phi * chi + 2 * self.EJ * self.dEJ)                                                  # correction terms in presence of disorder
+                self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2) + self.EL * chi**2 +       # correction terms in presence of disorder
+                 self.EL * self.dEL * phi * chi + self.EJ * self.dEJ)                                                  # correction terms in presence of disorder
 
     def plot_potential(self, fixedvar_name, fixedvar_val, contour_vals=None, aspect_ratio=None, filename=None):
         fixedvar_index = self.VARNAME_TO_INDEX[fixedvar_name]
