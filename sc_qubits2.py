@@ -1277,8 +1277,14 @@ class SymZeroPi(BaseClass):
         kmat += self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0*self.ECS, periodic=True)  # -2E_{C\\Sigma}\\partial_\\theta^2
         return kmat
 
-    def sparse_potentialmat(self):
-        """Returns the potential energy matrix for the potential in sparse (dia_matrix) form."""
+    def sparse_potentialmat(self, potential=None):
+        """Returns the potential energy matrix for the potential in sparse (dia_matrix) form.
+        The potential energy can be passed in as a parameter. This may be useful, when we want to calculate
+        sparse representations of (for example) derivatives of U - see d_hamiltonian_flux()
+        """
+        if potential is None:
+            potential=self.potential
+
         min_vals, max_vals, pt_counts, _ = self.grid.unwrap()
         hilbertspace_dim = int(np.prod(pt_counts))
         var_count = len(min_vals)
@@ -1286,11 +1292,26 @@ class SymZeroPi(BaseClass):
         diag_elements = np.empty([1, hilbertspace_dim], dtype=np.float_)
 
         for j, coord_tuple in enumerate(itertools.product(*Xvals)):
-            diag_elements[0][j] = self.potential(*coord_tuple)   # diagonal matrix elements
+            # diag_elements[0][j] = self.potential(*coord_tuple)   # diagonal matrix elements
+            diag_elements[0][j] = potential(*coord_tuple)   # diagonal matrix elements
         return sp.sparse.dia_matrix((diag_elements, [0]), shape=(hilbertspace_dim, hilbertspace_dim))
 
     def hamiltonian(self):
         return (self.sparse_kineticmat() + self.sparse_potentialmat())
+    
+    def d_potential_flux(self, phi, theta):
+        """Returns a derivative of U w.r.t flux, AT the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return  -(2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0)  )
+
+    def d_hamiltonian_flux(self):
+        """Returns a derivative of the H w.r.t flux, AT the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial H}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return self.sparse_potentialmat(potential=self.d_potential_flux)
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -1414,6 +1435,13 @@ class DisZeroPi(SymZeroPi):
                                                               prefactor=2.0 * self.ECS * self.dCJ, periodic_var_indices=(globals.THETA_INDEX, ))
         return (dphi2 + dth2 + dphidtheta)
 
+    def d_potential_flux(self, phi, theta):
+        """Returns a derivative of U w.r.t flux, AT the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return  - (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
+                - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
 
 # ----------------------------------------------------------------------------------------
 
@@ -1464,14 +1492,13 @@ class SymZeroPiNg(SymZeroPi):
                 sp.sparse.kron(sp.sparse.identity(pt_counts[globals.PHI_INDEX], format='dia'),
                                sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 2.0 * self.ECS * (self.ng)**2))
 
-
-    def sparse_kineticmat_org(self):
-        pt_counts = self.grid.pt_counts
-        return (self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ) +  # -2E_{CJ}\\partial_\\phi^2
-                self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True) +   # 2E_{C\\Sigma}(i\\partial_\\theta + n_g)^2
-                self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS * self.ng, periodic=True) +
-                sp.sparse.kron(sp.sparse.identity(pt_counts[globals.PHI_INDEX], format='dia'),
-                               sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 2.0 * self.ECS * (self.ng)**2))
+    # def sparse_kineticmat_org(self):
+        # pt_counts = self.grid.pt_counts
+        # return (self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ) +  # -2E_{CJ}\\partial_\\phi^2
+                # self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True) +   # 2E_{C\\Sigma}(i\\partial_\\theta + n_g)^2
+                # self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS * self.ng, periodic=True) +
+                # sp.sparse.kron(sp.sparse.identity(pt_counts[globals.PHI_INDEX], format='dia'),
+                               # sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 2.0 * self.ECS * (self.ng)**2))
 
 # ----------------------------------------------------------------------------------------
 
@@ -1552,6 +1579,15 @@ class FullZeroPi(SymZeroPi):
         y_vals = np.linspace(min_vals[othervar_indices[1]], max_vals[othervar_indices[1]], pt_counts[othervar_indices[1]])
         plot.contours(x_vals, y_vals, reduced_potential, contour_vals, aspect_ratio, filename)
         return None
+
+    def d_potential_flux(self, phi, theta, chi):
+        """Returns a derivative of U w.r.t flux, AT the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return  (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
+                - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
+
 
     def wavefunction(self, esys, which=0):
         evals_count = max(which + 1, 3)
@@ -1696,6 +1732,28 @@ class FullZeroPi_ProductBasis(BaseClass):
             return [hamiltonian_mat, zeropi_evals, zeropi_evecs, gmat]
         else:
             return hamiltonian_mat
+
+    def d_hamiltonian_flux(self, zeropi_evecs=None):
+        """Returns a derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial H}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+
+        TODO: double check if getting the change of basis done correctly.
+        """
+        zeropi_dim = self.zeropi_cutoff
+        chi_dim = self.chi_cutoff
+
+        if zeropi_evecs is None:
+            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
+
+        d_h_flux_zeropi_eigen_basis = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_) #is this guaranteed to be zero?
+
+        d_h_flux_zeropi = matrixelem_table(self._zeropi.d_hamiltonian_flux(), zeropi_evecs, real_valued=False)
+        for l1 in range(zeropi_dim):
+            for l2 in range(zeropi_dim):
+                d_h_flux_zeropi_eigen_basis += d_h_flux_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
+
+        return sp.sparse.kron(d_h_flux_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.float_))
 
     def hilbertdim(self):
         return (self.zeropi_cutoff * self.chi_cutoff)
