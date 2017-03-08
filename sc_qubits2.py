@@ -30,6 +30,7 @@ import operators as op
 import plotting as plot
 
 
+
 # routine for displaying a progress bar
 def update_progress_bar(progress_in_percent):
     """Displays simple, text-based progress bar. The bar length is given by 'progress_in_percent'.
@@ -1300,18 +1301,33 @@ class SymZeroPi(BaseClass):
         return (self.sparse_kineticmat() + self.sparse_potentialmat())
     
     def d_potential_flux(self, phi, theta):
-        """Returns a derivative of U w.r.t flux, AT the "current" value of flux, as stored in the object. 
+        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
         the expression returned by this function, needs to be multiplied by 1/\Phi_0.
         """
         return  -(2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0)  )
 
     def d_hamiltonian_flux(self):
-        """Returns a derivative of the H w.r.t flux, AT the "current" value of flux, as stored in the object. 
+        """Returns a derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial H}{ \partial \Phi_{\rm ext}}, 
         the expression returned by this function, needs to be multiplied by 1/\Phi_0.
         """
         return self.sparse_potentialmat(potential=self.d_potential_flux)
+
+    def d_potential_EJ(self, phi, theta):
+        """Returns a derivative of the H w.r.t EJ. 
+        This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
+        
+        NOTE: We disregard the constant part of the potential energy ~ 2.0*self.EJ
+        """
+        return (-2.0 * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) )
+
+    def d_hamiltonian_EJ(self):
+        """Returns a derivative of the H w.r.t EJ.
+        This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
+        Here, we differentiate w.r.t EJ in order not to impose units on H. 
+        """
+        return self.sparse_potentialmat(potential=self.d_potential_EJ)
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -1436,12 +1452,22 @@ class DisZeroPi(SymZeroPi):
         return (dphi2 + dth2 + dphidtheta)
 
     def d_potential_flux(self, phi, theta):
-        """Returns a derivative of U w.r.t flux, AT the "current" value of flux, as stored in the object. 
+        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
         the expression returned by this function, needs to be multiplied by 1/\Phi_0.
         """
         return  - (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
                 - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
+
+    def d_potential_EJ(self, phi, theta):
+        """Returns a derivative of the H w.r.t EJ. 
+        This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
+        
+        NOTE: We disregard the constant part of the potential energy ~ 2.0*self.EJ
+        """
+        return (-2.0 * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + 
+                self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
 
 # ----------------------------------------------------------------------------------------
 
@@ -1581,13 +1607,21 @@ class FullZeroPi(SymZeroPi):
         return None
 
     def d_potential_flux(self, phi, theta, chi):
-        """Returns a derivative of U w.r.t flux, AT the "current" value of flux, as stored in the object. 
+        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
         the expression returned by this function, needs to be multiplied by 1/\Phi_0.
         """
         return  (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
                 - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
-
+  
+    def d_potential_EJ(self, phi, theta, chi):
+        """Returns a derivative of the H w.r.t EJ. 
+        This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
+        
+        NOTE: We disregard the constant part of the potential energy ~ 2.0*self.EJ
+        """
+        return (-2.0 * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + 
+                self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
 
     def wavefunction(self, esys, which=0):
         evals_count = max(which + 1, 3)
@@ -1754,6 +1788,29 @@ class FullZeroPi_ProductBasis(BaseClass):
                 d_h_flux_zeropi_eigen_basis += d_h_flux_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
 
         return sp.sparse.kron(d_h_flux_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.float_))
+
+    def d_hamiltonian_EJ(self, zeropi_evecs=None):
+        """Returns a derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial H}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+
+        TODO: double check if getting the change of basis done correctly.
+        """
+        zeropi_dim = self.zeropi_cutoff
+        chi_dim = self.chi_cutoff
+
+        if zeropi_evecs is None:
+            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
+
+        d_h_EJ_zeropi_eigen_basis = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_) #is this guaranteed to be zero?
+
+        d_h_EJ_zeropi = matrixelem_table(self._zeropi.d_hamiltonian_EJ(), zeropi_evecs, real_valued=False)
+        for l1 in range(zeropi_dim):
+            for l2 in range(zeropi_dim):
+                d_h_EJ_zeropi_eigen_basis += d_h_EJ_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
+
+        return sp.sparse.kron(d_h_EJ_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.float_))
+
 
     def hilbertdim(self):
         return (self.zeropi_cutoff * self.chi_cutoff)
