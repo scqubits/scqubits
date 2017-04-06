@@ -436,8 +436,8 @@ class Grid(object):
     def __init__(self, minmaxpts_array):
         self.min_vals = minmaxpts_array[:, 0]
         self.max_vals = minmaxpts_array[:, 1]
-        self.pt_counts = minmaxpts_array[:, 2]
         self.var_count = len(self.min_vals)
+        self.pt_counts = minmaxpts_array[:, 2].astype(np.int) #these are used as indices; need to be whole numbers.  
 
     def __repr__(self):
         output = '    Grid ......'
