@@ -1307,12 +1307,26 @@ class SymZeroPi(BaseClass):
         """
         return  -(2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0)  )
 
+    def d2_potential_flux(self, phi, theta):
+        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return  (2.0 * np.pi**2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)  )
+
     def d_hamiltonian_flux(self):
         """Returns a derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial H}{ \partial \Phi_{\rm ext}}, 
         the expression returned by this function, needs to be multiplied by 1/\Phi_0.
         """
         return self.sparse_potentialmat(potential=self.d_potential_flux)
+
+    def d2_hamiltonian_flux(self):
+        """Returns a second derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial^2 H}{ \partial^2 \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0^2.
+        """
+        return self.sparse_potentialmat(potential=self.d2_potential_flux)
 
     def d_potential_EJ(self, phi, theta):
         """Returns a derivative of the H w.r.t EJ. 
@@ -1344,8 +1358,7 @@ class SymZeroPi(BaseClass):
         return self.grid.first_derivative_matrix(globals.PHI_INDEX, prefactor=1j, periodic=False)
 
     def d_dphi_operator(self):
-        """Return the operator i \\partial_\\phi in sparse.dia_matrix form
-        TODO: no "i" in description above?? check this.  
+        """Return the operator \\partial_\\phi in sparse.dia_matrix form
         """
         return self.grid.first_derivative_matrix(globals.PHI_INDEX, periodic=False)
 
@@ -1354,8 +1367,7 @@ class SymZeroPi(BaseClass):
         return self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=1j, periodic=True)
 
     def d_dtheta_operator(self):
-        """Return the operator i \\partial_\\theta (periodic variable) in sparse.dia_matrix form
-        TODO: no "i" in description above?? check this.  
+        """Return the operator \\partial_\\theta (periodic variable) in sparse.dia_matrix form
         """
         return self.grid.first_derivative_matrix(globals.THETA_INDEX, periodic=True)
 
@@ -1402,7 +1414,10 @@ class SymZeroPi(BaseClass):
 
 class SymZeroPiNg(SymZeroPi):
 
-    """Symmetric Zero-Pi Qubit taking into account offset charge ng
+    """
+    TODO: We should get rid of this class and add a charge offset directly to SymZeroPi.
+    
+    Symmetric Zero-Pi Qubit taking into account offset charge ng
     [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
     [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
     The symmetric model, Eq. (8) in [2], assumes pair-wise identical circuit elements and describes the
@@ -1515,6 +1530,14 @@ class DisZeroPi(SymZeroPi):
         return  - (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
                 - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
 
+    def d2_potential_flux(self, phi, theta):
+        """Returns a second derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial^2 U}{ \partial^2 \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0^2.
+        """
+        return  (2.0 * np.pi**2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)  ) \
+                - (np.pi**2.0 * self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
     def d_potential_EJ(self, phi, theta):
         """Returns a derivative of the H w.r.t EJ. 
         This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
@@ -1598,10 +1621,11 @@ class DisZeroPiNg(DisZeroPi):
 
 
 
-#TODO: add charge offset to this class
 class FullZeroPi(SymZeroPi):
-
-    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
+    """
+    TODO: should add charge offset directly to this class 
+    
+    Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
     the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
     Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space
     into a simple cubic lattice.
@@ -1840,12 +1864,60 @@ class FullZeroPi_ProductBasis(BaseClass):
         else:
             return hamiltonian_mat
 
+    def _zeropi_operator_in_prodcuct_basis(self, zeropi_operator, zeropi_evecs=None):
+        """
+        Helper method that converts a zeropi operator into one in the product basis'
+
+        TODO: Could update d_hamiltonian_EJ(),  d_hamiltonian_ng(),  d_hamiltonian_flux() to use this. 
+        """
+        zeropi_dim = self.zeropi_cutoff
+        chi_dim = self.chi_cutoff
+
+        if zeropi_evecs is None:
+            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
+
+        op_eigen_basis = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_) #is this guaranteed to be zero?
+
+        op_zeropi = matrixelem_table(zeropi_operator, zeropi_evecs, real_valued=False)
+        for l1 in range(zeropi_dim):
+            for l2 in range(zeropi_dim):
+                op_eigen_basis += op_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
+
+        return sp.sparse.kron(op_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.complex_))
+
+    def i_d_dphi_operator(self, zeropi_evecs=None):
+        """Return the operator i \\partial_\\phi"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs)
+
+    def d_dphi_operator(self, zeropi_evecs=None):
+        """Return the operator \\partial_\\phi"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.d_dphi_operator(), zeropi_evecs=zeropi_evecs)
+
+    def i_d_dtheta_operator(self, zeropi_evecs=None):
+        """Return the operator i \\partial_\\theta (periodic variable)"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.i_d_dtheta_operator(), zeropi_evecs=zeropi_evecs)
+
+    def d_dtheta_operator(self, zeropi_evecs=None):
+        """Return the operator  \\partial_\\theta (periodic variable)"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.d_dtheta_operator(), zeropi_evecs=zeropi_evecs)
+
+    def phi_operator(self, zeropi_evecs=None):
+        """Return \phi operator"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs)
+
+    def d2_hamiltonian_flux(self, zeropi_evecs=None):
+        """Returns a second derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial^2 H}{ \partial^2 \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0^2.
+        """
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.d2_hamiltonian_flux(), zeropi_evecs=zeropi_evecs)
+
     def d_hamiltonian_flux(self, zeropi_evecs=None):
         """Returns a derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial H}{ \partial \Phi_{\rm ext}}, 
         the expression returned by this function, needs to be multiplied by 1/\Phi_0.
 
-        TODO: double check if getting the change of basis done correctly.
+        TODO: update to _zeropi_operator_in_prodcuct_basis()
         """
         zeropi_dim = self.zeropi_cutoff
         chi_dim = self.chi_cutoff
@@ -1864,6 +1936,8 @@ class FullZeroPi_ProductBasis(BaseClass):
 
     def d_hamiltonian_ng(self, zeropi_evecs=None):
         """Returns a derivative of the H w.r.t ng
+
+        TODO: update to _zeropi_operator_in_prodcuct_basis()
         """
         zeropi_dim = self.zeropi_cutoff
         chi_dim = self.chi_cutoff
@@ -1882,6 +1956,8 @@ class FullZeroPi_ProductBasis(BaseClass):
 
     def d_hamiltonian_EJ(self, zeropi_evecs=None):
         """Returns a derivative of the H w.r.t EJ
+
+        TODO: update to _zeropi_operator_in_prodcuct_basis()
         """
         zeropi_dim = self.zeropi_cutoff
         chi_dim = self.chi_cutoff
