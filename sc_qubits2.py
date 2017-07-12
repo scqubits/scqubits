@@ -1289,7 +1289,11 @@ class SymZeroPi(BaseClass):
         min_vals, max_vals, pt_counts, _ = self.grid.unwrap()
         hilbertspace_dim = int(np.prod(pt_counts))
         var_count = len(min_vals)
-        Xvals = [np.linspace(min_vals[j], max_vals[j], pt_counts[j]) for j in range(var_count)]  # list of coordinate arrays
+        # Xvals = [np.linspace(min_vals[j], max_vals[j], pt_counts[j]) for j in range(var_count)]  # list of coordinate arrays
+        #We have to account fhe fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
+        Xvals = [np.linspace(min_vals[globals.PHI_INDEX], max_vals[globals.PHI_INDEX], pt_counts[globals.PHI_INDEX]), 
+                np.linspace(min_vals[globals.THETA_INDEX], max_vals[globals.THETA_INDEX] - 2.0*np.pi/pt_counts[globals.THETA_INDEX], pt_counts[globals.THETA_INDEX])]
+
         diag_elements = np.empty([1, hilbertspace_dim], dtype=np.float_)
 
         for j, coord_tuple in enumerate(itertools.product(*Xvals)):
@@ -1308,8 +1312,7 @@ class SymZeroPi(BaseClass):
         return  -(2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0)  )
 
     def d2_potential_flux(self, phi, theta):
-        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
-        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
+        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object.  The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
         the expression returned by this function, needs to be multiplied by 1/\Phi_0.
         """
         return  (2.0 * np.pi**2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)  )
@@ -2035,212 +2038,4 @@ class FullZeroPi_ProductBasis(BaseClass):
                                   get_eigenstates=get_eigenstates, filename=filename)
 
     
-#TODO: delete this once happy with the updated class that takes in an offset charge ng. 
-class FullZeroPi_ProductBasis_OLD(BaseClass):
 
-    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
-    the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
-    Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)
-    Zero-Pi qubit on one hand and the chi LC oscillator on the other hand.
-
-    Expected parameters are:
-
-    EJ:    mean Josephson energy of the two junctions
-    EL:    inductive energy of the two (super-)inductors
-    ECJ:   charging energy associated with the two junctions
-    ECS:   charging energy including the large shunting capacitances
-    EC:    charging energy associated with chi degree of freedom
-    dEJ:   relative disorder in EJ, i.e., (EJ1-EJ2)/EJ(mean)
-    dEL:   relative disorder in EL, i.e., (EL1-EL2)/EL(mean)
-    dCJ:   relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/C(mean)
-    flux:  magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
-    zeropi_cutoff: cutoff in the number of states of the disordered zero-pi qubit
-    chi_cut: cutoff in the chi oscillator basis (Fock state basis)
-    grid: Grid object specifying the range and spacing of the discretization lattice
-
-
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
-    relative ones.
-    """
-
-    _EXPECTED_PARAMS_DICT = {
-        'EJ': 'Josephson energy',
-        'EL': 'inductive energy',
-        'ECJ': 'junction charging energy',
-        'ECS': 'total charging energy including C',
-        'EC': 'charging energy associated with chi degree of freedom',
-        'dEJ': 'relative deviation between the two EJs',
-        'dCJ': 'relative deviation between the two junction capacitances',
-        'dC': 'relative deviation between the two shunt capacitances',
-        'dEL': 'relative deviation between the two inductances',
-        'flux': 'external magnetic flux in units of flux quanta (h/2e)',
-        'zeropi_cutoff': 'cutoff in the number of states of the disordered zero-pi qubit',
-        'chi_cutoff': 'cutoff in the chi oscillator basis (Fock state basis)',
-        'grid': 'Grid object specifying the range and spacing of the discretization lattice'
-    }
-    _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
-
-    __initialized = False
-
-    def init_parameters(self, **parameter_args):
-        for parameter_name, parameter_val in parameter_args.items():
-            setattr(self, parameter_name, parameter_val)
-
-    def __init__(self, **parameter_args):
-        """
-        TODO (peterg): maybe we should get rid of one of the interdependent vars (ex. ECS) and calculate it 
-        based on the others (ex: ECJ, EC)
-        """
-        super(FullZeroPi_ProductBasis, self).__init__(**parameter_args)
-        self._sys_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi product basis'
-        self._zeropi = DisZeroPi(
-            EJ = self.EJ,
-            EL = self.EL,
-            ECJ = self.ECJ,
-            ECS = self.ECS,
-            dEJ = self.dEJ,
-            dCJ = self.dCJ,
-            flux = self.flux,
-            grid = self.grid,
-            truncated_dim = self.zeropi_cutoff
-        )
-        self.__initialized = True
-
-    def __setattr__(self, parameter_name, parameter_val):
-        super(FullZeroPi_ProductBasis, self).__setattr__(parameter_name, parameter_val)
-        if self.__initialized and parameter_name in self._zeropi._EXPECTED_PARAMS_DICT.keys():
-                self._zeropi.__setattr__(parameter_name, parameter_val)
-
-    def omega_chi(self):
-        return (8.0 * self.EL * self.EC)**0.5
-
-    def hamiltonian(self, return_parts=False):
-        """
-        @param return_parts: Determines if we should also return intermediate components such as
-                             the zeropi esys as well as the coupling matrix. 
-        """
-        zeropi_dim = self.zeropi_cutoff
-        zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
-        zeropi_diag_hamiltonian = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.float_)
-        zeropi_diag_hamiltonian.setdiag(zeropi_evals)
-
-        chi_dim = self.chi_cutoff
-        prefactor = self.omega_chi()
-        chi_diag_hamiltonian = op.number_sparse(chi_dim, prefactor)
-
-        hamiltonian_mat = sp.sparse.kron(zeropi_diag_hamiltonian, sp.sparse.identity(chi_dim, format='dia', dtype=np.float_))
-        hamiltonian_mat += sp.sparse.kron(sp.sparse.identity(zeropi_dim, format='dia', dtype=np.float_), chi_diag_hamiltonian)
-
-        gmat = self.g_coupling_matrix(zeropi_evecs)
-        zeropi_coupling = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.float_)
-        for l1 in range(zeropi_dim):
-            for l2 in range(zeropi_dim):
-                zeropi_coupling += gmat[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
-        hamiltonian_mat += sp.sparse.kron(zeropi_coupling, op.annihilation_sparse(chi_dim) + op.creation_sparse(chi_dim))
-
-        if return_parts:
-            return [hamiltonian_mat, zeropi_evals, zeropi_evecs, gmat]
-        else:
-            return hamiltonian_mat
-
-    def d_hamiltonian_flux(self, zeropi_evecs=None):
-        """Returns a derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
-        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial H}{ \partial \Phi_{\rm ext}}, 
-        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
-
-        TODO: double check if getting the change of basis done correctly.
-        """
-        zeropi_dim = self.zeropi_cutoff
-        chi_dim = self.chi_cutoff
-
-        if zeropi_evecs is None:
-            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
-
-        d_h_flux_zeropi_eigen_basis = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_) #is this guaranteed to be zero?
-
-        d_h_flux_zeropi = matrixelem_table(self._zeropi.d_hamiltonian_flux(), zeropi_evecs, real_valued=False)
-        for l1 in range(zeropi_dim):
-            for l2 in range(zeropi_dim):
-                d_h_flux_zeropi_eigen_basis += d_h_flux_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
-
-        return sp.sparse.kron(d_h_flux_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.float_))
-
-    def d_hamiltonian_EJ(self, zeropi_evecs=None):
-        """Returns a derivative of the H w.r.t EJ
-        """
-        zeropi_dim = self.zeropi_cutoff
-        chi_dim = self.chi_cutoff
-
-        if zeropi_evecs is None:
-            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
-
-        d_h_EJ_zeropi_eigen_basis = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_) #is this guaranteed to be zero?
-
-        d_h_EJ_zeropi = matrixelem_table(self._zeropi.d_hamiltonian_EJ(), zeropi_evecs, real_valued=False)
-        for l1 in range(zeropi_dim):
-            for l2 in range(zeropi_dim):
-                d_h_EJ_zeropi_eigen_basis += d_h_EJ_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
-
-        return sp.sparse.kron(d_h_EJ_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.float_))
-
-
-    def hilbertdim(self):
-        return (self.zeropi_cutoff * self.chi_cutoff)
-
-    def _evals_calc(self, evals_count, hamiltonian_mat=None):
-        if hamiltonian_mat is None:
-            hamiltonian_mat = self.hamiltonian()
-        evals = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
-        return evals
-
-    def _esys_calc(self, evals_count, hamiltonian_mat=None):
-        if hamiltonian_mat is None:
-            hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
-        return evals, evecs
-
-    def g_phi_coupling_matrix(self, zeropi_states):
-        """Returns a matrix of coupling strengths g^\\phi_{ll'} [cmp. Dempster et al., Eq. (18)], using the states
-        from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors of the
-        DisZeroPi type, so 'transpose' is enabled by default.
-        """
-        prefactor = self.EL * self.dEL * (8.0 * self.EC / self.EL)**0.25
-        return (prefactor * matrixelem_table(self._zeropi.phi_operator(), zeropi_states, real_valued=True))
-
-    def g_theta_coupling_matrix(self, zeropi_states):
-        """Returns a matrix of coupling strengths i*g^\\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
-        from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors, so 'transpose' is enabled by
-        default.
-        """
-        prefactor = - self.ECS * self.dC * (32.0 * self.EL / self.EC)**0.25
-        return (prefactor * matrixelem_table(self._zeropi.d_dtheta_operator(), zeropi_states, real_valued=True))
-
-    def g_coupling_matrix(self, zeropi_states=None, evals_count=None):
-        """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
-        from 'state_list'.  Most commonly, 'zeropi_states' will contain eigenvectors of the
-        DisZeroPi type, so 'transpose' is enabled by default.
-        If zeropi_states==None, then a set of self.zeropi eigenstates is calculated. Only in that case is evals_count
-        used for the eigenstate number (and hence the coupling matrix size).
-
-        """
-        if evals_count is None:
-            evals_count = self._zeropi.truncated_dim
-        if zeropi_states is None:
-            _, zeropi_states = self._zeropi.eigensys(evals_count=evals_count)
-        return (self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(zeropi_states))
-
-    def get_spectrum_vs_paramvals(self, parameter_name, paramval_list, evals_count=6, subtract_ground=False,
-                                  get_eigenstates=False, filename=None):
-        """We need to be careful here; some of the parameters depend on one another... so if we try to vary just one
-        without adjusting the others, we'd get inconsistent results.
-
-        TODO: Add a checks like this to other ZeroPi classes 
-        """
-        inter_dep_params=["ECS", "ECJ", "EC"] 
-        if parameter_name in inter_dep_params: 
-            raise ValueError("Currently can't vary any of {}, as they are inter-dependent.".format(", ".join(inter_dep_params)))
-
-        return super(FullZeroPi_ProductBasis, self).get_spectrum_vs_paramvals(parameter_name, paramval_list, evals_count=evals_count, subtract_ground=subtract_ground,
-                                  get_eigenstates=get_eigenstates, filename=filename)
-
-    
