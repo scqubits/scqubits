@@ -1998,7 +1998,8 @@ class FullZeroPi_ProductBasis(BaseClass):
         from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors of the
         DisZeroPi type, so 'transpose' is enabled by default.
         """
-        prefactor = self.EL * self.dEL * (8.0 * self.EC / self.EL)**0.25
+        # prefactor = self.EL * self.dEL * (8.0 * self.EC / self.EL)**0.25
+        prefactor = self.EL * (self.dEL / 2.0) * (8.0 * self.EC / self.EL)**0.25
         return (prefactor * matrixelem_table(self._zeropi.phi_operator(), zeropi_states, real_valued=True))
 
     def g_theta_coupling_matrix(self, zeropi_states):
@@ -2006,7 +2007,8 @@ class FullZeroPi_ProductBasis(BaseClass):
         from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors, so 'transpose' is enabled by
         default.
         """
-        prefactor = - self.ECS * self.dC * (32.0 * self.EL / self.EC)**0.25
+        # prefactor = - self.ECS * self.dC * (32.0 * self.EL / self.EC)**0.25
+        prefactor = - self.ECS * (self.dC / 2.0) * (32.0 * self.EL / self.EC)**0.25
         return (prefactor * matrixelem_table(self._zeropi.d_dtheta_operator(), zeropi_states, real_valued=True))
 
     def g_coupling_matrix(self, zeropi_states=None, evals_count=None):
