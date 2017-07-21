@@ -1289,10 +1289,19 @@ class SymZeroPi(BaseClass):
         min_vals, max_vals, pt_counts, _ = self.grid.unwrap()
         hilbertspace_dim = int(np.prod(pt_counts))
         var_count = len(min_vals)
+    
         # Xvals = [np.linspace(min_vals[j], max_vals[j], pt_counts[j]) for j in range(var_count)]  # list of coordinate arrays
         #We have to account fhe fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
-        Xvals = [np.linspace(min_vals[globals.PHI_INDEX], max_vals[globals.PHI_INDEX], pt_counts[globals.PHI_INDEX]), 
-                np.linspace(min_vals[globals.THETA_INDEX], max_vals[globals.THETA_INDEX] - 2.0*np.pi/pt_counts[globals.THETA_INDEX], pt_counts[globals.THETA_INDEX])]
+        # Xvals = [np.linspace(min_vals[globals.PHI_INDEX], max_vals[globals.PHI_INDEX], pt_counts[globals.PHI_INDEX]), 
+                # np.linspace(min_vals[globals.THETA_INDEX], max_vals[globals.THETA_INDEX] - 2.0*np.pi/pt_counts[globals.THETA_INDEX], pt_counts[globals.THETA_INDEX])]
+
+        Xvals=[]
+        for j in range(var_count):
+            #We have to account fhe fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
+            if j==globals.THETA_INDEX: 
+                Xvals.append(np.linspace(min_vals[j], max_vals[j] - 2.0*np.pi/pt_counts[j], pt_counts[j]))
+            else:
+                Xvals.append(np.linspace(min_vals[j], max_vals[j], pt_counts[j]))
 
         diag_elements = np.empty([1, hilbertspace_dim], dtype=np.float_)
 
@@ -1647,6 +1656,12 @@ class FullZeroPi(SymZeroPi):
 
     Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
     relative ones.
+
+    TODO:
+    - has to get updated to support charge offset. 
+    - double check that factor of 1/2 consistent with disorder definition.
+
+
     """
 
     VARNAME_TO_INDEX = {'phi': globals.PHI_INDEX, 'theta': globals.THETA_INDEX, 'chi': globals.CHI_INDEX}
