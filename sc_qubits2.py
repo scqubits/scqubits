@@ -67,15 +67,15 @@ def initialize_progress_bar():
 
 def order_eigensystem(evals, evecs):
     """
-    Takes eigenvalues and corresponding eigenvectors and orders them according to the eigenvalues (from smallest
+    Takes eigenvalues and corresponding eigenvectors and orders them (in place) according to the eigenvalues (from smallest
     to largest; real valued eigenvalues are assumed).
     @param evals: (array, real-valued) array of eigenvalues
     @param evecs: (array) array containing eigenvectors; evecs[:, 0] is the first eigenvector etc.
     @return None (evals and evecs are reordered in place!)
     """
     ordered_evals_indices = evals.argsort()  # eigsh does not guarantee consistent ordering within result?! http://stackoverflow.com/questions/22806398
-    evals = evals[ordered_evals_indices]
-    evecs = evecs[:, ordered_evals_indices]
+    evals[:] = evals[ordered_evals_indices]
+    evecs[:] = evecs[:, ordered_evals_indices]
     return None
 
 
