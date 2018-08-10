@@ -30,6 +30,7 @@ import operators as op
 import plotting as plot
 
 
+
 # routine for displaying a progress bar
 def update_progress_bar(progress_in_percent):
     """Displays simple, text-based progress bar. The bar length is given by 'progress_in_percent'.
@@ -66,15 +67,15 @@ def initialize_progress_bar():
 
 def order_eigensystem(evals, evecs):
     """
-    Takes eigenvalues and corresponding eigenvectors and orders them according to the eigenvalues (from smallest
+    Takes eigenvalues and corresponding eigenvectors and orders them (in place) according to the eigenvalues (from smallest
     to largest; real valued eigenvalues are assumed).
     @param evals: (array, real-valued) array of eigenvalues
     @param evecs: (array) array containing eigenvectors; evecs[:, 0] is the first eigenvector etc.
     @return None (evals and evecs are reordered in place!)
     """
     ordered_evals_indices = evals.argsort()  # eigsh does not guarantee consistent ordering within result?! http://stackoverflow.com/questions/22806398
-    evals = evals[ordered_evals_indices]
-    evecs = evecs[:, ordered_evals_indices]
+    evals[:] = evals[ordered_evals_indices]
+    evecs[:] = evecs[:, ordered_evals_indices]
     return None
 
 
@@ -188,16 +189,21 @@ def closest_dressed_energy(bare_energy, dressed_energy_vals):
     return dressed_energy_vals[index]
 
 
-def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj):
+def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj, return_overlap=False):
     """For given qutip eigenstates object, find index of the eigenstate that has largest
     overlap with the qutip ket reference_state_Qobj
     @param eigenstates_Qobj: (array of qutip.Qobj) as obtained from qutip .eigenstates()
+    @param return_overlap: (bool) set to true if the value of largest overlap should be also returned
     @param reference_state_Qobj: (qutip.Qobj ket) specific reference state
-    @return (int) index of eigenstates_Qobj state with largest overlap
+    @return (int) index of eigenstates_Qobj state with largest overlap if return_overlap set to False, 
+            otherwise, tuple((int), (float)) tuple with the index as well as the corresponding overlap value.
     """
     overlaps = np.asarray([eigenstates_Qobj[j].overlap(reference_state_Qobj) for j in range(len(eigenstates_Qobj))])
     index = (np.abs(overlaps)).argmax()
-    return index
+    if return_overlap:
+        return (index, np.abs(overlaps[index]))
+    else:
+        return index
 
 
 class HilbertSpace(list):
@@ -430,8 +436,8 @@ class Grid(object):
     def __init__(self, minmaxpts_array):
         self.min_vals = minmaxpts_array[:, 0]
         self.max_vals = minmaxpts_array[:, 1]
-        self.pt_counts = minmaxpts_array[:, 2]
         self.var_count = len(self.min_vals)
+        self.pt_counts = minmaxpts_array[:, 2].astype(np.int) #these are used as indices; need to be whole numbers.  
 
     def __repr__(self):
         output = '    Grid ......'
@@ -559,29 +565,6 @@ class SpectrumData(object):
         self.energy_table = energy_table
         self.state_table = state_table
         self.system_params = system_params
-
-
-    def plotOLD(self, ylim=None,xlim=None, title=None, return_fig=False, *args, **kw):
-        """TODO: double check if ylim, xlim can be passed to axes.plot() directly - maybe not!?
-        Allow for the ability to return the figure object; in case more flexibility is needed.
-        """
-        fig=plt.figure()
-        axes = fig.add_subplot(1, 1, 1) 
-        axes.plot(self.param_vals, self.energy_table, *args, **kw)
-        axes.set_xlabel(self.param_name)
-        if xlim:
-            axes.set_xlim(*xlim)
-        if ylim:
-            axes.set_ylim(*ylim)
-        if title:
-            axes.set_title(title)
-        fig.tight_layout()
-
-        if return_fig:
-            return fig
-        else:
-            plt.show()
-            return None
 
     def plot(self, axes=None, ylim=None,xlim=None, title=None, *args, **kw):
         """TODO: double check if ylim, xlim can be passed to axes.plot() directly - maybe not!?
@@ -1015,7 +998,7 @@ class Transmon(BaseClass):
             phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
             potential_vals = -self.EJ * np.cos(phi_wavefunc.basis_labels)
             plot.wavefunction1d(phi_wavefunc, potential_vals,
-                                offset=phi_wavefunc.energy, scaling=0.3*self.EJ, xlabel='phi', add_to_ax = ax)
+                                offset=phi_wavefunc.energy, scaling=0.3*self.EJ, xlabel='phi', axes = ax)
         return None
 
     def numberbasis_wavefunction(self, esys, which=0):
@@ -1170,7 +1153,7 @@ class Fluxonium(BaseClass):
 
             phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
             plot.wavefunction1d(phi_wavefunc, self.potential(phi_wavefunc.basis_labels), offset=phi_wavefunc.energy,
-                                scaling=5*self.EJ, xlabel='phi', yrange=yrange, add_to_ax = ax)
+                                scaling=5*self.EJ, xlabel='phi', yrange=yrange, axes = ax)
         return None
 
 
@@ -1295,20 +1278,82 @@ class SymZeroPi(BaseClass):
         kmat += self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0*self.ECS, periodic=True)  # -2E_{C\\Sigma}\\partial_\\theta^2
         return kmat
 
-    def sparse_potentialmat(self):
-        """Returns the potential energy matrix for the potential in sparse (dia_matrix) form."""
+    def sparse_potentialmat(self, potential=None):
+        """Returns the potential energy matrix for the potential in sparse (dia_matrix) form.
+        The potential energy can be passed in as a parameter. This may be useful, when we want to calculate
+        sparse representations of (for example) derivatives of U - see d_hamiltonian_flux()
+        """
+        if potential is None:
+            potential=self.potential
+
         min_vals, max_vals, pt_counts, _ = self.grid.unwrap()
         hilbertspace_dim = int(np.prod(pt_counts))
         var_count = len(min_vals)
-        Xvals = [np.linspace(min_vals[j], max_vals[j], pt_counts[j]) for j in range(var_count)]  # list of coordinate arrays
+    
+        # Xvals = [np.linspace(min_vals[j], max_vals[j], pt_counts[j]) for j in range(var_count)]  # list of coordinate arrays
+        #We have to account fhe fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
+        # Xvals = [np.linspace(min_vals[globals.PHI_INDEX], max_vals[globals.PHI_INDEX], pt_counts[globals.PHI_INDEX]), 
+                # np.linspace(min_vals[globals.THETA_INDEX], max_vals[globals.THETA_INDEX] - 2.0*np.pi/pt_counts[globals.THETA_INDEX], pt_counts[globals.THETA_INDEX])]
+
+        Xvals=[]
+        for j in range(var_count):
+            #We have to account fhe fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
+            if j==globals.THETA_INDEX: 
+                Xvals.append(np.linspace(min_vals[j], max_vals[j] - 2.0*np.pi/pt_counts[j], pt_counts[j]))
+            else:
+                Xvals.append(np.linspace(min_vals[j], max_vals[j], pt_counts[j]))
+
         diag_elements = np.empty([1, hilbertspace_dim], dtype=np.float_)
 
         for j, coord_tuple in enumerate(itertools.product(*Xvals)):
-            diag_elements[0][j] = self.potential(*coord_tuple)   # diagonal matrix elements
+            # diag_elements[0][j] = self.potential(*coord_tuple)   # diagonal matrix elements
+            diag_elements[0][j] = potential(*coord_tuple)   # diagonal matrix elements
         return sp.sparse.dia_matrix((diag_elements, [0]), shape=(hilbertspace_dim, hilbertspace_dim))
 
     def hamiltonian(self):
         return (self.sparse_kineticmat() + self.sparse_potentialmat())
+    
+    def d_potential_flux(self, phi, theta):
+        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return  -(2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0)  )
+
+    def d2_potential_flux(self, phi, theta):
+        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object.  The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return  (2.0 * np.pi**2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)  )
+
+    def d_hamiltonian_flux(self):
+        """Returns a derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial H}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return self.sparse_potentialmat(potential=self.d_potential_flux)
+
+    def d2_hamiltonian_flux(self):
+        """Returns a second derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial^2 H}{ \partial^2 \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0^2.
+        """
+        return self.sparse_potentialmat(potential=self.d2_potential_flux)
+
+    def d_potential_EJ(self, phi, theta):
+        """Returns a derivative of the H w.r.t EJ. 
+        This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
+        
+        NOTE: We disregard the constant part of the potential energy ~ 2.0*self.EJ
+        """
+        return (-2.0 * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) ) 
+
+    def d_hamiltonian_EJ(self):
+        """Returns a derivative of the H w.r.t EJ.
+        This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
+        Here, we differentiate w.r.t EJ in order not to impose units on H. 
+        """
+        return self.sparse_potentialmat(potential=self.d_potential_EJ)
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -1324,12 +1369,18 @@ class SymZeroPi(BaseClass):
         """Return the operator i \\partial_\\phi in sparse.dia_matrix form"""
         return self.grid.first_derivative_matrix(globals.PHI_INDEX, prefactor=1j, periodic=False)
 
+    def d_dphi_operator(self):
+        """Return the operator \\partial_\\phi in sparse.dia_matrix form
+        """
+        return self.grid.first_derivative_matrix(globals.PHI_INDEX, periodic=False)
+
     def i_d_dtheta_operator(self):
         """Return the operator i \\partial_\\theta (periodic variable) in sparse.dia_matrix form"""
         return self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=1j, periodic=True)
 
     def d_dtheta_operator(self):
-        """Return the operator i \\partial_\\theta (periodic variable) in sparse.dia_matrix form"""
+        """Return the operator \\partial_\\theta (periodic variable) in sparse.dia_matrix form
+        """
         return self.grid.first_derivative_matrix(globals.THETA_INDEX, periodic=True)
 
     # return the operator \\phi
@@ -1359,7 +1410,7 @@ class SymZeroPi(BaseClass):
         wavefunc_amplitudes = evecs[:, which].reshape(pt_counts[globals.PHI_INDEX], pt_counts[globals.THETA_INDEX]).T
         return WaveFunctionOnGrid(self.grid, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, zero_calibrate=False):
+    def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, zero_calibrate=False, axes=None):
         """Different modes:
         'abs_sqr': |psi|^2
         'abs':  |psi|
@@ -1369,82 +1420,16 @@ class SymZeroPi(BaseClass):
         modefunction = globals.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        plot.wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate)
-        return None
-
-    # def plot_wavefunction(self, esys, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, zero_calibrate=False):
-        # """Different modes:
-        # 'abs_sqr': |psi|^2
-        # 'abs':  |psi|
-        # 'real': Re(psi)
-        # 'imag': Im(psi)
-        # """
-        # modefunction = globals.MODE_FUNC_DICT[mode]
-        # wavefunc = self.wavefunction(esys, which)
-        # wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        # plot.wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate)
-        # return None
-
+        return plot.wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate, axes=axes)
 
 # ----------------------------------------------------------------------------------------
-
-
-class DisZeroPi(SymZeroPi):
-
-    """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
-    see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
-    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space
-    into a simple square/rectangular lattice.
-    Expected parameters are:
-
-    EJ:   mean Josephson energy of the two junctions
-    EL:   inductive energy of the two (super-)inductors
-    ECJ:  charging energy associated with the two junctions
-    ECS:  charging energy including the large shunting capacitances
-    dEJ:  relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
-    dCJ:  relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg
-    flux: magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
-    grid: Grid object specifying the range and spacing of the discretization lattice
-
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined
-    as relative ones.
-
-    """
-
-    _EXPECTED_PARAMS_DICT = {
-        'EJ': 'Josephson energy',
-        'EL': 'inductive energy',
-        'ECJ': 'junction charging energy',
-        'ECS': 'total charging energy including C',
-        'dEJ': 'relative deviation between the two EJs',
-        'dCJ': 'relative deviation between the two junction capacitances',
-        'flux': 'external magnetic flux in units of flux quanta (h/2e)',
-        'grid': 'Grid object specifying the range and spacing of the discretization lattice'
-    }
-    _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
-
-    def __init__(self, **parameter_args):
-        super(SymZeroPi, self).__init__(**parameter_args)
-        self._sys_type = '0-Pi qubit with EJ and CJ disorder, no coupling to chi mode (zero offset charge)'
-
-    def potential(self, phi, theta):
-        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + self.EL * phi**2 + 2.0 * self.EJ +
-                2.0 * self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
-
-    def sparse_kineticmat(self):
-        dphi2 = self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ)                   # -2E_{CJ}\\partial_\\phi^2
-        dth2 = self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True)     # -2E_{C\\Sigma}\\partial_\\theta^2
-        dphidtheta = self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX],
-                                                              prefactor=4.0 * self.ECS * self.dCJ, periodic_var_indices=(globals.THETA_INDEX, ))
-        return (dphi2 + dth2 + dphidtheta)
-
-
-# ----------------------------------------------------------------------------------------
-
 
 class SymZeroPiNg(SymZeroPi):
 
-    """Symmetric Zero-Pi Qubit taking into account offset charge ng
+    """
+    TODO: We could (should?) get rid of this class and add a charge offset directly to SymZeroPi.
+    
+    Symmetric Zero-Pi Qubit taking into account offset charge ng
     [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
     [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
     The symmetric model, Eq. (8) in [2], assumes pair-wise identical circuit elements and describes the
@@ -1492,14 +1477,165 @@ class SymZeroPiNg(SymZeroPi):
 # ----------------------------------------------------------------------------------------
 
 
-class FullZeroPi(SymZeroPi):
+class DisZeroPi(SymZeroPi):
 
-    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
-    the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
+    """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
+    see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and 
+    Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
+    (NOTE: The definitions of disorder are different in those two papers, which lead to 
+    differences with factors of 2 in different Hamiltonian terms - here we are using ones 
+    from New J. Phys. paper.)
+
+    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space
+    into a simple square/rectangular lattice.
+    Expected parameters are:
+
+    EJ:   mean Josephson energy of the two junctions
+    EL:   inductive energy of the two (super-)inductors
+    ECJ:  charging energy associated with the two junctions
+    ECS:  charging energy including the large shunting capacitances
+    dEJ:  relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
+    dCJ:  relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg
+    flux: magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
+    grid: Grid object specifying the range and spacing of the discretization lattice
+
+    """
+
+    _EXPECTED_PARAMS_DICT = {
+        'EJ': 'Josephson energy',
+        'EL': 'inductive energy',
+        'ECJ': 'junction charging energy',
+        'ECS': 'total charging energy including C',
+        'dEJ': 'relative deviation between the two EJs',
+        'dCJ': 'relative deviation between the two junction capacitances',
+        'flux': 'external magnetic flux in units of flux quanta (h/2e)',
+        'grid': 'Grid object specifying the range and spacing of the discretization lattice'
+    }
+    _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
+
+    def __init__(self, **parameter_args):
+        super(SymZeroPi, self).__init__(**parameter_args)
+        self._sys_type = '0-Pi qubit with EJ and CJ disorder, no coupling to chi mode (zero offset charge)'
+
+    def potential(self, phi, theta):
+        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + self.EL * phi**2 + 2.0 * self.EJ +
+                 self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
+    def sparse_kineticmat(self):
+        dphi2 = self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ)                   # -2E_{CJ}\\partial_\\phi^2
+        dth2 = self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True)     # -2E_{C\\Sigma}\\partial_\\theta^2
+        dphidtheta = self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX],
+                                                              prefactor=2.0 * self.ECS * self.dCJ, periodic_var_indices=(globals.THETA_INDEX, ))
+        return (dphi2 + dth2 + dphidtheta)
+
+
+    def d_potential_flux(self, phi, theta):
+        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return  - (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
+                - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
+
+    def d2_potential_flux(self, phi, theta):
+        """Returns a second derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial^2 U}{ \partial^2 \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0^2.
+        """
+        return  (2.0 * np.pi**2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)  ) \
+                - (np.pi**2.0 * self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
+    def d_potential_EJ(self, phi, theta):
+        """Returns a derivative of the H w.r.t EJ. 
+        This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
+        
+        NOTE: We disregard the constant part of the potential energy ~ 2.0*self.EJ
+        """
+        return (-2.0 * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + 
+                self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
+
+
+# ----------------------------------------------------------------------------------------
+
+class DisZeroPiNg(DisZeroPi):
+
+    """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
+    see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and 
+    Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
+    (NOTE: The definitions of disorder are different in those two papers, which lead to 
+    differences with factors of 2 in different Hamiltonian terms - here we are using ones 
+    from New J. Phys. paper.)
+
+    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space
+    into a simple square/rectangular lattice.
+    Expected parameters are:
+
+    EJ:   mean Josephson energy of the two junctions
+    EL:   inductive energy of the two (super-)inductors
+    ECJ:  charging energy associated with the two junctions
+    ECS:  charging energy including the large shunting capacitances
+    dEJ:  relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
+    dCJ:  relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg
+    flux: magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
+    ng:   offset charge along theta
+    grid: Grid object specifying the range and spacing of the discretization lattice
+
+    """
+
+    _EXPECTED_PARAMS_DICT = {
+        'EJ': 'Josephson energy',
+        'EL': 'inductive energy',
+        'ECJ': 'junction charging energy',
+        'ECS': 'total charging energy including C',
+        'dEJ': 'relative deviation between the two EJs',
+        'dCJ': 'relative deviation between the two junction capacitances',
+        'flux': 'external magnetic flux in units of flux quanta (h/2e)',
+        'ng': 'offset charge along theta',
+        'grid': 'Grid object specifying the range and spacing of the discretization lattice'
+    }
+    _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
+
+    def __init__(self, **parameter_args):
+        super(DisZeroPiNg, self).__init__(**parameter_args)
+        self._sys_type = '0-Pi qubit with EJ and CJ disorder, and offset charge, no coupling to chi mode'
+
+    def sparse_kineticmat(self):
+        dphi2 = self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ)                   # -2E_{CJ}\\partial_\\phi^2
+        dth2 = self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True)     # -2E_{C\\Sigma}\\partial_\\theta^2
+        dphidtheta = self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX],
+                                                              prefactor=2.0 * self.ECS * self.dCJ, periodic_var_indices=(globals.THETA_INDEX, ))
+        ngdtheta=0.0
+        if self.ng !=0:
+            #2E_{C\\Sigma}( 2 i\\partial_\\theta + n_g^2 )
+            ngdtheta = self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS * self.ng, periodic=True) 
+
+        return (dphi2 + dth2 + dphidtheta + ngdtheta)
+
+    def d_hamiltonian_ng(self):
+        """Returns a derivative of the H w.r.t ng.
+        This can be used for calculating charge noise.
+        """
+        # \partial/\partial n_g  ( 2E_{C\\Sigma}(i\\partial_\\theta + n_g)^2 )
+        return self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS, periodic=True) 
+
+
+# ----------------------------------------------------------------------------------------
+
+
+class FullZeroPi(SymZeroPi):
+    """
+    Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
+    the chi degree of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and
+    Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
+    (NOTE: The definitions of disorder are different in those two papers, which lead to 
+    differences with factors of 2 in different Hamiltonian terms - here we are using ones 
+    from New J. Phys. paper.)
+
     Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space
     into a simple cubic lattice.
     Expected parameters are:
-
+    
     EJ:   mean Josephson energy of the two junctions
     EL:   inductive energy of the two (super-)inductors
     ECJ:  charging energy associated with the two junctions
@@ -1511,8 +1647,11 @@ class FullZeroPi(SymZeroPi):
     flux: magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
     grid: Grid object specifying the range and spacing of the discretization lattice
 
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
-    relative ones.
+    TODO:
+    - could add charge offset directly to this class 
+    - double check that factor of 1/2 consistent with disorder definition from New J. Phys paper
+    as is done in other zero pi classes.
+
     """
 
     VARNAME_TO_INDEX = {'phi': globals.PHI_INDEX, 'theta': globals.THETA_INDEX, 'chi': globals.CHI_INDEX}
@@ -1541,16 +1680,16 @@ class FullZeroPi(SymZeroPi):
             self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ) +                  # -2E_{CJ}\\partial_\\phi^2
             self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True) +   # -2E_{C\\Sigma}\\partial_\\theta^2
             self.grid.second_derivative_matrix(globals.CHI_INDEX, prefactor=-2.0 * self.EC) +                   # -2E_{C}\\partial_\\chi^2
-            self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX], prefactor=4.0 * self.ECS * self.dCJ,
+            self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX], prefactor=2.0 * self.ECS * self.dCJ,
                                                      periodic_var_indices=(globals.THETA_INDEX,)) +  # 4E_{C\\Sigma}(\\delta C_J/C_J)\\partial_\\phi \\partial_\\theta
-            self.grid.multi_first_derivatives_matrix([globals.THETA_INDEX, globals.CHI_INDEX], prefactor=4.0 * self.ECS * self.dC,
+            self.grid.multi_first_derivatives_matrix([globals.THETA_INDEX, globals.CHI_INDEX], prefactor=2.0 * self.ECS * self.dC,
                                                      periodic_var_indices=(globals.THETA_INDEX,))     # 4E_{C\\Sigma}(\\delta C/C)\\partial_\\theta \\partial_\\chi
             )
 
     def potential(self, phi, theta, chi):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2) + self.EL * phi**2 + 2 * self.EJ +   # symmetric 0-pi contributions
-                2.0 * self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2) + self.EL * chi**2 +       # correction terms in presence of disorder
-                2.0 * self.EL * self.dEL * phi * chi + 2 * self.EJ * self.dEJ)                                                  # correction terms in presence of disorder
+                self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2) + self.EL * chi**2 +       # correction terms in presence of disorder
+                 self.EL * self.dEL * phi * chi + self.EJ * self.dEJ)                                                  # correction terms in presence of disorder
 
     def plot_potential(self, fixedvar_name, fixedvar_val, contour_vals=None, aspect_ratio=None, filename=None):
         fixedvar_index = self.VARNAME_TO_INDEX[fixedvar_name]
@@ -1569,6 +1708,23 @@ class FullZeroPi(SymZeroPi):
         plot.contours(x_vals, y_vals, reduced_potential, contour_vals, aspect_ratio, filename)
         return None
 
+    def d_potential_flux(self, phi, theta, chi):
+        """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+        """
+        return  (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
+                - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
+  
+    def d_potential_EJ(self, phi, theta, chi):
+        """Returns a derivative of the H w.r.t EJ. 
+        This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
+        
+        NOTE: We disregard the constant part of the potential energy ~ 2.0*self.EJ
+        """
+        return (-2.0 * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + 
+                self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
     def wavefunction(self, esys, which=0):
         evals_count = max(which + 1, 3)
         if esys is None:
@@ -1577,12 +1733,13 @@ class FullZeroPi(SymZeroPi):
             _, evecs = esys
         return evecs[:, which]
 
-    def plot_wavefunction(self, esys, fixedvar_name, fixedvar_val, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3):
+    def plot_wavefunction(self, esys, fixedvar_name, fixedvar_val, which=0, mode='abs', figsize=(20, 10), aspect_ratio=3, axes=None):
         """Different modes:
         'abs_sqr': |psi|^2
         'abs':  |psi|
         'real': Re(psi)
         'imag': Im(psi)
+
         """
 
         min_vals, max_vals, pt_counts, _ = self.grid.unwrap()
@@ -1600,8 +1757,7 @@ class FullZeroPi(SymZeroPi):
         slice_coordinates3d = [slice(None), slice(None), slice(None)]
         slice_coordinates3d[fixedvar_index] = slice_index
         wavefunc = wavefunc[tuple(slice_coordinates3d)].T
-        plot.wavefunction2d(wavefunc, figsize, aspect_ratio)
-        return None
+        return plot.wavefunction2d(wavefunc, figsize, aspect_ratio, axes=axes)
 
 
 # ----------------------------------------------------------------------------------------
@@ -1610,7 +1766,12 @@ class FullZeroPi(SymZeroPi):
 class FullZeroPi_ProductBasis(BaseClass):
 
     """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
-    the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
+    the chi degree of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and
+    Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
+    (NOTE: The definitions of disorder are different in those two papers, which lead to 
+    differences with factors of 2 in different Hamiltonian terms - here we are using ones 
+    from New J. Phys. paper.)
+
     Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)
     Zero-Pi qubit on one hand and the chi LC oscillator on the other hand.
 
@@ -1625,13 +1786,11 @@ class FullZeroPi_ProductBasis(BaseClass):
     dEL:   relative disorder in EL, i.e., (EL1-EL2)/EL(mean)
     dCJ:   relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/C(mean)
     flux:  magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
+    ng:    offset charge along theta
     zeropi_cutoff: cutoff in the number of states of the disordered zero-pi qubit
     chi_cut: cutoff in the chi oscillator basis (Fock state basis)
     grid: Grid object specifying the range and spacing of the discretization lattice
 
-
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
-    relative ones.
     """
 
     _EXPECTED_PARAMS_DICT = {
@@ -1645,6 +1804,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         'dC': 'relative deviation between the two shunt capacitances',
         'dEL': 'relative deviation between the two inductances',
         'flux': 'external magnetic flux in units of flux quanta (h/2e)',
+        'ng':    'offset charge along theta',
         'zeropi_cutoff': 'cutoff in the number of states of the disordered zero-pi qubit',
         'chi_cutoff': 'cutoff in the chi oscillator basis (Fock state basis)',
         'grid': 'Grid object specifying the range and spacing of the discretization lattice'
@@ -1664,7 +1824,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         """
         super(FullZeroPi_ProductBasis, self).__init__(**parameter_args)
         self._sys_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi product basis'
-        self._zeropi = DisZeroPi(
+        self._zeropi = DisZeroPiNg(
             EJ = self.EJ,
             EL = self.EL,
             ECJ = self.ECJ,
@@ -1672,6 +1832,7 @@ class FullZeroPi_ProductBasis(BaseClass):
             dEJ = self.dEJ,
             dCJ = self.dCJ,
             flux = self.flux,
+            ng = self.ng,
             grid = self.grid,
             truncated_dim = self.zeropi_cutoff
         )
@@ -1714,6 +1875,117 @@ class FullZeroPi_ProductBasis(BaseClass):
         else:
             return hamiltonian_mat
 
+    def _zeropi_operator_in_prodcuct_basis(self, zeropi_operator, zeropi_evecs=None):
+        """
+        Helper method that converts a zeropi operator into one in the product basis'
+
+        TODO: Could update d_hamiltonian_EJ(),  d_hamiltonian_ng(),  d_hamiltonian_flux() to use this. 
+        """
+        zeropi_dim = self.zeropi_cutoff
+        chi_dim = self.chi_cutoff
+
+        if zeropi_evecs is None:
+            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
+
+        op_eigen_basis = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_) #is this guaranteed to be zero?
+
+        op_zeropi = matrixelem_table(zeropi_operator, zeropi_evecs, real_valued=False)
+        for l1 in range(zeropi_dim):
+            for l2 in range(zeropi_dim):
+                op_eigen_basis += op_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
+
+        return sp.sparse.kron(op_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.complex_))
+
+    def i_d_dphi_operator(self, zeropi_evecs=None):
+        """Return the operator i \\partial_\\phi"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs)
+
+    def d_dphi_operator(self, zeropi_evecs=None):
+        """Return the operator \\partial_\\phi"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.d_dphi_operator(), zeropi_evecs=zeropi_evecs)
+
+    def i_d_dtheta_operator(self, zeropi_evecs=None):
+        """Return the operator i \\partial_\\theta (periodic variable)"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.i_d_dtheta_operator(), zeropi_evecs=zeropi_evecs)
+
+    def d_dtheta_operator(self, zeropi_evecs=None):
+        """Return the operator  \\partial_\\theta (periodic variable)"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.d_dtheta_operator(), zeropi_evecs=zeropi_evecs)
+
+    def phi_operator(self, zeropi_evecs=None):
+        """Return \phi operator"""
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs)
+
+    def d2_hamiltonian_flux(self, zeropi_evecs=None):
+        """Returns a second derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial^2 H}{ \partial^2 \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0^2.
+        """
+        return self._zeropi_operator_in_prodcuct_basis(self._zeropi.d2_hamiltonian_flux(), zeropi_evecs=zeropi_evecs)
+
+    def d_hamiltonian_flux(self, zeropi_evecs=None):
+        """Returns a derivative of the H w.r.t flux, at the "current" value of flux, as stored in the object. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial H}{ \partial \Phi_{\rm ext}}, 
+        the expression returned by this function, needs to be multiplied by 1/\Phi_0.
+
+        TODO: update to _zeropi_operator_in_prodcuct_basis()
+        """
+        zeropi_dim = self.zeropi_cutoff
+        chi_dim = self.chi_cutoff
+
+        if zeropi_evecs is None:
+            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
+
+        d_h_flux_zeropi_eigen_basis = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_) #is this guaranteed to be zero?
+
+        d_h_flux_zeropi = matrixelem_table(self._zeropi.d_hamiltonian_flux(), zeropi_evecs, real_valued=False)
+        for l1 in range(zeropi_dim):
+            for l2 in range(zeropi_dim):
+                d_h_flux_zeropi_eigen_basis += d_h_flux_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
+
+        return sp.sparse.kron(d_h_flux_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.complex_))
+
+    def d_hamiltonian_ng(self, zeropi_evecs=None):
+        """Returns a derivative of the H w.r.t ng
+
+        TODO: update to _zeropi_operator_in_prodcuct_basis()
+        """
+        zeropi_dim = self.zeropi_cutoff
+        chi_dim = self.chi_cutoff
+
+        if zeropi_evecs is None:
+            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
+
+        d_h_ng_zeropi_eigen_basis = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_) #is this guaranteed to be zero?
+
+        d_h_ng_zeropi = matrixelem_table(self._zeropi.d_hamiltonian_ng(), zeropi_evecs, real_valued=False)
+        for l1 in range(zeropi_dim):
+            for l2 in range(zeropi_dim):
+                d_h_ng_zeropi_eigen_basis += d_h_ng_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
+
+        return sp.sparse.kron(d_h_ng_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.complex_))
+
+    def d_hamiltonian_EJ(self, zeropi_evecs=None):
+        """Returns a derivative of the H w.r.t EJ
+
+        TODO: update to _zeropi_operator_in_prodcuct_basis()
+        """
+        zeropi_dim = self.zeropi_cutoff
+        chi_dim = self.chi_cutoff
+
+        if zeropi_evecs is None:
+            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
+
+        d_h_EJ_zeropi_eigen_basis = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_) #is this guaranteed to be zero?
+
+        d_h_EJ_zeropi = matrixelem_table(self._zeropi.d_hamiltonian_EJ(), zeropi_evecs, real_valued=False)
+        for l1 in range(zeropi_dim):
+            for l2 in range(zeropi_dim):
+                d_h_EJ_zeropi_eigen_basis += d_h_EJ_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
+
+        return sp.sparse.kron(d_h_EJ_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.complex_))
+
+
     def hilbertdim(self):
         return (self.zeropi_cutoff * self.chi_cutoff)
 
@@ -1734,7 +2006,8 @@ class FullZeroPi_ProductBasis(BaseClass):
         from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors of the
         DisZeroPi type, so 'transpose' is enabled by default.
         """
-        prefactor = self.EL * self.dEL * (8.0 * self.EC / self.EL)**0.25
+        # prefactor = self.EL * self.dEL * (8.0 * self.EC / self.EL)**0.25
+        prefactor = self.EL * (self.dEL / 2.0) * (8.0 * self.EC / self.EL)**0.25
         return (prefactor * matrixelem_table(self._zeropi.phi_operator(), zeropi_states, real_valued=True))
 
     def g_theta_coupling_matrix(self, zeropi_states):
@@ -1742,7 +2015,8 @@ class FullZeroPi_ProductBasis(BaseClass):
         from the list 'zeropi_states'. Most commonly, 'zeropi_states' will contain eigenvectors, so 'transpose' is enabled by
         default.
         """
-        prefactor = - self.ECS * self.dC * (32.0 * self.EL / self.EC)**0.25
+        # prefactor = - self.ECS * self.dC * (32.0 * self.EL / self.EC)**0.25
+        prefactor = - self.ECS * (self.dC / 2.0) * (32.0 * self.EL / self.EC)**0.25
         return (prefactor * matrixelem_table(self._zeropi.d_dtheta_operator(), zeropi_states, real_valued=True))
 
     def g_coupling_matrix(self, zeropi_states=None, evals_count=None):

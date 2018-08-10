@@ -1,5 +1,13 @@
 # plotting.py
 
+#TODO
+#- It would be good to update all the plotting functions to:
+#(1) take in an (axes, fig) tuple as an option - if none passed then new fig and axes should be created,
+#    otherwise the function should plot  to one passed in
+#(2) return (axes, fig) tuple. This way the user can easily add/customize pre-created plots
+#
+
+
 import matplotlib as mpl
 import matplotlib.backends.backend_pdf as mplpdf
 import matplotlib.pyplot as plt
@@ -10,48 +18,60 @@ import config as globals
 
 
 def wavefunction1d(wavefunc, potential_vals, offset=0, scaling=1, ylabel='wavefunction', xlabel='x',
-                         yrange=None, add_to_ax=None):
-    x_vals = wavefunc.basis_labels
-    if add_to_ax is None:
+                         yrange=None, axes=None):
+    if axes is None:
         fig = plt.figure()
-        ax = fig.add_subplot(111)
-    else:
-        ax = add_to_ax
-    ax.plot(x_vals, offset + scaling * wavefunc.amplitudes)
-    if potential_vals is not None:
-        ax.plot(x_vals, potential_vals)
-        ax.plot(x_vals, [offset] * len(x_vals), 'b--')
+        axes = fig.add_subplot(111)
 
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.set_xlim(xmin=x_vals[0], xmax=x_vals[-1])
+    x_vals = wavefunc.basis_labels
+
+    axes.plot(x_vals, offset + scaling * wavefunc.amplitudes)
+    if potential_vals is not None:
+        axes.plot(x_vals, potential_vals)
+        axes.plot(x_vals, [offset] * len(x_vals), 'b--')
+
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
+    axes.set_xlim(xmin=x_vals[0], xmax=x_vals[-1])
+
     if yrange is not None:
-        ax.set_ylim(*yrange)
-    if add_to_ax is None:
+        axes.set_ylim(*yrange)
+
+    if axes is None:
         plt.show()
+
     return None
 
 
-def wavefunction1d_discrete(wavefunc, nrange, ylabel='wavefunction', xlabel='x'):
+def wavefunction1d_discrete(wavefunc, nrange, ylabel='wavefunction', xlabel='x', axes=None):
+
+    if axes is None:
+        fig = plt.figure()
+        axes = fig.add_subplot(111)
+
     x_vals = wavefunc.basis_labels
     width = .75
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.bar(x_vals, wavefunc.amplitudes, width=width)
-    ax.set_xticks(x_vals + width / 2)
-    ax.set_xticklabels(x_vals)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.set_xlim(nrange)
-    plt.show()
+
+    axes.bar(x_vals, wavefunc.amplitudes, width=width)
+    axes.set_xticks(x_vals + width / 2)
+    axes.set_xticklabels(x_vals)
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
+    axes.set_xlim(nrange)
+    
     return None
 
+def wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate=False, axes=None):
 
-def wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate=False):
+    if axes is None:
+        fig = plt.figure(figsize=figsize)
+        axes = fig.add_subplot(111)
+    else:
+        fig=axes.get_figure()
+
     min_vals = wavefunc.grid.min_vals
     max_vals = wavefunc.grid.max_vals
 
-    plt.figure(figsize=figsize)
     if zero_calibrate:
         absmax = np.amax(np.abs(wavefunc.amplitudes))
         imshow_minval = -absmax
@@ -61,12 +81,11 @@ def wavefunction2d(wavefunc, figsize, aspect_ratio, zero_calibrate=False):
         imshow_minval = np.min(wavefunc.amplitudes)
         imshow_maxval = np.max(wavefunc.amplitudes)
         cmap = plt.cm.viridis
-
-
-    plt.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
+    
+    m=axes.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
                aspect=aspect_ratio, cmap=cmap, vmin=imshow_minval, vmax=imshow_maxval)
-    plt.colorbar(fraction=0.017, pad=0.04)
-    plt.show()
+    cbar=fig.colorbar(m, ax=axes)
+
     return None
 
 
@@ -136,6 +155,31 @@ def matrixelements(mtable, mode='abs', xlabel='', ylabel='', zlabel=''):
     plt.matshow(modefunction(mtable), cmap=plt.cm.viridis)
     plt.show()
     return None
+
+def plot_matrix(matrix, show_numbers=True, axes=None, **kw):
+    """Pretty print a matrix, optionally printing the numerical values of the data.   
+    """
+    if axes is None:
+        fig, axes=plt.subplots(1, 1, figsize=(8,6))
+    else:
+        fig=axes.get_figure()
+
+    m=axes.matshow(matrix, cmap='jet', interpolation='none', **kw) 
+    cbar=fig.colorbar(m, ax=axes)
+    
+    if show_numbers:
+        for y_index in range(matrix.shape[0]):
+            for x_index in range(matrix.shape[1]):
+                axes.text(x_index, y_index, "{:.04f}".format(matrix[y_index,x_index]),
+                             va='center', ha='center', fontsize=8, rotation=45, color='black', fontweight='bold')
+    #shift the grid
+    for axis, locs in [(axes.xaxis, np.arange(matrix.shape[1])), (axes.yaxis, np.arange(matrix.shape[0]))]:
+        axis.set_ticks(locs + 0.5, minor=True)
+        axis.set(ticks=locs, ticklabels=locs)
+    axes.grid(True, which='minor')
+    axes.grid(False, which='major')
+
+    return fig, axes
 
 
 def spectrum_with_matrixelement(spectrum_data, matrixelement_table, param_name='external parameter', energy_name='energy',
