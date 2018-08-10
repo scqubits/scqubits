@@ -1,5 +1,13 @@
 # plotting.py
 
+#TODO
+#- It would be good to update all the plotting functions to:
+#(1) take in an (axes, fig) tuple as an option - if none passed then new fig and axes should be created,
+#    otherwise the function should plot  to one passed in
+#(2) return (axes, fig) tuple. This way the user can easily add/customize pre-created plots
+#
+
+
 import matplotlib as mpl
 import matplotlib.backends.backend_pdf as mplpdf
 import matplotlib.pyplot as plt
@@ -172,8 +180,6 @@ def plot_matrix(matrix, show_numbers=True, axes=None, **kw):
     axes.grid(False, which='major')
 
     return fig, axes
-
-
 
 
 def spectrum_with_matrixelement(spectrum_data, matrixelement_table, param_name='external parameter', energy_name='energy',

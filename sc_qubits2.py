@@ -1427,7 +1427,7 @@ class SymZeroPi(BaseClass):
 class SymZeroPiNg(SymZeroPi):
 
     """
-    TODO: We should get rid of this class and add a charge offset directly to SymZeroPi.
+    TODO: We could (should?) get rid of this class and add a charge offset directly to SymZeroPi.
     
     Symmetric Zero-Pi Qubit taking into account offset charge ng
     [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
@@ -1473,13 +1473,6 @@ class SymZeroPiNg(SymZeroPi):
                 sp.sparse.kron(sp.sparse.identity(pt_counts[globals.PHI_INDEX], format='dia'),
                                sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 2.0 * self.ECS * (self.ng)**2))
 
-    # def sparse_kineticmat_org(self):
-        # pt_counts = self.grid.pt_counts
-        # return (self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ) +  # -2E_{CJ}\\partial_\\phi^2
-                # self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True) +   # 2E_{C\\Sigma}(i\\partial_\\theta + n_g)^2
-                # self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS * self.ng, periodic=True) +
-                # sp.sparse.kron(sp.sparse.identity(pt_counts[globals.PHI_INDEX], format='dia'),
-                               # sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 2.0 * self.ECS * (self.ng)**2))
 
 # ----------------------------------------------------------------------------------------
 
@@ -1487,7 +1480,12 @@ class SymZeroPiNg(SymZeroPi):
 class DisZeroPi(SymZeroPi):
 
     """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
-    see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
+    see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and 
+    Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
+    (NOTE: The definitions of disorder are different in those two papers, which lead to 
+    differences with factors of 2 in different Hamiltonian terms - here we are using ones 
+    from New J. Phys. paper.)
+
     Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space
     into a simple square/rectangular lattice.
     Expected parameters are:
@@ -1500,9 +1498,6 @@ class DisZeroPi(SymZeroPi):
     dCJ:  relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg
     flux: magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
     grid: Grid object specifying the range and spacing of the discretization lattice
-
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined
-    as relative ones.
 
     """
 
@@ -1566,7 +1561,12 @@ class DisZeroPi(SymZeroPi):
 class DisZeroPiNg(DisZeroPi):
 
     """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
-    see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
+    see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and 
+    Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
+    (NOTE: The definitions of disorder are different in those two papers, which lead to 
+    differences with factors of 2 in different Hamiltonian terms - here we are using ones 
+    from New J. Phys. paper.)
+
     Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta space
     into a simple square/rectangular lattice.
     Expected parameters are:
@@ -1580,9 +1580,6 @@ class DisZeroPiNg(DisZeroPi):
     flux: magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
     ng:   offset charge along theta
     grid: Grid object specifying the range and spacing of the discretization lattice
-
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined
-    as relative ones.
 
     """
 
@@ -1610,11 +1607,8 @@ class DisZeroPiNg(DisZeroPi):
                                                               prefactor=2.0 * self.ECS * self.dCJ, periodic_var_indices=(globals.THETA_INDEX, ))
         ngdtheta=0.0
         if self.ng !=0:
-            # pt_counts = self.grid.pt_counts
             #2E_{C\\Sigma}( 2 i\\partial_\\theta + n_g^2 )
-            ngdtheta = self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS * self.ng, periodic=True) # + \
-                       # sp.sparse.kron(sp.sparse.identity(pt_counts[globals.PHI_INDEX], format='dia'), 
-                                      # sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 2.0 * self.ECS * (self.ng)**2) #needed?
+            ngdtheta = self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS * self.ng, periodic=True) 
 
         return (dphi2 + dth2 + dphidtheta + ngdtheta)
 
@@ -1622,27 +1616,26 @@ class DisZeroPiNg(DisZeroPi):
         """Returns a derivative of the H w.r.t ng.
         This can be used for calculating charge noise.
         """
-        # pt_counts = self.grid.pt_counts
         # \partial/\partial n_g  ( 2E_{C\\Sigma}(i\\partial_\\theta + n_g)^2 )
-        return self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS, periodic=True) # + \
-              # sp.sparse.kron(sp.sparse.identity(pt_counts[globals.PHI_INDEX], format='dia'), 
-                             # sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 4.0 * self.ECS * (self.ng)) #needed?
+        return self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS, periodic=True) 
 
 
 # ----------------------------------------------------------------------------------------
 
 
-
 class FullZeroPi(SymZeroPi):
     """
-    TODO: should add charge offset directly to this class 
-    
     Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
-    the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
+    the chi degree of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and
+    Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
+    (NOTE: The definitions of disorder are different in those two papers, which lead to 
+    differences with factors of 2 in different Hamiltonian terms - here we are using ones 
+    from New J. Phys. paper.)
+
     Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space
     into a simple cubic lattice.
     Expected parameters are:
-
+    
     EJ:   mean Josephson energy of the two junctions
     EL:   inductive energy of the two (super-)inductors
     ECJ:  charging energy associated with the two junctions
@@ -1654,13 +1647,10 @@ class FullZeroPi(SymZeroPi):
     flux: magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
     grid: Grid object specifying the range and spacing of the discretization lattice
 
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
-    relative ones.
-
     TODO:
-    - has to get updated to support charge offset. 
-    - double check that factor of 1/2 consistent with disorder definition.
-
+    - could add charge offset directly to this class 
+    - double check that factor of 1/2 consistent with disorder definition from New J. Phys paper
+    as is done in other zero pi classes.
 
     """
 
@@ -1749,6 +1739,7 @@ class FullZeroPi(SymZeroPi):
         'abs':  |psi|
         'real': Re(psi)
         'imag': Im(psi)
+
         """
 
         min_vals, max_vals, pt_counts, _ = self.grid.unwrap()
@@ -1775,7 +1766,12 @@ class FullZeroPi(SymZeroPi):
 class FullZeroPi_ProductBasis(BaseClass):
 
     """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
-    the chi degree     of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014).
+    the chi degree of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and
+    Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
+    (NOTE: The definitions of disorder are different in those two papers, which lead to 
+    differences with factors of 2 in different Hamiltonian terms - here we are using ones 
+    from New J. Phys. paper.)
+
     Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)
     Zero-Pi qubit on one hand and the chi LC oscillator on the other hand.
 
@@ -1795,9 +1791,6 @@ class FullZeroPi_ProductBasis(BaseClass):
     chi_cut: cutoff in the chi oscillator basis (Fock state basis)
     grid: Grid object specifying the range and spacing of the discretization lattice
 
-
-    Caveat: different from Eq. (15) in the reference above, all disorder quantities are defined as
-    relative ones.
     """
 
     _EXPECTED_PARAMS_DICT = {
