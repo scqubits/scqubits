@@ -15,4 +15,4 @@ MODE_FUNC_DICT = {'abs_sqr': (lambda x: np.abs(x)**2),
 
 PHI_INDEX = 0
 THETA_INDEX = 1
-CHI_INDEX = 2
+ZETA_INDEX = 2
