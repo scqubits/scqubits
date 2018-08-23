@@ -1297,7 +1297,7 @@ class SymZeroPi(BaseClass):
 
         Xvals=[]
         for j in range(var_count):
-            #We have to account fhe fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
+            #We have to account the fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
             if j==globals.THETA_INDEX: 
                 Xvals.append(np.linspace(min_vals[j], max_vals[j] - 2.0*np.pi/pt_counts[j], pt_counts[j]))
             else:
