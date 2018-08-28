@@ -1240,7 +1240,7 @@ class SymZeroPi(BaseClass):
     [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
     [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
     The symmetric model, Eq. (8) in [2], assumes pair-wise identical circuit elements and describes the
-    phi and theta degrees of freedom (chi decoupled). Formulation of the Hamiltonian matrix proceeds
+    phi and theta degrees of freedom (zeta decoupled). Formulation of the Hamiltonian matrix proceeds
     by discretization of the phi-theta space into a simple square/rectangular lattice.
     Expected parameters are:
 
@@ -1297,7 +1297,7 @@ class SymZeroPi(BaseClass):
 
         Xvals=[]
         for j in range(var_count):
-            #We have to account fhe fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
+            #We have to account the fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
             if j==globals.THETA_INDEX: 
                 Xvals.append(np.linspace(min_vals[j], max_vals[j] - 2.0*np.pi/pt_counts[j], pt_counts[j]))
             else:
@@ -1433,7 +1433,7 @@ class SymZeroPiNg(SymZeroPi):
     [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
     [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
     The symmetric model, Eq. (8) in [2], assumes pair-wise identical circuit elements and describes the
-    phi and theta degrees of freedom (chi decoupled). Including the offset charge leads to the substitution
+    phi and theta degrees of freedom (zeta decoupled). Including the offset charge leads to the substitution
     T = ... + CS \\dot{theta}^2  ==>    T = ... + CS (\\dot{theta} + ng)^2
     [This is not described in the two references above.]
 
@@ -1479,7 +1479,7 @@ class SymZeroPiNg(SymZeroPi):
 
 class DisZeroPi(SymZeroPi):
 
-    """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
+    """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves zeta decoupled,
     see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and 
     Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
     (NOTE: The definitions of disorder are different in those two papers, which lead to 
@@ -1515,7 +1515,7 @@ class DisZeroPi(SymZeroPi):
 
     def __init__(self, **parameter_args):
         super(SymZeroPi, self).__init__(**parameter_args)
-        self._sys_type = '0-Pi qubit with EJ and CJ disorder, no coupling to chi mode (zero offset charge)'
+        self._sys_type = '0-Pi qubit with EJ and CJ disorder, no coupling to zeta mode (zero offset charge)'
 
     def potential(self, phi, theta):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + self.EL * phi**2 + 2.0 * self.EJ +
@@ -1560,7 +1560,7 @@ class DisZeroPi(SymZeroPi):
 
 class DisZeroPiNg(DisZeroPi):
 
-    """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves chi decoupled,
+    """Zero-Pi Qubit with disorder in EJ and EC. This disorder type still leaves zeta decoupled,
     see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and 
     Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
     (NOTE: The definitions of disorder are different in those two papers, which lead to 
@@ -1598,7 +1598,7 @@ class DisZeroPiNg(DisZeroPi):
 
     def __init__(self, **parameter_args):
         super(DisZeroPiNg, self).__init__(**parameter_args)
-        self._sys_type = '0-Pi qubit with EJ and CJ disorder, and offset charge, no coupling to chi mode'
+        self._sys_type = '0-Pi qubit with EJ and CJ disorder, and offset charge, no coupling to zeta mode'
 
     def sparse_kineticmat(self):
         dphi2 = self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ)                   # -2E_{CJ}\\partial_\\phi^2
@@ -1626,13 +1626,13 @@ class DisZeroPiNg(DisZeroPi):
 class FullZeroPi(SymZeroPi):
     """
     Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
-    the chi degree of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and
+    the zeta degree of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and
     Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
     (NOTE: The definitions of disorder are different in those two papers, which lead to 
     differences with factors of 2 in different Hamiltonian terms - here we are using ones 
     from New J. Phys. paper.)
 
-    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-chi space
+    Formulation of the Hamiltonian matrix proceeds by discretization of the phi-theta-zeta space
     into a simple cubic lattice.
     Expected parameters are:
     
@@ -1640,7 +1640,7 @@ class FullZeroPi(SymZeroPi):
     EL:   inductive energy of the two (super-)inductors
     ECJ:  charging energy associated with the two junctions
     ECS:  charging energy including the large shunting capacitances
-    EC:   charging energy associated with chi degree of freedom
+    EC:   charging energy associated with zeta degree of freedom
     dEJ:  relative disorder in EJ, i.e., (EJ1-EJ2)/EJ(mean)
     dEL:  relative disorder in EL, i.e., (EL1-EL2)/EL(mean)
     dCJ:  relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/C(mean)
@@ -1654,14 +1654,14 @@ class FullZeroPi(SymZeroPi):
 
     """
 
-    VARNAME_TO_INDEX = {'phi': globals.PHI_INDEX, 'theta': globals.THETA_INDEX, 'chi': globals.CHI_INDEX}
+    VARNAME_TO_INDEX = {'phi': globals.PHI_INDEX, 'theta': globals.THETA_INDEX, 'zeta': globals.ZETA_INDEX}
 
     _EXPECTED_PARAMS_DICT = {
         'EJ': 'Josephson energy',
         'EL': 'inductive energy',
         'ECJ': 'junction charging energy',
         'ECS': 'total charging energy including C',
-        'EC': 'charging energy associated with chi degree of freedom',
+        'EC': 'charging energy associated with zeta degree of freedom',
         'dEJ': 'relative deviation between the two EJs',
         'dCJ': 'relative deviation between the two junction capacitances',
         'dC': 'relative deviation between the two shunt capacitances',
@@ -1673,28 +1673,28 @@ class FullZeroPi(SymZeroPi):
 
     def __init__(self, **parameter_args):
         super(FullZeroPi, self).__init__(**parameter_args)
-        self._sys_type = 'full 0-Pi circuit (phi, theta, chi), no offset charge'
+        self._sys_type = 'full 0-Pi circuit (phi, theta, zeta), no offset charge'
 
     def sparse_kineticmat(self):
         return (
             self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ) +                  # -2E_{CJ}\\partial_\\phi^2
             self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True) +   # -2E_{C\\Sigma}\\partial_\\theta^2
-            self.grid.second_derivative_matrix(globals.CHI_INDEX, prefactor=-2.0 * self.EC) +                   # -2E_{C}\\partial_\\chi^2
+            self.grid.second_derivative_matrix(globals.ZETA_INDEX, prefactor=-2.0 * self.EC) +                   # -2E_{C}\\partial_\\zeta^2
             self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX], prefactor=2.0 * self.ECS * self.dCJ,
                                                      periodic_var_indices=(globals.THETA_INDEX,)) +  # 4E_{C\\Sigma}(\\delta C_J/C_J)\\partial_\\phi \\partial_\\theta
-            self.grid.multi_first_derivatives_matrix([globals.THETA_INDEX, globals.CHI_INDEX], prefactor=2.0 * self.ECS * self.dC,
-                                                     periodic_var_indices=(globals.THETA_INDEX,))     # 4E_{C\\Sigma}(\\delta C/C)\\partial_\\theta \\partial_\\chi
+            self.grid.multi_first_derivatives_matrix([globals.THETA_INDEX, globals.ZETA_INDEX], prefactor=2.0 * self.ECS * self.dC,
+                                                     periodic_var_indices=(globals.THETA_INDEX,))     # 4E_{C\\Sigma}(\\delta C/C)\\partial_\\theta \\partial_\\zeta
             )
 
-    def potential(self, phi, theta, chi):
+    def potential(self, phi, theta, zeta):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2) + self.EL * phi**2 + 2 * self.EJ +   # symmetric 0-pi contributions
-                self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2) + self.EL * chi**2 +       # correction terms in presence of disorder
-                 self.EL * self.dEL * phi * chi + self.EJ * self.dEJ)                                                  # correction terms in presence of disorder
+                self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2) + self.EL * zeta**2 +       # correction terms in presence of disorder
+                 self.EL * self.dEL * phi * zeta + self.EJ * self.dEJ)                                                  # correction terms in presence of disorder
 
     def plot_potential(self, fixedvar_name, fixedvar_val, contour_vals=None, aspect_ratio=None, filename=None):
         fixedvar_index = self.VARNAME_TO_INDEX[fixedvar_name]
 
-        othervar_indices = list({globals.PHI_INDEX, globals.THETA_INDEX, globals.CHI_INDEX} - {fixedvar_index})
+        othervar_indices = list({globals.PHI_INDEX, globals.THETA_INDEX, globals.ZETA_INDEX} - {fixedvar_index})
 
         def reduced_potential(x, y):    # not very elegant, suspect there is a better way of coding this?
             func_arguments = [fixedvar_val] * 3
@@ -1708,7 +1708,7 @@ class FullZeroPi(SymZeroPi):
         plot.contours(x_vals, y_vals, reduced_potential, contour_vals, aspect_ratio, filename)
         return None
 
-    def d_potential_flux(self, phi, theta, chi):
+    def d_potential_flux(self, phi, theta, zeta):
         """Returns a derivative of U w.r.t flux, at the "current" value of flux, as stored in the object. 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. So if one needs a \frac{\partial U}{ \partial \Phi_{\rm ext}}, 
         the expression returned by this function, needs to be multiplied by 1/\Phi_0.
@@ -1716,7 +1716,7 @@ class FullZeroPi(SymZeroPi):
         return  (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
                 - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
   
-    def d_potential_EJ(self, phi, theta, chi):
+    def d_potential_EJ(self, phi, theta, zeta):
         """Returns a derivative of the H w.r.t EJ. 
         This can be used for calculating critical current noise, which requires a derivative of d_H/d_I_c. 
         
@@ -1766,14 +1766,14 @@ class FullZeroPi(SymZeroPi):
 class FullZeroPi_ProductBasis(BaseClass):
 
     """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
-    the chi degree of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and
+    the zeta degree of freedom, see Eq. (15) in Dempster et al., Phys. Rev. B, 90, 094518 (2014) and
     Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018). 
     (NOTE: The definitions of disorder are different in those two papers, which lead to 
     differences with factors of 2 in different Hamiltonian terms - here we are using ones 
     from New J. Phys. paper.)
 
     Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)
-    Zero-Pi qubit on one hand and the chi LC oscillator on the other hand.
+    Zero-Pi qubit on one hand and the zeta LC oscillator on the other hand.
 
     Expected parameters are:
 
@@ -1781,14 +1781,14 @@ class FullZeroPi_ProductBasis(BaseClass):
     EL:    inductive energy of the two (super-)inductors
     ECJ:   charging energy associated with the two junctions
     ECS:   charging energy including the large shunting capacitances
-    EC:    charging energy associated with chi degree of freedom
+    EC:    charging energy associated with zeta degree of freedom
     dEJ:   relative disorder in EJ, i.e., (EJ1-EJ2)/EJ(mean)
     dEL:   relative disorder in EL, i.e., (EL1-EL2)/EL(mean)
     dCJ:   relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/C(mean)
     flux:  magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
     ng:    offset charge along theta
     zeropi_cutoff: cutoff in the number of states of the disordered zero-pi qubit
-    chi_cut: cutoff in the chi oscillator basis (Fock state basis)
+    zeta_cut: cutoff in the zeta oscillator basis (Fock state basis)
     grid: Grid object specifying the range and spacing of the discretization lattice
 
     """
@@ -1798,7 +1798,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         'EL': 'inductive energy',
         'ECJ': 'junction charging energy',
         'ECS': 'total charging energy including C',
-        'EC': 'charging energy associated with chi degree of freedom',
+        'EC': 'charging energy associated with zeta degree of freedom',
         'dEJ': 'relative deviation between the two EJs',
         'dCJ': 'relative deviation between the two junction capacitances',
         'dC': 'relative deviation between the two shunt capacitances',
@@ -1806,7 +1806,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         'flux': 'external magnetic flux in units of flux quanta (h/2e)',
         'ng':    'offset charge along theta',
         'zeropi_cutoff': 'cutoff in the number of states of the disordered zero-pi qubit',
-        'chi_cutoff': 'cutoff in the chi oscillator basis (Fock state basis)',
+        'zeta_cutoff': 'cutoff in the zeta oscillator basis (Fock state basis)',
         'grid': 'Grid object specifying the range and spacing of the discretization lattice'
     }
     _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
@@ -1823,7 +1823,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         based on the others (ex: ECJ, EC)
         """
         super(FullZeroPi_ProductBasis, self).__init__(**parameter_args)
-        self._sys_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi product basis'
+        self._sys_type = 'full 0-Pi circuit (phi, theta, zeta) in 0pi - zeta product basis'
         self._zeropi = DisZeroPiNg(
             EJ = self.EJ,
             EL = self.EL,
@@ -1843,7 +1843,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         if self.__initialized and parameter_name in self._zeropi._EXPECTED_PARAMS_DICT.keys():
                 self._zeropi.__setattr__(parameter_name, parameter_val)
 
-    def omega_chi(self):
+    def omega_zeta(self):
         return (8.0 * self.EL * self.EC)**0.5
 
     def hamiltonian(self, return_parts=False):
@@ -1856,19 +1856,19 @@ class FullZeroPi_ProductBasis(BaseClass):
         zeropi_diag_hamiltonian = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.float_)
         zeropi_diag_hamiltonian.setdiag(zeropi_evals)
 
-        chi_dim = self.chi_cutoff
-        prefactor = self.omega_chi()
-        chi_diag_hamiltonian = op.number_sparse(chi_dim, prefactor)
+        zeta_dim = self.zeta_cutoff
+        prefactor = self.omega_zeta()
+        zeta_diag_hamiltonian = op.number_sparse(zeta_dim, prefactor)
 
-        hamiltonian_mat = sp.sparse.kron(zeropi_diag_hamiltonian, sp.sparse.identity(chi_dim, format='dia', dtype=np.float_))
-        hamiltonian_mat += sp.sparse.kron(sp.sparse.identity(zeropi_dim, format='dia', dtype=np.float_), chi_diag_hamiltonian)
+        hamiltonian_mat = sp.sparse.kron(zeropi_diag_hamiltonian, sp.sparse.identity(zeta_dim, format='dia', dtype=np.float_))
+        hamiltonian_mat += sp.sparse.kron(sp.sparse.identity(zeropi_dim, format='dia', dtype=np.float_), zeta_diag_hamiltonian)
 
         gmat = self.g_coupling_matrix(zeropi_evecs)
         zeropi_coupling = sp.sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.float_)
         for l1 in range(zeropi_dim):
             for l2 in range(zeropi_dim):
                 zeropi_coupling += gmat[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
-        hamiltonian_mat += sp.sparse.kron(zeropi_coupling, op.annihilation_sparse(chi_dim) + op.creation_sparse(chi_dim))
+        hamiltonian_mat += sp.sparse.kron(zeropi_coupling, op.annihilation_sparse(zeta_dim) + op.creation_sparse(zeta_dim))
 
         if return_parts:
             return [hamiltonian_mat, zeropi_evals, zeropi_evecs, gmat]
@@ -1882,7 +1882,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         TODO: Could update d_hamiltonian_EJ(),  d_hamiltonian_ng(),  d_hamiltonian_flux() to use this. 
         """
         zeropi_dim = self.zeropi_cutoff
-        chi_dim = self.chi_cutoff
+        zeta_dim = self.zeta_cutoff
 
         if zeropi_evecs is None:
             zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -1894,7 +1894,7 @@ class FullZeroPi_ProductBasis(BaseClass):
             for l2 in range(zeropi_dim):
                 op_eigen_basis += op_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
 
-        return sp.sparse.kron(op_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.complex_))
+        return sp.sparse.kron(op_eigen_basis, sp.sparse.identity(zeta_dim, format='dia', dtype=np.complex_))
 
     def i_d_dphi_operator(self, zeropi_evecs=None):
         """Return the operator i \\partial_\\phi"""
@@ -1931,7 +1931,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         TODO: update to _zeropi_operator_in_prodcuct_basis()
         """
         zeropi_dim = self.zeropi_cutoff
-        chi_dim = self.chi_cutoff
+        zeta_dim = self.zeta_cutoff
 
         if zeropi_evecs is None:
             zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -1943,7 +1943,7 @@ class FullZeroPi_ProductBasis(BaseClass):
             for l2 in range(zeropi_dim):
                 d_h_flux_zeropi_eigen_basis += d_h_flux_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
 
-        return sp.sparse.kron(d_h_flux_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.complex_))
+        return sp.sparse.kron(d_h_flux_zeropi_eigen_basis, sp.sparse.identity(zeta_dim, format='dia', dtype=np.complex_))
 
     def d_hamiltonian_ng(self, zeropi_evecs=None):
         """Returns a derivative of the H w.r.t ng
@@ -1951,7 +1951,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         TODO: update to _zeropi_operator_in_prodcuct_basis()
         """
         zeropi_dim = self.zeropi_cutoff
-        chi_dim = self.chi_cutoff
+        zeta_dim = self.zeta_cutoff
 
         if zeropi_evecs is None:
             zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -1963,7 +1963,7 @@ class FullZeroPi_ProductBasis(BaseClass):
             for l2 in range(zeropi_dim):
                 d_h_ng_zeropi_eigen_basis += d_h_ng_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
 
-        return sp.sparse.kron(d_h_ng_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.complex_))
+        return sp.sparse.kron(d_h_ng_zeropi_eigen_basis, sp.sparse.identity(zeta_dim, format='dia', dtype=np.complex_))
 
     def d_hamiltonian_EJ(self, zeropi_evecs=None):
         """Returns a derivative of the H w.r.t EJ
@@ -1971,7 +1971,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         TODO: update to _zeropi_operator_in_prodcuct_basis()
         """
         zeropi_dim = self.zeropi_cutoff
-        chi_dim = self.chi_cutoff
+        zeta_dim = self.zeta_cutoff
 
         if zeropi_evecs is None:
             zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
@@ -1983,11 +1983,11 @@ class FullZeroPi_ProductBasis(BaseClass):
             for l2 in range(zeropi_dim):
                 d_h_EJ_zeropi_eigen_basis += d_h_EJ_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
 
-        return sp.sparse.kron(d_h_EJ_zeropi_eigen_basis, sp.sparse.identity(chi_dim, format='dia', dtype=np.complex_))
+        return sp.sparse.kron(d_h_EJ_zeropi_eigen_basis, sp.sparse.identity(zeta_dim, format='dia', dtype=np.complex_))
 
 
     def hilbertdim(self):
-        return (self.zeropi_cutoff * self.chi_cutoff)
+        return (self.zeropi_cutoff * self.zeta_cutoff)
 
     def _evals_calc(self, evals_count, hamiltonian_mat=None):
         if hamiltonian_mat is None:
