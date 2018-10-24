@@ -1249,6 +1249,7 @@ class SymZeroPi(BaseClass):
     ECJ:  charging energy associated with the two junctions
     ECS:  charging energy including the large shunting capacitances
     flux: magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
+    ng:   offset charge
     grid: Grid object specifying the range and spacing of the discretization lattice
     """
 
@@ -1258,6 +1259,7 @@ class SymZeroPi(BaseClass):
         'ECJ': 'junction charging energy',
         'ECS': 'total charging energy including C',
         'flux': 'external magnetic flux in angular units (2pi corresponds to one flux quantum)',
+        'ng': 'offset charge',
         'grid': 'Grid object specifying the range and spacing of the discretization lattice'
     }
     _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
@@ -1273,10 +1275,18 @@ class SymZeroPi(BaseClass):
     def potential(self, phi, theta):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + self.EL * phi**2 + 2.0 * self.EJ)
 
+#     def sparse_kineticmat(self):
+#         kmat = self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0*self.ECJ)    # -2E_{CJ}\\partial_\\phi^2
+#         kmat += self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0*self.ECS, periodic=True)  # -2E_{C\\Sigma}\\partial_\\theta^2
+#         return kmat
+    
     def sparse_kineticmat(self):
-        kmat = self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0*self.ECJ)    # -2E_{CJ}\\partial_\\phi^2
-        kmat += self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0*self.ECS, periodic=True)  # -2E_{C\\Sigma}\\partial_\\theta^2
-        return kmat
+        pt_counts = self.grid.pt_counts
+        return (self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ) +  # -2E_{CJ}\\partial_\\phi^2
+                self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True) +   # 2E_{C\\Sigma}(i\\partial_\\theta + n_g)^2
+                self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS * self.ng, periodic=True) +
+                sp.sparse.kron(sp.sparse.identity(pt_counts[globals.PHI_INDEX], format='dia'),
+                               sp.sparse.identity(pt_counts[globals.THETA_INDEX], format='dia') * 2.0 * self.ECS * (self.ng)**2))
 
     def sparse_potentialmat(self, potential=None):
         """Returns the potential energy matrix for the potential in sparse (dia_matrix) form.
@@ -1297,7 +1307,7 @@ class SymZeroPi(BaseClass):
 
         Xvals=[]
         for j in range(var_count):
-            #We have to account fhe fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
+            #We have to account the fact that \theta is periodic, hence the points at the end of the interval should be the same as at the beginning
             if j==globals.THETA_INDEX: 
                 Xvals.append(np.linspace(min_vals[j], max_vals[j] - 2.0*np.pi/pt_counts[j], pt_counts[j]))
             else:
@@ -1354,6 +1364,13 @@ class SymZeroPi(BaseClass):
         Here, we differentiate w.r.t EJ in order not to impose units on H. 
         """
         return self.sparse_potentialmat(potential=self.d_potential_EJ)
+    
+    def d_hamiltonian_ng(self):
+        """Returns a derivative of the H w.r.t ng.
+        This can be used for calculating charge noise.
+        """
+        # \partial/\partial n_g  ( 2E_{C\\Sigma}(i\\partial_\\theta + n_g)^2 )
+        return self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS, periodic=True) 
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -1497,6 +1514,7 @@ class DisZeroPi(SymZeroPi):
     dEJ:  relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
     dCJ:  relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg
     flux: magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
+    ng:   offset charge along theta
     grid: Grid object specifying the range and spacing of the discretization lattice
 
     """
@@ -1509,6 +1527,7 @@ class DisZeroPi(SymZeroPi):
         'dEJ': 'relative deviation between the two EJs',
         'dCJ': 'relative deviation between the two junction capacitances',
         'flux': 'external magnetic flux in units of flux quanta (h/2e)',
+        'ng': 'offset charge along theta',
         'grid': 'Grid object specifying the range and spacing of the discretization lattice'
     }
     _OPTIONAL_PARAMS_DICT = {'truncated_dim': 'dimension parameter for truncated system (used in interface to qutip)'}
@@ -1521,12 +1540,24 @@ class DisZeroPi(SymZeroPi):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + self.EL * phi**2 + 2.0 * self.EJ +
                  self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
 
+#     def sparse_kineticmat(self):
+#         dphi2 = self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ)                   # -2E_{CJ}\\partial_\\phi^2
+#         dth2 = self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True)     # -2E_{C\\Sigma}\\partial_\\theta^2
+#         dphidtheta = self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX],
+#                                                               prefactor=2.0 * self.ECS * self.dCJ, periodic_var_indices=(globals.THETA_INDEX, ))
+#         return (dphi2 + dth2 + dphidtheta)
+    
     def sparse_kineticmat(self):
         dphi2 = self.grid.second_derivative_matrix(globals.PHI_INDEX, prefactor=-2.0 * self.ECJ)                   # -2E_{CJ}\\partial_\\phi^2
         dth2 = self.grid.second_derivative_matrix(globals.THETA_INDEX, prefactor=-2.0 * self.ECS, periodic=True)     # -2E_{C\\Sigma}\\partial_\\theta^2
         dphidtheta = self.grid.multi_first_derivatives_matrix([globals.PHI_INDEX, globals.THETA_INDEX],
                                                               prefactor=2.0 * self.ECS * self.dCJ, periodic_var_indices=(globals.THETA_INDEX, ))
-        return (dphi2 + dth2 + dphidtheta)
+        ngdtheta=0.0
+        if self.ng !=0:
+            #2E_{C\\Sigma}( 2 i\\partial_\\theta + n_g^2 )
+            ngdtheta = self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS * self.ng, periodic=True) 
+
+        return (dphi2 + dth2 + dphidtheta + ngdtheta)
 
 
     def d_potential_flux(self, phi, theta):
@@ -1553,6 +1584,13 @@ class DisZeroPi(SymZeroPi):
         """
         return (-2.0 * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0) + 
                 self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+    
+    def d_hamiltonian_ng(self):
+        """Returns a derivative of the H w.r.t ng.
+        This can be used for calculating charge noise.
+        """
+        # \partial/\partial n_g  ( 2E_{C\\Sigma}(i\\partial_\\theta + n_g)^2 )
+        return self.grid.first_derivative_matrix(globals.THETA_INDEX, prefactor=4.0 * 1j * self.ECS, periodic=True) 
 
 
 
@@ -1824,7 +1862,7 @@ class FullZeroPi_ProductBasis(BaseClass):
         """
         super(FullZeroPi_ProductBasis, self).__init__(**parameter_args)
         self._sys_type = 'full 0-Pi circuit (phi, theta, chi) in 0pi - chi product basis'
-        self._zeropi = DisZeroPiNg(
+        self._zeropi = DisZeroPi(
             EJ = self.EJ,
             EL = self.EL,
             ECJ = self.ECJ,
