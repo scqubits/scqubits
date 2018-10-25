@@ -2,8 +2,6 @@
 
 Some ideas for things to implement:
 
-- Rename chi-mode to zeta-mode
-
 - Update all plot commands to an OO interface and (as an option?) return the plot's axes. This will allow for much more flexibility when customizing plots. I.e. the user
   should be able to pass an axes to a plotting command (say of a wavefunction or potential), and in that case those very axes should be used for plotting. 
     - Some of the zero_pi methods are done now... but need to update fluxonium, potential plots, etc.
