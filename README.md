@@ -2,7 +2,7 @@
 
 [Documentation](https://github.com/Northwestern-Koch-Group/sc_qubits/tree/danny_branch/sc_qubits-doc/docs)
 
-[Tutorial]()
+[Tutorial](https://github.com/Northwestern-Koch-Group/sc_qubits/tree/danny_branch/sc_qubits/examples)
 
 ### Installation ###
 You can install sc_qubits locally via pip.
