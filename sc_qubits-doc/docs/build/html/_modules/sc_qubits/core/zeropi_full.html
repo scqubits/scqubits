@@ -1,0 +1,415 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>sc_qubits.core.zeropi_full &mdash; sc_qubits  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processClass": "math|output_area", "ignoreClass": "document", "processEscapes": true}})</script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> sc_qubits
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guide/guide.html">Users Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-doc/apidoc.html">API documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Change Log</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributors.html">Developers</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sc_qubits</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>sc_qubits.core.zeropi_full</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for sc_qubits.core.zeropi_full</h1><div class="highlight"><pre>
+<span></span><span class="c1"># zeropi_full.py</span>
+
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">sparse</span>
+
+<span class="kn">import</span> <span class="nn">sc_qubits.core.operators</span> <span class="k">as</span> <span class="nn">op</span>
+
+<span class="kn">from</span> <span class="nn">sc_qubits.core.qubit_base</span> <span class="kn">import</span> <span class="n">QubitBaseClass</span>
+<span class="kn">from</span> <span class="nn">sc_qubits.core.zeropi</span> <span class="kn">import</span> <span class="n">ZeroPi</span>
+<span class="kn">from</span> <span class="nn">sc_qubits.utils.spectrum_utils</span> <span class="kn">import</span> <span class="n">order_eigensystem</span><span class="p">,</span> <span class="n">get_matrixelement_table</span>
+
+
+
+<div class="viewcode-block" id="FullZeroPi"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.FullZeroPi">[docs]</a><span class="k">class</span> <span class="nc">FullZeroPi</span><span class="p">(</span><span class="n">QubitBaseClass</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples</span>
+<span class="sd">    the zeta degree of freedom, see Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018).</span>
+
+<span class="sd">    Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)</span>
+<span class="sd">    Zero-Pi qubit on one hand and the zeta LC oscillator on the other hand.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    EJ: float</span>
+<span class="sd">        mean Josephson energy of the two junctions</span>
+<span class="sd">    EL: float</span>
+<span class="sd">        inductive energy of the two (super-)inductors</span>
+<span class="sd">    ECJ: float</span>
+<span class="sd">        charging energy associated with the two junctions</span>
+<span class="sd">    EC: float or None</span>
+<span class="sd">        charging energy of the large shunting capacitances; set to `None` if `ECS` is provided instead</span>
+<span class="sd">    dEJ: float</span>
+<span class="sd">        relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg</span>
+<span class="sd">    dEL: float</span>
+<span class="sd">        relative disorder in EL, i.e., (EL1-EL2)/EL(mean)</span>
+<span class="sd">    dCJ: float</span>
+<span class="sd">        relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg</span>
+<span class="sd">    dC: float</span>
+<span class="sd">        relative disorder in large capacitances, i.e., (C1-C2)/Cavg</span>
+<span class="sd">    ng: float</span>
+<span class="sd">        offset charge associated with theta</span>
+<span class="sd">    zeropi_cutoff: int</span>
+<span class="sd">        cutoff in the number of states of the disordered zero-pi qubit</span>
+<span class="sd">    zeta_cutoff: int</span>
+<span class="sd">        cutoff in the zeta oscillator basis (Fock state basis)</span>
+<span class="sd">    flux: float</span>
+<span class="sd">        magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)</span>
+<span class="sd">    grid: Grid1d object</span>
+<span class="sd">        specifies the range and spacing of the discretization lattice</span>
+<span class="sd">    ncut: int</span>
+<span class="sd">        charge number cutoff for `n_theta`,  `n_theta = -ncut, ..., ncut`</span>
+<span class="sd">    ECS: float, optional</span>
+<span class="sd">        total charging energy including large shunting capacitances and junction capacitances; may be provided instead</span>
+<span class="sd">        of EC</span>
+<span class="sd">    truncated_dim: int, optional</span>
+<span class="sd">        desired dimension of the truncated quantum system</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">__initialized</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">EJ</span><span class="p">,</span> <span class="n">EL</span><span class="p">,</span> <span class="n">ECJ</span><span class="p">,</span> <span class="n">EC</span><span class="p">,</span> <span class="n">dEJ</span><span class="p">,</span> <span class="n">dCJ</span><span class="p">,</span> <span class="n">dC</span><span class="p">,</span> <span class="n">dEL</span><span class="p">,</span> <span class="n">flux</span><span class="p">,</span> <span class="n">ng</span><span class="p">,</span> <span class="n">zeropi_cutoff</span><span class="p">,</span> <span class="n">zeta_cutoff</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">ncut</span><span class="p">,</span>
+                 <span class="n">ECS</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">truncated_dim</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">EJ</span> <span class="o">=</span> <span class="n">EJ</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">EL</span> <span class="o">=</span> <span class="n">EL</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ECJ</span> <span class="o">=</span> <span class="n">ECJ</span>
+
+        <span class="k">if</span> <span class="n">EC</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">ECS</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Argument missing: must either provide EC or ECS&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">EC</span> <span class="ow">and</span> <span class="n">ECS</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Argument error: can only provide either EC or ECS&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">EC</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">EC</span> <span class="o">=</span> <span class="n">EC</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">EC</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">ECS</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">ECJ</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dEJ</span> <span class="o">=</span> <span class="n">dEJ</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dCJ</span> <span class="o">=</span> <span class="n">dCJ</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dC</span> <span class="o">=</span> <span class="n">dC</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dEL</span> <span class="o">=</span> <span class="n">dEL</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flux</span> <span class="o">=</span> <span class="n">flux</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ng</span> <span class="o">=</span> <span class="n">ng</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zeta_cutoff</span> <span class="o">=</span> <span class="n">zeta_cutoff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zeropi_cutoff</span> <span class="o">=</span> <span class="n">zeropi_cutoff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">grid</span> <span class="o">=</span> <span class="n">grid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ncut</span> <span class="o">=</span> <span class="n">ncut</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">truncated_dim</span> <span class="o">=</span> <span class="n">truncated_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sys_type</span> <span class="o">=</span> <span class="s1">&#39;full 0-Pi circuit (phi, theta, zeta) in 0pi - zeta product basis&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span> <span class="o">=</span> <span class="n">ZeroPi</span><span class="p">(</span>
+            <span class="n">EJ</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">EJ</span><span class="p">,</span>
+            <span class="n">EL</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">EL</span><span class="p">,</span>
+            <span class="n">ECJ</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ECJ</span><span class="p">,</span>
+            <span class="n">EC</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">EC</span><span class="p">,</span>
+            <span class="n">dEJ</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dEJ</span><span class="p">,</span>
+            <span class="n">dCJ</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dCJ</span><span class="p">,</span>
+            <span class="n">flux</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flux</span><span class="p">,</span>
+            <span class="n">ng</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ng</span><span class="p">,</span>
+            <span class="n">grid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">,</span>
+            <span class="n">ncut</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ncut</span><span class="p">,</span>
+            <span class="n">truncated_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">zeropi_cutoff</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__initialized</span> <span class="o">=</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="FullZeroPi.ECS"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.FullZeroPi.ECS">[docs]</a>    <span class="k">def</span> <span class="nf">ECS</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">EC</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">ECJ</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FullZeroPi.set_EC_via_ECS"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.FullZeroPi.set_EC_via_ECS">[docs]</a>    <span class="k">def</span> <span class="nf">set_EC_via_ECS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ECS</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">EC</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">ECS</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">ECJ</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="FullZeroPi.omega_zeta"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.FullZeroPi.omega_zeta">[docs]</a>    <span class="k">def</span> <span class="nf">omega_zeta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mf">8.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">EL</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">EC</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span></div>
+
+    <span class="k">def</span> <span class="nf">hamiltonian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">return_parts</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+        <span class="n">zeropi_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeropi_cutoff</span>
+        <span class="n">zeropi_evals</span><span class="p">,</span> <span class="n">zeropi_evecs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span><span class="o">.</span><span class="n">eigensys</span><span class="p">(</span><span class="n">evals_count</span><span class="o">=</span><span class="n">zeropi_dim</span><span class="p">)</span>
+        <span class="n">zeropi_diag_hamiltonian</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">dia_matrix</span><span class="p">((</span><span class="n">zeropi_dim</span><span class="p">,</span> <span class="n">zeropi_dim</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">)</span>
+        <span class="n">zeropi_diag_hamiltonian</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="n">zeropi_evals</span><span class="p">)</span>
+
+        <span class="n">zeta_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeta_cutoff</span>
+        <span class="n">prefactor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">omega_zeta</span><span class="p">()</span>
+        <span class="n">zeta_diag_hamiltonian</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">number_sparse</span><span class="p">(</span><span class="n">zeta_dim</span><span class="p">,</span> <span class="n">prefactor</span><span class="p">)</span>
+
+        <span class="n">hamiltonian_mat</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">kron</span><span class="p">(</span><span class="n">zeropi_diag_hamiltonian</span><span class="p">,</span> <span class="n">sparse</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">zeta_dim</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;dia&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">))</span>
+        <span class="n">hamiltonian_mat</span> <span class="o">+=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">kron</span><span class="p">(</span><span class="n">sparse</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">zeropi_dim</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;dia&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">),</span>
+                                       <span class="n">zeta_diag_hamiltonian</span><span class="p">)</span>
+
+        <span class="n">gmat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">g_coupling_matrix</span><span class="p">(</span><span class="n">zeropi_evecs</span><span class="p">)</span>
+        <span class="n">zeropi_coupling</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">dia_matrix</span><span class="p">((</span><span class="n">zeropi_dim</span><span class="p">,</span> <span class="n">zeropi_dim</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">l1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">zeropi_dim</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">l2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">zeropi_dim</span><span class="p">):</span>
+                <span class="n">zeropi_coupling</span> <span class="o">+=</span> <span class="n">gmat</span><span class="p">[</span><span class="n">l1</span><span class="p">,</span> <span class="n">l2</span><span class="p">]</span> <span class="o">*</span> <span class="n">op</span><span class="o">.</span><span class="n">hubbard_sparse</span><span class="p">(</span><span class="n">l1</span><span class="p">,</span> <span class="n">l2</span><span class="p">,</span> <span class="n">zeropi_dim</span><span class="p">)</span>
+        <span class="n">hamiltonian_mat</span> <span class="o">+=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">kron</span><span class="p">(</span><span class="n">zeropi_coupling</span><span class="p">,</span>
+                                       <span class="n">op</span><span class="o">.</span><span class="n">annihilation_sparse</span><span class="p">(</span><span class="n">zeta_dim</span><span class="p">)</span> <span class="o">+</span> <span class="n">op</span><span class="o">.</span><span class="n">creation_sparse</span><span class="p">(</span><span class="n">zeta_dim</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">return_parts</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">hamiltonian_mat</span><span class="o">.</span><span class="n">tocsc</span><span class="p">(),</span> <span class="n">zeropi_evals</span><span class="p">,</span> <span class="n">zeropi_evecs</span><span class="p">,</span> <span class="n">gmat</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">hamiltonian_mat</span><span class="o">.</span><span class="n">tocsc</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_zeropi_operator_in_product_basis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zeropi_operator</span><span class="p">,</span> <span class="n">zeropi_evecs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Helper method that converts a zeropi operator into one in the product basis&#39;</span>
+
+<span class="sd">        TODO: Could update d_hamiltonian_EJ(),  d_hamiltonian_ng(),  d_hamiltonian_flux() to use this.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">zeropi_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeropi_cutoff</span>
+        <span class="n">zeta_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeta_cutoff</span>
+
+        <span class="k">if</span> <span class="n">zeropi_evecs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">zeropi_evals</span><span class="p">,</span> <span class="n">zeropi_evecs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span><span class="o">.</span><span class="n">eigensys</span><span class="p">(</span><span class="n">evals_count</span><span class="o">=</span><span class="n">zeropi_dim</span><span class="p">)</span>
+
+        <span class="n">op_eigen_basis</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">dia_matrix</span><span class="p">((</span><span class="n">zeropi_dim</span><span class="p">,</span> <span class="n">zeropi_dim</span><span class="p">),</span>
+                                           <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex_</span><span class="p">)</span>  <span class="c1"># is this guaranteed to be zero?</span>
+
+        <span class="n">op_zeropi</span> <span class="o">=</span> <span class="n">get_matrixelement_table</span><span class="p">(</span><span class="n">zeropi_operator</span><span class="p">,</span> <span class="n">zeropi_evecs</span><span class="p">,</span> <span class="n">real_valued</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">l1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">zeropi_dim</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">l2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">zeropi_dim</span><span class="p">):</span>
+                <span class="n">op_eigen_basis</span> <span class="o">+=</span> <span class="n">op_zeropi</span><span class="p">[</span><span class="n">l1</span><span class="p">,</span> <span class="n">l2</span><span class="p">]</span> <span class="o">*</span> <span class="n">op</span><span class="o">.</span><span class="n">hubbard_sparse</span><span class="p">(</span><span class="n">l1</span><span class="p">,</span> <span class="n">l2</span><span class="p">,</span> <span class="n">zeropi_dim</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sparse</span><span class="o">.</span><span class="n">kron</span><span class="p">(</span><span class="n">op_eigen_basis</span><span class="p">,</span> <span class="n">sparse</span><span class="o">.</span><span class="n">identity</span><span class="p">(</span><span class="n">zeta_dim</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;csc&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex_</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;csc&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">i_d_dphi_operator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zeropi_evecs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zeropi_operator_in_product_basis</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span><span class="o">.</span><span class="n">i_d_dphi_operator</span><span class="p">(),</span> <span class="n">zeropi_evecs</span><span class="o">=</span><span class="n">zeropi_evecs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">n_theta_operator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zeropi_evecs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zeropi_operator_in_product_basis</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span><span class="o">.</span><span class="n">n_theta_operator</span><span class="p">(),</span> <span class="n">zeropi_evecs</span><span class="o">=</span><span class="n">zeropi_evecs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">phi_operator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zeropi_evecs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zeropi_operator_in_product_basis</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span><span class="o">.</span><span class="n">phi_operator</span><span class="p">(),</span> <span class="n">zeropi_evecs</span><span class="o">=</span><span class="n">zeropi_evecs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FullZeroPi.hilbertdim"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.FullZeroPi.hilbertdim">[docs]</a>    <span class="k">def</span> <span class="nf">hilbertdim</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeropi_cutoff</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">zeta_cutoff</span></div>
+
+    <span class="k">def</span> <span class="nf">_evals_calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">,</span> <span class="n">hamiltonian_mat</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">hamiltonian_mat</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hamiltonian_mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">()</span>
+        <span class="n">evals</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigsh</span><span class="p">(</span><span class="n">hamiltonian_mat</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">evals_count</span><span class="p">,</span> <span class="n">return_eigenvectors</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s1">&#39;SA&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">evals</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_esys_calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">,</span> <span class="n">hamiltonian_mat</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">hamiltonian_mat</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hamiltonian_mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">()</span>
+        <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigsh</span><span class="p">(</span><span class="n">hamiltonian_mat</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">evals_count</span><span class="p">,</span> <span class="n">return_eigenvectors</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s1">&#39;SA&#39;</span><span class="p">)</span>
+        <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="n">order_eigensystem</span><span class="p">(</span><span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span>
+
+<div class="viewcode-block" id="FullZeroPi.g_phi_coupling_matrix"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.FullZeroPi.g_phi_coupling_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">g_phi_coupling_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zeropi_states</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a matrix of coupling strengths g^\\phi_{ll&#39;} [cmp. Dempster et al., Eq. (18)], using the states</span>
+<span class="sd">        from the list `zeropi_states`. Most commonly, `zeropi_states` will contain eigenvectors of the</span>
+<span class="sd">        `DisorderedZeroPi` type.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># prefactor = self.EL * self.dEL * (8.0 * self.EC / self.EL)**0.25</span>
+        <span class="n">prefactor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">EL</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dEL</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">8.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">EC</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">EL</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.25</span>
+        <span class="k">return</span> <span class="n">prefactor</span> <span class="o">*</span> <span class="n">get_matrixelement_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span><span class="o">.</span><span class="n">phi_operator</span><span class="p">(),</span> <span class="n">zeropi_states</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FullZeroPi.g_theta_coupling_matrix"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.FullZeroPi.g_theta_coupling_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">g_theta_coupling_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zeropi_states</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a matrix of coupling strengths i*g^\\theta_{ll&#39;} [cmp. Dempster et al., Eq. (17)], using the states</span>
+<span class="sd">        from the list &#39;zeropi_states&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">prefactor</span> <span class="o">=</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ECS</span><span class="p">()</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dC</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">32.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">EL</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">EC</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.25</span>
+        <span class="k">return</span> <span class="n">prefactor</span> <span class="o">*</span> <span class="n">get_matrixelement_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span><span class="o">.</span><span class="n">n_theta_operator</span><span class="p">(),</span> <span class="n">zeropi_states</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FullZeroPi.g_coupling_matrix"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.FullZeroPi.g_coupling_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">g_coupling_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zeropi_states</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a matrix of coupling strengths g_{ll&#39;} [cmp. Dempster et al., text above Eq. (17)], using the states</span>
+<span class="sd">        from &#39;zeropi_states&#39;. If `zeropi_states==None`, then a set of `self.zeropi` eigenstates is calculated. Only in</span>
+<span class="sd">        that case is `evals_count` used for the eigenstate number (and hence the coupling matrix size).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">evals_count</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">evals_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span><span class="o">.</span><span class="n">truncated_dim</span>
+        <span class="k">if</span> <span class="n">zeropi_states</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">zeropi_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zeropi</span><span class="o">.</span><span class="n">eigensys</span><span class="p">(</span><span class="n">evals_count</span><span class="o">=</span><span class="n">evals_count</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">g_phi_coupling_matrix</span><span class="p">(</span><span class="n">zeropi_states</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">g_theta_coupling_matrix</span><span class="p">(</span><span class="n">zeropi_states</span><span class="p">)</span></div></div>
+
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Jens Koch, Peter Groszkowski
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

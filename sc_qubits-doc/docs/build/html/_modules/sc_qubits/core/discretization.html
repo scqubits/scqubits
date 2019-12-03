@@ -1,0 +1,318 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>sc_qubits.core.discretization &mdash; sc_qubits  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processClass": "math|output_area", "ignoreClass": "document", "processEscapes": true}})</script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> sc_qubits
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guide/guide.html">Users Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-doc/apidoc.html">API documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Change Log</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributors.html">Developers</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sc_qubits</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>sc_qubits.core.discretization</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for sc_qubits.core.discretization</h1><div class="highlight"><pre>
+<span></span><span class="c1"># discretization.py</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">sparse</span>
+
+<div class="viewcode-block" id="Grid1d"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.Grid1d">[docs]</a><span class="k">class</span> <span class="nc">Grid1d</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative</span>
+<span class="sd">    matrices.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    min_val, max_val: float</span>
+<span class="sd">        minimum and maximum values of the discretized variable</span>
+<span class="sd">    pt_count: int</span>
+<span class="sd">        number of grid points</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">,</span> <span class="n">pt_count</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_val</span> <span class="o">=</span> <span class="n">min_val</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_val</span> <span class="o">=</span> <span class="n">max_val</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span> <span class="o">=</span> <span class="n">pt_count</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="s1">&#39;    Grid (1d) ......&#39;</span>
+        <span class="k">for</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">paramval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
+            <span class="n">output</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">param_name</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">paramval</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+    <span class="k">def</span> <span class="nf">grid_spacing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_val</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_val</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span>
+
+<div class="viewcode-block" id="Grid1d.first_derivative_matrix"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.Grid1d.first_derivative_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">first_derivative_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefactor</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">periodic</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.</span>
+<span class="sd">        Uses :math:`f&#39;(x) \\approx [f(x+h) - f(x-h)]/2h`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        prefactor: float or complex, optional</span>
+<span class="sd">            prefactor of the derivative matrix (default value: 1.0)</span>
+<span class="sd">        periodic: bool, optional</span>
+<span class="sd">            set to True if variable is a periodic variable</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        sparse matrix in `dia` format</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prefactor</span><span class="p">,</span> <span class="nb">complex</span><span class="p">):</span>
+            <span class="n">dtp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">complex_</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dtp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float_</span>
+            
+
+        <span class="n">delta_x</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_val</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_val</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span>
+        <span class="n">offdiag_element</span> <span class="o">=</span> <span class="n">prefactor</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">delta_x</span><span class="p">)</span>
+
+        <span class="n">derivative_matrix</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">dia_matrix</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtp</span><span class="p">)</span>
+        <span class="n">derivative_matrix</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="n">offdiag_element</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>    <span class="c1"># occupy first off-diagonal to the right</span>
+        <span class="n">derivative_matrix</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="o">-</span><span class="n">offdiag_element</span><span class="p">,</span> <span class="n">k</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># and left</span>
+
+        <span class="k">if</span> <span class="n">periodic</span><span class="p">:</span>
+            <span class="n">derivative_matrix</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="o">-</span><span class="n">offdiag_element</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">derivative_matrix</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="n">offdiag_element</span><span class="p">,</span> <span class="n">k</span><span class="o">=-</span><span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">derivative_matrix</span></div>
+
+<div class="viewcode-block" id="Grid1d.second_derivative_matrix"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.Grid1d.second_derivative_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">second_derivative_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefactor</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">periodic</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate sparse matrix for second derivative of the form :math:`\\partial^2_{x_i}`.</span>
+<span class="sd">        Uses :math:`f&#39;&#39;(x) \\approx [f(x+h) - 2f(x) + f(x-h)]/h^2`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        prefactor: float, optional</span>
+<span class="sd">            optional prefactor of the derivative matrix (Default value = 1.0)</span>
+<span class="sd">        periodic: bool, periodic</span>
+<span class="sd">            set to True if variable is a periodic variable (Default value = False)</span>
+
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        sparse matrix in `dia` format</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">delta_x</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_val</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_val</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span>
+        <span class="n">offdiag_element</span> <span class="o">=</span> <span class="n">prefactor</span> <span class="o">/</span> <span class="n">delta_x</span><span class="o">**</span><span class="mi">2</span>
+
+        <span class="n">derivative_matrix</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">dia_matrix</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">)</span>
+        <span class="n">derivative_matrix</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="o">-</span><span class="mf">2.0</span> <span class="o">*</span> <span class="n">offdiag_element</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">derivative_matrix</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="n">offdiag_element</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">derivative_matrix</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="n">offdiag_element</span><span class="p">,</span> <span class="n">k</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">periodic</span><span class="p">:</span>
+            <span class="n">derivative_matrix</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="n">offdiag_element</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">derivative_matrix</span><span class="o">.</span><span class="n">setdiag</span><span class="p">(</span><span class="n">offdiag_element</span><span class="p">,</span> <span class="n">k</span><span class="o">=-</span><span class="bp">self</span><span class="o">.</span><span class="n">pt_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">derivative_matrix</span></div></div>
+
+
+
+<div class="viewcode-block" id="GridSpec"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.GridSpec">[docs]</a><span class="k">class</span> <span class="nc">GridSpec</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class for specifying a general discretized coordinate grid (arbitrary dimensions).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    minmaxpts_array: ndarray</span>
+<span class="sd">        array of with entries [minvalue, maxvalue, number of points]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">minmaxpts_array</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_vals</span> <span class="o">=</span> <span class="n">minmaxpts_array</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_vals</span> <span class="o">=</span> <span class="n">minmaxpts_array</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">var_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_vals</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pt_counts</span> <span class="o">=</span> <span class="n">minmaxpts_array</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>  <span class="c1"># these are used as indices; need to be whole numbers.</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="s1">&#39;    GridSpec ......&#39;</span>
+        <span class="k">for</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">paramval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
+            <span class="n">output</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">param_name</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">paramval</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+<div class="viewcode-block" id="GridSpec.unwrap"><a class="viewcode-back" href="../../../api-doc/classes.html#sc_qubits.GridSpec.unwrap">[docs]</a>    <span class="k">def</span> <span class="nf">unwrap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Auxiliary routine that yields a tuple of the parameters specifying the grid.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_vals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_vals</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pt_counts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_count</span></div></div>
+
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Jens Koch, Peter Groszkowski
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,601 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>sc_qubits.core.qubit_base &mdash; sc_qubits  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processClass": "math|output_area", "ignoreClass": "document", "processEscapes": true}})</script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> sc_qubits
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guide/guide.html">Users Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-doc/apidoc.html">API documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Change Log</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributors.html">Developers</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sc_qubits</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>sc_qubits.core.qubit_base</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for sc_qubits.core.qubit_base</h1><div class="highlight"><pre>
+<span></span><span class="c1"># qubit_base.py</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Provides the base classes for qubits</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy</span> <span class="k">as</span> <span class="nn">sp</span>
+
+<span class="kn">import</span> <span class="nn">sc_qubits.settings</span> <span class="k">as</span> <span class="nn">config</span>
+<span class="kn">import</span> <span class="nn">sc_qubits.utils.constants</span> <span class="k">as</span> <span class="nn">constants</span>
+<span class="kn">import</span> <span class="nn">sc_qubits.utils.plotting</span> <span class="k">as</span> <span class="nn">plot</span>
+<span class="kn">import</span> <span class="nn">sc_qubits.utils.progressbar</span> <span class="k">as</span> <span class="nn">progressbar</span>
+
+<span class="kn">from</span> <span class="nn">sc_qubits.utils.constants</span> <span class="kn">import</span> <span class="n">FileType</span>
+<span class="kn">from</span> <span class="nn">sc_qubits.core.data_containers</span> <span class="kn">import</span> <span class="n">SpectrumData</span>
+<span class="kn">from</span> <span class="nn">sc_qubits.utils.file_write</span> <span class="kn">import</span> <span class="n">filewrite_csvdata</span><span class="p">,</span> <span class="n">filewrite_h5data</span>
+<span class="kn">from</span> <span class="nn">sc_qubits.utils.spectrum_utils</span> <span class="kn">import</span> <span class="n">order_eigensystem</span><span class="p">,</span> <span class="n">get_matrixelement_table</span>
+
+<span class="c1"># —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————</span>
+
+<span class="k">class</span> <span class="nc">QuantumSystem</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generic quantum system class&quot;&quot;&quot;</span>
+    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sys_type</span> <span class="o">=</span> <span class="s1">&#39;generic quantum system - only used as class template&#39;</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sys_type</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1"> ———— PARAMETERS ————&#39;</span>
+        <span class="k">for</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">param_name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="s1">&#39;_&#39;</span><span class="p">:</span>
+                <span class="n">paramval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
+                <span class="n">output</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">param_name</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\t</span><span class="s1">: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">paramval</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Hilbert space dimension</span><span class="se">\t</span><span class="s1">: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hilbertdim</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">output</span>
+
+    <span class="k">def</span> <span class="nf">dict_reformat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Provides `__dict__` in reformatted dictionary form (all values as strings); needed for .h5 output.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict(str)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dict_reformatted</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">dict_reformatted</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">dict_reformatted</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dict_reformatted</span>
+
+    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">hilbertdim</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns dimension of Hilbert space&quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+
+
+
+<span class="c1"># —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————</span>
+
+<div class="viewcode-block" id="QubitBaseClass"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass">[docs]</a><span class="k">class</span> <span class="nc">QubitBaseClass</span><span class="p">(</span><span class="n">QuantumSystem</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Base class for superconducting qubit objects. Provide general mechanisms and routines for</span>
+<span class="sd">    checking validity of initialization parameters, writing data to files, and plotting.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sys_type</span> <span class="o">=</span> <span class="s1">&#39;QubitBaseClass - mainly used as class template&#39;</span>
+
+<div class="viewcode-block" id="QubitBaseClass.filewrite_evals"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.filewrite_evals">[docs]</a>    <span class="k">def</span> <span class="nf">filewrite_evals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">evals</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write eigenvalue data to file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename: str</span>
+<span class="sd">            path and name of output file (suffix appended automatically)</span>
+<span class="sd">        evals: ndarray</span>
+<span class="sd">            eigenvalue data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">file_format</span> <span class="ow">is</span> <span class="n">FileType</span><span class="o">.</span><span class="n">csv</span><span class="p">:</span>
+            <span class="n">filewrite_csvdata</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="n">constants</span><span class="o">.</span><span class="n">EVALS_FILESUFFIX</span><span class="p">,</span> <span class="n">evals</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="n">constants</span><span class="o">.</span><span class="n">PARAMETER_FILESUFFIX</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">target_file</span><span class="p">:</span>
+                <span class="n">target_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">())</span>
+        <span class="k">elif</span> <span class="n">config</span><span class="o">.</span><span class="n">file_format</span> <span class="ow">is</span> <span class="n">FileType</span><span class="o">.</span><span class="n">h5</span><span class="p">:</span>
+            <span class="n">filewrite_h5data</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="p">[</span><span class="n">evals</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;eigenenergies&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dict_reformat</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="QubitBaseClass.filewrite_esys"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.filewrite_esys">[docs]</a>    <span class="k">def</span> <span class="nf">filewrite_esys</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write eigenvector data to file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename: str</span>
+<span class="sd">            path and name of output file (suffix appended automatically)</span>
+<span class="sd">        evals: ndarray</span>
+<span class="sd">            eigenvalue data</span>
+<span class="sd">        evecs: ndarray</span>
+<span class="sd">            eigenvector data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">file_format</span> <span class="ow">is</span> <span class="n">FileType</span><span class="o">.</span><span class="n">csv</span><span class="p">:</span>
+            <span class="n">filewrite_csvdata</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="n">constants</span><span class="o">.</span><span class="n">EVALS_FILESUFFIX</span><span class="p">,</span> <span class="n">evals</span><span class="p">)</span>
+            <span class="n">filewrite_csvdata</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="n">constants</span><span class="o">.</span><span class="n">EVECS_FILESUFFIX</span><span class="p">,</span> <span class="n">evecs</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="n">constants</span><span class="o">.</span><span class="n">PARAMETER_FILESUFFIX</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">target_file</span><span class="p">:</span>
+                <span class="n">target_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">())</span>
+        <span class="k">elif</span> <span class="n">config</span><span class="o">.</span><span class="n">file_format</span> <span class="ow">is</span> <span class="n">FileType</span><span class="o">.</span><span class="n">h5</span><span class="p">:</span>
+            <span class="n">filewrite_h5data</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="p">[</span><span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;eigenenergies&quot;</span><span class="p">,</span> <span class="s2">&quot;eigenvectors&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">dict_reformat</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="QubitBaseClass.hamiltonian"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.hamiltonian">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">hamiltonian</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the Hamiltonian&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    <span class="k">def</span> <span class="nf">_evals_calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">):</span>
+        <span class="n">hamiltonian_mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">()</span>
+        <span class="n">evals</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">hamiltonian_mat</span><span class="p">,</span> <span class="n">eigvals_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eigvals</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">evals_count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">evals</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_esys_calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">):</span>
+        <span class="n">hamiltonian_mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hamiltonian</span><span class="p">()</span>
+        <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">hamiltonian_mat</span><span class="p">,</span> <span class="n">eigvals_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">eigvals</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">evals_count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="n">order_eigensystem</span><span class="p">(</span><span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span>
+
+<div class="viewcode-block" id="QubitBaseClass.eigenvals"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.eigenvals">[docs]</a>    <span class="k">def</span> <span class="nf">eigenvals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates eigenvalues using `scipy.linalg.eigh`, returns numpy array of eigenvalues.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        evals_count: int</span>
+<span class="sd">            number of desired eigenvalues/eigenstates (Default value = 6)</span>
+<span class="sd">        filename: str, optional</span>
+<span class="sd">            path and filename without suffix, if file output desired (Default value = None)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">evals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evals_calc</span><span class="p">(</span><span class="n">evals_count</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filewrite_evals</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">evals</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">evals</span></div>
+
+<div class="viewcode-block" id="QubitBaseClass.eigensys"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.eigensys">[docs]</a>    <span class="k">def</span> <span class="nf">eigensys</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates eigenvalues and corresponding eigenvectors using `scipy.linalg.eigh`. Returns</span>
+<span class="sd">        two numpy arrays containing the eigenvalues and eigenvectors, respectively.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        evals_count: int, optional</span>
+<span class="sd">            number of desired eigenvalues/eigenstates (Default value = 6)</span>
+<span class="sd">        filename: str, optional</span>
+<span class="sd">            path and filename without suffix, if file output desired (Default value = None)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray, ndarray</span>
+<span class="sd">            eigenvalues, eigenvectors</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_esys_calc</span><span class="p">(</span><span class="n">evals_count</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filewrite_esys</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span></div>
+
+<div class="viewcode-block" id="QubitBaseClass.matrixelement_table"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.matrixelement_table">[docs]</a>    <span class="k">def</span> <span class="nf">matrixelement_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operator</span><span class="p">,</span> <span class="n">esys</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">6</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns table of matrix elements for `operator` with respect to the eigenstates of the qubit.</span>
+<span class="sd">        The operator is given as a string matching a class method returning an operator matrix.</span>
+<span class="sd">        E.g., for an instance `trm` of Transmon,  the matrix element table for the charge operator is given by</span>
+<span class="sd">        `trm.op_matrixelement_table(&#39;n_operator&#39;)`.</span>
+<span class="sd">        When `esys` is set to `None`, the eigensystem is calculated on-the-fly.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        operator: str</span>
+<span class="sd">            name of class method in string form, returning operator matrix in qubit-internal basis.</span>
+<span class="sd">        esys: tuple(ndarray, ndarray), optional</span>
+<span class="sd">            if set, matrix elements are calculated based on the provided eigensystem data (Default value = None)</span>
+<span class="sd">        evals_count: int</span>
+<span class="sd">            number of desired matrix elements, starting with ground state (Default value = 6)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ndarray</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">esys</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigensys</span><span class="p">(</span><span class="n">evals_count</span><span class="o">=</span><span class="n">evals_count</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="n">esys</span>
+        <span class="n">operator_matrix</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operator</span><span class="p">)()</span>
+        <span class="k">return</span> <span class="n">get_matrixelement_table</span><span class="p">(</span><span class="n">operator_matrix</span><span class="p">,</span> <span class="n">evecs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QubitBaseClass.plot_matrixelements"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.plot_matrixelements">[docs]</a>    <span class="k">def</span> <span class="nf">plot_matrixelements</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operator</span><span class="p">,</span> <span class="n">esys</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">zlabel</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                            <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Plots matrix elements for `operator`, given as a string referring to a class method</span>
+<span class="sd">        that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot</span>
+<span class="sd">        for the charge operator `n` is obtained by `trm.plot_matrixelements(&#39;n&#39;)`.</span>
+<span class="sd">        When `esys` is set to None, the eigensystem with `evals_count` eigenvectors is calculated.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        operator: str</span>
+<span class="sd">            name of class method in string form, returning operator matrix</span>
+<span class="sd">        esys: tuple(ndarray,ndarray), optional</span>
+<span class="sd">            eigensystem data of evals, evecs; calculates eigensystem if set to None (Default value = None)</span>
+<span class="sd">        evals_count: int, optional</span>
+<span class="sd">            number of desired matrix elements, starting with ground state (Default value = 6)</span>
+<span class="sd">        mode: str, optional</span>
+<span class="sd">            entry from MODE_FUNC_DICTIONARY, e.g., `&#39;abs&#39;` for absolute value (default)</span>
+<span class="sd">        xlabel, ylabel, zlabel: str, optional</span>
+<span class="sd">            labels for the three plot axes</span>
+<span class="sd">        fig_ax: tuple(Figure, Axes), optional</span>
+<span class="sd">            fig and ax objects for matplotlib figure addition (Default value = None)</span>
+<span class="sd">        xlabel :</span>
+<span class="sd">             (Default value = &#39;&#39;)</span>
+<span class="sd">        ylabel :</span>
+<span class="sd">             (Default value = &#39;&#39;)</span>
+<span class="sd">        zlabel :</span>
+<span class="sd">             (Default value = &#39;&#39;)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Figure, Axes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">matrixelem_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrixelement_table</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">esys</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plot</span><span class="o">.</span><span class="n">matrix</span><span class="p">(</span><span class="n">matrixelem_array</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">xlabel</span><span class="p">,</span> <span class="n">ylabel</span><span class="p">,</span> <span class="n">zlabel</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="n">fig_ax</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QubitBaseClass.get_spectrum_vs_paramvals"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.get_spectrum_vs_paramvals">[docs]</a>    <span class="k">def</span> <span class="nf">get_spectrum_vs_paramvals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param_vals</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">subtract_ground</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                  <span class="n">get_eigenstates</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates eigenvalues for a varying system parameter, given an array of parameter values. Returns a</span>
+<span class="sd">        `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for</span>
+<span class="sd">        parameter value `param_vals[n]`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        param_name: str</span>
+<span class="sd">            name of parameter to be varied</span>
+<span class="sd">        param_vals: ndarray</span>
+<span class="sd">            parameter values to be plugged in</span>
+<span class="sd">        evals_count: int, optional</span>
+<span class="sd">            number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</span>
+<span class="sd">        subtract_ground: bool, optional</span>
+<span class="sd">            if True, eigenvalues are returned relative to the ground state eigenvalue (Default value = False)</span>
+<span class="sd">        get_eigenstates: bool, optional</span>
+<span class="sd">            return eigenstates along with eigenvalues (Default value = False)</span>
+<span class="sd">        filename: str, optional</span>
+<span class="sd">            write data to file if path and filename are specified (Default value = None)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SpectrumData object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">previous_paramval</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">)</span>
+        <span class="n">paramvals_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param_vals</span><span class="p">)</span>
+        <span class="n">eigenvalue_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">paramvals_count</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">get_eigenstates</span><span class="p">:</span>
+            <span class="n">eigenstate_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">paramvals_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hilbertdim</span><span class="p">(),</span> <span class="n">evals_count</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">eigenstate_table</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">progressbar</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">paramval</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">param_vals</span><span class="p">):</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">paramval</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">get_eigenstates</span><span class="p">:</span>
+                <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigensys</span><span class="p">(</span><span class="n">evals_count</span><span class="p">)</span>
+                <span class="n">eigenstate_table</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">evecs</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">evals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvals</span><span class="p">(</span><span class="n">evals_count</span><span class="p">)</span>
+            <span class="n">eigenvalue_table</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">evals</span>
+
+            <span class="k">if</span> <span class="n">subtract_ground</span><span class="p">:</span>
+                <span class="n">eigenvalue_table</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">-=</span> <span class="n">evals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">progress_in_percent</span> <span class="o">=</span> <span class="p">(</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">paramvals_count</span>
+            <span class="n">progressbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress_in_percent</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">previous_paramval</span><span class="p">)</span>
+
+        <span class="n">spectrumdata</span> <span class="o">=</span> <span class="n">SpectrumData</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">param_vals</span><span class="p">,</span> <span class="n">eigenvalue_table</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dict_reformat</span><span class="p">(),</span>
+                                    <span class="n">state_table</span><span class="o">=</span><span class="n">eigenstate_table</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">spectrumdata</span><span class="o">.</span><span class="n">filewrite</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">spectrumdata</span></div>
+
+<div class="viewcode-block" id="QubitBaseClass.get_matelements_vs_paramvals"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.get_matelements_vs_paramvals">[docs]</a>    <span class="k">def</span> <span class="nf">get_matelements_vs_paramvals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operator</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param_vals</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a</span>
+<span class="sd">        `SpectrumData` object containing matrix element data, eigenvalue data, and eigenstate data..</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        operator: str</span>
+<span class="sd">            name of class method in string form, returning operator matrix</span>
+<span class="sd">        param_name: str</span>
+<span class="sd">            name of parameter to be varied</span>
+<span class="sd">        param_vals: ndarray</span>
+<span class="sd">            parameter values to be plugged in</span>
+<span class="sd">        evals_count: int, optional</span>
+<span class="sd">            number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</span>
+<span class="sd">        filename: str, optional</span>
+<span class="sd">            write data to file if path and filename are specified (Default value = None)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        SpectrumData object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">previous_paramval</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">)</span>
+        <span class="n">paramvals_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param_vals</span><span class="p">)</span>
+        <span class="n">eigenvalue_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">paramvals_count</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float_</span><span class="p">)</span>
+
+        <span class="n">eigenstate_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">paramvals_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hilbertdim</span><span class="p">(),</span> <span class="n">evals_count</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex_</span><span class="p">)</span>
+        <span class="n">matelem_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">paramvals_count</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex_</span><span class="p">)</span>
+
+        <span class="n">progressbar</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">paramval</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">param_vals</span><span class="p">):</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">paramval</span><span class="p">)</span>
+            <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigensys</span><span class="p">(</span><span class="n">evals_count</span><span class="p">)</span>
+            <span class="n">eigenstate_table</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">evecs</span>
+            <span class="n">eigenvalue_table</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">evals</span>
+
+            <span class="n">matelem_table</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrixelement_table</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="n">evals_count</span><span class="p">)</span>
+
+            <span class="n">progress_in_percent</span> <span class="o">=</span> <span class="p">(</span><span class="n">index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">paramvals_count</span>
+            <span class="n">progressbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">progress_in_percent</span><span class="p">)</span>
+
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">previous_paramval</span><span class="p">)</span>
+
+        <span class="n">spectrumdata</span> <span class="o">=</span> <span class="n">SpectrumData</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">param_vals</span><span class="p">,</span> <span class="n">eigenvalue_table</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dict_reformat</span><span class="p">(),</span>
+                                    <span class="n">state_table</span><span class="o">=</span><span class="n">eigenstate_table</span><span class="p">,</span> <span class="n">matrixelem_table</span><span class="o">=</span><span class="n">matelem_table</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">spectrumdata</span><span class="o">.</span><span class="n">filewrite</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">spectrumdata</span></div>
+
+<div class="viewcode-block" id="QubitBaseClass.plot_evals_vs_paramvals"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.plot_evals_vs_paramvals">[docs]</a>    <span class="k">def</span> <span class="nf">plot_evals_vs_paramvals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param_vals</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">subtract_ground</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                <span class="n">xrange</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generates a simple plot of a set of eigenvalues as a function of one parameter.</span>
+<span class="sd">        The individual points correspond to the a provided array of parameter values.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        param_name: str</span>
+<span class="sd">            name of parameter to be varied</span>
+<span class="sd">        param_vals: ndarray</span>
+<span class="sd">            parameter values to be plugged in</span>
+<span class="sd">        evals_count: int, optional</span>
+<span class="sd">            number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</span>
+<span class="sd">        subtract_ground: bool, optional</span>
+<span class="sd">            whether to subtract ground state energy from all eigenvalues (Default value = False)</span>
+<span class="sd">        xrange: (float, float), optional</span>
+<span class="sd">            custom x-range for the plot (Default value = False)</span>
+<span class="sd">        yrange: (float, float), optional</span>
+<span class="sd">            custom y-range for the plot (Default value = False)</span>
+<span class="sd">        shift: float, optional</span>
+<span class="sd">            apply a shift of this size to all eigenvalues (Default value = 0)</span>
+<span class="sd">        filename: str, optional</span>
+<span class="sd">            write graphics and parameter set to file if path and filename are specified (Default value = None)</span>
+<span class="sd">        fig_ax: tuple(Figure, Axes), optional</span>
+<span class="sd">            fig and ax objects for matplotlib figure addition (Default value = None)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Figure, Axes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">specdata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_spectrum_vs_paramvals</span><span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">param_vals</span><span class="p">,</span> <span class="n">evals_count</span><span class="p">,</span> <span class="n">subtract_ground</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plot</span><span class="o">.</span><span class="n">evals_vs_paramvals</span><span class="p">(</span><span class="n">specdata</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="n">evals_count</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="n">xrange</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">yrange</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="n">shift</span><span class="p">,</span>
+                                       <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="n">fig_ax</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="QubitBaseClass.plot_matelem_vs_paramvals"><a class="viewcode-back" href="../../../api-doc/for_developer.html#sc_qubits.QubitBaseClass.plot_matelem_vs_paramvals">[docs]</a>    <span class="k">def</span> <span class="nf">plot_matelem_vs_paramvals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operator</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param_vals</span><span class="p">,</span> <span class="n">select_elems</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span>
+                                  <span class="n">xrange</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generates a simple plot of a set of eigenvalues as a function of one parameter.</span>
+<span class="sd">        The individual points correspond to the a provided array of parameter values.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        operator: str</span>
+<span class="sd">            name of class method in string form, returning operator matrix</span>
+<span class="sd">        param_name: str</span>
+<span class="sd">            name of parameter to be varied</span>
+<span class="sd">        param_vals: ndarray</span>
+<span class="sd">            parameter values to be plugged in</span>
+<span class="sd">        select_elems: int or list, optional</span>
+<span class="sd">            either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples</span>
+<span class="sd">            for specific desired matrix elements (Default value = 4)</span>
+<span class="sd">        mode: str, optional</span>
+<span class="sd">            entry from MODE_FUNC_DICTIONARY, e.g., `&#39;abs&#39;` for absolute value (Default value = &#39;abs&#39;)</span>
+<span class="sd">        xrange: (float, float), optional</span>
+<span class="sd">            custom x-range for the plot (Default value = False)</span>
+<span class="sd">        yrange: (float, float), optional</span>
+<span class="sd">            custom y-range for the plot (Default value = False)</span>
+<span class="sd">        filename: str, optional</span>
+<span class="sd">            write graphics and parameter set to file if path and filename are specified (Default value = None)</span>
+<span class="sd">        fig_ax: tuple(Figure, Axes), optional</span>
+<span class="sd">            fig and ax objects for matplotlib figure addition (Default value = None)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Figure, Axes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">select_elems</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">evals_count</span> <span class="o">=</span> <span class="n">select_elems</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">flattened_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">index</span> <span class="k">for</span> <span class="n">tupl</span> <span class="ow">in</span> <span class="n">select_elems</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">tupl</span><span class="p">]</span>
+            <span class="n">evals_count</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">flattened_list</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="n">specdata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_matelements_vs_paramvals</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">param_vals</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="n">evals_count</span><span class="p">,</span>
+                                                     <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plot</span><span class="o">.</span><span class="n">matelem_vs_paramvals</span><span class="p">(</span><span class="n">specdata</span><span class="p">,</span> <span class="n">select_elems</span><span class="o">=</span><span class="n">select_elems</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="n">xrange</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="n">yrange</span><span class="p">,</span>
+                                         <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="n">fig_ax</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Jens Koch, Peter Groszkowski
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

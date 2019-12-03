@@ -1,0 +1,2577 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Qubit Classes &mdash; sc_qubits  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processClass": "math|output_area", "ignoreClass": "document", "processEscapes": true}})</script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Functions" href="functions.html" />
+    <link rel="prev" title="API documentation" href="apidoc.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> sc_qubits
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide/guide.html">Users Guide</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apidoc.html">API documentation</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Qubit Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#transmon">Transmon</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fluxonium">Fluxonium</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#zeropi">ZeroPi</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fullzeropi">FullZeroPi</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#oscillator">Oscillator</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#class-for-composite-hilbert-spaces-interface-with-qutip">Class for Composite Hilbert Spaces, Interface with QuTiP</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#hilbertspace">HilbertSpace</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#data-container-classes">Data-container Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#spectrumdata">SpectrumData</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wavefunction">WaveFunction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wavefunctionongrid">WaveFunctionOnGrid</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#discretization-classes">Discretization Classes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#grid1d">Grid1d</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gridspec">GridSpec</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="functions.html">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="for_developer.html">Relevant for Developers</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Change Log</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributors.html">Developers</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">sc_qubits</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apidoc.html">API documentation</a> &raquo;</li>
+        
+      <li>Qubit Classes</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/api-doc/classes.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="qubit-classes">
+<span id="classes"></span><h1>Qubit Classes<a class="headerlink" href="#qubit-classes" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="transmon">
+<span id="classes-transmon"></span><h2>Transmon<a class="headerlink" href="#transmon" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.Transmon">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.</code><code class="sig-name descname">Transmon</code><span class="sig-paren">(</span><em class="sig-param">EJ</em>, <em class="sig-param">EC</em>, <em class="sig-param">ng</em>, <em class="sig-param">ncut</em>, <em class="sig-param">truncated_dim=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/transmon.html#Transmon"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Transmon" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is represented in dense form in the number
+basis, <span class="math notranslate nohighlight">\(H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})\)</span>.
+Initialize with, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Transmon</span><span class="p">(</span><span class="n">EJ</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">EC</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">ng</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">ncut</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>EJ: float</strong></dt><dd><p>Josephson energy</p>
+</dd>
+<dt><strong>EC: float</strong></dt><dd><p>charging energy</p>
+</dd>
+<dt><strong>ng: float</strong></dt><dd><p>offset charge</p>
+</dd>
+<dt><strong>ncut: int</strong></dt><dd><p>charge basis cutoff, <cite>n = -ncut, …, ncut</cite></p>
+</dd>
+<dt><strong>truncated_dim: int, optional</strong></dt><dd><p>desired dimension of the truncated quantum system</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="method">
+<dt id="sc_qubits.Transmon.dict_reformat">
+<code class="sig-name descname">dict_reformat</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.dict_reformat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides <cite>__dict__</cite> in reformatted dictionary form (all values as strings); needed for .h5 output.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>dict(str)</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.eigensys">
+<code class="sig-name descname">eigensys</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.eigensys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues and corresponding eigenvectors using <cite>scipy.linalg.eigh</cite>. Returns
+two numpy arrays containing the eigenvalues and eigenvectors, respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues/eigenstates (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>path and filename without suffix, if file output desired (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray, ndarray</dt><dd><p>eigenvalues, eigenvectors</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.eigenvals">
+<code class="sig-name descname">eigenvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.eigenvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues using <cite>scipy.linalg.eigh</cite>, returns numpy array of eigenvalues.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>evals_count: int</strong></dt><dd><p>number of desired eigenvalues/eigenstates (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>path and filename without suffix, if file output desired (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.filewrite_esys">
+<code class="sig-name descname">filewrite_esys</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">filename</em>, <em class="sig-param">evals</em>, <em class="sig-param">evecs</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.filewrite_esys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write eigenvector data to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename: str</strong></dt><dd><p>path and name of output file (suffix appended automatically)</p>
+</dd>
+<dt><strong>evals: ndarray</strong></dt><dd><p>eigenvalue data</p>
+</dd>
+<dt><strong>evecs: ndarray</strong></dt><dd><p>eigenvector data</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.filewrite_evals">
+<code class="sig-name descname">filewrite_evals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">filename</em>, <em class="sig-param">evals</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.filewrite_evals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write eigenvalue data to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename: str</strong></dt><dd><p>path and name of output file (suffix appended automatically)</p>
+</dd>
+<dt><strong>evals: ndarray</strong></dt><dd><p>eigenvalue data</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.get_matelements_vs_paramvals">
+<code class="sig-name descname">get_matelements_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.get_matelements_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a
+<cite>SpectrumData</cite> object containing matrix element data, eigenvalue data, and eigenstate data..</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write data to file if path and filename are specified (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.get_spectrum_vs_paramvals">
+<code class="sig-name descname">get_spectrum_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">subtract_ground=False</em>, <em class="sig-param">get_eigenstates=False</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.get_spectrum_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues for a varying system parameter, given an array of parameter values. Returns a
+<cite>SpectrumData</cite> object with <cite>energy_data[n]</cite> containing eigenvalues calculated for
+parameter value <cite>param_vals[n]</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>subtract_ground: bool, optional</strong></dt><dd><p>if True, eigenvalues are returned relative to the ground state eigenvalue (Default value = False)</p>
+</dd>
+<dt><strong>get_eigenstates: bool, optional</strong></dt><dd><p>return eigenstates along with eigenvalues (Default value = False)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write data to file if path and filename are specified (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.hamiltonian">
+<code class="sig-name descname">hamiltonian</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/transmon.html#Transmon.hamiltonian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Transmon.hamiltonian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns Hamiltonian in charge basis</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.hilbertdim">
+<code class="sig-name descname">hilbertdim</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/transmon.html#Transmon.hilbertdim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Transmon.hilbertdim" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns Hilbert space dimension</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.matrixelement_table">
+<code class="sig-name descname">matrixelement_table</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">evals_count=6</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.matrixelement_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns table of matrix elements for <cite>operator</cite> with respect to the eigenstates of the qubit.
+The operator is given as a string matching a class method returning an operator matrix.
+E.g., for an instance <cite>trm</cite> of Transmon,  the matrix element table for the charge operator is given by
+<cite>trm.op_matrixelement_table(‘n_operator’)</cite>.
+When <cite>esys</cite> is set to <cite>None</cite>, the eigensystem is calculated on-the-fly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix in qubit-internal basis.</p>
+</dd>
+<dt><strong>esys: tuple(ndarray, ndarray), optional</strong></dt><dd><p>if set, matrix elements are calculated based on the provided eigensystem data (Default value = None)</p>
+</dd>
+<dt><strong>evals_count: int</strong></dt><dd><p>number of desired matrix elements, starting with ground state (Default value = 6)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.n_operator">
+<code class="sig-name descname">n_operator</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/transmon.html#Transmon.n_operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Transmon.n_operator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns charge operator <cite>n</cite> in charge basis</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.numberbasis_wavefunction">
+<code class="sig-name descname">numberbasis_wavefunction</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">which=0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/transmon.html#Transmon.numberbasis_wavefunction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Transmon.numberbasis_wavefunction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the transmon wave function in number basis. The specific index of the wave function to be returned is
+<cite>which</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>esys: ndarray, ndarray, optional</strong></dt><dd><p>if <cite>None</cite>, the eigensystem is calculated on the fly; otherwise, the provided eigenvalue, eigenvector arrays
+as obtained from <cite>.eigensystem()</cite>, are used (Default value = None)</p>
+</dd>
+<dt><strong>which: int, optional</strong></dt><dd><p>eigenfunction index (Default value = 0)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>WaveFunction object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.phasebasis_wavefunction">
+<code class="sig-name descname">phasebasis_wavefunction</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">esys</em>, <em class="sig-param">which=0</em>, <em class="sig-param">phi_points=251</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/transmon.html#Transmon.phasebasis_wavefunction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Transmon.phasebasis_wavefunction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the transmon wave function in phase basis. The specific index of the wavefunction is <cite>which</cite>.
+<cite>esys</cite> can be provided, but if set to <cite>None</cite> then it is calculated on the fly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>esys: `None` or tuple (ndarray, ndarray)</strong></dt><dd><p>if None, the eigensystem is calculated on the fly; otherwise, the provided eigenvalue, eigenvector arrays
+as obtained from <cite>.eigensystem()</cite> are used</p>
+</dd>
+<dt><strong>which: int, optional</strong></dt><dd><p>eigenfunction index (Default value = 0)</p>
+</dd>
+<dt><strong>phi_points: int, optional</strong></dt><dd><p>number of phi values at which the wave function is evaluated (Default value = 251)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>WaveFunction object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.plot_evals_vs_paramvals">
+<code class="sig-name descname">plot_evals_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">subtract_ground=False</em>, <em class="sig-param">xrange=False</em>, <em class="sig-param">yrange=False</em>, <em class="sig-param">shift=0</em>, <em class="sig-param">filename=None</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.plot_evals_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a simple plot of a set of eigenvalues as a function of one parameter.
+The individual points correspond to the a provided array of parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>subtract_ground: bool, optional</strong></dt><dd><p>whether to subtract ground state energy from all eigenvalues (Default value = False)</p>
+</dd>
+<dt><strong>xrange: (float, float), optional</strong></dt><dd><p>custom x-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>yrange: (float, float), optional</strong></dt><dd><p>custom y-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>shift: float, optional</strong></dt><dd><p>apply a shift of this size to all eigenvalues (Default value = 0)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write graphics and parameter set to file if path and filename are specified (Default value = None)</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.plot_matelem_vs_paramvals">
+<code class="sig-name descname">plot_matelem_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">select_elems=4</em>, <em class="sig-param">mode='abs'</em>, <em class="sig-param">xrange=False</em>, <em class="sig-param">yrange=False</em>, <em class="sig-param">filename=None</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.plot_matelem_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a simple plot of a set of eigenvalues as a function of one parameter.
+The individual points correspond to the a provided array of parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>select_elems: int or list, optional</strong></dt><dd><p>either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), …] of index tuples
+for specific desired matrix elements (Default value = 4)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>entry from MODE_FUNC_DICTIONARY, e.g., <cite>‘abs’</cite> for absolute value (Default value = ‘abs’)</p>
+</dd>
+<dt><strong>xrange: (float, float), optional</strong></dt><dd><p>custom x-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>yrange: (float, float), optional</strong></dt><dd><p>custom y-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write graphics and parameter set to file if path and filename are specified (Default value = None)</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.plot_matrixelements">
+<code class="sig-name descname">plot_matrixelements</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">mode='abs'</em>, <em class="sig-param">xlabel=''</em>, <em class="sig-param">ylabel=''</em>, <em class="sig-param">zlabel=''</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Transmon.plot_matrixelements" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots matrix elements for <cite>operator</cite>, given as a string referring to a class method
+that returns an operator matrix. E.g., for instance <cite>trm</cite> of Transmon, the matrix element plot
+for the charge operator <cite>n</cite> is obtained by <cite>trm.plot_matrixelements(‘n’)</cite>.
+When <cite>esys</cite> is set to None, the eigensystem with <cite>evals_count</cite> eigenvectors is calculated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>esys: tuple(ndarray,ndarray), optional</strong></dt><dd><p>eigensystem data of evals, evecs; calculates eigensystem if set to None (Default value = None)</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired matrix elements, starting with ground state (Default value = 6)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>entry from MODE_FUNC_DICTIONARY, e.g., <cite>‘abs’</cite> for absolute value (default)</p>
+</dd>
+<dt><strong>xlabel, ylabel, zlabel: str, optional</strong></dt><dd><p>labels for the three plot axes</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+<dt><strong>xlabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+<dt><strong>ylabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+<dt><strong>zlabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.plot_n_wavefunction">
+<code class="sig-name descname">plot_n_wavefunction</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">esys</em>, <em class="sig-param">mode</em>, <em class="sig-param">which=0</em>, <em class="sig-param">nrange=(-5</em>, <em class="sig-param">6)</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/transmon.html#Transmon.plot_n_wavefunction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Transmon.plot_n_wavefunction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots transmon wave function in charge basis</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>esys: ndarray, ndarray</strong></dt><dd><p>eigenvalues, eigenvectors</p>
+</dd>
+<dt><strong>mode: str from MODE_FUNC_DICT</strong></dt><dd><p><cite>‘abs_sqr’, ‘abs’, ‘real’, ‘imag’</cite></p>
+</dd>
+<dt><strong>which: int or tuple of ints, optional</strong></dt><dd><p>index or indices of wave functions to plot (Default value = 0)</p>
+</dd>
+<dt><strong>nrange: tuple of two ints</strong></dt><dd><p>range of <cite>n</cite> to be included on the x-axis (Default value = (-5,6))</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.plot_phi_wavefunction">
+<code class="sig-name descname">plot_phi_wavefunction</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">esys</em>, <em class="sig-param">which=(0</em>, <em class="sig-param">)</em>, <em class="sig-param">phi_points=251</em>, <em class="sig-param">mode='abs_sqr'</em>, <em class="sig-param">filename=None</em>, <em class="sig-param">scaling=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/transmon.html#Transmon.plot_phi_wavefunction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Transmon.plot_phi_wavefunction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot phase-basis wave function(s).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>esys: ndarray, ndarray</strong></dt><dd><p>eigenvalues, eigenvectors</p>
+</dd>
+<dt><strong>which: int or tuple of ints, optional</strong></dt><dd><p>single index or tuple of integers indexing the wave function(s) to be plotted (Default value = (0)</p>
+</dd>
+<dt><strong>phi_points: int, optional</strong></dt><dd><p>number of points on the x-axis (resolution) (Default value = 251)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>choices as specified in <cite>constants.MODE_FUNC_DICT</cite> (Default value = ‘abs_sqr’)</p>
+</dd>
+<dt><strong>scaling: float or None, optional</strong></dt><dd><p>custom scaling of wave function amplitude/modulus</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Transmon.potential">
+<code class="sig-name descname">potential</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">phi</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/transmon.html#Transmon.potential"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Transmon.potential" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmon phase-basis potential evaluated at <cite>phi</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>phi: float</strong></dt><dd><p>phase variable value</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>float</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<hr class="docutils" />
+</div>
+<div class="section" id="fluxonium">
+<span id="classes-fluxonium"></span><h2>Fluxonium<a class="headerlink" href="#fluxonium" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.Fluxonium">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.</code><code class="sig-name descname">Fluxonium</code><span class="sig-paren">(</span><em class="sig-param">EJ</em>, <em class="sig-param">EC</em>, <em class="sig-param">EL</em>, <em class="sig-param">flux</em>, <em class="sig-param">cutoff</em>, <em class="sig-param">truncated_dim=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for the fluxonium qubit. Hamiltonian
+<span class="math notranslate nohighlight">\(H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi-\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2\)</span>
+is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
+potential is handled via matrix exponentiation. Initialize with, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">qubit</span> <span class="o">=</span> <span class="n">Fluxonium</span><span class="p">(</span><span class="n">EJ</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">EC</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">EL</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">flux</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>EJ: float</strong></dt><dd><p>Josephson energy</p>
+</dd>
+<dt><strong>EC: float</strong></dt><dd><p>charging energy</p>
+</dd>
+<dt><strong>EL: float</strong></dt><dd><p>inductive energy</p>
+</dd>
+<dt><strong>flux: float</strong></dt><dd><p>external magnetic flux in angular units, 2pi corresponds to one flux quantum</p>
+</dd>
+<dt><strong>cutoff: int</strong></dt><dd><p>number of harm. osc. basis states used in diagonalization</p>
+</dd>
+<dt><strong>truncated_dim: int, optional</strong></dt><dd><p>desired dimension of the truncated quantum system</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.dict_reformat">
+<code class="sig-name descname">dict_reformat</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.dict_reformat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides <cite>__dict__</cite> in reformatted dictionary form (all values as strings); needed for .h5 output.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>dict(str)</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.eigensys">
+<code class="sig-name descname">eigensys</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.eigensys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues and corresponding eigenvectors using <cite>scipy.linalg.eigh</cite>. Returns
+two numpy arrays containing the eigenvalues and eigenvectors, respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues/eigenstates (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>path and filename without suffix, if file output desired (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray, ndarray</dt><dd><p>eigenvalues, eigenvectors</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.eigenvals">
+<code class="sig-name descname">eigenvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.eigenvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues using <cite>scipy.linalg.eigh</cite>, returns numpy array of eigenvalues.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>evals_count: int</strong></dt><dd><p>number of desired eigenvalues/eigenstates (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>path and filename without suffix, if file output desired (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.filewrite_esys">
+<code class="sig-name descname">filewrite_esys</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">filename</em>, <em class="sig-param">evals</em>, <em class="sig-param">evecs</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.filewrite_esys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write eigenvector data to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename: str</strong></dt><dd><p>path and name of output file (suffix appended automatically)</p>
+</dd>
+<dt><strong>evals: ndarray</strong></dt><dd><p>eigenvalue data</p>
+</dd>
+<dt><strong>evecs: ndarray</strong></dt><dd><p>eigenvector data</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.filewrite_evals">
+<code class="sig-name descname">filewrite_evals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">filename</em>, <em class="sig-param">evals</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.filewrite_evals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write eigenvalue data to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename: str</strong></dt><dd><p>path and name of output file (suffix appended automatically)</p>
+</dd>
+<dt><strong>evals: ndarray</strong></dt><dd><p>eigenvalue data</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.get_matelements_vs_paramvals">
+<code class="sig-name descname">get_matelements_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.get_matelements_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a
+<cite>SpectrumData</cite> object containing matrix element data, eigenvalue data, and eigenstate data..</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write data to file if path and filename are specified (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.get_spectrum_vs_paramvals">
+<code class="sig-name descname">get_spectrum_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">subtract_ground=False</em>, <em class="sig-param">get_eigenstates=False</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.get_spectrum_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues for a varying system parameter, given an array of parameter values. Returns a
+<cite>SpectrumData</cite> object with <cite>energy_data[n]</cite> containing eigenvalues calculated for
+parameter value <cite>param_vals[n]</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>subtract_ground: bool, optional</strong></dt><dd><p>if True, eigenvalues are returned relative to the ground state eigenvalue (Default value = False)</p>
+</dd>
+<dt><strong>get_eigenstates: bool, optional</strong></dt><dd><p>return eigenstates along with eigenvalues (Default value = False)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write data to file if path and filename are specified (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.hamiltonian">
+<code class="sig-name descname">hamiltonian</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium.hamiltonian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium.hamiltonian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu et al., PRB 87, 024510 (2013)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>sparse.dia_matrix</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.hilbertdim">
+<code class="sig-name descname">hilbertdim</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium.hilbertdim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium.hilbertdim" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the Hilbert space dimension.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.matrixelement_table">
+<code class="sig-name descname">matrixelement_table</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">evals_count=6</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.matrixelement_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns table of matrix elements for <cite>operator</cite> with respect to the eigenstates of the qubit.
+The operator is given as a string matching a class method returning an operator matrix.
+E.g., for an instance <cite>trm</cite> of Transmon,  the matrix element table for the charge operator is given by
+<cite>trm.op_matrixelement_table(‘n_operator’)</cite>.
+When <cite>esys</cite> is set to <cite>None</cite>, the eigensystem is calculated on-the-fly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix in qubit-internal basis.</p>
+</dd>
+<dt><strong>esys: tuple(ndarray, ndarray), optional</strong></dt><dd><p>if set, matrix elements are calculated based on the provided eigensystem data (Default value = None)</p>
+</dd>
+<dt><strong>evals_count: int</strong></dt><dd><p>number of desired matrix elements, starting with ground state (Default value = 6)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.n_operator">
+<code class="sig-name descname">n_operator</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium.n_operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium.n_operator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the <span class="math notranslate nohighlight">\(n = - i d/d\phi\)</span> operator in the LC harmonic oscillator basis</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.omega_p">
+<code class="sig-name descname">omega_p</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium.omega_p"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium.omega_p" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the plasma oscillation frequency.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.phi_operator">
+<code class="sig-name descname">phi_operator</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium.phi_operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium.phi_operator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the phi operator in the LC harmonic oscillator basis</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.phi_osc">
+<code class="sig-name descname">phi_osc</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium.phi_osc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium.phi_osc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns oscillator length for the LC oscillator by fluxonium inductance and capacitance.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.plot_evals_vs_paramvals">
+<code class="sig-name descname">plot_evals_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">subtract_ground=False</em>, <em class="sig-param">xrange=False</em>, <em class="sig-param">yrange=False</em>, <em class="sig-param">shift=0</em>, <em class="sig-param">filename=None</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.plot_evals_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a simple plot of a set of eigenvalues as a function of one parameter.
+The individual points correspond to the a provided array of parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>subtract_ground: bool, optional</strong></dt><dd><p>whether to subtract ground state energy from all eigenvalues (Default value = False)</p>
+</dd>
+<dt><strong>xrange: (float, float), optional</strong></dt><dd><p>custom x-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>yrange: (float, float), optional</strong></dt><dd><p>custom y-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>shift: float, optional</strong></dt><dd><p>apply a shift of this size to all eigenvalues (Default value = 0)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write graphics and parameter set to file if path and filename are specified (Default value = None)</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.plot_matelem_vs_paramvals">
+<code class="sig-name descname">plot_matelem_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">select_elems=4</em>, <em class="sig-param">mode='abs'</em>, <em class="sig-param">xrange=False</em>, <em class="sig-param">yrange=False</em>, <em class="sig-param">filename=None</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.plot_matelem_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a simple plot of a set of eigenvalues as a function of one parameter.
+The individual points correspond to the a provided array of parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>select_elems: int or list, optional</strong></dt><dd><p>either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), …] of index tuples
+for specific desired matrix elements (Default value = 4)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>entry from MODE_FUNC_DICTIONARY, e.g., <cite>‘abs’</cite> for absolute value (Default value = ‘abs’)</p>
+</dd>
+<dt><strong>xrange: (float, float), optional</strong></dt><dd><p>custom x-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>yrange: (float, float), optional</strong></dt><dd><p>custom y-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write graphics and parameter set to file if path and filename are specified (Default value = None)</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.plot_matrixelements">
+<code class="sig-name descname">plot_matrixelements</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">mode='abs'</em>, <em class="sig-param">xlabel=''</em>, <em class="sig-param">ylabel=''</em>, <em class="sig-param">zlabel=''</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Fluxonium.plot_matrixelements" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots matrix elements for <cite>operator</cite>, given as a string referring to a class method
+that returns an operator matrix. E.g., for instance <cite>trm</cite> of Transmon, the matrix element plot
+for the charge operator <cite>n</cite> is obtained by <cite>trm.plot_matrixelements(‘n’)</cite>.
+When <cite>esys</cite> is set to None, the eigensystem with <cite>evals_count</cite> eigenvectors is calculated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>esys: tuple(ndarray,ndarray), optional</strong></dt><dd><p>eigensystem data of evals, evecs; calculates eigensystem if set to None (Default value = None)</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired matrix elements, starting with ground state (Default value = 6)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>entry from MODE_FUNC_DICTIONARY, e.g., <cite>‘abs’</cite> for absolute value (default)</p>
+</dd>
+<dt><strong>xlabel, ylabel, zlabel: str, optional</strong></dt><dd><p>labels for the three plot axes</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+<dt><strong>xlabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+<dt><strong>ylabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+<dt><strong>zlabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.plot_wavefunction">
+<code class="sig-name descname">plot_wavefunction</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">esys</em>, <em class="sig-param">which=(0</em>, <em class="sig-param">)</em>, <em class="sig-param">phi_range=(-18.84955592153876</em>, <em class="sig-param">18.84955592153876)</em>, <em class="sig-param">yrange=None</em>, <em class="sig-param">mode='abs_sqr'</em>, <em class="sig-param">scaling=None</em>, <em class="sig-param">phi_points=251</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium.plot_wavefunction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium.plot_wavefunction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot phase-basis wave function(s).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>esys: ndarray, ndarray</strong></dt><dd><p>eigenvalues, eigenvectors as obtained from <cite>.eigensystem()</cite></p>
+</dd>
+<dt><strong>which: int or tuple(i1, i2, …), optional</strong></dt><dd><p>single index or tuple of integers indexing the wave function(s) to be plotted (Default value = (0)</p>
+</dd>
+<dt><strong>phi_range: tuple(float, float), optional</strong></dt><dd><p>phi range to be plotted (Default value = (-6 * np.pi, 6 * np.pi))</p>
+</dd>
+<dt><strong>yrange: None or tuple(float, float), optional</strong></dt><dd><p>yrange to be plotted (Default value = None)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>choices as specified in <cite>constants.MODE_FUNC_DICT</cite> (Default value = ‘abs_sqr’)</p>
+</dd>
+<dt><strong>scaling: float, optional</strong></dt><dd><p>custom choice for scaling of wave functions</p>
+</dd>
+<dt><strong>phi_points: int, optional</strong></dt><dd><p>number of points on the x-axis (resolution) (Default value = 251)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.potential">
+<code class="sig-name descname">potential</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">phi</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium.potential"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium.potential" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fluxonium potential evaluated at <cite>phi</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>phi: float or ndarray</strong></dt><dd><p>float value of the phase variable <cite>phi</cite></p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>float or ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Fluxonium.wavefunction">
+<code class="sig-name descname">wavefunction</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">esys</em>, <em class="sig-param">which=0</em>, <em class="sig-param">phi_range=(-18.84955592153876</em>, <em class="sig-param">18.84955592153876)</em>, <em class="sig-param">phi_points=251</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/fluxonium.html#Fluxonium.wavefunction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Fluxonium.wavefunction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a fluxonium wave function in <cite>phi</cite> basis</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>esys: ndarray, ndarray</strong></dt><dd><p>eigenvalues, eigenvectors</p>
+</dd>
+<dt><strong>which: int, optional</strong></dt><dd><p>index of desired wave function (Default value = 0)</p>
+</dd>
+<dt><strong>phi_range: tuple of float, optional</strong></dt><dd><p>boundaries of <cite>phi</cite> values range  (Default value = <cite>(-6 * np.pi, 6 * np.pi)</cite>)</p>
+</dd>
+<dt><strong>phi_points: int</strong></dt><dd><p>number of points in the specified <cite>phi</cite> interval (Default value = 251)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>WaveFunction object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<hr class="docutils" />
+</div>
+<div class="section" id="zeropi">
+<span id="classes-zeropi"></span><h2>ZeroPi<a class="headerlink" href="#zeropi" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.ZeroPi">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.</code><code class="sig-name descname">ZeroPi</code><span class="sig-paren">(</span><em class="sig-param">EJ</em>, <em class="sig-param">EL</em>, <em class="sig-param">ECJ</em>, <em class="sig-param">EC</em>, <em class="sig-param">ng</em>, <em class="sig-param">flux</em>, <em class="sig-param">grid</em>, <em class="sig-param">ncut</em>, <em class="sig-param">dEJ=0</em>, <em class="sig-param">dCJ=0</em>, <em class="sig-param">ECS=None</em>, <em class="sig-param">truncated_dim=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Zero-Pi Qubit</p>
+<div class="line-block">
+<div class="line">[1] Brooks et al., Physical Review A, 87(5), 052306 (2013). <a class="reference external" href="http://doi.org/10.1103/PhysRevA.87.052306">http://doi.org/10.1103/PhysRevA.87.052306</a></div>
+<div class="line">[2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). <a class="reference external" href="http://doi.org/10.1103/PhysRevB.90.094518">http://doi.org/10.1103/PhysRevB.90.094518</a></div>
+<div class="line">[3] Groszkowski et al., New J. Phys. 20, 043053 (2018). <a class="reference external" href="https://doi.org/10.1088/1367-2630/aab7cd">https://doi.org/10.1088/1367-2630/aab7cd</a></div>
+</div>
+<p>Zero-Pi qubit without coupling to the <cite>zeta</cite> mode, i.e., no disorder in <cite>EC</cite> and <cite>EL</cite>,
+see Eq. (4) in Groszkowski et al., New J. Phys. 20, 043053 (2018),
+<span class="math notranslate nohighlight">\(H = -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
++2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta
+-2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2+2E_\text{J}
++ E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2)\)</span>.</p>
+<p>Formulation of the Hamiltonian matrix proceeds by discretization of the <cite>phi</cite> variable, and using charge basis for
+the <cite>theta</cite> variable.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>EJ: float</strong></dt><dd><p>mean Josephson energy of the two junctions</p>
+</dd>
+<dt><strong>EL: float</strong></dt><dd><p>inductive energy of the two (super-)inductors</p>
+</dd>
+<dt><strong>ECJ: float</strong></dt><dd><p>charging energy associated with the two junctions</p>
+</dd>
+<dt><strong>EC: float or None</strong></dt><dd><p>charging energy of the large shunting capacitances; set to <cite>None</cite> if <cite>ECS</cite> is provided instead</p>
+</dd>
+<dt><strong>dEJ: float</strong></dt><dd><p>relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg</p>
+</dd>
+<dt><strong>dCJ: float</strong></dt><dd><p>relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg</p>
+</dd>
+<dt><strong>ng: float</strong></dt><dd><p>offset charge associated with theta</p>
+</dd>
+<dt><strong>flux: float</strong></dt><dd><p>magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)</p>
+</dd>
+<dt><strong>grid: Grid1d object</strong></dt><dd><p>specifies the range and spacing of the discretization lattice</p>
+</dd>
+<dt><strong>ncut: int</strong></dt><dd><p>charge number cutoff for <cite>n_theta</cite>,  <cite>n_theta = -ncut, …, ncut</cite></p>
+</dd>
+<dt><strong>ECS: float, optional</strong></dt><dd><p>total charging energy including large shunting capacitances and junction capacitances; may be provided instead
+of EC</p>
+</dd>
+<dt><strong>truncated_dim: int, optional</strong></dt><dd><p>desired dimension of the truncated quantum system</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.ECS">
+<code class="sig-name descname">ECS</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.ECS"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.ECS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.dict_reformat">
+<code class="sig-name descname">dict_reformat</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.dict_reformat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides <cite>__dict__</cite> in reformatted dictionary form (all values as strings); needed for .h5 output.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>dict(str)</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.eigensys">
+<code class="sig-name descname">eigensys</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.eigensys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues and corresponding eigenvectors using <cite>scipy.linalg.eigh</cite>. Returns
+two numpy arrays containing the eigenvalues and eigenvectors, respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues/eigenstates (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>path and filename without suffix, if file output desired (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray, ndarray</dt><dd><p>eigenvalues, eigenvectors</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.eigenvals">
+<code class="sig-name descname">eigenvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.eigenvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues using <cite>scipy.linalg.eigh</cite>, returns numpy array of eigenvalues.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>evals_count: int</strong></dt><dd><p>number of desired eigenvalues/eigenstates (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>path and filename without suffix, if file output desired (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.filewrite_esys">
+<code class="sig-name descname">filewrite_esys</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">filename</em>, <em class="sig-param">evals</em>, <em class="sig-param">evecs</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.filewrite_esys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write eigenvector data to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename: str</strong></dt><dd><p>path and name of output file (suffix appended automatically)</p>
+</dd>
+<dt><strong>evals: ndarray</strong></dt><dd><p>eigenvalue data</p>
+</dd>
+<dt><strong>evecs: ndarray</strong></dt><dd><p>eigenvector data</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.filewrite_evals">
+<code class="sig-name descname">filewrite_evals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">filename</em>, <em class="sig-param">evals</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.filewrite_evals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write eigenvalue data to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename: str</strong></dt><dd><p>path and name of output file (suffix appended automatically)</p>
+</dd>
+<dt><strong>evals: ndarray</strong></dt><dd><p>eigenvalue data</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.get_matelements_vs_paramvals">
+<code class="sig-name descname">get_matelements_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.get_matelements_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a
+<cite>SpectrumData</cite> object containing matrix element data, eigenvalue data, and eigenstate data..</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write data to file if path and filename are specified (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.get_spectrum_vs_paramvals">
+<code class="sig-name descname">get_spectrum_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">subtract_ground=False</em>, <em class="sig-param">get_eigenstates=False</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.get_spectrum_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues for a varying system parameter, given an array of parameter values. Returns a
+<cite>SpectrumData</cite> object with <cite>energy_data[n]</cite> containing eigenvalues calculated for
+parameter value <cite>param_vals[n]</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>subtract_ground: bool, optional</strong></dt><dd><p>if True, eigenvalues are returned relative to the ground state eigenvalue (Default value = False)</p>
+</dd>
+<dt><strong>get_eigenstates: bool, optional</strong></dt><dd><p>return eigenstates along with eigenvalues (Default value = False)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write data to file if path and filename are specified (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.hamiltonian">
+<code class="sig-name descname">hamiltonian</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.hamiltonian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.hamiltonian" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.hilbertdim">
+<code class="sig-name descname">hilbertdim</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.hilbertdim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.hilbertdim" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.i_d_dphi_operator">
+<code class="sig-name descname">i_d_dphi_operator</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.i_d_dphi_operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.i_d_dphi_operator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.matrixelement_table">
+<code class="sig-name descname">matrixelement_table</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">evals_count=6</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.matrixelement_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns table of matrix elements for <cite>operator</cite> with respect to the eigenstates of the qubit.
+The operator is given as a string matching a class method returning an operator matrix.
+E.g., for an instance <cite>trm</cite> of Transmon,  the matrix element table for the charge operator is given by
+<cite>trm.op_matrixelement_table(‘n_operator’)</cite>.
+When <cite>esys</cite> is set to <cite>None</cite>, the eigensystem is calculated on-the-fly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix in qubit-internal basis.</p>
+</dd>
+<dt><strong>esys: tuple(ndarray, ndarray), optional</strong></dt><dd><p>if set, matrix elements are calculated based on the provided eigensystem data (Default value = None)</p>
+</dd>
+<dt><strong>evals_count: int</strong></dt><dd><p>number of desired matrix elements, starting with ground state (Default value = 6)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.phi_operator">
+<code class="sig-name descname">phi_operator</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.phi_operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.phi_operator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.plot_evals_vs_paramvals">
+<code class="sig-name descname">plot_evals_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">subtract_ground=False</em>, <em class="sig-param">xrange=False</em>, <em class="sig-param">yrange=False</em>, <em class="sig-param">shift=0</em>, <em class="sig-param">filename=None</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.plot_evals_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a simple plot of a set of eigenvalues as a function of one parameter.
+The individual points correspond to the a provided array of parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>subtract_ground: bool, optional</strong></dt><dd><p>whether to subtract ground state energy from all eigenvalues (Default value = False)</p>
+</dd>
+<dt><strong>xrange: (float, float), optional</strong></dt><dd><p>custom x-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>yrange: (float, float), optional</strong></dt><dd><p>custom y-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>shift: float, optional</strong></dt><dd><p>apply a shift of this size to all eigenvalues (Default value = 0)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write graphics and parameter set to file if path and filename are specified (Default value = None)</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.plot_matelem_vs_paramvals">
+<code class="sig-name descname">plot_matelem_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">select_elems=4</em>, <em class="sig-param">mode='abs'</em>, <em class="sig-param">xrange=False</em>, <em class="sig-param">yrange=False</em>, <em class="sig-param">filename=None</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.plot_matelem_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a simple plot of a set of eigenvalues as a function of one parameter.
+The individual points correspond to the a provided array of parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>select_elems: int or list, optional</strong></dt><dd><p>either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), …] of index tuples
+for specific desired matrix elements (Default value = 4)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>entry from MODE_FUNC_DICTIONARY, e.g., <cite>‘abs’</cite> for absolute value (Default value = ‘abs’)</p>
+</dd>
+<dt><strong>xrange: (float, float), optional</strong></dt><dd><p>custom x-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>yrange: (float, float), optional</strong></dt><dd><p>custom y-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write graphics and parameter set to file if path and filename are specified (Default value = None)</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.plot_matrixelements">
+<code class="sig-name descname">plot_matrixelements</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">mode='abs'</em>, <em class="sig-param">xlabel=''</em>, <em class="sig-param">ylabel=''</em>, <em class="sig-param">zlabel=''</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.ZeroPi.plot_matrixelements" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots matrix elements for <cite>operator</cite>, given as a string referring to a class method
+that returns an operator matrix. E.g., for instance <cite>trm</cite> of Transmon, the matrix element plot
+for the charge operator <cite>n</cite> is obtained by <cite>trm.plot_matrixelements(‘n’)</cite>.
+When <cite>esys</cite> is set to None, the eigensystem with <cite>evals_count</cite> eigenvectors is calculated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>esys: tuple(ndarray,ndarray), optional</strong></dt><dd><p>eigensystem data of evals, evecs; calculates eigensystem if set to None (Default value = None)</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired matrix elements, starting with ground state (Default value = 6)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>entry from MODE_FUNC_DICTIONARY, e.g., <cite>‘abs’</cite> for absolute value (default)</p>
+</dd>
+<dt><strong>xlabel, ylabel, zlabel: str, optional</strong></dt><dd><p>labels for the three plot axes</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+<dt><strong>xlabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+<dt><strong>ylabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+<dt><strong>zlabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.plot_potential">
+<code class="sig-name descname">plot_potential</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">theta_pts=100</em>, <em class="sig-param">contour_vals=None</em>, <em class="sig-param">aspect_ratio=None</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.plot_potential"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.plot_potential" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make contour plot of the potential energy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>theta_pts: int, optional</strong></dt><dd><p>(Default value = 100)</p>
+</dd>
+<dt><strong>contour_vals: list, optional</strong></dt><dd><p>(Default value = None)</p>
+</dd>
+<dt><strong>aspect_ratio: float, optional</strong></dt><dd><p>(Default value = None)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>(Default value = None)</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.plot_wavefunction">
+<code class="sig-name descname">plot_wavefunction</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">which=0</em>, <em class="sig-param">theta_pts=100</em>, <em class="sig-param">mode='abs'</em>, <em class="sig-param">figsize=(10</em>, <em class="sig-param">5)</em>, <em class="sig-param">aspect_ratio=3</em>, <em class="sig-param">zero_calibrate=False</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.plot_wavefunction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.plot_wavefunction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Different modes:
+‘abs_sqr’: <span class="math notranslate nohighlight">\(|\psi|^2\)</span>
+‘abs’:  <span class="math notranslate nohighlight">\(|\psi|\)</span>
+‘real’: <span class="math notranslate nohighlight">\(\text{Re}(\psi)\)</span>
+‘imag’: <span class="math notranslate nohighlight">\(\text{Im}(\psi)\)</span></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>esys :</strong></dt><dd></dd>
+<dt><strong>which :</strong></dt><dd><p>(Default value = 0)</p>
+</dd>
+<dt><strong>mode :</strong></dt><dd><p>(Default value = ‘abs’)</p>
+</dd>
+<dt><strong>figsize :</strong></dt><dd><p>(Default value = (10)</p>
+</dd>
+<dt><strong>5) :</strong></dt><dd></dd>
+<dt><strong>aspect_ratio :</strong></dt><dd><p>(Default value = 3)</p>
+</dd>
+<dt><strong>zero_calibrate :</strong></dt><dd><p>(Default value = False)</p>
+</dd>
+<dt><strong>fig_ax :</strong></dt><dd><p>(Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.set_EC_via_ECS">
+<code class="sig-name descname">set_EC_via_ECS</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">ECS</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.set_EC_via_ECS"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.set_EC_via_ECS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to set <cite>EC</cite> by providing <cite>ECS</cite>, keeping <cite>ECJ</cite> constant.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.sparse_kineticmat">
+<code class="sig-name descname">sparse_kineticmat</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.sparse_kineticmat"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.sparse_kineticmat" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.ZeroPi.sparse_potentialmat">
+<code class="sig-name descname">sparse_potentialmat</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi.html#ZeroPi.sparse_potentialmat"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.ZeroPi.sparse_potentialmat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the potential energy matrix for the potential in sparse (<cite>csc_matrix</cite>) form.</p>
+</dd></dl>
+
+</dd></dl>
+
+<hr class="docutils" />
+</div>
+<div class="section" id="fullzeropi">
+<span id="classes-fullzeropi"></span><h2>FullZeroPi<a class="headerlink" href="#fullzeropi" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.FullZeroPi">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.</code><code class="sig-name descname">FullZeroPi</code><span class="sig-paren">(</span><em class="sig-param">EJ</em>, <em class="sig-param">EL</em>, <em class="sig-param">ECJ</em>, <em class="sig-param">EC</em>, <em class="sig-param">dEJ</em>, <em class="sig-param">dCJ</em>, <em class="sig-param">dC</em>, <em class="sig-param">dEL</em>, <em class="sig-param">flux</em>, <em class="sig-param">ng</em>, <em class="sig-param">zeropi_cutoff</em>, <em class="sig-param">zeta_cutoff</em>, <em class="sig-param">grid</em>, <em class="sig-param">ncut</em>, <em class="sig-param">ECS=None</em>, <em class="sig-param">truncated_dim=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi_full.html#FullZeroPi"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.FullZeroPi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
+the zeta degree of freedom, see Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018).</p>
+<p>Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)
+Zero-Pi qubit on one hand and the zeta LC oscillator on the other hand.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>EJ: float</strong></dt><dd><p>mean Josephson energy of the two junctions</p>
+</dd>
+<dt><strong>EL: float</strong></dt><dd><p>inductive energy of the two (super-)inductors</p>
+</dd>
+<dt><strong>ECJ: float</strong></dt><dd><p>charging energy associated with the two junctions</p>
+</dd>
+<dt><strong>EC: float or None</strong></dt><dd><p>charging energy of the large shunting capacitances; set to <cite>None</cite> if <cite>ECS</cite> is provided instead</p>
+</dd>
+<dt><strong>dEJ: float</strong></dt><dd><p>relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg</p>
+</dd>
+<dt><strong>dEL: float</strong></dt><dd><p>relative disorder in EL, i.e., (EL1-EL2)/EL(mean)</p>
+</dd>
+<dt><strong>dCJ: float</strong></dt><dd><p>relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg</p>
+</dd>
+<dt><strong>dC: float</strong></dt><dd><p>relative disorder in large capacitances, i.e., (C1-C2)/Cavg</p>
+</dd>
+<dt><strong>ng: float</strong></dt><dd><p>offset charge associated with theta</p>
+</dd>
+<dt><strong>zeropi_cutoff: int</strong></dt><dd><p>cutoff in the number of states of the disordered zero-pi qubit</p>
+</dd>
+<dt><strong>zeta_cutoff: int</strong></dt><dd><p>cutoff in the zeta oscillator basis (Fock state basis)</p>
+</dd>
+<dt><strong>flux: float</strong></dt><dd><p>magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)</p>
+</dd>
+<dt><strong>grid: Grid1d object</strong></dt><dd><p>specifies the range and spacing of the discretization lattice</p>
+</dd>
+<dt><strong>ncut: int</strong></dt><dd><p>charge number cutoff for <cite>n_theta</cite>,  <cite>n_theta = -ncut, …, ncut</cite></p>
+</dd>
+<dt><strong>ECS: float, optional</strong></dt><dd><p>total charging energy including large shunting capacitances and junction capacitances; may be provided instead
+of EC</p>
+</dd>
+<dt><strong>truncated_dim: int, optional</strong></dt><dd><p>desired dimension of the truncated quantum system</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.ECS">
+<code class="sig-name descname">ECS</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi_full.html#FullZeroPi.ECS"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.FullZeroPi.ECS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.dict_reformat">
+<code class="sig-name descname">dict_reformat</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.dict_reformat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides <cite>__dict__</cite> in reformatted dictionary form (all values as strings); needed for .h5 output.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>dict(str)</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.eigensys">
+<code class="sig-name descname">eigensys</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.eigensys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues and corresponding eigenvectors using <cite>scipy.linalg.eigh</cite>. Returns
+two numpy arrays containing the eigenvalues and eigenvectors, respectively.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues/eigenstates (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>path and filename without suffix, if file output desired (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray, ndarray</dt><dd><p>eigenvalues, eigenvectors</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.eigenvals">
+<code class="sig-name descname">eigenvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.eigenvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues using <cite>scipy.linalg.eigh</cite>, returns numpy array of eigenvalues.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>evals_count: int</strong></dt><dd><p>number of desired eigenvalues/eigenstates (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>path and filename without suffix, if file output desired (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.filewrite_esys">
+<code class="sig-name descname">filewrite_esys</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">filename</em>, <em class="sig-param">evals</em>, <em class="sig-param">evecs</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.filewrite_esys" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write eigenvector data to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename: str</strong></dt><dd><p>path and name of output file (suffix appended automatically)</p>
+</dd>
+<dt><strong>evals: ndarray</strong></dt><dd><p>eigenvalue data</p>
+</dd>
+<dt><strong>evecs: ndarray</strong></dt><dd><p>eigenvector data</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.filewrite_evals">
+<code class="sig-name descname">filewrite_evals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">filename</em>, <em class="sig-param">evals</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.filewrite_evals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write eigenvalue data to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename: str</strong></dt><dd><p>path and name of output file (suffix appended automatically)</p>
+</dd>
+<dt><strong>evals: ndarray</strong></dt><dd><p>eigenvalue data</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.g_coupling_matrix">
+<code class="sig-name descname">g_coupling_matrix</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">zeropi_states=None</em>, <em class="sig-param">evals_count=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi_full.html#FullZeroPi.g_coupling_matrix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.FullZeroPi.g_coupling_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a matrix of coupling strengths g_{ll’} [cmp. Dempster et al., text above Eq. (17)], using the states
+from ‘zeropi_states’. If <cite>zeropi_states==None</cite>, then a set of <cite>self.zeropi</cite> eigenstates is calculated. Only in
+that case is <cite>evals_count</cite> used for the eigenstate number (and hence the coupling matrix size).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.g_phi_coupling_matrix">
+<code class="sig-name descname">g_phi_coupling_matrix</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">zeropi_states</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi_full.html#FullZeroPi.g_phi_coupling_matrix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.FullZeroPi.g_phi_coupling_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a matrix of coupling strengths g^phi_{ll’} [cmp. Dempster et al., Eq. (18)], using the states
+from the list <cite>zeropi_states</cite>. Most commonly, <cite>zeropi_states</cite> will contain eigenvectors of the
+<cite>DisorderedZeroPi</cite> type.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.g_theta_coupling_matrix">
+<code class="sig-name descname">g_theta_coupling_matrix</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">zeropi_states</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi_full.html#FullZeroPi.g_theta_coupling_matrix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.FullZeroPi.g_theta_coupling_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a matrix of coupling strengths i*g^theta_{ll’} [cmp. Dempster et al., Eq. (17)], using the states
+from the list ‘zeropi_states’.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.get_matelements_vs_paramvals">
+<code class="sig-name descname">get_matelements_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.get_matelements_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a
+<cite>SpectrumData</cite> object containing matrix element data, eigenvalue data, and eigenstate data..</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write data to file if path and filename are specified (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.get_spectrum_vs_paramvals">
+<code class="sig-name descname">get_spectrum_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">subtract_ground=False</em>, <em class="sig-param">get_eigenstates=False</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.get_spectrum_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates eigenvalues for a varying system parameter, given an array of parameter values. Returns a
+<cite>SpectrumData</cite> object with <cite>energy_data[n]</cite> containing eigenvalues calculated for
+parameter value <cite>param_vals[n]</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>subtract_ground: bool, optional</strong></dt><dd><p>if True, eigenvalues are returned relative to the ground state eigenvalue (Default value = False)</p>
+</dd>
+<dt><strong>get_eigenstates: bool, optional</strong></dt><dd><p>return eigenstates along with eigenvalues (Default value = False)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write data to file if path and filename are specified (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.hilbertdim">
+<code class="sig-name descname">hilbertdim</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi_full.html#FullZeroPi.hilbertdim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.FullZeroPi.hilbertdim" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.matrixelement_table">
+<code class="sig-name descname">matrixelement_table</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">evals_count=6</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.matrixelement_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns table of matrix elements for <cite>operator</cite> with respect to the eigenstates of the qubit.
+The operator is given as a string matching a class method returning an operator matrix.
+E.g., for an instance <cite>trm</cite> of Transmon,  the matrix element table for the charge operator is given by
+<cite>trm.op_matrixelement_table(‘n_operator’)</cite>.
+When <cite>esys</cite> is set to <cite>None</cite>, the eigensystem is calculated on-the-fly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix in qubit-internal basis.</p>
+</dd>
+<dt><strong>esys: tuple(ndarray, ndarray), optional</strong></dt><dd><p>if set, matrix elements are calculated based on the provided eigensystem data (Default value = None)</p>
+</dd>
+<dt><strong>evals_count: int</strong></dt><dd><p>number of desired matrix elements, starting with ground state (Default value = 6)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.omega_zeta">
+<code class="sig-name descname">omega_zeta</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi_full.html#FullZeroPi.omega_zeta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.FullZeroPi.omega_zeta" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.plot_evals_vs_paramvals">
+<code class="sig-name descname">plot_evals_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">subtract_ground=False</em>, <em class="sig-param">xrange=False</em>, <em class="sig-param">yrange=False</em>, <em class="sig-param">shift=0</em>, <em class="sig-param">filename=None</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.plot_evals_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a simple plot of a set of eigenvalues as a function of one parameter.
+The individual points correspond to the a provided array of parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)</p>
+</dd>
+<dt><strong>subtract_ground: bool, optional</strong></dt><dd><p>whether to subtract ground state energy from all eigenvalues (Default value = False)</p>
+</dd>
+<dt><strong>xrange: (float, float), optional</strong></dt><dd><p>custom x-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>yrange: (float, float), optional</strong></dt><dd><p>custom y-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>shift: float, optional</strong></dt><dd><p>apply a shift of this size to all eigenvalues (Default value = 0)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write graphics and parameter set to file if path and filename are specified (Default value = None)</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.plot_matelem_vs_paramvals">
+<code class="sig-name descname">plot_matelem_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">select_elems=4</em>, <em class="sig-param">mode='abs'</em>, <em class="sig-param">xrange=False</em>, <em class="sig-param">yrange=False</em>, <em class="sig-param">filename=None</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.plot_matelem_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a simple plot of a set of eigenvalues as a function of one parameter.
+The individual points correspond to the a provided array of parameter values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter to be varied</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values to be plugged in</p>
+</dd>
+<dt><strong>select_elems: int or list, optional</strong></dt><dd><p>either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), …] of index tuples
+for specific desired matrix elements (Default value = 4)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>entry from MODE_FUNC_DICTIONARY, e.g., <cite>‘abs’</cite> for absolute value (Default value = ‘abs’)</p>
+</dd>
+<dt><strong>xrange: (float, float), optional</strong></dt><dd><p>custom x-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>yrange: (float, float), optional</strong></dt><dd><p>custom y-range for the plot (Default value = False)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write graphics and parameter set to file if path and filename are specified (Default value = None)</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.plot_matrixelements">
+<code class="sig-name descname">plot_matrixelements</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">esys=None</em>, <em class="sig-param">evals_count=6</em>, <em class="sig-param">mode='abs'</em>, <em class="sig-param">xlabel=''</em>, <em class="sig-param">ylabel=''</em>, <em class="sig-param">zlabel=''</em>, <em class="sig-param">fig_ax=None</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.FullZeroPi.plot_matrixelements" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots matrix elements for <cite>operator</cite>, given as a string referring to a class method
+that returns an operator matrix. E.g., for instance <cite>trm</cite> of Transmon, the matrix element plot
+for the charge operator <cite>n</cite> is obtained by <cite>trm.plot_matrixelements(‘n’)</cite>.
+When <cite>esys</cite> is set to None, the eigensystem with <cite>evals_count</cite> eigenvectors is calculated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: str</strong></dt><dd><p>name of class method in string form, returning operator matrix</p>
+</dd>
+<dt><strong>esys: tuple(ndarray,ndarray), optional</strong></dt><dd><p>eigensystem data of evals, evecs; calculates eigensystem if set to None (Default value = None)</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired matrix elements, starting with ground state (Default value = 6)</p>
+</dd>
+<dt><strong>mode: str, optional</strong></dt><dd><p>entry from MODE_FUNC_DICTIONARY, e.g., <cite>‘abs’</cite> for absolute value (default)</p>
+</dd>
+<dt><strong>xlabel, ylabel, zlabel: str, optional</strong></dt><dd><p>labels for the three plot axes</p>
+</dd>
+<dt><strong>fig_ax: tuple(Figure, Axes), optional</strong></dt><dd><p>fig and ax objects for matplotlib figure addition (Default value = None)</p>
+</dd>
+<dt><strong>xlabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+<dt><strong>ylabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+<dt><strong>zlabel :</strong></dt><dd><p>(Default value = ‘’)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.FullZeroPi.set_EC_via_ECS">
+<code class="sig-name descname">set_EC_via_ECS</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">ECS</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/zeropi_full.html#FullZeroPi.set_EC_via_ECS"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.FullZeroPi.set_EC_via_ECS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to set <cite>EC</cite> by providing <cite>ECS</cite>, keeping <cite>ECJ</cite> constant.</p>
+</dd></dl>
+
+</dd></dl>
+
+<hr class="docutils" />
+</div>
+<div class="section" id="oscillator">
+<span id="classes-oscillator"></span><h2>Oscillator<a class="headerlink" href="#oscillator" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.Oscillator">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.</code><code class="sig-name descname">Oscillator</code><span class="sig-paren">(</span><em class="sig-param">omega</em>, <em class="sig-param">truncated_dim=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/harmonic_osc.html#Oscillator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Oscillator" title="Permalink to this definition">¶</a></dt>
+<dd><p>General class for mode of an oscillator/resonator.</p>
+<dl class="method">
+<dt id="sc_qubits.Oscillator.dict_reformat">
+<code class="sig-name descname">dict_reformat</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.Oscillator.dict_reformat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides <cite>__dict__</cite> in reformatted dictionary form (all values as strings); needed for .h5 output.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>dict(str)</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Oscillator.eigenvals">
+<code class="sig-name descname">eigenvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">evals_count=6</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/harmonic_osc.html#Oscillator.eigenvals"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Oscillator.eigenvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns list of eigenvalues.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired eigenvalues (Default value = 6)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>ndarray</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Oscillator.hilbertdim">
+<code class="sig-name descname">hilbertdim</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/harmonic_osc.html#Oscillator.hilbertdim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Oscillator.hilbertdim" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns Hilbert space dimension</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>int</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="class-for-composite-hilbert-spaces-interface-with-qutip">
+<h1>Class for Composite Hilbert Spaces, Interface with QuTiP<a class="headerlink" href="#class-for-composite-hilbert-spaces-interface-with-qutip" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="hilbertspace">
+<span id="classes-hilbertspace"></span><h2>HilbertSpace<a class="headerlink" href="#hilbertspace" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.HilbertSpace">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.</code><code class="sig-name descname">HilbertSpace</code><span class="sig-paren">(</span><em class="sig-param">subsystem_list</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class holding information about the full Hilbert space, usually composed of multiple subsystems.
+The class provides methods to turn subsystem operators into operators acting on the full Hilbert space, and
+establishes the interface to qutip. Returned operators are of the <cite>qutip.Qobj</cite> type. The class also provides methods
+for obtaining eigenvalues, absorption and emission spectra as a function of an external parameter.</p>
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.absorption_spectrum">
+<code class="sig-name descname">absorption_spectrum</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">spectrum_data</em>, <em class="sig-param">initial_state_ind</em>, <em class="sig-param">initial_as_bare=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.absorption_spectrum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.absorption_spectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes spectral data of energy eigenvalues and returns the absorption spectrum relative to a state
+of given index. Calculated by subtracting from eigenenergies the energy of the select state. Resulting negative
+frequencies, if the reference state is not the ground state, are omitted.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>spectrum_data: SpectrumData object</strong></dt><dd><p>spectral data composed of eigenenergies</p>
+</dd>
+<dt><strong>initial_state_ind: int or tuple ((subsys1, i1), (subsys2, i2), …)</strong></dt><dd><p>index of the initial state whose energy is supposed to be subtracted from the spectral data</p>
+</dd>
+<dt><strong>initial_as_bare: bool, optional</strong></dt><dd><p>if <cite>True</cite>, then the index is a tuple labeling a bare eigenstate; if <cite>False</cite>, label refers to a state from
+<cite>spectrum_data</cite> (Default value = False)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.annihilate">
+<code class="sig-name descname">annihilate</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">subsystem</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.annihilate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.annihilate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Annihilation operator a for <cite>subsystem</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>subsystem: object derived from QuantumSystem</strong></dt><dd><p>specifies subsystem in which annihilation operator acts</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>qutip.Qobj operator</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.append">
+<code class="sig-name descname">append</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.append" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.clear">
+<code class="sig-name descname">clear</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.clear" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.copy">
+<code class="sig-name descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.copy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.count">
+<code class="sig-name descname">count</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.count" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.diag_hamiltonian">
+<code class="sig-name descname">diag_hamiltonian</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">subsystem</em>, <em class="sig-param">evals=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.diag_hamiltonian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.diag_hamiltonian" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <cite>qutip.Qobj</cite> which has the eigenenergies of the object <cite>subsystem</cite> on the diagonal.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>subsystem: object derived from `QuantumSystem`</strong></dt><dd><p>Subsystem for which the Hamiltonian is to be provided.</p>
+</dd>
+<dt><strong>evals: ndarray, optional</strong></dt><dd><p>Eigenenergies can be provided as <cite>evals</cite>; otherwise, they are calculated. (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>qutip.Qobj operator</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.diag_operator">
+<code class="sig-name descname">diag_operator</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">diag_elements</em>, <em class="sig-param">subsystem</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.diag_operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.diag_operator" title="Permalink to this definition">¶</a></dt>
+<dd><p>For given diagonal elements of a diagonal operator in <cite>subsystem</cite>, return the <cite>Qobj</cite> operator for the
+full Hilbert space (perform wrapping in identities for other subsystems).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>diag_elements: ndarray of floats</strong></dt><dd><p>diagonal elements of subsystem diagonal operator</p>
+</dd>
+<dt><strong>subsystem: object derived from QuantumSystem</strong></dt><dd><p>subsystem where diagonal operator is defined</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>qutip.Qobj operator</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.dict_reformat">
+<code class="sig-name descname">dict_reformat</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.dict_reformat"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.dict_reformat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides <cite>HilbertSpace.__dict__</cite> in reformatted form (all strings); needed for .h5 output.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.difference_spectrum">
+<code class="sig-name descname">difference_spectrum</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">spectrum_data</em>, <em class="sig-param">initial_state_ind</em>, <em class="sig-param">initial_as_bare=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.difference_spectrum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.difference_spectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes spectral data of energy eigenvalues and subtracts the energy of a select state, given by its state
+index.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>spectrum_data: SpectrumData object</strong></dt><dd><p>spectral data composed of eigenenergies</p>
+</dd>
+<dt><strong>initial_state_ind: int or tuple ((subsys1, i1), (subsys2, i2), …)</strong></dt><dd><p>index of the initial state whose energy is supposed to be subtracted from the spectral data</p>
+</dd>
+<dt><strong>initial_as_bare: bool, optional</strong></dt><dd><p>if <cite>True</cite>, then the index is a tuple labeling a bare eigenstate; if <cite>False</cite>, label refers to a state from
+<cite>spectrum_data</cite> (Default value = False)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.dimension">
+<em class="property">property </em><code class="sig-name descname">dimension</code><a class="headerlink" href="#sc_qubits.HilbertSpace.dimension" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns total dimension of joint Hilbert space</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>int</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.emission_spectrum">
+<code class="sig-name descname">emission_spectrum</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">spectrum_data</em>, <em class="sig-param">initial_state_ind</em>, <em class="sig-param">initial_as_bare=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.emission_spectrum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.emission_spectrum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes spectral data of energy eigenvalues and returns the emission spectrum relative to a state
+of given index. The resulting “upwards” transition frequencies are calculated by subtracting from eigenenergies
+the energy of the select state, and multiplying the result by -1. Resulting negative
+frequencies, corresponding to absorption instead, are omitted.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>spectrum_data: SpectrumData object</strong></dt><dd><p>spectral data composed of eigenenergies</p>
+</dd>
+<dt><strong>initial_state_ind: int or tuple ((subsys1, i1), (subsys2, i2), …)</strong></dt><dd><p>index of the initial state whose energy is supposed to be subtracted from the spectral data</p>
+</dd>
+<dt><strong>initial_as_bare: bool, optional</strong></dt><dd><p>if <cite>True</cite>, then the index is a tuple labeling a bare eigenstate; if <cite>False</cite>, label refers to a state from
+<cite>spectrum_data</cite> (Default value = False)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.extend">
+<code class="sig-name descname">extend</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.extend" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.get_spectrum_vs_paramvals">
+<code class="sig-name descname">get_spectrum_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">hamiltonian_func</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">evals_count=10</em>, <em class="sig-param">get_eigenstates=False</em>, <em class="sig-param">param_name='external_parameter'</em>, <em class="sig-param">filename=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.get_spectrum_vs_paramvals"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.get_spectrum_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as a function of a parameter.
+Parameter values are specified as a list or array in <cite>param_vals</cite>. The Hamiltonian <cite>hamiltonian_func</cite>
+must be a function of that particular parameter, and is expected to internally set subsystem parameters.
+If a <cite>filename</cite> string is provided, then eigenvalue data is written to that file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>hamiltonian_func: function of one parameter</strong></dt><dd><p>function returning the Hamiltonian in <cite>qutip.Qobj</cite> format</p>
+</dd>
+<dt><strong>param_vals: ndarray of floats</strong></dt><dd><p>array of parameter values</p>
+</dd>
+<dt><strong>evals_count: int, optional</strong></dt><dd><p>number of desired energy levels (Default value = 10)</p>
+</dd>
+<dt><strong>get_eigenstates: bool, optional</strong></dt><dd><p>set to true if eigenstates should be returned as well (Default value = False)</p>
+</dd>
+<dt><strong>param_name: str, optional</strong></dt><dd><p>name for the parameter that is varied in <cite>param_vals</cite> (Default value = “external_parameter”)</p>
+</dd>
+<dt><strong>filename: str, optional</strong></dt><dd><p>write data to file if path/filename is provided (Default value = None)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>SpectrumData object</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.hubbard_operator">
+<code class="sig-name descname">hubbard_operator</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">j</em>, <em class="sig-param">k</em>, <em class="sig-param">subsystem</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.hubbard_operator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.hubbard_operator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hubbard operator <span class="math notranslate nohighlight">\(|j\rangle\langle k|\)</span> for system <cite>subsystem</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>j,k: int</strong></dt><dd><p>eigenstate indices for Hubbard operator</p>
+</dd>
+<dt><strong>subsystem: instance derived from QuantumSystem class</strong></dt><dd><p>subsystem in which Hubbard operator acts</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>qutip.Qobj operator</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.identity_wrap">
+<code class="sig-name descname">identity_wrap</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">operator</em>, <em class="sig-param">subsystem</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/hilbert_space.html#HilbertSpace.identity_wrap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.HilbertSpace.identity_wrap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrap given operator in subspace <cite>subsystem</cite> in identity operators to form full Hilbert-space operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>operator: ndarray or list or qutip.Qobj</strong></dt><dd><p>operator acting in Hilbert space of <cite>subsystem</cite></p>
+</dd>
+<dt><strong>subsystem: object derived from QuantumSystem</strong></dt><dd><p>subsystem where diagonal operator is defined</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>qutip.Qobj operator</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.index">
+<code class="sig-name descname">index</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Raises ValueError if the value is not present.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.insert">
+<code class="sig-name descname">insert</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.insert" title="Permalink to this definition">¶</a></dt>
+<dd><p>L.insert(index, object) – insert object before index</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.pop">
+<code class="sig-name descname">pop</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.pop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Raises IndexError if list is empty or index is out of range.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.remove">
+<code class="sig-name descname">remove</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.remove" title="Permalink to this definition">¶</a></dt>
+<dd><p>Raises ValueError if the value is not present.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.reverse">
+<code class="sig-name descname">reverse</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.reverse" title="Permalink to this definition">¶</a></dt>
+<dd><p>L.reverse() – reverse <em>IN PLACE</em></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.sort">
+<code class="sig-name descname">sort</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sc_qubits.HilbertSpace.sort" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.subsystem_count">
+<em class="property">property </em><code class="sig-name descname">subsystem_count</code><a class="headerlink" href="#sc_qubits.HilbertSpace.subsystem_count" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns number of subsystems composing the joint Hilbert space</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>int</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.HilbertSpace.subsystem_dims">
+<em class="property">property </em><code class="sig-name descname">subsystem_dims</code><a class="headerlink" href="#sc_qubits.HilbertSpace.subsystem_dims" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns list of the Hilbert space dimensions of each subsystem</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><dl class="simple">
+<dt>list of int</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="data-container-classes">
+<h1>Data-container Classes<a class="headerlink" href="#data-container-classes" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="spectrumdata">
+<span id="classes-spectrumdata"></span><h2>SpectrumData<a class="headerlink" href="#spectrumdata" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.core.data_containers.SpectrumData">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.core.data_containers.</code><code class="sig-name descname">SpectrumData</code><span class="sig-paren">(</span><em class="sig-param">param_name</em>, <em class="sig-param">param_vals</em>, <em class="sig-param">energy_table</em>, <em class="sig-param">system_params</em>, <em class="sig-param">state_table=None</em>, <em class="sig-param">matrixelem_table=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/data_containers.html#SpectrumData"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.core.data_containers.SpectrumData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container holding energy and state data as a function of a particular parameter that is varied.
+Also stores all other system parameters used for generating the set, and provides method for writing
+data to file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>param_name: str</strong></dt><dd><p>name of parameter being varies</p>
+</dd>
+<dt><strong>param_vals: ndarray</strong></dt><dd><p>parameter values for which spectrum data are stored</p>
+</dd>
+<dt><strong>energy_table: ndarray</strong></dt><dd><p>energy eigenvalues stored for each <cite>param_vals</cite> point</p>
+</dd>
+<dt><strong>system_params: dict(str)</strong></dt><dd><p>info about system parameters</p>
+</dd>
+<dt><strong>state_table: ndarray, optional</strong></dt><dd><p>eigenstate data stored for each <cite>param_vals</cite> point, either as pure ndarray or ndarray of qutip.qobj</p>
+</dd>
+<dt><strong>matrixelem_table: ndarray, optional</strong></dt><dd><p>matrix element data stored for each <cite>param_vals</cite> point</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="method">
+<dt id="sc_qubits.core.data_containers.SpectrumData.filewrite">
+<code class="sig-name descname">filewrite</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">filename</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/data_containers.html#SpectrumData.filewrite"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.core.data_containers.SpectrumData.filewrite" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write data of eigenenergies, eigenstates, and matrix elements to file with specified filename.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>filename: str</strong></dt><dd><p>path and name of output file (file suffix appended automatically)</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.core.data_containers.SpectrumData.plot_evals_vs_paramvals">
+<code class="sig-name descname">plot_evals_vs_paramvals</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">xrange=None</em>, <em class="sig-param">yrange=None</em>, <em class="sig-param">fig_ax=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/data_containers.html#SpectrumData.plot_evals_vs_paramvals"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.core.data_containers.SpectrumData.plot_evals_vs_paramvals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>xrange: tuple(float, float), optional</strong></dt><dd><p>(Default value = None)</p>
+</dd>
+<dt><strong>yrange: tuple(float, float), optional</strong></dt><dd><p>(Default value = None)</p>
+</dd>
+<dt><strong>fig_ax: Figure, Axes, optional</strong></dt><dd><p>(Default value = None)</p>
+</dd>
+<dt><strong>**kwargs: optional</strong></dt><dd><p>keyword arguments passed on to axes.plot()</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>Figure, Axes</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<hr class="docutils" />
+</div>
+<div class="section" id="wavefunction">
+<span id="classes-wavefunction"></span><h2>WaveFunction<a class="headerlink" href="#wavefunction" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.core.data_containers.WaveFunction">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.core.data_containers.</code><code class="sig-name descname">WaveFunction</code><span class="sig-paren">(</span><em class="sig-param">basis_labels</em>, <em class="sig-param">amplitudes</em>, <em class="sig-param">energy=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/data_containers.html#WaveFunction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.core.data_containers.WaveFunction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for wave function amplitudes defined for a specific basis. Optionally, a corresponding
+energy is saved as well.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>basis_labels: ndarray</strong></dt><dd><p>labels of basis states; for example, in position basis: values of position variable</p>
+</dd>
+<dt><strong>amplitudes: ndarray</strong></dt><dd><p>wave function amplitudes for each basis label value</p>
+</dd>
+<dt><strong>energy: float, optional</strong></dt><dd><p>energy of the wave function</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<hr class="docutils" />
+</div>
+<div class="section" id="wavefunctionongrid">
+<span id="classes-wavefunctionongrid"></span><h2>WaveFunctionOnGrid<a class="headerlink" href="#wavefunctionongrid" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.core.data_containers.WaveFunctionOnGrid">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.core.data_containers.</code><code class="sig-name descname">WaveFunctionOnGrid</code><span class="sig-paren">(</span><em class="sig-param">gridspec</em>, <em class="sig-param">amplitudes</em>, <em class="sig-param">energy=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/data_containers.html#WaveFunctionOnGrid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.core.data_containers.WaveFunctionOnGrid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Container for wave function amplitudes defined on a coordinate grid (arbitrary dimensions).
+Optionally, a corresponding eigenenergy is saved as well.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>gridspec: GridSpec object</strong></dt><dd><p>grid specifications for the stored wave function</p>
+</dd>
+<dt><strong>amplitudes: ndarray</strong></dt><dd><p>wave function amplitudes on each grid point</p>
+</dd>
+<dt><strong>energy: float, optional</strong></dt><dd><p>energy corresponding to the wave function</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="discretization-classes">
+<h1>Discretization Classes<a class="headerlink" href="#discretization-classes" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="grid1d">
+<span id="classes-grid1d"></span><h2>Grid1d<a class="headerlink" href="#grid1d" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.Grid1d">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.</code><code class="sig-name descname">Grid1d</code><span class="sig-paren">(</span><em class="sig-param">min_val</em>, <em class="sig-param">max_val</em>, <em class="sig-param">pt_count</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/discretization.html#Grid1d"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Grid1d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
+matrices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>min_val, max_val: float</strong></dt><dd><p>minimum and maximum values of the discretized variable</p>
+</dd>
+<dt><strong>pt_count: int</strong></dt><dd><p>number of grid points</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="method">
+<dt id="sc_qubits.Grid1d.first_derivative_matrix">
+<code class="sig-name descname">first_derivative_matrix</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">prefactor=1.0</em>, <em class="sig-param">periodic=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/discretization.html#Grid1d.first_derivative_matrix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Grid1d.first_derivative_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate sparse matrix for first derivative of the form <span class="math notranslate nohighlight">\(\partial_{x_i}\)</span>.
+Uses <span class="math notranslate nohighlight">\(f'(x) \approx [f(x+h) - f(x-h)]/2h\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>prefactor: float or complex, optional</strong></dt><dd><p>prefactor of the derivative matrix (default value: 1.0)</p>
+</dd>
+<dt><strong>periodic: bool, optional</strong></dt><dd><p>set to True if variable is a periodic variable</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>sparse matrix in <cite>dia</cite> format</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sc_qubits.Grid1d.second_derivative_matrix">
+<code class="sig-name descname">second_derivative_matrix</code><span class="sig-paren">(</span><em class="sig-param">self</em>, <em class="sig-param">prefactor=1.0</em>, <em class="sig-param">periodic=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/discretization.html#Grid1d.second_derivative_matrix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.Grid1d.second_derivative_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate sparse matrix for second derivative of the form <span class="math notranslate nohighlight">\(\partial^2_{x_i}\)</span>.
+Uses <span class="math notranslate nohighlight">\(f''(x) \approx [f(x+h) - 2f(x) + f(x-h)]/h^2\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>prefactor: float, optional</strong></dt><dd><p>optional prefactor of the derivative matrix (Default value = 1.0)</p>
+</dd>
+<dt><strong>periodic: bool, periodic</strong></dt><dd><p>set to True if variable is a periodic variable (Default value = False)</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><dl class="simple">
+<dt>sparse matrix in <cite>dia</cite> format</dt><dd></dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<hr class="docutils" />
+</div>
+<div class="section" id="gridspec">
+<span id="classes-gridspec"></span><h2>GridSpec<a class="headerlink" href="#gridspec" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="sc_qubits.core.discretization.GridSpec">
+<em class="property">class </em><code class="sig-prename descclassname">sc_qubits.core.discretization.</code><code class="sig-name descname">GridSpec</code><span class="sig-paren">(</span><em class="sig-param">minmaxpts_array</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/discretization.html#GridSpec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.core.discretization.GridSpec" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for specifying a general discretized coordinate grid (arbitrary dimensions).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>minmaxpts_array: ndarray</strong></dt><dd><p>array of with entries [minvalue, maxvalue, number of points]</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="method">
+<dt id="sc_qubits.core.discretization.GridSpec.unwrap">
+<code class="sig-name descname">unwrap</code><span class="sig-paren">(</span><em class="sig-param">self</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/sc_qubits/core/discretization.html#GridSpec.unwrap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sc_qubits.core.discretization.GridSpec.unwrap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Auxiliary routine that yields a tuple of the parameters specifying the grid.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="functions.html" class="btn btn-neutral float-right" title="Functions" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apidoc.html" class="btn btn-neutral float-left" title="API documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Jens Koch, Peter Groszkowski
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,382 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>sc_qubits.utils.spectrum_utils &mdash; sc_qubits  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processClass": "math|output_area", "ignoreClass": "document", "processEscapes": true}})</script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> sc_qubits
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guide/guide.html">Users Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-doc/apidoc.html">API documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Change Log</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributors.html">Developers</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sc_qubits</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>sc_qubits.utils.spectrum_utils</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for sc_qubits.utils.spectrum_utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">qutip</span> <span class="k">as</span> <span class="nn">qt</span>
+<span class="kn">import</span> <span class="nn">cmath</span>
+
+
+<div class="viewcode-block" id="order_eigensystem"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.spectrum_utils.order_eigensystem">[docs]</a><span class="k">def</span> <span class="nf">order_eigensystem</span><span class="p">(</span><span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Takes eigenvalues and corresponding eigenvectors and orders them (in place) according to the eigenvalues (from</span>
+<span class="sd">    smallest to largest; real valued eigenvalues are assumed). Compare http://stackoverflow.com/questions/22806398.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    evals: ndarray</span>
+<span class="sd">        array of eigenvalues</span>
+<span class="sd">    evecs: ndarray</span>
+<span class="sd">        array containing eigenvectors; evecs[:, 0] is the first eigenvector etc.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ordered_evals_indices</span> <span class="o">=</span> <span class="n">evals</span><span class="o">.</span><span class="n">argsort</span><span class="p">()</span>  <span class="c1"># eigsh does not guarantee consistent ordering within result</span>
+    <span class="n">evals</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">evals</span><span class="p">[</span><span class="n">ordered_evals_indices</span><span class="p">]</span>
+    <span class="n">evecs</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">evecs</span><span class="p">[:,</span> <span class="n">ordered_evals_indices</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span></div>
+
+
+<div class="viewcode-block" id="extract_phase"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.spectrum_utils.extract_phase">[docs]</a><span class="k">def</span> <span class="nf">extract_phase</span><span class="p">(</span><span class="n">complex_array</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Extracts global phase from `complex_array` at given `position`. If position is not specified, the `position` is</span>
+<span class="sd">    set to to an intermediate position to avoid machine-precision problems with tails of wavefunctions at beginning</span>
+<span class="sd">    or end of the array.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    complex_array: ndarray</span>
+<span class="sd">        complex-valued array</span>
+<span class="sd">    position: int, optional</span>
+<span class="sd">        position where the phase is extracted (Default value = None)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">flattened_position</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">complex_array</span><span class="p">))</span>  <span class="c1"># extract phase from element with largest amplitude modulus</span>
+        <span class="n">position</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="n">flattened_position</span><span class="p">,</span> <span class="n">complex_array</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cmath</span><span class="o">.</span><span class="n">phase</span><span class="p">(</span><span class="n">complex_array</span><span class="p">[</span><span class="n">position</span><span class="p">])</span></div>
+
+
+<span class="c1"># —Matrix elements and operators (outside qutip) ———————————————————————————————————————————————————————————————————————</span>
+
+<span class="c1"># TODO matrix element handling is confusing. some inside, some outside classes. how to know what basis is being used</span>
+<span class="c1"># TODO by operators?</span>
+
+<div class="viewcode-block" id="matrix_element"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.spectrum_utils.matrix_element">[docs]</a><span class="k">def</span> <span class="nf">matrix_element</span><span class="p">(</span><span class="n">state1</span><span class="p">,</span> <span class="n">operator</span><span class="p">,</span> <span class="n">state2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calculate the matrix element `&lt;state1|operator|state2&gt;`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    state1: ndarray or qutip.Qobj</span>
+<span class="sd">        state vector/ket</span>
+<span class="sd">    state2: ndarray or qutip.Qobj</span>
+<span class="sd">        state vector/ket</span>
+<span class="sd">    operator: qutip.Qobj or numpy array or numpy sparse object</span>
+<span class="sd">        representation of an operator</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float or complex</span>
+<span class="sd">        matrix element</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">qt</span><span class="o">.</span><span class="n">Qobj</span><span class="p">):</span>
+        <span class="n">op_matrix</span> <span class="o">=</span> <span class="n">operator</span><span class="o">.</span><span class="n">data</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">op_matrix</span> <span class="o">=</span> <span class="n">operator</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state1</span><span class="p">,</span> <span class="n">qt</span><span class="o">.</span><span class="n">Qobj</span><span class="p">):</span>
+        <span class="n">vec1</span> <span class="o">=</span> <span class="n">state1</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+        <span class="n">vec2</span> <span class="o">=</span> <span class="n">state2</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">vec1</span> <span class="o">=</span> <span class="n">state1</span>
+        <span class="n">vec2</span> <span class="o">=</span> <span class="n">state2</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">op_matrix</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>  <span class="c1"># Is operator given in dense form?</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">vdot</span><span class="p">(</span><span class="n">vec1</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">vec2</span><span class="p">))</span>  <span class="c1"># Yes - use numpy&#39;s &#39;vdot&#39; and &#39;dot&#39;.</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">vdot</span><span class="p">(</span><span class="n">vec1</span><span class="p">,</span> <span class="n">op_matrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">vec2</span><span class="p">))</span>  <span class="c1"># No, operator is sparse. Must use its own &#39;dot&#39; method.</span></div>
+
+
+<div class="viewcode-block" id="get_matrixelement_table"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.spectrum_utils.get_matrixelement_table">[docs]</a><span class="k">def</span> <span class="nf">get_matrixelement_table</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">state_table</span><span class="p">,</span> <span class="n">real_valued</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calculates a table of matrix elements.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    operator: ndarray or sparse matrix object</span>
+<span class="sd">        operator with respect to which matrix elements are to be calculated</span>
+<span class="sd">    state_table: list or ndarray</span>
+<span class="sd">        list or array of numpy arrays representing the states `|v0&gt;, |v1&gt;, ...`</span>
+<span class="sd">        Note: `state_table` is expected to be in scipy&#39;s `eigsh` transposed form.</span>
+<span class="sd">    real_valued: bool, optional</span>
+<span class="sd">        signals whether matrix elements are real valued (Default value = False)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ndarray</span>
+<span class="sd">        table of matrix elements</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">qt</span><span class="o">.</span><span class="n">Qobj</span><span class="p">):</span>
+        <span class="n">state_list</span> <span class="o">=</span> <span class="n">state_table</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">state_list</span> <span class="o">=</span> <span class="n">state_table</span><span class="o">.</span><span class="n">T</span>
+
+    <span class="k">if</span> <span class="n">real_valued</span><span class="p">:</span>
+        <span class="n">the_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float_</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">the_dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">complex_</span>
+
+    <span class="n">tablesize</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">state_list</span><span class="p">)</span>
+    <span class="n">mtable</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="n">tablesize</span><span class="p">,</span> <span class="n">tablesize</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">the_dtype</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">tablesize</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">mtable</span><span class="p">[</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">]</span> <span class="o">=</span> <span class="n">matrix_element</span><span class="p">(</span><span class="n">state_list</span><span class="p">[</span><span class="n">n</span><span class="p">],</span> <span class="n">operator</span><span class="p">,</span> <span class="n">state_list</span><span class="p">[</span><span class="n">m</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">real_valued</span><span class="p">:</span>
+                <span class="n">mtable</span><span class="p">[</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">mtable</span><span class="p">[</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">mtable</span><span class="p">[</span><span class="n">m</span><span class="p">,</span> <span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">conj</span><span class="p">(</span><span class="n">mtable</span><span class="p">[</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">mtable</span></div>
+
+
+<div class="viewcode-block" id="closest_dressed_energy"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.spectrum_utils.closest_dressed_energy">[docs]</a><span class="k">def</span> <span class="nf">closest_dressed_energy</span><span class="p">(</span><span class="n">bare_energy</span><span class="p">,</span> <span class="n">dressed_energy_vals</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;For a given bare energy value, this returns the closest lying dressed energy value from an array.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    bare_energy: float</span>
+<span class="sd">        bare energy value</span>
+<span class="sd">    dressed_energy_vals: ndarray</span>
+<span class="sd">        array of dressed-energy values</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    float</span>
+<span class="sd">        element from `dressed_energy_vals` closest to `bare_energy`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">dressed_energy_vals</span> <span class="o">-</span> <span class="n">bare_energy</span><span class="p">))</span><span class="o">.</span><span class="n">argmin</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">dressed_energy_vals</span><span class="p">[</span><span class="n">index</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="get_eigenstate_index_maxoverlap"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.spectrum_utils.get_eigenstate_index_maxoverlap">[docs]</a><span class="k">def</span> <span class="nf">get_eigenstate_index_maxoverlap</span><span class="p">(</span><span class="n">eigenstates_Qobj</span><span class="p">,</span> <span class="n">reference_state_Qobj</span><span class="p">,</span> <span class="n">return_overlap</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;For given list of qutip states, find index of the state that has largest overlap with the qutip ket</span>
+<span class="sd">    `reference_state_Qobj`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    eigenstates_Qobj: ndarray of qutip.Qobj</span>
+<span class="sd">        as obtained from qutip `.eigenstates()`</span>
+<span class="sd">    reference_state_Qobj: qutip.Qobj ket</span>
+<span class="sd">        specific reference state</span>
+<span class="sd">    return_overlap: bool, optional</span>
+<span class="sd">        set to true if the value of largest overlap should be also returned (Default value = False)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    int</span>
+<span class="sd">        index of eigenstate from `eigenstates_Qobj` with the largest overlap with the `reference_state_Qobj`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">overlaps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">eigenstates_Qobj</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">overlap</span><span class="p">(</span><span class="n">reference_state_Qobj</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">eigenstates_Qobj</span><span class="p">))])</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">overlaps</span><span class="p">))</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">return_overlap</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">index</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">overlaps</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">index</span></div>
+
+
+<div class="viewcode-block" id="convert_esys_to_ndarray"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.spectrum_utils.convert_esys_to_ndarray">[docs]</a><span class="k">def</span> <span class="nf">convert_esys_to_ndarray</span><span class="p">(</span><span class="n">esys_qutip</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Takes a qutip eigenstates array, as obtained with .eigenstates(), and converts it into a pure numpy array.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    esys_qutip: ndarray of qutip.Qobj</span>
+<span class="sd">        as obtained from qutip `.eigenstates()`</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ndarray</span>
+<span class="sd">        converted eigenstate data</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">evals_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">esys_qutip</span><span class="p">)</span>
+    <span class="n">dimension</span> <span class="o">=</span> <span class="n">esys_qutip</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">esys_ndarray</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">evals_count</span><span class="p">,</span> <span class="n">dimension</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex_</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">eigenstate</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">esys_qutip</span><span class="p">):</span>
+        <span class="n">esys_ndarray</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">eigenstate</span><span class="o">.</span><span class="n">full</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">dimension</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">esys_ndarray</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Jens Koch, Peter Groszkowski
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
