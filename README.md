@@ -1,6 +1,6 @@
 # sc_qubits
 
-[Documentation]()
+[Documentation](https://github.com/Northwestern-Koch-Group/sc_qubits/tree/danny_branch/sc_qubits-doc/docs)
 
 [Tutorial]()
 
