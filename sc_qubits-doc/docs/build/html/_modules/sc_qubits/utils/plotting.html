@@ -1,0 +1,694 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>sc_qubits.utils.plotting &mdash; sc_qubits  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processClass": "math|output_area", "ignoreClass": "document", "processEscapes": true}})</script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> sc_qubits
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../guide/guide.html">Users Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api-doc/apidoc.html">API documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Change Log</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributors.html">Developers</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">sc_qubits</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>sc_qubits.utils.plotting</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for sc_qubits.utils.plotting</h1><div class="highlight"><pre>
+<span></span><span class="c1"># plotting.py</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib</span> <span class="k">as</span> <span class="nn">mpl</span>
+<span class="kn">import</span> <span class="nn">matplotlib.backends.backend_pdf</span> <span class="k">as</span> <span class="nn">mplpdf</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">labellines</span> <span class="kn">import</span> <span class="n">labelLine</span><span class="p">,</span> <span class="n">labelLines</span>
+    <span class="n">_labellines_enabled</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">_labellines_enabled</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="kn">import</span> <span class="nn">sc_qubits.utils.constants</span> <span class="k">as</span> <span class="nn">constants</span>
+
+
+<span class="n">mpl</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;font.sans-serif&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Arial&quot;</span>
+<span class="n">mpl</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;font.family&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;sans-serif&quot;</span>
+<span class="n">mpl</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;figure.dpi&#39;</span><span class="p">]</span><span class="o">=</span> <span class="mi">150</span>
+
+
+<div class="viewcode-block" id="wavefunction1d"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.plotting.wavefunction1d">[docs]</a><span class="k">def</span> <span class="nf">wavefunction1d</span><span class="p">(</span><span class="n">wavefunc</span><span class="p">,</span> <span class="n">potential_vals</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">scaling</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;wavefunction&#39;</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span>
+                   <span class="n">yrange</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plots the amplitude of a real-valued 1d wave function, along with the potential energy if provided.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    wavefunc: WaveFunction object</span>
+<span class="sd">        basis and amplitude data of wave function to be plotted</span>
+<span class="sd">    potential_vals: array of float</span>
+<span class="sd">        potential energies, array length must match basis array of `wavefunc`</span>
+<span class="sd">    offset: float</span>
+<span class="sd">        y-offset for the wave function (e.g., shift by eigenenergy)</span>
+<span class="sd">    scaling: float</span>
+<span class="sd">        scaling factor for wave function amplitudes</span>
+<span class="sd">    ylabel: str</span>
+<span class="sd">        y-axis label</span>
+<span class="sd">    xlabel: str</span>
+<span class="sd">        x-axis label</span>
+<span class="sd">    yrange: (float, float)</span>
+<span class="sd">        plot range for y-axis</span>
+<span class="sd">    fig_ax: None or tuple(Figure, Axes)</span>
+<span class="sd">        fig and ax objects for matplotlib figure addition</span>
+<span class="sd">    **kwargs:</span>
+<span class="sd">        keyword arguments passed on to axes.plot()</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple(Figure, Axes)</span>
+<span class="sd">        matplotlib objects for further editing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">fig_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">fig_ax</span>
+
+    <span class="n">x_vals</span> <span class="o">=</span> <span class="n">wavefunc</span><span class="o">.</span><span class="n">basis_labels</span>
+
+    <span class="n">axes</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_vals</span><span class="p">,</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">scaling</span> <span class="o">*</span> <span class="n">wavefunc</span><span class="o">.</span><span class="n">amplitudes</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">potential_vals</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_vals</span><span class="p">,</span> <span class="n">potential_vals</span><span class="p">)</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x_vals</span><span class="p">,</span> <span class="p">[</span><span class="n">offset</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">x_vals</span><span class="p">),</span> <span class="s1">&#39;b--&#39;</span><span class="p">)</span>
+
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabel</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span><span class="p">)</span>
+
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">left</span><span class="o">=</span><span class="n">x_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">right</span><span class="o">=</span><span class="n">x_vals</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">yrange</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">*</span><span class="n">yrange</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">mplpdf</span><span class="o">.</span><span class="n">PdfPages</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">savefig</span><span class="p">()</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span></div>
+
+
+<div class="viewcode-block" id="wavefunction1d_discrete"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.plotting.wavefunction1d_discrete">[docs]</a><span class="k">def</span> <span class="nf">wavefunction1d_discrete</span><span class="p">(</span><span class="n">wavefunc</span><span class="p">,</span> <span class="n">xrange</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;wavefunction&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plots the amplitude of a real-valued 1d wave function in a discrete basis. (Example: transmon in the charge basis.)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    wavefunc: WaveFunction object</span>
+<span class="sd">        basis and amplitude data of wave function to be plotted</span>
+<span class="sd">    xrange: tupel(int, int)</span>
+<span class="sd">        lower and upper bound for values on the x axis</span>
+<span class="sd">    xlabel: str</span>
+<span class="sd">        x-axis label</span>
+<span class="sd">    ylabel: str</span>
+<span class="sd">        y-axis label</span>
+<span class="sd">    filename: None or str</span>
+<span class="sd">        file path and name (not including suffix)</span>
+<span class="sd">    fig_ax: None or tuple(Figure, Axes)</span>
+<span class="sd">        fig and ax objects for matplotlib figure addition</span>
+<span class="sd">    **kwargs:</span>
+<span class="sd">        keyword arguments passed on to axes.plot()</span>
+
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple(Figure, Axes)</span>
+<span class="sd">        matplotlib objects for further editing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">fig_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">fig_ax</span>
+
+    <span class="n">x_vals</span> <span class="o">=</span> <span class="n">wavefunc</span><span class="o">.</span><span class="n">basis_labels</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="o">.</span><span class="mi">75</span>
+
+    <span class="n">axes</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">x_vals</span><span class="p">,</span> <span class="n">wavefunc</span><span class="o">.</span><span class="n">amplitudes</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">x_vals</span> <span class="o">+</span> <span class="n">width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">x_vals</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabel</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">xrange</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">mplpdf</span><span class="o">.</span><span class="n">PdfPages</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">savefig</span><span class="p">()</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span></div>
+
+
+<div class="viewcode-block" id="wavefunction2d"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.plotting.wavefunction2d">[docs]</a><span class="k">def</span> <span class="nf">wavefunction2d</span><span class="p">(</span><span class="n">wavefunc</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">aspect_ratio</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">zero_calibrate</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a density plot of the amplitude of a real-valued wave function in 2 &quot;spatial&quot; dimensions.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    wavefunc: WaveFunctionOnGrid object</span>
+<span class="sd">        basis and amplitude data of wave function to be plotted</span>
+<span class="sd">    figsize: tuple(float, float)</span>
+<span class="sd">        width, height in inches</span>
+<span class="sd">    aspect_ratio: float</span>
+<span class="sd">        aspect ratio</span>
+<span class="sd">    zero_calibrate: bool</span>
+<span class="sd">        whether to calibrate plot to zero amplitude</span>
+<span class="sd">    filename: None or str</span>
+<span class="sd">        file path and name (not including suffix)</span>
+<span class="sd">    fig_ax: None or tuple(Figure, Axes)</span>
+<span class="sd">        fig and ax objects for matplotlib figure addition</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple(Figure, Axes)</span>
+<span class="sd">        matplotlib objects for further editing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">fig_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">fig_ax</span>
+
+    <span class="n">min_vals</span> <span class="o">=</span> <span class="n">wavefunc</span><span class="o">.</span><span class="n">gridspec</span><span class="o">.</span><span class="n">min_vals</span>
+    <span class="n">max_vals</span> <span class="o">=</span> <span class="n">wavefunc</span><span class="o">.</span><span class="n">gridspec</span><span class="o">.</span><span class="n">max_vals</span>
+
+    <span class="k">if</span> <span class="n">zero_calibrate</span><span class="p">:</span>
+        <span class="n">absmax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">wavefunc</span><span class="o">.</span><span class="n">amplitudes</span><span class="p">))</span>
+        <span class="n">imshow_minval</span> <span class="o">=</span> <span class="o">-</span><span class="n">absmax</span>
+        <span class="n">imshow_maxval</span> <span class="o">=</span> <span class="n">absmax</span>
+        <span class="n">cmap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;PRGn&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">imshow_minval</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">wavefunc</span><span class="o">.</span><span class="n">amplitudes</span><span class="p">)</span>
+        <span class="n">imshow_maxval</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">wavefunc</span><span class="o">.</span><span class="n">amplitudes</span><span class="p">)</span>
+        <span class="n">cmap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">viridis</span>
+    
+    <span class="n">m</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">wavefunc</span><span class="o">.</span><span class="n">amplitudes</span><span class="p">,</span> <span class="n">extent</span><span class="o">=</span><span class="p">[</span><span class="n">min_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">max_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">min_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">max_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span>
+                    <span class="n">aspect</span><span class="o">=</span><span class="n">aspect_ratio</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="n">imshow_minval</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">imshow_maxval</span><span class="p">,</span> <span class="n">origin</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">)</span>
+    <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">mplpdf</span><span class="o">.</span><span class="n">PdfPages</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">savefig</span><span class="p">()</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span></div>
+
+
+<div class="viewcode-block" id="contours"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.plotting.contours">[docs]</a><span class="k">def</span> <span class="nf">contours</span><span class="p">(</span><span class="n">x_vals</span><span class="p">,</span> <span class="n">y_vals</span><span class="p">,</span> <span class="n">func</span><span class="p">,</span> <span class="n">contour_vals</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aspect_ratio</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_colorbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Contour plot of a 2d function `func(x,y)`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x_vals: (ordered) list</span>
+<span class="sd">        x values for the x-y evaluation grid</span>
+<span class="sd">    y_vals: (ordered) list</span>
+<span class="sd">        y values for the x-y evaluation grid</span>
+<span class="sd">    func: function f(x,y)</span>
+<span class="sd">        function for which contours are to be plotted</span>
+<span class="sd">    contour_vals: list</span>
+<span class="sd">        contour values can be specified if so desired</span>
+<span class="sd">    aspect_ratio: float</span>
+<span class="sd">    show_colorbar: bool</span>
+<span class="sd">    filename: None or str</span>
+<span class="sd">        file path and name (not including suffix)</span>
+<span class="sd">    fig_ax: None or tuple(Figure, Axes)</span>
+<span class="sd">        fig and ax objects for matplotlib figure addition</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple(Figure, Axes)</span>
+<span class="sd">        matplotlib objects for further editing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">x_grid</span><span class="p">,</span> <span class="n">y_grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">x_vals</span><span class="p">,</span> <span class="n">y_vals</span><span class="p">)</span>
+    <span class="n">z_array</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">x_grid</span><span class="p">,</span> <span class="n">y_grid</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">fig_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">aspect_ratio</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">aspect_ratio</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_vals</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="p">(</span><span class="n">x_vals</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">x_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">w</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figaspect</span><span class="p">(</span><span class="n">aspect_ratio</span><span class="p">)</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">fig_ax</span>
+
+    <span class="n">im</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">contourf</span><span class="p">(</span><span class="n">x_grid</span><span class="p">,</span> <span class="n">y_grid</span><span class="p">,</span> <span class="n">z_array</span><span class="p">,</span> <span class="n">levels</span><span class="o">=</span><span class="n">contour_vals</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">viridis</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">show_colorbar</span><span class="p">:</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">mplpdf</span><span class="o">.</span><span class="n">PdfPages</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">savefig</span><span class="p">()</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span></div>
+
+
+<div class="viewcode-block" id="matrix"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.plotting.matrix">[docs]</a><span class="k">def</span> <span class="nf">matrix</span><span class="p">(</span><span class="n">data_matrix</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span> <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">zlabel</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a &quot;skyscraper&quot; plot and a 2d color-coded plot of a matrix.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    data_matrix: ndarray of float or complex</span>
+<span class="sd">        2d matrix data</span>
+<span class="sd">    mode: str from `constants.MODE_FUNC_DICT`</span>
+<span class="sd">        choice of processing function to be applied to data</span>
+<span class="sd">    xlabel: str</span>
+<span class="sd">    ylabel: str</span>
+<span class="sd">    zlabel: str</span>
+<span class="sd">    filename: None or str</span>
+<span class="sd">        file path and name (not including suffix)</span>
+<span class="sd">    fig_ax: None or tuple(Figure, (Axes, Axes))</span>
+<span class="sd">        fig and ax objects for matplotlib figure addition</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Figure, (Axes1, Axes2)</span>
+<span class="sd">        figure and axes objects for further editing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">fig_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+        <span class="n">ax1</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>
+        <span class="n">ax2</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="p">(</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax2</span><span class="p">)</span> <span class="o">=</span> <span class="n">fig_ax</span>
+
+    <span class="n">matsize</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_matrix</span><span class="p">)</span>
+    <span class="n">element_count</span> <span class="o">=</span> <span class="n">matsize</span> <span class="o">**</span> <span class="mi">2</span>  <span class="c1"># num. of elements to plot</span>
+
+    <span class="n">xgrid</span><span class="p">,</span> <span class="n">ygrid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">matsize</span><span class="p">),</span> <span class="nb">range</span><span class="p">(</span><span class="n">matsize</span><span class="p">))</span>
+    <span class="n">xgrid</span> <span class="o">=</span> <span class="n">xgrid</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span>  <span class="c1"># center bars on integer value of x-axis</span>
+    <span class="n">ygrid</span> <span class="o">=</span> <span class="n">ygrid</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span>  <span class="c1"># center bars on integer value of y-axis</span>
+
+    <span class="n">zbottom</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">element_count</span><span class="p">)</span>  <span class="c1"># all bars start at z=0</span>
+    <span class="n">dx</span> <span class="o">=</span> <span class="mf">0.75</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">element_count</span><span class="p">)</span>  <span class="c1"># width of bars in x-direction</span>
+    <span class="n">dy</span> <span class="o">=</span> <span class="n">dx</span>  <span class="c1"># width of bars in y-direction (same as x-direction)</span>
+
+    <span class="n">modefunction</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">MODE_FUNC_DICT</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span>
+    <span class="n">zheight</span> <span class="o">=</span> <span class="n">modefunction</span><span class="p">(</span><span class="n">data_matrix</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>  <span class="c1"># height of bars from matrix elements</span>
+    <span class="n">nrm</span> <span class="o">=</span> <span class="n">mpl</span><span class="o">.</span><span class="n">colors</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">zheight</span><span class="p">))</span>  <span class="c1"># &lt;-- normalize colors to max. data</span>
+    <span class="n">colors</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">viridis</span><span class="p">(</span><span class="n">nrm</span><span class="p">(</span><span class="n">zheight</span><span class="p">))</span>  <span class="c1"># list of colors for each bar</span>
+
+    <span class="c1"># skyscraper plot</span>
+
+    <span class="n">ax1</span><span class="o">.</span><span class="n">view_init</span><span class="p">(</span><span class="n">azim</span><span class="o">=</span><span class="mi">210</span><span class="p">,</span> <span class="n">elev</span><span class="o">=</span><span class="mi">23</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">bar3d</span><span class="p">(</span><span class="n">xgrid</span><span class="p">,</span> <span class="n">ygrid</span><span class="p">,</span> <span class="n">zbottom</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">zheight</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">w_xaxis</span><span class="o">.</span><span class="n">set_major_locator</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">IndexLocator</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">))</span>  <span class="c1"># set x-ticks to integers</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">w_yaxis</span><span class="o">.</span><span class="n">set_major_locator</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">IndexLocator</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">))</span>  <span class="c1"># set y-ticks to integers</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_zlim3d</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">zheight</span><span class="p">)])</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabel</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span><span class="p">)</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set_zlabel</span><span class="p">(</span><span class="n">zlabel</span><span class="p">)</span>
+
+    <span class="c1"># 2d plot</span>
+
+    <span class="n">ax2</span><span class="o">.</span><span class="n">matshow</span><span class="p">(</span><span class="n">modefunction</span><span class="p">(</span><span class="n">data_matrix</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">viridis</span><span class="p">)</span>
+
+    <span class="n">cax</span><span class="p">,</span> <span class="n">kw</span> <span class="o">=</span> <span class="n">mpl</span><span class="o">.</span><span class="n">colorbar</span><span class="o">.</span><span class="n">make_axes</span><span class="p">(</span><span class="n">ax2</span><span class="p">,</span> <span class="n">shrink</span><span class="o">=.</span><span class="mi">75</span><span class="p">,</span> <span class="n">pad</span><span class="o">=.</span><span class="mi">02</span><span class="p">)</span>  <span class="c1"># add colorbar with normalized range</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">mpl</span><span class="o">.</span><span class="n">colorbar</span><span class="o">.</span><span class="n">ColorbarBase</span><span class="p">(</span><span class="n">cax</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">viridis</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">nrm</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">mplpdf</span><span class="o">.</span><span class="n">PdfPages</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">savefig</span><span class="p">()</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="p">(</span><span class="n">ax1</span><span class="p">,</span> <span class="n">ax2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="evals_vs_paramvals"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.plotting.evals_vs_paramvals">[docs]</a><span class="k">def</span> <span class="nf">evals_vs_paramvals</span><span class="p">(</span><span class="n">specdata</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                       <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generates a simple plot of a set of eigenvalues as a function of one parameter.</span>
+<span class="sd">    The individual points correspond to the a provided array of parameter values.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    specdata: SpectrumData</span>
+<span class="sd">        object includes parameter name, values, and resulting eigenenergies</span>
+<span class="sd">    evals_count: int</span>
+<span class="sd">        number of desired eigenvalues (sorted from smallest to largest)</span>
+<span class="sd">    xlim: (float, float)</span>
+<span class="sd">        custom x-range for the plot</span>
+<span class="sd">    ylim: (float, float)</span>
+<span class="sd">        custom y-range for the plot</span>
+<span class="sd">    shift: float</span>
+<span class="sd">        apply a shift of this size to all eigenvalues</span>
+<span class="sd">    filename: str</span>
+<span class="sd">        write graphics and parameter set to file if path and filename are specified</span>
+<span class="sd">    fig_ax: None or tuple(Figure, Axes)</span>
+<span class="sd">        fig and ax objects for matplotlib figure addition</span>
+<span class="sd">    **kwargs:</span>
+<span class="sd">        keyword arguments passed on to axes.plot()</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple(Figure, Axes)</span>
+<span class="sd">        matplotlib objects for further editing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">fig_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">fig_ax</span>
+
+    <span class="n">x</span> <span class="o">=</span> <span class="n">specdata</span><span class="o">.</span><span class="n">param_vals</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">specdata</span><span class="o">.</span><span class="n">energy_table</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">:</span><span class="n">evals_count</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">xlim</span><span class="p">:</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">*</span><span class="n">xlim</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">ylim</span><span class="p">:</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">*</span><span class="n">ylim</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">shift</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">shift</span><span class="p">))</span>
+
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">specdata</span><span class="o">.</span><span class="n">param_name</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;energy&#39;</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">shift</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">mplpdf</span><span class="o">.</span><span class="n">PdfPages</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.pdf&#39;</span><span class="p">)</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">savefig</span><span class="p">()</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span></div>
+
+
+<div class="viewcode-block" id="matelem_vs_paramvals"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.plotting.matelem_vs_paramvals">[docs]</a><span class="k">def</span> <span class="nf">matelem_vs_paramvals</span><span class="p">(</span><span class="n">specdata</span><span class="p">,</span> <span class="n">select_elems</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;abs&#39;</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generates a simple plot of matrix elements as a function of one parameter.</span>
+<span class="sd">    The individual points correspond to the a provided array of parameter values.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    specdata: SpectrumData</span>
+<span class="sd">        object includes parameter name, values, and matrix elements</span>
+<span class="sd">    select_elems: int or list</span>
+<span class="sd">        either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples</span>
+<span class="sd">        for specific desired matrix elements</span>
+<span class="sd">    mode: str from `constants.MODE_FUNC_DICT`</span>
+<span class="sd">        choice of processing function to be applied to data</span>
+<span class="sd">    xlim: (float, float)</span>
+<span class="sd">        custom x-range for the plot</span>
+<span class="sd">    ylim: (float, float)</span>
+<span class="sd">        custom y-range for the plot</span>
+<span class="sd">    shift: float</span>
+<span class="sd">        apply a shift of this size to all eigenvalues</span>
+<span class="sd">    filename: str</span>
+<span class="sd">        write graphics and parameter set to file if path and filename are specified</span>
+<span class="sd">    fig_ax: None or tuple(Figure, Axes)</span>
+<span class="sd">        fig and ax objects for matplotlib figure addition</span>
+<span class="sd">    **kwargs:</span>
+<span class="sd">        keyword arguments passed on to axes.plot()</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple(Figure, Axes)</span>
+<span class="sd">        matplotlib objects for further editing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">fig_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">fig_ax</span>
+
+    <span class="k">if</span> <span class="n">xlim</span><span class="p">:</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="o">*</span><span class="n">xlim</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ylim</span><span class="p">:</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="o">*</span><span class="n">ylim</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">specdata</span><span class="o">.</span><span class="n">param_name</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;matrix element&#39;</span><span class="p">)</span>
+
+    <span class="n">modefunction</span> <span class="o">=</span> <span class="n">constants</span><span class="o">.</span><span class="n">MODE_FUNC_DICT</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">specdata</span><span class="o">.</span><span class="n">param_vals</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">select_elems</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">select_elems</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">row</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">y</span> <span class="o">=</span> <span class="n">modefunction</span><span class="p">(</span><span class="n">specdata</span><span class="o">.</span><span class="n">matrixelem_table</span><span class="p">[:,</span> <span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">])</span>
+                <span class="n">axes</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;,&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">index_pair</span> <span class="ow">in</span> <span class="n">select_elems</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">modefunction</span><span class="p">(</span><span class="n">specdata</span><span class="o">.</span><span class="n">matrixelem_table</span><span class="p">[:,</span> <span class="n">index_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">index_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+            <span class="n">axes</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">index_pair</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="s1">&#39;,&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">index_pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">_labellines_enabled</span><span class="p">:</span>
+        <span class="n">labelLines</span><span class="p">(</span><span class="n">axes</span><span class="o">.</span><span class="n">get_lines</span><span class="p">(),</span> <span class="n">zorder</span><span class="o">=</span><span class="mf">2.5</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">axes</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;center left&#39;</span><span class="p">,</span> <span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">mplpdf</span><span class="o">.</span><span class="n">PdfPages</span><span class="p">(</span><span class="n">filename</span> <span class="o">+</span> <span class="s1">&#39;.pdf&#39;</span><span class="p">)</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">savefig</span><span class="p">()</span>
+        <span class="n">out_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span></div>
+
+
+<div class="viewcode-block" id="print_matrix"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.plotting.print_matrix">[docs]</a><span class="k">def</span> <span class="nf">print_matrix</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">show_numbers</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">fig_ax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Pretty print a matrix, optionally printing the numerical values of the data.   </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">fig_ax</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">fig_ax</span>
+
+    <span class="n">m</span> <span class="o">=</span> <span class="n">axes</span><span class="o">.</span><span class="n">matshow</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">viridis</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">cbar</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axes</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">show_numbers</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">y_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">x_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">axes</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">x_index</span><span class="p">,</span> <span class="n">y_index</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{:.03f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="n">y_index</span><span class="p">,</span> <span class="n">x_index</span><span class="p">]),</span>
+                          <span class="n">va</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
+    <span class="c1"># shift the grid</span>
+    <span class="k">for</span> <span class="n">axis</span><span class="p">,</span> <span class="n">locs</span> <span class="ow">in</span> <span class="p">[(</span><span class="n">axes</span><span class="o">.</span><span class="n">xaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])),</span> <span class="p">(</span><span class="n">axes</span><span class="o">.</span><span class="n">yaxis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))]:</span>
+        <span class="n">axis</span><span class="o">.</span><span class="n">set_ticks</span><span class="p">(</span><span class="n">locs</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">minor</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">axis</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">ticks</span><span class="o">=</span><span class="n">locs</span><span class="p">,</span> <span class="n">ticklabels</span><span class="o">=</span><span class="n">locs</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s1">&#39;minor&#39;</span><span class="p">)</span>
+    <span class="n">axes</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="s1">&#39;major&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span></div>
+
+
+<div class="viewcode-block" id="spectrum_with_matrixelement"><a class="viewcode-back" href="../../../api-doc/functions.html#sc_qubits.utils.plotting.spectrum_with_matrixelement">[docs]</a><span class="k">def</span> <span class="nf">spectrum_with_matrixelement</span><span class="p">(</span><span class="n">spectrum_data</span><span class="p">,</span> <span class="n">matrixelement_table</span><span class="p">,</span> <span class="n">param_name</span><span class="o">=</span><span class="s1">&#39;external parameter&#39;</span><span class="p">,</span>
+                                <span class="n">energy_name</span><span class="o">=</span><span class="s1">&#39;energy&#39;</span><span class="p">,</span> <span class="n">matrixelement_name</span><span class="o">=</span><span class="s1">&#39;matrix element&#39;</span><span class="p">,</span> <span class="n">norm_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                <span class="n">x_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y_range</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;jet&#39;</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">line_width</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Takes a list of x-values,</span>
+<span class="sd">    a list of lists with each element containing the y-values corresponding to a particular curve,</span>
+<span class="sd">    a list of lists with each element containing the external parameter value (t-value)</span>
+<span class="sd">    that determines the color of each curve at each y-value,</span>
+<span class="sd">    and a normalization interval for the t-values.&quot;&quot;&quot;</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">norm_range</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">norm_range</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">matrixelement_table</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">matrixelement_table</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">spectrum_data</span><span class="o">.</span><span class="n">energy_table</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+        <span class="n">pts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">spectrum_data</span><span class="o">.</span><span class="n">param_vals</span><span class="p">,</span> <span class="n">spectrum_data</span><span class="o">.</span><span class="n">energy_table</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]])</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">segs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">pts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">pts</span><span class="p">[</span><span class="mi">1</span><span class="p">:]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">line_collection</span> <span class="o">=</span> <span class="n">mpl</span><span class="o">.</span><span class="n">collections</span><span class="o">.</span><span class="n">LineCollection</span><span class="p">(</span><span class="n">segs</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">colormap</span><span class="p">),</span>
+                                                         <span class="n">norm</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="o">*</span><span class="n">norm_range</span><span class="p">))</span>
+        <span class="n">line_collection</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="n">matrixelement_table</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span>
+        <span class="n">line_collection</span><span class="o">.</span><span class="n">set_linewidth</span><span class="p">(</span><span class="n">line_width</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">add_collection</span><span class="p">(</span><span class="n">line_collection</span><span class="p">)</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="n">param_name</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="n">energy_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">x_range</span><span class="p">:</span>
+        <span class="n">x_range</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">spectrum_data</span><span class="o">.</span><span class="n">param_vals</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">spectrum_data</span><span class="o">.</span><span class="n">param_vals</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">y_range</span><span class="p">:</span>
+        <span class="n">y_range</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">amin</span><span class="p">(</span><span class="n">spectrum_data</span><span class="o">.</span><span class="n">energy_table</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">spectrum_data</span><span class="o">.</span><span class="n">energy_table</span><span class="p">)]</span>
+
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="o">*</span><span class="n">x_range</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="o">*</span><span class="n">y_range</span><span class="p">)</span>
+
+    <span class="n">axcb</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">line_collection</span><span class="p">)</span>
+    <span class="n">axcb</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="n">matrixelement_name</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Jens Koch, Peter Groszkowski
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+# testing.py
+
+import nose
+import os
+import shutil
+
+def run():
+    """
+    Run the nose test scripts for sc_qubits.
+    """
+    # runs tests in sc_qubits.tests directory
+    if not os.path.exists('./_data'):
+        os.makedirs('./_data')
+    else:
+        raise RuntimeError('Temporary data directory ./_data already exists. Terminating to avoid unwanted overwriting.')
+    nose.run(defaultTest="sc_qubits.tests", argv=['nosetests', '-v', '--nologcapture'])
+    shutil.rmtree('./_data')

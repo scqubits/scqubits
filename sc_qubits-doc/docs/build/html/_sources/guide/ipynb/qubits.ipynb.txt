@@ -1,0 +1,201 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Qubits"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The `sc_qubits` library implements several superconducting qubits as classes. In the following, the definitions of the qubit Hamiltonians are discussed. The corresponding qubit classes provide a number of useful methods, which are summarized here. For a complete description see the API documentation."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2016-09-05T09:09:54.232690",
+     "start_time": "2016-09-05T09:09:53.862693"
+    },
+    "init_cell": true,
+    "pycharm": {
+     "is_executing": false
+    },
+    "scrolled": true
+   },
+   "outputs": [],
+   "source": [
+    "%matplotlib inline\n",
+    "%config InlineBackend.figure_format = 'svg'\n",
+    "\n",
+    "import sys\n",
+    "sys.path.insert(0, r\"C:\\Users\\drjen\\Dropbox\\shared_on_memon\\python\\sc_qubits package\")\n",
+    "\n",
+    "import sc_qubits as qubit\n",
+    "import sc_qubits.utils.plotting as plot\n",
+    "\n",
+    "\n",
+    "import numpy as np\n",
+    "from qutip import *"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Transmon qubit"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The transmon qubit [Koch2007] is described by the Hamiltonian\n",
+    "\\begin{equation}\n",
+    "H=4E_\\text{C}(\\hat{n}-n_g)^2+\\frac{1}{2}E_\\text{J}\\sum_n(|n\\rangle\\langle n+1|+\\text{h.c.}),\n",
+    "\\end{equation}\n",
+    "expressed in discrete charge basis.   $E_C$ is the charging energy, $E_J$ the Josephson energy, and $n_g$ the offset charge. Within the `Transmon` class, charge-basis representation is employed with a charge-number cutoff specified by `ncut`. This cutoff must be chosen sufficiently large for convergence.\n",
+    "\n",
+    ".. [Koch2007] Koch et al., Phys. Rev. A 76, 042319 (2007), https://arxiv.org/abs/cond-mat/0703002.\n",
+    " \n",
+    "\n",
+    "An instance of the transmon qubit is initialized as follows:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2016-08-24T18:34:39.842202",
+     "start_time": "2016-08-24T18:34:39.838471"
+    },
+    "pycharm": {
+     "is_executing": false
+    }
+   },
+   "outputs": [],
+   "source": [
+    "CPB = qubit.Transmon(\n",
+    "    EJ=30.02,\n",
+    "    EC=1.2,\n",
+    "    ng=0.3,\n",
+    "    ncut=31\n",
+    "    )"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Calculational methods related to Hamiltonian and energy spectra"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    ".. autosummary:: sc_qubits.Transmon.Hamiltonian  .. autosummary:: sc_qubits.Transmon.eigenvals  .. autosummary:: sc_qubits.Transmon.eigensys  .. autosummary:: sc_qubits.Transmon.get_spectrum_vs_paramvals"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Wavefunctions and visualization of eigenstates"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    ".. autosummary:: sc_qubits.Transmon.numberbasis_wavefunction\n.. autosummary:: sc_qubits.Transmon.phasebasis_wavefunction\n",
+    ".. autosummary:: sc_qubits.Transmon.plot_n_wavefunction\n",
+    ".. autosummary:: sc_qubits.Transmon.plot_phi_wavefunction"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Implemented operators"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "The following operators are implemented for use in matrix element calculations.\n",
+    "\n",
+    ".. autosummary:: sc_qubits.Transmon.n_operator\n",
+    ".. todo:: implement cos(phi), sin(phi), e^iphi"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### Computational and visualization of matrix elements"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    ".. autosummary:: sc_qubits.Transmon.matrixelement_table\n",
+    ".. autosummary:: sc_qubits.Transmon.plot_matrixelements\n",
+    ".. autosummary:: sc_qubits.Transmon.get_matelements_vs_paramvals\n",
+    ".. autosummary:: sc_qubits.Transmon.plot_matelements_vs_paramvals"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "celltoolbar": "Initialisation Cell",
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.5.5"
+  },
+  "pycharm": {
+   "stem_cell": {
+    "cell_type": "raw",
+    "metadata": {
+     "collapsed": false
+    },
+    "source": []
+   }
+  },
+  "toc": {
+   "toc_cell": false,
+   "toc_number_sections": true,
+   "toc_threshold": 6,
+   "toc_window_display": false
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
