@@ -83,7 +83,7 @@ class Fluxonium(QubitBaseClass):
 
         Returns
         -------
-        sparse.dia_matrix
+        ndarray
         """
         dimension = self.hilbertdim()
         diag_elements = [i * self.omega_p() for i in range(dimension)]

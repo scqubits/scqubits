@@ -64,8 +64,6 @@ class FullZeroPi(QubitBaseClass):
         desired dimension of the truncated quantum system
     """
 
-    __initialized = False
-
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
                  ECS=None, truncated_dim=None):
         self.EJ = EJ
@@ -107,7 +105,6 @@ class FullZeroPi(QubitBaseClass):
             ncut=self.ncut,
             truncated_dim=self.zeropi_cutoff
         )
-        self.__initialized = True
 
     def ECS(self):
         """ """
@@ -119,12 +116,22 @@ class FullZeroPi(QubitBaseClass):
         return None
 
     def omega_zeta(self):
-        """ """
+        """Returns (angular) frequency of the zeta mode"""
         return (8.0 * self.EL * self.EC) ** 0.5
 
     def hamiltonian(self, return_parts=False):
         """Returns Hamiltonian in basis obtained by discretizing phi, employing charge basis for theta, and Fock
-        basis for zeta."""
+        basis for zeta.
+
+        Parameters
+        ----------
+        return_parts: bool, optional
+            If set to true, `hamiltonian` returns [hamiltonian, evals, evecs, g_coupling_matrix]
+
+        Returns:
+        --------
+        scipy.sparse.csc_matrix or list
+        """
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
         zeropi_diag_hamiltonian = sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.float_)
@@ -173,19 +180,37 @@ class FullZeroPi(QubitBaseClass):
         return sparse.kron(op_eigen_basis, sparse.identity(zeta_dim, format='csc', dtype=np.complex_), format='csc')
 
     def i_d_dphi_operator(self, zeropi_evecs=None):
-        """"""
+        r"""
+    Operator :math:`i d/d\varphi`.
+
+    Returns:
+    --------
+        scipy.sparse.csc_matrix
+    """
         return self._zeropi_operator_in_product_basis(self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs)
 
     def n_theta_operator(self, zeropi_evecs=None):
-        """"""
+        r"""
+        Operator :math:`n_\theta`.
+
+        Returns:
+        --------
+        scipy.sparse.csc_matrix
+        """
         return self._zeropi_operator_in_product_basis(self._zeropi.n_theta_operator(), zeropi_evecs=zeropi_evecs)
 
     def phi_operator(self, zeropi_evecs=None):
-        """"""
+        r"""
+        Operator :math:`\varphi`.
+
+        Returns:
+        --------
+            scipy.sparse.csc_matrix
+        """
         return self._zeropi_operator_in_product_basis(self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs)
 
     def hilbertdim(self):
-        """ """
+        """Returns Hilbert space dimension"""
         return self.zeropi_cutoff * self.zeta_cutoff
 
     def _evals_calc(self, evals_count, hamiltonian_mat=None):

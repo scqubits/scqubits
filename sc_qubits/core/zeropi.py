@@ -117,8 +117,8 @@ class ZeroPi(QubitBaseClass):
         return None
 
     def hilbertdim(self):
-        """ """
-        pt_count = self.grid.pt_count
+        """Returns Hilbert space dimension"""
+        self.grid.pt_count
         return pt_count * (2 * self.ncut + 1)
 
     def potential(self, phi, theta):
@@ -183,11 +183,23 @@ class ZeroPi(QubitBaseClass):
         return sparse.identity(dim_theta, format='csc')
 
     def i_d_dphi_operator(self):
-        """ """
+        r"""
+        Operator :math:`i d/d\varphi`.
+
+        Returns:
+        --------
+            scipy.sparse.csc_matrix
+        """
         return sparse.kron(self.grid.first_derivative_matrix(prefactor=1j), self.identity_theta(), format='csc')
 
     def phi_operator(self):
-        """ """
+        r"""
+        Operator :math:`\varphi`.
+
+        Returns:
+        --------
+            scipy.sparse.csc_matrix
+        """
         min_val = self.grid.min_val
         max_val = self.grid.max_val
         pt_count = self.grid.pt_count
@@ -199,6 +211,13 @@ class ZeroPi(QubitBaseClass):
         return sparse.kron(phi_matrix, self.identity_theta(), format='csc')
 
     def n_theta_operator(self):
+        r"""
+        Operator :math:`n_\theta`.
+
+        Returns:
+        --------
+            scipy.sparse.csc_matrix
+        """
         dim_theta = 2 * self.ncut + 1
         diag_elements = np.arange(-self.ncut, self.ncut + 1)
         n_theta_matrix = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
@@ -206,6 +225,13 @@ class ZeroPi(QubitBaseClass):
         return sparse.kron(self.identity_phi(), n_theta_matrix, format='csc')
 
     def cos_theta_operator(self):
+        r"""
+        Operator :math:`\cos(\theta)`.
+
+        Returns:
+        --------
+            scipy.sparse.csc_matrix
+        """
         dim_theta = 2 * self.ncut + 1
         cos_theta_matrix = 0.5 * (sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)) +
                                   sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta))).tocsc()
@@ -213,6 +239,13 @@ class ZeroPi(QubitBaseClass):
         return sparse.kron(self.identity_phi(), cos_theta_matrix, format='csc')
 
     def sin_theta_operator(self):
+        r"""
+        Operator :math:`\sin(\theta)`.
+
+        Returns:
+        --------
+            scipy.sparse.csc_matrix
+        """
         dim_theta = 2 * self.ncut + 1
         sin_theta_matrix = - 0.5 * 1j * (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
                                          sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc()
@@ -220,7 +253,7 @@ class ZeroPi(QubitBaseClass):
         return sparse.kron(self.identity_phi(), sin_theta_matrix, format='csc')
 
     def plot_potential(self, theta_pts=100, contour_vals=None, aspect_ratio=None, filename=None):
-        """Make contour plot of the potential energy.
+        """Draw contour plot of the potential energy.
 
         Parameters
         ----------
@@ -242,7 +275,22 @@ class ZeroPi(QubitBaseClass):
         plot.contours(x_vals, y_vals, self.potential, contour_vals, aspect_ratio, filename)
         return None
 
-    def wavefunction(self, esys=None, theta_pts=100, which=0):
+    def wavefunction(self, esys=None, which=0, theta_pts=100):
+        """Returns a zero-pi wave function in `phi`, `theta` basis
+
+        Parameters
+        ----------
+        esys: ndarray, ndarray
+            eigenvalues, eigenvectors
+        which: int, optional
+             index of desired wave function (Default value = 0)
+        theta_pts: int, optional
+            number of points to be used in the 2pi interval
+
+        Returns
+        -------
+        WaveFunctionOnGrid object
+        """
         evals_count = max(which + 1, 3)
         if esys is None:
             _, evecs = self.eigensys(evals_count)
@@ -266,37 +314,32 @@ class ZeroPi(QubitBaseClass):
 
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, theta_pts=100, mode='abs', figsize=(10, 5), aspect_ratio=3,
-                          zero_calibrate=False, fig_ax=None):
-        """Different modes:
-        'abs_sqr': :math:`|\\psi|^2`
-        'abs':  :math:`|\\psi|`
-        'real': :math:`\\text{Re}(\\psi)`
-        'imag': :math:`\\text{Im}(\\psi)`
+    def plot_wavefunction(self, esys=None, which=0, theta_pts=100, mode='abs', zero_calibrate=False, figsize=(10, 5),
+                          aspect_ratio=3, fig_ax=None):
+        """Plots 2d phase-basis wave function.
 
         Parameters
         ----------
-        esys :
-
-        which :
-             (Default value = 0)
-        mode :
-             (Default value = 'abs')
-        figsize :
-             (Default value = (10)
-        5) :
-
-        aspect_ratio :
-             (Default value = 3)
-        zero_calibrate :
-             (Default value = False)
-        fig_ax :
-             (Default value = None)
+        esys: ndarray, ndarray
+            eigenvalues, eigenvectors as obtained from `.eigensystem()`
+        which: int, optional
+            index of wave function to be plotted (Default value = (0)
+        theta_pts: int, optional
+            number of points to be used in the 2pi interval
+        mode: str, optional
+            choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
+        zero_calibrate: bool, optional
+            if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
+        figsize: (float, float), optional
+            figure size specifications for matplotlib
+        aspect_ratio: float, optional
+            aspect ratio for matplotlib
+        fig_ax: Figure, Axes, optional
+            existing Figure, Axis if previous objects are to be appended
 
         Returns
         -------
         Figure, Axes
-
         """
         modefunction = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_pts=theta_pts, which=which)
