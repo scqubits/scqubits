@@ -21,7 +21,6 @@ def initialize():
     if cfg.progressbar_enabled:
         print("")
         update(0)
-    return None
 
 def update(progress_in_percent):
     """Updates display of simple, text-based progress bar. The bar length is given by `progress_in_percent`.
@@ -47,4 +46,3 @@ def update(progress_in_percent):
                                                             round(progress_in_percent * 100), status_string)
         sys.stdout.write(progress_display_string)
         sys.stdout.flush()
-    return None

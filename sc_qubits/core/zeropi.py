@@ -114,7 +114,6 @@ class ZeroPi(QubitBaseClass):
     def set_EC_via_ECS(self, ECS):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
         self.EC = 1 / (1 / ECS - 1 / self.ECJ)
-        return None
 
     def hilbertdim(self):
         """Returns Hilbert space dimension"""
@@ -186,8 +185,8 @@ class ZeroPi(QubitBaseClass):
         r"""
         Operator :math:`i d/d\varphi`.
 
-        Returns:
-        --------
+        Returns
+        -------
             scipy.sparse.csc_matrix
         """
         return sparse.kron(self.grid.first_derivative_matrix(prefactor=1j), self.identity_theta(), format='csc')
@@ -196,8 +195,8 @@ class ZeroPi(QubitBaseClass):
         r"""
         Operator :math:`\varphi`.
 
-        Returns:
-        --------
+        Returns
+        -------
             scipy.sparse.csc_matrix
         """
         min_val = self.grid.min_val
@@ -214,8 +213,8 @@ class ZeroPi(QubitBaseClass):
         r"""
         Operator :math:`n_\theta`.
 
-        Returns:
-        --------
+        Returns
+        -------
             scipy.sparse.csc_matrix
         """
         dim_theta = 2 * self.ncut + 1
@@ -228,8 +227,8 @@ class ZeroPi(QubitBaseClass):
         r"""
         Operator :math:`\cos(\theta)`.
 
-        Returns:
-        --------
+        Returns
+        -------
             scipy.sparse.csc_matrix
         """
         dim_theta = 2 * self.ncut + 1
@@ -242,8 +241,8 @@ class ZeroPi(QubitBaseClass):
         r"""
         Operator :math:`\sin(\theta)`.
 
-        Returns:
-        --------
+        Returns
+        -------
             scipy.sparse.csc_matrix
         """
         dim_theta = 2 * self.ncut + 1
@@ -272,8 +271,7 @@ class ZeroPi(QubitBaseClass):
 
         x_vals = np.linspace(min_val, max_val, pt_count)
         y_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, theta_pts)
-        plot.contours(x_vals, y_vals, self.potential, contour_vals, aspect_ratio, filename)
-        return None
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals, aspect_ratio, filename)
 
     def wavefunction(self, esys=None, which=0, theta_pts=100):
         """Returns a zero-pi wave function in `phi`, `theta` basis

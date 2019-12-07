@@ -113,7 +113,6 @@ class FullZeroPi(QubitBaseClass):
     def set_EC_via_ECS(self, ECS):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
         self.EC = 1 / (1 / ECS - 1 / self.ECJ)
-        return None
 
     def omega_zeta(self):
         """Returns (angular) frequency of the zeta mode"""
@@ -128,8 +127,8 @@ class FullZeroPi(QubitBaseClass):
         return_parts: bool, optional
             If set to true, `hamiltonian` returns [hamiltonian, evals, evecs, g_coupling_matrix]
 
-        Returns:
-        --------
+        Returns
+        -------
         scipy.sparse.csc_matrix or list
         """
         zeropi_dim = self.zeropi_cutoff
@@ -183,8 +182,8 @@ class FullZeroPi(QubitBaseClass):
         r"""
     Operator :math:`i d/d\varphi`.
 
-    Returns:
-    --------
+    Returns
+    -------
         scipy.sparse.csc_matrix
     """
         return self._zeropi_operator_in_product_basis(self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs)
@@ -193,8 +192,8 @@ class FullZeroPi(QubitBaseClass):
         r"""
         Operator :math:`n_\theta`.
 
-        Returns:
-        --------
+        Returns
+        -------
         scipy.sparse.csc_matrix
         """
         return self._zeropi_operator_in_product_basis(self._zeropi.n_theta_operator(), zeropi_evecs=zeropi_evecs)
@@ -203,8 +202,8 @@ class FullZeroPi(QubitBaseClass):
         r"""
         Operator :math:`\varphi`.
 
-        Returns:
-        --------
+        Returns
+        -------
             scipy.sparse.csc_matrix
         """
         return self._zeropi_operator_in_product_basis(self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs)

@@ -144,4 +144,3 @@ class SpectrumData(object):
         elif config.file_format is FileType.h5:
             filewrite_h5data(filename, [self.param_vals, self.energy_table, state_table_numpy, self.matrixelem_table],
                              [self.param_name, "spectrum energies", "states", "mat_elem"], self.system_params)
-        return None
