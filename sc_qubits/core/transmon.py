@@ -54,21 +54,36 @@ class Transmon(QubitBaseClass):
         self._sys_type = 'Transmon qubit'
 
     def n_operator(self):
-        """Returns charge operator `n` in charge basis"""
+        """Returns charge operator `n` in the charge basis"""
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
-        return np.diagflat(diag_elements)
+        return np.diag(diag_elements)
 
-    # TODO: Provide cos(phi), sin(phi), e^(iphi) operators
+    def exp_i_phi_operator(self):
+        """Returns operator :math:`e^{i\\varphi}` in the charge basis"""
+        dimension = self.hilbertdim()
+        entries = np.repeat(1.0, dimension - 1)
+        exp_op = np.diag(entries, -1)
+        return exp_op
+
+    def cos_phi_operator(self):
+        """Returns operator :math:`\\cos \\varphi` in the charge basis"""
+        cos_op = 0.5 * self.exp_i_phi_operator()
+        cos_op += cos_op.T
+        return cos_op
+
+    def sin_phi_operator(self):
+        """Returns operator :math:`\\sin \\varphi` in the charge basis"""
+        sin_op = -1j * 0.5 * self.exp_i_phi_operator()
+        sin_op += sin_op.H
+        return sin_op
 
     def hamiltonian(self):
         """Returns Hamiltonian in charge basis"""
         dimension = self.hilbertdim()
-        hamiltonian_mat = np.zeros((dimension, dimension), dtype=np.float_)
-        for i in range(dimension):
-            hamiltonian_mat[i][i] = 4.0 * self.EC * (i - self.ncut - self.ng) ** 2
-        for i in range(dimension - 1):
-            hamiltonian_mat[i][i + 1] = -self.EJ / 2.0
-            hamiltonian_mat[i + 1][i] = -self.EJ / 2.0
+        hamiltonian_mat = np.diag([4.0 * self.EC * (ind - self.ncut - self.ng) ** 2 for ind in range(dimension)])
+        ind = np.arange(dimension - 1)
+        hamiltonian_mat[ind, ind+1] = -self.EJ / 2.0
+        hamiltonian_mat[ind+1, ind] = -self.EJ / 2.0
         return hamiltonian_mat
 
     def hilbertdim(self):

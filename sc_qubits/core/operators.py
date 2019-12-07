@@ -12,7 +12,6 @@
 import numpy as np
 import scipy as sp
 from scipy import sparse
-import math
 
 
 def annihilation(dimension):
@@ -28,7 +27,7 @@ def annihilation(dimension):
     ndarray
         annihilation operator matrix, size dimension x dimension
     """
-    offdiag_elements = [math.sqrt(i) for i in range(1, dimension)]
+    offdiag_elements = np.sqrt(range(1, dimension))
     return np.diagflat(offdiag_elements, 1)
 
 
@@ -84,7 +83,7 @@ def annihilation_sparse(dimension):
     sparse.csc_matrix
         sparse annihilation operator matrix, size dimension x dimension
     """
-    offdiag_elements = [math.sqrt(i) for i in range(dimension)]
+    offdiag_elements = np.sqrt(range(dimension))
     return sp.sparse.dia_matrix((offdiag_elements, [1]), shape=(dimension, dimension)).tocsc()
 
 

@@ -54,8 +54,10 @@ The following operators are implemented for use in matrix element calculations.
 
 .. autosummary::
     sc_qubits.Transmon.n_operator
+    sc_qubits.Transmon.exp_i_phi_operator
+    sc_qubits.Transmon.cos_phi_operator
+    sc_qubits.Transmon.sin_phi_operator
 
-.. todo:: implement cos(phi), sin(phi), e^iphi
 
 
 Computation and visualization of matrix elements

@@ -60,8 +60,9 @@ The following operators are implemented for use in matrix element calculations.
 .. autosummary::
     sc_qubits.Fluxonium.n_operator
     sc_qubits.Fluxonium.phi_operator
-
-.. todo:: implement cos(phi), sin(phi)
+    sc_qubits.Fluxonium.exp_i_phi_operator
+    sc_qubits.Fluxonium.cos_phi_operator
+    sc_qubits.Fluxonium.sin_phi_operator
 
 
 Computation and visualization of matrix elements

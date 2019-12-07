@@ -24,7 +24,7 @@ cd sc_qubits
 pip install .
 ```
 
-TODO: Decide whether we want to use PyPi
+[//]: # (TODO: Decide whether we want to use PyPi)
 
 
 
@@ -33,8 +33,7 @@ Documentation
 
 The documentation for sc_qubits is available at:
 
-TODO: Add link to documentation
-
+[//]: # (TODO Add link to documentation)
 
 
 Contribute
@@ -44,13 +43,13 @@ You are welcome to contribute to sc_qubits development by forking this repositor
 or filing bug reports at the
 [issues page](http://TODO).
 
-TODO: fill in link
+[//]: # (TODO: fill in link)
 
 All contributions are acknowledged in the
 [contributors](http://TODO)
 section in the documentation.
 
-TODO: fill in link
+[//]: # (TODO: fill in link)
 
 All contributions are expected to be consistent with [PEP 8 -- Style Guide for Python Code](https://www.python.org/dev/peps/pep-0008/).
 

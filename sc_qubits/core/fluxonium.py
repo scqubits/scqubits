@@ -78,6 +78,23 @@ class Fluxonium(QubitBaseClass):
         dimension = self.hilbertdim()
         return 1j * (op.creation(dimension) - op.annihilation(dimension)) / (self.phi_osc() * math.sqrt(2))
 
+    def exp_i_phi_operator(self):
+        """Returns the :math:`e^{i\\phi}` operator in the LC harmonic oscillator basis"""
+        exponent = 1j * self.phi_operator()
+        return sp.linalg.expm(exponent)
+
+    def cos_phi_operator(self):
+        """Returns the :math:`\\cos \\phi` operator in the LC harmonic oscillator basis"""
+        cos_phi_op = 0.5 * self.exp_i_phi_operator()
+        cos_phi_op += cos_phi_op.conjugate().T
+        return cos_phi_op
+
+    def sin_phi_operator(self):
+        """Returns the :math:`\\sin \\phi` operator in the LC harmonic oscillator basis"""
+        sin_phi_op = -1j * 0.5 * self.exp_i_phi_operator()
+        sin_phi_op += sin_phi_op.conjugate().T
+        return sin_phi_op
+
     def hamiltonian(self):  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu et al., PRB 87, 024510 (2013)
 
@@ -90,8 +107,8 @@ class Fluxonium(QubitBaseClass):
         lc_osc_matrix = np.diagflat(diag_elements)
 
         exponent = 1j * self.phi_operator()
-        exp_matrix = 0.5 * sp.linalg.expm(exponent) * cmath.exp(1j * 2 * np.pi * self.flux)
-        cos_matrix = exp_matrix + np.conj(exp_matrix.T)
+        exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
+        cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
         return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential
