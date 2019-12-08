@@ -23,11 +23,11 @@ sc_qubits depends on the following Python open-source libraries:
 +----------------+--------------+-----------------------------------------------------+
 | **NumPy**      | 1.8+         | Not tested on lower versions.                       |
 +----------------+--------------+-----------------------------------------------------+
-| **SciPy**      | 0.15+        | Not tested on lower versions.                       |
+| **SciPy**      | 1.0+         | Not tested on lower versions.                       |
 +----------------+--------------+-----------------------------------------------------+
 | **Matplotlib** | 1.2.1+       | Some plotting does not work on lower versions.      |
 +----------------+--------------+-----------------------------------------------------+
-| **QuTiP**      |4.3           |  Needed for composite Hilbert spaces.               |
+| **QuTiP**      | 4.3          |  Needed for composite Hilbert spaces.               |
 +----------------+--------------+-----------------------------------------------------+
 
 

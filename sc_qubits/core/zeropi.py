@@ -23,7 +23,6 @@ from sc_qubits.core.data_containers import WaveFunctionOnGrid
 
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
 
-
 class ZeroPi(QubitBaseClass):
     r"""Zero-Pi Qubit
 
@@ -246,8 +245,8 @@ class ZeroPi(QubitBaseClass):
             scipy.sparse.csc_matrix
         """
         dim_theta = 2 * self.ncut + 1
-        sin_theta_matrix = - 0.5 * 1j * (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
-                                         sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc()
+        sin_theta_matrix = -0.5 * 1j * (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
+                                        sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc()
 
         return sparse.kron(self.identity_phi(), sin_theta_matrix, format='csc')
 
@@ -308,7 +307,8 @@ class ZeroPi(QubitBaseClass):
         phase = extract_phase(wavefunc_amplitudes)
         wavefunc_amplitudes = np.exp(-1j * phase) * wavefunc_amplitudes
 
-        grid2d = GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, pt_count], [-np.pi / 2, 3 * np.pi / 2, theta_pts]]))
+        grid2d = GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, pt_count],
+                                      [-np.pi / 2, 3 * np.pi / 2, theta_pts]]))
 
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 

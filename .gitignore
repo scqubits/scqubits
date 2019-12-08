@@ -3,3 +3,7 @@
 /examples/.ipynb_checkpoints/
 /docs/source/guide/ipynb/.ipynb_checkpoints/
 /sc_qubits/.ipynb_checkpoints/
+/sc_qubits/version.py
+/sc_qubits.egg-info/
+/build/
+/dist/

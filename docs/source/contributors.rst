@@ -28,4 +28,6 @@ Contributors
 	Anyone is welcome to contribute to sc_qubits.  If you are interested in helping, please let us know!
 
 
-Farid Hassani (IST Austria) - bug fix
+**Farid Hassani** (IST Austria) - Bug hunter
+
+**Nicholas Irons** - Code contributor

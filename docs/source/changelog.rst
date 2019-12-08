@@ -7,5 +7,5 @@
 Change Log
 **********
 
-Version 1 (unreleased)
+Version 1.0.0 (first release)
 ++++++++++++++++++++++++++++++
