@@ -228,7 +228,7 @@ def contours(x_vals, y_vals, func, contour_vals=None, aspect_ratio=None, show_co
     else:
         fig, axes = fig_ax
 
-    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis)
+    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis,origin="lower")
 
     if show_colorbar:
         fig.colorbar(im, ax=axes)

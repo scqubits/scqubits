@@ -227,15 +227,15 @@ class FluxQubit(QubitBaseClass):
             _, evecs = esys
 
         dimm = dimp = 2*self.ncut + 1
-        state_amplitudes = evecs[:, which].reshape(dimm, dimp)
+        state_amplitudes = np.reshape(evecs[:, which],(dimm,dimp))
 
         nm_vec = np.arange(-self.ncut, self.ncut+1)
         np_vec = np.arange(-self.ncut, self.ncut+1)
         phim_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
         phip_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
-        a_n_phim = np.exp(1j * np.outer(nm_vec, phim_vec)) / (2 * np.pi)**0.5
+        a_n_phim = np.exp(-1j * np.outer(phim_vec, nm_vec)) / (2 * np.pi)**0.5
         a_n_phip = np.exp(1j * np.outer(np_vec, phip_vec)) / (2 * np.pi)**0.5
-        wavefunc_amplitudes = np.matmul(a_n_phim.T,state_amplitudes)
+        wavefunc_amplitudes = np.matmul(a_n_phim,state_amplitudes)
         wavefunc_amplitudes = np.matmul(wavefunc_amplitudes,a_n_phip).T
         phase = extract_phase(wavefunc_amplitudes)
         wavefunc_amplitudes = np.exp(-1j * phase) * wavefunc_amplitudes
