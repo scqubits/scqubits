@@ -30,12 +30,12 @@ class FluxQubit(QubitBaseClass):
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
 
     Flux qubit where the two big junctions are assumed to be identical, and 
-    the larger junction has junction energy and capacitance reduced by 
+    the smaller junction has junction energy and capacitance reduced by 
     the multiplicative constant `alpha`.
-    :math:`H = -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
-    +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta
-    -2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2+2E_\text{J}
-    + E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2)`. Fix Hamiltonian XXXXXXXXX
+    :math:`H = H_\text{flux}=2E_\text{m}(n_m-n_{gm})^2+2E_\text{p}(n_p-n_{gp})^2
+                -2E_{J}\cos\phi_{p}\cos\phi_{m}-\alpha E_{J}\cos(2\pi f + 2\phi_{m}),`
+                `$E_\text{m}=\frac{e^2}{2(C_{J}+2\alpha C_{J}+ C_{g})}$, 
+                 $E_\text{p}=\frac{e^2}{2(C_{J}+C_{g})}$`
 
     Formulation of the Hamiltonian matrix proceeds by using charge basis for
     both degrees of freedom.
