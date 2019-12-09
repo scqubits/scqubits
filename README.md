@@ -24,7 +24,8 @@ cd sc_qubits
 pip install .
 ```
 
-[//]: # (TODO: Decide whether we want to use PyPi)
+[//]: # (TODO: Update once this is on PyPi)
+
 
 
 

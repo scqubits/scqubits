@@ -39,11 +39,6 @@ Operating System :: Microsoft :: Windows
 import os
 import sys
 
-try:
-    import numpy as np
-except:
-    np = None
-
 
 import setuptools
 EXTRA_KWARGS = {}
@@ -52,7 +47,7 @@ EXTRA_KWARGS = {}
 # all information about sc_qubits goes here
 MAJOR = 0
 MINOR = 1
-MICRO = 0
+MICRO = 1
 ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 REQUIRES = ['numpy (>=1.8)', 'scipy (>=1.0)', 'matplotlib(>=1.2.1)', 'qutip(>=4.3)']
@@ -60,7 +55,6 @@ EXTRAS_REQUIRE = {'graphics':['matplotlib-label-lines(>=0.3.6)']}
 INSTALL_REQUIRES = ['numpy (>=1.8)', 'scipy (>=1.0)', 'matplotlib(>=1.2.1)', 'qutip(>=4.3)']
 PACKAGES = ['sc_qubits', 'sc_qubits/core', 'sc_qubits/tests', 'sc_qubits/utils']
 
-INCLUDE_DIRS = [np.get_include()] if np is not None else []
 
 NAME = "sc_qubits"
 AUTHOR = ("Jens Koch, Peter Groszkowski")
@@ -90,13 +84,6 @@ def git_short_hash():
 FULLVERSION = VERSION
 if not ISRELEASED:
     FULLVERSION += '.dev'+str(MICRO)+git_short_hash()
-
-# NumPy's distutils reads in versions differently than
-# our fallback. To make sure that versions are added to
-# egg-info correctly, we need to add FULLVERSION to
-# EXTRA_KWARGS if NumPy wasn't imported correctly.
-if np is None:
-    EXTRA_KWARGS['version'] = FULLVERSION
 
 
 def write_version_py(filename='sc_qubits/version.py'):
@@ -128,8 +115,6 @@ write_version_py()
 setuptools.setup(name = NAME,
                  version = FULLVERSION,
                  packages = PACKAGES,
-                 include_package_data=True,
-                 include_dirs = INCLUDE_DIRS,
                  author = AUTHOR,
                  author_email = AUTHOR_EMAIL,
                  license = LICENSE,
