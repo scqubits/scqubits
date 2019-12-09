@@ -11,6 +11,7 @@
 
 import numpy as np
 from scipy import sparse
+import scipy.integrate as integrate
 
 import sc_qubits.utils.constants as constants
 import sc_qubits.utils.plotting as plot
@@ -234,7 +235,8 @@ class FluxQubit(QubitBaseClass):
         phip_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
         a_n_phim = np.exp(1j * np.outer(nm_vec, phim_vec)) / (2 * np.pi)**0.5
         a_n_phip = np.exp(1j * np.outer(np_vec, phip_vec)) / (2 * np.pi)**0.5
-        wavefunc_amplitudes = np.matmul(a_n_phim, a_n_phip).T
+        wavefunc_amplitudes = np.matmul(a_n_phim.T,state_amplitudes)
+        wavefunc_amplitudes = np.matmul(wavefunc_amplitudes,a_n_phip).T
         phase = extract_phase(wavefunc_amplitudes)
         wavefunc_amplitudes = np.exp(-1j * phase) * wavefunc_amplitudes
 
@@ -243,8 +245,8 @@ class FluxQubit(QubitBaseClass):
 
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, phi_pts=100, mode='abs', zero_calibrate=False, figsize=(10, 5),
-                          aspect_ratio=3, fig_ax=None):
+    def plot_wavefunction(self, esys=None, which=0, phi_pts=100, mode='abs', zero_calibrate=False, figsize=(10, 10),
+                          aspect_ratio=1, fig_ax=None):
         """Plots 2d phase-basis wave function.
 
         Parameters
