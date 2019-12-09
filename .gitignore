@@ -1,3 +1,10 @@
+.DS_Store
+.idea/
+
+# Packages
+*.egg
+*.egg-info
+
 /sc_qubits/tests/_data/
 /docs/build/
 /examples/.ipynb_checkpoints/
