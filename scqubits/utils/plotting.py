@@ -315,8 +315,7 @@ def matrix(data_matrix, mode='abs', xlabel='', ylabel='', zlabel='', filename=No
     return fig, (ax1, ax2)
 
 
-def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, shift=0, filename=None,
-                       fig_ax=None, **kwargs):
+def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, filename=None, fig_ax=None, **kwargs):
     """Generates a simple plot of a set of eigenvalues as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
 
@@ -330,8 +329,6 @@ def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, shift=0
         custom x-range for the plot
     ylim: (float, float)
         custom y-range for the plot
-    shift: float
-        apply a shift of this size to all eigenvalues
     filename: str
         write graphics and parameter set to file if path and filename are specified
     fig_ax: None or tuple(Figure, Axes)
@@ -353,17 +350,17 @@ def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, shift=0
     y = specdata.energy_table[:, 0:evals_count]
     if xlim:
         axes.set_xlim(*xlim)
-    else:
-        axes.set_xlim(np.amin(x), np.amax(x))
+#    else:
+#        axes.set_xlim(np.amin(x), np.amax(x))
 
     if ylim:
         axes.set_ylim(*ylim)
-    else:
-        axes.set_ylim(np.amin(y + shift), np.amax(y + shift))
+#    else:
+#        axes.set_ylim(np.amin(y), np.amax(y))
 
     axes.set_xlabel(specdata.param_name)
     axes.set_ylabel('energy')
-    axes.plot(x, y + shift, **kwargs)
+    axes.plot(x, y, **kwargs)
 
     if filename:
         out_file = mplpdf.PdfPages(filename + '.pdf')

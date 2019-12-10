@@ -340,7 +340,7 @@ class QubitBaseClass(QuantumSystem):
         return spectrumdata
 
     def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                xrange=False, yrange=False, shift=0, filename=None, fig_ax=None):
+                                xrange=False, yrange=False, filename=None, fig_ax=None):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -358,8 +358,6 @@ class QubitBaseClass(QuantumSystem):
             custom x-range for the plot (Default value = False)
         yrange: (float, float), optional
             custom y-range for the plot (Default value = False)
-        shift: float, optional
-            apply a shift of this size to all eigenvalues (Default value = 0)
         filename: str, optional
             write graphics and parameter set to file if path and filename are specified (Default value = None)
         fig_ax: tuple(Figure, Axes), optional
@@ -370,8 +368,8 @@ class QubitBaseClass(QuantumSystem):
         Figure, Axes
         """
         specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground)
-        return plot.evals_vs_paramvals(specdata, evals_count=evals_count, xlim=xrange, ylim=yrange, shift=shift,
-                                       filename=filename, fig_ax=fig_ax)
+        return plot.evals_vs_paramvals(specdata, evals_count=evals_count, xlim=xrange, ylim=yrange, filename=filename,
+                                       fig_ax=fig_ax)
 
     def plot_matelem_vs_paramvals(self, operator, param_name, param_vals, select_elems=4, mode='abs',
                                   xrange=False, yrange=False, filename=None, fig_ax=None):
