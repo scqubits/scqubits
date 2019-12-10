@@ -101,6 +101,8 @@ class ZeroPi(QubitBaseClass):
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
+
+        # TODO consider normalization of zeropi wavefunctions
         # evecs /= np.sqrt(self.grid.grid_spacing())
 
         evals, evecs = order_eigensystem(evals, evecs)
@@ -116,8 +118,7 @@ class ZeroPi(QubitBaseClass):
 
     def hilbertdim(self):
         """Returns Hilbert space dimension"""
-        self.grid.pt_count
-        return pt_count * (2 * self.ncut + 1)
+        return self.grid.pt_count * (2 * self.ncut + 1)
 
     def potential(self, phi, theta):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(
