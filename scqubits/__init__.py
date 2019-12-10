@@ -17,7 +17,7 @@ from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.transmon import Transmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-from scqubits.core.flux_qubit_orig_variables import FluxQubit
+from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.discretization import Grid1d
