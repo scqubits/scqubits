@@ -26,6 +26,8 @@ Contributors
 
 **Farid Hassani** (IST Austria) - Bug hunter
 
+**Ziwen Huang** (Northwestern University) - Bug hunter
+
 **Nicholas Irons** - Code contributor
 
 **Sydney Wang** (IMSA) - Code contributor
