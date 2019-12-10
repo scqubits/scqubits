@@ -25,5 +25,5 @@ from scqubits.core.discretization import Grid1d
 from scqubits.utils.constants import FileType
 from scqubits.utils.spectrum_utils import get_matrixelement_table
 
-#from scqubits.version import version as __version__
+from scqubits.version import version as __version__
 
