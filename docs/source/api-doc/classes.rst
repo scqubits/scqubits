@@ -27,6 +27,16 @@ Fluxonium
 
 ----------------------------------
 
+.. _classes-fluxqubit:
+
+FluxQubit
+---------
+
+.. autoclass:: sc_qubits.FluxQubit
+    :members:
+
+----------------------------------
+
 .. _classes-zeropi:
 
 ZeroPi

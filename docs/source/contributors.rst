@@ -8,11 +8,6 @@ Developers
 ************
 
 
-.. _developers-lead:
-
-Developers
-==========
-
 `Jens Koch <https://sites.northwestern.edu/koch/>`_ (Northwestern University)
 
 Peter Groszkowski (University of Chicago)
@@ -20,6 +15,7 @@ Peter Groszkowski (University of Chicago)
 
 .. _developers-contributors:
 
+============
 Contributors
 ============
 
