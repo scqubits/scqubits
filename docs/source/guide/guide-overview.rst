@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
 .. _overview:
@@ -7,15 +7,15 @@
 Guide Overview
 ******************
 
-This guide introduces the main building blocks of sc_qubits and demonstrates with examples how to use them.
+This guide introduces the main building blocks of scqubits and demonstrates with examples how to use them.
 Topics addressed here include the different implemented superconducting qubits, as well as the interface to
 QuTiP. The latter allows for simple creation of composite Hilbert spaces, consisting of multiple qubits and/or
 oscillators.
 
-This guide does not mean to be exhaustive. For a complete references see  the :ref:`apidoc` at the end which lists all relevant classes and functions of sc_qubits.
+This guide does not mean to be exhaustive. For a complete references see  the :ref:`apidoc` at the end which lists all relevant classes and functions of scqubits.
 
 
-.. _figure-sc_qubits_org:
+.. _figure-scqubits_org:
 
 .. figure:: ../tree-gen/tree.png
    :align: center

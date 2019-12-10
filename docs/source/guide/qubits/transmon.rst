@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
 Transmon Qubit
@@ -20,7 +20,7 @@ charge-number cutoff specified by ``ncut``. This cutoff must be chosen sufficien
 
 An instance of the transmon qubit is initialized as follows::
 
-   transmon = sc_qubits.Transmon(EJ=30.02,
+   transmon = scqubits.Transmon(EJ=30.02,
                                  EC=1.2,
                                  ng=0.3,
                                  ncut=31)
@@ -30,10 +30,10 @@ Calculational methods related to Hamiltonian and energy spectra
 
 .. autosummary::
 
-    sc_qubits.Transmon.hamiltonian
-    sc_qubits.Transmon.eigenvals
-    sc_qubits.Transmon.eigensys
-    sc_qubits.Transmon.get_spectrum_vs_paramvals
+    scqubits.Transmon.hamiltonian
+    scqubits.Transmon.eigenvals
+    scqubits.Transmon.eigensys
+    scqubits.Transmon.get_spectrum_vs_paramvals
 
 
 Wavefunctions and visualization of eigenstates
@@ -41,10 +41,10 @@ Wavefunctions and visualization of eigenstates
 
 .. autosummary::
 
-    sc_qubits.Transmon.numberbasis_wavefunction
-    sc_qubits.Transmon.phasebasis_wavefunction
-    sc_qubits.Transmon.plot_n_wavefunction
-    sc_qubits.Transmon.plot_phi_wavefunction
+    scqubits.Transmon.numberbasis_wavefunction
+    scqubits.Transmon.phasebasis_wavefunction
+    scqubits.Transmon.plot_n_wavefunction
+    scqubits.Transmon.plot_phi_wavefunction
 
 
 Implemented operators
@@ -53,10 +53,10 @@ Implemented operators
 The following operators are implemented for use in matrix element calculations.
 
 .. autosummary::
-    sc_qubits.Transmon.n_operator
-    sc_qubits.Transmon.exp_i_phi_operator
-    sc_qubits.Transmon.cos_phi_operator
-    sc_qubits.Transmon.sin_phi_operator
+    scqubits.Transmon.n_operator
+    scqubits.Transmon.exp_i_phi_operator
+    scqubits.Transmon.cos_phi_operator
+    scqubits.Transmon.sin_phi_operator
 
 
 
@@ -65,9 +65,9 @@ Computation and visualization of matrix elements
 
 .. autosummary::
 
-    sc_qubits.Transmon.matrixelement_table
-    sc_qubits.Transmon.plot_matrixelements
-    sc_qubits.Transmon.get_matelements_vs_paramvals
-    sc_qubits.Transmon.plot_matelem_vs_paramvals
+    scqubits.Transmon.matrixelement_table
+    scqubits.Transmon.plot_matrixelements
+    scqubits.Transmon.get_matelements_vs_paramvals
+    scqubits.Transmon.plot_matelem_vs_paramvals
 
 

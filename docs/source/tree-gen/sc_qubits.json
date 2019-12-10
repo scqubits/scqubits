@@ -259,6 +259,6 @@
             "name": "spectrum_utils"
         }
     ],
-    "name": "sc_qubits",
+    "name": "scqubits",
     "size": 2000
 }

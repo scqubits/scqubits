@@ -1,14 +1,14 @@
-sc_qubits: superconducting qubits in Python
+scqubits: superconducting qubits in Python
 ===========================================
 
 [J. Koch](https://github.com/jkochNU), [P. Groszkowski](https://github.com/petergthatsme)
 
 
-sc_qubits is an open-source Python library for simulating superconducting qubits. It is meant to give the user
+scqubits is an open-source Python library for simulating superconducting qubits. It is meant to give the user
 a convenient way to obtain energy spectra of common superconducting qubits, plot energy levels as a function of
 external parameters, calculate matrix elements etc. The library further provides an interface to QuTiP, making it
 easy to work with composite Hilbert spaces consisting of coupled superconducting qubits and harmonic modes.
-Internally, numerics within sc_qubits is carried out with the help of Numpy and Scipy; plotting capabilities rely on
+Internally, numerics within scqubits is carried out with the help of Numpy and Scipy; plotting capabilities rely on
 Matplotlib.
 
 
@@ -17,10 +17,10 @@ Matplotlib.
 Download and Installation
 -------------------------
 
-You can install sc_qubits locally via pip.
+You can install scqubits locally via pip.
 ```
-git clone https://github.com/Northwestern-Koch-Group/sc_qubits.git
-cd sc_qubits
+git clone https://github.com/Northwestern-Koch-Group/scqubits.git
+cd scqubits
 pip install .
 ```
 
@@ -32,7 +32,7 @@ pip install .
 Documentation
 -------------
 
-The documentation for sc_qubits is available at:
+The documentation for scqubits is available at:
 
 [//]: # (TODO Add link to documentation)
 
@@ -40,7 +40,7 @@ The documentation for sc_qubits is available at:
 Contribute
 ----------
 
-You are welcome to contribute to sc_qubits development by forking this repository and sending pull requests, 
+You are welcome to contribute to scqubits development by forking this repository and sending pull requests, 
 or filing bug reports at the
 [issues page](http://TODO).
 

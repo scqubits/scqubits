@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
 

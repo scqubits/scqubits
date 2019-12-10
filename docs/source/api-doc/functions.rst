@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
 .. _functions:
@@ -10,13 +10,13 @@ Functions
 Plotting
 ========
 
-.. automodule:: sc_qubits.utils.plotting
+.. automodule:: scqubits.utils.plotting
     :members:
 
 QuTiP Operators for Composite Hilbert Spaces
 ============================================
 
-.. automodule:: sc_qubits.core.operators
+.. automodule:: scqubits.core.operators
     :members:
 
 
@@ -26,11 +26,11 @@ Utility Functions
 Manipulating spectral data
 --------------------------
 
-.. automodule:: sc_qubits.utils.spectrum_utils
+.. automodule:: scqubits.utils.spectrum_utils
     :members:
 
 Writing data to disk
 --------------------------
 
-.. automodule:: sc_qubits.utils.file_write
+.. automodule:: scqubits.utils.file_write
     :members:

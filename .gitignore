@@ -5,12 +5,12 @@
 *.egg
 *.egg-info
 
-/sc_qubits/tests/_data/
+/scqubits/tests/_data/
 /docs/build/
 /examples/.ipynb_checkpoints/
 /docs/source/guide/ipynb/.ipynb_checkpoints/
-/sc_qubits/.ipynb_checkpoints/
-/sc_qubits/version.py
-/sc_qubits.egg-info/
+/scqubits/.ipynb_checkpoints/
+/scqubits/version.py
+/scqubits.egg-info/
 /build/
 /dist/

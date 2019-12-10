@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
 .. _classes:
@@ -12,7 +12,7 @@ Qubit Classes
 Transmon
 --------------
 
-.. autoclass:: sc_qubits.Transmon
+.. autoclass:: scqubits.Transmon
     :members:
 
 ----------------------------------
@@ -22,7 +22,7 @@ Transmon
 Fluxonium
 ---------
 
-.. autoclass:: sc_qubits.Fluxonium
+.. autoclass:: scqubits.Fluxonium
     :members:
 
 ----------------------------------
@@ -32,7 +32,7 @@ Fluxonium
 FluxQubit
 ---------
 
-.. autoclass:: sc_qubits.FluxQubit
+.. autoclass:: scqubits.FluxQubit
     :members:
 
 ----------------------------------
@@ -42,7 +42,7 @@ FluxQubit
 ZeroPi
 ------
 
-.. autoclass:: sc_qubits.ZeroPi
+.. autoclass:: scqubits.ZeroPi
     :members:
 
 ----------------------------------
@@ -52,7 +52,7 @@ ZeroPi
 FullZeroPi
 --------------
 
-.. autoclass:: sc_qubits.FullZeroPi
+.. autoclass:: scqubits.FullZeroPi
     :members:
 
 ----------------------------------
@@ -62,7 +62,7 @@ FullZeroPi
 Oscillator
 --------------
 
-.. autoclass:: sc_qubits.Oscillator
+.. autoclass:: scqubits.Oscillator
     :members:
 
 
@@ -76,7 +76,7 @@ Class for Composite Hilbert Spaces, Interface with QuTiP
 HilbertSpace
 --------------
 
-.. autoclass:: sc_qubits.HilbertSpace
+.. autoclass:: scqubits.HilbertSpace
     :members:
 
 
@@ -89,7 +89,7 @@ Data-container Classes
 SpectrumData
 --------------
 
-.. autoclass:: sc_qubits.core.data_containers.SpectrumData
+.. autoclass:: scqubits.core.data_containers.SpectrumData
     :members:
 
 ----------------------------------
@@ -99,7 +99,7 @@ SpectrumData
 WaveFunction
 --------------
 
-.. autoclass:: sc_qubits.core.data_containers.WaveFunction
+.. autoclass:: scqubits.core.data_containers.WaveFunction
     :members:
 
 ----------------------------------
@@ -109,7 +109,7 @@ WaveFunction
 WaveFunctionOnGrid
 ------------------
 
-.. autoclass:: sc_qubits.core.data_containers.WaveFunctionOnGrid
+.. autoclass:: scqubits.core.data_containers.WaveFunctionOnGrid
     :members:
 
 
@@ -122,7 +122,7 @@ Discretization Classes
 Grid1d
 --------------
 
-.. autoclass:: sc_qubits.Grid1d
+.. autoclass:: scqubits.Grid1d
     :members:
 
 ----------------------------------
@@ -132,5 +132,5 @@ Grid1d
 GridSpec
 --------------
 
-.. autoclass:: sc_qubits.core.discretization.GridSpec
+.. autoclass:: scqubits.core.discretization.GridSpec
     :members:

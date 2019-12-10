@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
 .. figure:: logo/scqubits-logo.png

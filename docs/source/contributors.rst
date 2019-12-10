@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
 .. _developers:
@@ -21,7 +21,7 @@ Contributors
 
 .. note::
 	
-	Anyone is welcome to contribute to sc_qubits.  If you are interested in helping, please let us know!
+	Anyone is welcome to contribute to scqubits.  If you are interested in helping, please let us know!
 
 
 **Farid Hassani** (IST Austria) - Bug hunter

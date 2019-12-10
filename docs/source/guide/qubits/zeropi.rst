@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
 Zero-Pi Qubit  (decoupled from zeta mode)
@@ -26,9 +26,9 @@ using charge basis for the ``theta`` variable.
 
 An instance of the Zero-Pi qubit is created as follows::
 
-   phi_grid = sc_qubits.Grid1d(-6*np.pi, 6*np.pi, 200)
+   phi_grid = scqubits.Grid1d(-6*np.pi, 6*np.pi, 200)
 
-   zero_pi = sc_qubits.ZeroPi(grid = phi_grid,
+   zero_pi = scqubits.ZeroPi(grid = phi_grid,
                               EJ   = 0.25,
                               EL   = 10.0**(-2),
                               ECJ  = 0.5,
@@ -47,10 +47,10 @@ Calculational methods related to Hamiltonian and energy spectra
 
 .. autosummary::
 
-    sc_qubits.ZeroPi.hamiltonian
-    sc_qubits.ZeroPi.eigenvals
-    sc_qubits.ZeroPi.eigensys
-    sc_qubits.ZeroPi.get_spectrum_vs_paramvals
+    scqubits.ZeroPi.hamiltonian
+    scqubits.ZeroPi.eigenvals
+    scqubits.ZeroPi.eigensys
+    scqubits.ZeroPi.get_spectrum_vs_paramvals
 
 
 Wavefunctions and visualization of eigenstates
@@ -58,8 +58,8 @@ Wavefunctions and visualization of eigenstates
 
 .. autosummary::
 
-    sc_qubits.ZeroPi.wavefunction
-    sc_qubits.ZeroPi.plot_wavefunction
+    scqubits.ZeroPi.wavefunction
+    scqubits.ZeroPi.plot_wavefunction
 
 
 Implemented operators
@@ -68,11 +68,11 @@ Implemented operators
 The following operators are implemented for use in matrix element calculations.
 
 .. autosummary::
-    sc_qubits.ZeroPi.i_d_dphi_operator
-    sc_qubits.ZeroPi.phi_operator
-    sc_qubits.ZeroPi.n_theta_operator
-    sc_qubits.ZeroPi.cos_theta_operator
-    sc_qubits.ZeroPi.sin_theta_operator
+    scqubits.ZeroPi.i_d_dphi_operator
+    scqubits.ZeroPi.phi_operator
+    scqubits.ZeroPi.n_theta_operator
+    scqubits.ZeroPi.cos_theta_operator
+    scqubits.ZeroPi.sin_theta_operator
 
 .. todo:: may want to implement additional ops
 
@@ -82,10 +82,10 @@ Computation and visualization of matrix elements
 
 .. autosummary::
 
-    sc_qubits.ZeroPi.matrixelement_table
-    sc_qubits.ZeroPi.plot_matrixelements
-    sc_qubits.ZeroPi.get_matelements_vs_paramvals
-    sc_qubits.ZeroPi.plot_matelem_vs_paramvals
+    scqubits.ZeroPi.matrixelement_table
+    scqubits.ZeroPi.plot_matrixelements
+    scqubits.ZeroPi.get_matelements_vs_paramvals
+    scqubits.ZeroPi.plot_matelem_vs_paramvals
 
 
 Utility method for setting charging energies
@@ -93,5 +93,5 @@ Utility method for setting charging energies
 
 .. autosummary::
 
-    sc_qubits.ZeroPi.set_EC_via_ECS
+    scqubits.ZeroPi.set_EC_via_ECS
 

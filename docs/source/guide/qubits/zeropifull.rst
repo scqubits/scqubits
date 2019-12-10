@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
 Full Zero-Pi Qubit  (incl. coupling to zeta mode)
@@ -25,9 +25,9 @@ qubit (realized by ``ZeroPi``)  on one hand, and the zeta LC oscillator on the o
 
 An instance of the full Zero-Pi qubit is created as follows::
 
-   phi_grid = sc_qubits.Grid1d(-6*np.pi, 6*np.pi, 200)
+   phi_grid = scqubits.Grid1d(-6*np.pi, 6*np.pi, 200)
 
-   zero_pi = sc_qubits.ZeroPi(grid = phi_grid,
+   zero_pi = scqubits.ZeroPi(grid = phi_grid,
                               EJ   = 0.25,
                               EL   = 10.0**(-2),
                               ECJ  = 0.5,
@@ -46,10 +46,10 @@ Calculational methods related to Hamiltonian and energy spectra
 
 .. autosummary::
 
-    sc_qubits.FullZeroPi.hamiltonian
-    sc_qubits.FullZeroPi.eigenvals
-    sc_qubits.FullZeroPi.eigensys
-    sc_qubits.FullZeroPi.get_spectrum_vs_paramvals
+    scqubits.FullZeroPi.hamiltonian
+    scqubits.FullZeroPi.eigenvals
+    scqubits.FullZeroPi.eigensys
+    scqubits.FullZeroPi.get_spectrum_vs_paramvals
 
 
 Wavefunctions and visualization of eigenstates
@@ -65,9 +65,9 @@ The following operators are implemented for use in matrix element calculations.
 
 .. autosummary::
 
-    sc_qubits.FullZeroPi.i_d_dphi_operator
-    sc_qubits.FullZeroPi.phi_operator
-    sc_qubits.FullZeroPi.n_theta_operator
+    scqubits.FullZeroPi.i_d_dphi_operator
+    scqubits.FullZeroPi.phi_operator
+    scqubits.FullZeroPi.n_theta_operator
 
 .. todo:: may want to implement additional ops
 
@@ -77,18 +77,18 @@ Computation and visualization of matrix elements
 
 .. autosummary::
 
-    sc_qubits.FullZeroPi.matrixelement_table
-    sc_qubits.FullZeroPi.plot_matrixelements
-    sc_qubits.FullZeroPi.get_matelements_vs_paramvals
-    sc_qubits.FullZeroPi.plot_matelem_vs_paramvals
-    sc_qubits.FullZeroPi.g_coupling_matrix
-    sc_qubits.FullZeroPi.g_phi_coupling_matrix
-    sc_qubits.FullZeroPi.g_theta_coupling_matrix
+    scqubits.FullZeroPi.matrixelement_table
+    scqubits.FullZeroPi.plot_matrixelements
+    scqubits.FullZeroPi.get_matelements_vs_paramvals
+    scqubits.FullZeroPi.plot_matelem_vs_paramvals
+    scqubits.FullZeroPi.g_coupling_matrix
+    scqubits.FullZeroPi.g_phi_coupling_matrix
+    scqubits.FullZeroPi.g_theta_coupling_matrix
 
 Utility method for setting charging energies
 --------------------------------------------
 
 .. autosummary::
 
-    sc_qubits.ZeroPi.set_EC_via_ECS
+    scqubits.ZeroPi.set_EC_via_ECS
 

@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
 
@@ -23,7 +23,7 @@ internally uses the :math:`E_C`-:math:`E_L` harmonic-oscillator basis [Zhu2013]_
 
 An instance of the fluxonium created as follows::
 
-   fluxonium = sc_qubits.Fluxonium(EJ = 8.9,
+   fluxonium = scqubits.Fluxonium(EJ = 8.9,
                                    EC = 2.5,
                                    EL = 0.5,
                                    flux = 0.33,
@@ -37,10 +37,10 @@ Calculational methods related to Hamiltonian and energy spectra
 
 .. autosummary::
 
-    sc_qubits.Fluxonium.hamiltonian
-    sc_qubits.Fluxonium.eigenvals
-    sc_qubits.Fluxonium.eigensys
-    sc_qubits.Fluxonium.get_spectrum_vs_paramvals
+    scqubits.Fluxonium.hamiltonian
+    scqubits.Fluxonium.eigenvals
+    scqubits.Fluxonium.eigensys
+    scqubits.Fluxonium.get_spectrum_vs_paramvals
 
 
 Wavefunctions and visualization of eigenstates
@@ -48,8 +48,8 @@ Wavefunctions and visualization of eigenstates
 
 .. autosummary::
 
-    sc_qubits.Fluxonium.wavefunction
-    sc_qubits.Fluxonium.plot_wavefunction
+    scqubits.Fluxonium.wavefunction
+    scqubits.Fluxonium.plot_wavefunction
 
 
 Implemented operators
@@ -58,11 +58,11 @@ Implemented operators
 The following operators are implemented for use in matrix element calculations.
 
 .. autosummary::
-    sc_qubits.Fluxonium.n_operator
-    sc_qubits.Fluxonium.phi_operator
-    sc_qubits.Fluxonium.exp_i_phi_operator
-    sc_qubits.Fluxonium.cos_phi_operator
-    sc_qubits.Fluxonium.sin_phi_operator
+    scqubits.Fluxonium.n_operator
+    scqubits.Fluxonium.phi_operator
+    scqubits.Fluxonium.exp_i_phi_operator
+    scqubits.Fluxonium.cos_phi_operator
+    scqubits.Fluxonium.sin_phi_operator
 
 
 Computation and visualization of matrix elements
@@ -70,9 +70,9 @@ Computation and visualization of matrix elements
 
 .. autosummary::
 
-    sc_qubits.Fluxonium.matrixelement_table
-    sc_qubits.Fluxonium.plot_matrixelements
-    sc_qubits.Fluxonium.get_matelements_vs_paramvals
-    sc_qubits.Fluxonium.plot_matelem_vs_paramvals
+    scqubits.Fluxonium.matrixelement_table
+    scqubits.Fluxonium.plot_matrixelements
+    scqubits.Fluxonium.get_matelements_vs_paramvals
+    scqubits.Fluxonium.plot_matelem_vs_paramvals
 
 

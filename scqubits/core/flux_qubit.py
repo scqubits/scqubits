@@ -1,6 +1,6 @@
 # flux_qubit.py
 #
-# This file is part of sc_qubits.
+# This file is part of scqubits.
 #
 #    Copyright (c) 2019, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -13,13 +13,13 @@ import numpy as np
 from scipy import sparse
 import scipy.integrate as integrate
 
-import sc_qubits.utils.constants as constants
-import sc_qubits.utils.plotting as plot
+import scqubits.utils.constants as constants
+import scqubits.utils.plotting as plot
 
-from sc_qubits.core.qubit_base import QubitBaseClass
-from sc_qubits.utils.spectrum_utils import extract_phase, order_eigensystem
-from sc_qubits.core.discretization import GridSpec
-from sc_qubits.core.data_containers import WaveFunctionOnGrid
+from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.utils.spectrum_utils import extract_phase, order_eigensystem
+from scqubits.core.discretization import GridSpec
+from scqubits.core.data_containers import WaveFunctionOnGrid
 
 
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------

@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
 .. _changelog:

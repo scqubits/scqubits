@@ -1,4 +1,4 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
 .. _install:
@@ -12,7 +12,7 @@ Installation
 General Requirements
 =====================
 
-sc_qubits depends on the following Python open-source libraries:
+scqubits depends on the following Python open-source libraries:
 
 .. cssclass:: table-striped
 
@@ -49,12 +49,12 @@ The following packages are optional:
 Installing via pip
 ==================
 
-Install sc_qubits using the Python package manager `pip <http://www.pip-installer.org/>`_.
+Install scqubits using the Python package manager `pip <http://www.pip-installer.org/>`_.
 
 .. code-block:: bash
 
-   git clone https://github.com/Northwestern-Koch-Group/sc_qubits.git
-   cd sc_qubits
+   git clone https://github.com/Northwestern-Koch-Group/scqubits.git
+   cd scqubits
    pip install .
 
 .. _install-verify:
@@ -62,9 +62,9 @@ Install sc_qubits using the Python package manager `pip <http://www.pip-installe
 Verifying the Installation
 ==========================
 
-sc_qubits includes a set of nose tests that can be executed to verify that installation was successful.
+scqubits includes a set of nose tests that can be executed to verify that installation was successful.
 
 .. code-block:: python
 
-   import sc_qubits.testing as sctest
+   import scqubits.testing as sctest
    sctest.run()

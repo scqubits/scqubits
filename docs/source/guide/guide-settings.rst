@@ -1,10 +1,10 @@
-.. sc_qubits
+.. scqubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
 .. _settings:
 
 *************************************
-Modifying Internal sc_qubits Settings
+Modifying Internal scqubits Settings
 *************************************
 
 .. _settings-params:
@@ -12,7 +12,7 @@ Modifying Internal sc_qubits Settings
 User Accessible Parameters
 ==========================
 
-sc_qubits has a few internal parameters that can be changed by the user:
+scqubits has a few internal parameters that can be changed by the user:
 
 .. tabularcolumns:: | p{3cm} | p{3cm} | p{3cm} |
 
@@ -34,8 +34,8 @@ Example: Changing Settings
 
 Modifying the settings is simple, for example::
 
->>> sc_qubits.settings.progressbar_enabled = False
->>> sc_qubits.settings.file_format = FileType.csv
+>>> scqubits.settings.progressbar_enabled = False
+>>> scqubits.settings.file_format = FileType.csv
 
 
 

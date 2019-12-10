@@ -1,6 +1,6 @@
 # plotting.py
 #
-# This file is part of sc_qubits.
+# This file is part of scqubits.
 #
 #    Copyright (c) 2019, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -20,7 +20,7 @@ try:
 except ImportError:
     _labellines_enabled = False
 
-import sc_qubits.utils.constants as constants
+import scqubits.utils.constants as constants
 
 
 mpl.rcParams['font.sans-serif'] = "Arial"

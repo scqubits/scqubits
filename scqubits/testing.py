@@ -1,6 +1,6 @@
 # testing.py
 #
-# This file is part of sc_qubits.
+# This file is part of scqubits.
 #
 #    Copyright (c) 2019, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -15,12 +15,12 @@ import shutil
 
 def run():
     """
-    Run the nose test scripts for sc_qubits.
+    Run the nose test scripts for scqubits.
     """
-    # runs tests in sc_qubits.tests directory
+    # runs tests in scqubits.tests directory
     if not os.path.exists('./_data'):
         os.makedirs('./_data')
     else:
         raise RuntimeError('Temporary data directory ./_data already exists. Terminating to avoid unwanted overwriting.')
-    nose.run(defaultTest="sc_qubits.tests", argv=['nosetests', '-v', '--nologcapture'])
+    nose.run(defaultTest="scqubits.tests", argv=['nosetests', '-v', '--nologcapture'])
     shutil.rmtree('./_data')

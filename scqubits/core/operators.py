@@ -1,6 +1,6 @@
 # operators.py
 #
-# This file is part of sc_qubits.
+# This file is part of scqubits.
 #
 #    Copyright (c) 2019, Jens Koch and Peter Groszkowski
 #    All rights reserved.

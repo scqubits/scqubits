@@ -1,15 +1,15 @@
-"""sc_qubits: superconducting qubits in Python
+"""scqubits: superconducting qubits in Python
 ===========================================
 
-sc_qubits is an open-source Python library for simulating superconducting qubits. It is meant to give the user
+scqubits is an open-source Python library for simulating superconducting qubits. It is meant to give the user
 a convenient way to obtain energy spectra of common superconducting qubits, plot energy levels as a function of
 external parameters, calculate matrix elements etc. The library further provides an interface to QuTiP, making it
 easy to work with composite Hilbert spaces consisting of coupled superconducting qubits and harmonic modes.
-Internally, numerics within sc_qubits is carried out with the help of Numpy and Scipy; plotting capabilities rely on
+Internally, numerics within scqubits is carried out with the help of Numpy and Scipy; plotting capabilities rely on
 Matplotlib.
 """
 #
-# This file is part of sc_qubits.
+# This file is part of scqubits.
 #
 #    Copyright (c) 2019, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -44,7 +44,7 @@ import setuptools
 EXTRA_KWARGS = {}
 
 
-# all information about sc_qubits goes here
+# all information about scqubits goes here
 MAJOR = 0
 MINOR = 1
 MICRO = 1
@@ -53,10 +53,10 @@ VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 REQUIRES = ['numpy (>=1.8)', 'scipy (>=1.0)', 'matplotlib(>=1.2.1)', 'qutip(>=4.3)']
 EXTRAS_REQUIRE = {'graphics':['matplotlib-label-lines(>=0.3.6)']}
 INSTALL_REQUIRES = ['numpy (>=1.8)', 'scipy (>=1.0)', 'matplotlib(>=1.2.1)', 'qutip(>=4.3)']
-PACKAGES = ['sc_qubits', 'sc_qubits/core', 'sc_qubits/tests', 'sc_qubits/utils']
+PACKAGES = ['scqubits', 'scqubits/core', 'scqubits/tests', 'scqubits/utils']
 
 
-NAME = "sc_qubits"
+NAME = "scqubits"
 AUTHOR = ("Jens Koch, Peter Groszkowski")
 AUTHOR_EMAIL = ("jens-koch@northwestern.edu, piotrekg@gmail.com")
 LICENSE = "BSD"
@@ -86,9 +86,9 @@ if not ISRELEASED:
     FULLVERSION += '.dev'+str(MICRO)+git_short_hash()
 
 
-def write_version_py(filename='sc_qubits/version.py'):
+def write_version_py(filename='scqubits/version.py'):
     cnt = """\
-# THIS FILE IS GENERATED FROM SC_QUBITS SETUP.PY
+# THIS FILE IS GENERATED FROM scqubits SETUP.PY
 short_version = '%(version)s'
 version = '%(fullversion)s'
 release = %(isrelease)s
@@ -103,11 +103,11 @@ release = %(isrelease)s
 local_path = os.path.dirname(os.path.abspath(sys.argv[0]))
 os.chdir(local_path)
 sys.path.insert(0, local_path)
-sys.path.insert(0, os.path.join(local_path, 'sc_qubits'))  # to retrive _version
+sys.path.insert(0, os.path.join(local_path, 'scqubits'))  # to retrive _version
 
 # always rewrite _version
-if os.path.exists('sc_qubits/version.py'):
-    os.remove('sc_qubits/version.py')
+if os.path.exists('scqubits/version.py'):
+    os.remove('scqubits/version.py')
 
 write_version_py()
 
