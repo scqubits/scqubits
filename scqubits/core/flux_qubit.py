@@ -29,16 +29,30 @@ class FluxQubit(QubitBaseClass):
 
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
 
-    Flux qubit where the two big junctions are assumed to be identical, and 
-    the smaller junction has junction energy and capacitance reduced by 
-    the multiplicative constant `alpha`.
-    :math:`H = H_\text{flux}=2E_\text{m}(n_m-n_{gm})^2+2E_\text{p}(n_p-n_{gp})^2
-                -2E_{J}\cos\phi_{p}\cos\phi_{m}-\alpha E_{J}\cos(2\pi f + 2\phi_{m}),`
-                `$E_\text{m}=\frac{e^2}{2(C_{J}+2\alpha C_{J}+ C_{g})}$, 
-                 $E_\text{p}=\frac{e^2}{2(C_{J}+C_{g})}$`
+    The original flux qubit as defined in [1], where the junctions are allowed to have varying junction
+    energies and capacitances to allow for junction assymetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and 
+    :math:`E_{J3}=\alpha E_J` where :math:`0\le \alpha \le 1`. The same relations typically hold
+    for the junction capacitances. The Hamiltonian :math:`H = H_\text{flux}=(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj})
+    -E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}), \; i,j\in\{1,2\}` is represented
+    in the charge basis for both degrees of freedom. Initialize with, for example:
+    
+        EJ = 35.0
+        ALPHA = 0.6
 
-    Formulation of the Hamiltonian matrix proceeds by using charge basis for
-    both degrees of freedom.
+        flux_qubit = qubit.FluxQubit(
+            EJ1 = EJ, 
+            EJ2 = EJ, 
+            EJ3 = ALPHA*EJ, 
+            ECJ1 = 1.0, 
+            ECJ2 = 1.0, 
+            ECJ3 = 1.0/ALPHA, 
+            ECg1 = 50.0, 
+            ECg2 = 50.0, 
+            ng1 = 0.0, 
+            ng2 = 0.0, 
+            flux = 0.5, 
+            ncut = 10,
+            )
 
     Parameters
     ----------
@@ -80,7 +94,6 @@ class FluxQubit(QubitBaseClass):
         self._sys_type = 'flux qubit without disorder in the two large junctions'
 
     def _define_parameters(self):
-        """Defines parameters necessary for defining the Hamiltonian"""
         self.CJ1 = 1. / (2*self.ECJ1) #capacitances in units where e is set to 1
         self.CJ2 = 1. / (2*self.ECJ2)
         self.CJ3 = 1. / (2*self.ECJ3)
@@ -110,18 +123,16 @@ class FluxQubit(QubitBaseClass):
         return evals, evecs
 
     def hilbertdim(self):
-        """Returns Hilbert space dimension"""
+        """Return Hilbert space dimension."""
         return (2 * self.ncut + 1)**2
 
     def potential(self, phi1, phi2):
-        """
-        Returns the value of the potential energy at the location
-        specified by phim and phip, disregarding constants.
-        """
-        return (-self.EJ1*np.cos(phi1) - self.EJ2*np.cos(phi2) - self.EJ3*np.cos(2.0*np.pi*self.flux + phi1 - phi2))
+        """Return value of the potential energy at phi1 and phi2, disregarding constants."""
+        return (-self.EJ1*np.cos(phi1) - self.EJ2*np.cos(phi2) 
+                - self.EJ3*np.cos(2.0*np.pi*self.flux + phi1 - phi2))
 
     def kineticmat(self):
-        """Returns the kinetic energy matrix."""
+        """Return the kinetic energy matrix."""
         dim = 2*self.ncut + 1
         ECmat = self.ECmat
         
@@ -135,7 +146,7 @@ class FluxQubit(QubitBaseClass):
 
 
     def potentialmat(self):
-        """Returns the potential energy matrix for the potential."""
+        """Return the potential energy matrix for the potential."""
         dim = 2*self.ncut + 1
         
         U = 0.
@@ -147,31 +158,28 @@ class FluxQubit(QubitBaseClass):
         return U
 
     def hamiltonian(self):
-        """Returns Hamiltonian in basis obtained by employing charge basis for both degrees of freedom"""
+        """Return Hamiltonian in basis obtained by employing charge basis for both degrees of freedom"""
         return self.kineticmat() + self.potentialmat()
 
     def identity(self):
+        """Return identity matrix"""
         dim = 2 * self.ncut + 1
         return np.eye(dim)
     
     def n1_operator(self):
+        r"""Return charge number operator conjugate to :math:`\phi1`"""
         dim = 2 * self.ncut + 1
         diag_elements_1 = np.arange(-self.ncut + self.ng1, self.ncut + 1 + self.ng1, dtype=np.complex128)
         return np.diag(diag_elements_1)
         
     def n2_operator(self):
+        r"""Return charge number operator conjugate to :math:`\phi2`."""
         dim = 2 * self.ncut + 1
         diag_elements_2 = np.arange(-self.ncut + self.ng2, self.ncut + 1 + self.ng2, dtype=np.complex128)
         return np.diag(diag_elements_2)
         
     def e_plusiphi_operator(self):
-        r"""
-        Operator :math:`\e^(iphi)`.
-
-        Returns
-        -------
-            np.ndarray
-        """
+        r"""Operator :math:`\e^(iphi)`."""
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim-1, dtype=np.complex128)
         e_plusiphi_matrix = np.diag(off_diag_elements, k=1)
@@ -179,13 +187,7 @@ class FluxQubit(QubitBaseClass):
         return e_plusiphi_matrix
     
     def e_minusiphi_operator(self):
-        r"""
-        Operator :math:`\e^(-iphi)`.
-
-        Returns
-        -------
-            np.ndarray
-        """
+        r"""Operator :math:`\e^(-iphi)`."""
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim-1, dtype=np.complex128)
         e_minusiphi_matrix = np.diag(off_diag_elements, k=-1)
@@ -193,7 +195,8 @@ class FluxQubit(QubitBaseClass):
         return e_minusiphi_matrix
     
     def plot_potential(self, phi_pts=100, contour_vals=None, aspect_ratio=None, filename=None):
-        """Draw contour plot of the potential energy.
+        """
+        Draw contour plot of the potential energy.
 
         Parameters
         ----------
@@ -211,7 +214,8 @@ class FluxQubit(QubitBaseClass):
         return plot.contours(x_vals, y_vals, self.potential, contour_vals, aspect_ratio, filename)
 
     def wavefunction(self, esys=None, which=0, phi_pts=100):
-        """Returns a flux qubit wave function in `phim`, `phip` basis
+        """
+        Return a flux qubit wave function in `phi1`, `phi2` basis
 
         Parameters
         ----------
