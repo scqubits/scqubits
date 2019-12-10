@@ -17,6 +17,7 @@ from sc_qubits.core.fluxonium import Fluxonium
 from sc_qubits.core.transmon import Transmon
 from sc_qubits.core.zeropi import ZeroPi
 from sc_qubits.core.zeropi_full import FullZeroPi
+from sc_qubits.core.flux_qubit import FluxQubit
 from sc_qubits.core.harmonic_osc import Oscillator
 from sc_qubits.core.hilbert_space import HilbertSpace
 from sc_qubits.core.discretization import Grid1d
@@ -24,5 +25,5 @@ from sc_qubits.core.discretization import Grid1d
 from sc_qubits.utils.constants import FileType
 from sc_qubits.utils.spectrum_utils import get_matrixelement_table
 
-from sc_qubits.version import version as __version__
+#from sc_qubits.version import version as __version__
 
