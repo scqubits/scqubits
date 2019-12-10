@@ -10,7 +10,7 @@
 ############################################################################
 
 import numpy as np
-from scipy import sparse
+import scipy as sp
 import scipy.integrate as integrate
 
 import scqubits.utils.constants as constants
@@ -42,18 +42,15 @@ class FluxQubit(QubitBaseClass):
 
     Parameters
     ----------
-    EJ: float
-        Josephson energy of the two big junctions
-    ECJ: float
-        charging energy associated with the two big junctions
-    ECg: float
-        charging energy associated with the capacitive coupling to ground
-    alpha: float
-        multiplicative constant reducing EJ and increasing ECJ of the small junction
-    ng1: float
-        offset charge associated with island 1
-    ng2: float
-        offset charge associated with island 2
+    EJ*: float
+        Josephson energy of the *th junction in GHz; typically
+        EJ1 \approx EJ2, with EJ3 = \alpha EJ1 with \alpha < 1
+    ECJ*: float
+        charging energy associated with the *th junction in GHz
+    ECg*: float
+        charging energy associated with the capacitive coupling to ground for the two islands in GHz
+    ng*: float
+        offset charge associated with island *
     flux: float
         magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
     ncut: int
@@ -62,41 +59,53 @@ class FluxQubit(QubitBaseClass):
         desired dimension of the truncated quantum system
     """
 
-    def __init__(self, EJ, ECJ, ECg, alpha, ng1, ng2, flux, ncut, truncated_dim=None):
-        self.EJ = EJ
-        self.ECJ = ECJ
-        self.ECg = ECg
-        self.alpha = alpha
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, ncut, truncated_dim=None):
+        self.EJ1 = EJ1
+        self.EJ2 = EJ2
+        self.EJ3 = EJ3
+        self.ECJ1 = ECJ1
+        self.ECJ2 = ECJ2
+        self.ECJ3 = ECJ3
+        self.ECg1 = ECg1
+        self.ECg2 = ECg2
         self.ng1 = ng1
         self.ng2 = ng2
         self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._define_parameters()
+        self._define_capacitance_matrix()
+        self._define_charging_energy_matrix()
         
         self._sys_type = 'flux qubit without disorder in the two large junctions'
 
-
     def _define_parameters(self):
         """Defines parameters necessary for defining the Hamiltonian"""
-        self.ngm = self.ng1 - self.ng2
-        self.ngp = self.ng1 + self.ng2
-        self.CJ = 1. / (2*self.ECJ) #capacitances in units where e is set to 1
-        self.Cg = 1. / (2*self.ECg)
-        self.Cp = self.CJ + self.Cg
-        self.Cm = self.CJ + 2.*self.alpha*self.CJ + self.Cg
-        self.ECm = 1. / (2.*self.Cm)
-        self.ECp = 1. / (2.*self.Cp)
+        self.CJ1 = 1. / (2*self.ECJ1) #capacitances in units where e is set to 1
+        self.CJ2 = 1. / (2*self.ECJ2)
+        self.CJ3 = 1. / (2*self.ECJ3)
+        self.Cg1 = 1. / (2*self.ECg1)
+        self.Cg2 = 1. / (2*self.ECg2)
+    
+    def _define_capacitance_matrix(self):
+        Cmat = np.zeros((2,2))
+        Cmat[0,0] = self.CJ1 + self.CJ3 + self.Cg1
+        Cmat[1,1] = self.CJ2 + self.CJ3 + self.Cg2
+        Cmat[0,1] = -self.CJ3
+        Cmat[1,0] = -self.CJ3
+        self.Cmat = Cmat
         
+    def _define_charging_energy_matrix(self):
+        self.ECmat = np.linalg.inv(self.Cmat) / 2.
+    
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
+        evals = sp.linalg.eigh(hamiltonian_mat, eigvals=(0,evals_count-1), eigvals_only=True)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
-        
+        evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals=(0,evals_count-1), eigvals_only=False)
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
@@ -104,88 +113,85 @@ class FluxQubit(QubitBaseClass):
         """Returns Hilbert space dimension"""
         return (2 * self.ncut + 1)**2
 
-    def potential(self, phim, phip):
+    def potential(self, phi1, phi2):
         """
         Returns the value of the potential energy at the location
         specified by phim and phip, disregarding constants.
         """
-        return (-2.0*self.EJ*np.cos(phim)*np.cos(phip) - self.alpha*self.EJ*np.cos(2.0*np.pi*self.flux + 2.0*phim))
+        return (-self.EJ1*np.cos(phi1) - self.EJ2*np.cos(phi2) - self.EJ3*np.cos(2.0*np.pi*self.flux + phi1 - phi2))
 
-    def sparse_kineticmat(self):
-        """Returns the kinetic energy matrix in sparse (`csc_matrix`) form."""
-        dimm = dimp = 2*self.ncut + 1
-        identity_m = sparse.identity(2*self.ncut+1, format='csc')
-        identity_p = sparse.identity(2*self.ncut+1, format='csc')
-
-        diag_elements_m = 2.0*self.ECm*np.square(np.arange(-self.ncut + self.ngm, self.ncut + 1 + self.ngm))
-        diag_elements_p = 2.0*self.ECp*np.square(np.arange(-self.ncut + self.ngp, self.ncut + 1 + self.ngp))
-
-        kinetic_matrix_m = sparse.dia_matrix((diag_elements_m, [0]), shape=(dimm, dimm)).tocsc()
-        kinetic_matrix_p = sparse.dia_matrix((diag_elements_p, [0]), shape=(dimp, dimp)).tocsc()
-
-        kinetic_matrix = sparse.kron(kinetic_matrix_m, identity_p, format='csc') \
-                         + sparse.kron(identity_m, kinetic_matrix_p, format='csc')
-
-        return kinetic_matrix
-
-
-    def sparse_potentialmat(self):
-        """Returns the potential energy matrix for the potential in sparse (`csc_matrix`) form."""
-        dimm = dimp = 2*self.ncut + 1
+    def kineticmat(self):
+        """Returns the kinetic energy matrix."""
+        dim = 2*self.ncut + 1
+        ECmat = self.ECmat
         
-        potential_mat = -2.*self.EJ*self.cos_phim_operator()*self.cos_phip_operator()
+        T = 0.
+        T += 4.0*ECmat[0,0]*np.kron(np.matmul(self.n1_operator(),self.n1_operator()),self.identity())
+        T += 4.0*ECmat[1,1]*np.kron(self.identity(),np.matmul(self.n2_operator(),self.n2_operator()))
+        T += 4.0*ECmat[0,1]*np.kron(self.n1_operator(),self.n2_operator())
+        T += 4.0*ECmat[1,0]*np.kron(self.n1_operator(),self.n2_operator())
+
+        return T
+
+
+    def potentialmat(self):
+        """Returns the potential energy matrix for the potential."""
+        dim = 2*self.ncut + 1
         
-        #define cos(2*pi*f+2*phi_m) operator
-        creation_op = sparse.dia_matrix(([1.0] * dimm, [2]), shape=(dimm, dimm))
-        creation_op_full = sparse.kron(creation_op, self.identity_phip())
-        annihilation_op = sparse.dia_matrix(([1.0] * dimm, [-2]), shape=(dimm, dimm))
-        annihilation_op_full = sparse.kron(annihilation_op, self.identity_phip())
+        U = 0.
+        U += -0.5*self.EJ1*np.kron(self.e_plusiphi_operator()+self.e_minusiphi_operator(),self.identity())
+        U += -0.5*self.EJ2*np.kron(self.identity(),self.e_plusiphi_operator()+self.e_minusiphi_operator())
+        U += -0.5*self.EJ3*(np.exp(1j*2*np.pi*self.flux)*np.kron(self.e_plusiphi_operator(),self.e_minusiphi_operator())
+                            + np.exp(-1j*2*np.pi*self.flux)*np.kron(self.e_minusiphi_operator(),self.e_plusiphi_operator()))
         
-        potential_mat += -0.5*self.alpha*self.EJ*(np.exp(1j*2*np.pi*self.flux)*creation_op_full 
-                                                  + np.exp(-1j*2*np.pi*self.flux)*annihilation_op_full)
-        
-        return potential_mat
+        return U
 
     def hamiltonian(self):
         """Returns Hamiltonian in basis obtained by employing charge basis for both degrees of freedom"""
-        return self.sparse_kineticmat() + self.sparse_potentialmat()
+        return self.kineticmat() + self.potentialmat()
 
-    def identity_phim(self):
-        dimm = 2 * self.ncut + 1
-        return sparse.identity(dimm, format='csc')
+    def identity(self):
+        dim = 2 * self.ncut + 1
+        return np.eye(dim)
     
-    def identity_phip(self):
-        dimp = 2 * self.ncut + 1
-        return sparse.identity(dimp, format='csc')
-
-    def cos_phim_operator(self):
+    def n1_operator(self):
+        dim = 2 * self.ncut + 1
+        diag_elements_1 = np.arange(-self.ncut + self.ng1, self.ncut + 1 + self.ng1, dtype=np.complex128)
+        return np.diag(diag_elements_1)
+        
+    def n2_operator(self):
+        dim = 2 * self.ncut + 1
+        diag_elements_2 = np.arange(-self.ncut + self.ng2, self.ncut + 1 + self.ng2, dtype=np.complex128)
+        return np.diag(diag_elements_2)
+        
+    def e_plusiphi_operator(self):
         r"""
-        Operator :math:`\cos(phim)`.
+        Operator :math:`\e^(iphi)`.
 
         Returns
         -------
-            scipy.sparse.csc_matrix
+            np.ndarray
         """
-        dimm = 2 * self.ncut + 1
-        cos_phim_matrix = 0.5 * (sparse.dia_matrix(([1.0] * dimm, [-1]), shape=(dimm, dimm)) +
-                                  sparse.dia_matrix(([1.0] * dimm, [1]), shape=(dimm, dimm))).tocsc()
+        dim = 2 * self.ncut + 1
+        off_diag_elements = np.ones(dim-1, dtype=np.complex128)
+        e_plusiphi_matrix = np.diag(off_diag_elements, k=1)
 
-        return sparse.kron(cos_phim_matrix, self.identity_phip(), format='csc')
+        return e_plusiphi_matrix
     
-    def cos_phip_operator(self):
+    def e_minusiphi_operator(self):
         r"""
-        Operator :math:`\cos(phip)`.
+        Operator :math:`\e^(-iphi)`.
 
         Returns
         -------
-            scipy.sparse.csc_matrix
+            np.ndarray
         """
-        dimp = 2 * self.ncut + 1
-        cos_phip_matrix = 0.5 * (sparse.dia_matrix(([1.0] * dimp, [-1]), shape=(dimp, dimp)) +
-                                  sparse.dia_matrix(([1.0] * dimp, [1]), shape=(dimp, dimp))).tocsc()
+        dim = 2 * self.ncut + 1
+        off_diag_elements = np.ones(dim-1, dtype=np.complex128)
+        e_minusiphi_matrix = np.diag(off_diag_elements, k=-1)
 
-        return sparse.kron(self.identity_phim(), cos_phip_matrix, format='csc')
-
+        return e_minusiphi_matrix
+    
     def plot_potential(self, phi_pts=100, contour_vals=None, aspect_ratio=None, filename=None):
         """Draw contour plot of the potential energy.
 
@@ -226,17 +232,15 @@ class FluxQubit(QubitBaseClass):
         else:
             _, evecs = esys
 
-        dimm = dimp = 2*self.ncut + 1
-        state_amplitudes = np.reshape(evecs[:, which],(dimm,dimp))
+        dim = 2*self.ncut + 1
+        state_amplitudes = np.reshape(evecs[:, which],(dim,dim))
 
-        nm_vec = np.arange(-self.ncut, self.ncut+1)
-        np_vec = np.arange(-self.ncut, self.ncut+1)
-        phim_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
-        phip_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
-        a_n_phim = np.exp(-1j * np.outer(phim_vec, nm_vec)) / (2 * np.pi)**0.5
-        a_n_phip = np.exp(1j * np.outer(np_vec, phip_vec)) / (2 * np.pi)**0.5
-        wavefunc_amplitudes = np.matmul(a_n_phim,state_amplitudes)
-        wavefunc_amplitudes = np.matmul(wavefunc_amplitudes,a_n_phip).T
+        n_vec = np.arange(-self.ncut, self.ncut+1)
+        phi_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
+        a_1_phim = np.exp(-1j * np.outer(phi_vec, n_vec)) / (2 * np.pi)**0.5
+        a_2_phip = np.exp(1j * np.outer(n_vec, phi_vec)) / (2 * np.pi)**0.5
+        wavefunc_amplitudes = np.matmul(a_1_phim,state_amplitudes)
+        wavefunc_amplitudes = np.matmul(wavefunc_amplitudes,a_2_phip).T
         phase = extract_phase(wavefunc_amplitudes)
         wavefunc_amplitudes = np.exp(-1j * phase) * wavefunc_amplitudes
 

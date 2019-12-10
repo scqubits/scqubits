@@ -232,7 +232,7 @@ class QubitBaseClass(QuantumSystem):
         return plot.matrix(matrixelem_array, mode, xlabel, ylabel, zlabel, fig_ax=fig_ax)
 
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                  get_eigenstates=False, filename=None):
+                                  get_eigenstates=False, filename=None, normalize=1.0):
         """Calculates eigenvalues for a varying system parameter, given an array of parameter values. Returns a
         `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for
         parameter value `param_vals[n]`.
@@ -251,6 +251,8 @@ class QubitBaseClass(QuantumSystem):
             return eigenstates along with eigenvalues (Default value = False)
         filename: str, optional
             write data to file if path and filename are specified (Default value = None)
+        normalize: float
+            amount to normalize the y values by
 
         Returns
         -------
@@ -278,6 +280,8 @@ class QubitBaseClass(QuantumSystem):
 
             if subtract_ground:
                 eigenvalue_table[index] -= evals[0]
+            if normalize!=1.0:
+                eigenvalue_table[index] = eigenvalue_table[index]/normalize
 
             progress_in_percent = (index + 1) / paramvals_count
             progressbar.update(progress_in_percent)
@@ -340,7 +344,7 @@ class QubitBaseClass(QuantumSystem):
         return spectrumdata
 
     def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                xrange=False, yrange=False, filename=None, fig_ax=None):
+                                xrange=False, yrange=False, filename=None, fig_ax=None, normalize=1.0):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -362,12 +366,14 @@ class QubitBaseClass(QuantumSystem):
             write graphics and parameter set to file if path and filename are specified (Default value = None)
         fig_ax: tuple(Figure, Axes), optional
             fig and ax objects for matplotlib figure addition (Default value = None)
+        normalize: float
+            amount to normalize the y values by
 
         Returns
         -------
         Figure, Axes
         """
-        specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground)
+        specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground, normalize=normalize)
         return plot.evals_vs_paramvals(specdata, evals_count=evals_count, xlim=xrange, ylim=yrange, filename=filename,
                                        fig_ax=fig_ax)
 
