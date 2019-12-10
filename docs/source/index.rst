@@ -1,12 +1,12 @@
 .. sc_qubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
-.. figure:: logo/logo.png
+.. figure:: logo/scqubits-logo.png
    :align: center
    :width: 3in
 
 
-sc_qubits: superconducting qubits in Python
+Superconducting Qubits in Python
 ===========================================
 
 .. toctree::

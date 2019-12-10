@@ -31,3 +31,12 @@ Contributors
 **Farid Hassani** (IST Austria) - Bug hunter
 
 **Nicholas Irons** - Code contributor
+
+**Sydney Wang** (IMSA) - Code contributor
+
+**Daniel Weiss** (Northwestern University) - Code contributor
+
+**Xinyuan You** (Northwestern University) - Code contributor
+
+**Athena Zheng** (IMSA) - Code contributor
+
