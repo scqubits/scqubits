@@ -32,8 +32,7 @@ class FluxQubit(QubitBaseClass):
     The original flux qubit as defined in [1], where the junctions are allowed to have varying junction
     energies and capacitances to allow for junction asymmetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and 
     :math:`E_{J3}=\alpha E_J` where :math:`0\le \alpha \le 1`. The same relations typically hold
-    for the junction capacitances. The Hamiltonian 
-    .. math:: 
+    for the junction capacitances. The Hamiltonian:: 
     
        H_\text{flux}=&(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
                     -&E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}), 
