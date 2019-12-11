@@ -30,11 +30,16 @@ class FluxQubit(QubitBaseClass):
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
 
     The original flux qubit as defined in [1], where the junctions are allowed to have varying junction
-    energies and capacitances to allow for junction assymetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and 
+    energies and capacitances to allow for junction asymmetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and 
     :math:`E_{J3}=\alpha E_J` where :math:`0\le \alpha \le 1`. The same relations typically hold
-    for the junction capacitances. The Hamiltonian :math:`H_\text{flux}=(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj})
-    -E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}), \; i,j\in\{1,2\}` is represented
-    in the charge basis for both degrees of freedom. Initialize with, for example::
+    for the junction capacitances. The Hamiltonian 
+    .. math:: 
+    
+       H_\text{flux}=&(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
+                    -&E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}), 
+
+    where :math:`i,j\in\{1,2\}` is represented in the charge basis for both degrees of freedom. 
+    Initialize with, for example::
     
         EJ = 35.0
         ALPHA = 0.6
@@ -75,30 +80,25 @@ class FluxQubit(QubitBaseClass):
         self.ng2 = ng2
         self.flux = flux
         self.ncut = ncut
-        self.truncated_dim = truncated_dim
-        self._define_parameters()
-        self._define_capacitance_matrix()
-        self._define_charging_energy_matrix()
-        
+        self.truncated_dim = truncated_dim        
         self._sys_type = 'flux qubit without disorder in the two large junctions'
-
-    def _define_parameters(self):
-        self.CJ1 = 1. / (2*self.ECJ1) #capacitances in units where e is set to 1
-        self.CJ2 = 1. / (2*self.ECJ2)
-        self.CJ3 = 1. / (2*self.ECJ3)
-        self.Cg1 = 1. / (2*self.ECg1)
-        self.Cg2 = 1. / (2*self.ECg2)
-    
-    def _define_capacitance_matrix(self):
-        Cmat = np.zeros((2,2))
-        Cmat[0,0] = self.CJ1 + self.CJ3 + self.Cg1
-        Cmat[1,1] = self.CJ2 + self.CJ3 + self.Cg2
-        Cmat[0,1] = -self.CJ3
-        Cmat[1,0] = -self.CJ3
-        self.Cmat = Cmat
         
-    def _define_charging_energy_matrix(self):
-        self.ECmat = np.linalg.inv(self.Cmat) / 2.
+    def EC_matrix(self):
+        """Return the charging energy matrix"""
+        Cmat = np.zeros((2,2))
+        
+        CJ1 = 1. / (2*self.ECJ1) #capacitances in units where e is set to 1
+        CJ2 = 1. / (2*self.ECJ2)
+        CJ3 = 1. / (2*self.ECJ3)
+        Cg1 = 1. / (2*self.ECg1)
+        Cg2 = 1. / (2*self.ECg2)
+        
+        Cmat[0,0] = CJ1 + CJ3 + Cg1
+        Cmat[1,1] = CJ2 + CJ3 + Cg2
+        Cmat[0,1] = -CJ3
+        Cmat[1,0] = -CJ3
+        
+        return(np.linalg.inv(Cmat) / 2.)
     
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -122,26 +122,31 @@ class FluxQubit(QubitBaseClass):
 
     def kineticmat(self):
         """Return the kinetic energy matrix."""
-        ECmat = self.ECmat
+        ECmat = self.EC_matrix()
 
-        kinetic_mat = 4.0 * ECmat[0,0] * np.kron(np.matmul(self.n1_operator(), self.n1_operator()), self.identity())
-        kinetic_mat += 4.0 * ECmat[1,1] * np.kron(self.identity(), np.matmul(self.n2_operator(), self.n2_operator()))
-        kinetic_mat += 4.0 * ECmat[0,1] * np.kron(self.n1_operator(), self.n2_operator())
-        kinetic_mat += 4.0 * ECmat[1,0] * np.kron(self.n1_operator(), self.n2_operator())
+        kinetic_mat = 4.0 * ECmat[0,0] * np.kron(np.matmul(self.n_operator()-self.ng1*self.identity(), 
+                                                           self.n_operator()-self.ng1*self.identity()), self.identity())
+        kinetic_mat += 4.0 * ECmat[1,1] * np.kron(self.identity(), 
+                                                  np.matmul(self.n_operator()-self.ng2*self.identity(), 
+                                                            self.n_operator()-self.ng2*self.identity()))
+        kinetic_mat += 4.0 * ECmat[0,1] * np.kron(self.n_operator()-self.ng1*self.identity(), 
+                                                  self.n_operator()-self.ng2*self.identity())
+        kinetic_mat += 4.0 * ECmat[1,0] * np.kron(self.n_operator()-self.ng1*self.identity(), 
+                                                  self.n_operator()-self.ng2*self.identity())
 
         return kinetic_mat
 
 
     def potentialmat(self):
         """Return the potential energy matrix for the potential."""
-        potential_mat = -0.5 * self.EJ1 * np.kron(self.e_plusiphi_operator() + self.e_minusiphi_operator(),
+        potential_mat = -0.5 * self.EJ1 * np.kron(self.exp_i_phi_operator() + np.transpose(self.exp_i_phi_operator()),
                                                   self.identity())
         potential_mat += -0.5 * self.EJ2 * np.kron(self.identity(),
-                                                   self.e_plusiphi_operator() + self.e_minusiphi_operator())
-        potential_mat += -0.5 * self.EJ3 * (np.exp(1j * 2 * np.pi * self.flux) * np.kron(self.e_plusiphi_operator(),
-                                                                                         self.e_minusiphi_operator())
-                                            + np.exp(-1j * 2 * np.pi * self.flux) * np.kron(self.e_minusiphi_operator(),
-                                                                                            self.e_plusiphi_operator()))
+                                                   self.exp_i_phi_operator() + np.transpose(self.exp_i_phi_operator()))
+        potential_mat += -0.5 * self.EJ3 * (np.exp(1j * 2 * np.pi * self.flux) 
+                                            * np.kron(self.exp_i_phi_operator(),np.transpose(self.exp_i_phi_operator())))
+        potential_mat += -0.5 * self.EJ3 * (np.exp(-1j * 2 * np.pi * self.flux) 
+                                            * np.kron(np.transpose(self.exp_i_phi_operator()),self.exp_i_phi_operator()))
         return potential_mat
 
     def hamiltonian(self):
@@ -153,31 +158,18 @@ class FluxQubit(QubitBaseClass):
         dim = 2 * self.ncut + 1
         return np.eye(dim)
     
-    def n1_operator(self):
-        r"""Return charge number operator conjugate to :math:`\phi1`"""
-        diag_elements_1 = np.arange(-self.ncut + self.ng1, self.ncut + 1 + self.ng1, dtype=np.complex128)
+    def n_operator(self):
+        r"""Return charge number operator conjugate to :math:`\phi`"""
+        diag_elements_1 = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex128)
         return np.diag(diag_elements_1)
         
-    def n2_operator(self):
-        r"""Return charge number operator conjugate to :math:`\phi2`."""
-        diag_elements_2 = np.arange(-self.ncut + self.ng2, self.ncut + 1 + self.ng2, dtype=np.complex128)
-        return np.diag(diag_elements_2)
-        
-    def e_plusiphi_operator(self):
-        r"""Operator :math:`\e^(iphi)`."""
+    def exp_i_phi_operator(self):
+        r"""Operator :math:`e^{i\phi}`."""
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim-1, dtype=np.complex128)
-        e_plusiphi_matrix = np.diag(off_diag_elements, k=1)
+        e_iphi_matrix = np.diag(off_diag_elements, k=1)
 
-        return e_plusiphi_matrix
-    
-    def e_minusiphi_operator(self):
-        r"""Operator :math:`\e^(-iphi)`."""
-        dim = 2 * self.ncut + 1
-        off_diag_elements = np.ones(dim-1, dtype=np.complex128)
-        e_minusiphi_matrix = np.diag(off_diag_elements, k=-1)
-
-        return e_minusiphi_matrix
+        return e_iphi_matrix
     
     def plot_potential(self, phi_pts=100, contour_vals=None, aspect_ratio=None, filename=None):
         """
@@ -200,7 +192,7 @@ class FluxQubit(QubitBaseClass):
 
     def wavefunction(self, esys=None, which=0, phi_pts=100):
         """
-        Return a flux qubit wave function in `phi1`, `phi2` basis
+        Return a flux qubit wave function in phi1, phi2 basis
 
         Parameters
         ----------
