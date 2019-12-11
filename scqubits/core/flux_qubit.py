@@ -128,34 +128,32 @@ class FluxQubit(QubitBaseClass):
 
     def potential(self, phi1, phi2):
         """Return value of the potential energy at phi1 and phi2, disregarding constants."""
-        return (-self.EJ1*np.cos(phi1) - self.EJ2*np.cos(phi2) 
-                - self.EJ3*np.cos(2.0*np.pi*self.flux + phi1 - phi2))
+        return (-self.EJ1 * np.cos(phi1) - self.EJ2 * np.cos(phi2)
+                - self.EJ3 * np.cos(2.0 * np.pi * self.flux + phi1 - phi2))
 
     def kineticmat(self):
         """Return the kinetic energy matrix."""
-        dim = 2*self.ncut + 1
         ECmat = self.ECmat
-        
-        T = 0.
-        T += 4.0*ECmat[0,0]*np.kron(np.matmul(self.n1_operator(),self.n1_operator()),self.identity())
-        T += 4.0*ECmat[1,1]*np.kron(self.identity(),np.matmul(self.n2_operator(),self.n2_operator()))
-        T += 4.0*ECmat[0,1]*np.kron(self.n1_operator(),self.n2_operator())
-        T += 4.0*ECmat[1,0]*np.kron(self.n1_operator(),self.n2_operator())
 
-        return T
+        kinetic_mat = 4.0 * ECmat[0,0] * np.kron(np.matmul(self.n1_operator(), self.n1_operator()), self.identity())
+        kinetic_mat += 4.0 * ECmat[1,1] * np.kron(self.identity(), np.matmul(self.n2_operator(), self.n2_operator()))
+        kinetic_mat += 4.0 * ECmat[0,1] * np.kron(self.n1_operator(), self.n2_operator())
+        kinetic_mat += 4.0 * ECmat[1,0] * np.kron(self.n1_operator(), self.n2_operator())
+
+        return kinetic_mat
 
 
     def potentialmat(self):
         """Return the potential energy matrix for the potential."""
-        dim = 2*self.ncut + 1
-        
-        U = 0.
-        U += -0.5*self.EJ1*np.kron(self.e_plusiphi_operator()+self.e_minusiphi_operator(),self.identity())
-        U += -0.5*self.EJ2*np.kron(self.identity(),self.e_plusiphi_operator()+self.e_minusiphi_operator())
-        U += -0.5*self.EJ3*(np.exp(1j*2*np.pi*self.flux)*np.kron(self.e_plusiphi_operator(),self.e_minusiphi_operator())
-                            + np.exp(-1j*2*np.pi*self.flux)*np.kron(self.e_minusiphi_operator(),self.e_plusiphi_operator()))
-        
-        return U
+        potential_mat = -0.5 * self.EJ1 * np.kron(self.e_plusiphi_operator() + self.e_minusiphi_operator(),
+                                                  self.identity())
+        potential_mat += -0.5 * self.EJ2 * np.kron(self.identity(),
+                                                   self.e_plusiphi_operator() + self.e_minusiphi_operator())
+        potential_mat += -0.5 * self.EJ3 * (np.exp(1j * 2 * np.pi * self.flux) * np.kron(self.e_plusiphi_operator(),
+                                                                                         self.e_minusiphi_operator())
+                                            + np.exp(-1j * 2 * np.pi * self.flux) * np.kron(self.e_minusiphi_operator(),
+                                                                                            self.e_plusiphi_operator()))
+        return potential_mat
 
     def hamiltonian(self):
         """Return Hamiltonian in basis obtained by employing charge basis for both degrees of freedom"""
@@ -168,13 +166,11 @@ class FluxQubit(QubitBaseClass):
     
     def n1_operator(self):
         r"""Return charge number operator conjugate to :math:`\phi1`"""
-        dim = 2 * self.ncut + 1
         diag_elements_1 = np.arange(-self.ncut + self.ng1, self.ncut + 1 + self.ng1, dtype=np.complex128)
         return np.diag(diag_elements_1)
         
     def n2_operator(self):
         r"""Return charge number operator conjugate to :math:`\phi2`."""
-        dim = 2 * self.ncut + 1
         diag_elements_2 = np.arange(-self.ncut + self.ng2, self.ncut + 1 + self.ng2, dtype=np.complex128)
         return np.diag(diag_elements_2)
         
