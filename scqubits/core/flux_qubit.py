@@ -32,39 +32,28 @@ class FluxQubit(QubitBaseClass):
     The original flux qubit as defined in [1], where the junctions are allowed to have varying junction
     energies and capacitances to allow for junction assymetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and 
     :math:`E_{J3}=\alpha E_J` where :math:`0\le \alpha \le 1`. The same relations typically hold
-    for the junction capacitances. The Hamiltonian :math:`H = H_\text{flux}=(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj})
+    for the junction capacitances. The Hamiltonian :math:`H_\text{flux}=(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj})
     -E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}), \; i,j\in\{1,2\}` is represented
-    in the charge basis for both degrees of freedom. Initialize with, for example:
+    in the charge basis for both degrees of freedom. Initialize with, for example::
     
         EJ = 35.0
         ALPHA = 0.6
-
-        flux_qubit = qubit.FluxQubit(
-            EJ1 = EJ, 
-            EJ2 = EJ, 
-            EJ3 = ALPHA*EJ, 
-            ECJ1 = 1.0, 
-            ECJ2 = 1.0, 
-            ECJ3 = 1.0/ALPHA, 
-            ECg1 = 50.0, 
-            ECg2 = 50.0, 
-            ng1 = 0.0, 
-            ng2 = 0.0, 
-            flux = 0.5, 
-            ncut = 10,
-            )
+        flux_qubit = qubit.FluxQubit(EJ1 = EJ, EJ2 = EJ, EJ3 = ALPHA*EJ, 
+                                     ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0/ALPHA, 
+                                     ECg1 = 50.0, ECg2 = 50.0, ng1 = 0.0, ng2 = 0.0, 
+                                     flux = 0.5, ncut = 10)
 
     Parameters
     ----------
-    EJ*: float
-        Josephson energy of the *th junction in GHz; typically
+    EJi: float
+        Josephson energy of the ith junction in GHz; typically
         EJ1 \approx EJ2, with EJ3 = \alpha EJ1 with \alpha < 1
-    ECJ*: float
-        charging energy associated with the *th junction in GHz
-    ECg*: float
+    ECJi: float
+        charging energy associated with the ith junction in GHz
+    ECgi: float
         charging energy associated with the capacitive coupling to ground for the two islands in GHz
-    ng*: float
-        offset charge associated with island *
+    ngi: float
+        offset charge associated with island i
     flux: float
         magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
     ncut: int
