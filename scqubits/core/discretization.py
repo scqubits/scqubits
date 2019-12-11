@@ -130,4 +130,3 @@ class GridSpec(object):
     def unwrap(self):
         """Auxiliary routine that yields a tuple of the parameters specifying the grid."""
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count
-

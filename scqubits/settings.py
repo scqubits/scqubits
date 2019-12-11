@@ -32,4 +32,3 @@ try:
     progressbar_enabled = True
 except:
     progressbar_enabled = False
-

@@ -39,7 +39,7 @@ class QuantumSystem(object):
     def __repr__(self):
         output = self._sys_type + '\n ———— PARAMETERS ————'
         for param_name in self.__dict__.keys():
-            if param_name[0] is not '_':
+            if param_name[0] != '_':
                 paramval = self.__dict__[param_name]
                 output += '\n' + str(param_name) + '\t: ' + str(paramval)
         output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())

@@ -251,4 +251,3 @@ class FullZeroPi(QubitBaseClass):
         if zeropi_states is None:
             _, zeropi_states = self._zeropi.eigensys(evals_count=evals_count)
         return self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(zeropi_states)
-

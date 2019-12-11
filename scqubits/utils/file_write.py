@@ -53,4 +53,3 @@ def filewrite_h5data(filename, numpy_data_list, data_info_strings, param_info_di
     for key, info in param_info_dict.items():
         h5group.attrs[key] = np.string_(info)
     h5file.close()
-

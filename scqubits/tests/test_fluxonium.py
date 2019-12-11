@@ -175,4 +175,3 @@ def test_Fluxonium_plot_matrixelements():
     print("Fluxonium_plot_matrixelements()")
     fluxonium = fluxonium_initialize()
     fluxonium.plot_matrixelements('phi_operator', esys=None, evals_count=10)
-
