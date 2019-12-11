@@ -124,7 +124,7 @@ class HilbertSpace(list):
         -------
         qutip.Qobj operator
         """
-        if isinstance(operator, list) or isinstace(operator, np.ndarray):
+        if isinstance(operator, list) or isinstance(operator, np.ndarray):
             dim = subsystem.truncated_dim
             subsys_operator = qt.Qobj(inpt=operator[:dim, :dim])
         else:
