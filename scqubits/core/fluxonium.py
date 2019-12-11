@@ -165,7 +165,7 @@ class Fluxonium(QubitBaseClass):
                                                                                                 phi_osc)
         return WaveFunction(phi_basis_labels, phi_wavefunc_amplitudes, energy=evals[which])
 
-    def plot_wavefunction(self, esys, which=(0,), phi_range=(-6 * np.pi, 6 * np.pi), yrange=None, mode='abs_sqr',
+    def plot_wavefunction(self, esys, which=(0,), phi_range=(-6 * np.pi, 6 * np.pi), y_range=None, mode='abs_sqr',
                           scaling= None, phi_points=251, filename=None):
         """Plot phase-basis wave function(s).
 
@@ -177,8 +177,8 @@ class Fluxonium(QubitBaseClass):
             single index or tuple of integers indexing the wave function(s) to be plotted (Default value = (0)
         phi_range: tuple(float, float), optional
             phi range to be plotted (Default value = (-6 * np.pi, 6 * np.pi))
-        yrange: None or tuple(float, float), optional
-            yrange to be plotted (Default value = None)
+        y_range: None or tuple(float, float), optional
+            y_range to be plotted (Default value = None)
         mode: str, optional
             choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
         scaling: float, optional
@@ -215,6 +215,6 @@ class Fluxonium(QubitBaseClass):
 
             phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
             plot.wavefunction1d(phi_wavefunc, potential_vals=self.potential(phi_wavefunc.basis_labels),
-                                offset=phi_wavefunc.energy, scaling=scale, xlabel='phi', yrange=yrange,
+                                offset=phi_wavefunc.energy, scaling=scale, xlabel='phi', y_range=y_range,
                                 fig_ax=(fig, ax), filename=filename)
         return fig, ax

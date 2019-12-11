@@ -29,7 +29,7 @@ mpl.rcParams['figure.dpi']= 150
 
 
 def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='wavefunction', xlabel='x',
-                   yrange=None, fig_ax=None, filename=None, **kwargs):
+                   y_range=None, fig_ax=None, filename=None, **kwargs):
     """
     Plots the amplitude of a real-valued 1d wave function, along with the potential energy if provided.
 
@@ -47,7 +47,7 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='w
         y-axis label
     xlabel: str
         x-axis label
-    yrange: (float, float)
+    y_range: (float, float)
         plot range for y-axis
     fig_ax: None or tuple(Figure, Axes)
         fig and ax objects for matplotlib figure addition
@@ -75,8 +75,8 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='w
     axes.set_ylabel(ylabel)
 
     axes.set_xlim(left=x_vals[0], right=x_vals[-1])
-    if yrange is not None:
-        axes.set_ylim(*yrange)
+    if y_range is not None:
+        axes.set_ylim(*y_range)
 
     if filename:
         out_file = mplpdf.PdfPages(filename)
@@ -86,7 +86,7 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='w
     return fig, axes
 
 
-def wavefunction1d_discrete(wavefunc, xrange, xlabel='x', ylabel='wavefunction', filename=None, fig_ax=None, **kwargs):
+def wavefunction1d_discrete(wavefunc, x_range, xlabel='x', ylabel='wavefunction', filename=None, fig_ax=None, **kwargs):
     """
     Plots the amplitude of a real-valued 1d wave function in a discrete basis. (Example: transmon in the charge basis.)
 
@@ -94,7 +94,7 @@ def wavefunction1d_discrete(wavefunc, xrange, xlabel='x', ylabel='wavefunction',
     ----------
     wavefunc: WaveFunction object
         basis and amplitude data of wave function to be plotted
-    xrange: tupel(int, int)
+    x_range: tupel(int, int)
         lower and upper bound for values on the x axis
     xlabel: str
         x-axis label
@@ -126,7 +126,7 @@ def wavefunction1d_discrete(wavefunc, xrange, xlabel='x', ylabel='wavefunction',
     axes.set_xticklabels(x_vals)
     axes.set_xlabel(xlabel)
     axes.set_ylabel(ylabel)
-    axes.set_xlim(xrange)
+    axes.set_xlim(x_range)
 
     if filename:
         out_file = mplpdf.PdfPages(filename)

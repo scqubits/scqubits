@@ -95,14 +95,14 @@ class SpectrumData(object):
         self.matrixelem_table = matrixelem_table
         self.system_params = system_params
 
-    def plot_evals_vs_paramvals(self, xrange=None, yrange=None, fig_ax=None, **kwargs):
+    def plot_evals_vs_paramvals(self, x_range=None, y_range=None, fig_ax=None, **kwargs):
         """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
 
         Parameters
         ----------
-        xrange: tuple(float, float), optional
+        x_range: tuple(float, float), optional
              (Default value = None)
-        yrange: tuple(float, float), optional
+        y_range: tuple(float, float), optional
              (Default value = None)
         fig_ax: Figure, Axes, optional
              (Default value = None)
@@ -113,7 +113,7 @@ class SpectrumData(object):
         -------
         Figure, Axes
         """
-        return plot.evals_vs_paramvals(self, xlim=xrange, ylim=yrange, fig_ax=fig_ax, **kwargs)
+        return plot.evals_vs_paramvals(self, xlim=x_range, ylim=y_range, fig_ax=fig_ax, **kwargs)
 
     def filewrite(self, filename):
         """Write data of eigenenergies, eigenstates, and matrix elements to file with specified filename.
