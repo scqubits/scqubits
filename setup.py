@@ -50,18 +50,18 @@ MINOR = 1
 MICRO = 1
 ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
-REQUIRES = ['cython (>=0.21)',
-            'numpy (>=1.12)',
-            'scipy (>=1.0)',
-            'matplotlib (>=1.2.1)',
-            'qutip (>=4.0)', 
+REQUIRES = ['cython (>=0.29.14)',
+            'numpy (>=1.13.3)',
+            'scipy (>=1.17.4)',
+            'matplotlib (>=3.0.3)',
+            'qutip (>=4.4.1)',
             'h5py (>=2.10)']
 EXTRAS_REQUIRE = {'graphics':['matplotlib-label-lines(>=0.3.6)']}
-INSTALL_REQUIRES =['cython (>=0.21)',
-                   'numpy (>=1.12)',
-                   'scipy (>=1.0)',
-                   'matplotlib (>=1.2.1)',
-                   'qutip (>=4.0)',
+INSTALL_REQUIRES =['cython (>=0.29.14)',
+                   'numpy (>=1.13.3)',
+                   'scipy (>=1.17.4)',
+                   'matplotlib (>=3.0.3)',
+                   'qutip (>=4.4.1)',
                    'h5py (>=2.10)']
 PACKAGES = ['scqubits', 'scqubits/core', 'scqubits/tests', 'scqubits/utils']
 
