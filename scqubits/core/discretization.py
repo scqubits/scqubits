@@ -12,6 +12,7 @@
 import numpy as np
 from scipy import sparse
 
+
 class Grid1d(object):
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
@@ -59,7 +60,6 @@ class Grid1d(object):
         else:
             dtp = np.float_
             
-
         delta_x = (self.max_val - self.min_val) / self.pt_count
         offdiag_element = prefactor / (2 * delta_x)
 
@@ -102,7 +102,6 @@ class Grid1d(object):
             derivative_matrix.setdiag(offdiag_element, k=-self.pt_count + 1)
 
         return derivative_matrix
-
 
 
 class GridSpec(object):

@@ -30,7 +30,7 @@ def fluxonium_initialize():
 
 
 def test_Fluxonium_init():
-    fluxonium = fluxonium_initialize()
+    _ = fluxonium_initialize()
 
 
 def test_Fluxonium_eigenvals():

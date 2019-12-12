@@ -15,6 +15,7 @@ Helper routines for writing data to CSV and h5 files.
 import h5py
 import numpy as np
 
+
 def filewrite_csvdata(filename, numpy_array):
     """Writes numpy array to file as CSV data.
 

@@ -12,8 +12,8 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../..'))
 
+sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
 
@@ -21,11 +21,7 @@ project = 'scqubits'
 copyright = '2019, Jens Koch, Peter Groszkowski'
 author = 'Jens Koch, Peter Groszkowski'
 
-
 # -- General configuration ---------------------------------------------------
-
-
-
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -63,7 +59,7 @@ exclude_patterns = ['_build', '**.ipynb_checkpoints']
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
-full_logo= True
+full_logo = True
 
 html_theme_options = {
 }
@@ -96,7 +92,7 @@ add_module_names = True
 show_authors = True
 
 # A list of ignored prefixes for module index sorting.
-#modindex_common_prefix = []
+# modindex_common_prefix = []
 todo_include_todos = True
 
 numpydoc_show_class_members = False

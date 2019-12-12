@@ -32,10 +32,13 @@ class ZeroPi(QubitBaseClass):
 
     Zero-Pi qubit without coupling to the `zeta` mode, i.e., no disorder in `EC` and `EL`,
     see Eq. (4) in Groszkowski et al., New J. Phys. 20, 043053 (2018),
-    :math:`H = -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
-    +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta
-    -2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2+2E_\text{J}
-    + E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2)`.
+
+    .. math::
+
+        H &= -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
+               +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta
+               -2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2\\
+          &\qquad +2E_\text{J} + E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2).
 
     Formulation of the Hamiltonian matrix proceeds by discretization of the `phi` variable, and using charge basis for
     the `theta` variable.

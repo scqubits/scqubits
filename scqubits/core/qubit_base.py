@@ -27,6 +27,7 @@ from scqubits.core.data_containers import SpectrumData
 from scqubits.utils.file_write import filewrite_csvdata, filewrite_h5data
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
+
 # —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
 
 class QuantumSystem(object):
@@ -61,8 +62,6 @@ class QuantumSystem(object):
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
         pass
-
-
 
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————

@@ -1,0 +1,7 @@
+cython>=0.21
+numpy>=1.12
+scipy>=1.0
+matplotlib>=1.2.1
+qutip>=4.0
+h5py
+nose

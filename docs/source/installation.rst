@@ -19,9 +19,9 @@ scqubits depends on the following Python open-source libraries:
 +----------------+--------------+-----------------------------------------------------+
 | Package        | Version      | Details                                             |
 +================+==============+=====================================================+
-| **Python**     | 2.7+         | Version 3.5+ is recommended.                        |
+| **Python**     | 3+           | Version 3.5+ is recommended.                        |
 +----------------+--------------+-----------------------------------------------------+
-| **NumPy**      | 1.8+         | Not tested on lower versions.                       |
+| **NumPy**      | 1.12+        | Not tested on lower versions.                       |
 +----------------+--------------+-----------------------------------------------------+
 | **SciPy**      | 1.0+         | Not tested on lower versions.                       |
 +----------------+--------------+-----------------------------------------------------+
@@ -29,7 +29,8 @@ scqubits depends on the following Python open-source libraries:
 +----------------+--------------+-----------------------------------------------------+
 | **QuTiP**      | 4.3          |  Needed for composite Hilbert spaces.               |
 +----------------+--------------+-----------------------------------------------------+
-
+| **h5py**       | 2.10+        |  Needed for writing h5 data to file                 |
++----------------+--------------+-----------------------------------------------------+
 
 The following packages are optional:
 

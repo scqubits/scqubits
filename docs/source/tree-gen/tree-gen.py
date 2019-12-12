@@ -20,6 +20,7 @@ module_cmap = {"core": 0,  # core
                }
 
 hidden_modules = ['testing', 'dimensions', 'logging_utils', 'matplotlib_utilities']
+exclude_patterns = [r'.*_td', r'.*_es', r'.*_mc', r'.*_ode', r'_.*']
 
 module_list = []
 

@@ -21,11 +21,25 @@ from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_t
 
 
 class FullZeroPi(QubitBaseClass):
-    """Full Zero-Pi Qubit, with all disorder types in circuit element parameters included. This couples
-    the zeta degree of freedom, see Eqs. (4) or (5) in Groszkowski et al., New J. Phys. 20, 043053 (2018).
+    r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
+    Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
 
-    Formulation of the Hamiltonian matrix proceeds in the product basis of the disordered (dEJ, dCJ)
-    Zero-Pi qubit on one hand and the zeta LC oscillator on the other hand.
+    .. math::
+
+        &H_{0-\pi} = -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
+                     +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta\\
+        &\qquad\qquad\qquad+2E_{C\Sigma}(\delta C_J/C_J)\partial_\phi\partial_\theta
+                     +2\,\delta E_J \sin\theta\sin(\phi-\phi_\text{ext}/2)\\
+        &H_\text{int} = 2E_{C\Sigma}dC\,\partial_\theta\partial_\zeta + E_L dE_L \phi\,\zeta\\
+        &H_\zeta = \omega_\zeta a^\dagger a
+
+    expressed in phase basis. The definition of the relevant charging energies :math:`E_\text{CJ}`,
+    :math:`E_{\text{C}\Sigma}`,     Josephson energies :math:`E_\text{J}`, inductive energies :math:`E_\text{L}`,
+    and relative amounts of disorder :math:`dC_\text{J}`, :math:`dE_\text{J}`, :math:`dC`, :math:`dE_\text{L}`
+    follows [Groszkowski2018]_. Internally, the ``FullZeroPi`` class formulates the Hamiltonian matrix via the
+    product basis of the decoupled Zero-Pi qubit (see ``ZeroPi``)  on one hand, and the zeta LC oscillator on the other
+    hand.
+
 
     Parameters
     ----------

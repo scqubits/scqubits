@@ -22,6 +22,7 @@ def initialize():
         print("")
         update(0)
 
+
 def update(progress_in_percent):
     """Updates display of simple, text-based progress bar. The bar length is given by `progress_in_percent`.
 

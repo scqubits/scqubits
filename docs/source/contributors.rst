@@ -21,7 +21,7 @@ Contributors
 
 .. note::
 	
-	Anyone is welcome to contribute to scqubits.  If you are interested in helping, please let us know!
+   Anyone is welcome to contribute to scqubits.  If you are interested in helping, please let us know!
 
 
 **Farid Hassani** (IST Austria) - Bug hunter

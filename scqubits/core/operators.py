@@ -49,8 +49,8 @@ def creation(dimension):
 
 
 def number(dimension, prefactor=None):
-    """Number operator matrix of size dimension x dimension in sparse matrix representation. An additional prefactor can be directly
-    included in the generation of the matrix by supplying 'prefactor'.
+    """Number operator matrix of size dimension x dimension in sparse matrix representation. An additional prefactor
+    can be directly included in the generation of the matrix by supplying 'prefactor'.
 
     Parameters
     ----------
