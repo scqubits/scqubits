@@ -32,7 +32,9 @@ class FluxQubit(QubitBaseClass):
     The original flux qubit as defined in [1], where the junctions are allowed to have varying junction
     energies and capacitances to allow for junction asymmetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and 
     :math:`E_{J3}=\alpha E_J` where :math:`0\le \alpha \le 1`. The same relations typically hold
-    for the junction capacitances. The Hamiltonian:: 
+    for the junction capacitances. The Hamiltonian is given by
+
+    .. math::
     
        H_\text{flux}=&(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
                     -&E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}), 
@@ -41,9 +43,9 @@ class FluxQubit(QubitBaseClass):
     Initialize with, for example::
     
         EJ = 35.0
-        ALPHA = 0.6
-        flux_qubit = qubit.FluxQubit(EJ1 = EJ, EJ2 = EJ, EJ3 = ALPHA*EJ, 
-                                     ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0/ALPHA, 
+        alpha = 0.6
+        flux_qubit = qubit.FluxQubit(EJ1 = EJ, EJ2 = EJ, EJ3 = alpha*EJ,
+                                     ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0/alpha,
                                      ECg1 = 50.0, ECg2 = 50.0, ng1 = 0.0, ng2 = 0.0, 
                                      flux = 0.5, ncut = 10)
 
@@ -97,7 +99,7 @@ class FluxQubit(QubitBaseClass):
         Cmat[0,1] = -CJ3
         Cmat[1,0] = -CJ3
         
-        return(np.linalg.inv(Cmat) / 2.)
+        return np.linalg.inv(Cmat) / 2.
     
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -261,4 +263,3 @@ class FluxQubit(QubitBaseClass):
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
         return plot.wavefunction2d(wavefunc, figsize=figsize, aspect_ratio=aspect_ratio, zero_calibrate=zero_calibrate,
                                    fig_ax=fig_ax)
-
