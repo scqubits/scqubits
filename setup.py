@@ -97,6 +97,8 @@ release = %(isrelease)s
     try:
         a.write(cnt % {'version': VERSION, 'fullversion':
                 FULLVERSION, 'isrelease': str(ISRELEASED)})
+    except:
+        print("error")
     finally:
         a.close()
 
