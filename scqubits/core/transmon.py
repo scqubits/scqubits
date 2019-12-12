@@ -74,7 +74,7 @@ class Transmon(QubitBaseClass):
     def sin_phi_operator(self):
         """Returns operator :math:`\\sin \\varphi` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_operator()
-        sin_op += sin_op.H
+        sin_op += sin_op.conjugate().T
         return sin_op
 
     def hamiltonian(self):
@@ -117,6 +117,8 @@ class Transmon(QubitBaseClass):
              index or indices of wave functions to plot (Default value = 0)
         nrange: tuple of two ints
              range of `n` to be included on the x-axis (Default value = (-5,6))
+        filename: str, optional
+            file path and name (not including suffix) for output
 
         Returns
         -------
@@ -127,7 +129,7 @@ class Transmon(QubitBaseClass):
         n_wavefunc.amplitudes = modefunction(n_wavefunc.amplitudes)
         return plot.wavefunction1d_discrete(n_wavefunc, nrange, filename=filename)
 
-    def plot_phi_wavefunction(self, esys, which=(0,), phi_points=251, mode='abs_sqr', filename=None, scaling=None):
+    def plot_phi_wavefunction(self, esys, which=(0,), phi_points=251, mode='abs_sqr', scaling=None, filename=None):
         """Plot phase-basis wave function(s).
 
         Parameters
@@ -142,6 +144,8 @@ class Transmon(QubitBaseClass):
             choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
         scaling: float or None, optional
             custom scaling of wave function amplitude/modulus
+        filename: str, optional
+            file path and name (not including suffix) for output
 
         Returns
         -------

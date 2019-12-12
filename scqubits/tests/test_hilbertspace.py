@@ -46,7 +46,7 @@ def hilbertspace_initialize():
 
 
 def test_HilbertSpace_init():
-    hilbertspc = hilbertspace_initialize()
+    _ = hilbertspace_initialize()
 
 
 def test_HilbertSpace_diag_hamiltonian():

@@ -14,13 +14,9 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import os
 
 import scqubits as qubit
 import scqubits.utils.plotting as plot
-import scqubits.settings as config
-
-from scqubits.utils.constants import FileType
 
 
 def transmon_initialize():

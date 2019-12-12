@@ -14,7 +14,6 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
-from scipy import sparse
 
 import scqubits.core.operators as op
 import scqubits.utils.constants as constants
@@ -50,6 +49,7 @@ class Fluxonium(QubitBaseClass):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
+
 
     def __init__(self, EJ, EC, EL, flux, cutoff, truncated_dim=None):
         self.EJ = EJ
@@ -106,7 +106,6 @@ class Fluxonium(QubitBaseClass):
         diag_elements = [i * self.omega_p() for i in range(dimension)]
         lc_osc_matrix = np.diagflat(diag_elements)
 
-        exponent = 1j * self.phi_operator()
         exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
         cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
@@ -166,7 +165,7 @@ class Fluxonium(QubitBaseClass):
         return WaveFunction(phi_basis_labels, phi_wavefunc_amplitudes, energy=evals[which])
 
     def plot_wavefunction(self, esys, which=(0,), phi_range=(-6 * np.pi, 6 * np.pi), y_range=None, mode='abs_sqr',
-                          scaling= None, phi_points=251, filename=None):
+                          scaling=None, phi_points=251, filename=None):
         """Plot phase-basis wave function(s).
 
         Parameters
@@ -185,6 +184,8 @@ class Fluxonium(QubitBaseClass):
             custom choice for scaling of wave functions
         phi_points: int, optional
             number of points on the x-axis (resolution) (Default value = 251)
+        filename: str, optional
+            file path and name (not including suffix) for output
 
         Returns
         -------
@@ -204,7 +205,6 @@ class Fluxonium(QubitBaseClass):
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-
 
         for wavefunc_index in index_tuple:
             phi_wavefunc = self.wavefunction(esys, wavefunc_index, phi_range, phi_points)

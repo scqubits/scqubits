@@ -25,7 +25,7 @@ import scqubits.utils.constants as constants
 
 mpl.rcParams['font.sans-serif'] = "Arial"
 mpl.rcParams['font.family'] = "sans-serif"
-mpl.rcParams['figure.dpi']= 150
+mpl.rcParams['figure.dpi'] = 150
 
 
 def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='wavefunction', xlabel='x',
@@ -49,6 +49,8 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='w
         x-axis label
     y_range: (float, float)
         plot range for y-axis
+    filename: str, optional
+        file path and name (not including suffix) for output
     fig_ax: None or tuple(Figure, Axes)
         fig and ax objects for matplotlib figure addition
     **kwargs:
@@ -228,7 +230,7 @@ def contours(x_vals, y_vals, func, contour_vals=None, aspect_ratio=None, show_co
     else:
         fig, axes = fig_ax
 
-    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis,origin="lower")
+    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower")
 
     if show_colorbar:
         fig.colorbar(im, ax=axes)
@@ -389,8 +391,6 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=
         custom x-range for the plot
     ylim: (float, float)
         custom y-range for the plot
-    shift: float
-        apply a shift of this size to all eigenvalues
     filename: str
         write graphics and parameter set to file if path and filename are specified
     fig_ax: None or tuple(Figure, Axes)

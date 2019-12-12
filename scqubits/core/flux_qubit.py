@@ -11,7 +11,6 @@
 
 import numpy as np
 import scipy as sp
-import scipy.integrate as integrate
 
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
@@ -51,14 +50,14 @@ class FluxQubit(QubitBaseClass):
 
     Parameters
     ----------
-    EJi: float
+    EJ1, EJ2, EJ3: float
         Josephson energy of the ith junction in GHz; typically
         EJ1 \approx EJ2, with EJ3 = \alpha EJ1 with \alpha < 1
-    ECJi: float
+    ECJ1, ECJ2, ECJ3: float
         charging energy associated with the ith junction in GHz
-    ECgi: float
+    ECg1, ECg2: float
         charging energy associated with the capacitive coupling to ground for the two islands in GHz
-    ngi: float
+    ng1, ng2: float
         offset charge associated with island i
     flux: float
         magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
@@ -86,18 +85,18 @@ class FluxQubit(QubitBaseClass):
         
     def EC_matrix(self):
         """Return the charging energy matrix"""
-        Cmat = np.zeros((2,2))
+        Cmat = np.zeros((2, 2))
         
-        CJ1 = 1. / (2*self.ECJ1) #capacitances in units where e is set to 1
-        CJ2 = 1. / (2*self.ECJ2)
-        CJ3 = 1. / (2*self.ECJ3)
-        Cg1 = 1. / (2*self.ECg1)
-        Cg2 = 1. / (2*self.ECg2)
+        CJ1 = 1. / (2 * self.ECJ1)   # capacitances in units where e is set to 1
+        CJ2 = 1. / (2 * self.ECJ2)
+        CJ3 = 1. / (2 * self.ECJ3)
+        Cg1 = 1. / (2 * self.ECg1)
+        Cg2 = 1. / (2 * self.ECg2)
         
-        Cmat[0,0] = CJ1 + CJ3 + Cg1
-        Cmat[1,1] = CJ2 + CJ3 + Cg2
-        Cmat[0,1] = -CJ3
-        Cmat[1,0] = -CJ3
+        Cmat[0, 0] = CJ1 + CJ3 + Cg1
+        Cmat[1, 1] = CJ2 + CJ3 + Cg2
+        Cmat[0, 1] = -CJ3
+        Cmat[1, 0] = -CJ3
         
         return np.linalg.inv(Cmat) / 2.
     
@@ -125,18 +124,17 @@ class FluxQubit(QubitBaseClass):
         """Return the kinetic energy matrix."""
         ECmat = self.EC_matrix()
 
-        kinetic_mat = 4.0 * ECmat[0,0] * np.kron(np.matmul(self.n_operator()-self.ng1*self.identity(), 
+        kinetic_mat = 4.0 * ECmat[0, 0] * np.kron(np.matmul(self.n_operator()-self.ng1*self.identity(),
                                                            self.n_operator()-self.ng1*self.identity()), self.identity())
-        kinetic_mat += 4.0 * ECmat[1,1] * np.kron(self.identity(), 
+        kinetic_mat += 4.0 * ECmat[1, 1] * np.kron(self.identity(),
                                                   np.matmul(self.n_operator()-self.ng2*self.identity(), 
                                                             self.n_operator()-self.ng2*self.identity()))
-        kinetic_mat += 4.0 * ECmat[0,1] * np.kron(self.n_operator()-self.ng1*self.identity(), 
+        kinetic_mat += 4.0 * ECmat[0, 1] * np.kron(self.n_operator()-self.ng1*self.identity(),
                                                   self.n_operator()-self.ng2*self.identity())
-        kinetic_mat += 4.0 * ECmat[1,0] * np.kron(self.n_operator()-self.ng1*self.identity(), 
+        kinetic_mat += 4.0 * ECmat[1, 0] * np.kron(self.n_operator()-self.ng1*self.identity(),
                                                   self.n_operator()-self.ng2*self.identity())
 
         return kinetic_mat
-
 
     def potentialmat(self):
         """Return the potential energy matrix for the potential."""
@@ -144,10 +142,10 @@ class FluxQubit(QubitBaseClass):
                                                   self.identity())
         potential_mat += -0.5 * self.EJ2 * np.kron(self.identity(),
                                                    self.exp_i_phi_operator() + np.transpose(self.exp_i_phi_operator()))
-        potential_mat += -0.5 * self.EJ3 * (np.exp(1j * 2 * np.pi * self.flux) 
-                                            * np.kron(self.exp_i_phi_operator(),np.transpose(self.exp_i_phi_operator())))
+        potential_mat += -0.5 * self.EJ3 * (np.exp(1j * 2 * np.pi * self.flux) * np.kron(self.exp_i_phi_operator(),
+                                                                                         np.transpose(self.exp_i_phi_operator())))
         potential_mat += -0.5 * self.EJ3 * (np.exp(-1j * 2 * np.pi * self.flux) 
-                                            * np.kron(np.transpose(self.exp_i_phi_operator()),self.exp_i_phi_operator()))
+                                            * np.kron(np.transpose(self.exp_i_phi_operator()), self.exp_i_phi_operator()))
         return potential_mat
 
     def hamiltonian(self):
@@ -215,14 +213,14 @@ class FluxQubit(QubitBaseClass):
             _, evecs = esys
 
         dim = 2*self.ncut + 1
-        state_amplitudes = np.reshape(evecs[:, which],(dim,dim))
+        state_amplitudes = np.reshape(evecs[:, which], (dim, dim))
 
         n_vec = np.arange(-self.ncut, self.ncut+1)
         phi_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
         a_1_phim = np.exp(-1j * np.outer(phi_vec, n_vec)) / (2 * np.pi)**0.5
         a_2_phip = np.exp(1j * np.outer(n_vec, phi_vec)) / (2 * np.pi)**0.5
-        wavefunc_amplitudes = np.matmul(a_1_phim,state_amplitudes)
-        wavefunc_amplitudes = np.matmul(wavefunc_amplitudes,a_2_phip).T
+        wavefunc_amplitudes = np.matmul(a_1_phim, state_amplitudes)
+        wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, a_2_phip).T
         phase = extract_phase(wavefunc_amplitudes)
         wavefunc_amplitudes = np.exp(-1j * phase) * wavefunc_amplitudes
 

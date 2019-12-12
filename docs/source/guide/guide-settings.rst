@@ -34,11 +34,6 @@ Example: Changing Settings
 
 Modifying the settings is simple, for example::
 
->>> scqubits.settings.progressbar_enabled = False
->>> scqubits.settings.file_format = FileType.csv
-
-
-
-
-
+   scqubits.settings.progressbar_enabled = False
+   scqubits.settings.file_format = FileType.csv
 
