@@ -299,5 +299,5 @@ class FluxQubit(QubitBaseClass):
         modefunction = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, phi_pts=phi_pts, which=which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, figsize=figsize, aspect_ratio=aspect_ratio, zero_calibrate=zero_calibrate,
-                                   fig_ax=fig_ax)
+        return plot.wavefunction2d(wavefunc, figsize=figsize, aspect_ratio=aspect_ratio, 
+                                   zero_calibrate=zero_calibrate,fig_ax=fig_ax)
