@@ -22,7 +22,27 @@ from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.discretization import Grid1d
 
+# utils
 from scqubits.utils.constants import FileType
 from scqubits.utils.spectrum_utils import get_matrixelement_table
 
+# version
 from scqubits.version import version as __version__
+
+
+# setup and teardown for nosetests
+def setup_package():
+    import matplotlib
+    import os
+    from scqubits.utils.constants import TEMPDIR
+
+    matplotlib.pyplot.switch_backend('agg')   # do not actually show graphics in nosetests
+    try:
+        os.mkdir(TEMPDIR)
+    except OSError:
+        raise RuntimeError('Error creating temporary data directory ' + TEMPDIR)
+
+def teardown_package():
+    import shutil
+    from scqubits.utils.constants import TEMPDIR
+    shutil.rmtree(TEMPDIR)
