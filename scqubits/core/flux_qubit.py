@@ -301,3 +301,4 @@ class FluxQubit(QubitBaseClass):
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
         return plot.wavefunction2d(wavefunc, figsize=figsize, aspect_ratio=aspect_ratio, 
                                    zero_calibrate=zero_calibrate,fig_ax=fig_ax)
+    
