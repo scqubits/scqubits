@@ -149,6 +149,10 @@ class FluxQubit(QubitBaseClass):
                                             * np.kron(self._exp_i_phi_operator().T,self._exp_i_phi_operator()))
         return potential_mat
     
+    def hamiltonian(self):
+        """Return Hamiltonian in basis obtained by employing charge basis for both degrees of freedom"""
+        return self.kineticmat() + self.potentialmat()
+    
     def _n_operator(self):
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex128)
         return np.diag(diag_elements)
@@ -158,10 +162,6 @@ class FluxQubit(QubitBaseClass):
         off_diag_elements = np.ones(dim-1, dtype=np.complex128)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
         return e_iphi_matrix
-
-    def hamiltonian(self):
-        """Return Hamiltonian in basis obtained by employing charge basis for both degrees of freedom"""
-        return self.kineticmat() + self.potentialmat()
 
     def _identity(self):
         dim = 2 * self.ncut + 1
