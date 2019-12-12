@@ -176,7 +176,7 @@ class FluxQubit(QubitBaseClass):
         off_diag_elements = np.ones(dim-1, dtype=np.complex128)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
 
-        return np.kron(e_iphi_matrix,self.identity())
+        return np.kron(e_iphi_matrix,self._identity())
     
     def exp_i_phi_2_operator(self):
         r"""Operator :math:`e^{i\phi_2}`."""
@@ -184,7 +184,7 @@ class FluxQubit(QubitBaseClass):
         off_diag_elements = np.ones(dim-1, dtype=np.complex128)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
 
-        return np.kron(self.identity(),e_iphi_matrix)
+        return np.kron(self._identity(),e_iphi_matrix)
     
     def cos_phi_1_operator(self):
         """Returns operator :math:`\\cos \\phi_1` in the charge basis"""
