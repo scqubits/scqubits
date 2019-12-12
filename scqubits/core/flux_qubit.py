@@ -124,29 +124,27 @@ class FluxQubit(QubitBaseClass):
         """Return the kinetic energy matrix."""
         ECmat = self.EC_matrix()
 
-        kinetic_mat = 4.0 * ECmat[0, 0] * np.kron(np.matmul(self.n_operator()-self.ng1*self.identity(),
-                                                           self.n_operator()-self.ng1*self.identity()), self.identity())
-        kinetic_mat += 4.0 * ECmat[1, 1] * np.kron(self.identity(),
-                                                  np.matmul(self.n_operator()-self.ng2*self.identity(), 
-                                                            self.n_operator()-self.ng2*self.identity()))
-        kinetic_mat += 4.0 * ECmat[0, 1] * np.kron(self.n_operator()-self.ng1*self.identity(),
-                                                  self.n_operator()-self.ng2*self.identity())
-        kinetic_mat += 4.0 * ECmat[1, 0] * np.kron(self.n_operator()-self.ng1*self.identity(),
-                                                  self.n_operator()-self.ng2*self.identity())
+        kinetic_mat = 4.0 * ECmat[0,0] * np.kron(np.matmul(self._n_operator()-self.ng1*self._identity(), 
+                                                           self._n_operator()-self.ng1*self._identity()), 
+                                                 self._identity())
+        kinetic_mat += 4.0 * ECmat[1,1] * np.kron(self._identity(), 
+                                                  np.matmul(self._n_operator()-self.ng2*self._identity(), 
+                                                            self._n_operator()-self.ng2*self._identity()))
+        kinetic_mat += 4.0 * ECmat[0,1] * np.kron(self._n_operator()-self.ng1*self._identity(), 
+                                                  self._n_operator()-self.ng2*self._identity())
+        kinetic_mat += 4.0 * ECmat[1,0] * np.kron(self._n_operator()-self.ng1*self._identity(), 
+                                                  self._n_operator()-self.ng2*self._identity())
         
         return kinetic_mat
 
     def potentialmat(self):
         """Return the potential energy matrix for the potential."""
-        potential_mat = -0.5 * self.EJ1 * np.kron(self.exp_i_phi_operator() + np.transpose(self.exp_i_phi_operator()),
-                                                  self.identity())
-        potential_mat += -0.5 * self.EJ2 * np.kron(self.identity(),
-                                                   self.exp_i_phi_operator() + np.transpose(self.exp_i_phi_operator()))
+        potential_mat = -0.5 * self.EJ1 * self.cos_phi_1_operator()
+        potential_mat += -0.5 * self.EJ2 * self.cos_phi_2_operator()
         potential_mat += -0.5 * self.EJ3 * (np.exp(1j * 2 * np.pi * self.flux) 
-                                            * np.kron(self.exp_i_phi_operator(),
-                                                      np.transpose(self.exp_i_phi_operator())))
+                                            * np.matmul(self.exp_i_phi_1_operator(),self.exp_i_phi_2_operator().T))
         potential_mat += -0.5 * self.EJ3 * (np.exp(-1j * 2 * np.pi * self.flux) 
-                                            * np.kron(np.transpose(self.exp_i_phi_operator()), self.exp_i_phi_operator()))
+                                            * np.matmul(self.exp_i_phi_1_operator().T,self.exp_i_phi_2_operator()))
         
         return potential_mat
 
