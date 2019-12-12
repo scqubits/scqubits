@@ -18,6 +18,8 @@ import numpy as np
 import scqubits as qubit
 import scqubits.utils.plotting as plot
 
+from scqubits.utils.constants import TEMPDIR
+
 
 def transmon_initialize():
     transmon = qubit.Transmon(
@@ -33,7 +35,7 @@ def test_transmon_eigenvals():
     print("transmon_eigenvals()")
     transmon = transmon_initialize()
     evals_reference = np.asarray([-21.84381856, -6.17518551, 8.01366695, 20.04897106, 30.54312385, 38.7071573])
-    assert np.allclose(evals_reference, transmon.eigenvals(filename='./_data/test'))
+    assert np.allclose(evals_reference, transmon.eigenvals(filename=TEMPDIR + 'test'))
 
 
 def test_transmon_eigenvecs():
@@ -60,7 +62,7 @@ def test_transmon_eigenvecs():
                                   -2.27396000e-33, -1.27549790e-35, -6.58293426e-38,
                                   -3.13658463e-40, -1.38399278e-42, -5.67135306e-45,
                                   -2.16194662e-47, -5.65089988e-50, -1.01063092e-50])
-    _, evecs_tst = transmon.eigensys(filename='./_data/test')
+    _, evecs_tst = transmon.eigensys(filename=TEMPDIR + 'test')
     evecs_calculated = evecs_tst.T[3]
     assert np.allclose(evecs_reference, evecs_tst.T[3])
 
@@ -135,7 +137,7 @@ def test_transmon_get_spectrum_vs_paramvals_filewrite():
     transmon = transmon_initialize()
     ng_list = np.linspace(-2, 2, 50)
     calculated_evals = transmon.get_spectrum_vs_paramvals('ng', ng_list, evals_count=4, subtract_ground=False,
-                                                     get_eigenstates=True, filename='./_data/tst_tmp')
+                                                     get_eigenstates=True, filename=TEMPDIR + 'tst_tmp')
 
 def test_transmon_plot_evals_vs_paramvals_EJ():
     print("transmon_plot_evals_vs_paramvals_EJ()")
@@ -279,4 +281,4 @@ def test_transmon_plot_matelem_vs_paramvals():
     transmon.EJ = 30
     ng_list = np.linspace(-2, 2, 220)
     fig, ax = transmon.plot_matelem_vs_paramvals('n_operator', 'ng', ng_list, select_elems=[(0, 0), (1, 4), (1, 0)],
-                                                 filename='./_data/test')
+                                                 filename=TEMPDIR + 'test')

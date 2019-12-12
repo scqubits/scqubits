@@ -17,6 +17,7 @@ import numpy as np
 
 import scqubits as qubit
 from scqubits.utils.spectrum_utils import get_matrixelement_table
+from scqubits.utils.constants import TEMPDIR
 
 
 def hilbertspace_initialize():
@@ -236,7 +237,7 @@ def test_HilbertSpace_get_spectrum_vs_paramvals():
 
     flux_list = np.linspace(-0.1, 0.6, 100)
     specdata = hilbertspc.get_spectrum_vs_paramvals(hamiltonian, flux_list, evals_count=15, get_eigenstates=True,
-                                                    filename='./_data/test')
+                                                    filename=TEMPDIR + 'test')
 
     reference_evals = np.array([-35.61671109, -30.87536252, -29.93935539, -29.62839549,
        -27.95521996, -24.89469034, -23.95779031, -23.64010506,

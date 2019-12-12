@@ -17,6 +17,9 @@ EVECS_FILESUFFIX = '_evecs'
 EVALS_FILESUFFIX = '_evals'
 PARAMETER_FILESUFFIX = '.prm'
 
+# directory for nosetests
+TEMPDIR = './_tempdata/'
+
 
 # file types
 @unique

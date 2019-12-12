@@ -13,14 +13,16 @@ import nose
 import os
 import shutil
 
+from scqubits.utils.constants import TEMPDIR
+
 def run():
     """
     Run the nose test scripts for scqubits.
     """
     # runs tests in scqubits.tests directory
-    if not os.path.exists('./_data'):
-        os.makedirs('./_data')
+    if not os.path.exists(TEMPDIR):
+        os.makedirs(TEMPDIR)
     else:
-        raise RuntimeError('Temporary data directory ./_data already exists. Terminating to avoid unwanted overwriting.')
+        raise RuntimeError('Temporary data directory' + TEMPDIR + ' already exists. Terminating to avoid unwanted overwriting.')
     nose.run(defaultTest="scqubits.tests", argv=['nosetests', '-v', '--nologcapture'])
-    shutil.rmtree('./_data')
+    shutil.rmtree(TEMPDIR)
