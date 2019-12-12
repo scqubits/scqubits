@@ -21,9 +21,9 @@ scqubits depends on the following Python open-source libraries:
 +================+==============+=====================================================+
 | **Python**     | 3+           | Version 3.5+ is recommended.                        |
 +----------------+--------------+-----------------------------------------------------+
-| **NumPy**      | 1.13.3+      | Not tested on lower versions.                       |
+| **NumPy**      | 1.17.4+      | Not tested on lower versions.                       |
 +----------------+--------------+-----------------------------------------------------+
-| **SciPy**      | 1.17.4+      | Not tested on lower versions.                       |
+| **SciPy**      | 1.3.3+       | Not tested on lower versions.                       |
 +----------------+--------------+-----------------------------------------------------+
 | **Matplotlib** | 3.0.3+       | Some plotting does not work on lower versions.      |
 +----------------+--------------+-----------------------------------------------------+
