@@ -10,14 +10,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 
 import scqubits as qubit
 import scqubits.utils.plotting as plot
 from scqubits.utils.constants import TEMPDIR
+from scqubits.utils.spectrum_utils import standardize_phases
 
 
 def flux_qubit_initialize():
@@ -270,13 +268,11 @@ def test_flux_qubit_eigenvecs():
         7.24374756e-11+9.38548708e-12j,  7.95698132e-12+1.20902908e-12j,
         7.33909461e-13+8.18338453e-14j,  5.79224169e-14+2.72481690e-15j,
         4.09394740e-15+1.19262239e-18j])
-    phase_ref = qubit.utils.spectrum_utils.extract_phase(evecs_reference)
-    evecs_reference *= np.exp(-1j * phase_ref)
+    evecs_reference = standardize_phases(evecs_reference)
 
     _, evecs_tst = flux_qubit.eigensys(filename=TEMPDIR + 'test')
     evecs_calculated = evecs_tst.T[3]
-    phase_calculated = qubit.utils.spectrum_utils.extract_phase(evecs_calculated)
-    evecs_calculated *= np.exp(-1j * phase_calculated)
+    evecs_calculated = standardize_phases(evecs_calculated)
     assert np.allclose(evecs_reference, evecs_calculated)
 
 def test_flux_qubit_plot_evals_vs_paramvals_flux():
@@ -477,16 +473,9 @@ def test_flux_qubit_matrixelement_table():
         -4.64411866e-01-5.18663398e-15j,  3.61144975e-15-7.34502844e-01j,
          2.72285381e-01+3.44541458e-14j,  1.91741773e-14-0.00000000e+00j]])
 
-    # TODO edit below
-    # phase_ref = qubit.utils.spectrum_utils.extract_phase(reference_matrix)
-    # reference_matrix *= np.exp(-1j * phase_ref)
-
     flux_qubit = flux_qubit_initialize()
     calculated_matrix = flux_qubit.matrixelement_table('n_1_operator', esys=None, evals_count=evalcount)
-    # phase_calculated = qubit.utils.spectrum_utils.extract_phase(calculated_matrix)
-    # calculated_matrix *= np.exp(-1j * phase_calculated)
-    # print(np.max(np.abs(calculated_matrix - reference_matrix)))
-    assert np.allclose(reference_matrix, calculated_matrix)
+    assert np.allclose(np.abs(reference_matrix), np.abs(calculated_matrix))
 
 def test_flux_qubit_plot_matrixelements():
     print("flux_qubit_plot_matrixelements()")
