@@ -15,3 +15,10 @@ Users Guide
    guide-qubits.rst
    ipynb/hilbertspace.ipynb
    guide-settings.rst
+
+
+.. _figure-scqubits_org:
+
+.. figure:: ../tree-gen/tree.png
+   :align: center
+   :figwidth: 100%

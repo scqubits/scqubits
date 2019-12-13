@@ -13,10 +13,3 @@ QuTiP. The latter allows for simple creation of composite Hilbert spaces, consis
 oscillators.
 
 This guide does not mean to be exhaustive. For a complete references see  the :ref:`apidoc` at the end which lists all relevant classes and functions of scqubits.
-
-
-.. _figure-scqubits_org:
-
-.. figure:: ../tree-gen/tree.png
-   :align: center
-   :figwidth: 100%
