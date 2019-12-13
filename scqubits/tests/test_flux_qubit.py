@@ -488,6 +488,6 @@ def test_flux_qubit_print_matrixelements():
 def test_flux_qubit_plot_matelem_vs_paramvals():
     print("flux_qubit_plot_matelem_vs_paramvals()")
     flux_qubit = flux_qubit_initialize()
-    flux_list = np.linspace(.49, 51, 40)
+    flux_list = np.linspace(.49, .51, 40)
     fig, ax = flux_qubit.plot_matelem_vs_paramvals('n_1_operator', 'flux', flux_list,
                                                    select_elems=[(0, 0), (1, 4), (1, 0)], filename=TEMPDIR + 'test')
