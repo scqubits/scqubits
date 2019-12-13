@@ -43,7 +43,7 @@ def test_flux_qubit_eigenvals():
     print("flux_qubit_eigenvals()")
     flux_qubit = flux_qubit_initialize()
     evals_reference = np.asarray([-1.39408879, -1.16358534, -1.11509225, -0.98817209, -0.94604519, -0.88385204])
-    assert np.allclose(evals_reference, flux_qubit.eigenvals(filename='./_data/test'))
+    assert np.allclose(evals_reference, flux_qubit.eigenvals(filename='./_tempdata/test'))
 
 def test_flux_qubit_eigenvecs():
     print("flux_qubit_eigenvecs()")
@@ -269,7 +269,7 @@ def test_flux_qubit_eigenvecs():
         7.24374756e-11+9.38548708e-12j,  7.95698132e-12+1.20902908e-12j,
         7.33909461e-13+8.18338453e-14j,  5.79224169e-14+2.72481690e-15j,
         4.09394740e-15+1.19262239e-18j])
-    _, evecs_tst = flux_qubit.eigensys(filename='./_data/test')
+    _, evecs_tst = flux_qubit.eigensys(filename='./_tempdata/test')
     evecs_calculated = evecs_tst.T[3]
     assert np.allclose(evecs_reference, evecs_tst.T[3])
 
@@ -332,7 +332,7 @@ def test_flux_qubit_get_spectrum_vs_paramvals_filewrite():
     flux_qubit = flux_qubit_initialize()
     flux_list = np.linspace(.46, .54, 40)
     calculated_evals = flux_qubit.get_spectrum_vs_paramvals('flux', flux_list, evals_count=4, subtract_ground=False,
-                                                     get_eigenstates=True, filename='./_data/tst_tmp')
+                                                     get_eigenstates=True, filename='./_tempdata/tst_tmp')
 
 def test_flux_qubit_plot_wavefunction():
     print("flux_qubit_plot_wavefunction()")
@@ -489,4 +489,4 @@ def test_flux_qubit_plot_matelem_vs_paramvals():
     flux_qubit = flux_qubit_initialize()
     flux_list = np.linspace(.49, 51, 40)
     fig, ax = flux_qubit.plot_matelem_vs_paramvals('n_1_operator', 'flux', flux_list, select_elems=[(0, 0), (1, 4), (1, 0)],
-                                                 filename='./_data/test')
+                                                 filename='./_tempdata/test')
