@@ -65,6 +65,7 @@ INSTALL_REQUIRES =['cython (>=0.28.5)',
                    'qutip (>=4.3.1)',
                    'h5py (>=2.7.1)']
 PACKAGES = ['scqubits', 'scqubits/core', 'scqubits/tests', 'scqubits/utils']
+PYTHON_VERSION = '>=3.4'
 
 
 NAME = "scqubits"
@@ -139,5 +140,6 @@ setuptools.setup(name = NAME,
                  extras_require = EXTRAS_REQUIRE,
                  zip_safe = False,
                  install_requires=INSTALL_REQUIRES,
+                 python_requires=PYTHON_VERSION,
                  **EXTRA_KWARGS
 )
