@@ -51,10 +51,26 @@ def extract_phase(complex_array, position=None):
     return cmath.phase(complex_array[position])
 
 
+def standardize_phases(complex_array):
+    """Uses `extract_phase` to obtain global phase from `array` and returns standardized array with global phase factor
+    standardized.
+
+    Parameters
+    ----------
+    array: ndarray
+        complex
+
+    Returns
+    -------
+    ndarray (complex)
+    """
+    phase = extract_phase(complex_array)
+    std_array = complex_array * np.exp(-1j * phase)
+    return std_array
+
+
 # —Matrix elements and operators (outside qutip) ———————————————————————————————————————————————————————————————————————
 
-# TODO matrix element handling is confusing. some inside, some outside classes. how to know what basis is being used
-# TODO by operators?
 
 def matrix_element(state1, operator, state2):
     """Calculate the matrix element `<state1|operator|state2>`.

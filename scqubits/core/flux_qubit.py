@@ -16,7 +16,7 @@ import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
 
 from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.utils.spectrum_utils import extract_phase, order_eigensystem
+from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 from scqubits.core.discretization import GridSpec
 from scqubits.core.data_containers import WaveFunctionOnGrid
 
@@ -82,7 +82,7 @@ class FluxQubit(QubitBaseClass):
         self.ncut = ncut
         self.truncated_dim = truncated_dim        
         self._sys_type = 'flux qubit'
-        self._esystype = np.complex_
+        self._evec_dtype = np.complex_
         
     def EC_matrix(self):
         """Return the charging energy matrix"""
@@ -267,8 +267,7 @@ class FluxQubit(QubitBaseClass):
         a_2_phip = np.exp(1j * np.outer(n_vec, phi_vec)) / (2 * np.pi)**0.5
         wavefunc_amplitudes = np.matmul(a_1_phim, state_amplitudes)
         wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, a_2_phip).T
-        phase = extract_phase(wavefunc_amplitudes)
-        wavefunc_amplitudes = np.exp(-1j * phase) * wavefunc_amplitudes
+        wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
 
         grid2d = GridSpec(np.asarray([[-np.pi / 2, 3 * np.pi / 2, phi_pts],
                                       [-np.pi / 2, 3 * np.pi / 2, phi_pts]]))

@@ -52,7 +52,7 @@ class Transmon(QubitBaseClass):
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = 'Transmon qubit'
-        self._esystype = np.float_
+        self._evec_dtype = np.float_
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
@@ -169,8 +169,6 @@ class Transmon(QubitBaseClass):
 
         for wavefunc_index in index_tuple:
             phi_wavefunc = self.phasebasis_wavefunction(esys, which=wavefunc_index, phi_points=phi_points)
-            phase = extract_phase(phi_wavefunc.amplitudes)
-            phi_wavefunc.amplitudes *= cmath.exp(-1j * phase)
             if np.sum(phi_wavefunc.amplitudes) < 0:
                 phi_wavefunc.amplitudes *= -1.0
 

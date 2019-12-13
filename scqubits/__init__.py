@@ -9,9 +9,6 @@
 #     LICENSE file in the root directory of this source tree.
 #######################################################################################################################
 
-from __future__ import division
-from __future__ import print_function
-
 # core
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.transmon import Transmon
@@ -36,7 +33,10 @@ def setup_package():
     import os
     from scqubits.utils.constants import TEMPDIR
 
-    matplotlib.pyplot.switch_backend('agg')   # do not actually show graphics in nosetests
+    try:
+        __IPYTHON__
+    except:
+        matplotlib.pyplot.switch_backend('agg')   # do not actually show graphics in nosetests
 
     if not os.path.exists(TEMPDIR):
         try:

@@ -22,7 +22,6 @@ import scqubits.utils.plotting as plot
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.data_containers import WaveFunction
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
-from scqubits.utils.spectrum_utils import extract_phase
 
 # —Fluxonium qubit ————————————————————————
 
@@ -59,7 +58,7 @@ class Fluxonium(QubitBaseClass):
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
         self._sys_type = 'Fluxonium qubit'
-        self._esystype = np.float_
+        self._evec_dtype = np.float_
 
     def phi_osc(self):
         """Returns oscillator length for the LC oscillator by fluxonium inductance and capacitance."""
@@ -210,8 +209,6 @@ class Fluxonium(QubitBaseClass):
 
         for wavefunc_index in index_tuple:
             phi_wavefunc = self.wavefunction(esys, wavefunc_index, phi_range, phi_points)
-            phase = extract_phase(phi_wavefunc.amplitudes)
-            phi_wavefunc.amplitudes *= cmath.exp(-1j * phase)
             if np.sum(phi_wavefunc.amplitudes) < 0:
                 phi_wavefunc.amplitudes *= -1.0
 
