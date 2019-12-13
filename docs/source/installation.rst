@@ -21,25 +21,26 @@ scqubits depends on the following Python open-source libraries:
 +================+==============+=====================================================+
 | **Python**     | 3+           | Version 3.5+ is recommended.                        |
 +----------------+--------------+-----------------------------------------------------+
-| **NumPy**      | 1.17.4+      | Not tested on lower versions.                       |
+| **NumPy**      | 1.14.2+      | Not tested on lower versions.                       |
 +----------------+--------------+-----------------------------------------------------+
-| **SciPy**      | 1.3.3+       | Not tested on lower versions.                       |
+| **SciPy**      | 1.1.0+       | Not tested on lower versions.                       |
 +----------------+--------------+-----------------------------------------------------+
-| **Matplotlib** | 3.0.3+       | Some plotting does not work on lower versions.      |
+| **Matplotlib** | 3.0.0+       | Some plotting does not work on lower versions.      |
 +----------------+--------------+-----------------------------------------------------+
 | **QuTiP**      | 4.3          |  Needed for composite Hilbert spaces.               |
 +----------------+--------------+-----------------------------------------------------+
-| **Cython**     | 0.29.14+     |  Required by QuTiP                                  |
+| **Cython**     | 0.28.5+      |  Required by QuTiP                                  |
 +----------------+--------------+-----------------------------------------------------+
-| **h5py**       | 2.10+        |  Needed for writing h5 data to file                 |
+| **h5py**       | 2.7.1+       |  Needed for writing h5 data to file                 |
 +----------------+--------------+-----------------------------------------------------+
+
 
 The following packages are optional:
 
 +------------------------+--------------+-----------------------------------------------------+
 | Package                | Version      | Details                                             |
 +========================+==============+=====================================================+
-| nose                   | 1.1.2+       | For running the test suite.                         |
+| nose                   | 1.3.7+       | For running the test suite.                         |
 +------------------------+--------------+-----------------------------------------------------+
 | matplotlib-label-lines | 0.3.6+       | For smart labelling of matrix element plots         |
 +------------------------+--------------+-----------------------------------------------------+
