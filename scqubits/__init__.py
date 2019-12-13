@@ -37,10 +37,12 @@ def setup_package():
     from scqubits.utils.constants import TEMPDIR
 
     matplotlib.pyplot.switch_backend('agg')   # do not actually show graphics in nosetests
-    try:
-        os.mkdir(TEMPDIR)
-    except OSError:
-        raise RuntimeError('Error creating temporary data directory ' + TEMPDIR)
+
+    if not os.path.exists(TEMPDIR):
+        try:
+            os.mkdir(TEMPDIR)
+        except OSError:
+            raise RuntimeError('Error creating temporary data directory ' + TEMPDIR)
 
 def teardown_package():
     import shutil
