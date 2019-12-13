@@ -64,7 +64,7 @@ def test_transmon_eigenvecs():
                                   -2.16194662e-47, -5.65089988e-50, -1.01063092e-50])
     _, evecs_tst = transmon.eigensys(filename=TEMPDIR + 'test')
     evecs_calculated = evecs_tst.T[3]
-    assert np.allclose(evecs_reference, evecs_tst.T[3])
+    assert np.allclose(evecs_reference, evecs_calculated)
 
 
 def test_transmon_plot_evals_vs_paramvals_ng():

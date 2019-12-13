@@ -59,6 +59,7 @@ class Fluxonium(QubitBaseClass):
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
         self._sys_type = 'Fluxonium qubit'
+        self._esystype = np.float_
 
     def phi_osc(self):
         """Returns oscillator length for the LC oscillator by fluxonium inductance and capacitance."""
@@ -104,13 +105,14 @@ class Fluxonium(QubitBaseClass):
         """
         dimension = self.hilbertdim()
         diag_elements = [i * self.omega_p() for i in range(dimension)]
-        lc_osc_matrix = np.diagflat(diag_elements)
+        lc_osc_matrix = np.diag(diag_elements)
 
         exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
         cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
-        return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential
+        return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential,
+                                         # fluxonium Hamiltonian in harm. osc. basis is real-valued
 
     def hilbertdim(self):
         """Returns the Hilbert space dimension."""

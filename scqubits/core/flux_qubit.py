@@ -82,6 +82,7 @@ class FluxQubit(QubitBaseClass):
         self.ncut = ncut
         self.truncated_dim = truncated_dim        
         self._sys_type = 'flux qubit'
+        self._esystype = np.complex_
         
     def EC_matrix(self):
         """Return the charging energy matrix"""
@@ -154,12 +155,12 @@ class FluxQubit(QubitBaseClass):
         return self.kineticmat() + self.potentialmat()
     
     def _n_operator(self):
-        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex128)
+        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
         return np.diag(diag_elements)
         
     def _exp_i_phi_operator(self):
         dim = 2 * self.ncut + 1
-        off_diag_elements = np.ones(dim-1, dtype=np.complex128)
+        off_diag_elements = np.ones(dim-1, dtype=np.complex_)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
         return e_iphi_matrix
 
@@ -169,25 +170,25 @@ class FluxQubit(QubitBaseClass):
     
     def n_1_operator(self):
         r"""Return charge number operator conjugate to :math:`\phi_1`"""
-        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex128)
+        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
         return np.kron(np.diag(diag_elements),self._identity())
     
     def n_2_operator(self):
         r"""Return charge number operator conjugate to :math:`\phi_2`"""
-        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex128)
+        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
         return np.kron(self._identity(),np.diag(diag_elements))
         
     def exp_i_phi_1_operator(self):
         r"""Operator :math:`e^{i\phi_1}`."""
         dim = 2 * self.ncut + 1
-        off_diag_elements = np.ones(dim-1, dtype=np.complex128)
+        off_diag_elements = np.ones(dim-1, dtype=np.complex_)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
         return np.kron(e_iphi_matrix,self._identity())
     
     def exp_i_phi_2_operator(self):
         r"""Operator :math:`e^{i\phi_2}`."""
         dim = 2 * self.ncut + 1
-        off_diag_elements = np.ones(dim-1, dtype=np.complex128)
+        off_diag_elements = np.ones(dim-1, dtype=np.complex_)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
         return np.kron(self._identity(),e_iphi_matrix)
     

@@ -94,6 +94,7 @@ class ZeroPi(QubitBaseClass):
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = '0-Pi qubit without EL and EC disorder, no coupling to zeta mode'
+        self._esystype = np.float_
 
 
     def _evals_calc(self, evals_count):

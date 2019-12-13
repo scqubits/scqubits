@@ -74,6 +74,7 @@ class QubitBaseClass(QuantumSystem):
 
     def __init__(self):
         self._sys_type = 'QubitBaseClass - mainly used as class template'
+        self._esystype = np.float_
 
     def filewrite_evals(self, filename, evals):
         """Write eigenvalue data to file.
@@ -193,7 +194,7 @@ class QubitBaseClass(QuantumSystem):
         else:
             _, evecs = esys
         operator_matrix = getattr(self, operator)()
-        return get_matrixelement_table(operator_matrix, evecs)
+        return get_matrixelement_table(operator_matrix, evecs, real_valued=isinstance(self._esystype, np.float_))
 
     def plot_matrixelements(self, operator, esys=None, evals_count=6, mode='abs', xlabel='', ylabel='', zlabel='',
                             fig_ax=None):
@@ -260,7 +261,7 @@ class QubitBaseClass(QuantumSystem):
         eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
 
         if get_eigenstates:
-            eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=np.float_)
+            eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=self._esystype)
         else:
             eigenstate_table = None
 

@@ -52,6 +52,7 @@ class Transmon(QubitBaseClass):
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = 'Transmon qubit'
+        self._esystype = np.float_
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
