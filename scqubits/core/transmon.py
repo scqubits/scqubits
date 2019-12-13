@@ -105,7 +105,7 @@ class Transmon(QubitBaseClass):
         """
         return -self.EJ * np.cos(phi)
 
-    def plot_n_wavefunction(self, esys, mode, which=0, nrange=(-5, 6), filename=None):
+    def plot_n_wavefunction(self, esys, mode, which=0, nrange=(-5, 6),filename=None):
         """Plots transmon wave function in charge basis
 
         Parameters
@@ -128,7 +128,7 @@ class Transmon(QubitBaseClass):
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
         modefunction = constants.MODE_FUNC_DICT[mode]
         n_wavefunc.amplitudes = modefunction(n_wavefunc.amplitudes)
-        return plot.wavefunction1d_discrete(n_wavefunc, nrange, filename=filename)
+        return plot.wavefunction1d_discrete(n_wavefunc, nrange,  xlabel='n', filename=filename)
 
     def plot_phi_wavefunction(self, esys, which=(0,), phi_points=251, mode='abs_sqr', scaling=None, filename=None):
         """Plot phase-basis wave function(s).
