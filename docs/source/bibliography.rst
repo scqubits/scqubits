@@ -13,3 +13,4 @@ Bibliography
 .. [Brooks2013] Brooks et al., Phys. Rev. A 87, 052306 (2013), https://link.aps.org/doi/10.1103/PhysRevA.87.052306
 .. [Dempster2014] Dempster et al., Phys. Rev. B 90, 094518 (2014), https://link.aps.org/doi/10.1103/PhysRevB.90.094518
 .. [Groszkowski2018] Groszkowski et al., New J. Phys. 20, 043053 (2018), https://doi.org/10.1088/1367-2630/aab7cd
+.. [Orlando1999] Orlando et al., Phys. Rev. B 60, 15398 (1999), https://link.aps.org/doi/10.1103/PhysRevB.60.15398

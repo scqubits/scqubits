@@ -52,7 +52,7 @@ class FluxQubit(QubitBaseClass):
     ----------
     EJ1, EJ2, EJ3: float
         Josephson energy of the ith junction in GHz; typically
-        EJ1 \approx EJ2, with EJ3 = \alpha EJ1 with \alpha < 1
+        `EJ1 = EJ2`, with `EJ3 = alpha * EJ1` and `alpha <= 1`
     ECJ1, ECJ2, ECJ3: float
         charging energy associated with the ith junction in GHz
     ECg1, ECg2: float
@@ -179,39 +179,39 @@ class FluxQubit(QubitBaseClass):
         return np.kron(self._identity(),np.diag(diag_elements))
         
     def exp_i_phi_1_operator(self):
-        r"""Operator :math:`e^{i\phi_1}`."""
+        """Return operator :math:`e^{i\phi_1}` in the charge basis."""
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim-1, dtype=np.complex_)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
         return np.kron(e_iphi_matrix,self._identity())
     
     def exp_i_phi_2_operator(self):
-        r"""Operator :math:`e^{i\phi_2}`."""
+        """Return operator :math:`e^{i\phi_2}` in the charge basis."""
         dim = 2 * self.ncut + 1
         off_diag_elements = np.ones(dim-1, dtype=np.complex_)
         e_iphi_matrix = np.diag(off_diag_elements, k=1)
         return np.kron(self._identity(),e_iphi_matrix)
     
     def cos_phi_1_operator(self):
-        """Returns operator :math:`\\cos \\phi_1` in the charge basis"""
+        """Return operator :math:`\\cos \\phi_1` in the charge basis"""
         cos_op = 0.5 * self.exp_i_phi_1_operator()
         cos_op += cos_op.T
         return cos_op
     
     def cos_phi_2_operator(self):
-        """Returns operator :math:`\\cos \\phi_2` in the charge basis"""
+        """Return operator :math:`\\cos \\phi_2` in the charge basis"""
         cos_op = 0.5 * self.exp_i_phi_2_operator()
         cos_op += cos_op.T
         return cos_op
 
     def sin_phi_1_operator(self):
-        """Returns operator :math:`\\sin \\phi_1` in the charge basis"""
+        """Return operator :math:`\\sin \\phi_1` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_1_operator()
         sin_op += sin_op.H
         return sin_op
     
     def sin_phi_2_operator(self):
-        """Returns operator :math:`\\sin \\phi_2` in the charge basis"""
+        """Return operator :math:`\\sin \\phi_2` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_2_operator()
         sin_op += sin_op.H
         return sin_op
