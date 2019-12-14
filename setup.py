@@ -76,8 +76,7 @@ DESCRIPTION = DOCLINES[0]
 LONG_DESCRIPTION = "\n".join(DOCLINES[2:])
 KEYWORDS = "superconducting qubits"
 
-#TODO FILL IN URL
-URL = "https://github.com/pypa/sampleproject"
+URL = "https://github.com/scqubits/scqubits"
 
 CLASSIFIERS = [_f for _f in CLASSIFIERS.split('\n') if _f]
 PLATFORMS = ["Linux", "Mac OSX", "Unix", "Windows"]
