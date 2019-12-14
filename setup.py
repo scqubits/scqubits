@@ -76,7 +76,7 @@ DESCRIPTION = DOCLINES[0]
 LONG_DESCRIPTION = "\n".join(DOCLINES[2:])
 KEYWORDS = "superconducting qubits"
 
-URL = "https://github.com/scqubits/scqubits"
+URL = "https://scqubits.readthedocs.io"
 
 CLASSIFIERS = [_f for _f in CLASSIFIERS.split('\n') if _f]
 PLATFORMS = ["Linux", "Mac OSX", "Unix", "Windows"]
