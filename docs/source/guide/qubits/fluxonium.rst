@@ -24,10 +24,10 @@ internally uses the :math:`E_C`-:math:`E_L` harmonic-oscillator basis [Zhu2013]_
 An instance of the fluxonium created as follows::
 
    fluxonium = scqubits.Fluxonium(EJ = 8.9,
-                                   EC = 2.5,
-                                   EL = 0.5,
-                                   flux = 0.33,
-                                   cutoff = 110)
+                                  EC = 2.5,
+                                  EL = 0.5,
+                                  flux = 0.33,
+                                  cutoff = 110)
 
 Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`.
 
