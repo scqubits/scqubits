@@ -47,7 +47,7 @@ EXTRA_KWARGS = {}
 # all information about scqubits goes here
 MAJOR = 1
 MINOR = 0
-MICRO = 0
+MICRO = 1
 ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 REQUIRES = ['cython (>=0.28.5)',
