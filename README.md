@@ -17,14 +17,11 @@ Matplotlib.
 Download and Installation
 -------------------------
 
-You can install scqubits locally via pip.
+You can install scqubits via pip.
 ```
-git clone https://github.com/Northwestern-Koch-Group/scqubits.git
-cd scqubits
-pip install .
+pip install scqubits
 ```
 
-[//]: # (TODO: Update once this is on PyPi)
 
 
 
