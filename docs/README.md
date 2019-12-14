@@ -3,9 +3,8 @@ Source for scqubits documentation
 
 This directory contains the source files for the scqubits documentation.
 
-The built documentation is available online, see http://xxx
+The built documentation is available online, see https://scqubits.readthedocs.io
 
-[//]: # (TODO: fill in above link once ReadTheDocs is set up)
 
 Build requirements
 ------------------

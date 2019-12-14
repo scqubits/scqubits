@@ -32,9 +32,8 @@ pip install .
 Documentation
 -------------
 
-The documentation for scqubits is available at:
+The documentation for scqubits is available at: https://scqubits.readthedocs.io
 
-[//]: # (TODO Add link to documentation)
 
 
 Contribute
@@ -42,15 +41,12 @@ Contribute
 
 You are welcome to contribute to scqubits development by forking this repository and sending pull requests, 
 or filing bug reports at the
-[issues page](http://TODO).
+[issues page](https://github.com/scqubits/scqubits/issues).
 
-[//]: # (TODO: fill in link)
 
 All contributions are acknowledged in the
-[contributors](http://TODO)
+[contributors](https://scqubits.readthedocs.io/en/latest/contributors.html)
 section in the documentation.
-
-[//]: # (TODO: fill in link)
 
 All contributions are expected to be consistent with [PEP 8 -- Style Guide for Python Code](https://www.python.org/dev/peps/pep-0008/).
 
