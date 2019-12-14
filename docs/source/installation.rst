@@ -57,9 +57,7 @@ Install scqubits using the Python package manager `pip <http://www.pip-installer
 
 .. code-block:: bash
 
-   git clone https://github.com/Northwestern-Koch-Group/scqubits.git
-   cd scqubits
-   pip install .
+   pip install scqubits
 
 .. _install-verify:
 
