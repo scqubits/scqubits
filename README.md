@@ -22,6 +22,11 @@ You can install scqubits via pip.
 pip install scqubits
 ```
 
+For Python 3.7, installation via conda is supported. (The conda-forge channel needs to be enabled for qutip installation.)
+```
+conda config --add channels conda-forge 
+conda install -c jkoch scqubits
+```
 
 
 

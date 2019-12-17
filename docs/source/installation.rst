@@ -59,6 +59,22 @@ Install scqubits using the Python package manager `pip <http://www.pip-installer
 
    pip install scqubits
 
+
+
+.. _install-via_conda:
+
+Installing via conda
+====================
+
+For Python 3.7, installation via conda is supported. (The conda-forge channel needs to be enabled for qutip installation.)
+
+.. code-block:: bash
+
+   conda config --add channels conda-forge
+   conda install -c jkoch scqubits
+
+
+
 .. _install-verify:
 
 Verifying the Installation
