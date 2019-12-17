@@ -46,6 +46,17 @@ The following packages are optional:
 +------------------------+--------------+-----------------------------------------------------+
 
 
+.. _install-via_conda:
+
+Installing via conda
+====================
+
+For Python 3.6 and 3.7, installation via conda is supported.
+
+.. code-block:: bash
+
+   conda install -c conda-forge scqubits
+
 
 
 .. _install-via_pip:
@@ -53,7 +64,7 @@ The following packages are optional:
 Installing via pip
 ==================
 
-Install scqubits using the Python package manager `pip <http://www.pip-installer.org/>`_.
+scqubits can also be installed using the Python package manager `pip <http://www.pip-installer.org/>`_.
 
 .. code-block:: bash
 
@@ -61,17 +72,6 @@ Install scqubits using the Python package manager `pip <http://www.pip-installer
 
 
 
-.. _install-via_conda:
-
-Installing via conda
-====================
-
-For Python 3.7, installation via conda is supported. (The conda-forge channel needs to be enabled for qutip installation.)
-
-.. code-block:: bash
-
-   conda config --add channels conda-forge
-   conda install -c jkoch scqubits
 
 
 

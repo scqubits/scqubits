@@ -17,15 +17,14 @@ Matplotlib.
 Download and Installation
 -------------------------
 
-You can install scqubits via pip.
+For Python 3.6 and 3.7, installation via conda is supported. 
 ```
-pip install scqubits
+conda install -c conda-forge scqubits
 ```
 
-For Python 3.7, installation via conda is supported. (The conda-forge channel needs to be enabled for qutip installation.)
+Alternatively, you can install scqubits via pip.
 ```
-conda config --add channels conda-forge 
-conda install -c jkoch scqubits
+pip install scqubits
 ```
 
 
