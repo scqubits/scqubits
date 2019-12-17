@@ -51,7 +51,7 @@ The following packages are optional:
 Installing via conda
 ====================
 
-For Python 3.6 and 3.7, installation via conda is supported.
+For Python 3.6, 3.7 and 3.8, installation via conda is supported.
 
 .. code-block:: bash
 

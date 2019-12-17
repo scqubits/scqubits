@@ -17,7 +17,7 @@ Matplotlib.
 Download and Installation
 -------------------------
 
-For Python 3.6 and 3.7, installation via conda is supported. 
+For Python 3.6, 3.7 and 3.8, installation via conda is supported. 
 ```
 conda install -c conda-forge scqubits
 ```
