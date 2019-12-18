@@ -1,4 +1,4 @@
-name: Package testing
+name: scqubits testing via pytest
 
 on: [push]
 
@@ -24,7 +24,8 @@ jobs:
         pip install numpy
         pip install scipy
         pip install -r requirements.txt
+        pip install scqubits
     - name: Test with pytest
       run: |
         pip install pytest
-        pytest
+        pytest --pyargs scqubits
