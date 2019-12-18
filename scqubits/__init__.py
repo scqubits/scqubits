@@ -25,26 +25,3 @@ from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 # version
 from scqubits.version import version as __version__
-
-
-# setup and teardown for nosetests
-def setup_package():
-    import matplotlib
-    import os
-    from scqubits.utils.constants import TEMPDIR
-
-    try:
-        __IPYTHON__
-    except:
-        matplotlib.pyplot.switch_backend('agg')   # do not actually show graphics in nosetests
-
-    if not os.path.exists(TEMPDIR):
-        try:
-            os.mkdir(TEMPDIR)
-        except OSError:
-            raise RuntimeError('Error creating temporary data directory ' + TEMPDIR)
-
-def teardown_package():
-    import shutil
-    from scqubits.utils.constants import TEMPDIR
-    shutil.rmtree(TEMPDIR)

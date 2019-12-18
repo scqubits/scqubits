@@ -1,5 +1,5 @@
 # test_flux_qubit.py
-# meant to be run with 'nose'
+# meant to be run with 'pytest'
 #
 # This file is part of scqubits.
 #
@@ -11,43 +11,36 @@
 ############################################################################
 
 import numpy as np
+import pytest
 
-import scqubits as qubit
-import scqubits.utils.plotting as plot
-from scqubits.utils.constants import TEMPDIR
+from scqubits.utils.tst_baseclass import BaseTest
 from scqubits.utils.spectrum_utils import standardize_phases
+from scqubits import FluxQubit
 
 
-def flux_qubit_initialize():
+class TestFluxQubit(BaseTest):
+
     ratio = 60.0
     alpha = 0.8
 
-    flux_qubit = qubit.FluxQubit(
-        EJ1 = 1.0, 
-        EJ2 = 1.0, 
-        EJ3 = alpha*1.0,
-        ECJ1 = 1.0/ratio,
-        ECJ2 = 1.0/ratio,
-        ECJ3 = 1.0/alpha/ratio,
-        ECg1 = 50.0/ratio,
-        ECg2 = 50.0/ratio,
-        ng1 = 0.0, 
-        ng2 = 0.0, 
-        flux = 0.45, 
-        ncut = 10,
-    )
-    return flux_qubit
+    @pytest.fixture(autouse=True)
+    def init_qbt(self):
+        self.qbt = FluxQubit(
+            EJ1 = 1.0,
+            EJ2 = 1.0,
+            EJ3 = self.alpha*1.0,
+            ECJ1 = 1.0/self.ratio,
+            ECJ2 = 1.0/self.ratio,
+            ECJ3 = 1.0/self.alpha/self.ratio,
+            ECg1 = 50.0/self.ratio,
+            ECg2 = 50.0/self.ratio,
+            ng1 = 0.0,
+            ng2 = 0.0,
+            flux = 0.45,
+            ncut = 10)
 
-def test_flux_qubit_eigenvals():
-    print("flux_qubit_eigenvals()")
-    flux_qubit = flux_qubit_initialize()
-    evals_reference = np.asarray([-1.39408879, -1.16358534, -1.11509225, -0.98817209, -0.94604519, -0.88385204])
-    assert np.allclose(evals_reference, flux_qubit.eigenvals(filename=TEMPDIR + 'test'))
-
-def test_flux_qubit_eigenvecs():
-    print("flux_qubit_eigenvecs()")
-    flux_qubit = flux_qubit_initialize()
-    evecs_reference = np.asarray([ 4.11828514e-15+0.00000000e+00j,  5.78962906e-14-2.72004641e-15j,
+    _EVALS_REFERENCE = np.asarray([-1.39408879, -1.16358534, -1.11509225, -0.98817209, -0.94604519, -0.88385204])
+    _EVECS_REFERENCE = standardize_phases(np.asarray([ 4.11828514e-15+0.00000000e+00j,  5.78962906e-14-2.72004641e-15j,
         7.33952749e-13-8.18370979e-14j,  7.95699479e-12-1.20907451e-12j,
         7.24374460e-11-9.38555136e-12j,  5.31777327e-10+2.13450026e-12j,
         2.91375822e-09+9.50373788e-10j,  9.96227605e-09+1.12992660e-08j,
@@ -267,24 +260,8 @@ def test_flux_qubit_eigenvecs():
         2.91375827e-09-9.50373810e-10j,  5.31777313e-10-2.13452177e-12j,
         7.24374756e-11+9.38548708e-12j,  7.95698132e-12+1.20902908e-12j,
         7.33909461e-13+8.18338453e-14j,  5.79224169e-14+2.72481690e-15j,
-        4.09394740e-15+1.19262239e-18j])
-    evecs_reference = standardize_phases(evecs_reference)
-
-    _, evecs_tst = flux_qubit.eigensys(filename=TEMPDIR + 'test')
-    evecs_calculated = evecs_tst.T[3]
-    evecs_calculated = standardize_phases(evecs_calculated)
-    assert np.allclose(evecs_reference, evecs_calculated)
-
-def test_flux_qubit_plot_evals_vs_paramvals_flux():
-    print("flux_qubit_plot_evals_vs_paramvals_flux()")
-    flux_qubit = flux_qubit_initialize()
-    flux_list = np.linspace(.46, .54, 40)
-    flux_qubit.plot_evals_vs_paramvals('flux', flux_list, evals_count=4, subtract_ground=False)
-
-def test_flux_qubit_get_spectrum_vs_paramvals():
-    print("flux_qubit_get_spectrum_vs_paramvals()")
-    flux_qubit = flux_qubit_initialize()
-    reference_evals = np.asarray([[-1.35190341, -1.12997203, -1.07587151, -1.01071222],
+        4.09394740e-15+1.19262239e-18j]))
+    _EVALS_REFERENCE2 = np.asarray([[-1.35190341, -1.12997203, -1.07587151, -1.01071222],
        [-1.34319798, -1.12319442, -1.06777423, -1.0181728 ],
        [-1.33447602, -1.11648152, -1.05965997, -1.02596366],
        [-1.32573809, -1.10985535, -1.05152909, -1.03395824],
@@ -324,27 +301,7 @@ def test_flux_qubit_get_spectrum_vs_paramvals():
        [-1.33447602, -1.11648152, -1.05965997, -1.02596366],
        [-1.34319798, -1.12319442, -1.06777423, -1.0181728 ],
        [-1.35190341, -1.12997203, -1.07587151, -1.01071222]])
-    flux_list = np.linspace(.46, .54, 40)
-    calculated_evals = flux_qubit.get_spectrum_vs_paramvals('flux', flux_list, evals_count=4, subtract_ground=False,
-                                                    get_eigenstates=True)
-    assert np.allclose(reference_evals, calculated_evals.energy_table)
-
-def test_flux_qubit_get_spectrum_vs_paramvals_filewrite():
-    print("flux_qubit_get_spectrum_vs_paramvals_filewrite()")
-    flux_qubit = flux_qubit_initialize()
-    flux_list = np.linspace(.46, .54, 40)
-    calculated_evals = flux_qubit.get_spectrum_vs_paramvals('flux', flux_list, evals_count=4, subtract_ground=False,
-                                                            get_eigenstates=True, filename=TEMPDIR + 'tst_tmp')
-
-def test_flux_qubit_plot_wavefunction():
-    print("flux_qubit_plot_wavefunction()")
-    flux_qubit = flux_qubit_initialize()
-    flux_qubit.plot_wavefunction(esys=None, which=6, mode='real')
-
-def test_flux_qubit_matrixelement_table():
-    print("flux_qubit_matrixelement_table()")
-    evalcount = 16
-    reference_matrix = np.asarray([[ 1.11958672e-15+3.46944695e-18j,  2.02903917e-15+1.04375810e+00j,
+    _MATELEM_REFERENCE =  np.asarray([[ 1.11958672e-15+3.46944695e-18j,  2.02903917e-15+1.04375810e+00j,
          7.21265604e-01-1.66672966e-15j, -2.15293349e-15-2.04477138e-01j,
          1.95187864e-16-1.26173334e-01j,  1.56042037e-01+1.44154025e-15j,
         -6.42902767e-16-1.28111133e-01j,  2.67375280e-16-9.60599265e-02j,
@@ -473,24 +430,37 @@ def test_flux_qubit_matrixelement_table():
         -4.64411866e-01-5.18663398e-15j,  3.61144975e-15-7.34502844e-01j,
          2.72285381e-01+3.44541458e-14j,  1.91741773e-14-0.00000000e+00j]])
 
-    flux_qubit = flux_qubit_initialize()
-    calculated_matrix = flux_qubit.matrixelement_table('n_1_operator', esys=None, evals_count=evalcount)
-    assert np.allclose(np.abs(reference_matrix), np.abs(calculated_matrix))
+    def test_eigenvals(self):
+        return self.eigenvals(self._EVALS_REFERENCE)
 
-def test_flux_qubit_plot_matrixelements():
-    print("flux_qubit_plot_matrixelements()")
-    flux_qubit = flux_qubit_initialize()
-    flux_qubit.plot_matrixelements('n_1_operator', evals_count=10)
+    def test_eigenvecs(self):
+        return self.eigenvecs(self._EVECS_REFERENCE)
 
-def test_flux_qubit_print_matrixelements():
-    print("flux_qubit_print_matrixelements()")
-    flux_qubit = flux_qubit_initialize()
-    mat_data = flux_qubit.matrixelement_table('n_1_operator')
-    plot.print_matrix(abs(mat_data))
+    def test_plot_evals_vs_paramvals_ng(self):
+        flux_list = np.linspace(0.46, 0.54, 60)
+        return self.plot_evals_vs_paramvals('flux', flux_list)
 
-def test_flux_qubit_plot_matelem_vs_paramvals():
-    print("flux_qubit_plot_matelem_vs_paramvals()")
-    flux_qubit = flux_qubit_initialize()
-    flux_list = np.linspace(.49, .51, 40)
-    fig, ax = flux_qubit.plot_matelem_vs_paramvals('n_1_operator', 'flux', flux_list,
-                                                   select_elems=[(0, 0), (1, 4), (1, 0)], filename=TEMPDIR + 'test')
+    def test_get_spectrum_vs_paramvals(self):
+        flux_list = np.linspace(.46, .54, 40)
+        return self.get_spectrum_vs_paramvals('flux', flux_list, self._EVALS_REFERENCE2)
+
+    def test_plot_evals_vs_paramvals_EJ(self):
+        ej_vals = self.qbt.EJ2 * np.cos(np.linspace(-np.pi / 2, np.pi / 2, 40))
+        self.plot_evals_vs_paramvals('EJ1', ej_vals)
+
+    def test_qubit_plot_wavefunction(self):
+        self.qbt.plot_wavefunction(esys=None, which=6, mode='real')
+
+    def test_matrixelement_table(self):
+        calculated_matrix = self.qbt.matrixelement_table('n_1_operator', esys=None, evals_count=16)
+        assert np.allclose(np.abs(self._MATELEM_REFERENCE), np.abs(calculated_matrix))
+
+    def test_plot_matrixelements(self):
+        self.plot_matrixelements('n_2_operator', evals_count=10)
+
+    def test_print_matrixelements(self):
+        self.print_matrixelements('n_1_operator')
+
+    def test_plot_matelem_vs_paramvals(self):
+        flux_list = np.linspace(.49, .51, 40)
+        self.plot_matelem_vs_paramvals('n_1_operator', 'flux', flux_list, select_elems=[(0, 0), (1, 4), (1, 0)])

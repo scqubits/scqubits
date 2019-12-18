@@ -1,5 +1,5 @@
 # test_zeropi.py
-# meant to be run with 'nose'
+# meant to be run with 'pytest'
 #
 # This file is part of scqubits.
 #

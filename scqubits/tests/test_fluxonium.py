@@ -1,5 +1,5 @@
 # test_fluxonium.py
-# meant to be run with 'nose'
+# meant to be run with 'pytest'
 #
 # This file is part of scqubits.
 #
@@ -11,164 +11,89 @@
 ############################################################################
 
 import numpy as np
+import pytest
 
-import scqubits as qubit
-
-
-def fluxonium_initialize():
-    fluxonium = qubit.Fluxonium(
-        EJ=8.9,
-        EC=2.5,
-        EL=0.5,
-        flux=0.33,
-        cutoff=110
-    )
-    return fluxonium
+from scqubits.utils.tst_baseclass import BaseTest
+from scqubits.utils.spectrum_utils import standardize_phases
+from scqubits import Fluxonium
 
 
-def test_Fluxonium_init():
-    _ = fluxonium_initialize()
+class TestFluxQubit(BaseTest):
+
+    @pytest.fixture(autouse=True)
+    def init_qbt(self):
+        self.qbt = Fluxonium(
+            EJ=8.9,
+            EC=2.5,
+            EL=0.5,
+            flux=0.33,
+            cutoff=110
+        )
+
+    _EVALS_REFERENCE = np.asarray([-3.30851586, -0.23733983, 6.9133453, 10.55323546, 11.76215604, 16.12300682])
+    _EVECS_REFERENCE = np.asarray([-2.25641769e-01, -9.07823403e-02, -2.01681071e-01,  8.47894074e-01,
+        2.65759934e-01,  5.00881806e-02, -2.68714199e-01,  4.60768041e-02,
+       -8.01048670e-02,  5.08834430e-02,  1.23273137e-01, -3.84743436e-02,
+       -7.10132669e-02, -6.34881799e-03,  3.89404389e-02,  2.21908834e-02,
+       -2.32943127e-02, -1.50331760e-02,  1.04908421e-02,  4.20852948e-03,
+       -4.55237690e-04,  1.92102825e-03, -4.44947862e-03, -3.66377532e-03,
+        4.91765067e-03,  3.46252679e-03, -3.32174179e-03, -2.86608297e-03,
+        1.57273296e-03,  2.32311443e-03, -4.57344914e-04, -1.81060177e-03,
+       -1.92094509e-05,  1.27855869e-03,  1.22207703e-04, -7.63148225e-04,
+       -8.66727352e-05,  3.36643601e-04,  3.49469014e-05, -4.53863382e-05,
+       -2.96209234e-06, -1.10354785e-04, -1.23156644e-05,  1.63032693e-04,
+        2.11847164e-05, -1.54922008e-04, -2.90934726e-05,  1.21443287e-04,
+        3.61491733e-05, -8.47714448e-05, -4.03459696e-05,  5.49479311e-05,
+        4.02414983e-05, -3.41213213e-05, -3.59317688e-05,  2.07520577e-05,
+        2.87510686e-05, -1.24165902e-05, -2.04914071e-05,  7.12854606e-06,
+        1.27180280e-05, -3.65435612e-06, -6.41481035e-06,  1.35501525e-06,
+        1.94474759e-06,  8.10704481e-08,  7.98514303e-07, -8.41829022e-07,
+       -2.17845583e-06,  1.09320949e-06,  2.63077004e-06, -1.00383472e-06,
+       -2.54362617e-06,  7.32203731e-07,  2.20400642e-06, -4.06782497e-07,
+       -1.79221219e-06,  1.14265623e-07,  1.40243284e-06,  1.00634040e-07,
+       -1.07141350e-06, -2.26911652e-07,  8.04247022e-07,  2.75386617e-07,
+       -5.92693293e-07, -2.67276881e-07,  4.25725119e-07,  2.25542835e-07,
+       -2.94103590e-07, -1.69654213e-07,  1.91327922e-07,  1.13370856e-07,
+       -1.12976164e-07, -6.46737165e-08,  5.56971691e-08,  2.68724975e-08,
+       -1.64272102e-08, -1.00356998e-10, -7.94517430e-09, -1.72584903e-08,
+        2.05681840e-08,  2.74806641e-08, -2.44690005e-08, -3.28106088e-08,
+        2.23433236e-08,  3.50935130e-08, -1.64402276e-08, -3.56602334e-08,
+        8.53480822e-09,  3.53378058e-08])
+    _EVALS_REFERENCE2 = None
+    _MATELEM_REFERENCE =  None
 
 
-def test_Fluxonium_eigenvals():
-    print("Fluxonium_eigenvals()")
-    fluxonium = fluxonium_initialize()
-    evals_reference = np.asarray([-3.30851586, -0.23733983, 6.9133453, 10.55323546, 11.76215604, 16.12300682])
-    assert np.allclose(evals_reference, fluxonium.eigenvals())
+    def test_eigenvals(self):
+        return self.eigenvals(self._EVALS_REFERENCE)
 
+    def test_eigenvecs(self):
+        return self.eigenvecs(self._EVECS_REFERENCE)
 
-def test_Fluxonium_eigenvecs():
-    print("Fluxonium_eigenvecs()")
-    evecs_reference = np.asarray([-2.38363330e-01 + 0.00000000e+00j,
-                                  3.20442405e-02 + 2.12358326e-17j,
-                                  -1.20810144e-01 - 6.94724735e-18j,
-                                  2.43511103e-01 - 2.22081236e-17j,
-                                  -5.33736599e-01 - 8.16472432e-17j,
-                                  -6.41746715e-01 - 5.57995514e-17j,
-                                  3.73801267e-01 - 8.48983863e-17j,
-                                  1.95507133e-02 + 3.54189937e-17j,
-                                  3.64412246e-02 + 6.94614516e-17j,
-                                  -9.37239709e-02 - 9.86168820e-19j,
-                                  -2.49439240e-02 - 1.48055473e-17j,
-                                  -2.40320700e-02 - 7.24145879e-18j,
-                                  -4.40005619e-02 - 1.39442892e-17j,
-                                  9.15447995e-02 - 1.45377466e-17j,
-                                  3.36070686e-02 + 6.02277858e-17j,
-                                  -7.90008863e-02 + 1.38422304e-18j,
-                                  -9.82499289e-03 - 7.21745413e-17j,
-                                  4.29790987e-02 - 4.37174562e-18j,
-                                  5.02340919e-03 + 2.77125495e-17j,
-                                  -1.69072583e-02 + 8.22829425e-18j,
-                                  -7.47855900e-03 - 8.30489777e-18j,
-                                  5.14627755e-03 - 7.07257661e-18j,
-                                  6.31589761e-03 + 3.53006276e-18j,
-                                  -1.63773843e-03 + 3.65858940e-18j,
-                                  -1.78893677e-03 - 8.22761654e-19j,
-                                  7.86514528e-04 - 5.45650780e-19j,
-                                  -2.34641271e-03 + 8.49987266e-19j,
-                                  -1.64190378e-04 - 1.53769933e-18j,
-                                  4.20520055e-03 + 4.98341336e-19j,
-                                  -4.94155735e-04 + 3.09908437e-18j,
-                                  -4.09698008e-03 - 9.89730901e-19j,
-                                  8.53478022e-04 - 1.32909833e-18j,
-                                  3.08864466e-03 + 8.33956971e-19j,
-                                  -7.93617226e-04 + 1.34060537e-18j,
-                                  -2.00265671e-03 - 7.53971558e-19j,
-                                  4.80192585e-04 - 1.12248119e-18j,
-                                  1.18792898e-03 + 3.65923429e-19j,
-                                  -1.50392473e-04 + 7.96299586e-19j,
-                                  -6.75558017e-04 - 7.62463010e-20j,
-                                  -5.18954042e-05 - 5.43957378e-19j,
-                                  3.77450313e-04 - 4.35225590e-20j,
-                                  1.06410891e-04 + 2.93405913e-19j,
-                                  -2.01906770e-04 + 8.45306996e-20j,
-                                  -6.59440591e-05 - 1.84663625e-19j,
-                                  9.07422076e-05 - 6.09742126e-20j,
-                                  -4.13271229e-06 + 7.03154551e-20j,
-                                  -1.64670974e-05 - 4.20795028e-20j,
-                                  6.02841937e-05 + 1.76061207e-20j,
-                                  -3.13081503e-05 + 7.72755882e-20j,
-                                  -8.71127835e-05 - 5.03474206e-20j,
-                                  5.70144435e-05 - 1.15019871e-19j,
-                                  8.83151315e-05 + 7.70399860e-20j,
-                                  -6.47863704e-05 + 8.45305434e-20j,
-                                  -7.48488378e-05 - 7.68623425e-20j,
-                                  5.98829870e-05 - 7.10660252e-20j,
-                                  5.68587268e-05 + 6.51151924e-20j,
-                                  -4.79891669e-05 + 2.00533230e-20j,
-                                  -4.04922202e-05 - 4.11767962e-20j,
-                                  3.40414937e-05 - 2.37191733e-20j,
-                                  2.80361101e-05 + 3.04652294e-20j,
-                                  -2.14432561e-05 + 2.78940465e-20j,
-                                  -1.93840260e-05 - 1.82660275e-20j,
-                                  1.18972594e-05 - 1.00573125e-20j,
-                                  1.34973104e-05 + 7.40579229e-21j,
-                                  -5.71829598e-06 + 6.49363847e-21j,
-                                  -9.32153137e-06 - 4.03633810e-21j,
-                                  2.36264207e-06 - 6.87490019e-21j,
-                                  6.14936276e-06 + 1.41174684e-21j,
-                                  -9.44047430e-07 + 5.84360395e-21j,
-                                  -3.63247615e-06 - 9.93721596e-22j,
-                                  6.04011871e-07 - 3.54594177e-21j,
-                                  1.65179056e-06 + 5.89537826e-22j,
-                                  -7.02741231e-07 + 1.63137176e-21j,
-                                  -1.80385205e-07 - 6.73051333e-22j,
-                                  8.62753885e-07 - 2.01870580e-23j,
-                                  -8.05110828e-07 + 8.97145728e-22j,
-                                  -9.23576589e-07 - 3.70125333e-22j,
-                                  1.35986744e-06 - 6.77117007e-22j,
-                                  8.63075586e-07 + 8.77830722e-22j,
-                                  -1.57014495e-06 + 6.59852252e-22j,
-                                  -7.23347908e-07 - 5.75212922e-22j,
-                                  1.53658824e-06 - 3.12572026e-22j,
-                                  5.59071858e-07 + 1.43932846e-21j,
-                                  -1.35587735e-06 + 2.87122900e-22j,
-                                  -4.10917984e-07 - 9.77323938e-22j,
-                                  1.10787893e-06 - 1.51794202e-22j,
-                                  2.98238383e-07 + 7.14243936e-22j,
-                                  -8.49996518e-07 + 1.80906527e-23j,
-                                  -2.22773464e-07 - 5.75460842e-22j,
-                                  6.17423687e-07 - 4.41791722e-23j,
-                                  1.76277085e-07 + 4.93180984e-22j,
-                                  -4.26981769e-07 + 2.40061779e-23j,
-                                  -1.47580079e-07 - 3.19944381e-22j,
-                                  2.82390553e-07 - 3.91496868e-23j,
-                                  1.27157950e-07 + 2.07451443e-22j,
-                                  -1.79446817e-07 + 7.32976594e-23j,
-                                  -1.09016440e-07 - 1.52115266e-22j,
-                                  1.10230599e-07 - 4.96316487e-23j,
-                                  9.06247788e-08 + 1.10145617e-22j,
-                                  -6.60378531e-08 + 5.72959714e-23j,
-                                  -7.18547754e-08 - 6.61766418e-23j,
-                                  3.91076558e-08 - 4.81668258e-23j,
-                                  5.36897680e-08 + 4.54130059e-23j,
-                                  -2.33709155e-08 + 1.87927971e-23j,
-                                  -3.71927308e-08 - 2.66303441e-23j,
-                                  1.45530792e-08 + 5.58129156e-24j,
-                                  2.29147463e-08 + 1.65631458e-23j,
-                                  -9.91703073e-09 - 9.76901988e-24j,
-                                  -1.07328309e-08 - 9.89062670e-24j, 7.88622810e-09 + 2.78778104e-24j])
-    fluxonium = fluxonium_initialize()
-    _, evecs = fluxonium.eigensys(evals_count=6)
-    evecs_calculated = evecs.T[5]
-    assert np.allclose(evecs_reference, evecs_calculated)
+    def test_plot_evals_vs_paramvals_ng(self):
+        flux_list = np.linspace(-0.5, 0.5, 90)
+        return self.plot_evals_vs_paramvals('flux', flux_list)
 
+#    def test_get_spectrum_vs_paramvals(self):
+#        flux_list = np.linspace(.46, .54, 40)
+#        return self.get_spectrum_vs_paramvals('flux', flux_list, self._EVALS_REFERENCE2)
 
-def test_Fluxonium_plot_evals_vs_paramvals():
-    print("Fluxonium_plot_evals_vs_paramvals()")
-    fluxonium = fluxonium_initialize()
-    fluxonium.cutoff = 50
-    flux_list = np.linspace(-0.5, 0.5, 99)
-    fluxonium.plot_evals_vs_paramvals('flux', flux_list, evals_count=5, subtract_ground=True)
+    def test_plot_evals_vs_paramvals_EJ(self):
+        ej_vals = self.qbt.EJ * np.cos(np.linspace(-np.pi / 2, np.pi / 2, 40))
+        self.plot_evals_vs_paramvals('EJ', ej_vals)
 
+    def test_qubit_plot_wavefunction(self):
+        self.qbt.plot_wavefunction(esys=None, which=(0,1,5), mode='real')
 
-def test_Fluxonium_plot_wavefunction():
-    print("Fluxonium_plot_wavefunction()")
-    fluxonium = fluxonium_initialize()
-    fluxonium.plot_wavefunction(esys=None, which=(0,1,5), mode='real')
+#    def test_matrixelement_table(self):
+#        calculated_matrix = self.qbt.matrixelement_table('n_operator', esys=None, evals_count=16)
+#        assert np.allclose(np.abs(self._MATELEM_REFERENCE), np.abs(calculated_matrix))
 
+    def test_plot_matrixelements(self):
+        self.plot_matrixelements('n_operator', evals_count=10)
 
-def test_Fluxonium_plot_matrixelements():
-    print("Fluxonium_plot_matrixelements()")
-    fluxonium = fluxonium_initialize()
-    fluxonium.plot_matrixelements('phi_operator', esys=None, evals_count=10)
+    def test_print_matrixelements(self):
+        self.print_matrixelements('n_operator')
+
+    def test_plot_matelem_vs_paramvals(self):
+        flux_list = np.linspace(.49, .51, 40)
+        self.plot_matelem_vs_paramvals('phi_operator', 'flux', flux_list, select_elems=[(0, 0), (1, 4), (1, 0)])
