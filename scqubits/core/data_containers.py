@@ -138,7 +138,7 @@ class SpectrumData(object):
         filename: str
             path and name of output file (file suffix appended automatically)
         """
-        if self.state_table:
+        if self.state_table is not None:
             if isinstance(self.state_table, list):
                 state_table_numpy = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
             elif isinstance(self.state_table, np.ndarray):
