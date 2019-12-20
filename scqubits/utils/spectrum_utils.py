@@ -9,9 +9,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import cmath
+
 import numpy as np
 import qutip as qt
-import cmath
 
 
 def order_eigensystem(evals, evecs):
@@ -57,7 +58,7 @@ def standardize_phases(complex_array):
 
     Parameters
     ----------
-    array: ndarray
+    complex_array: ndarray
         complex
 
     Returns

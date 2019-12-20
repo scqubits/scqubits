@@ -9,12 +9,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import copy
 import numpy as np
 import qutip as qt
 
 import scqubits.utils.progressbar as progressbar
-
 from scqubits.core.data_containers import SpectrumData
 from scqubits.utils.spectrum_utils import get_eigenstate_index_maxoverlap
 
@@ -60,13 +58,6 @@ class HilbertSpace(list):
         -------
         int"""
         return len(self)
-
-    def dict_reformat(self):
-        """Provides `HilbertSpace.__dict__` in reformatted form (all strings); needed for .h5 output."""
-        dict_reformatted = copy.deepcopy(self.__dict__)
-        for key, value in dict_reformatted.items():
-            dict_reformatted[key] = str(value)
-        return dict_reformatted
 
     def diag_operator(self, diag_elements, subsystem):
         """For given diagonal elements of a diagonal operator in `subsystem`, return the `Qobj` operator for the
@@ -216,7 +207,7 @@ class HilbertSpace(list):
             progress_in_percent = (param_index + 1) / paramvals_count
             progressbar.update(progress_in_percent)
 
-        spectrumdata = SpectrumData(param_name, param_vals, eigenenergy_table, self.dict_reformat(),
+        spectrumdata = SpectrumData(param_name, param_vals, eigenenergy_table, self.__dict__,
                                     state_table=eigenstatesQobj_table)
         if filename:
             spectrumdata.filewrite(filename)
@@ -265,7 +256,7 @@ class HilbertSpace(list):
             progress_in_percent = (param_index + 1) / paramvals_count
             progressbar.update(progress_in_percent)
         return SpectrumData(spectrum_data.param_name, spectrum_data.param_vals, diff_eigenenergy_table,
-                            self.dict_reformat(), state_table=None)
+                            self.__dict__, state_table=None)
 
     def absorption_spectrum(self, spectrum_data, initial_state_ind, initial_as_bare=False):
         """Takes spectral data of energy eigenvalues and returns the absorption spectrum relative to a state
@@ -314,3 +305,17 @@ class HilbertSpace(list):
         spectrum_data.energy_table *= -1.0
         spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
         return spectrum_data
+
+    def filewrite_h5(self, file_hook):
+        if isinstance(file_hook, str):
+            h5file = h5py.File(filename + '.hdf5', 'w')
+            h5file_root = h5file.create_group('root')
+        else:
+            h5file_root = file_hook
+
+        for index, subsys in enumerate(self):
+            h5file_subgroup = h5file_root.create_group('subsys_' + str(index))
+            h5file_subgroup.attrs['type'] = type(subsys)
+            subsys.filewrite_params_h5(h5file_subgroup)
+
+# TODO add routine for creating a HilbertSpace instance from h5 file data

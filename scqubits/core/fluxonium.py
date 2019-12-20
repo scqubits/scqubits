@@ -11,6 +11,7 @@
 
 import cmath
 import math
+
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
@@ -18,10 +19,10 @@ import scipy as sp
 import scqubits.core.operators as op
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
-
-from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.data_containers import WaveFunction
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
+from scqubits.core.qubit_base import QubitBaseClass
+
 
 # —Fluxonium qubit ————————————————————————
 
@@ -48,7 +49,6 @@ class Fluxonium(QubitBaseClass):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
-
 
     def __init__(self, EJ, EC, EL, flux, cutoff, truncated_dim=None):
         self.EJ = EJ
@@ -111,7 +111,7 @@ class Fluxonium(QubitBaseClass):
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
         return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential,
-                                         # fluxonium Hamiltonian in harm. osc. basis is real-valued
+        # fluxonium Hamiltonian in harm. osc. basis is real-valued
 
     def hilbertdim(self):
         """Returns the Hilbert space dimension."""

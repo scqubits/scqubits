@@ -103,6 +103,17 @@ class Grid1d(object):
 
         return derivative_matrix
 
+    def filewrite_params_h5(self, h5file_root):
+        h5dataset = h5file_root.create_dataset("grid", data=[])
+        h5dataset.attrs['min_val'] = self.min_val
+        h5dataset.attrs['max_val'] = self.max_val
+        h5dataset.attrs['pt_count'] = self.pt_count
+
+    def set_params_from_h5(self, h5file_grid):
+        self.min_vals = h5file_grid.attrs['min_val']
+        self.max_vals = h5file_grid.attrs['max_val']
+        self.pt_count = h5file_grid.attrs['pt_count']
+
 
 class GridSpec(object):
     """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
@@ -129,3 +140,16 @@ class GridSpec(object):
     def unwrap(self):
         """Auxiliary routine that yields a tuple of the parameters specifying the grid."""
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count
+
+    def filewrite_params_h5(self, h5file_root):
+        h5dataset = h5file_root.create_dataset("grid", data=[])
+        h5dataset.attrs['min_val'] = self.min_vals
+        h5dataset.attrs['max_val'] = self.max_vals
+        h5dataset.attrs['var_count'] = self.var_count
+        h5dataset.attrs['pt_count'] = self.pt_count
+
+    def set_params_from_h5(self, h5file_grid):
+        self.min_vals = h5file_grid.attrs['min_val']
+        self.max_vals = h5file_grid.attrs['max_val']
+        self.var_count = h5file_grid.attrs['var_count']
+        self.pt_count = h5file_grid.attrs['pt_count']

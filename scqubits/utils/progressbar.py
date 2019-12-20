@@ -13,6 +13,7 @@ The bar length is given by 'progress_in_percent'.
 """
 
 import sys
+
 import scqubits.settings as cfg
 
 

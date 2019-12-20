@@ -4,4 +4,4 @@ scipy>=1.1.0
 matplotlib>=3.0.0
 qutip>=4.3.1
 h5py>=2.7.1
-nose>=1.3.7
+pytest

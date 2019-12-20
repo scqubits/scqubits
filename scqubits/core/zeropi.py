@@ -14,11 +14,10 @@ from scipy import sparse
 
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
-
+from scqubits.core.data_containers import WaveFunctionOnGrid
+from scqubits.core.discretization import GridSpec
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
-from scqubits.core.discretization import GridSpec
-from scqubits.core.data_containers import WaveFunctionOnGrid
 
 
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
@@ -94,7 +93,7 @@ class ZeroPi(QubitBaseClass):
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = '0-Pi qubit without EL and EC disorder, no coupling to zeta mode'
-        self._evec_dtype = np.float_
+        self._evec_dtype = np.complex_
 
 
     def _evals_calc(self, evals_count):
@@ -133,8 +132,8 @@ class ZeroPi(QubitBaseClass):
         """ """
         pt_count = self.grid.pt_count
         dim_theta = 2 * self.ncut + 1
-        identity_phi = sparse.identity(pt_count, format='csc')
-        identity_theta = sparse.identity(dim_theta, format='csc')
+        identity_phi = sparse.identity(pt_count, format='csc', dtype=np.complex_)
+        identity_theta = sparse.identity(dim_theta, format='csc', dtype=np.complex_)
 
         kinetic_matrix_phi = self.grid.second_derivative_matrix(prefactor=-2.0 * self.ECJ)
 
@@ -143,6 +142,7 @@ class ZeroPi(QubitBaseClass):
 
         kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc') \
                          + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc')
+
         kinetic_matrix -= 2.0 * self.ECS() * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
 
         return kinetic_matrix
@@ -207,7 +207,7 @@ class ZeroPi(QubitBaseClass):
         max_val = self.grid.max_val
         pt_count = self.grid.pt_count
 
-        phi_matrix = sparse.dia_matrix((pt_count, pt_count), dtype=np.float_)
+        phi_matrix = sparse.dia_matrix((pt_count, pt_count), dtype=np.complex_)
         diag_elements = np.linspace(min_val, max_val, pt_count)
         phi_matrix.setdiag(diag_elements)
 
@@ -348,3 +348,20 @@ class ZeroPi(QubitBaseClass):
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
         return plot.wavefunction2d(wavefunc, figsize=figsize, aspect_ratio=aspect_ratio, zero_calibrate=zero_calibrate,
                                    fig_ax=fig_ax)
+
+    def filewrite_params_h5(self, h5file_root):
+        """Write current qubit parameters into a given h5 data file.
+
+        Parameters
+        ----------
+        h5file_root: open h5py file
+        """
+        super().filewrite_params_h5(h5file_root)
+        self.grid.filewrite_params_h5(h5file_root)
+
+    def set_params_from_h5(self, h5file_root):
+        super().set_params_from_h5(h5file_root)
+        grid_attrs = h5file_root.get('grid').attrs
+        self.grid.min_val = grid_attrs['min_val']
+        self.grid.max_val = grid_attrs['max_val']
+        self.grid.pt_count = grid_attrs['pt_count']
