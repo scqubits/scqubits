@@ -149,7 +149,7 @@ class SpectrumData(object):
         else:
             state_table_numpy = np.array([])
 
-        if config.file_format is FileType.csv:
+            if config.file_format is FileType.csv:
             filewrite_csvdata(filename + '_' + self.param_name, self.param_vals)
             filewrite_csvdata(filename + '_energies', self.energy_table)
             if self.state_table:
