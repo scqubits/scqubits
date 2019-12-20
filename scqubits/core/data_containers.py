@@ -124,14 +124,17 @@ class SpectrumData(object):
             path and name of output file (file suffix appended automatically)
         """
 
-        if isinstance(self.state_table, list):
-            state_table_numpy = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
-        elif isinstance(self.state_table, np.ndarray):
-            state_table_numpy = self.state_table
+        if self.state_table:
+            if isinstance(self.state_table, list):
+                state_table_numpy = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
+            elif isinstance(self.state_table, np.ndarray):
+                state_table_numpy = self.state_table
+            else:
+                raise TypeError('Unexpected type for state_table: neither a pure ndarray, nor a list of eigenstates '
+                                'obtained via qutip.')
         else:
-            raise TypeError('state_table argument to SpectrumData is neither a pure ndarray, nor a list of eigenstates'
-                            'obtained via qutip.')
-
+            state_table_numpy = np.array([])
+                
         if config.file_format is FileType.csv:
             filewrite_csvdata(filename + '_' + self.param_name, self.param_vals)
             filewrite_csvdata(filename + '_energies', self.energy_table)
