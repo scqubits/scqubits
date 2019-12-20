@@ -9,6 +9,8 @@
 #     LICENSE file in the root directory of this source tree.
 #######################################################################################################################
 
+import warnings
+
 from scqubits.core.discretization import Grid1d
 from scqubits.core.flux_qubit import FluxQubit
 
@@ -25,4 +27,8 @@ from scqubits.utils.constants import FileType
 from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 # version
-from scqubits.version import version as __version__
+try:
+    from scqubits.version import version as __version__
+except ImportError:
+    warnings.warn("scqubits: missing version information - did scqubits install correctly?", ImportWarning)
+

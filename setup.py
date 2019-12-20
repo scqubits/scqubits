@@ -49,6 +49,8 @@ MAJOR = 1
 MINOR = 0
 MICRO = 3
 ISRELEASED = True
+
+
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 REQUIRES = ['cython (>=0.28.5)',
             'numpy (>=1.14.2)',
@@ -65,7 +67,7 @@ INSTALL_REQUIRES =['cython (>=0.28.5)',
                    'qutip (>=4.3.1)',
                    'h5py (>=2.7.1)']
 PACKAGES = ['scqubits', 'scqubits/core', 'scqubits/tests', 'scqubits/utils']
-PYTHON_VERSION = '>=3.4'
+PYTHON_VERSION = '>=3.5'
 
 
 NAME = "scqubits"
