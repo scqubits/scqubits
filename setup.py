@@ -39,8 +39,8 @@ Operating System :: Microsoft :: Windows
 import os
 import sys
 
-
 import setuptools
+
 EXTRA_KWARGS = {}
 
 

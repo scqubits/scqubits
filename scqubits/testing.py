@@ -9,17 +9,15 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import nose
-import os
+import pytest
 
-from scqubits.utils.constants import TEMPDIR
+from scqubits.tests.conftest import TESTSDIR
+
 
 def run():
     """
-    Run the nose test scripts for scqubits.
+    Run the pytest scripts for scqubits.
     """
     # runs tests in scqubits.tests directory
-    if not os.path.exists(TEMPDIR):
-        os.makedirs(TEMPDIR)
-    nose.run(defaultTest="scqubits.tests", argv=['nosetests', '-v', '--nologcapture'])
+    pytest.main(['-v', TESTSDIR])
 

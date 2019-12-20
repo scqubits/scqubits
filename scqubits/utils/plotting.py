@@ -9,10 +9,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import numpy as np
 import matplotlib as mpl
 import matplotlib.backends.backend_pdf as mplpdf
 import matplotlib.pyplot as plt
+import numpy as np
 
 try:
     from labellines import labelLine, labelLines

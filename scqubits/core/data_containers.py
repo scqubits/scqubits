@@ -9,15 +9,15 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import h5py
 import numpy as np
 
 import scqubits.settings as config
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
-
 from scqubits.utils.constants import FileType
-from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
 from scqubits.utils.file_write import filewrite_csvdata, filewrite_h5data
+from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -115,6 +115,21 @@ class SpectrumData(object):
         """
         return plot.evals_vs_paramvals(self, xlim=x_range, ylim=y_range, fig_ax=fig_ax, **kwargs)
 
+    def filewrite_params_h5(self, h5file_root):
+        """Write current qubit parameters into a given h5 data file.
+
+        Parameters
+        ----------
+        h5file_root: root group of open h5py file
+        """
+        for key, param_obj in self.system_params.items():
+            if isinstance(param_obj, (int, float)):
+                h5file_root.attrs[key] = param_obj
+            elif key == 'grid':
+                param_obj.filewrite_params_h5(h5file_root)
+            else:
+                h5file_root.attrs[key] = str(param_obj)
+
     def filewrite(self, filename):
         """Write data of eigenenergies, eigenstates, and matrix elements to file with specified filename.
 
@@ -123,14 +138,16 @@ class SpectrumData(object):
         filename: str
             path and name of output file (file suffix appended automatically)
         """
-
-        if isinstance(self.state_table, list):
-            state_table_numpy = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
-        elif isinstance(self.state_table, np.ndarray):
-            state_table_numpy = self.state_table
+        if self.state_table:
+            if isinstance(self.state_table, list):
+                state_table_numpy = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
+            elif isinstance(self.state_table, np.ndarray):
+                state_table_numpy = self.state_table
+            else:
+                raise TypeError('Unexpected type for state_table: neither a pure ndarray, nor a list of eigenstates '
+                                'obtained via qutip.')
         else:
-            raise TypeError('state_table argument to SpectrumData is neither a pure ndarray, nor a list of eigenstates'
-                            'obtained via qutip.')
+            state_table_numpy = np.array([])
 
         if config.file_format is FileType.csv:
             filewrite_csvdata(filename + '_' + self.param_name, self.param_vals)
@@ -142,5 +159,9 @@ class SpectrumData(object):
             with open(filename + constants.PARAMETER_FILESUFFIX, 'w') as target_file:
                 target_file.write(self.system_params)
         elif config.file_format is FileType.h5:
-            filewrite_h5data(filename, [self.param_vals, self.energy_table, state_table_numpy, self.matrixelem_table],
-                             [self.param_name, "spectrum energies", "states", "mat_elem"], self.system_params)
+            h5file = h5py.File(filename + '.hdf5', 'w')
+            h5file_root = h5file.create_group('root')
+            filewrite_h5data(h5file_root,
+                             [self.param_vals, self.energy_table, state_table_numpy, self.matrixelem_table],
+                             [self.param_name, "spectrum energies", "states", "mat_elem"])
+            self.filewrite_params_h5(h5file_root)

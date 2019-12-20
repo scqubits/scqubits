@@ -40,7 +40,7 @@ The following packages are optional:
 +------------------------+--------------+-----------------------------------------------------+
 | Package                | Version      | Details                                             |
 +========================+==============+=====================================================+
-| nose                   | 1.3.7+       | For running the test suite.                         |
+| pytest                 | 5.3+         | For running the test suite.                         |
 +------------------------+--------------+-----------------------------------------------------+
 | matplotlib-label-lines | 0.3.6+       | For smart labelling of matrix element plots         |
 +------------------------+--------------+-----------------------------------------------------+
@@ -74,15 +74,16 @@ scqubits can also be installed using the Python package manager `pip <http://www
 
 
 
-
 .. _install-verify:
 
 Verifying the Installation
 ==========================
 
-scqubits includes a set of nose tests that can be executed to verify that installation was successful.
+scqubits includes a set of tests that can be executed to verify that installation was successful:
 
 .. code-block:: python
 
    import scqubits.testing as sctest
    sctest.run()
+
+This requires the pytest package.

@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import re
 
 # exclude_dirs = ["examples", "tests"]

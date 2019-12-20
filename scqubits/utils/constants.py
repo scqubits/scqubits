@@ -9,16 +9,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import numpy as np
 from enum import Enum, unique
 
-# file name suffices
-EVECS_FILESUFFIX = '_evecs'
-EVALS_FILESUFFIX = '_evals'
-PARAMETER_FILESUFFIX = '.prm'
+import numpy as np
 
-# directory for nosetests
-TEMPDIR = './_tempdata/'
+# file name suffices
+PARAMETER_FILESUFFIX = '.prm'
 
 
 # file types

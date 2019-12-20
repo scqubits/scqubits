@@ -12,23 +12,27 @@
 
 import numpy as np
 
-from scqubits import Fluxonium
+import scqubits.settings
+from scqubits import FluxQubit, FileType
 from scqubits.tests.conftest import BaseTest, DATADIR
 
+scqubits.settings.file_format = FileType.h5
 
-class TestFluxonium(BaseTest):
-    qbt = Fluxonium(EJ = 1, EC = 1, EL = 1, flux = 1, cutoff = 1) 
-    # dummy values, will read  actual values from external user h5 files
+class TestFluxQubit(BaseTest):
+
+    qbt = FluxQubit(EJ1 = 1.0, EJ2 = 1.0, EJ3 = 1.0, ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0, ECg1 = 1.0, ECg2 = 1.0,
+                    ng1 = 1.0, ng2 = 1.0, flux = 1.0, ncut = 1)
+    # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):
-        TESTNAME = 'fluxonium_1'
+        TESTNAME = 'fluxqubit_1'
         h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         evals_reference = datalist[0]
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
-        TESTNAME = 'fluxonium_2'
+        TESTNAME = 'fluxqubit_2'
         h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         evals_reference = datalist[0]
@@ -36,12 +40,12 @@ class TestFluxonium(BaseTest):
         return self.eigenvecs(evecs_reference)
 
     def test_plot_evals_vs_paramvals(self):
-        TESTNAME = 'fluxonium_3'
-        flux_list = np.linspace(-0.5, 0.5, 50)
+        TESTNAME = 'fluxqubit_3'
+        flux_list = np.linspace(0.45, 0.55, 50)
         return self.plot_evals_vs_paramvals('flux', flux_list)
 
     def test_get_spectrum_vs_paramvals(self):
-        TESTNAME = 'fluxonium_4'
+        TESTNAME = 'fluxqubit_4'
         h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         flux_list = datalist[0]
@@ -50,33 +54,32 @@ class TestFluxonium(BaseTest):
         return self.get_spectrum_vs_paramvals('flux', flux_list, evals_reference, evecs_reference)
 
     def test_matrixelement_table(self):
-        TESTNAME = 'fluxonium_5'
+        TESTNAME = 'fluxqubit_5'
         h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         matelem_reference = datalist[0]
-        return self.matrixelement_table('n_operator', matelem_reference)
+        return self.matrixelement_table('n_1_operator', matelem_reference)
 
     def test_plot_evals_vs_paramvals_EJ(self):
-        TESTNAME = 'fluxonium_6'
-        ej_vals = self.qbt.EJ * np.cos(np.linspace(-np.pi / 2, np.pi / 2, 40))
-        self.plot_evals_vs_paramvals('EJ', ej_vals)
+        TESTNAME = 'fluxqubit_6'
+        ej_vals = self.qbt.EJ1 * np.cos(np.linspace(-np.pi / 2, np.pi / 2, 40))
+        self.plot_evals_vs_paramvals('EJ1', ej_vals)
 
-    # TESTNAME = 'fluxonium_7'
+    # TESTNAME = 'fluxqubit_7'
 
     def test_plot_wavefunction(self):
-        TESTNAME = 'fluxonium_8'
-        self.qbt.plot_wavefunction(esys=None, which=0, mode='real')
-        self.qbt.plot_wavefunction(esys=None, which=1, mode='real')
+        TESTNAME = 'fluxqubit_8'
+        self.qbt.plot_wavefunction(esys=None, which=5, mode='real')
 
     def test_plot_matrixelements(self):
-        TESTNAME = 'fluxonium_9'
-        self.plot_matrixelements('n_operator', evals_count=10)
+        TESTNAME = 'fluxqubit_9'
+        self.plot_matrixelements('n_2_operator', evals_count=10)
 
     def test_print_matrixelements(self):
-        TESTNAME = 'fluxonium_10'
-        self.print_matrixelements('phi_operator')
+        TESTNAME = 'fluxqubit_10'
+        self.print_matrixelements('n_2_operator')
 
     def test_plot_matelem_vs_paramvals(self):
-        TESTNAME = 'fluxonium_11'
-        flux_list = np.linspace(-0.5, 0.5, 50)
-        self.plot_matelem_vs_paramvals('n_operator', 'flux', flux_list, select_elems=[(0, 0), (1, 4), (1, 0)])
+        TESTNAME = 'fluxqubit_11'
+        flux_list = np.linspace(0.45, 0.55, 50)
+        self.plot_matelem_vs_paramvals('n_1_operator', 'flux', flux_list, select_elems=[(0, 0), (1, 4), (1, 0)])

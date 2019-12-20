@@ -13,11 +13,9 @@ import numpy as np
 from scipy import sparse
 
 import scqubits.core.operators as op
-
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
-
 
 
 class FullZeroPi(QubitBaseClass):
@@ -105,7 +103,7 @@ class FullZeroPi(QubitBaseClass):
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = 'full 0-Pi circuit (phi, theta, zeta) in 0pi - zeta product basis'
-        self._evec_dtype = np.float_
+        self._evec_dtype = np.complex_
 
         self._zeropi = ZeroPi(
             EJ=self.EJ,
@@ -148,19 +146,19 @@ class FullZeroPi(QubitBaseClass):
         """
         zeropi_dim = self.zeropi_cutoff
         zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
-        zeropi_diag_hamiltonian = sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.float_)
+        zeropi_diag_hamiltonian = sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_)
         zeropi_diag_hamiltonian.setdiag(zeropi_evals)
 
         zeta_dim = self.zeta_cutoff
         prefactor = self.omega_zeta()
         zeta_diag_hamiltonian = op.number_sparse(zeta_dim, prefactor)
 
-        hamiltonian_mat = sparse.kron(zeropi_diag_hamiltonian, sparse.identity(zeta_dim, format='dia', dtype=np.float_))
-        hamiltonian_mat += sparse.kron(sparse.identity(zeropi_dim, format='dia', dtype=np.float_),
+        hamiltonian_mat = sparse.kron(zeropi_diag_hamiltonian, sparse.identity(zeta_dim, format='dia', dtype=np.complex_))
+        hamiltonian_mat += sparse.kron(sparse.identity(zeropi_dim, format='dia', dtype=np.complex_),
                                        zeta_diag_hamiltonian)
 
         gmat = self.g_coupling_matrix(zeropi_evecs)
-        zeropi_coupling = sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.float_)
+        zeropi_coupling = sparse.dia_matrix((zeropi_dim, zeropi_dim), dtype=np.complex_)
         for l1 in range(zeropi_dim):
             for l2 in range(zeropi_dim):
                 zeropi_coupling += gmat[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
@@ -266,3 +264,34 @@ class FullZeroPi(QubitBaseClass):
         if zeropi_states is None:
             _, zeropi_states = self._zeropi.eigensys(evals_count=evals_count)
         return self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(zeropi_states)
+
+    def filewrite_params_h5(self, h5file_root):
+        """Write current qubit parameters into a given h5 data file.
+
+        Parameters
+        ----------
+        h5file: open h5py file
+        """
+        super().filewrite_params_h5(h5file_root)
+        self.grid.filewrite_params_h5(h5file_root)
+
+    def set_params_from_h5(self, h5file_root):
+        super().set_params_from_h5(h5file_root)
+        grid_attrs = h5file_root.get('grid').attrs
+        self.grid.min_val = grid_attrs['min_val']
+        self.grid.max_val = grid_attrs['max_val']
+        self.grid.pt_count = grid_attrs['pt_count']
+
+        self._zeropi = ZeroPi(
+            EJ=self.EJ,
+            EL=self.EL,
+            ECJ=self.ECJ,
+            EC=self.EC,
+            dEJ=self.dEJ,
+            dCJ=self.dCJ,
+            flux=self.flux,
+            ng=self.ng,
+            grid=self.grid,
+            ncut=self.ncut,
+            truncated_dim=self.zeropi_cutoff
+        )

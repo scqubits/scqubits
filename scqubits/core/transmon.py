@@ -9,17 +9,15 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import cmath
 import math
+
 import matplotlib.pyplot as plt
 import numpy as np
 
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
-
-from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.data_containers import WaveFunction
-from scqubits.utils.spectrum_utils import extract_phase
+from scqubits.core.qubit_base import QubitBaseClass
 
 
 # —Cooper pair box / transmon———————————————————————————————————————————————————————————————————————————————————————————
