@@ -28,6 +28,7 @@ scqubits.settings.file_format = FileType.h5
 TESTSDIR, _ = os.path.split(scqubits.tests.__file__)
 DATADIR = TESTSDIR + '/data/'
 
+
 class BaseTest():
     qbt = None
 

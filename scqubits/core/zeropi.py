@@ -95,7 +95,6 @@ class ZeroPi(QubitBaseClass):
         self._sys_type = '0-Pi qubit without EL and EC disorder, no coupling to zeta mode'
         self._evec_dtype = np.complex_
 
-
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
@@ -140,13 +139,12 @@ class ZeroPi(QubitBaseClass):
         diag_elements = 2.0 * self.ECS() * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
 
-        kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc') \
+        kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc')\
                          + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc')
 
         kinetic_matrix -= 2.0 * self.ECS() * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
 
         return kinetic_matrix
-
 
     def sparse_potentialmat(self):
         """Returns the potential energy matrix for the potential in sparse (`csc_matrix`) form."""
@@ -162,13 +160,12 @@ class ZeroPi(QubitBaseClass):
         phi_sin_vals = np.sin(np.linspace(min_val, max_val, pt_count) - 2.0 * np.pi * self.flux / 2.0)
         phi_sin_potential = sparse.dia_matrix((phi_sin_vals, [0]), shape=(pt_count, pt_count)).tocsc()
 
-
         theta_cos_potential = (-self.EJ * (sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)) +
                                            sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)))).tocsc()
         potential_mat = (sparse.kron(phi_cos_potential, theta_cos_potential, format='csc')
                          + sparse.kron(phi_inductive_potential, self.identity_theta(), format='csc')
                          + 2 * self.EJ * sparse.kron(self.identity_phi(), self.identity_theta(), format='csc'))
-        potential_mat += self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self.identity_theta(), format='csc') \
+        potential_mat += self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self.identity_theta(), format='csc')\
                          * self.sin_theta_operator()
 
         return potential_mat

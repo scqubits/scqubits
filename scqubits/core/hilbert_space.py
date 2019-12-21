@@ -11,6 +11,7 @@
 
 import numpy as np
 import qutip as qt
+import h5py
 
 import scqubits.utils.progressbar as progressbar
 from scqubits.core.data_containers import SpectrumData
@@ -308,7 +309,7 @@ class HilbertSpace(list):
 
     def filewrite_h5(self, file_hook):
         if isinstance(file_hook, str):
-            h5file = h5py.File(filename + '.hdf5', 'w')
+            h5file = h5py.File(file_hook + '.hdf5', 'w')
             h5file_root = h5file.create_group('root')
         else:
             h5file_root = file_hook

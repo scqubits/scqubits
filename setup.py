@@ -18,6 +18,10 @@ Matplotlib.
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import os
+import sys
+
+import setuptools
 
 
 DOCLINES = __doc__.split('\n')
@@ -35,11 +39,6 @@ Operating System :: Unix
 Operating System :: Microsoft :: Windows
 """
 
-# import statements
-import os
-import sys
-
-import setuptools
 
 EXTRA_KWARGS = {}
 
@@ -59,13 +58,13 @@ REQUIRES = ['cython (>=0.28.5)',
             'qutip (>=4.3.1)',
             'h5py (>=2.7.1)']
 
-EXTRAS_REQUIRE = {'graphics':['matplotlib-label-lines (>=0.3.6)']}
-INSTALL_REQUIRES =['cython (>=0.28.5)',
-                   'numpy (>=1.14.2)',
-                   'scipy (>=1.1.0)',
-                   'matplotlib (>=3.0.0)',
-                   'qutip (>=4.3.1)',
-                   'h5py (>=2.7.1)']
+EXTRAS_REQUIRE = {'graphics': ['matplotlib-label-lines (>=0.3.6)']}
+INSTALL_REQUIRES = ['cython (>=0.28.5)',
+                    'numpy (>=1.14.2)',
+                    'scipy (>=1.1.0)',
+                    'matplotlib (>=3.0.0)',
+                    'qutip (>=4.3.1)',
+                    'h5py (>=2.7.1)']
 PACKAGES = ['scqubits', 'scqubits/core', 'scqubits/tests', 'scqubits/utils']
 PYTHON_VERSION = '>=3.5'
 
@@ -90,9 +89,10 @@ def git_short_hash():
     except:
         git_str = ""
     else:
-        if git_str == '+': #fixes setuptools PEP issues with versioning
+        if git_str == '+':   # fixes setuptools PEP issues with versioning
             git_str = ''
     return git_str
+
 
 FULLVERSION = VERSION
 if not ISRELEASED:
@@ -113,6 +113,7 @@ release = %(isrelease)s
     finally:
         a.close()
 
+
 local_path = os.path.dirname(os.path.abspath(sys.argv[0]))
 os.chdir(local_path)
 sys.path.insert(0, local_path)
@@ -125,22 +126,22 @@ if os.path.exists('scqubits/version.py'):
 write_version_py()
 
 # Setup commands go here
-setuptools.setup(name = NAME,
-                 version = FULLVERSION,
-                 packages = PACKAGES,
-                 author = AUTHOR,
-                 author_email = AUTHOR_EMAIL,
-                 license = LICENSE,
-                 description = DESCRIPTION,
-                 long_description = LONG_DESCRIPTION,
-                 keywords = KEYWORDS,
-                 url = URL,
-                 classifiers = CLASSIFIERS,
-                 platforms = PLATFORMS,
-                 requires = REQUIRES,
-                 extras_require = EXTRAS_REQUIRE,
-                 zip_safe = False,
+setuptools.setup(name=NAME,
+                 version=FULLVERSION,
+                 packages=PACKAGES,
+                 author=AUTHOR,
+                 author_email=AUTHOR_EMAIL,
+                 license=LICENSE,
+                 description=DESCRIPTION,
+                 long_description=LONG_DESCRIPTION,
+                 keywords=KEYWORDS,
+                 url=URL,
+                 classifiers=CLASSIFIERS,
+                 platforms=PLATFORMS,
+                 requires=REQUIRES,
+                 extras_require=EXTRAS_REQUIRE,
+                 zip_safe=False,
                  install_requires=INSTALL_REQUIRES,
                  python_requires=PYTHON_VERSION,
                  **EXTRA_KWARGS
-)
+                 )

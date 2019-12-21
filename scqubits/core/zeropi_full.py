@@ -270,7 +270,7 @@ class FullZeroPi(QubitBaseClass):
 
         Parameters
         ----------
-        h5file: open h5py file
+        h5file_root: open h5py file
         """
         super().filewrite_params_h5(h5file_root)
         self.grid.filewrite_params_h5(h5file_root)

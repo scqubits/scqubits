@@ -103,7 +103,7 @@ class Transmon(QubitBaseClass):
         """
         return -self.EJ * np.cos(phi)
 
-    def plot_n_wavefunction(self, esys, mode, which=0, nrange=(-5, 6),filename=None):
+    def plot_n_wavefunction(self, esys, mode, which=0, nrange=(-5, 6), filename=None):
         """Plots transmon wave function in charge basis
 
         Parameters

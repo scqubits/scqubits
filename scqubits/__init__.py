@@ -31,4 +31,3 @@ try:
     from scqubits.version import version as __version__
 except ImportError:
     warnings.warn("scqubits: missing version information - did scqubits install correctly?", ImportWarning)
-

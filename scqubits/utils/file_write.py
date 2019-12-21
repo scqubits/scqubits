@@ -13,6 +13,7 @@ Helper routines for writing data to CSV and h5 files.
 """
 
 import numpy as np
+import h5py
 
 
 def filewrite_csvdata(filename, numpy_array):
@@ -41,7 +42,7 @@ def filewrite_h5data(file_hook, numpy_data_list, data_info_strings):
         text describing the data items to be written
     """
     if isinstance(file_hook, str):
-        h5file = h5py.File(filename + '.hdf5', 'w')
+        h5file = h5py.File(file_hook + '.hdf5', 'w')
         h5file_root = h5file.create_group('root')
     else:
         h5file_root = file_hook
