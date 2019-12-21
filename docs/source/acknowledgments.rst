@@ -31,6 +31,4 @@ by Northwestern University, and by Northwestern's Center for Applied Physics and
 .. figure:: graphics/CAPST.png
    :align: center
    :width: 2.5in
-   :target: https://www.northwestern.edu
-
-[//]: # (TODO: update CAPST URL)
+   :target: https://capst.northwestern.edu/
