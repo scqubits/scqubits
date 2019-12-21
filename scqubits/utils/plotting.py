@@ -208,7 +208,7 @@ def contours(x_vals, y_vals, func, contour_vals=None, aspect_ratio=None, show_co
         contour values can be specified if so desired
     aspect_ratio: float
     show_colorbar: bool
-    filename: None or str
+    filename: str or None
         file path and name (not including suffix)
     fig_ax: None or tuple(Figure, Axes)
         fig and ax objects for matplotlib figure addition

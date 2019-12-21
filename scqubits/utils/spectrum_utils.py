@@ -105,8 +105,7 @@ def matrix_element(state1, operator, state2):
 
     if isinstance(op_matrix, np.ndarray):  # Is operator given in dense form?
         return np.vdot(vec1, np.dot(operator, vec2))  # Yes - use numpy's 'vdot' and 'dot'.
-    else:
-        return np.vdot(vec1, op_matrix.dot(vec2))  # No, operator is sparse. Must use its own 'dot' method.
+    return np.vdot(vec1, op_matrix.dot(vec2))  # No, operator is sparse. Must use its own 'dot' method.
 
 
 def get_matrixelement_table(operator, state_table, real_valued=False):
@@ -190,8 +189,7 @@ def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj, retu
     index = (np.abs(overlaps)).argmax()
     if return_overlap:
         return index, np.abs(overlaps[index])
-    else:
-        return index
+    return index
 
 
 def convert_esys_to_ndarray(esys_qutip):

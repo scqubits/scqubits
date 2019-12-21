@@ -24,6 +24,7 @@ class HilbertSpace(list):
     establishes the interface to qutip. Returned operators are of the `qutip.Qobj` type. The class also provides methods
     for obtaining eigenvalues, absorption and emission spectra as a function of an external parameter.
     """
+
     def __init__(self, subsystem_list):
         list.__init__(self, subsystem_list)
 
@@ -74,7 +75,7 @@ class HilbertSpace(list):
         Returns
         -------
         qutip.Qobj operator
-        
+
         """
         dim = subsystem.truncated_dim
         index = range(dim)
@@ -308,6 +309,13 @@ class HilbertSpace(list):
         return spectrum_data
 
     def filewrite_h5(self, file_hook):
+        """Write spectrum data to h5 file
+
+            Parameters
+            ----------
+            file_hook: str or h5py root group
+                path for file to be openend, or h5py.Group handle to root in open h5 file
+            """
         if isinstance(file_hook, str):
             h5file = h5py.File(file_hook + '.hdf5', 'w')
             h5file_root = h5file.create_group('root')
@@ -318,5 +326,3 @@ class HilbertSpace(list):
             h5file_subgroup = h5file_root.create_group('subsys_' + str(index))
             h5file_subgroup.attrs['type'] = type(subsys)
             subsys.filewrite_params_h5(h5file_subgroup)
-
-# TODO add routine for creating a HilbertSpace instance from h5 file data

@@ -1,4 +1,4 @@
-# file_write.py
+# file_io.py
 #
 # This file is part of scqubits.
 #
@@ -23,7 +23,7 @@ def filewrite_csvdata(filename, numpy_array):
     ----------
     filename: str
         path and filename of output file (.csv suffix appended automatically)
-        
+
     numpy_array: ndarray
         data to be written
     """
@@ -36,8 +36,8 @@ def filewrite_h5data(file_hook, numpy_data_list, data_info_strings):
     Parameters
     ----------
     file_hook: str or h5py root group
-    numpy_data_list: ndarray
-        data to be written
+    numpy_data_list: list
+        list of ndarrays containing datasets to be written
     data_info_strings: list of str
         text describing the data items to be written
     """
@@ -51,3 +51,27 @@ def filewrite_h5data(file_hook, numpy_data_list, data_info_strings):
         if dataset is not None or []:
             h5dataset = h5file_root.create_dataset("data_" + str(dataset_index), data=dataset, dtype=dataset.dtype)
             h5dataset.attrs['data_info_' + str(dataset_index)] = str(data_info_strings[dataset_index])
+
+
+def read_h5(filename):
+    """Read scqubit data from an h5 file
+
+    Parameters
+    ----------
+    filename: str or h5py.File
+        Path for file to be opened, or open h5py handle
+
+    Returns
+    -------
+    h5py.Group: handle to 'root' of h5 file
+    list: list of datasets
+    """
+    h5file = h5py.File(filename, 'r')
+    datalist = []
+
+    def func(name, obj):
+        if isinstance(obj, h5py.Dataset):
+            datalist.append(obj)
+
+    h5file['root'].visititems(func)
+    return h5file['root'], datalist

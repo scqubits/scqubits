@@ -61,36 +61,71 @@ class Fluxonium(QubitBaseClass):
         self._evec_dtype = np.float_
 
     def phi_osc(self):
-        """Returns oscillator length for the LC oscillator by fluxonium inductance and capacitance."""
+        """
+        Returns
+        -------
+        float
+            Returns oscillator length for the LC oscillator composed of the fluxonium inductance and capacitance.
+        """
         return (8.0 * self.EC / self.EL) ** 0.25  # LC oscillator length
 
     def omega_p(self):
-        """Returns the plasma oscillation frequency."""
+        """
+        Returns
+        -------
+        float
+            Returns the plasma oscillation frequency.
+        """
         return math.sqrt(8.0 * self.EL * self.EC)  # LC plasma oscillation frequency
 
     def phi_operator(self):
-        """Returns the phi operator in the LC harmonic oscillator basis"""
+        """
+        Returns
+        -------
+        ndarray
+            Returns the phi operator in the LC harmonic oscillator basis
+        """
         dimension = self.hilbertdim()
         return (op.creation(dimension) + op.annihilation(dimension)) * self.phi_osc() / math.sqrt(2)
 
     def n_operator(self):
-        """Returns the :math:`n = - i d/d\\phi` operator in the LC harmonic oscillator basis"""
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`n = - i d/d\\phi` operator in the LC harmonic oscillator basis
+        """
         dimension = self.hilbertdim()
         return 1j * (op.creation(dimension) - op.annihilation(dimension)) / (self.phi_osc() * math.sqrt(2))
 
     def exp_i_phi_operator(self):
-        """Returns the :math:`e^{i\\phi}` operator in the LC harmonic oscillator basis"""
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`e^{i\\phi}` operator in the LC harmonic oscillator basis
+        """
         exponent = 1j * self.phi_operator()
         return sp.linalg.expm(exponent)
 
     def cos_phi_operator(self):
-        """Returns the :math:`\\cos \\phi` operator in the LC harmonic oscillator basis"""
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`\\cos \\phi` operator in the LC harmonic oscillator basis
+        """
         cos_phi_op = 0.5 * self.exp_i_phi_operator()
         cos_phi_op += cos_phi_op.conjugate().T
         return cos_phi_op
 
     def sin_phi_operator(self):
-        """Returns the :math:`\\sin \\phi` operator in the LC harmonic oscillator basis"""
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`\\sin \\phi` operator in the LC harmonic oscillator basis
+        """
         sin_phi_op = -1j * 0.5 * self.exp_i_phi_operator()
         sin_phi_op += sin_phi_op.conjugate().T
         return sin_phi_op
@@ -114,7 +149,11 @@ class Fluxonium(QubitBaseClass):
         # fluxonium Hamiltonian in harm. osc. basis is real-valued
 
     def hilbertdim(self):
-        """Returns the Hilbert space dimension."""
+        """
+        Returns
+        -------
+        int
+            Returns the Hilbert space dimension."""
         return self.cutoff
 
     def potential(self, phi):

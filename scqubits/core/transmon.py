@@ -126,7 +126,7 @@ class Transmon(QubitBaseClass):
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
         modefunction = constants.MODE_FUNC_DICT[mode]
         n_wavefunc.amplitudes = modefunction(n_wavefunc.amplitudes)
-        return plot.wavefunction1d_discrete(n_wavefunc, nrange,  xlabel='n', filename=filename)
+        return plot.wavefunction1d_discrete(n_wavefunc, nrange, xlabel='n', filename=filename)
 
     def plot_phi_wavefunction(self, esys, which=(0,), phi_points=251, mode='abs_sqr', scaling=None, filename=None):
         """Plot phase-basis wave function(s).
@@ -221,7 +221,7 @@ class Transmon(QubitBaseClass):
         if esys is None:
             evals_count = max(which + 1, 3)
             esys = self.eigensys(evals_count)
-        evals, evecs = esys
+        evals, _ = esys
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
 
         phi_basis_labels = np.linspace(-np.pi, np.pi, phi_points)

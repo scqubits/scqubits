@@ -38,6 +38,11 @@ class Grid1d:
         return output
 
     def grid_spacing(self):
+        """
+        Returns
+        -------
+        float: spacing between neighboring grid points
+        """
         return (self.max_val - self.min_val) / self.pt_count
 
     def first_derivative_matrix(self, prefactor=1.0, periodic=False):
@@ -104,12 +109,26 @@ class Grid1d:
         return derivative_matrix
 
     def filewrite_params_h5(self, h5file_root):
+        """Write grid parameters to h5 file
+
+        Parameters
+        ----------
+        h5file_root: h5py.Group
+            handle to root group of open h5 file
+        """
         h5dataset = h5file_root.create_dataset("grid", data=[])
         h5dataset.attrs['min_val'] = self.min_val
         h5dataset.attrs['max_val'] = self.max_val
         h5dataset.attrs['pt_count'] = self.pt_count
 
     def set_params_from_h5(self, h5file_grid):
+        """Read and store grid parameters from h5 file
+
+        Parameters
+        ----------
+        h5file_grid: h5py.Group
+            handle to grid group in open h5 file
+        """
         self.min_val = h5file_grid.attrs['min_val']
         self.max_val = h5file_grid.attrs['max_val']
         self.pt_count = h5file_grid.attrs['pt_count']
@@ -123,7 +142,6 @@ class GridSpec:
     minmaxpts_array: ndarray
         array of with entries [minvalue, maxvalue, number of points]
     """
-
     def __init__(self, minmaxpts_array):
         self.min_vals = minmaxpts_array[:, 0]
         self.max_vals = minmaxpts_array[:, 1]
@@ -142,13 +160,27 @@ class GridSpec:
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count
 
     def filewrite_params_h5(self, h5file_root):
+        """Write grid parameters to h5 file
+
+        Parameters
+        ----------
+        h5file_root: h5py.Group
+            handle to root group of open h5 file
+        """
         h5dataset = h5file_root.create_dataset("grid", data=[])
-        h5dataset.attrs['min_valss'] = self.min_vals
-        h5dataset.attrs['max_val'] = self.max_vals
+        h5dataset.attrs['min_vals'] = self.min_vals
+        h5dataset.attrs['max_vals'] = self.max_vals
         h5dataset.attrs['var_count'] = self.var_count
         h5dataset.attrs['pt_counts'] = self.pt_counts
 
     def set_params_from_h5(self, h5file_grid):
+        """Read and store grid parameters from h5 file
+
+        Parameters
+        ----------
+        h5file_grid: h5py.Group
+            handle to grid group in open h5 file
+        """
         self.min_vals = h5file_grid.attrs['min_vals']
         self.max_vals = h5file_grid.attrs['max_vals']
         self.var_count = h5file_grid.attrs['var_count']

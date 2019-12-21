@@ -20,4 +20,3 @@ def run():
     """
     # runs tests in scqubits.tests directory
     pytest.main(['-v', TESTSDIR])
-

@@ -78,9 +78,9 @@ class ZeroPi(QubitBaseClass):
 
         if EC is None and ECS is None:
             raise ValueError("Argument missing: must either provide EC or ECS")
-        elif EC and ECS:
+        if EC and ECS:
             raise ValueError("Argument error: can only provide either EC or ECS")
-        elif EC:
+        if EC:
             self.EC = EC
         else:
             self.EC = 1 / (1 / ECS - 1 / self.ECJ)
@@ -111,7 +111,11 @@ class ZeroPi(QubitBaseClass):
         return evals, evecs
 
     def ECS(self):
-        """ """
+        """
+        Returns
+        -------
+        float: value for ECS, calculated from EC and ECJ
+        """
         return 1 / (1 / self.EC + 1 / self.ECJ)
 
     def set_EC_via_ECS(self, ECS):
@@ -123,12 +127,28 @@ class ZeroPi(QubitBaseClass):
         return self.grid.pt_count * (2 * self.ncut + 1)
 
     def potential(self, phi, theta):
-        return (-2.0 * self.EJ * np.cos(theta) * np.cos(
-            phi - 2.0 * np.pi * self.flux / 2.0) + self.EL * phi ** 2 + 2.0 * self.EJ +
-                self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+        """
+        Parameters
+        ----------
+        phi: float
+        theta: float
+
+        Returns
+        -------
+        float
+            value of the potential energy evaluated at phi, theta
+        """
+        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
+                + self.EL * phi ** 2 + 2.0 * self.EJ
+                + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
 
     def sparse_kineticmat(self):
-        """ """
+        """
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the kinetic energy operator
+        """
         pt_count = self.grid.pt_count
         dim_theta = 2 * self.ncut + 1
         identity_phi = sparse.identity(pt_count, format='csc', dtype=np.complex_)
@@ -147,7 +167,12 @@ class ZeroPi(QubitBaseClass):
         return kinetic_matrix
 
     def sparse_potentialmat(self):
-        """Returns the potential energy matrix for the potential in sparse (`csc_matrix`) form."""
+        """
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the potential energy operator
+        """
         min_val = self.grid.min_val
         max_val = self.grid.max_val
         pt_count = self.grid.pt_count
@@ -160,8 +185,9 @@ class ZeroPi(QubitBaseClass):
         phi_sin_vals = np.sin(np.linspace(min_val, max_val, pt_count) - 2.0 * np.pi * self.flux / 2.0)
         phi_sin_potential = sparse.dia_matrix((phi_sin_vals, [0]), shape=(pt_count, pt_count)).tocsc()
 
-        theta_cos_potential = (-self.EJ * (sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)) +
-                                           sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)))).tocsc()
+        theta_cos_potential = (-self.EJ
+                               * (sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)) +
+                                  sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)))).tocsc()
         potential_mat = (sparse.kron(phi_cos_potential, theta_cos_potential, format='csc')
                          + sparse.kron(phi_inductive_potential, self.identity_theta(), format='csc')
                          + 2 * self.EJ * sparse.kron(self.identity_phi(), self.identity_theta(), format='csc'))
@@ -247,8 +273,9 @@ class ZeroPi(QubitBaseClass):
             scipy.sparse.csc_matrix
         """
         dim_theta = 2 * self.ncut + 1
-        sin_theta_matrix = -0.5 * 1j * (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
-                                        sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc()
+        sin_theta_matrix = -0.5 * 1j * \
+                           (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
+                            sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc()
 
         return sparse.kron(self.identity_phi(), sin_theta_matrix, format='csc')
 
@@ -357,6 +384,13 @@ class ZeroPi(QubitBaseClass):
         self.grid.filewrite_params_h5(h5file_root)
 
     def set_params_from_h5(self, h5file_root):
+        """Read and store parameters from h5 file
+
+        Parameters
+        ----------
+        h5file_root: h5py.Group
+            handle to root group in open h5 file
+        """
         super().set_params_from_h5(h5file_root)
         grid_attrs = h5file_root.get('grid').attrs
         self.grid.min_val = grid_attrs['min_val']

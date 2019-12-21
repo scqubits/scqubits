@@ -15,6 +15,7 @@ import numpy as np
 import scqubits as qubit
 from scqubits import ZeroPi
 from scqubits.tests.conftest import BaseTest, DATADIR
+from scqubits.utils.file_io import read_h5
 
 
 class TestZeroPi(BaseTest):
@@ -25,14 +26,14 @@ class TestZeroPi(BaseTest):
 
     def test_eigenvals(self):
         TESTNAME = 'zeropi_1'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         evals_reference = datalist[0]
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
         TESTNAME = 'zeropi_2'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         evals_reference = datalist[0]
         evecs_reference = datalist[1]
@@ -45,7 +46,7 @@ class TestZeroPi(BaseTest):
 
     def test_get_spectrum_vs_paramvals(self):
         TESTNAME = 'zeropi_4'
-        hfile_root, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        hfile_root, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(hfile_root)
         flux_list = datalist[0]
         evals_reference = datalist[1]
@@ -54,7 +55,7 @@ class TestZeroPi(BaseTest):
 
     def test_matrixelement_table(self):
         TESTNAME = 'zeropi_5'
-        h5file_root, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5file_root, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5file_root)
         matelem_reference = datalist[0]
         return self.matrixelement_table('n_theta_operator', matelem_reference)

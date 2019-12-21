@@ -24,13 +24,13 @@ import scqubits.utils.plotting as plot
 import scqubits.utils.progressbar as progressbar
 from scqubits.core.data_containers import SpectrumData
 from scqubits.utils.constants import FileType
-from scqubits.utils.file_write import filewrite_csvdata, filewrite_h5data
+from scqubits.utils.file_io import filewrite_csvdata, filewrite_h5data
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
 
 # —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
 
-class QuantumSystem(object):
+class QuantumSystem:
     """Generic quantum system class"""
     __metaclass__ = abc.ABCMeta
 
@@ -39,7 +39,7 @@ class QuantumSystem(object):
 
     def __repr__(self):
         output = self._sys_type + '\n ———— PARAMETERS ————'
-        for param_name in self.__dict__.keys():
+        for param_name in self.__dict__:
             if param_name[0] != '_':
                 paramval = self.__dict__[param_name]
                 output += '\n' + str(param_name) + '\t: ' + str(paramval)
@@ -49,7 +49,6 @@ class QuantumSystem(object):
     @abc.abstractmethod
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
-        pass
 
     def filewrite_params_h5(self, h5file_root):
         """Write current qubit parameters into a given h5 data file.
@@ -80,7 +79,6 @@ class QubitBaseClass(QuantumSystem):
     @abc.abstractmethod
     def hamiltonian(self):
         """Returns the Hamiltonian"""
-        pass
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -405,6 +403,13 @@ class QubitBaseClass(QuantumSystem):
             h5file.close()
 
     def set_params_from_h5(self, h5file_root):
+        """Read and store parameters from h5 file
+
+        Parameters
+        ----------
+        h5file_root: h5py.Group
+            handle to root group in open h5 file
+        """
         h5params = h5file_root.attrs
         for paramname in h5params.keys():
             paramvalue = h5params[paramname]

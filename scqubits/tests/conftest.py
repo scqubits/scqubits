@@ -11,8 +11,6 @@
 
 
 import os
-
-import h5py
 import matplotlib
 import numpy as np
 import pytest
@@ -30,24 +28,22 @@ DATADIR = os.path.join(TESTSDIR, 'data', '')
 
 
 class BaseTest:
+    """Used as base class for pytests of qubit classes"""
     qbt = None
 
     @pytest.fixture(autouse=True)
     def set_tmpdir(self, request):
+        """Pytest fixture that provides a temporary directory for writing test files"""
         setattr(self, 'tmpdir', request.getfixturevalue('tmpdir'))
 
-    def read_h5py(self, filename):
-        h5file = h5py.File(filename, 'r')
-        datalist = []
-
-        def func(name, obj):
-            if isinstance(obj, h5py.Dataset):
-                datalist.append(obj)
-
-        h5file['root'].visititems(func)
-        return h5file['root'], datalist
-
     def set_params(self, h5file_root):
+        """Read and store parameters from open h5 file
+
+         Parameters
+         ----------
+         h5file_root: h5py.Group
+             handle to root group in open h5 file
+         """
         h5params = h5file_root.attrs
         for paramname in h5params.keys():
             paramvalue = h5params[paramname]

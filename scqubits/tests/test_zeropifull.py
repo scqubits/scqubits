@@ -13,6 +13,7 @@
 import scqubits as qubit
 from scqubits import FullZeroPi
 from scqubits.tests.conftest import BaseTest, DATADIR
+from scqubits.utils.file_io import read_h5
 
 
 class TestFullZeroPi(BaseTest):
@@ -24,7 +25,7 @@ class TestFullZeroPi(BaseTest):
 
     def test_eigenvals(self):
         TESTNAME = 'fullzeropi_1'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         evals_reference = datalist[0]
         return self.eigenvals(evals_reference)

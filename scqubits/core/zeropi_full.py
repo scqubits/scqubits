@@ -84,9 +84,9 @@ class FullZeroPi(QubitBaseClass):
 
         if EC is None and ECS is None:
             raise ValueError("Argument missing: must either provide EC or ECS")
-        elif EC and ECS:
+        if EC and ECS:
             raise ValueError("Argument error: can only provide either EC or ECS")
-        elif EC:
+        if EC:
             self.EC = EC
         else:
             self.EC = 1 / (1 / ECS - 1 / self.ECJ)
@@ -168,8 +168,7 @@ class FullZeroPi(QubitBaseClass):
 
         if return_parts:
             return [hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat]
-        else:
-            return hamiltonian_mat.tocsc()
+        return hamiltonian_mat.tocsc()
 
     def _zeropi_operator_in_product_basis(self, zeropi_operator, zeropi_evecs=None):
         """Helper method that converts a zeropi operator into one in the product basis'
@@ -277,6 +276,13 @@ class FullZeroPi(QubitBaseClass):
         self.grid.filewrite_params_h5(h5file_root)
 
     def set_params_from_h5(self, h5file_root):
+        """Read and store parameters from open h5 file
+
+        Parameters
+        ----------
+        h5file_root: h5py.Group
+            handle to root group in open h5 file
+        """
         super().set_params_from_h5(h5file_root)
         grid_attrs = h5file_root.get('grid').attrs
         self.grid.min_val = grid_attrs['min_val']

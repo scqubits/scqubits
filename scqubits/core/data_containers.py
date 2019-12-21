@@ -16,7 +16,7 @@ import scqubits.settings as config
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.utils.constants import FileType
-from scqubits.utils.file_write import filewrite_csvdata, filewrite_h5data
+from scqubits.utils.file_io import filewrite_csvdata, filewrite_h5data
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
 
 

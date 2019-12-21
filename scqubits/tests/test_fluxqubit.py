@@ -15,27 +15,29 @@ import numpy as np
 import scqubits.settings
 from scqubits import FluxQubit, FileType
 from scqubits.tests.conftest import BaseTest, DATADIR
+from scqubits.utils.file_io import read_h5
+
 
 scqubits.settings.file_format = FileType.h5
 
+
 class TestFluxQubit(BaseTest):
 
-    qbt = FluxQubit(EJ1 = None, EJ2 = None, EJ3 = None, ECJ1 = None, ECJ2 = None, ECJ3 = None, ECg1 = None, ECg2 = None,
-                    ng1 = None, ng2 = None, flux = None, ncut = None)
+    qbt = FluxQubit(EJ1=None, EJ2=None, EJ3=None, ECJ1=None, ECJ2=None, ECJ3=None, ECg1=None, ECg2=None,
+                    ng1=None, ng2=None, flux=None, ncut=None)
     # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):
         TESTNAME = 'fluxqubit_1'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         evals_reference = datalist[0]
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
         TESTNAME = 'fluxqubit_2'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
-        evals_reference = datalist[0]
         evecs_reference = datalist[1]
         return self.eigenvecs(evecs_reference)
 
@@ -46,7 +48,7 @@ class TestFluxQubit(BaseTest):
 
     def test_get_spectrum_vs_paramvals(self):
         TESTNAME = 'fluxqubit_4'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         flux_list = datalist[0]
         evals_reference = datalist[1]
@@ -55,7 +57,7 @@ class TestFluxQubit(BaseTest):
 
     def test_matrixelement_table(self):
         TESTNAME = 'fluxqubit_5'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         matelem_reference = datalist[0]
         return self.matrixelement_table('n_1_operator', matelem_reference)

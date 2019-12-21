@@ -106,12 +106,11 @@ short_version = '%(version)s'
 version = '%(fullversion)s'
 release = %(isrelease)s
 """
-    a = open(filename, 'w')
+    versionfile = open(filename, 'w')
     try:
-        a.write(cnt % {'version': VERSION, 'fullversion':
-                FULLVERSION, 'isrelease': str(ISRELEASED)})
+        versionfile.write(cnt % {'version': VERSION, 'fullversion': FULLVERSION, 'isrelease': str(ISRELEASED)})
     finally:
-        a.close()
+        versionfile.close()
 
 
 local_path = os.path.dirname(os.path.abspath(sys.argv[0]))

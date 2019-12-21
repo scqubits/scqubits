@@ -14,6 +14,7 @@ import numpy as np
 
 from scqubits import Transmon
 from scqubits.tests.conftest import BaseTest, DATADIR
+from scqubits.utils.file_io import read_h5
 
 
 class TestTransmon(BaseTest):
@@ -22,14 +23,14 @@ class TestTransmon(BaseTest):
 
     def test_eigenvals(self):
         TESTNAME = 'transmon_1'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         evals_reference = datalist[0]
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
         TESTNAME = 'transmon_2'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         evals_reference = datalist[0]
         evecs_reference = datalist[1]
@@ -42,7 +43,7 @@ class TestTransmon(BaseTest):
 
     def test_get_spectrum_vs_paramvals(self):
         TESTNAME = 'transmon_4'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         ng_list = datalist[0]
         evals_reference = datalist[1]
@@ -51,7 +52,7 @@ class TestTransmon(BaseTest):
 
     def test_matrixelement_table(self):
         TESTNAME = 'transmon_5'
-        h5params, datalist = self.read_h5py(DATADIR + TESTNAME + '.hdf5')
+        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
         matelem_reference = datalist[0]
         return self.matrixelement_table('n_operator', matelem_reference)

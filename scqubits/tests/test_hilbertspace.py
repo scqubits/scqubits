@@ -17,13 +17,14 @@ import scqubits as qubit
 from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 
-class TestHilbertSpace():
+class TestHilbertSpace:
 
     @pytest.fixture(autouse=True)
     def set_tmpdir(self, request):
         setattr(self, 'tmpdir', request.getfixturevalue('tmpdir'))
 
-    def hilbertspace_initialize(self):
+    @staticmethod
+    def hilbertspace_initialize():
         transmon1 = qubit.Transmon(
             EJ=40.0,
             EC=0.2,
@@ -111,53 +112,51 @@ class TestHilbertSpace():
     def test_HilbertSpace_diagonalize_hamiltonian(self):
         hamiltonian = self.build_hamiltonian()
 
-        evals_reference = np.asarray([-36.9898613 , -32.2485069 , -31.31250908, -31.00035225,
-           -29.18345776, -26.26664068, -25.32975243, -25.01086732,
-           -24.44211916, -23.50612209, -23.19649424, -21.58197308,
-           -20.28449459, -19.9790977 , -19.34686735, -19.01220621,
-           -18.46278662, -17.52590027, -17.2084294 , -16.84047711,
-           -15.90462096, -15.54530262, -14.25509299, -13.99415794,
-           -13.33019265, -12.48208655, -12.1727023 , -11.54418665,
-           -11.25656601, -10.81121745,  -9.87458635,  -9.51009429,
-            -8.00925198,  -6.50020557,  -6.19030846,  -5.57523232,
-            -4.78354995,  -4.57123207,  -3.84547113,  -3.58389199,
-            -2.01787739,  -0.20685665,   1.17306434,   1.46098501,
-             2.09778458,   5.73747149,   7.49164636,  13.4096702 ])
+        evals_reference = np.asarray([-36.9898613, -32.2485069, -31.31250908, -31.00035225,
+                                      -29.18345776, -26.26664068, -25.32975243, -25.01086732,
+                                      -24.44211916, -23.50612209, -23.19649424, -21.58197308,
+                                      -20.28449459, -19.9790977, -19.34686735, -19.01220621,
+                                      -18.46278662, -17.52590027, -17.2084294, -16.84047711,
+                                      -15.90462096, -15.54530262, -14.25509299, -13.99415794,
+                                      -13.33019265, -12.48208655, -12.1727023, -11.54418665,
+                                      -11.25656601, -10.81121745, -9.87458635, -9.51009429,
+                                      -8.00925198, -6.50020557, -6.19030846, -5.57523232,
+                                      -4.78354995, -4.57123207, -3.84547113, -3.58389199,
+                                      -2.01787739, -0.20685665, 1.17306434, 1.46098501,
+                                      2.09778458, 5.73747149, 7.49164636, 13.4096702])
 
         evals_calculated = hamiltonian.eigenenergies()
         assert np.allclose(evals_calculated, evals_reference)
 
-
     def test_HilbertSpace_get_spectrum_vs_paramvals(self):
         hilbertspc = self.hilbertspace_initialize()
-        [transmon1, transmon2, resonator] = hilbertspc
 
         flux_list = np.linspace(-0.1, 0.6, 100)
-        specdata = hilbertspc.get_spectrum_vs_paramvals(self.hamiltonian, flux_list, evals_count=15, get_eigenstates=True,
-                                                        filename=self.tmpdir + 'test')
+        specdata = hilbertspc.get_spectrum_vs_paramvals(self.hamiltonian, flux_list, evals_count=15,
+                                                        get_eigenstates=True, filename=self.tmpdir + 'test')
 
         reference_evals = np.array([-35.61671109, -30.87536252, -29.93935539, -29.62839549,
-           -27.95521996, -24.89469034, -23.95779031, -23.64010506,
-           -23.21389138, -22.27788515, -21.97003287, -20.49827277,
-           -18.91372364, -18.6059474 , -17.97609201])
+                                    -27.95521996, -24.89469034, -23.95779031, -23.64010506,
+                                    -23.21389138, -22.27788515, -21.97003287, -20.49827277,
+                                    -18.91372364, -18.6059474, -17.97609201])
         calculated_evals = specdata.energy_table[2]
 
         assert np.allclose(reference_evals, calculated_evals)
-
 
     def test_HilbertSpace_absorption_spectrum(self):
         hilbertspc = self.hilbertspace_initialize()
         [transmon1, transmon2, resonator] = hilbertspc
 
         flux_list = np.linspace(-0.1, 0.6, 100)
-        specdata = hilbertspc.get_spectrum_vs_paramvals(self.hamiltonian, flux_list, evals_count=15, get_eigenstates=True)
+        specdata = hilbertspc.get_spectrum_vs_paramvals(self.hamiltonian, flux_list, evals_count=15,
+                                                        get_eigenstates=True)
         absorptiondata = hilbertspc.absorption_spectrum(specdata, ((transmon1, 0), (transmon2, 0), (resonator, 0)),
                                                         initial_as_bare=True)
 
-        reference_energies = np.array([  0.        ,   4.74135306,   5.67735204,   5.9888575 ,
-             7.72433769,  10.72256729,  11.6594581 ,  11.97768947,
-            12.46567274,  13.40167088,  13.71033926,  15.24394963,
-            16.70406082,  17.01076357,  17.64169146])
+        reference_energies = np.array([0., 4.74135306, 5.67735204, 5.9888575,
+                                       7.72433769, 10.72256729, 11.6594581, 11.97768947,
+                                       12.46567274, 13.40167088, 13.71033926, 15.24394963,
+                                       16.70406082, 17.01076357, 17.64169146])
 
         calculated_energies = absorptiondata.energy_table[5]
 
