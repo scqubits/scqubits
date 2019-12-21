@@ -19,7 +19,7 @@ class TestFullZeroPi(BaseTest):
 
     phi_grid = qubit.Grid1d(1, 2, 3)
     qbt = FullZeroPi(zeropi_cutoff=None, zeta_cutoff=None, grid=phi_grid, ncut=None, EJ=None, dEJ=None,
-                     EL=None, dEL=None, ECJ=None, dCJ=None, EC=0.001, ECS=None, dC=None, ng=None, flux=None)
+                     EL=None, dEL=None, ECJ=1, dCJ=None, EC=0.001, ECS=None, dC=None, ng=None, flux=None)
     # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):
