@@ -51,7 +51,7 @@ class BaseTest():
         h5params = h5file_root.attrs
         for paramname in h5params.keys():
             paramvalue = h5params[paramname]
-            if isinstance(paramvalue, (int, float, np.int_)):
+            if isinstance(paramvalue, (int, float, np.number)):
                 setattr(self.qbt, paramname, h5params[paramname])
 
     def eigenvals(self, evals_reference):
@@ -65,7 +65,8 @@ class BaseTest():
         assert np.allclose(np.abs(evecs_reference), np.abs(evecs_tst))
 
     def plot_evals_vs_paramvals(self, param_name, param_list):
-        self.qbt.plot_evals_vs_paramvals(param_name, param_list, evals_count=5, subtract_ground=True)
+        self.qbt.plot_evals_vs_paramvals(param_name, param_list, evals_count=5, subtract_ground=True,
+                                         filename=self.tmpdir + 'test')
 
     def get_spectrum_vs_paramvals(self, param_name, param_list, evals_reference, evecs_reference):
         evals_count = len(evals_reference[0])

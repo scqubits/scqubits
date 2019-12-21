@@ -20,7 +20,7 @@ from scqubits.tests.conftest import BaseTest, DATADIR
 class TestZeroPi(BaseTest):
 
     phi_grid = qubit.Grid1d(1, 2, 3)
-    qbt = ZeroPi(grid=phi_grid, EJ=1, EL=1, ECJ=1, EC=None, ECS=2, ng=1, flux=1, ncut=1)
+    qbt = ZeroPi(grid=phi_grid, EJ=None, EL=None, ECJ=None, EC=None, ECS=2, ng=None, flux=None, ncut=None)
     # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):

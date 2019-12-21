@@ -17,7 +17,7 @@ from scqubits.tests.conftest import BaseTest, DATADIR
 
 
 class TestFluxonium(BaseTest):
-    qbt = Fluxonium(EJ = 1, EC = 1, EL = 1, flux = 1, cutoff = 1) 
+    qbt = Fluxonium(EJ = None, EC = None, EL = None, flux = None, cutoff = None)
     # dummy values, will read  actual values from external user h5 files
 
     def test_eigenvals(self):

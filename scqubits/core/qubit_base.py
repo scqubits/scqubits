@@ -59,7 +59,7 @@ class QuantumSystem(object):
         h5file_root: root group of open h5py file
         """
         for key, info in self.__dict__.items():
-            if isinstance(info, (int, float)):
+            if isinstance(info, (int, float, np.number)):
                 h5file_root.attrs[key] = info
             else:
                 h5file_root.attrs[key] = str(info)
@@ -148,6 +148,8 @@ class QubitBaseClass(QuantumSystem):
             if set, matrix elements are calculated based on the provided eigensystem data (Default value = None)
         evals_count: int
             number of desired matrix elements, starting with ground state (Default value = 6)
+        filename: str, optional
+            output file name
 
         Returns
         -------
@@ -400,10 +402,11 @@ class QubitBaseClass(QuantumSystem):
             h5file_root = h5file.create_group('root')
             filewrite_h5data(h5file_root, list_of_arrays, list_of_names)
             self.filewrite_params_h5(h5file_root)
+            h5file.close()
 
     def set_params_from_h5(self, h5file_root):
         h5params = h5file_root.attrs
         for paramname in h5params.keys():
             paramvalue = h5params[paramname]
-            if isinstance(paramvalue, (int, float, np.int_)):
+            if isinstance(paramvalue, (int, float, np.number)):
                 setattr(self, paramname, h5params[paramname])

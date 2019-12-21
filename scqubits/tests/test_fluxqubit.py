@@ -20,8 +20,8 @@ scqubits.settings.file_format = FileType.h5
 
 class TestFluxQubit(BaseTest):
 
-    qbt = FluxQubit(EJ1 = 1.0, EJ2 = 1.0, EJ3 = 1.0, ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0, ECg1 = 1.0, ECg2 = 1.0,
-                    ng1 = 1.0, ng2 = 1.0, flux = 1.0, ncut = 1)
+    qbt = FluxQubit(EJ1 = None, EJ2 = None, EJ3 = None, ECJ1 = None, ECJ2 = None, ECJ3 = None, ECg1 = None, ECg2 = None,
+                    ng1 = None, ng2 = None, flux = None, ncut = None)
     # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):

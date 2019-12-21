@@ -18,7 +18,7 @@ from scqubits.tests.conftest import BaseTest, DATADIR
 
 class TestTransmon(BaseTest):
 
-    qbt = Transmon(EJ=1, EC=1, ng=1, ncut=1)   # dummy values, will read in actual values from h5 files
+    qbt = Transmon(EJ=None, EC=None, ng=None, ncut=None)   # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):
         TESTNAME = 'transmon_1'

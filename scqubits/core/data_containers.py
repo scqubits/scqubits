@@ -165,3 +165,4 @@ class SpectrumData(object):
                              [self.param_vals, self.energy_table, state_table_numpy, self.matrixelem_table],
                              [self.param_name, "spectrum energies", "states", "mat_elem"])
             self.filewrite_params_h5(h5file_root)
+            h5file.close()
