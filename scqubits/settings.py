@@ -28,7 +28,7 @@ file_format = FileType.h5   # choose FileType.csv instead for generation of comm
 
 # a switch for displaying of progress bar; default: show only in ipython
 try:
-    __IPYTHON__
-    progressbar_enabled = True
-except:
+    if __IPYTHON__:
+        progressbar_enabled = True
+except NameError:
     progressbar_enabled = False
