@@ -13,7 +13,7 @@ import numpy as np
 from scipy import sparse
 
 
-class Grid1d(object):
+class Grid1d:
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
 
@@ -59,7 +59,7 @@ class Grid1d(object):
             dtp = np.complex_
         else:
             dtp = np.float_
-            
+
         delta_x = (self.max_val - self.min_val) / self.pt_count
         offdiag_element = prefactor / (2 * delta_x)
 
@@ -110,12 +110,12 @@ class Grid1d(object):
         h5dataset.attrs['pt_count'] = self.pt_count
 
     def set_params_from_h5(self, h5file_grid):
-        self.min_vals = h5file_grid.attrs['min_val']
-        self.max_vals = h5file_grid.attrs['max_val']
+        self.min_val = h5file_grid.attrs['min_val']
+        self.max_val = h5file_grid.attrs['max_val']
         self.pt_count = h5file_grid.attrs['pt_count']
 
 
-class GridSpec(object):
+class GridSpec:
     """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
 
     Parameters
@@ -143,13 +143,13 @@ class GridSpec(object):
 
     def filewrite_params_h5(self, h5file_root):
         h5dataset = h5file_root.create_dataset("grid", data=[])
-        h5dataset.attrs['min_val'] = self.min_vals
+        h5dataset.attrs['min_valss'] = self.min_vals
         h5dataset.attrs['max_val'] = self.max_vals
         h5dataset.attrs['var_count'] = self.var_count
-        h5dataset.attrs['pt_count'] = self.pt_count
+        h5dataset.attrs['pt_counts'] = self.pt_counts
 
     def set_params_from_h5(self, h5file_grid):
-        self.min_vals = h5file_grid.attrs['min_val']
-        self.max_vals = h5file_grid.attrs['max_val']
+        self.min_vals = h5file_grid.attrs['min_vals']
+        self.max_vals = h5file_grid.attrs['max_vals']
         self.var_count = h5file_grid.attrs['var_count']
-        self.pt_count = h5file_grid.attrs['pt_count']
+        self.pt_counts = h5file_grid.attrs['pt_count']

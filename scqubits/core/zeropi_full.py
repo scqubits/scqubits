@@ -120,7 +120,7 @@ class FullZeroPi(QubitBaseClass):
         )
 
     def ECS(self):
-        """ """
+        """Helper function to calculate and return `ECS`"""
         return 1 / (1 / self.EC + 1 / self.ECJ)
 
     def set_EC_via_ECS(self, ECS):
@@ -153,7 +153,8 @@ class FullZeroPi(QubitBaseClass):
         prefactor = self.omega_zeta()
         zeta_diag_hamiltonian = op.number_sparse(zeta_dim, prefactor)
 
-        hamiltonian_mat = sparse.kron(zeropi_diag_hamiltonian, sparse.identity(zeta_dim, format='dia', dtype=np.complex_))
+        hamiltonian_mat =  sparse.kron(zeropi_diag_hamiltonian,
+                                       sparse.identity(zeta_dim, format='dia', dtype=np.complex_))
         hamiltonian_mat += sparse.kron(sparse.identity(zeropi_dim, format='dia', dtype=np.complex_),
                                        zeta_diag_hamiltonian)
 
@@ -179,15 +180,15 @@ class FullZeroPi(QubitBaseClass):
         zeta_dim = self.zeta_cutoff
 
         if zeropi_evecs is None:
-            zeropi_evals, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
+            _, zeropi_evecs = self._zeropi.eigensys(evals_count=zeropi_dim)
 
         op_eigen_basis = sparse.dia_matrix((zeropi_dim, zeropi_dim),
                                            dtype=np.complex_)  # is this guaranteed to be zero?
 
         op_zeropi = get_matrixelement_table(zeropi_operator, zeropi_evecs, real_valued=False)
-        for l1 in range(zeropi_dim):
-            for l2 in range(zeropi_dim):
-                op_eigen_basis += op_zeropi[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
+        for n in range(zeropi_dim):
+            for m in range(zeropi_dim):
+                op_eigen_basis += op_zeropi[n, m] * op.hubbard_sparse(n, m, zeropi_dim)
 
         return sparse.kron(op_eigen_basis, sparse.identity(zeta_dim, format='csc', dtype=np.complex_), format='csc')
 

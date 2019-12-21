@@ -22,7 +22,7 @@ from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
 
-class WaveFunction(object):
+class WaveFunction:
     """Container for wave function amplitudes defined for a specific basis. Optionally, a corresponding
     energy is saved as well.
 
@@ -44,7 +44,7 @@ class WaveFunction(object):
 
 # —WaveFunctionOnGrid class—————————————————————————————————————————————————————————————————————————————————————————————
 
-class WaveFunctionOnGrid(object):
+class WaveFunctionOnGrid:
     """Container for wave function amplitudes defined on a coordinate grid (arbitrary dimensions).
     Optionally, a corresponding eigenenergy is saved as well.
 
@@ -66,7 +66,7 @@ class WaveFunctionOnGrid(object):
 
 # —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
 
-class SpectrumData(object):
+class SpectrumData:
     """Container holding energy and state data as a function of a particular parameter that is varied.
     Also stores all other system parameters used for generating the set, and provides method for writing
     data to file.

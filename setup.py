@@ -70,8 +70,8 @@ PYTHON_VERSION = '>=3.5'
 
 
 NAME = "scqubits"
-AUTHOR = ("Jens Koch, Peter Groszkowski")
-AUTHOR_EMAIL = ("jens-koch@northwestern.edu, piotrekg@gmail.com")
+AUTHOR = "Jens Koch, Peter Groszkowski"
+AUTHOR_EMAIL = "jens-koch@northwestern.edu, piotrekg@gmail.com"
 LICENSE = "BSD"
 DESCRIPTION = DOCLINES[0]
 LONG_DESCRIPTION = "\n".join(DOCLINES[2:])

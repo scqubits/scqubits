@@ -26,10 +26,10 @@ matplotlib.use('Agg')
 scqubits.settings.file_format = FileType.h5
 
 TESTSDIR, _ = os.path.split(scqubits.tests.__file__)
-DATADIR = TESTSDIR + '/data/'
+DATADIR = os.path.join(TESTSDIR, 'data', '')
 
 
-class BaseTest():
+class BaseTest:
     qbt = None
 
     @pytest.fixture(autouse=True)

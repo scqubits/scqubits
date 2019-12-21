@@ -156,7 +156,7 @@ class QubitBaseClass(QuantumSystem):
         ndarray
         """
         if esys is None:
-            evals, evecs = self.eigensys(evals_count=evals_count)
+            _, evecs = self.eigensys(evals_count=evals_count)
         else:
             _, evecs = esys
         operator_matrix = getattr(self, operator)()
