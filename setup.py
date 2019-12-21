@@ -46,7 +46,7 @@ EXTRA_KWARGS = {}
 # all information about scqubits goes here
 MAJOR = 1
 MINOR = 0
-MICRO = 3
+MICRO = 4
 ISRELEASED = True
 
 

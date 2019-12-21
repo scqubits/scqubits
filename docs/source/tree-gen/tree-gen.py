@@ -2,8 +2,7 @@ import json
 import os
 import re
 
-# exclude_dirs = ["examples", "tests"]
-
+exclude_dirs = ["examples", "tests"]
 
 scqubits_root = "../../../scqubits/"
 
@@ -11,9 +10,6 @@ colors = ["#0B5FA5", "#043C6B", "#3F8FD2",  # blue colors
           "#00AE68", "#007143", "#36D695",  # green colors
           "#FF4500", "#692102", "#BF5730"
           ]
-
-#          "#FF9400", "#A66000", "#FFAE40"
-#          "#FF6F00", "#A64800", "#BF6E30"
 
 module_cmap = {"core": 0,  # core
                "utils": 1,  # utils
