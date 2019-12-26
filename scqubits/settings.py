@@ -27,8 +27,16 @@ from scqubits.utils.constants import FileType
 file_format = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
 
 # a switch for displaying of progress bar; default: show only in ipython
+progressbar_disabled = False
 try:
     if __IPYTHON__:
-        progressbar_enabled = True
+        in_ipython = True
 except NameError:
-    progressbar_enabled = False
+    progressbar_disabled = True
+    in_ipython = False
+
+
+# define settings for tqdm progressbar
+TQDM_KWARGS = {'ascii': True,
+               'ncols': 100,
+               'disable': progressbar_disabled}

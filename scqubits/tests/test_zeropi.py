@@ -35,7 +35,6 @@ class TestZeroPi(BaseTest):
         TESTNAME = 'zeropi_2'
         h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
-        evals_reference = datalist[0]
         evecs_reference = datalist[1]
         return self.eigenvecs(evecs_reference)
 

@@ -11,17 +11,17 @@
 
 import warnings
 
-from scqubits.core.discretization import Grid1d
-from scqubits.core.flux_qubit import FluxQubit
+import scqubits.settings
 
 # core
+from scqubits.core.discretization import Grid1d
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.transmon import Transmon
+from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-
 # utils
 from scqubits.utils.constants import FileType
 from scqubits.utils.spectrum_utils import get_matrixelement_table

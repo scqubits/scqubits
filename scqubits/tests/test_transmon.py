@@ -18,8 +18,7 @@ from scqubits.utils.file_io import read_h5
 
 
 class TestTransmon(BaseTest):
-
-    qbt = Transmon(EJ=None, EC=None, ng=None, ncut=None)   # dummy values, will read in actual values from h5 files
+    qbt = Transmon(EJ=None, EC=None, ng=None, ncut=None)  # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):
         TESTNAME = 'transmon_1'
@@ -32,7 +31,6 @@ class TestTransmon(BaseTest):
         TESTNAME = 'transmon_2'
         h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
         self.qbt.set_params_from_h5(h5params)
-        evals_reference = datalist[0]
         evecs_reference = datalist[1]
         return self.eigenvecs(evecs_reference)
 
@@ -69,7 +67,7 @@ class TestTransmon(BaseTest):
     def test_plot_phi_wavefunction(self):
         TESTNAME = 'transmon_8'
         self.qbt.plot_phi_wavefunction(esys=None, which=6, mode='real')
-        self.qbt.plot_phi_wavefunction(esys=None, which=(0,3,9), mode='abs_sqr')
+        self.qbt.plot_phi_wavefunction(esys=None, which=(0, 3, 9), mode='abs_sqr')
 
     def test_plot_matrixelements(self):
         TESTNAME = 'transmon_9'

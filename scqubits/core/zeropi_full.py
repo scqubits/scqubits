@@ -153,8 +153,8 @@ class FullZeroPi(QubitBaseClass):
         prefactor = self.omega_zeta()
         zeta_diag_hamiltonian = op.number_sparse(zeta_dim, prefactor)
 
-        hamiltonian_mat =  sparse.kron(zeropi_diag_hamiltonian,
-                                       sparse.identity(zeta_dim, format='dia', dtype=np.complex_))
+        hamiltonian_mat = sparse.kron(zeropi_diag_hamiltonian,
+                                      sparse.identity(zeta_dim, format='dia', dtype=np.complex_))
         hamiltonian_mat += sparse.kron(sparse.identity(zeropi_dim, format='dia', dtype=np.complex_),
                                        zeta_diag_hamiltonian)
 

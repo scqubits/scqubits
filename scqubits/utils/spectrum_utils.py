@@ -89,7 +89,6 @@ def matrix_element(state1, operator, state2):
     -------
     float or complex
         matrix element
-    
     """
     if isinstance(operator, qt.Qobj):
         op_matrix = operator.data

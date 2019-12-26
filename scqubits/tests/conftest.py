@@ -11,6 +11,7 @@
 
 
 import os
+
 import matplotlib
 import numpy as np
 import pytest
@@ -19,8 +20,10 @@ import scqubits
 import scqubits.settings
 import scqubits.utils.plotting as plot
 from scqubits import FileType
+from scqubits.settings import in_ipython
 
-matplotlib.use('Agg')
+if not in_ipython:
+    matplotlib.use('Agg')
 scqubits.settings.file_format = FileType.h5
 
 TESTSDIR, _ = os.path.split(scqubits.tests.__file__)
@@ -75,17 +78,17 @@ class BaseTest:
 
     def matrixelement_table(self, op, matelem_reference):
         evals_count = len(matelem_reference)
-        calculated_matrix = self.qbt.matrixelement_table(op, esys=None, evals_count=evals_count,
+        calculated_matrix = self.qbt.matrixelement_table(op, evecs=None, evals_count=evals_count,
                                                          filename=self.tmpdir + 'test')
         assert np.allclose(np.abs(matelem_reference), np.abs(calculated_matrix))
 
     def plot_matrixelements(self, op, evals_count=7):
-        self.qbt.plot_matrixelements(op, esys=None, evals_count=evals_count)
+        self.qbt.plot_matrixelements(op, evecs=None, evals_count=evals_count)
 
     def print_matrixelements(self, op):
         mat_data = self.qbt.matrixelement_table(op)
         plot.print_matrix(abs(mat_data))
 
     def plot_matelem_vs_paramvals(self, op, param_name, param_list, select_elems):
-        fig, ax = self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, select_elems=select_elems,
-                                                     filename=self.tmpdir + 'test')
+        self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, select_elems=select_elems,
+                                           filename=self.tmpdir + 'test')

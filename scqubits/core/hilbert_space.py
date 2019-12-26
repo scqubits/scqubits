@@ -9,11 +9,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import h5py
 import numpy as np
 import qutip as qt
-import h5py
+from tqdm import tqdm
 
-import scqubits.utils.progressbar as progressbar
+from scqubits.settings import TQDM_KWARGS
 from scqubits.core.data_containers import SpectrumData
 from scqubits.utils.spectrum_utils import get_eigenstate_index_maxoverlap
 
@@ -103,15 +104,18 @@ class HilbertSpace(list):
         diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))
         return self.identity_wrap(diag_qt_op, subsystem)
 
-    def identity_wrap(self, operator, subsystem):
+    def identity_wrap(self, operator, subsystem, evecs=None):
         """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
 
         Parameters
         ----------
-        operator: ndarray or list or qutip.Qobj
+        operator: ndarray or list or qutip.Qobj or str
             operator acting in Hilbert space of `subsystem`
         subsystem: object derived from QuantumSystem
             subsystem where diagonal operator is defined
+        evecs: None or ndarray
+            if operator is given in string form, it must be computed in the subsystem's eigenbasis; if given,
+            evecs are used for that purpose
 
         Returns
         -------
@@ -120,8 +124,16 @@ class HilbertSpace(list):
         if isinstance(operator, (list, np.ndarray)):
             dim = subsystem.truncated_dim
             subsys_operator = qt.Qobj(inpt=operator[:dim, :dim])
-        else:
+        elif isinstance(operator, qt.Qobj):
             subsys_operator = operator
+        elif isinstance(operator, str):
+            if evecs is None:
+                _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+            operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
+            subsys_operator = qt.Qobj(inpt=operator_matrixelements)
+        else:
+            raise TypeError
+
         operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in self]
         subsystem_index = self.index(subsystem)
         operator_identitywrap_list[subsystem_index] = subsys_operator
@@ -195,8 +207,7 @@ class HilbertSpace(list):
         else:
             eigenstatesQobj_table = None
 
-        progressbar.initialize()
-        for param_index, paramval in enumerate(param_vals):
+        for param_index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
             paramval = param_vals[param_index]
             hamiltonian = hamiltonian_func(paramval)
 
@@ -206,8 +217,6 @@ class HilbertSpace(list):
                 eigenstatesQobj_table[param_index] = eigenstates_Qobj
             else:
                 eigenenergy_table[param_index] = hamiltonian.eigenenergies(eigvals=evals_count)
-            progress_in_percent = (param_index + 1) / paramvals_count
-            progressbar.update(progress_in_percent)
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenenergy_table, self.__dict__,
                                     state_table=eigenstatesQobj_table)
@@ -238,8 +247,7 @@ class HilbertSpace(list):
         evals_count = len(spectrum_data.energy_table[0])
         diff_eigenenergy_table = np.empty((paramvals_count, evals_count))
 
-        progressbar.initialize()
-        for param_index in range(paramvals_count):
+        for param_index in tqdm(range(paramvals_count), **TQDM_KWARGS):
             eigenenergies = spectrum_data.energy_table[param_index]
             if initial_as_bare:
                 basis_list = [None] * self.subsystem_count
@@ -254,9 +262,6 @@ class HilbertSpace(list):
 
             diff_eigenenergies = eigenenergies - eigenenergies[eigenenergy_index]
             diff_eigenenergy_table[param_index] = diff_eigenenergies
-
-            progress_in_percent = (param_index + 1) / paramvals_count
-            progressbar.update(progress_in_percent)
         return SpectrumData(spectrum_data.param_name, spectrum_data.param_vals, diff_eigenenergy_table,
                             self.__dict__, state_table=None)
 

@@ -15,17 +15,19 @@ Provides the base classes for qubits
 import abc
 
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
+from tqdm import tqdm
 
 import scqubits.settings as config
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
-import scqubits.utils.progressbar as progressbar
 from scqubits.core.data_containers import SpectrumData
 from scqubits.utils.constants import FileType
 from scqubits.utils.file_io import filewrite_csvdata, filewrite_h5data
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
+from scqubits.settings import TQDM_KWARGS
 
 
 # —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
@@ -67,14 +69,17 @@ class QuantumSystem:
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
 
 class QubitBaseClass(QuantumSystem):
-    """Base class for superconducting qubit objects. Provide general mechanisms and routines for
-    checking validity of initialization parameters, writing data to files, and plotting.
+    """Base class for superconducting qubit objects. Provide general mechanisms and routines
+    for plotting spectra, matrix elements, and writing data to files
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self):
+    def __init__(self, truncated_dim=None):
         self._sys_type = 'QubitBaseClass - mainly used as class template'
         self._evec_dtype = np.float_
+        self.truncated_dim = truncated_dim
+        self._default_var_range = None
+        self._default_var_count = None
 
     @abc.abstractmethod
     def hamiltonian(self):
@@ -131,7 +136,24 @@ class QubitBaseClass(QuantumSystem):
             self.filewrite_data(filename, [evals, evecs], ["evals", "evecs"])
         return evals, evecs
 
-    def matrixelement_table(self, operator, esys=None, evals_count=6, filename=None):
+    def try_defaults(self, var_range, var_count):
+        """
+        Parameters
+        ----------
+        var_range: None or tuple(float, float)
+        var_count: None or int
+
+        Returns
+        -------
+        If any of the arguments is None, return default values.
+        """
+        if var_range is None:
+            var_range = self._default_var_range
+        if var_count is None:
+            var_count = self._default_var_count
+        return var_range, var_count
+
+    def matrixelement_table(self, operator, evecs=None, evals_count=6, filename=None):
         """Returns table of matrix elements for `operator` with respect to the eigenstates of the qubit.
         The operator is given as a string matching a class method returning an operator matrix.
         E.g., for an instance `trm` of Transmon,  the matrix element table for the charge operator is given by
@@ -142,8 +164,8 @@ class QubitBaseClass(QuantumSystem):
         ----------
         operator: str
             name of class method in string form, returning operator matrix in qubit-internal basis.
-        esys: tuple(ndarray, ndarray), optional
-            if set, matrix elements are calculated based on the provided eigensystem data (Default value = None)
+        evecs: ndarray, optional
+            if not provided, then the necesssary eigenstates are calculated on the fly
         evals_count: int
             number of desired matrix elements, starting with ground state (Default value = 6)
         filename: str, optional
@@ -153,17 +175,15 @@ class QubitBaseClass(QuantumSystem):
         -------
         ndarray
         """
-        if esys is None:
+        if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
-        else:
-            _, evecs = esys
         operator_matrix = getattr(self, operator)()
         table = get_matrixelement_table(operator_matrix, evecs, real_valued=isinstance(self._evec_dtype, np.float_))
         if filename:
             self.filewrite_data(filename, [table], [''])
         return table
 
-    def plot_matrixelements(self, operator, esys=None, evals_count=6, mode='abs', xlabel='', ylabel='', zlabel='',
+    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', xlabel='', ylabel='', zlabel='',
                             fig_ax=None):
         """Plots matrix elements for `operator`, given as a string referring to a class method
         that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
@@ -174,7 +194,7 @@ class QubitBaseClass(QuantumSystem):
         ----------
         operator: str
             name of class method in string form, returning operator matrix
-        esys: tuple(ndarray,ndarray), optional
+        evecs: None or ndarray, optional
             eigensystem data of evals, evecs; calculates eigensystem if set to None (Default value = None)
         evals_count: int, optional
             number of desired matrix elements, starting with ground state (Default value = 6)
@@ -195,7 +215,7 @@ class QubitBaseClass(QuantumSystem):
         -------
         Figure, Axes
         """
-        matrixelem_array = self.matrixelement_table(operator, esys, evals_count)
+        matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
         return plot.matrix(matrixelem_array, mode, xlabel, ylabel, zlabel, fig_ax=fig_ax)
 
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
@@ -232,8 +252,7 @@ class QubitBaseClass(QuantumSystem):
         else:
             eigenstate_table = None
 
-        progressbar.initialize()
-        for index, paramval in enumerate(param_vals):
+        for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
             setattr(self, param_name, paramval)
 
             if get_eigenstates:
@@ -246,8 +265,6 @@ class QubitBaseClass(QuantumSystem):
             if subtract_ground:
                 eigenvalue_table[index] -= evals[0]
 
-            progress_in_percent = (index + 1) / paramvals_count
-            progressbar.update(progress_in_percent)
         setattr(self, param_name, previous_paramval)
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self.__dict__,
@@ -285,17 +302,13 @@ class QubitBaseClass(QuantumSystem):
         eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=np.complex_)
         matelem_table = np.empty(shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_)
 
-        progressbar.initialize()
-        for index, paramval in enumerate(param_vals):
+        for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
             setattr(self, param_name, paramval)
             evals, evecs = self.eigensys(evals_count)
             eigenstate_table[index] = evecs
             eigenvalue_table[index] = evals
 
             matelem_table[index] = self.matrixelement_table(operator, evals_count=evals_count)
-
-            progress_in_percent = (index + 1) / paramvals_count
-            progressbar.update(progress_in_percent)
 
         setattr(self, param_name, previous_paramval)
 
@@ -415,3 +428,78 @@ class QubitBaseClass(QuantumSystem):
             paramvalue = h5params[paramname]
             if isinstance(paramvalue, (int, float, np.number)):
                 setattr(self, paramname, h5params[paramname])
+
+
+# —QubitBaseClass1d———————————————————————————————————————————————————————————————————————————————————————————————————————
+
+class QubitBaseClass1d(QubitBaseClass):
+    """Base class for superconducting qubit objects with one degree of freedom. Provide general mechanisms and routines
+    for plotting spectra, matrix elements, and writing data to files.
+    """
+    @abc.abstractmethod
+    def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
+        pass
+
+    def plot_wavefunction(self, esys, which=0, phi_range=None, phi_count=None, mode='abs_sqr', scaling=None,
+                          filename=None):
+        """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional quibts like FluxQubits and
+        ZeroPi.
+
+        Parameters
+        ----------
+        esys: ndarray, ndarray
+            eigenvalues, eigenvectors
+        which: int or tuple or list, optional
+            single index or tuple/list of integers indexing the wave function(s) to be plotted.
+            If which is -1, all wavefunctions up to the truncation limit are plotted.
+        phi_range: None or tuple(float, float)
+            used for setting a custom plot range for phi
+        phi_count: int, optional
+            number of points on the x-axis (resolution) (Default value = 251)
+        mode: str, optional
+            choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
+        scaling: float or None, optional
+            custom scaling of wave function amplitude/modulus
+        filename: str, optional
+            file path and name (not including suffix) for output
+
+        Returns
+        -------
+        Figure, Axes
+        """
+        modefunction = constants.MODE_FUNC_DICT[mode]
+
+        if isinstance(which, int):
+            if which == -1:
+                index_list = range(self.truncated_dim)
+            else:
+                index_list = [which]
+        elif isinstance(which, tuple):
+            index_list = list(which)
+        else:
+            index_list = which
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+        phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_range=phi_range, phi_count=phi_count)
+        potential_vals = self.potential(phi_wavefunc.basis_labels)
+
+        if scaling is None:
+            if self._sys_type == 'Transmon qubit':
+                scale = 0.3 * self.EJ
+            if self._sys_type == 'Fluxonium qubit':
+                scale = 0.2 * (np.max(potential_vals) - np.min(potential_vals))
+        else:
+            scale = scaling
+
+        for wavefunc_index in index_list:
+            phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_range=phi_range, phi_count=phi_count)
+            if np.sum(phi_wavefunc.amplitudes) < 0:
+                phi_wavefunc.amplitudes *= -1.0
+
+            phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
+
+            plot.wavefunction1d(phi_wavefunc, potential_vals=potential_vals, offset=phi_wavefunc.energy,
+                                scaling=scale, xlabel='phi', fig_ax=(fig, ax), filename=filename)
+        return fig, ax

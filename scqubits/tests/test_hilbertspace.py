@@ -103,11 +103,10 @@ class TestHilbertSpace:
         h1 = hilbertspc.diag_hamiltonian(transmon1)
         h2 = hilbertspc.diag_hamiltonian(transmon2)
 
-        vcpb1 = sum([gmat1[j][k] * hbd(j, k, transmon1) for j in range(dim1) for k in range(dim1)])
         return h1 + h2 + hres + (vcpb1 + vcpb2) * (a + a.dag())
 
     def test_HilbertSpace_build_hamiltonian(self):
-        hamiltonian = self.build_hamiltonian()
+        _ = self.build_hamiltonian()
 
     def test_HilbertSpace_diagonalize_hamiltonian(self):
         hamiltonian = self.build_hamiltonian()

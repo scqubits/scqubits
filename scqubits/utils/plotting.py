@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 try:
-    from labellines import labelLine, labelLines
+    from labellines import labelLines
     _labellines_enabled = True
 except ImportError:
     _labellines_enabled = False
@@ -28,7 +28,7 @@ mpl.rcParams['font.family'] = "sans-serif"
 mpl.rcParams['figure.dpi'] = 150
 
 
-def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='wavefunction', xlabel='x',
+def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='wavefunction', xlabel='phi',
                    y_range=None, fig_ax=None, filename=None, **kwargs):
     """
     Plots the amplitude of a real-valued 1d wave function, along with the potential energy if provided.
@@ -70,8 +70,8 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='w
 
     axes.plot(x_vals, offset + scaling * wavefunc.amplitudes, **kwargs)
     if potential_vals is not None:
-        axes.plot(x_vals, potential_vals)
-        axes.plot(x_vals, [offset] * len(x_vals), 'b--')
+        axes.plot(x_vals, potential_vals, color='gray')
+        axes.plot(x_vals, [offset] * len(x_vals), color='black', linewidth=0.5)
 
     axes.set_xlabel(xlabel)
     axes.set_ylabel(ylabel)
@@ -179,10 +179,10 @@ def wavefunction2d(wavefunc, figsize=(10, 5), aspect_ratio=3, zero_calibrate=Fal
         imshow_minval = np.min(wavefunc.amplitudes)
         imshow_maxval = np.max(wavefunc.amplitudes)
         cmap = plt.cm.viridis
-    
+
     m = axes.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
                     aspect=aspect_ratio, cmap=cmap, vmin=imshow_minval, vmax=imshow_maxval, origin='lower')
-    cbar = fig.colorbar(m, ax=axes)
+    fig.colorbar(m, ax=axes)
 
     if filename:
         out_file = mplpdf.PdfPages(filename)
@@ -290,7 +290,6 @@ def matrix(data_matrix, mode='abs', xlabel='', ylabel='', zlabel='', filename=No
     colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
 
     # skyscraper plot
-
     ax1.view_init(azim=210, elev=23)
     ax1.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
     ax1.axes.w_xaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set x-ticks to integers
@@ -301,10 +300,9 @@ def matrix(data_matrix, mode='abs', xlabel='', ylabel='', zlabel='', filename=No
     ax1.set_zlabel(zlabel)
 
     # 2d plot
-
     ax2.matshow(modefunction(data_matrix), cmap=plt.cm.viridis)
 
-    cax, kw = mpl.colorbar.make_axes(ax2, shrink=.75, pad=.02)  # add colorbar with normalized range
+    cax, _ = mpl.colorbar.make_axes(ax2, shrink=.75, pad=.02)  # add colorbar with normalized range
     _ = mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
 
     plt.show()
@@ -317,7 +315,8 @@ def matrix(data_matrix, mode='abs', xlabel='', ylabel='', zlabel='', filename=No
     return fig, (ax1, ax2)
 
 
-def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, filename=None, fig_ax=None, **kwargs):
+def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, subtract_ground=False, filename=None,
+                       fig_ax=None, **kwargs):
     """Generates a simple plot of a set of eigenvalues as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
 
@@ -331,6 +330,8 @@ def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, filenam
         custom x-range for the plot
     ylim: (float, float)
         custom y-range for the plot
+    subtract_ground: bool
+        whether to subtract the ground state energy
     filename: str
         write graphics and parameter set to file if path and filename are specified
     fig_ax: None or tuple(Figure, Axes)
@@ -350,6 +351,8 @@ def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, filenam
 
     x = specdata.param_vals
     y = specdata.energy_table[:, 0:evals_count]
+    if subtract_ground:
+        y = (y.T - y[:, 0]).T
     if xlim:
         axes.set_xlim(*xlim)
 #    else:
@@ -444,7 +447,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=
 
 
 def print_matrix(matrix, show_numbers=True, fig_ax=None, **kwargs):
-    """Pretty print a matrix, optionally printing the numerical values of the data.   
+    """Pretty print a matrix, optionally printing the numerical values of the data.
     """
     if fig_ax is None:
         fig, axes = plt.subplots(1, 1, figsize=(6, 4))
@@ -452,8 +455,8 @@ def print_matrix(matrix, show_numbers=True, fig_ax=None, **kwargs):
         fig, axes = fig_ax
 
     m = axes.matshow(matrix, cmap=plt.cm.viridis, interpolation='none', **kwargs)
-    cbar = fig.colorbar(m, ax=axes)
-    
+    fig.colorbar(m, ax=axes)
+
     if show_numbers:
         for y_index in range(matrix.shape[0]):
             for x_index in range(matrix.shape[1]):

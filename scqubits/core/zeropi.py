@@ -94,6 +94,8 @@ class ZeroPi(QubitBaseClass):
         self.truncated_dim = truncated_dim
         self._sys_type = '0-Pi qubit without EL and EC disorder, no coupling to zeta mode'
         self._evec_dtype = np.complex_
+        self._default_var_range = (-np.pi / 2, 3 * np.pi / 2)
+        self._default_var_count = 100
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -159,7 +161,7 @@ class ZeroPi(QubitBaseClass):
         diag_elements = 2.0 * self.ECS() * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
 
-        kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc')\
+        kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc') \
                          + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc')
 
         kinetic_matrix -= 2.0 * self.ECS() * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
@@ -191,7 +193,7 @@ class ZeroPi(QubitBaseClass):
         potential_mat = (sparse.kron(phi_cos_potential, theta_cos_potential, format='csc')
                          + sparse.kron(phi_inductive_potential, self.identity_theta(), format='csc')
                          + 2 * self.EJ * sparse.kron(self.identity_phi(), self.identity_theta(), format='csc'))
-        potential_mat += self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self.identity_theta(), format='csc')\
+        potential_mat += self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self.identity_theta(), format='csc') \
                          * self.sin_theta_operator()
 
         return potential_mat
@@ -279,29 +281,33 @@ class ZeroPi(QubitBaseClass):
 
         return sparse.kron(self.identity_phi(), sin_theta_matrix, format='csc')
 
-    def plot_potential(self, theta_pts=100, contour_vals=None, aspect_ratio=None, filename=None):
+    def plot_potential(self, theta_range=None, theta_count=None, contour_vals=None, aspect_ratio=None, filename=None):
         """Draw contour plot of the potential energy.
 
         Parameters
         ----------
-        theta_pts: int, optional
-            (Default value = 100)
+        theta_range: None or tuple(float, float)
+            used for setting a custom plot range for theta
+        theta_count: None or int, optional
         contour_vals: list, optional
             (Default value = None)
         aspect_ratio: float, optional
             (Default value = None)
-        filename: str, optional
+        filename: None or str, optional
             (Default value = None)
         """
+
+        theta_range, theta_count = self.try_defaults(theta_range, theta_count)
+
         min_val = self.grid.min_val
         max_val = self.grid.max_val
         pt_count = self.grid.pt_count
 
         x_vals = np.linspace(min_val, max_val, pt_count)
-        y_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, theta_pts)
+        y_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, theta_count)
         return plot.contours(x_vals, y_vals, self.potential, contour_vals, aspect_ratio, filename)
 
-    def wavefunction(self, esys=None, which=0, theta_pts=100):
+    def wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None):
         """Returns a zero-pi wave function in `phi`, `theta` basis
 
         Parameters
@@ -310,8 +316,10 @@ class ZeroPi(QubitBaseClass):
             eigenvalues, eigenvectors
         which: int, optional
              index of desired wave function (Default value = 0)
-        theta_pts: int, optional
-            number of points to be used in the 2pi interval
+        theta_range: None or tuple(float, float)
+            used for setting a custom plot range for theta
+        theta_count: int, optional
+            number of points to be used in the interval for theta
 
         Returns
         -------
@@ -323,25 +331,27 @@ class ZeroPi(QubitBaseClass):
         else:
             _, evecs = esys
 
+        theta_range, theta_count = self.try_defaults(theta_range, theta_count)
+
         pt_count = self.grid.pt_count
         dim_theta = 2 * self.ncut + 1
         state_amplitudes = evecs[:, which].reshape(pt_count, dim_theta)
 
         # Calculate psi_{phi, theta} = sum_n state_amplitudes_{phi, n} A_{n, theta}
         # where a_{n, theta} = 1/sqrt(2 pi) e^{i n theta}
-        n_vec = np.arange(-self.ncut, self.ncut+1)
-        theta_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, theta_pts)
-        a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi)**0.5
+        n_vec = np.arange(-self.ncut, self.ncut + 1)
+        theta_vec = np.linspace(*theta_range, theta_count)
+        a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi) ** 0.5
         wavefunc_amplitudes = np.matmul(state_amplitudes, a_n_theta).T
         wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
 
         grid2d = GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, pt_count],
-                                      [-np.pi / 2, 3 * np.pi / 2, theta_pts]]))
+                                      [*theta_range, theta_count]]))
 
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, theta_pts=100, mode='abs', zero_calibrate=False, figsize=(10, 5),
-                          aspect_ratio=3, fig_ax=None):
+    def plot_wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None, mode='abs',
+                          zero_calibrate=False, figsize=(10, 5), aspect_ratio=3, fig_ax=None):
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -350,8 +360,10 @@ class ZeroPi(QubitBaseClass):
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which: int, optional
             index of wave function to be plotted (Default value = (0)
-        theta_pts: int, optional
-            number of points to be used in the 2pi interval
+        theta_range: None or tuple(float, float)
+            used for setting a custom plot range for theta
+        theta_count: int, optional
+            number of points to be used in the interval for theta
         mode: str, optional
             choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
         zero_calibrate: bool, optional
@@ -367,8 +379,10 @@ class ZeroPi(QubitBaseClass):
         -------
         Figure, Axes
         """
+        theta_range, theta_count = self.try_defaults(theta_range, theta_count)
+
         modefunction = constants.MODE_FUNC_DICT[mode]
-        wavefunc = self.wavefunction(esys, theta_pts=theta_pts, which=which)
+        wavefunc = self.wavefunction(esys, theta_count=theta_count, which=which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
         return plot.wavefunction2d(wavefunc, figsize=figsize, aspect_ratio=aspect_ratio, zero_calibrate=zero_calibrate,
                                    fig_ax=fig_ax)

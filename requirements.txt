@@ -5,3 +5,4 @@ matplotlib>=3.0.0
 qutip>=4.3.1
 h5py>=2.7.1
 pytest
+tqdm

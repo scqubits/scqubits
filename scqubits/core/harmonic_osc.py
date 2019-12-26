@@ -12,6 +12,7 @@
 import numpy as np
 import scipy as sp
 
+import scqubits.core.operators as op
 from scqubits.core.qubit_base import QuantumSystem
 
 
@@ -48,7 +49,7 @@ class Oscillator(QuantumSystem):
         self.truncated_dim = truncated_dim
 
     def eigenvals(self, evals_count=6):
-        """Returns list of eigenvalues.
+        """Returns array of eigenvalues.
 
         Parameters
         ----------
@@ -62,6 +63,23 @@ class Oscillator(QuantumSystem):
         evals = [self.omega * n for n in range(evals_count)]
         return np.asarray(evals)
 
+    def eigensys(self, evals_count=6):
+        """Returns array of eigenvalues and eigenvectors
+
+        Parameters
+        ----------
+        evals_count: int, optional
+            number of desired eigenvalues (Default value = 6)
+
+        Returns
+        -------
+        ndarray, ndarray
+        """
+        evecs = np.zeros(shape=(self.truncated_dim, evals_count), dtype=np.float_)
+        np.fill_diagonal(evecs, 1.0)
+
+        return self.eigenvals(evals_count=evals_count), evecs
+
     def hilbertdim(self):
         """Returns Hilbert space dimension
 
@@ -70,3 +88,11 @@ class Oscillator(QuantumSystem):
         int
         """
         return self.truncated_dim
+
+    def creation_operator(self):
+        """Returns the creation operator"""
+        return op.creation(self.truncated_dim)
+
+    def annihilation_operator(self):
+        """Returns the creation operator"""
+        return op.annihilation(self.truncated_dim)
