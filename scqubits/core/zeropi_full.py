@@ -257,7 +257,7 @@ class FullZeroPi(QubitBaseClass):
     def g_coupling_matrix(self, zeropi_states=None, evals_count=None):
         """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
         from 'zeropi_states'. If `zeropi_states==None`, then a set of `self.zeropi` eigenstates is calculated. Only in
-        that case is `evals_count` used for the eigenstate number (and hence the coupling matrix size).
+        that case is `which` used for the eigenstate number (and hence the coupling matrix size).
         """
         if evals_count is None:
             evals_count = self._zeropi.truncated_dim

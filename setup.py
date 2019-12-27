@@ -58,7 +58,8 @@ REQUIRES = ['cython (>=0.28.5)',
             'h5py (>=2.7.1)',
             'tqdm']
 
-EXTRAS_REQUIRE = {'graphics': ['matplotlib-label-lines (>=0.3.6)']}
+EXTRAS_REQUIRE = {'graphics': ['matplotlib-label-lines (>=0.3.6)'],
+                  'explorer': ['ipywidgets (>=7.5)']}
 INSTALL_REQUIRES = ['cython (>=0.28.5)',
                     'numpy (>=1.14.2)',
                     'scipy (>=1.1.0)',

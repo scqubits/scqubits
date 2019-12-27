@@ -21,7 +21,8 @@ except ImportError:
     _labellines_enabled = False
 
 import scqubits.utils.constants as constants
-
+from scqubits.utils.misc import process_which
+from scqubits.settings import DEFAULT_ENERGY_UNITS
 
 mpl.rcParams['font.sans-serif'] = "Arial"
 mpl.rcParams['font.family'] = "sans-serif"
@@ -29,7 +30,7 @@ mpl.rcParams['figure.dpi'] = 150
 
 
 def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='wavefunction', xlabel='phi',
-                   y_range=None, fig_ax=None, filename=None, **kwargs):
+                   y_range=None, title=None, fig_ax=None, filename=None, **kwargs):
     """
     Plots the amplitude of a real-valued 1d wave function, along with the potential energy if provided.
 
@@ -49,6 +50,8 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='w
         x-axis label
     y_range: (float, float)
         plot range for y-axis
+    title: str, optional
+        plot title
     filename: str, optional
         file path and name (not including suffix) for output
     fig_ax: None or tuple(Figure, Axes)
@@ -67,11 +70,14 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='w
         fig, axes = fig_ax
 
     x_vals = wavefunc.basis_labels
+    y_vals = offset + scaling * wavefunc.amplitudes
+    offset_vals = [offset] * len(x_vals)
 
-    axes.plot(x_vals, offset + scaling * wavefunc.amplitudes, **kwargs)
+    axes.plot(x_vals, y_vals, **kwargs)
+    axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
+
     if potential_vals is not None:
         axes.plot(x_vals, potential_vals, color='gray')
-        axes.plot(x_vals, [offset] * len(x_vals), color='black', linewidth=0.5)
 
     axes.set_xlabel(xlabel)
     axes.set_ylabel(ylabel)
@@ -79,6 +85,9 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='w
     axes.set_xlim(left=x_vals[0], right=x_vals[-1])
     if y_range is not None:
         axes.set_ylim(*y_range)
+
+    if title:
+        axes.set_title(title)
 
     if filename:
         out_file = mplpdf.PdfPages(filename)
@@ -88,7 +97,8 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, ylabel='w
     return fig, axes
 
 
-def wavefunction1d_discrete(wavefunc, x_range, xlabel='x', ylabel='wavefunction', filename=None, fig_ax=None, **kwargs):
+def wavefunction1d_discrete(wavefunc, x_range, xlabel='x', ylabel='wavefunction', title=None, filename=None,
+                            fig_ax=None, **kwargs):
     """
     Plots the amplitude of a real-valued 1d wave function in a discrete basis. (Example: transmon in the charge basis.)
 
@@ -102,6 +112,8 @@ def wavefunction1d_discrete(wavefunc, x_range, xlabel='x', ylabel='wavefunction'
         x-axis label
     ylabel: str
         y-axis label
+    title: str, optional
+        plot title
     filename: None or str
         file path and name (not including suffix)
     fig_ax: None or tuple(Figure, Axes)
@@ -129,6 +141,8 @@ def wavefunction1d_discrete(wavefunc, x_range, xlabel='x', ylabel='wavefunction'
     axes.set_xlabel(xlabel)
     axes.set_ylabel(ylabel)
     axes.set_xlim(x_range)
+    if title:
+        axes.set_title(title)
 
     if filename:
         out_file = mplpdf.PdfPages(filename)
@@ -315,8 +329,8 @@ def matrix(data_matrix, mode='abs', xlabel='', ylabel='', zlabel='', filename=No
     return fig, (ax1, ax2)
 
 
-def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, subtract_ground=False, filename=None,
-                       fig_ax=None, **kwargs):
+def evals_vs_paramvals(specdata, which=-1, xlim=False, ymax=None, subtract_ground=False, filename=None,
+                       title=None, fig_ax=None, **kwargs):
     """Generates a simple plot of a set of eigenvalues as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
 
@@ -324,16 +338,19 @@ def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, subtrac
     ----------
     specdata: SpectrumData
         object includes parameter name, values, and resulting eigenenergies
-    evals_count: int
-        number of desired eigenvalues (sorted from smallest to largest)
+    which: int or list(int)
+        number of desired eigenvalues (sorted from smallest to largest); default: -1, signals all eigenvalues
+        or: list of specific eigenvalues to include
     xlim: (float, float)
         custom x-range for the plot
-    ylim: (float, float)
-        custom y-range for the plot
+    ymax: float, optional
+        custom maximum y value for the plot
     subtract_ground: bool
         whether to subtract the ground state energy
     filename: str
         write graphics and parameter set to file if path and filename are specified
+    title: str, optional
+        plot title
     fig_ax: None or tuple(Figure, Axes)
         fig and ax objects for matplotlib figure addition
     **kwargs:
@@ -349,8 +366,10 @@ def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, subtrac
     else:
         fig, axes = fig_ax
 
+    index_list = process_which(which, specdata.energy_table[0].size)
+
     x = specdata.param_vals
-    y = specdata.energy_table[:, 0:evals_count]
+    y = specdata.energy_table[:, index_list]
     if subtract_ground:
         y = (y.T - y[:, 0]).T
     if xlim:
@@ -358,22 +377,22 @@ def evals_vs_paramvals(specdata, evals_count=-1, xlim=False, ylim=False, subtrac
 #    else:
 #        axes.set_xlim(np.amin(x), np.amax(x))
 
-    if ylim:
-        axes.set_ylim(*ylim)
-#    else:
-#        axes.set_ylim(np.amin(y), np.amax(y))
+    if ymax:
+        ymin, _ = axes.get_ylim()
+        ymin = ymin - (ymax-ymin) * 0.05
+        axes.set_ylim(ymin, ymax)
 
+    if title:
+        axes.set_title(title)
     axes.set_xlabel(specdata.param_name)
-    axes.set_ylabel('energy')
-    axes.plot(x, y, **kwargs)
+    axes.set_ylabel('energy' + DEFAULT_ENERGY_UNITS)
 
     if filename:
         out_file = mplpdf.PdfPages(filename + '.pdf')
         out_file.savefig()
         out_file.close()
-    plt.show()
 
-    return fig, axes
+    return fig, axes.plot(x, y, **kwargs)
 
 
 def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=False, filename=None,
@@ -441,8 +460,6 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=
         out_file.savefig()
         out_file.close()
 
-    plt.show()
-
     return fig, axes
 
 
@@ -473,8 +490,9 @@ def print_matrix(matrix, show_numbers=True, fig_ax=None, **kwargs):
 
 
 def spectrum_with_matrixelement(spectrum_data, matrixelement_table, param_name='external parameter',
-                                energy_name='energy', matrixelement_name='matrix element', norm_range=None,
-                                x_range=None, y_range=None, colormap='jet', figsize=(15, 10), line_width=2):
+                                energy_name='energy'+DEFAULT_ENERGY_UNITS, matrixelement_name='matrix element',
+                                norm_range=None, x_range=None, y_range=None, colormap='jet',
+                                figsize=(15, 10), line_width=2):
     """Takes a list of x-values,
     a list of lists with each element containing the y-values corresponding to a particular curve,
     a list of lists with each element containing the external parameter value (t-value)

@@ -191,6 +191,42 @@ def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj, retu
     return index
 
 
+def absorption_spectrum(spectrum_data):
+    """Takes spectral data of energy eigenvalues and returns the absorption spectrum relative to a state
+    of given index. Calculated by subtracting from eigenenergies the energy of the select state. Resulting negative
+    frequencies, if the reference state is not the ground state, are omitted.
+
+    Parameters
+    ----------
+    spectrum_data: SpectrumData
+
+    Returns
+    -------
+    SpectrumData object
+    """
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
+    return spectrum_data
+
+
+def emission_spectrum(spectrum_data):
+    """Takes spectral data of energy eigenvalues and returns the emission spectrum relative to a state
+    of given index. The resulting "upwards" transition frequencies are calculated by subtracting from eigenenergies
+    the energy of the select state, and multiplying the result by -1. Resulting negative
+    frequencies, corresponding to absorption instead, are omitted.
+
+    Parameters
+    ----------
+    spectrum_data: SpectrumData
+
+    Returns
+    -------
+    SpectrumData object
+    """
+    spectrum_data.energy_table *= -1.0
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
+    return spectrum_data
+
+
 def convert_esys_to_ndarray(esys_qutip):
     """Takes a qutip eigenstates array, as obtained with .eigenstates(), and converts it into a pure numpy array.
 

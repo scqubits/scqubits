@@ -14,7 +14,9 @@ import numpy as np
 import pytest
 
 import scqubits as qubit
-from scqubits.utils.spectrum_utils import get_matrixelement_table
+from scqubits.utils.spectrum_utils import get_matrixelement_table, absorption_spectrum
+from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
+from scqubits.core.param_sweep import HilbertSpaceSweep
 
 
 class TestHilbertSpace:
@@ -142,21 +144,156 @@ class TestHilbertSpace:
 
         assert np.allclose(reference_evals, calculated_evals)
 
-    def test_HilbertSpace_absorption_spectrum(self):
-        hilbertspc = self.hilbertspace_initialize()
-        [transmon1, transmon2, resonator] = hilbertspc
+    def initialize(self):
+        # Set up the components / subspaces of our Hilbert space
 
-        flux_list = np.linspace(-0.1, 0.6, 100)
-        specdata = hilbertspc.get_spectrum_vs_paramvals(self.hamiltonian, flux_list, evals_count=15,
-                                                        get_eigenstates=True)
-        absorptiondata = hilbertspc.absorption_spectrum(specdata, ((transmon1, 0), (transmon2, 0), (resonator, 0)),
-                                                        initial_as_bare=True)
+        CPB1 = qubit.Transmon(
+            EJ=40.0,
+            EC=0.2,
+            ng=0.0,
+            ncut=40,
+            truncated_dim=3  # after diagonalization, we will keep 3 levels
+        )
 
-        reference_energies = np.array([0., 4.74135306, 5.67735204, 5.9888575,
-                                       7.72433769, 10.72256729, 11.6594581, 11.97768947,
-                                       12.46567274, 13.40167088, 13.71033926, 15.24394963,
-                                       16.70406082, 17.01076357, 17.64169146])
+        CPB2 = qubit.Transmon(
+            EJ=3.0,
+            EC=1.0,
+            ng=0.0,
+            ncut=10,
+            truncated_dim=4
+        )
 
-        calculated_energies = absorptiondata.energy_table[5]
+        resonator = qubit.Oscillator(
+            omega=6.0,
+            truncated_dim=4  # up to 3 photons (0,1,2,3)
+        )
 
+        # Form a list of all components making up the Hilbert space.
+        hilbertspace = HilbertSpace([CPB1, CPB2, resonator])
+
+        g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
+        g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
+
+        interaction1 = InteractionTerm(
+            g_strength=g1,
+            hilbertspace=hilbertspace,
+            op1=CPB1.n_operator(),
+            subsys1=CPB1,
+            op2=resonator.creation_operator() + resonator.annihilation_operator(),
+            subsys2=resonator
+        )
+
+        interaction2 = InteractionTerm(
+            g_strength=g2,
+            hilbertspace=hilbertspace,
+            op1=CPB2.n_operator(),
+            subsys1=CPB2,
+            op2=resonator.creation_operator() + resonator.annihilation_operator(),
+            subsys2=resonator
+        )
+
+        interaction_list = [interaction1, interaction2]
+        hilbertspace.interaction_list = interaction_list
+
+        return hilbertspace
+
+    def test_HilbertSpace_interface_1_1(self):
+        hilbertspace = self.initialize()
+        evals, _ = hilbertspace.get_hamiltonian().eigenstates()
+
+        evals_reference = np.asarray([-36.9898613, -32.2485069, -31.31250908, -31.00035225,
+                                      -29.18345776, -26.26664068, -25.32975243, -25.01086732,
+                                      -24.44211916, -23.50612209, -23.19649424, -21.58197308,
+                                      -20.28449459, -19.9790977, -19.34686735, -19.01220621,
+                                      -18.46278662, -17.52590027, -17.2084294, -16.84047711,
+                                      -15.90462096, -15.54530262, -14.25509299, -13.99415794,
+                                      -13.33019265, -12.48208655, -12.1727023, -11.54418665,
+                                      -11.25656601, -10.81121745, -9.87458635, -9.51009429,
+                                      -8.00925198, -6.50020557, -6.19030846, -5.57523232,
+                                      -4.78354995, -4.57123207, -3.84547113, -3.58389199,
+                                      -2.01787739, -0.20685665, 1.17306434, 1.46098501,
+                                      2.09778458, 5.73747149, 7.49164636, 13.4096702])
+        assert np.allclose(evals, evals_reference)
+
+
+class TestHilbertSpaceSweep:
+
+    def initialize(self):
+        # Set up the components / subspaces of our Hilbert space
+
+        CPB1 = qubit.Transmon(
+            EJ=40.0,
+            EC=0.2,
+            ng=0.0,
+            ncut=40,
+            truncated_dim=3  # after diagonalization, we will keep 3 levels
+        )
+
+        CPB2 = qubit.Transmon(
+            EJ=3.0,
+            EC=1.0,
+            ng=0.0,
+            ncut=10,
+            truncated_dim=4
+        )
+
+        resonator = qubit.Oscillator(
+            omega=6.0,
+            truncated_dim=4  # up to 3 photons (0,1,2,3)
+        )
+
+        # Form a list of all components making up the Hilbert space.
+        hilbertspace = HilbertSpace([CPB1, CPB2, resonator])
+
+        g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
+        g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
+
+        interaction1 = InteractionTerm(
+            g_strength=g1,
+            hilbertspace=hilbertspace,
+            op1=CPB1.n_operator(),
+            subsys1=CPB1,
+            op2=resonator.creation_operator() + resonator.annihilation_operator(),
+            subsys2=resonator
+        )
+
+        interaction2 = InteractionTerm(
+            g_strength=g2,
+            hilbertspace=hilbertspace,
+            op1=CPB2.n_operator(),
+            subsys1=CPB2,
+            op2=resonator.creation_operator() + resonator.annihilation_operator(),
+            subsys2=resonator
+        )
+
+        interaction_list = [interaction1, interaction2]
+
+        param_name = 'flux'  # name of varying external parameter
+        param_vals = np.linspace(-0.1, 0.6, 100)  # parameter values
+
+        subsys_update_list = [CPB1]  # list of HilbertSpace subsystems which are affected by parameter changes
+
+        def update_hilbertspace(param_val, hilbertspace):  # function that shows how Hilbert space
+                                                           # components are updated
+            hilbertspace[0].EJ = 40.0 * np.cos(np.pi * param_val)
+
+        sweep = HilbertSpaceSweep(
+            param_name=param_name,
+            param_vals=param_vals,
+            evals_count=15,
+            hilbertspace=hilbertspace,
+            subsys_update_list=subsys_update_list,
+            update_hilbertspace=update_hilbertspace,
+            interaction_list=interaction_list
+        )
+        return sweep
+
+    def test_HilbertSpaceSweep_(self):
+        sweep = self.initialize()
+        specdata = absorption_spectrum(sweep.get_difference_spectrum(initial_state_ind=0))
+        calculated_energies = specdata.energy_table[5]
+
+        reference_energies = np.array([0., 4.74135372, 5.6773522, 5.98902462, 7.72420838, 10.72273595, 11.65962582,
+                                        11.97802377, 12.46554431, 13.40154194, 13.71041554, 15.24359501, 16.70439594,
+                                        17.01076356, 17.64202619])
         assert np.allclose(reference_energies, calculated_energies)

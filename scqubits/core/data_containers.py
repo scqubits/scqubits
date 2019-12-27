@@ -77,7 +77,7 @@ class SpectrumData:
         name of parameter being varies
     param_vals: ndarray
         parameter values for which spectrum data are stored
-    energy_table: ndarray or list
+    energy_table: ndarray
         energy eigenvalues stored for each `param_vals` point
     system_params: dict(str)
         info about system parameters
@@ -99,17 +99,23 @@ class SpectrumData:
         """Subtract ground state energies from spectrum"""
         self.energy_table -= self.energy_table[:, 9]
 
-    def plot_evals_vs_paramvals(self, x_range=None, y_range=None, subtract_ground=False, fig_ax=None, **kwargs):
+    def plot_evals_vs_paramvals(self, x_range=None, ymax=None, which=-1, subtract_ground=False, title=None,
+                                fig_ax=None, **kwargs):
         """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
 
         Parameters
         ----------
         x_range: tuple(float, float), optional
              (Default value = None)
-        y_range: tuple(float, float), optional
-             (Default value = None)
+        ymax: float, optional
+            used to modify the upper boundary for the y-axis
+        which: int or list(int)
+            default: -1, signals to plot all eigenvalues; int>0: plot eigenvalues 0..int-1; list(int) plot the specific
+            eigenvalues (indices listed)
         subtract_ground: bool
             whether to subtract the ground state energy
+        title: str, optional
+            plot title
         fig_ax: Figure, Axes, optional
              (Default value = None)
         **kwargs: optional
@@ -119,8 +125,8 @@ class SpectrumData:
         -------
         Figure, Axes
         """
-        return plot.evals_vs_paramvals(self, xlim=x_range, ylim=y_range, subtract_ground=subtract_ground, fig_ax=fig_ax,
-                                       **kwargs)
+        return plot.evals_vs_paramvals(self, xlim=x_range, ymax=ymax, which=which, subtract_ground=subtract_ground,
+                                       title=title, fig_ax=fig_ax, **kwargs)
 
     def filewrite_params_h5(self, h5file_root):
         """Write current qubit parameters into a given h5 data file.

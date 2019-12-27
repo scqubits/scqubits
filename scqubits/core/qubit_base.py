@@ -18,7 +18,6 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
-from tqdm import tqdm
 
 import scqubits.settings as config
 import scqubits.utils.constants as constants
@@ -27,7 +26,13 @@ from scqubits.core.data_containers import SpectrumData
 from scqubits.utils.constants import FileType
 from scqubits.utils.file_io import filewrite_csvdata, filewrite_h5data
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
-from scqubits.settings import TQDM_KWARGS
+from scqubits.utils.misc import process_which
+from scqubits.settings import in_ipython, TQDM_KWARGS
+
+if in_ipython:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 # —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
@@ -188,7 +193,7 @@ class QubitBaseClass(QuantumSystem):
         """Plots matrix elements for `operator`, given as a string referring to a class method
         that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
         for the charge operator `n` is obtained by `trm.plot_matrixelements('n')`.
-        When `esys` is set to None, the eigensystem with `evals_count` eigenvectors is calculated.
+        When `esys` is set to None, the eigensystem with `which` eigenvectors is calculated.
 
         Parameters
         ----------
@@ -320,7 +325,7 @@ class QubitBaseClass(QuantumSystem):
         return spectrumdata
 
     def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                x_range=False, y_range=False, filename=None, fig_ax=None):
+                                x_range=False, ymax=None, filename=None, fig_ax=None):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -335,9 +340,9 @@ class QubitBaseClass(QuantumSystem):
         subtract_ground: bool, optional
             whether to subtract ground state energy from all eigenvalues (Default value = False)
         x_range: (float, float), optional
-            custom x-range for the plot (Default value = False)
-        y_range: (float, float), optional
-            custom y-range for the plot (Default value = False)
+            custom x-range for the plot
+        ymax: float, optional
+            custom upper y bound for the plot
         filename: str, optional
             write graphics and parameter set to file if path and filename are specified (Default value = None)
         fig_ax: tuple(Figure, Axes), optional
@@ -348,8 +353,8 @@ class QubitBaseClass(QuantumSystem):
         Figure, Axes
         """
         specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground)
-        return plot.evals_vs_paramvals(specdata, evals_count=evals_count, xlim=x_range, ylim=y_range, filename=filename,
-                                       fig_ax=fig_ax)
+        return plot.evals_vs_paramvals(specdata, which=range(evals_count), xlim=x_range, ymax=ymax,
+                                       filename=filename, fig_ax=fig_ax)
 
     def plot_matelem_vs_paramvals(self, operator, param_name, param_vals, select_elems=4, mode='abs',
                                   x_range=False, y_range=False, filename=None, fig_ax=None):
@@ -440,9 +445,14 @@ class QubitBaseClass1d(QubitBaseClass):
     def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
         pass
 
-    def plot_wavefunction(self, esys, which=0, phi_range=None, phi_count=None, mode='abs_sqr', scaling=None,
-                          filename=None):
-        """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional quibts like FluxQubits and
+    @abc.abstractmethod
+    def potential(self, phi):
+        pass
+
+    def plot_wavefunction(self, esys, which=0, phi_range=None, phi_count=None, mode='real', scaling=None,
+                          xlabel=r'$\varphi$', ylabel=r'$\psi_j(\varphi),\, V(\varphi)$', y_range=None, title=None,
+                          filename=None, fig_ax=None):
+        """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional qubits like FluxQubits and
         ZeroPi.
 
         Parameters
@@ -460,8 +470,15 @@ class QubitBaseClass1d(QubitBaseClass):
             choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
         scaling: float or None, optional
             custom scaling of wave function amplitude/modulus
+        xlabel, ylabel: str, optional
+            axes labels
+        y_range: tuple(float, float), optional
+            used to set custom y range for plot
+        title: str, optional
+            plot title
         filename: str, optional
             file path and name (not including suffix) for output
+        fig_ax: Figure, Axes
 
         Returns
         -------
@@ -469,27 +486,22 @@ class QubitBaseClass1d(QubitBaseClass):
         """
         modefunction = constants.MODE_FUNC_DICT[mode]
 
-        if isinstance(which, int):
-            if which == -1:
-                index_list = range(self.truncated_dim)
-            else:
-                index_list = [which]
-        elif isinstance(which, tuple):
-            index_list = list(which)
-        else:
-            index_list = which
+        index_list = process_which(which, self.truncated_dim)
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
+        if fig_ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            fig, ax = fig_ax
 
         phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_range=phi_range, phi_count=phi_count)
         potential_vals = self.potential(phi_wavefunc.basis_labels)
 
         if scaling is None:
             if self._sys_type == 'Transmon qubit':
-                scale = 0.3 * self.EJ
+                scale = 0.15 * self.EJ
             if self._sys_type == 'Fluxonium qubit':
-                scale = 0.2 * (np.max(potential_vals) - np.min(potential_vals))
+                scale = 0.1 * (np.max(potential_vals) - np.min(potential_vals))
         else:
             scale = scaling
 
@@ -501,5 +513,6 @@ class QubitBaseClass1d(QubitBaseClass):
             phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
 
             plot.wavefunction1d(phi_wavefunc, potential_vals=potential_vals, offset=phi_wavefunc.energy,
-                                scaling=scale, xlabel='phi', fig_ax=(fig, ax), filename=filename)
+                                scaling=scale, xlabel=xlabel, ylabel=ylabel, y_range=y_range, title=title,
+                                fig_ax=(fig, ax), filename=filename)
         return fig, ax

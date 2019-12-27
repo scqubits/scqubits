@@ -22,6 +22,8 @@ Matplotlib.
 #    LICENSE file in the root directory of this source tree.
 #######################################################################################################################
 
+from cycler import cycler
+import matplotlib as mpl
 from scqubits.utils.constants import FileType
 
 file_format = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
@@ -35,8 +37,24 @@ except NameError:
     progressbar_disabled = True
     in_ipython = False
 
+# default energy units
+DEFAULT_ENERGY_UNITS = ' [GHz]'
+
 
 # define settings for tqdm progressbar
-TQDM_KWARGS = {'ascii': True,
-               'ncols': 100,
-               'disable': progressbar_disabled}
+TQDM_KWARGS = {'disable': progressbar_disabled,
+               'leave': False}
+
+# set custom matplotlib color cycle
+mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
+                                                "#333795",
+                                                "#2E5EAC",
+                                                "#4498D3",
+                                                "#CD85B9",
+                                                "#45C3D1",
+                                                "#AA1D3F",
+                                                "#F47752",
+                                                "#19B35A",
+                                                "#EDE83B",
+                                                "#ABD379",
+                                                "#F9E6BE"])

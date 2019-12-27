@@ -59,10 +59,7 @@ class TestZeroPi(BaseTest):
         matelem_reference = datalist[0]
         return self.matrixelement_table('n_theta_operator', matelem_reference)
 
-    def test_plot_evals_vs_paramvals_EJ(self):
-        TESTNAME = 'zeropi_6'
-        ej_vals = self.qbt.EJ * np.cos(np.linspace(-np.pi / 2, np.pi / 2, 40))
-        self.plot_evals_vs_paramvals('EJ', ej_vals)
+     #   TESTNAME = 'zeropi_6'
 
     #    TESTNAME = 'zeropi_7'
 

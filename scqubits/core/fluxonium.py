@@ -56,7 +56,7 @@ class Fluxonium(QubitBaseClass1d):
         self.truncated_dim = truncated_dim
         self._sys_type = 'Fluxonium qubit'
         self._evec_dtype = np.float_
-        self._default_var_range = (-5*np.pi, 5*np.pi)
+        self._default_var_range = (-4.5*np.pi, 4.5*np.pi)
         self._default_var_count = 151
 
     def phi_osc(self):

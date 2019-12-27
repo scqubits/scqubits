@@ -283,7 +283,7 @@ class FluxQubit(QubitBaseClass):
 
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None, mode='abs', zero_calibrate=False,
+    def plot_wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None, mode='abs', zero_calibrate=True,
                           figsize=(10, 10), aspect_ratio=1, fig_ax=None):
         """Plots 2d phase-basis wave function.
 

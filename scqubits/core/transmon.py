@@ -50,7 +50,7 @@ class Transmon(QubitBaseClass1d):
         self.truncated_dim = truncated_dim
         self._sys_type = 'Transmon qubit'
         self._default_var_range = (-np.pi, np.pi)
-        self._default_n_range = (-6, 6)
+        self._default_n_range = (-5, 6)
         self._default_var_count = 151
         self._evec_dtype = np.float_
 
@@ -130,7 +130,8 @@ class Transmon(QubitBaseClass1d):
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
         modefunction = constants.MODE_FUNC_DICT[mode]
         n_wavefunc.amplitudes = modefunction(n_wavefunc.amplitudes)
-        return plot.wavefunction1d_discrete(n_wavefunc, nrange, xlabel='n', filename=filename)
+        return plot.wavefunction1d_discrete(n_wavefunc, nrange, xlabel='n', ylabel=r'psi_j(n)',
+                                            filename=filename)
 
     def plot_phi_wavefunction(self, esys, which=0, phi_range=None, phi_count=None, mode='abs_sqr', scaling=None,
                               filename=None):
