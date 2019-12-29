@@ -107,7 +107,7 @@ def matrix_element(state1, operator, state2):
     return np.vdot(vec1, op_matrix.dot(vec2))  # No, operator is sparse. Must use its own 'dot' method.
 
 
-def get_matrixelement_table(operator, state_table, real_valued=False):
+def get_matrixelement_table(operator, state_table):
     """Calculates a table of matrix elements.
 
     Parameters
@@ -117,8 +117,6 @@ def get_matrixelement_table(operator, state_table, real_valued=False):
     state_table: list or ndarray
         list or array of numpy arrays representing the states `|v0>, |v1>, ...`
         Note: `state_table` is expected to be in scipy's `eigsh` transposed form.
-    real_valued: bool, optional
-        signals whether matrix elements are real valued (Default value = False)
 
     Returns
     -------
@@ -130,21 +128,11 @@ def get_matrixelement_table(operator, state_table, real_valued=False):
     else:
         state_list = state_table.T
 
-    if real_valued:
-        the_dtype = np.float_
-    else:
-        the_dtype = np.complex_
-
     tablesize = len(state_list)
-    mtable = np.empty(shape=[tablesize, tablesize], dtype=the_dtype)
-    for n in range(tablesize):
-        for m in range(n + 1):
-            mtable[n, m] = matrix_element(state_list[n], operator, state_list[m])
-            if real_valued:
-                mtable[m, n] = mtable[n, m]
-            else:
-                mtable[m, n] = np.conj(mtable[n, m])
-    return mtable
+    mtable = [[matrix_element(state_list[n], operator, state_list[m]) for m in range(tablesize)]
+              for n in range(tablesize)]
+
+    return np.asarray(mtable)
 
 
 def closest_dressed_energy(bare_energy, dressed_energy_vals):
