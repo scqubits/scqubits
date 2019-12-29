@@ -22,8 +22,9 @@ Matplotlib.
 #    LICENSE file in the root directory of this source tree.
 #######################################################################################################################
 
-from cycler import cycler
 import matplotlib as mpl
+from cycler import cycler
+
 from scqubits.utils.constants import FileType
 
 file_format = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
@@ -38,7 +39,7 @@ except NameError:
     in_ipython = False
 
 # default energy units
-DEFAULT_ENERGY_UNITS = ' [GHz]'
+DEFAULT_ENERGY_UNITS = 'GHz'
 
 
 # define settings for tqdm progressbar

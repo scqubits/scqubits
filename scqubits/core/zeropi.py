@@ -92,7 +92,7 @@ class ZeroPi(QubitBaseClass):
         self.grid = grid
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = '0-Pi qubit without EL and EC disorder, no coupling to zeta mode'
+        self._sys_type = '0-pi'
         self._evec_dtype = np.complex_
         self._default_var_range = (-np.pi / 2, 3 * np.pi / 2)
         self._default_var_count = 100

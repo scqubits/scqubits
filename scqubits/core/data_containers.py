@@ -100,7 +100,7 @@ class SpectrumData:
         self.energy_table -= self.energy_table[:, 9]
 
     def plot_evals_vs_paramvals(self, x_range=None, ymax=None, which=-1, subtract_ground=False, title=None,
-                                fig_ax=None, **kwargs):
+                                label_list=None, fig_ax=None, **kwargs):
         """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
 
         Parameters
@@ -116,6 +116,8 @@ class SpectrumData:
             whether to subtract the ground state energy
         title: str, optional
             plot title
+        label_list: list(str), optional
+            list of labels associated with the individual curves to be plotted
         fig_ax: Figure, Axes, optional
              (Default value = None)
         **kwargs: optional
@@ -126,7 +128,7 @@ class SpectrumData:
         Figure, Axes
         """
         return plot.evals_vs_paramvals(self, xlim=x_range, ymax=ymax, which=which, subtract_ground=subtract_ground,
-                                       title=title, fig_ax=fig_ax, **kwargs)
+                                       title=title, label_list=label_list, fig_ax=fig_ax, **kwargs)
 
     def filewrite_params_h5(self, h5file_root):
         """Write current qubit parameters into a given h5 data file.

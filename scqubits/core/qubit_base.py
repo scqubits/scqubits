@@ -19,15 +19,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
+import scqubits as qubits
 import scqubits.settings as config
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.data_containers import SpectrumData
+from scqubits.settings import in_ipython, TQDM_KWARGS
 from scqubits.utils.constants import FileType
 from scqubits.utils.file_io import filewrite_csvdata, filewrite_h5data
-from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 from scqubits.utils.misc import process_which
-from scqubits.settings import in_ipython, TQDM_KWARGS
+from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
 if in_ipython:
     from tqdm.notebook import tqdm
@@ -42,14 +43,13 @@ class QuantumSystem:
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
-        self._sys_type = 'generic quantum system - only used as class template'
+        self._sys_type = 'quantum system'
 
-    def __repr__(self):
-        output = self._sys_type + '\n ———— PARAMETERS ————'
-        for param_name in self.__dict__:
+    def __str__(self):
+        output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
+        for param_name, param_val in self.__dict__.items():
             if param_name[0] != '_':
-                paramval = self.__dict__[param_name]
-                output += '\n' + str(param_name) + '\t: ' + str(paramval)
+                output += '\n' + str(param_name) + '\t: ' + str(param_val)
         output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())
         return output
 
@@ -80,11 +80,10 @@ class QubitBaseClass(QuantumSystem):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, truncated_dim=None):
-        self._sys_type = 'QubitBaseClass - mainly used as class template'
-        self._evec_dtype = np.float_
-        self.truncated_dim = truncated_dim
+        super().__init__()
         self._default_var_range = None
         self._default_var_count = None
+        self._evec_dtype = None
 
     @abc.abstractmethod
     def hamiltonian(self):
@@ -412,7 +411,7 @@ class QubitBaseClass(QuantumSystem):
             for data, name in zip(list_of_arrays, list_of_names):
                 filewrite_csvdata(filename + name, data)
                 with open(filename + constants.PARAMETER_FILESUFFIX, 'w') as target_file:
-                    target_file.write(self.__repr__())
+                    target_file.write(self.__str__())
         elif config.file_format is FileType.h5:
             h5file = h5py.File(filename + '.hdf5', 'w')
             h5file_root = h5file.create_group('root')
@@ -441,6 +440,15 @@ class QubitBaseClass1d(QubitBaseClass):
     """Base class for superconducting qubit objects with one degree of freedom. Provide general mechanisms and routines
     for plotting spectra, matrix elements, and writing data to files.
     """
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, truncated_dim=None):
+        self._sys_type = 'qubit system'
+        self._evec_dtype = np.float_
+        self.truncated_dim = truncated_dim
+        self._default_var_range = None
+        self._default_var_count = None
+
     @abc.abstractmethod
     def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
         pass
@@ -498,10 +506,10 @@ class QubitBaseClass1d(QubitBaseClass):
         potential_vals = self.potential(phi_wavefunc.basis_labels)
 
         if scaling is None:
-            if self._sys_type == 'Transmon qubit':
-                scale = 0.15 * self.EJ
-            if self._sys_type == 'Fluxonium qubit':
-                scale = 0.1 * (np.max(potential_vals) - np.min(potential_vals))
+            if isinstance(self, qubits.Transmon):
+                scale = 0.2 * self.EJ
+            elif isinstance(self, qubits.Fluxonium):
+                scale = 0.125 * (np.max(potential_vals) - np.min(potential_vals))
         else:
             scale = scaling
 

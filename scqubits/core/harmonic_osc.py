@@ -44,7 +44,7 @@ class Oscillator(QuantumSystem):
     """General class for mode of an oscillator/resonator."""
 
     def __init__(self, omega, truncated_dim=None):
-        self._sys_type = 'Oscillator'
+        self._sys_type = 'oscillator'
         self.omega = omega
         self.truncated_dim = truncated_dim
 

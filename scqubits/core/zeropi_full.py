@@ -102,7 +102,7 @@ class FullZeroPi(QubitBaseClass):
         self.grid = grid
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = 'full 0-Pi circuit (phi, theta, zeta) in 0pi - zeta product basis'
+        self._sys_type = 'full 0-pi'
         self._evec_dtype = np.complex_
 
         self._zeropi = ZeroPi(

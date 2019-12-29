@@ -48,7 +48,7 @@ class Transmon(QubitBaseClass1d):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = 'Transmon qubit'
+        self._sys_type = 'transmon'
         self._default_var_range = (-np.pi, np.pi)
         self._default_n_range = (-5, 6)
         self._default_var_count = 151

@@ -19,9 +19,9 @@ from scqubits.utils.file_io import read_h5
 
 
 class TestZeroPi(BaseTest):
-
     phi_grid = qubit.Grid1d(1, 2, 3)
     qbt = ZeroPi(grid=phi_grid, EJ=None, EL=None, ECJ=1, EC=None, ECS=2, ng=None, flux=None, ncut=None)
+
     # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):
@@ -59,7 +59,7 @@ class TestZeroPi(BaseTest):
         matelem_reference = datalist[0]
         return self.matrixelement_table('n_theta_operator', matelem_reference)
 
-     #   TESTNAME = 'zeropi_6'
+    #   TESTNAME = 'zeropi_6'
 
     #    TESTNAME = 'zeropi_7'
 

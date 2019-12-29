@@ -30,11 +30,10 @@ class Grid1d:
         self.max_val = max_val
         self.pt_count = pt_count
 
-    def __repr__(self):
+    def __str__(self):
         output = '    Grid (1d) ......'
-        for param_name in sorted(self.__dict__.keys()):
-            paramval = self.__dict__[param_name]
-            output += '\n' + str(param_name) + '\t: ' + str(paramval)
+        for param_name, param_val in sorted(self.__dict__.items()):
+            output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
 
     def grid_spacing(self):
@@ -148,11 +147,10 @@ class GridSpec:
         self.var_count = len(self.min_vals)
         self.pt_counts = minmaxpts_array[:, 2].astype(np.int)  # these are used as indices; need to be whole numbers.
 
-    def __repr__(self):
-        output = '    GridSpec ......'
-        for param_name in sorted(self.__dict__.keys()):
-            paramval = self.__dict__[param_name]
-            output += '\n' + str(param_name) + '\t: ' + str(paramval)
+    def __str__(self):
+        output = '    Grid (1d) ......'
+        for param_name, param_val in sorted(self.__dict__.items()):
+            output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
 
     def unwrap(self):

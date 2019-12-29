@@ -14,9 +14,9 @@ import numpy as np
 import pytest
 
 import scqubits as qubit
-from scqubits.utils.spectrum_utils import get_matrixelement_table, absorption_spectrum
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
-from scqubits.core.param_sweep import HilbertSpaceSweep
+from scqubits.core.param_sweep import ParameterSweep
+from scqubits.utils.spectrum_utils import get_matrixelement_table, absorption_spectrum
 
 
 class TestHilbertSpace:
@@ -216,7 +216,7 @@ class TestHilbertSpace:
         assert np.allclose(evals, evals_reference)
 
 
-class TestHilbertSpaceSweep:
+class TestParameterSweep:
 
     def initialize(self):
         # Set up the components / subspaces of our Hilbert space
@@ -274,10 +274,10 @@ class TestHilbertSpaceSweep:
         subsys_update_list = [CPB1]  # list of HilbertSpace subsystems which are affected by parameter changes
 
         def update_hilbertspace(param_val, hilbertspace):  # function that shows how Hilbert space
-                                                           # components are updated
+            # components are updated
             hilbertspace[0].EJ = 40.0 * np.cos(np.pi * param_val)
 
-        sweep = HilbertSpaceSweep(
+        sweep = ParameterSweep(
             param_name=param_name,
             param_vals=param_vals,
             evals_count=15,
@@ -288,12 +288,12 @@ class TestHilbertSpaceSweep:
         )
         return sweep
 
-    def test_HilbertSpaceSweep_(self):
+    def test_ParameterSweep_(self):
         sweep = self.initialize()
         specdata = absorption_spectrum(sweep.get_difference_spectrum(initial_state_ind=0))
         calculated_energies = specdata.energy_table[5]
 
         reference_energies = np.array([0., 4.74135372, 5.6773522, 5.98902462, 7.72420838, 10.72273595, 11.65962582,
-                                        11.97802377, 12.46554431, 13.40154194, 13.71041554, 15.24359501, 16.70439594,
-                                        17.01076356, 17.64202619])
+                                       11.97802377, 12.46554431, 13.40154194, 13.71041554, 15.24359501, 16.70439594,
+                                       17.01076356, 17.64202619])
         assert np.allclose(reference_energies, calculated_energies)

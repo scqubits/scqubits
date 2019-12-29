@@ -9,12 +9,14 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import numpy as np
-import qutip as qt
 import itertools
 
-from scqubits.settings import in_ipython, TQDM_KWARGS
+import numpy as np
+import qutip as qt
+
 from scqubits.core.data_containers import SpectrumData
+from scqubits.core.harmonic_osc import Oscillator
+from scqubits.settings import in_ipython, TQDM_KWARGS
 from scqubits.utils.spectrum_utils import get_eigenstate_index_maxoverlap, get_matrixelement_table
 
 if in_ipython:
@@ -80,8 +82,12 @@ class HilbertSpace(list):
         list.__init__(self, subsystem_list)
         self.interaction_list = interaction_list
         self.state_lookup_table = None
+        self.osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
+                                if isinstance(subsys, Oscillator)]
+        self.qbt_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
+                                if not isinstance(subsys, Oscillator)]
 
-    def __repr__(self):
+    def __str__(self):
         output = '====== HilbertSpace object ======\n'
         for subsystem in self:
             output += '\n' + str(subsystem) + '\n'
@@ -197,7 +203,7 @@ class HilbertSpace(list):
             raise TypeError
 
         operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in self]
-        subsystem_index = self.index(subsystem)
+        subsystem_index = self.get_subsys_index(subsystem)
         operator_identitywrap_list[subsystem_index] = subsys_operator
         return qt.tensor(operator_identitywrap_list)
 
@@ -234,6 +240,9 @@ class HilbertSpace(list):
         dim = subsystem.truncated_dim
         operator = (qt.destroy(dim))
         return self.identity_wrap(operator, subsystem)
+
+    def get_subsys_index(self, subsys):
+        return self.index(subsys)
 
     def get_bare_hamiltonian(self):
         """
@@ -311,8 +320,7 @@ class HilbertSpace(list):
         dims = [subsys.truncated_dim for subsys in self]
         basis_label_ranges = [list(range(subsys.truncated_dim)) for subsys in self]
         basis_labels_list = [elem for elem in itertools.product(*basis_label_ranges)]
-#        bare_tuples_list = [[(self[j], label) for (j, label) in enumerate(bare_state_labels)]
-#                            for bare_state_labels in basis_labels_list]
+
         basis_kets_list = [[qt.basis(dims[subsys_index], label) for subsys_index, label in enumerate(basis_labels)]
                            for basis_labels in basis_labels_list]
         bare_basis = [qt.tensor(basis_kets) for basis_kets in basis_kets_list]

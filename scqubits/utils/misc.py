@@ -30,3 +30,10 @@ def process_which(which, max_index):
             return range(max_index)
         return [which]
     return which
+
+
+def make_bare_labels(hilbertspace, subsys_index1, label1, subsys_index2, label2):
+    bare_labels = [0] * hilbertspace.subsystem_count
+    bare_labels[subsys_index1] = label1
+    bare_labels[subsys_index2] = label2
+    return tuple(bare_labels)

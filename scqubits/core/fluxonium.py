@@ -54,7 +54,7 @@ class Fluxonium(QubitBaseClass1d):
         self.flux = flux
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
-        self._sys_type = 'Fluxonium qubit'
+        self._sys_type = 'fluxonium'
         self._evec_dtype = np.float_
         self._default_var_range = (-4.5*np.pi, 4.5*np.pi)
         self._default_var_count = 151
