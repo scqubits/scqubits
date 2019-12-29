@@ -273,9 +273,9 @@ class TestParameterSweep:
 
         subsys_update_list = [CPB1]  # list of HilbertSpace subsystems which are affected by parameter changes
 
-        def update_hilbertspace(param_val, hilbertspace):  # function that shows how Hilbert space
+        def update_hilbertspace(param_val):  # function that shows how Hilbert space
             # components are updated
-            hilbertspace[0].EJ = 40.0 * np.cos(np.pi * param_val)
+            CPB1.EJ = 40.0 * np.cos(np.pi * param_val)
 
         sweep = ParameterSweep(
             param_name=param_name,

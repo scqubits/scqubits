@@ -9,8 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import copy
-import h5py
+
 import numpy as np
 from tqdm.notebook import tqdm
 
@@ -55,32 +54,54 @@ class ParameterSweep:
         self.update_hilbertspace = update_hilbertspace
         self.interaction_list = interaction_list
 
-        # initialization now continues to generate the parameter sweep data
-        self.bare_specdata_list = self.generate_bare_specdata_sweep()
-        self.bare_hamiltonian_constant = self.get_bare_hamiltonian_constant()
-
-        self.dressed_specdata = self.generate_dressed_specdata_sweep()
-        self.dressed_hamiltonian_constant = None
-
-        self.hilbertspace.state_lookup_table = \
-            [hilbertspace.generate_state_lookup_table(self.dressed_specdata, param_index)
-             for param_index in range(self.param_count)]
+        self.bare_specdata_list = None
+        self.dressed_specdata = None
+        self._bare_hamiltonian_constant = None
+        self.hilbertspace._state_lookup_table = None
 
         self.sweep_data = {}
-        if generate_chi:
-            self.generate_chi_sweep()
+        self._generate_chi = generate_chi
 
-    def generate_bare_specdata_sweep(self):
+        # generate the spectral data sweep
+        self.generate_parameter_sweep()
+
+    def generate_parameter_sweep(self):
+        self.bare_specdata_list = self._compute_bare_specdata_sweep()
+        self.dressed_specdata = self._compute_dressed_specdata_sweep()
+
+        self.hilbertspace.state_lookup_table = \
+            [self.hilbertspace.generate_state_lookup_table(self.dressed_specdata, param_index)
+             for param_index in range(self.param_count)]
+        if self._generate_chi:
+            self._generate_chi_sweep()
+
+    def _compute_bare_specdata_sweep(self):
         """
         Pre-calculates all bare spectral data needed for the interactive explorer display.
         """
-        bare_eigendata_constant = self.get_bare_spectrum_constant()
-        bare_eigendata_varying = [self.get_bare_spectrum_varying(param_val)
+        bare_eigendata_constant = self._compute_bare_spectrum_constant()
+        bare_eigendata_varying = [self._compute_bare_spectrum_varying(param_val)
                                   for param_val in tqdm(self.param_vals, desc='Bare spectra', **TQDM_KWARGS)]
         bare_specdata_list = self._recast_bare_eigendata(bare_eigendata_constant, bare_eigendata_varying)
         del bare_eigendata_constant
         del bare_eigendata_varying
         return bare_specdata_list
+
+    def _compute_dressed_specdata_sweep(self):
+        """
+        Pre-calculates and all dressed spectral data.
+
+        Returns
+        -------
+        list(SpectrumData)
+        """
+        self._bare_hamiltonian_constant = self._compute_bare_hamiltonian_constant()
+
+        dressed_eigendata = [self._compute_dressed_eigensystem(j)
+                             for j in tqdm(range(self.param_count), desc='Dressed spectrum', **TQDM_KWARGS)]
+        dressed_specdata = self._recast_dressed_eigendata(dressed_eigendata)
+        del dressed_eigendata
+        return dressed_specdata
 
     def _recast_bare_eigendata(self, static_eigendata, bare_eigendata):
         """
@@ -113,21 +134,6 @@ class ParameterSweep:
                                                   state_table=static_eigendata[index][1]))
         return specdata_list
 
-    def generate_dressed_specdata_sweep(self):
-        """
-        Pre-calculates and all dressed spectral data.
-
-        Returns
-        -------
-        list(SpectrumData)
-        """
-        self.bare_hamiltonian_constant = self.get_bare_hamiltonian_constant()
-        dressed_eigendata = [self.get_dressed_eigensystem(j)
-                             for j in tqdm(range(self.param_count), desc='Dressed spectrum', **TQDM_KWARGS)]
-        dressed_specdata = self._recast_dressed_eigendata(dressed_eigendata)
-        del dressed_eigendata
-        return dressed_specdata
-
     def _recast_dressed_eigendata(self, dressed_eigendata):
         """
         Parameters
@@ -148,20 +154,7 @@ class ParameterSweep:
                                 system_params='')
         return specdata
 
-    def generate_data_sweep(self, data_name, func, **kwargs):
-        data = [func(self, param_index, **kwargs) for param_index in range(self.param_count)]
-        self.sweep_data[data_name] = np.asarray(data)
-
-    def generate_chi_sweep(self):
-        osc_subsys_list = self.hilbertspace.osc_subsys_list
-        qbt_subsys_list = self.hilbertspace.qbt_subsys_list
-
-        for osc_index, osc_subsys in osc_subsys_list:
-            for qbt_index, qubit_subsys in qbt_subsys_list:
-                self.generate_data_sweep('chi_osc{}_qbt{}'.format(osc_index, qbt_index), dispersive_chi_01,
-                                         qubit_subsys=qubit_subsys, osc_subsys=osc_subsys)
-
-    def get_bare_hamiltonian_constant(self):
+    def _compute_bare_hamiltonian_constant(self):
         """
         Returns
         -------
@@ -175,7 +168,7 @@ class ParameterSweep:
                 static_hamiltonian += self.hilbertspace.diag_hamiltonian(subsys, evals)
         return static_hamiltonian
 
-    def get_bare_hamiltonian_varying(self, param_index):
+    def _compute_bare_hamiltonian_varying(self, param_index):
         """
         Parameters
         ----------
@@ -194,7 +187,7 @@ class ParameterSweep:
                 hamiltonian += self.hilbertspace.diag_hamiltonian(subsys, evals)
         return hamiltonian
 
-    def get_bare_spectrum_constant(self):
+    def _compute_bare_spectrum_constant(self):
         """
         Returns
         -------
@@ -210,7 +203,7 @@ class ParameterSweep:
                 eigendata.append(None)
         return eigendata
 
-    def get_bare_spectrum_varying(self, param_val):
+    def _compute_bare_spectrum_varying(self, param_val):
         """
         For given external parameter value obtain the bare eigenspectra of each bare subsystem that is affected by
         changes in the external parameter. Formulated to be used with Pool.map()
@@ -236,17 +229,30 @@ class ParameterSweep:
                 eigendata.append(None)
         return eigendata
 
-    def get_dressed_eigensystem(self, param_index):
-        hamiltonian = self.bare_hamiltonian_constant + self.get_bare_hamiltonian_varying(param_index)
+    def _compute_dressed_eigensystem(self, param_index):
+        hamiltonian = self._bare_hamiltonian_constant + self._compute_bare_hamiltonian_varying(param_index)
 
         for interaction_term in self.interaction_list:
-            evecs1 = self.lookup_bare_evecs(param_index, interaction_term.subsys1)
-            evecs2 = self.lookup_bare_evecs(param_index, interaction_term.subsys2)
+            evecs1 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys1)
+            evecs2 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys2)
             hamiltonian += interaction_term.hamiltonian(evecs1=evecs1, evecs2=evecs2)
 
         return hamiltonian.eigenstates(eigvals=self.evals_count)
 
-    def lookup_bare_evecs(self, param_index, subsys):
+    def _generate_chi_sweep(self):
+        osc_subsys_list = self.hilbertspace.osc_subsys_list
+        qbt_subsys_list = self.hilbertspace.qbt_subsys_list
+
+        for osc_index, osc_subsys in osc_subsys_list:
+            for qbt_index, qubit_subsys in qbt_subsys_list:
+                self.compute_custom_data_sweep('chi_osc{}_qbt{}'.format(osc_index, qbt_index), dispersive_chi_01,
+                                               qubit_subsys=qubit_subsys, osc_subsys=osc_subsys)
+
+    def compute_custom_data_sweep(self, data_name, func, **kwargs):
+        data = [func(self, param_index, **kwargs) for param_index in range(self.param_count)]
+        self.sweep_data[data_name] = np.asarray(data)
+
+    def lookup_bare_eigenstates(self, param_index, subsys):
         """
         Parameters
         ----------
@@ -266,6 +272,54 @@ class ParameterSweep:
             return self.bare_specdata_list[subsys_index].state_table[param_index]
         return self.bare_specdata_list[subsys_index].state_table
 
+    def lookup_dressed_eigenstates(self, param_index):
+        """
+        Parameters
+        ----------
+        param_index: int
+            position index of parameter value in question
+
+        Returns
+        -------
+        list of qutip.qobj eigenvectors
+            dressed eigenvectors for the external parameter fixed to the value indicated by the provided index
+        """
+        return self.dressed_specdata.state_table[param_index]
+
+    def lookup_bare_eigenenergies(self, param_index, subsys):
+        """
+        Parameters
+        ----------
+        param_index: int
+            position index of parameter value in question
+        subsys: QuantumSystem
+            Hilbert space subsystem for which bare eigendata is to be looked up
+
+        Returns
+        -------
+        ndarray
+            bare eigenenergies for the specified subsystem and the external parameter fixed to the value indicated by
+            its index
+        """
+        subsys_index = self.hilbertspace.index(subsys)
+        if subsys in self.subsys_update_list:
+            return self.bare_specdata_list[subsys_index].energy_table[param_index]
+        return self.bare_specdata_list[subsys_index].energy_table
+
+    def lookup_dressed_eigenenergies(self, param_index):
+        """
+        Parameters
+        ----------
+        param_index: int
+            position index of parameter value in question
+
+        Returns
+        -------
+        ndarray
+            dressed eigenenergies for the external parameter fixed to the value indicated by the provided index
+        """
+        return self.dressed_specdata.energy_table[param_index]
+
     def lookup_energy_bare_index(self, bare_tuples, param_index=0):
         dressed_index = self.hilbertspace.get_dressed_index(bare_tuples, param_index)
         if dressed_index is not None:
@@ -276,7 +330,25 @@ class ParameterSweep:
         return self.dressed_specdata.energy_table[param_index][dressed_index]
 
     @staticmethod
-    def process_diff_eigendata(labels_table, energies_table):
+    def _process_diff_eigendata(labels_table, energies_table):
+        """
+        Helper routine to process difference spectrum energy data. The `energies_table` produced by
+        `get_n_photon_qubit_spectrum` includes NaNs and has more columns than there are transitions. Recombine
+        data, and order according to target labels.
+
+        Parameters
+        ----------
+        labels_table: list
+            python matrix of str, giving the transition target labels corresponding to the entries in the
+            `energies_table`. NaN energies are marked by '' entries
+        energies_table: list
+            python matrix with transition energies and NaNs
+
+        Returns
+        -------
+        list(str), ndarray
+            Unique transition targets, cleaned up transition energy matrix
+        """
         energies_table = np.asarray(energies_table)
         labels_table = np.asarray(labels_table)
         unique_labels = np.unique(labels_table)[1:]
@@ -319,8 +391,8 @@ class ParameterSweep:
 
     def get_n_photon_qubit_spectrum(self, photonnumber, osc_subsys_list, initial_state_ind=0):
         """
-        Assumes that there is only one oscillator subsystem `osc_subsys` whose photon number remains invariant under
-        transitions.
+        Extracts energies for transitions among qubit states only, while all oscillator subsystems maintain their
+        excitation level.
 
         Parameters
         ----------
@@ -365,29 +437,30 @@ class ParameterSweep:
                     diff_eigenenergy_table[param_index].append(np.NaN)
                     target_labels_table[param_index].append('')
 
-        target_label_list, diff_eigenenergy_table = self.process_diff_eigendata(target_labels_table,
-                                                                                diff_eigenenergy_table)
+        target_label_list, diff_eigenenergy_table = self._process_diff_eigendata(target_labels_table,
+                                                                                 diff_eigenenergy_table)
         return target_label_list, SpectrumData(self.param_name, self.param_vals,
                                                diff_eigenenergy_table, self.hilbertspace.__dict__)
 
-    def filewrite_h5(self, file_hook):
-        """Write spectrum data to h5 file
+    # def filewrite_h5(self, file_hook):
+    #     """Write spectrum data to h5 file
+    #
+    #         Parameters
+    #         ----------
+    #         file_hook: str or h5py root group
+    #             path for file to be openend, or h5py.Group handle to root in open h5 file
+    #         """
+    #     if isinstance(file_hook, str):
+    #         h5file = h5py.File(file_hook + '.hdf5', 'w')
+    #         h5file_root = h5file.create_group('root')
+    #     else:
+    #         h5file_root = file_hook
+    #
+    #     for index, subsys in enumerate(self.hilbertspace):
+    #         h5file_subgroup = h5file_root.create_group('subsys_' + str(index))
+    #         h5file_subgroup.attrs['type'] = type(subsys)
+    #         subsys.filewrite_params_h5(h5file_subgroup)
 
-            Parameters
-            ----------
-            file_hook: str or h5py root group
-                path for file to be openend, or h5py.Group handle to root in open h5 file
-            """
-        if isinstance(file_hook, str):
-            h5file = h5py.File(file_hook + '.hdf5', 'w')
-            h5file_root = h5file.create_group('root')
-        else:
-            h5file_root = file_hook
-
-        for index, subsys in enumerate(self.hilbertspace):
-            h5file_subgroup = h5file_root.create_group('subsys_' + str(index))
-            h5file_subgroup.attrs['type'] = type(subsys)
-            subsys.filewrite_params_h5(h5file_subgroup)
 
 
 # sweep_data generators --------------------------------------------------------------------------------

@@ -10,8 +10,6 @@
 ############################################################################
 
 
-import copy
-
 import numpy as np
 
 import scqubits.utils.plotting as plot
@@ -88,9 +86,7 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=
     fig, axes
     """
     subsys_index = sweep.hilbertspace.index(subsys)
-    new_hilbertspace = copy.deepcopy(sweep.hilbertspace)
-    sweep.update_hilbertspace(param_val, new_hilbertspace)
-    subsys = new_hilbertspace[subsys_index]
+    sweep.update_hilbertspace(param_val)
 
     param_index = np.searchsorted(sweep.param_vals, param_val)
 
