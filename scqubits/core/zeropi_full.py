@@ -184,7 +184,7 @@ class FullZeroPi(QubitBaseClass):
         op_eigen_basis = sparse.dia_matrix((zeropi_dim, zeropi_dim),
                                            dtype=np.complex_)  # is this guaranteed to be zero?
 
-        op_zeropi = get_matrixelement_table(zeropi_operator, zeropi_evecs, real_valued=False)
+        op_zeropi = get_matrixelement_table(zeropi_operator, zeropi_evecs)
         for n in range(zeropi_dim):
             for m in range(zeropi_dim):
                 op_eigen_basis += op_zeropi[n, m] * op.hubbard_sparse(n, m, zeropi_dim)

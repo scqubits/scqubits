@@ -290,10 +290,13 @@ class TestParameterSweep:
 
     def test_ParameterSweep_(self):
         sweep = self.initialize()
+
         specdata = absorption_spectrum(sweep.get_difference_spectrum(initial_state_ind=0))
         calculated_energies = specdata.energy_table[5]
 
         reference_energies = np.array([0., 4.74135372, 5.6773522, 5.98902462, 7.72420838, 10.72273595, 11.65962582,
                                        11.97802377, 12.46554431, 13.40154194, 13.71041554, 15.24359501, 16.70439594,
                                        17.01076356, 17.64202619])
+
+        print(calculated_energies)
         assert np.allclose(reference_energies, calculated_energies)

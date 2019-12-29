@@ -200,7 +200,7 @@ class HilbertSpace(list):
         elif isinstance(operator, qt.Qobj):
             subsys_operator = operator
         else:
-            raise TypeError
+            raise TypeError('Unsupported operator type: ', type(operator))
 
         operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in self]
         subsystem_index = self.get_subsys_index(subsystem)
@@ -355,22 +355,3 @@ class HilbertSpace(list):
             return None
         basis_labels = self.state_lookup_table[param_index][1][lookup_position]
         return basis_labels
-
-    # def get_bare_indices_from_dressed_index(self, spectrum_data, eigen_index, param_index=0):
-    #    """
-    #    Parameters
-    #    ----------
-    #    spectrum_data: SpectrumData
-    #        contains the dressed eigenspectrum
-    #    param_index: int
-    #        index of parameter value of interest
-    #    eigen_index: int
-    #        index of eigenstate
-    #
-    #    Returns
-    #    -------
-    #    list
-    #        [(subsys1,index1), (subsys2,index2), ...]
-    #    """
-    #    return get_eigenstate_index_maxoverlap(spectrum_data.state_table[param_index], bare_state)
-

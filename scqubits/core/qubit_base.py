@@ -182,7 +182,7 @@ class QubitBaseClass(QuantumSystem):
         if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
         operator_matrix = getattr(self, operator)()
-        table = get_matrixelement_table(operator_matrix, evecs, real_valued=isinstance(self._evec_dtype, np.float_))
+        table = get_matrixelement_table(operator_matrix, evecs)
         if filename:
             self.filewrite_data(filename, [table], [''])
         return table
