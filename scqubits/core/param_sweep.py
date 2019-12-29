@@ -240,7 +240,8 @@ class ParameterSweep:
             evecs1 = self.lookup_bare_evecs(param_index, interaction_term.subsys1)
             evecs2 = self.lookup_bare_evecs(param_index, interaction_term.subsys2)
             hamiltonian += interaction_term.hamiltonian(evecs1=evecs1, evecs2=evecs2)
-            return hamiltonian.eigenstates(eigvals=self.evals_count)
+
+        return hamiltonian.eigenstates(eigvals=self.evals_count)
 
     def lookup_bare_evecs(self, param_index, subsys):
         """
