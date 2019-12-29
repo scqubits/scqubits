@@ -39,8 +39,8 @@ class ParameterSweep:
     subsys_update_list: list or iterable
         list of subsystems in the Hilbert space which get modified when the external parameter changes
     update_hilbertspace: function
-        update_hilbertspace(param_val, hilbertspace) specifies how a change in the external parameter affects
-        the hilbert space components
+        update_hilbertspace(param_val) specifies how a change in the external parameter affects
+        the Hilbert space components
     interaction_list: list or iterable of InteractionTerm
         specifies the interaction Hamiltonian
     """
@@ -54,14 +54,19 @@ class ParameterSweep:
         self.subsys_update_list = subsys_update_list
         self.update_hilbertspace = update_hilbertspace
         self.interaction_list = interaction_list
+
+        # initialization now continues to generate the parameter sweep data
         self.bare_specdata_list = self.generate_bare_specdata_sweep()
-        self.dressed_specdata = self.generate_dressed_specdata_sweep()
-        self.sweep_data = {}
         self.bare_hamiltonian_constant = self.get_bare_hamiltonian_constant()
+
+        self.dressed_specdata = self.generate_dressed_specdata_sweep()
         self.dressed_hamiltonian_constant = None
+
         self.hilbertspace.state_lookup_table = \
             [hilbertspace.generate_state_lookup_table(self.dressed_specdata, param_index)
              for param_index in range(self.param_count)]
+
+        self.sweep_data = {}
         if generate_chi:
             self.generate_chi_sweep()
 
@@ -187,7 +192,7 @@ class ParameterSweep:
             if subsys in self.subsys_update_list:
                 evals = self.bare_specdata_list[index].energy_table[param_index]
                 hamiltonian += self.hilbertspace.diag_hamiltonian(subsys, evals)
-            return hamiltonian
+        return hamiltonian
 
     def get_bare_spectrum_constant(self):
         """
@@ -219,16 +224,14 @@ class ParameterSweep:
         list of tuples(ndarray, ndarray)
             (evals, evecs) bare eigendata for each subsystem that is parameter-dependent
         """
-        new_hilbertspace = copy.deepcopy(self.hilbertspace)
-
         eigendata = []
         for subsys in self.hilbertspace:
-            self.update_hilbertspace(param_val, new_hilbertspace)
+            self.update_hilbertspace(param_val)
             evals_count = subsys.truncated_dim
 
             if subsys in self.subsys_update_list:
                 subsys_index = self.hilbertspace.index(subsys)
-                eigendata.append(new_hilbertspace[subsys_index].eigensys(evals_count=evals_count))
+                eigendata.append(self.hilbertspace[subsys_index].eigensys(evals_count=evals_count))
             else:
                 eigendata.append(None)
         return eigendata
