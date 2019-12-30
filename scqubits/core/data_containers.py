@@ -155,6 +155,14 @@ class SpectrumData:
             writer.add_dataset('matrixelem_table', self.matrixelem_table)
 
     def _initialize_from_fileread(self, *data_from_file):
+        """
+        Uses data extracted from file to initialize the SpectrumData object
+
+        Parameters
+        ----------
+        data_from_file: (dict, list(str), list(ndarray))
+            metadata dictionary, list of dataset names, list of datasets (ndarray)
+        """
         metadata_dict, name_list, data_list = data_from_file
         self.param_name = metadata_dict.pop('param_name')
         self.param_vals = metadata_dict.pop('param_vals')
@@ -163,11 +171,23 @@ class SpectrumData:
             setattr(self, attribute, data_list[index])
 
     def filewrite(self, filename):
-        format = config.file_format
+        """Write metadata and spectral data to file
+
+        Parameters
+        ----------
+        filename: str
+        """
+        file_format = config.file_format
         writer = io.ObjectWriter()
-        writer.filewrite(self, format, filename)
+        writer.filewrite(self, file_format, filename)
 
     def fileread(self, filename):
-        format = config.file_format
+        """Read metadata and spectral data from file, and use those to initialize th SpectrumData object (self).
+
+        Parameters
+        ----------
+        filename: str
+        """
+        file_format = config.file_format
         reader = io.ObjectReader()
-        reader.fileread(self, format, filename)
+        reader.fileread(self, file_format, filename)

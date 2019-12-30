@@ -25,65 +25,63 @@ class TestFluxonium(BaseTest):
     # dummy values, will read  actual values from external user h5 files
 
     def test_eigenvals(self):
-        TESTNAME = 'fluxonium_1'
+        testname = 'fluxonium_1'
         specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
-        specdata.fileread(DATADIR + TESTNAME)
+        specdata.fileread(DATADIR + testname)
         self.qbt.set_params_from_dict(specdata._get_metadata_dict())
         evals_reference = specdata.energy_table
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
-        TESTNAME = 'fluxonium_2'
+        testname = 'fluxonium_2'
         specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
-        specdata.fileread(DATADIR + TESTNAME)
+        specdata.fileread(DATADIR + testname)
         self.qbt.set_params_from_dict(specdata._get_metadata_dict())
         evecs_reference = specdata.state_table
         return self.eigenvecs(evecs_reference)
 
     def test_plot_evals_vs_paramvals(self):
-        TESTNAME = 'fluxonium_3'
+        # testname = 'fluxonium_3'
         flux_list = np.linspace(0.45, 0.55, 50)
         return self.plot_evals_vs_paramvals('flux', flux_list)
 
     def test_get_spectrum_vs_paramvals(self):
-        TESTNAME = 'fluxonium_4'
+        testname = 'fluxonium_4'
         specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
-        specdata.fileread(DATADIR + TESTNAME)
+        specdata.fileread(DATADIR + testname)
         flux_list = specdata.param_vals
         evecs_reference = specdata.state_table
         evals_reference = specdata.energy_table
         return self.get_spectrum_vs_paramvals('flux', flux_list, evals_reference, evecs_reference)
 
     def test_matrixelement_table(self):
-        TESTNAME = 'fluxonium_5'
+        testname = 'fluxonium_5'
         specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
-        specdata.fileread(DATADIR + TESTNAME)
+        specdata.fileread(DATADIR + testname)
         self.qbt.set_params_from_dict(specdata._get_metadata_dict())
         matelem_reference = specdata.matrixelem_table
         return self.matrixelement_table('n_operator', matelem_reference)
 
     def test_plot_evals_vs_paramvals_EJ(self):
-        TESTNAME = 'fluxonium_6'
+        # testname = 'fluxonium_6'
         ej_vals = self.qbt.EJ * np.cos(np.linspace(-np.pi / 2, np.pi / 2, 40))
         self.plot_evals_vs_paramvals('EJ', ej_vals)
 
-    # TESTNAME = 'fluxonium_7'
+    # testname = 'fluxonium_7'
 
     def test_plot_wavefunction(self):
-        TESTNAME = 'fluxonium_8'
+        # testname = 'fluxonium_8'
         self.qbt.plot_wavefunction(esys=None, which=5, mode='real')
 
     def test_plot_matrixelements(self):
-        TESTNAME = 'fluxonium_9'
+        # testname = 'fluxonium_9'
         self.plot_matrixelements('n_operator', evals_count=10)
 
     def test_print_matrixelements(self):
-        TESTNAME = 'fluxonium_10'
+        # testname = 'fluxonium_10'
         self.print_matrixelements('phi_operator')
 
     def test_plot_matelem_vs_paramvals(self):
-        TESTNAME = 'fluxonium_11'
+        # testname = 'fluxonium_11'
         flux_list = np.linspace(0.45, 0.55, 50)
         self.plot_matelem_vs_paramvals('n_operator', 'flux', flux_list, select_elems=[(0, 0), (1, 4), (1, 0)])
-
-

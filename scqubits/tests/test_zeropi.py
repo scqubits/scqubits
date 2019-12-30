@@ -28,61 +28,61 @@ class TestZeroPi(BaseTest):
     # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):
-        TESTNAME = 'zeropi_1'
+        testname = 'zeropi_1'
         specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
-        specdata.fileread(DATADIR + TESTNAME)
+        specdata.fileread(DATADIR + testname)
         self.qbt.set_params_from_dict(specdata._get_metadata_dict())
         evals_reference = specdata.energy_table
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
-        TESTNAME = 'zeropi_2'
+        testname = 'zeropi_2'
         specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
-        specdata.fileread(DATADIR + TESTNAME)
+        specdata.fileread(DATADIR + testname)
         self.qbt.set_params_from_dict(specdata._get_metadata_dict())
         evecs_reference = specdata.state_table
         return self.eigenvecs(evecs_reference)
 
     def test_plot_evals_vs_paramvals(self):
-        TESTNAME = 'zeropi_3'
+        # testname = 'zeropi_3'
         flux_list = np.linspace(0, 0.5, 15)
         return self.plot_evals_vs_paramvals('flux', flux_list)
 
     def test_get_spectrum_vs_paramvals(self):
-        TESTNAME = 'zeropi_4'
+        testname = 'zeropi_4'
         specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
-        specdata.fileread(DATADIR + TESTNAME)
+        specdata.fileread(DATADIR + testname)
         flux_list = specdata.param_vals
         evecs_reference = specdata.state_table
         evals_reference = specdata.energy_table
         return self.get_spectrum_vs_paramvals('flux', flux_list, evals_reference, evecs_reference)
 
     def test_matrixelement_table(self):
-        TESTNAME = 'zeropi_5'
+        testname = 'zeropi_5'
         specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
-        specdata.fileread(DATADIR + TESTNAME)
+        specdata.fileread(DATADIR + testname)
         self.qbt.set_params_from_dict(specdata._get_metadata_dict())
         matelem_reference = specdata.matrixelem_table
         return self.matrixelement_table('n_theta_operator', matelem_reference)
 
-    #   TESTNAME = 'zeropi_6'
+    #   testname = 'zeropi_6'
 
-    #    TESTNAME = 'zeropi_7'
+    #    testname = 'zeropi_7'
 
     def test_plot_wavefunction(self):
-        TESTNAME = 'zeropi_8'
+        # testname = 'zeropi_8'
         self.qbt.plot_wavefunction(esys=None, which=4, mode='real', zero_calibrate=True)
         self.qbt.plot_potential(contour_vals=np.linspace(0, 3, 25), aspect_ratio=0.12)
 
     def test_plot_matrixelements(self):
-        TESTNAME = 'zeropi_9'
+        # testname = 'zeropi_9'
         self.plot_matrixelements('n_theta_operator', evals_count=10)
 
     def test_print_matrixelements(self):
-        TESTNAME = 'zeropi_10'
+        # testname = 'zeropi_10'
         self.print_matrixelements('i_d_dphi_operator')
 
     def test_plot_matelem_vs_paramvals(self):
-        TESTNAME = 'zeropi_11'
+        # testname = 'zeropi_11'
         flux_list = np.linspace(0, 0.5, 15)
         self.plot_matelem_vs_paramvals('n_theta_operator', 'flux', flux_list, select_elems=[(0, 0), (1, 4), (1, 0)])

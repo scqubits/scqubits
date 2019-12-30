@@ -56,10 +56,43 @@ def dressed_spectrum(sweep, title=None, fig_ax=None):
 
 
 def difference_spectrum(sweep, initial_state_ind=0):
+    """
+    Plots a transition energy spectrum with reference to the given initial_state_ind, obtained by taking energy
+    differences of the eigenenergy spectrum.
+
+    Parameters
+    ----------
+    sweep: ParameterSweep
+    initial_state_ind: int
+
+    Returns
+    -------
+    Figure, Axes
+    """
     return sweep.get_difference_spectrum(initial_state_ind).plot_evals_vs_paramvals()
 
 
 def n_photon_qubit_spectrum(sweep, photonnumber, osc_subsys_list, initial_state_ind=0, title=None, fig_ax=None):
+    """
+    Plots the n-photon qubit transition spectrum.
+
+    Parameters
+    ----------
+    sweep: ParameterSweep
+    photonnumber: int
+        number of photons used in the transition
+    osc_subsys_list: list(Oscillator)
+        list of oscillator subsystems
+    initial_state_ind: int
+        state index of the initial state for the transitions
+    title: str, optional
+        plot title
+    fig_ax: (Figure, Axes), optional
+
+    Returns
+    -------
+    Figure, Axes
+    """
     label_array, specdata = sweep.get_n_photon_qubit_spectrum(photonnumber, osc_subsys_list, initial_state_ind)
     return specdata.plot_evals_vs_paramvals(title=title, label_list=label_array.tolist(), fig_ax=fig_ax)
 
@@ -97,6 +130,24 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=
 
 
 def chi(sweep, qbt_index, osc_index, title=None, fig_ax=None):
+    """
+    Plot dispersive shifts chi_j for a given pair of qubit and oscillator.
+
+    Parameters
+    ----------
+    sweep: ParameterSweep
+    qbt_index: int
+        index of the qubit system within the underlying HilbertSpace
+    osc_index: int
+        index of the oscillator system within the underlying HilbertSpace
+    title: str, optional
+        plot title
+    fig_ax: (Figure, Axes), optional
+
+    Returns
+    -------
+    Figure, Axes
+    """
     data_key = 'chi_osc{}_qbt{}'.format(osc_index, qbt_index)
     ydata = sweep.sweep_data[data_key]
     xdata = sweep.param_vals
@@ -109,6 +160,24 @@ def chi(sweep, qbt_index, osc_index, title=None, fig_ax=None):
 
 
 def chi_01(sweep, qbt_index, osc_index, param_index=0, fig_ax=None):
+    """
+    Plot the dispersive shift chi01 for a given pair of qubit and oscillator.
+
+    Parameters
+    ----------
+    sweep: ParameterSweep
+    qbt_index: int
+        index of the qubit system within the underlying HilbertSpace
+    osc_index: int
+        index of the oscillator system within the underlying HilbertSpace
+    title: str, optional
+        plot title
+    fig_ax: (Figure, Axes), optional
+
+    Returns
+    -------
+    Figure, Axes
+    """
     data_key = 'chi_osc{}_qbt{}'.format(osc_index, qbt_index)
     ydata = sweep.sweep_data[data_key]
     xdata = sweep.param_vals

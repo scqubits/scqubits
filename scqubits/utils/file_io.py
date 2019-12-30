@@ -21,16 +21,16 @@ from scqubits.utils.constants import FileType
 
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format"""
-    def get_writer(self, format):
-        if format is FileType.csv:
+    def get_writer(self, file_format):
+        if file_format is FileType.csv:
             return CsvWriter()
-        elif format is FileType.h5:
+        elif file_format is FileType.h5:
             return H5Writer()
 
-    def get_reader(self, format):
-        if format is FileType.csv:
+    def get_reader(self, file_format):
+        if file_format is FileType.csv:
             return CsvReader()
-        elif format is FileType.h5:
+        elif file_format is FileType.h5:
             return H5Reader()
 
 
@@ -39,38 +39,38 @@ factory = FileIOFactory()
 
 class ObjectWriter:
     """Sets up the appropriate writer, calls the object's serializer to obtain data, then writes to file."""
-    def filewrite(self, the_object, format, filename):
+    def filewrite(self, the_object, file_format, filename):
         """
         Parameters
         ----------
         the_object: object
-        format: FileType
+        file_format: FileType
         filename: str
 
         Returns
         -------
         exit_info
         """
-        writer = factory.get_writer(format)
+        writer = factory.get_writer(file_format)
         the_object._serialize(writer)
         return writer.do_writing(filename)
 
 
 class ObjectReader:
     """Sets up the appropriate reader, extracts data from file, then uses the object's ._initialize_from_fileread."""
-    def fileread(self, the_object, format, filename):
+    def fileread(self, the_object, file_format, filename):
         """
         Parameters
         ----------
         the_object: object
-        format: FileType
+        file_format: FileType
         filename: str
 
         Returns
         -------
         exit_info
         """
-        reader = factory.get_reader(format)
+        reader = factory.get_reader(file_format)
         extracted_data = reader.do_reading(filename)
         the_object._initialize_from_fileread(*extracted_data)
 
@@ -96,9 +96,6 @@ class BaseWriter:
 
 
 class CsvWriter(BaseWriter):
-    def __init__(self):
-        super().__init__()
-
     def do_writing(self, filename):
         filename_stub = os.path.splitext(filename)[0]
 
@@ -112,9 +109,6 @@ class CsvWriter(BaseWriter):
 
 
 class H5Writer(BaseWriter):
-    def __init__(self):
-        super().__init__()
-
     def do_writing(self, filename):
         """
         Parameters

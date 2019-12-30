@@ -44,6 +44,22 @@ class Explorer:
 
     def plot_explorer_panels(self, param_val, photonnumber, initial_index, final_index,
                              chi_qbt_index, chi_osc_index):
+        """
+        Create a panel of plots (bare spectra, bare wavefunctions, dressed spectrum, n-photon qubit transitions, chi).
+
+        Parameters
+        ----------
+        param_val: float
+        photonnumber: int
+        initial_index: int
+        final_index: int
+        chi_qbt_index: int
+        chi_osc_index: int
+
+        Returns
+        -------
+        Figure, Axes
+        """
         def display_bare_spectrum(index):
             title = 'bare spectrum: subsystem {} ({})'.format(self.sweep.hilbertspace.index(subsys), subsys._sys_type)
             __ = splot.bare_spectrum(self.sweep, subsys, title=title, fig_ax=(fig, axes_list_flattened[index]))
@@ -81,8 +97,8 @@ class Explorer:
 
         param_index = np.searchsorted(self.param_vals, param_val)
         param_val = self.param_vals[param_index]
-        bare_initial = self.sweep.hilbertspace.get_bare_index(initial_index, param_index)
-        bare_final = self.sweep.hilbertspace.get_bare_index(final_index, param_index)
+        bare_initial = self.sweep.hilbertspace.lookup_bare_index(initial_index, param_index)
+        bare_final = self.sweep.hilbertspace.lookup_bare_index(final_index, param_index)
         energy_ground = self.sweep.lookup_energy_dressed_index(0, param_index)
         energy_initial = self.sweep.lookup_energy_dressed_index(initial_index, param_index) - energy_ground
         energy_final = self.sweep.lookup_energy_dressed_index(final_index, param_index) - energy_ground
@@ -116,6 +132,7 @@ class Explorer:
         return fig, axs
 
     def interact(self):
+        """Drives the interactive display of the plot explorer panels"""
         param_min = self.param_vals[0]
         param_max = self.param_vals[-1]
         param_step = self.param_vals[1] - self.param_vals[0]

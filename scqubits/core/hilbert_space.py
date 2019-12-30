@@ -242,6 +242,17 @@ class HilbertSpace(list):
         return self.identity_wrap(operator, subsystem)
 
     def get_subsys_index(self, subsys):
+        """
+        Return the index of the given subsystem in the HilbertSpace.
+
+        Parameters
+        ----------
+        subsys: QuantumSystem
+
+        Returns
+        -------
+        int
+        """
         return self.index(subsys)
 
     def get_bare_hamiltonian(self):
@@ -258,6 +269,13 @@ class HilbertSpace(list):
         return bare_hamiltonian
 
     def get_hamiltonian(self):
+        """
+
+        Returns
+        -------
+        qutip.qobj
+            Hamiltonian of the composite system, including the interaction between components
+        """
         hamiltonian = self.get_bare_hamiltonian()
         for interaction_term in self.interaction_list:
             hamiltonian += interaction_term.hamiltonian()
@@ -317,6 +335,21 @@ class HilbertSpace(list):
         return spectrumdata
 
     def generate_state_lookup_table(self, spectrum_data, param_index=0):
+        """
+        Create a lookup table that associates each dressed-state index with the corresponding bare-state product state
+        index (whenever possible). Usually to be saved as self.state_lookup_table.
+
+        Parameters
+        ----------
+        spectrum_data: SpectrumData
+        param_index: int
+            indices > 0 become relevant when using ParameterSweep
+
+        Returns
+        -------
+        list(int), list(tuple)
+            dressed indices, corresponding bare indices
+        """
         dims = [subsys.truncated_dim for subsys in self]
         basis_label_ranges = [list(range(subsys.truncated_dim)) for subsys in self]
         basis_labels_list = [elem for elem in itertools.product(*basis_label_ranges)]
@@ -328,7 +361,7 @@ class HilbertSpace(list):
                            for bare_state in bare_basis]
         return [dressed_indices, basis_labels_list]
 
-    def get_dressed_index(self, bare_labels, param_index=0):
+    def lookup_dressed_index(self, bare_labels, param_index=0):
         """
         Parameters
         ----------
@@ -348,7 +381,19 @@ class HilbertSpace(list):
             return None
         return self.state_lookup_table[param_index][0][lookup_position]
 
-    def get_bare_index(self, dressed_index, param_index=0):
+    def lookup_bare_index(self, dressed_index, param_index=0):
+        """
+        For given dressed index, look up the corresponding bare index from the state_lookup_table.
+
+        Parameters
+        ----------
+        dressed_index: int
+        param_index: int
+
+        Returns
+        -------
+        tuple(int)
+        """
         try:
             lookup_position = self.state_lookup_table[param_index][0].index(dressed_index)
         except ValueError:

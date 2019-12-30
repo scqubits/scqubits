@@ -24,9 +24,9 @@ class TestFullZeroPi(BaseTest):
     # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):
-        TESTNAME = 'fullzeropi_1'
+        testname = 'fullzeropi_1'
         specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
-        specdata.fileread(DATADIR + TESTNAME)
+        specdata.fileread(DATADIR + testname)
         self.qbt.set_params_from_dict(specdata._get_metadata_dict())
         evals_reference = specdata.energy_table
         return self.eigenvals(evals_reference)

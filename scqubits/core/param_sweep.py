@@ -66,6 +66,7 @@ class ParameterSweep:
         self.generate_parameter_sweep()
 
     def generate_parameter_sweep(self):
+        """Top-level method for generating all parameter sweep data"""
         self.bare_specdata_list = self._compute_bare_specdata_sweep()
         self.dressed_specdata = self._compute_dressed_specdata_sweep()
 
@@ -249,6 +250,16 @@ class ParameterSweep:
                                                qubit_subsys=qubit_subsys, osc_subsys=osc_subsys)
 
     def compute_custom_data_sweep(self, data_name, func, **kwargs):
+        """Method for computing custom data as a function of the external parameter, calculated via the function func
+
+        Parameters
+        ----------
+        data_name: str
+        func: function
+            signature: func(parametersweep, param_value, **kwargs), specifies how to calculate the data
+        **kwargs: optional
+            other parameters to be included in func
+        """
         data = [func(self, param_index, **kwargs) for param_index in range(self.param_count)]
         self.sweep_data[data_name] = np.asarray(data)
 
@@ -321,12 +332,39 @@ class ParameterSweep:
         return self.dressed_specdata.energy_table[param_index]
 
     def lookup_energy_bare_index(self, bare_tuples, param_index=0):
-        dressed_index = self.hilbertspace.get_dressed_index(bare_tuples, param_index)
+        """
+        Look up dressed energy most closely corresponding to the given bare-state labels
+
+        Parameters
+        ----------
+        bare_tuples: tuple(int)
+            bare state indices
+        param_index: int
+            index specifying the position in the self.param_vals array
+
+        Returns
+        -------
+        dressed energy: float
+        """
+        dressed_index = self.hilbertspace.lookup_dressed_index(bare_tuples, param_index)
         if dressed_index is not None:
             return self.dressed_specdata.energy_table[param_index][dressed_index]
         return None
 
     def lookup_energy_dressed_index(self, dressed_index, param_index=0):
+        """
+        Look up the dressed eigenenergy belonging to the given dressed index.
+
+        Parameters
+        ----------
+        dressed_index: int
+        param_index: int
+            relevant if used in the context of a ParameterSweep
+
+        Returns
+        -------
+        dressed energy: float
+        """
         return self.dressed_specdata.energy_table[param_index][dressed_index]
 
     @staticmethod
@@ -384,7 +422,7 @@ class ParameterSweep:
             if isinstance(initial_state_ind, int):
                 eigenenergy_index = initial_state_ind
             else:
-                eigenenergy_index = self.hilbertspace.get_dressed_index(initial_state_ind, param_index)
+                eigenenergy_index = self.hilbertspace.lookup_dressed_index(initial_state_ind, param_index)
             diff_eigenenergies = eigenenergies - eigenenergies[eigenenergy_index]
             diff_eigenenergy_table[param_index] = diff_eigenenergies
         return SpectrumData(self.param_name, self.param_vals, diff_eigenenergy_table, self.hilbertspace.__dict__)
@@ -415,14 +453,14 @@ class ParameterSweep:
         eigenenergy_index = initial_state_ind
         for param_index in range(param_count):
             if not isinstance(initial_state_ind, int):
-                eigenenergy_index = self.hilbertspace.get_dressed_index(initial_state_ind, param_index)
+                eigenenergy_index = self.hilbertspace.lookup_dressed_index(initial_state_ind, param_index)
 
             initial_energy = self.dressed_specdata.energy_table[param_index][eigenenergy_index]
-            initial_labels = self.hilbertspace.get_bare_index(eigenenergy_index, param_index)
+            initial_labels = self.hilbertspace.lookup_bare_index(eigenenergy_index, param_index)
             eigenenergies = self.dressed_specdata.energy_table[param_index]
 
             for index, _ in enumerate(eigenenergies):
-                target_labels = self.hilbertspace.get_bare_index(index, param_index)
+                target_labels = self.hilbertspace.lookup_bare_index(index, param_index)
                 if target_labels is not None and initial_labels is not None:
                     oscillator_change = sum(abs(target_labels[osc_index] - initial_labels[osc_index])
                                             for osc_index in osc_index_list)

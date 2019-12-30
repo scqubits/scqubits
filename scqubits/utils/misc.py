@@ -15,7 +15,6 @@ import numpy as np
 
 def process_which(which, max_index):
     """
-
     Parameters
     ----------
     which: int or tuple or list, optional
@@ -36,6 +35,24 @@ def process_which(which, max_index):
 
 
 def make_bare_labels(hilbertspace, subsys_index1, label1, subsys_index2, label2):
+    """
+    For two given subsystem states, return the full-system bare state label obtained by placing all remaining
+    subsystems in their ground states.
+
+    Parameters
+    ----------
+    hilbertspace: HilbertSpace
+    subsys_index1: int
+    label1: int
+    subsys_index2: int
+    label2: int
+
+    Returns
+    -------
+    tuple
+        Suppose there are 5 subsystems in total. Let subsys_index1=0, label1=3, subsys_index2=2, label1=1. Then the
+        returned bare-state tuple is: (3,0,1,0,0)
+    """
     bare_labels = [0] * hilbertspace.subsystem_count
     bare_labels[subsys_index1] = label1
     bare_labels[subsys_index2] = label2
@@ -43,6 +60,13 @@ def make_bare_labels(hilbertspace, subsys_index1, label1, subsys_index2, label2)
 
 
 def process_metadata(full_dict):
+    """Convert an extended system dictionary, as obtained through __dict__, to a reduced one that can be written to
+    a file
+
+    Parameters
+    ----------
+    full_dict: dict
+    """
     reduced_dict = {}
     for key, param_obj in full_dict.items():
         if key[0] == '_':
