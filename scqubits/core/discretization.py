@@ -107,30 +107,12 @@ class Grid1d:
 
         return derivative_matrix
 
-    def filewrite_params_h5(self, h5file_root):
-        """Write grid parameters to h5 file
-
-        Parameters
-        ----------
-        h5file_root: h5py.Group
-            handle to root group of open h5 file
-        """
-        h5dataset = h5file_root.create_dataset("grid", data=[])
-        h5dataset.attrs['min_val'] = self.min_val
-        h5dataset.attrs['max_val'] = self.max_val
-        h5dataset.attrs['pt_count'] = self.pt_count
-
-    def set_params_from_h5(self, h5file_grid):
-        """Read and store grid parameters from h5 file
-
-        Parameters
-        ----------
-        h5file_grid: h5py.Group
-            handle to grid group in open h5 file
-        """
-        self.min_val = h5file_grid.attrs['min_val']
-        self.max_val = h5file_grid.attrs['max_val']
-        self.pt_count = h5file_grid.attrs['pt_count']
+    def _get_metadata_dict(self):
+        meta_dict = {}
+        for key, param_obj in self.__dict__.items():
+            if isinstance(param_obj, (int, float, np.number)):
+                meta_dict[key] = param_obj
+        return meta_dict
 
 
 class GridSpec:
@@ -157,29 +139,9 @@ class GridSpec:
         """Auxiliary routine that yields a tuple of the parameters specifying the grid."""
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count
 
-    def filewrite_params_h5(self, h5file_root):
-        """Write grid parameters to h5 file
-
-        Parameters
-        ----------
-        h5file_root: h5py.Group
-            handle to root group of open h5 file
-        """
-        h5dataset = h5file_root.create_dataset("grid", data=[])
-        h5dataset.attrs['min_vals'] = self.min_vals
-        h5dataset.attrs['max_vals'] = self.max_vals
-        h5dataset.attrs['var_count'] = self.var_count
-        h5dataset.attrs['pt_counts'] = self.pt_counts
-
-    def set_params_from_h5(self, h5file_grid):
-        """Read and store grid parameters from h5 file
-
-        Parameters
-        ----------
-        h5file_grid: h5py.Group
-            handle to grid group in open h5 file
-        """
-        self.min_vals = h5file_grid.attrs['min_vals']
-        self.max_vals = h5file_grid.attrs['max_vals']
-        self.var_count = h5file_grid.attrs['var_count']
-        self.pt_counts = h5file_grid.attrs['pt_count']
+    def _get_metadata_dict(self):
+        meta_dict = {}
+        for key, param_obj in self.__dict__.items():
+            if isinstance(param_obj, (int, float, np.number)):
+                meta_dict[key] = param_obj
+        return meta_dict

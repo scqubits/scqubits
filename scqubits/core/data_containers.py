@@ -9,15 +9,14 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import h5py
+
 import numpy as np
 
 import scqubits.settings as config
-import scqubits.utils.constants as constants
+import scqubits.utils.file_io as io
 import scqubits.utils.plotting as plot
-from scqubits.utils.constants import FileType
-from scqubits.utils.file_io import filewrite_csvdata, filewrite_h5data
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
+from scqubits.utils.misc import process_metadata
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -79,7 +78,7 @@ class SpectrumData:
         parameter values for which spectrum data are stored
     energy_table: ndarray
         energy eigenvalues stored for each `param_vals` point
-    system_params: dict(str)
+    system_params: dict
         info about system parameters
     state_table: ndarray or list, optional
         eigenstate data stored for each `param_vals` point, either as pure ndarray or list of qutip.qobj
@@ -130,54 +129,45 @@ class SpectrumData:
         return plot.evals_vs_paramvals(self, xlim=x_range, ymax=ymax, which=which, subtract_ground=subtract_ground,
                                        title=title, label_list=label_list, fig_ax=fig_ax, **kwargs)
 
-    def filewrite_params_h5(self, h5file_root):
-        """Write current qubit parameters into a given h5 data file.
+    def _get_metadata_dict(self):
+        meta_dict = {'param_name': self.param_name, 'param_vals': self.param_vals}
+        meta_dict.update(process_metadata(self.system_params))
+        return meta_dict
 
+    def _serialize(self, writer):
+        """
         Parameters
         ----------
-        h5file_root: root group of open h5py file
+        writer: BaseWriter
         """
-        for key, param_obj in self.system_params.items():
-            if isinstance(param_obj, (int, float)):
-                h5file_root.attrs[key] = param_obj
-            elif key == 'grid':
-                param_obj.filewrite_params_h5(h5file_root)
-            else:
-                h5file_root.attrs[key] = str(param_obj)
+        np_state_table = None
+        if isinstance(self.state_table, list):
+            np_state_table = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
+        elif isinstance(self.state_table, np.ndarray):
+            np_state_table = self.state_table
+
+        metadata_dict = self._get_metadata_dict()
+        writer.create_meta(metadata_dict)
+        writer.add_dataset('energy_table', self.energy_table)
+        if self.state_table is not None:
+            writer.add_dataset('state_table', np_state_table)
+        if self.matrixelem_table is not None:
+            writer.add_dataset('matrixelem_table', self.matrixelem_table)
+
+    def _initialize_from_fileread(self, *data_from_file):
+        metadata_dict, name_list, data_list = data_from_file
+        self.param_name = metadata_dict.pop('param_name')
+        self.param_vals = metadata_dict.pop('param_vals')
+        self.system_params = metadata_dict
+        for index, attribute in enumerate(name_list):
+            setattr(self, attribute, data_list[index])
 
     def filewrite(self, filename):
-        """Write data of eigenenergies, eigenstates, and matrix elements to file with specified filename.
+        format = config.file_format
+        writer = io.ObjectWriter()
+        writer.filewrite(self, format, filename)
 
-        Parameters
-        ----------
-        filename: str
-            path and name of output file (file suffix appended automatically)
-        """
-        if self.state_table is not None:
-            if isinstance(self.state_table, list):
-                state_table_numpy = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
-            elif isinstance(self.state_table, np.ndarray):
-                state_table_numpy = self.state_table
-            else:
-                raise TypeError('Unexpected type for state_table: neither a pure ndarray, nor a list of eigenstates '
-                                'obtained via qutip.')
-        else:
-            state_table_numpy = np.array([])
-
-        if config.file_format is FileType.csv:
-            filewrite_csvdata(filename + '_' + self.param_name, self.param_vals)
-            filewrite_csvdata(filename + '_energies', self.energy_table)
-            if self.state_table:
-                filewrite_csvdata(filename + '_states', state_table_numpy)
-            if self.matrixelem_table:
-                filewrite_csvdata(filename + '_melem', self.matrixelem_table)
-            with open(filename + constants.PARAMETER_FILESUFFIX, 'w') as target_file:
-                target_file.write(self.system_params)
-        elif config.file_format is FileType.h5:
-            h5file = h5py.File(filename + '.hdf5', 'w')
-            h5file_root = h5file.create_group('root')
-            filewrite_h5data(h5file_root,
-                             [self.param_vals, self.energy_table, state_table_numpy, self.matrixelem_table],
-                             [self.param_name, "spectrum energies", "states", "mat_elem"])
-            self.filewrite_params_h5(h5file_root)
-            h5file.close()
+    def fileread(self, filename):
+        format = config.file_format
+        reader = io.ObjectReader()
+        reader.fileread(self, format, filename)

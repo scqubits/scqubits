@@ -12,8 +12,8 @@
 
 import scqubits as qubit
 from scqubits import FullZeroPi
+from scqubits.core.data_containers import SpectrumData
 from scqubits.tests.conftest import BaseTest, DATADIR
-from scqubits.utils.file_io import read_h5
 
 
 class TestFullZeroPi(BaseTest):
@@ -25,7 +25,8 @@ class TestFullZeroPi(BaseTest):
 
     def test_eigenvals(self):
         TESTNAME = 'fullzeropi_1'
-        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
-        self.qbt.set_params_from_h5(h5params)
-        evals_reference = datalist[0]
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + TESTNAME)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        evals_reference = specdata.energy_table
         return self.eigenvals(evals_reference)

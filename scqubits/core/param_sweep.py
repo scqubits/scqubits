@@ -151,7 +151,7 @@ class ParameterSweep:
             energy_table[j] = dressed_eigendata[j][0]
             state_table.append(dressed_eigendata[j][1])
         specdata = SpectrumData(self.param_name, self.param_vals, energy_table, state_table=state_table,
-                                system_params='')
+                                system_params=self.hilbertspace._get_metadata_dict())
         return specdata
 
     def _compute_bare_hamiltonian_constant(self):
@@ -442,28 +442,8 @@ class ParameterSweep:
         return target_label_list, SpectrumData(self.param_name, self.param_vals,
                                                diff_eigenenergy_table, self.hilbertspace.__dict__)
 
-    # def filewrite_h5(self, file_hook):
-    #     """Write spectrum data to h5 file
-    #
-    #         Parameters
-    #         ----------
-    #         file_hook: str or h5py root group
-    #             path for file to be openend, or h5py.Group handle to root in open h5 file
-    #         """
-    #     if isinstance(file_hook, str):
-    #         h5file = h5py.File(file_hook + '.hdf5', 'w')
-    #         h5file_root = h5file.create_group('root')
-    #     else:
-    #         h5file_root = file_hook
-    #
-    #     for index, subsys in enumerate(self.hilbertspace):
-    #         h5file_subgroup = h5file_root.create_group('subsys_' + str(index))
-    #         h5file_subgroup.attrs['type'] = type(subsys)
-    #         subsys.filewrite_params_h5(h5file_subgroup)
-
-
-
 # sweep_data generators --------------------------------------------------------------------------------
+
 
 def dispersive_chis(sweep, param_index, qubit_subsys=None, osc_subsys=None):
     """

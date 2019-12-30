@@ -10,6 +10,9 @@
 ############################################################################
 
 
+import numpy as np
+
+
 def process_which(which, max_index):
     """
 
@@ -37,3 +40,18 @@ def make_bare_labels(hilbertspace, subsys_index1, label1, subsys_index2, label2)
     bare_labels[subsys_index1] = label1
     bare_labels[subsys_index2] = label2
     return tuple(bare_labels)
+
+
+def process_metadata(full_dict):
+    reduced_dict = {}
+    for key, param_obj in full_dict.items():
+        if key[0] == '_':
+            continue
+        if isinstance(param_obj, (int, float, np.number)):
+            reduced_dict[key] = param_obj
+        elif key == 'grid':
+            grid_dict = param_obj._get_metadata_dict()
+            reduced_dict.update(grid_dict)
+        else:
+            reduced_dict[key] = str(param_obj)
+    return reduced_dict

@@ -12,9 +12,12 @@
 
 import numpy as np
 
-from scqubits import Transmon
+import scqubits.settings
+from scqubits import Transmon, FileType
+from scqubits.core.data_containers import SpectrumData
 from scqubits.tests.conftest import BaseTest, DATADIR
-from scqubits.utils.file_io import read_h5
+
+scqubits.settings.file_format = FileType.h5
 
 
 class TestTransmon(BaseTest):
@@ -22,16 +25,18 @@ class TestTransmon(BaseTest):
 
     def test_eigenvals(self):
         TESTNAME = 'transmon_1'
-        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
-        self.qbt.set_params_from_h5(h5params)
-        evals_reference = datalist[0]
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + TESTNAME)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        evals_reference = specdata.energy_table
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
         TESTNAME = 'transmon_2'
-        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
-        self.qbt.set_params_from_h5(h5params)
-        evecs_reference = datalist[1]
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + TESTNAME)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        evecs_reference = specdata.state_table
         return self.eigenvecs(evecs_reference)
 
     def test_plot_evals_vs_paramvals_ng(self):
@@ -41,18 +46,19 @@ class TestTransmon(BaseTest):
 
     def test_get_spectrum_vs_paramvals(self):
         TESTNAME = 'transmon_4'
-        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
-        self.qbt.set_params_from_h5(h5params)
-        ng_list = datalist[0]
-        evals_reference = datalist[1]
-        evecs_reference = datalist[2]
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + TESTNAME)
+        ng_list = specdata.param_vals
+        evecs_reference = specdata.state_table
+        evals_reference = specdata.energy_table
         return self.get_spectrum_vs_paramvals('ng', ng_list, evals_reference, evecs_reference)
 
     def test_matrixelement_table(self):
         TESTNAME = 'transmon_5'
-        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
-        self.qbt.set_params_from_h5(h5params)
-        matelem_reference = datalist[0]
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + TESTNAME)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        matelem_reference = specdata.matrixelem_table
         return self.matrixelement_table('n_operator', matelem_reference)
 
     def test_plot_evals_vs_paramvals_EJ(self):

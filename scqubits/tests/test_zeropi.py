@@ -13,29 +13,34 @@
 import numpy as np
 
 import scqubits as qubit
-from scqubits import ZeroPi
+import scqubits.settings
+from scqubits import ZeroPi, FileType
+from scqubits.core.data_containers import SpectrumData
 from scqubits.tests.conftest import BaseTest, DATADIR
-from scqubits.utils.file_io import read_h5
+
+scqubits.settings.file_format = FileType.h5
 
 
 class TestZeroPi(BaseTest):
-    phi_grid = qubit.Grid1d(1, 2, 3)
-    qbt = ZeroPi(grid=phi_grid, EJ=None, EL=None, ECJ=1, EC=None, ECS=2, ng=None, flux=None, ncut=None)
+    grid = qubit.Grid1d(1, 2, 3)
+    qbt = ZeroPi(grid=grid, EJ=None, EL=None, ECJ=1, EC=None, ECS=2, ng=None, flux=None, ncut=None)
 
     # dummy values, will read in actual values from h5 files
 
     def test_eigenvals(self):
         TESTNAME = 'zeropi_1'
-        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
-        self.qbt.set_params_from_h5(h5params)
-        evals_reference = datalist[0]
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + TESTNAME)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        evals_reference = specdata.energy_table
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
         TESTNAME = 'zeropi_2'
-        h5params, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
-        self.qbt.set_params_from_h5(h5params)
-        evecs_reference = datalist[1]
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + TESTNAME)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        evecs_reference = specdata.state_table
         return self.eigenvecs(evecs_reference)
 
     def test_plot_evals_vs_paramvals(self):
@@ -45,18 +50,19 @@ class TestZeroPi(BaseTest):
 
     def test_get_spectrum_vs_paramvals(self):
         TESTNAME = 'zeropi_4'
-        hfile_root, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
-        self.qbt.set_params_from_h5(hfile_root)
-        flux_list = datalist[0]
-        evals_reference = datalist[1]
-        evecs_reference = datalist[2]
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + TESTNAME)
+        flux_list = specdata.param_vals
+        evecs_reference = specdata.state_table
+        evals_reference = specdata.energy_table
         return self.get_spectrum_vs_paramvals('flux', flux_list, evals_reference, evecs_reference)
 
     def test_matrixelement_table(self):
         TESTNAME = 'zeropi_5'
-        h5file_root, datalist = read_h5(DATADIR + TESTNAME + '.hdf5')
-        self.qbt.set_params_from_h5(h5file_root)
-        matelem_reference = datalist[0]
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + TESTNAME)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        matelem_reference = specdata.matrixelem_table
         return self.matrixelement_table('n_theta_operator', matelem_reference)
 
     #   TESTNAME = 'zeropi_6'

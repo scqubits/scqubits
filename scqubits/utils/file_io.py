@@ -12,66 +12,150 @@
 Helper routines for writing data to CSV and h5 files.
 """
 
+import os
+import csv
 import h5py
 import numpy as np
+from scqubits.utils.constants import FileType
 
 
-def filewrite_csvdata(filename, numpy_array):
-    """Writes numpy array to file as CSV data.
+class FileIOFactory:
+    """Factory method for choosing reader/writer according to given format"""
+    def get_writer(self, format):
+        if format is FileType.csv:
+            return CsvWriter()
+        elif format is FileType.h5:
+            return H5Writer()
 
-    Parameters
-    ----------
-    filename: str
-        path and filename of output file (.csv suffix appended automatically)
-
-    numpy_array: ndarray
-        data to be written
-    """
-    np.savetxt(filename + '.csv', numpy_array, delimiter=",")
+    def get_reader(self, format):
+        if format is FileType.csv:
+            return CsvReader()
+        elif format is FileType.h5:
+            return H5Reader()
 
 
-def filewrite_h5data(file_hook, numpy_data_list, data_info_strings):
-    """Write given data along with information describing each data set to an h5 data file.
+factory = FileIOFactory()
 
-    Parameters
-    ----------
-    file_hook: str or h5py root group
-    numpy_data_list: list
-        list of ndarrays containing datasets to be written
-    data_info_strings: list of str
-        text describing the data items to be written
-    """
-    if isinstance(file_hook, str):
-        h5file = h5py.File(file_hook + '.hdf5', 'w')
+
+class ObjectWriter:
+    """Sets up the appropriate writer, calls the object's serializer to obtain data, then writes to file."""
+    def filewrite(self, the_object, format, filename):
+        """
+        Parameters
+        ----------
+        the_object: object
+        format: FileType
+        filename: str
+
+        Returns
+        -------
+        exit_info
+        """
+        writer = factory.get_writer(format)
+        the_object._serialize(writer)
+        return writer.do_writing(filename)
+
+
+class ObjectReader:
+    """Sets up the appropriate reader, extracts data from file, then uses the object's ._initialize_from_fileread."""
+    def fileread(self, the_object, format, filename):
+        """
+        Parameters
+        ----------
+        the_object: object
+        format: FileType
+        filename: str
+
+        Returns
+        -------
+        exit_info
+        """
+        reader = factory.get_reader(format)
+        extracted_data = reader.do_reading(filename)
+        the_object._initialize_from_fileread(*extracted_data)
+
+
+class BaseWriter:
+    def __init__(self):
+        self._current_object_meta = None
+        self._current_object_data = {}
+
+    def create_meta(self, meta_data):
+        """
+        Parameters
+        ----------
+        meta_data: dict
+        """
+        self._current_object_meta = meta_data
+
+    def add_dataset(self, name, data):
+        self._current_object_data[name] = data
+
+    def do_writing(self, filename):
+        pass
+
+
+class CsvWriter(BaseWriter):
+    def __init__(self):
+        super().__init__()
+
+    def do_writing(self, filename):
+        filename_stub = os.path.splitext(filename)[0]
+
+        with open(filename_stub + '_meta.csv', mode='w') as meta_file:
+            file_writer = csv.writer(meta_file, delimiter=',')
+            file_writer.writerow(self._current_object_meta.keys())
+            file_writer.writerow(self._current_object_meta.values())
+
+        for dataname, dataset in self._current_object_data.items():
+            np.savetxt(filename_stub + '_' + dataname + '.csv', dataset)
+
+
+class H5Writer(BaseWriter):
+    def __init__(self):
+        super().__init__()
+
+    def do_writing(self, filename):
+        """
+        Parameters
+        ----------
+        filename: str
+        """
+        filename_stub = os.path.splitext(filename)[0]
+        h5file = h5py.File(filename_stub + '.hdf5', 'w')
         h5file_root = h5file.create_group('root')
-    else:
-        h5file_root = file_hook
 
-    for dataset_index, dataset in enumerate(numpy_data_list):
-        if dataset is not None or []:
-            h5dataset = h5file_root.create_dataset("data_" + str(dataset_index), data=dataset, dtype=dataset.dtype)
-            h5dataset.attrs['data_info_' + str(dataset_index)] = str(data_info_strings[dataset_index])
+        h5file_root.attrs.update(self._current_object_meta)
+
+        for dataname, dataset in self._current_object_data.items():
+            h5file_root.create_dataset(dataname, data=dataset, dtype=dataset.dtype, compression="gzip")
 
 
-def read_h5(filename):
-    """Read scqubit data from an h5 file
+class CsvReader:
+    pass
 
-    Parameters
-    ----------
-    filename: str or h5py.File
-        Path for file to be opened, or open h5py handle
 
-    Returns
-    -------
-    h5py.Group: handle to 'root' of h5 file
-    list: list of datasets
-    """
-    h5file = h5py.File(filename, 'r')
-    datalist = []
+class H5Reader:
+    def do_reading(self, filename):
+        """
+        Parameters
+        ----------
+        filename: str
 
-    def func(name, obj):
-        if isinstance(obj, h5py.Dataset):
-            datalist.append(obj)
+        Returns
+        -------
+        dict, list, list
+            dictionary of metadata, list of dataset names, list of ndarrays with data
+        """
+        metadata = {}
+        data_list = []
+        dataname_list = []
 
-    h5file['root'].visititems(func)
-    return h5file['root'], datalist
+        filename_stub = os.path.splitext(filename)[0]
+        with h5py.File(filename_stub + '.hdf5', 'r') as h5file:
+            for dataname, dataset in h5file['root'].items():
+                dataname_list.append(dataname)
+                data_list.append(dataset[:])
+            for key, value in h5file['root'].attrs.items():
+                metadata[key] = value
+        return metadata, dataname_list, data_list

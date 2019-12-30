@@ -355,3 +355,14 @@ class HilbertSpace(list):
             return None
         basis_labels = self.state_lookup_table[param_index][1][lookup_position]
         return basis_labels
+
+    def _get_metadata_dict(self):
+        meta_dict = {}
+        for index, subsystem in enumerate(self):
+            subsys_meta = subsystem._get_metadata_dict()
+            renamed_subsys_meta = {}
+            for key in subsys_meta.keys():
+                renamed_subsys_meta[type(subsystem).__name__ + str(index) + '_' + key] = subsys_meta[key]
+            meta_dict.update(renamed_subsys_meta)
+        return meta_dict
+

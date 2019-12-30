@@ -41,7 +41,6 @@ extensions = ['sphinx.ext.autodoc',
 
 html_show_sourcelink = False
 
-#autodoc_default_flags = ['members', 'inherited-members']
 autodoc_default_flags = ['members']
 
 # Add any paths that contain templates here, relative to this directory.

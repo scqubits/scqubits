@@ -265,30 +265,20 @@ class FullZeroPi(QubitBaseClass):
             _, zeropi_states = self._zeropi.eigensys(evals_count=evals_count)
         return self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(zeropi_states)
 
-    def filewrite_params_h5(self, h5file_root):
-        """Write current qubit parameters into a given h5 data file.
+    def set_params_from_dict(self, meta_dict):
+        """Set object parameters by given metadata dictionary
 
         Parameters
         ----------
-        h5file_root: open h5py file
+        meta_dict: dict
         """
-        super().filewrite_params_h5(h5file_root)
-        self.grid.filewrite_params_h5(h5file_root)
-
-    def set_params_from_h5(self, h5file_root):
-        """Read and store parameters from open h5 file
-
-        Parameters
-        ----------
-        h5file_root: h5py.Group
-            handle to root group in open h5 file
-        """
-        super().set_params_from_h5(h5file_root)
-        grid_attrs = h5file_root.get('grid').attrs
-        self.grid.min_val = grid_attrs['min_val']
-        self.grid.max_val = grid_attrs['max_val']
-        self.grid.pt_count = grid_attrs['pt_count']
-
+        for param_name in meta_dict.keys():
+            param_value = meta_dict[param_name]
+            if isinstance(param_value, (int, float, np.number)):
+                if param_name in self.grid.__dict__.keys():
+                    setattr(self.grid, param_name, param_value)
+                else:
+                    setattr(self, param_name, param_value)
         self._zeropi = ZeroPi(
             EJ=self.EJ,
             EL=self.EL,

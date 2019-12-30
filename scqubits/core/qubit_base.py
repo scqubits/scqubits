@@ -14,20 +14,16 @@ Provides the base classes for qubits
 
 import abc
 
-import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
 import scqubits as qubits
-import scqubits.settings as config
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.data_containers import SpectrumData
 from scqubits.settings import in_ipython, TQDM_KWARGS
-from scqubits.utils.constants import FileType
-from scqubits.utils.file_io import filewrite_csvdata, filewrite_h5data
-from scqubits.utils.misc import process_which
+from scqubits.utils.misc import process_which, process_metadata
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
 if in_ipython:
@@ -43,7 +39,7 @@ class QuantumSystem:
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
-        self._sys_type = 'quantum system'
+        self._sys_type = 'quantum_system'
 
     def __str__(self):
         output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
@@ -56,19 +52,10 @@ class QuantumSystem:
     @abc.abstractmethod
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
+        pass
 
-    def filewrite_params_h5(self, h5file_root):
-        """Write current qubit parameters into a given h5 data file.
-
-        Parameters
-        ----------
-        h5file_root: root group of open h5py file
-        """
-        for key, info in self.__dict__.items():
-            if isinstance(info, (int, float, np.number)):
-                h5file_root.attrs[key] = info
-            else:
-                h5file_root.attrs[key] = str(info)
+    def _get_metadata_dict(self):
+        return process_metadata(self.__dict__)
 
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -116,7 +103,9 @@ class QubitBaseClass(QuantumSystem):
         """
         evals = self._evals_calc(evals_count)
         if filename:
-            self.filewrite_data(filename, [evals], [''])
+            specdata = SpectrumData('const_parameters', param_vals=np.empty(0), energy_table=evals,
+                                    system_params=self._get_metadata_dict())
+            specdata.filewrite(filename)
         return evals
 
     def eigensys(self, evals_count=6, filename=None):
@@ -137,7 +126,9 @@ class QubitBaseClass(QuantumSystem):
         """
         evals, evecs = self._esys_calc(evals_count)
         if filename:
-            self.filewrite_data(filename, [evals, evecs], ["evals", "evecs"])
+            specdata = SpectrumData('const_parameters', param_vals=np.empty(0), energy_table=evals,
+                                    system_params=self._get_metadata_dict(), state_table=evecs)
+            specdata.filewrite(filename)
         return evals, evecs
 
     def try_defaults(self, var_range, var_count):
@@ -184,7 +175,9 @@ class QubitBaseClass(QuantumSystem):
         operator_matrix = getattr(self, operator)()
         table = get_matrixelement_table(operator_matrix, evecs)
         if filename:
-            self.filewrite_data(filename, [table], [''])
+            specdata = SpectrumData('const_parameters', param_vals=np.empty(0), energy_table=np.empty(0),
+                                    system_params=self._get_metadata_dict(), matrixelem_table=table)
+            specdata.filewrite(filename)
         return table
 
     def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', xlabel='', ylabel='', zlabel='',
@@ -271,7 +264,7 @@ class QubitBaseClass(QuantumSystem):
 
         setattr(self, param_name, previous_paramval)
 
-        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self.__dict__,
+        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
                                     state_table=eigenstate_table)
         if filename:
             spectrumdata.filewrite(filename)
@@ -316,7 +309,7 @@ class QubitBaseClass(QuantumSystem):
 
         setattr(self, param_name, previous_paramval)
 
-        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self.__dict__,
+        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
                                     state_table=eigenstate_table, matrixelem_table=matelem_table)
         if filename:
             spectrumdata.filewrite(filename)
@@ -397,41 +390,17 @@ class QubitBaseClass(QuantumSystem):
         return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, xlim=x_range, ylim=y_range,
                                          filename=filename, fig_ax=fig_ax)
 
-    def filewrite_data(self, filename, list_of_arrays, list_of_names):
-        """Write data to file.
+    def set_params_from_dict(self, meta_dict):
+        """Set object parameters by given metadata dictionary
 
         Parameters
         ----------
-        filename: str
-            path and name of output file (suffix appended automatically)
-        list_of_arrays: list of ndarray
-        list_of_names: list of str
+        meta_dict: dict
         """
-        if config.file_format is FileType.csv:
-            for data, name in zip(list_of_arrays, list_of_names):
-                filewrite_csvdata(filename + name, data)
-                with open(filename + constants.PARAMETER_FILESUFFIX, 'w') as target_file:
-                    target_file.write(self.__str__())
-        elif config.file_format is FileType.h5:
-            h5file = h5py.File(filename + '.hdf5', 'w')
-            h5file_root = h5file.create_group('root')
-            filewrite_h5data(h5file_root, list_of_arrays, list_of_names)
-            self.filewrite_params_h5(h5file_root)
-            h5file.close()
-
-    def set_params_from_h5(self, h5file_root):
-        """Read and store parameters from h5 file
-
-        Parameters
-        ----------
-        h5file_root: h5py.Group
-            handle to root group in open h5 file
-        """
-        h5params = h5file_root.attrs
-        for paramname in h5params.keys():
-            paramvalue = h5params[paramname]
-            if isinstance(paramvalue, (int, float, np.number)):
-                setattr(self, paramname, h5params[paramname])
+        for param_name in meta_dict.keys():
+            param_value = meta_dict[param_name]
+            if isinstance(param_value, (int, float, np.number)):
+                setattr(self, param_name, param_value)
 
 
 # —QubitBaseClass1d———————————————————————————————————————————————————————————————————————————————————————————————————————

@@ -69,6 +69,7 @@ class Explorer:
             axes_list_flattened[index].axvline(param_val, color='gray', linestyle=':')
             axes_list_flattened[index].scatter([param_val], [(energy_final - energy_initial) / photonnumber], s=40,
                                                c='gray')
+
         def display_chi_01():
             __ = splot.chi_01(self.sweep, chi_qbt_index, chi_osc_index, param_index=param_index,
                               fig_ax=(fig, axes_list_flattened[index]))
@@ -136,12 +137,12 @@ class Explorer:
         initial_slider.observe(update_min_final_index, 'value')
 
         out = ipywidgets.interactive_output(self.plot_explorer_panels,
-                                            { 'param_val': param_slider,
-                                              'photonnumber': photon_slider,
-                                              'initial_index': initial_slider,
-                                              'final_index': final_slider,
-                                              'chi_qbt_index': chi_qbt_dropdown,
-                                              'chi_osc_index': chi_osc_dropdown})
+                                            {'param_val': param_slider,
+                                             'photonnumber': photon_slider,
+                                             'initial_index': initial_slider,
+                                             'final_index': final_slider,
+                                             'chi_qbt_index': chi_qbt_dropdown,
+                                             'chi_osc_index': chi_osc_dropdown})
 
         left_box = ipywidgets.VBox([param_slider])
         mid_box = ipywidgets.VBox([initial_slider, final_slider, photon_slider])
