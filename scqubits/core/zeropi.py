@@ -11,7 +11,7 @@
 
 import numpy as np
 from scipy import sparse
-
+import itertools
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.data_containers import WaveFunctionOnGrid
@@ -142,8 +142,12 @@ class ZeroPi(QubitBaseClass):
                 + self.EL * phi ** 2 + 2.0 * self.EJ
                 + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
 
-    def sparse_kineticmat(self):
+    def sparse_kinetic_mat(self):
         """
+        Kinetic energy portion of the Hamiltonian.
+
+        TODO: update this method to use single-variable operator methods 
+
         Returns
         -------
         scipy.sparse.csc_matrix
@@ -166,8 +170,12 @@ class ZeroPi(QubitBaseClass):
 
         return kinetic_matrix
 
-    def sparse_potentialmat(self):
+    def sparse_potential_mat(self):
         """
+        Potential energy portion of the Hamiltonian.
+
+        TODO: update this method to use single-variable operator methods 
+
         Returns
         -------
         scipy.sparse.csc_matrix
@@ -189,22 +197,87 @@ class ZeroPi(QubitBaseClass):
                                * (sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)) +
                                   sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)))).tocsc()
         potential_mat = (sparse.kron(phi_cos_potential, theta_cos_potential, format='csc')
-                         + sparse.kron(phi_inductive_potential, self.identity_theta(), format='csc')
-                         + 2 * self.EJ * sparse.kron(self.identity_phi(), self.identity_theta(), format='csc'))
-        potential_mat += self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self.identity_theta(), format='csc')\
+                         + sparse.kron(phi_inductive_potential, self._identity_theta(), format='csc')
+                         + 2 * self.EJ * sparse.kron(self._identity_phi(), self._identity_theta(), format='csc'))
+        potential_mat += self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')\
                          * self.sin_theta_operator()
 
         return potential_mat
 
     def hamiltonian(self):
-        """Returns Hamiltonian in basis obtained by discretizing phi and employing charge basis for theta"""
-        return self.sparse_kineticmat() + self.sparse_potentialmat()
+        """Calculates Hamiltonian in basis obtained by discretizing phi and employing charge basis for theta.
 
-    def identity_phi(self):
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the potential energy operator
+        """
+        return self.sparse_kinetic_mat() + self.sparse_potential_mat()
+
+
+    def sparse_d_potential_d_flux_mat(self):
+        """Calculates a of the potential energy w.r.t flux, at the current value of flux, 
+        as stored in the object. 
+
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
+        So if \frac{\partial U}{ \partial \Phi_{\rm ext}}, is needed, the expression returned 
+        by this function, needs to be multiplied by 1/\Phi_0.
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the potential energy operator
+        """
+
+        min_val = self.grid.min_val
+        max_val = self.grid.max_val
+        pt_count = self.grid.pt_count
+        dim_theta = 2 * self.ncut + 1
+        
+        op_1=sparse.kron(self._sin_phi_operator(x=- 2.0 * np.pi * self.flux / 2.0),
+                self._cos_theta_operator(), format='csc')
+        op_2=sparse.kron(self._cos_phi_operator(x=- 2.0 * np.pi * self.flux / 2.0),
+                self._sin_theta_operator(), format='csc')
+
+        # return  - (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
+                # - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
+        return - 2.0 * np.pi * self.EJ * op_1  - np.pi * self.EJ * self.dEJ *  op_2
+
+
+    def d_hamiltonian_d_flux(self):
+        """Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux, 
+        as stored in the object. 
+
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
+        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned 
+        by this function, needs to be multiplied by 1/\Phi_0.
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the potential energy operator
+        """
+        return self.sparse_d_potential_d_flux_mat()
+
+    def _identity_phi(self):
+        r"""
+        Identity operator acting only on the `\phi` Hilbert subspace.
+
+        Returns
+        -------
+            scipy.sparse.csc_matrix
+        """
         pt_count = self.grid.pt_count
         return sparse.identity(pt_count, format='csc')
 
-    def identity_theta(self):
+    def _identity_theta(self):
+        r"""
+        Identity operator acting only on the `\theta` Hilbert subspace.
+
+        Returns
+        -------
+            scipy.sparse.csc_matrix
+        """
         dim_theta = 2 * self.ncut + 1
         return sparse.identity(dim_theta, format='csc')
 
@@ -216,11 +289,13 @@ class ZeroPi(QubitBaseClass):
         -------
             scipy.sparse.csc_matrix
         """
-        return sparse.kron(self.grid.first_derivative_matrix(prefactor=1j), self.identity_theta(), format='csc')
+        return sparse.kron(self.grid.first_derivative_matrix(prefactor=1j), self._identity_theta(), format='csc')
 
-    def phi_operator(self):
+
+    def _phi_operator(self):
         r"""
-        Operator :math:`\varphi`.
+        Operator :math:`\varphi`, acting only on the `\varphi` Hilbert subspace.
+
 
         Returns
         -------
@@ -234,7 +309,17 @@ class ZeroPi(QubitBaseClass):
         diag_elements = np.linspace(min_val, max_val, pt_count)
         phi_matrix.setdiag(diag_elements)
 
-        return sparse.kron(phi_matrix, self.identity_theta(), format='csc')
+        return phi_matrix
+
+    def phi_operator(self):
+        r"""
+        Operator :math:`\varphi`.
+
+        Returns
+        -------
+            scipy.sparse.csc_matrix
+        """
+        return sparse.kron(self._phi_operator(), self._identity_theta(), format='csc')
 
     def n_theta_operator(self):
         r"""
@@ -248,11 +333,46 @@ class ZeroPi(QubitBaseClass):
         diag_elements = np.arange(-self.ncut, self.ncut + 1)
         n_theta_matrix = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
 
-        return sparse.kron(self.identity_phi(), n_theta_matrix, format='csc')
+        return sparse.kron(self._identity_phi(), n_theta_matrix, format='csc')
 
-    def cos_theta_operator(self):
+    def _sin_phi_operator(self, x=0):
         r"""
-        Operator :math:`\cos(\theta)`.
+        Operator :math:`\sin(\phi + x)`, acting only on the `\phi` Hilbert subspace.
+
+        Returns
+        -------
+            scipy.sparse.csc_matrix
+        """
+        min_val = self.grid.min_val
+        max_val = self.grid.max_val
+        pt_count = self.grid.pt_count
+
+        vals = np.sin(np.linspace(min_val, max_val, pt_count) + x)
+        sin_phi_matrix = sparse.dia_matrix((vals, [0]), shape=(pt_count, pt_count)).tocsc()
+
+        return sin_phi_matrix
+
+    def _cos_phi_operator(self, x=0):
+        r"""
+        Operator :math:`\cos(\phi + x)`, acting only on the `\phi` Hilbert subspace.
+
+        Returns
+        -------
+            scipy.sparse.csc_matrix
+        """
+        min_val = self.grid.min_val
+        max_val = self.grid.max_val
+        pt_count = self.grid.pt_count
+
+        vals = np.cos(np.linspace(min_val, max_val, pt_count) + x)
+        cos_phi_matrix = sparse.dia_matrix((vals, [0]), shape=(pt_count, pt_count)).tocsc()
+
+        return cos_phi_matrix
+
+
+    def _cos_theta_operator(self):
+        r"""
+        Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
 
         Returns
         -------
@@ -262,11 +382,22 @@ class ZeroPi(QubitBaseClass):
         cos_theta_matrix = 0.5 * (sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)) +
                                   sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta))).tocsc()
 
-        return sparse.kron(self.identity_phi(), cos_theta_matrix, format='csc')
+        return cos_theta_matrix
 
-    def sin_theta_operator(self):
+
+    def cos_theta_operator(self):
         r"""
-        Operator :math:`\sin(\theta)`.
+        Operator :math:`\cos(\theta)`.
+
+        Returns
+        -------
+            scipy.sparse.csc_matrix
+        """
+        return sparse.kron(self._identity_phi(), self._cos_phi_operator(), format='csc')
+
+    def _sin_theta_operator(self):
+        r"""
+        Operator :math:`\sin(\theta)`, acting only on the `\theta` Hilbert space. 
 
         Returns
         -------
@@ -277,7 +408,17 @@ class ZeroPi(QubitBaseClass):
                            (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
                             sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc()
 
-        return sparse.kron(self.identity_phi(), sin_theta_matrix, format='csc')
+        return sin_theta_matrix
+
+    def sin_theta_operator(self):
+        r"""
+        Operator :math:`\sin(\theta)`.
+
+        Returns
+        -------
+            scipy.sparse.csc_matrix
+        """
+        return sparse.kron(self._identity_phi(), self._sin_theta_operator(), format='csc')
 
     def plot_potential(self, theta_pts=100, contour_vals=None, aspect_ratio=None, filename=None):
         """Draw contour plot of the potential energy.

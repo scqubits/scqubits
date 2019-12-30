@@ -38,7 +38,6 @@ class FullZeroPi(QubitBaseClass):
     product basis of the decoupled Zero-Pi qubit (see ``ZeroPi``)  on one hand, and the zeta LC oscillator on the other
     hand.
 
-
     Parameters
     ----------
     EJ: float
@@ -52,7 +51,7 @@ class FullZeroPi(QubitBaseClass):
     dEJ: float
         relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
     dEL: float
-        relative disorder in EL, i.e., (EL1-EL2)/EL(mean)
+        relative disorder in EL, i.e., (EL1-EL2)/ELavg
     dCJ: float
         relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg
     dC: float
@@ -171,9 +170,12 @@ class FullZeroPi(QubitBaseClass):
         return hamiltonian_mat.tocsc()
 
     def _zeropi_operator_in_product_basis(self, zeropi_operator, zeropi_evecs=None):
-        """Helper method that converts a zeropi operator into one in the product basis'
+        """Helper method that converts a zeropi operator into one in the product basis.
 
-        TODO: Could update d_hamiltonian_EJ(),  d_hamiltonian_ng(),  d_hamiltonian_flux() to use this.
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            operator written in the product basis
         """
         zeropi_dim = self.zeropi_cutoff
         zeta_dim = self.zeta_cutoff
