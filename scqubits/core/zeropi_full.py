@@ -167,7 +167,25 @@ class FullZeroPi(QubitBaseClass):
 
         if return_parts:
             return [hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat]
+
         return hamiltonian_mat.tocsc()
+
+    def d_hamiltonian_d_flux(self, zeropi_evecs=None):
+        """Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux, 
+        as stored in the object. The returned operator is in the product basis
+
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
+        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned 
+        by this function, needs to be multiplied by 1/\Phi_0.
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the Hamiltonian 
+        """
+        return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_flux(), 
+                zeropi_evecs=zeropi_evecs)
+
 
     def _zeropi_operator_in_product_basis(self, zeropi_operator, zeropi_evecs=None):
         """Helper method that converts a zeropi operator into one in the product basis.
@@ -195,12 +213,12 @@ class FullZeroPi(QubitBaseClass):
 
     def i_d_dphi_operator(self, zeropi_evecs=None):
         r"""
-    Operator :math:`i d/d\varphi`.
+        Operator :math:`i d/d\varphi`.
 
-    Returns
-    -------
-        scipy.sparse.csc_matrix
-    """
+        Returns
+        -------
+            scipy.sparse.csc_matrix
+        """
         return self._zeropi_operator_in_product_basis(self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs)
 
     def n_theta_operator(self, zeropi_evecs=None):

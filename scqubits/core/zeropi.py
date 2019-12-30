@@ -226,7 +226,7 @@ class ZeroPi(QubitBaseClass):
         Returns
         -------
         scipy.sparse.csc_matrix
-            matrix representing the potential energy operator
+            matrix representing the derivative of the potential energy 
         """
 
         min_val = self.grid.min_val
@@ -255,7 +255,7 @@ class ZeroPi(QubitBaseClass):
         Returns
         -------
         scipy.sparse.csc_matrix
-            matrix representing the potential energy operator
+            matrix representing the derivative of the Hamiltonian 
         """
         return self.sparse_d_potential_d_flux_mat()
 
