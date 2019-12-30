@@ -110,13 +110,22 @@ class ZeroPi(QubitBaseClass):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def ECS(self):
-        """
-        Returns
-        -------
-        float: value for ECS, calculated from EC and ECJ
-        """
+    # def ECS(self):
+        # """
+        # Returns
+        # -------
+        # float: value for ECS, calculated from EC and ECJ
+        # """
+        # return 1 / (1 / self.EC + 1 / self.ECJ)
+
+    def get_ECS(self):
         return 1 / (1 / self.EC + 1 / self.ECJ)
+
+    def set_ECS(self, value):
+        raise ValueError("It's not possible to directly set ECS. Instead one can set EC or ECS, or use set_EC_via_ECS().")
+
+    ECS = property(get_ECS,set_ECS)
+
 
     def set_EC_via_ECS(self, ECS):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
@@ -160,13 +169,13 @@ class ZeroPi(QubitBaseClass):
 
         kinetic_matrix_phi = self.grid.second_derivative_matrix(prefactor=-2.0 * self.ECJ)
 
-        diag_elements = 2.0 * self.ECS() * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
+        diag_elements = 2.0 * self.ECS * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
 
         kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc')\
                          + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc')
 
-        kinetic_matrix -= 2.0 * self.ECS() * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
+        kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
 
         return kinetic_matrix
 
