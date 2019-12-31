@@ -11,6 +11,7 @@
 
 
 import numpy as np
+import copy
 
 import scqubits.utils.plotting as plot
 from scqubits.settings import DEFAULT_ENERGY_UNITS
@@ -186,3 +187,14 @@ def chi_01(sweep, qbt_index, osc_index, param_index=0, fig_ax=None):
     title = r'$\chi_{{01}}=${:.4f} {}'.format(ydata[param_index], DEFAULT_ENERGY_UNITS)
     return plot.data_vs_paramvals(xdata, ydata, xlim=None, ymax=None, xlabel=xlabel, ylabel=ylabel, title=title,
                                   label_list=None, fig_ax=fig_ax)
+
+
+def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, title=None, fig_ax=None):
+    data_key = 'n_op_qbt{}'.format(qbt_index)
+    specdata = copy.deepcopy(sweep.bare_specdata_list[qbt_index])
+    specdata.matrixelem_table = sweep.sweep_data[data_key]
+    xlabel = sweep.param_name
+    ylabel = r'$|\langle i |n| j \rangle$'
+    label_list = [(initial_state_idx, final_idx) for final_idx in range(sweep.hilbertspace[qbt_index].truncated_dim)]
+    return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs', xlabel=xlabel, ylabel=ylabel,
+                                     title=title, fig_ax=fig_ax)

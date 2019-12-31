@@ -17,6 +17,7 @@ from scqubits.core.data_containers import SpectrumData
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.settings import TQDM_KWARGS
 from scqubits.utils.misc import make_bare_labels
+from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 
 class ParameterSweep:
@@ -44,7 +45,7 @@ class ParameterSweep:
         specifies the interaction Hamiltonian
     """
     def __init__(self, param_name, param_vals, evals_count, hilbertspace, subsys_update_list, update_hilbertspace,
-                 interaction_list, generate_chi=False):
+                 interaction_list):
         self.param_name = param_name
         self.param_vals = param_vals
         self.param_count = len(param_vals)
@@ -60,7 +61,6 @@ class ParameterSweep:
         self.hilbertspace._state_lookup_table = None
 
         self.sweep_data = {}
-        self._generate_chi = generate_chi
 
         # generate the spectral data sweep
         self.generate_parameter_sweep()
@@ -73,8 +73,6 @@ class ParameterSweep:
         self.hilbertspace.state_lookup_table = \
             [self.hilbertspace.generate_state_lookup_table(self.dressed_specdata, param_index)
              for param_index in range(self.param_count)]
-        if self._generate_chi:
-            self._generate_chi_sweep()
 
     def _compute_bare_specdata_sweep(self):
         """
@@ -240,7 +238,7 @@ class ParameterSweep:
 
         return hamiltonian.eigenstates(eigvals=self.evals_count)
 
-    def _generate_chi_sweep(self):
+    def generate_chi_sweep(self):
         osc_subsys_list = self.hilbertspace.osc_subsys_list
         qbt_subsys_list = self.hilbertspace.qbt_subsys_list
 
@@ -248,6 +246,12 @@ class ParameterSweep:
             for qbt_index, qubit_subsys in qbt_subsys_list:
                 self.compute_custom_data_sweep('chi_osc{}_qbt{}'.format(osc_index, qbt_index), dispersive_chi_01,
                                                qubit_subsys=qubit_subsys, osc_subsys=osc_subsys)
+
+    def generate_charge_matrixelem_sweep(self):
+        for qbt_index, subsys in self.hilbertspace.qbt_subsys_list:
+            if type(subsys).__name__ in ['Transmon', 'Fluxonium']:
+                self.compute_custom_data_sweep('n_op_qbt{}'.format(qbt_index), qubit_matrixelement, qubit_subsys=subsys,
+                                               qubit_operator=subsys.n_operator())
 
     def compute_custom_data_sweep(self, data_name, func, **kwargs):
         """Method for computing custom data as a function of the external parameter, calculated via the function func
@@ -553,3 +557,23 @@ def dispersive_chi_01(sweep, param_index, qubit_subsys=None, osc_subsys=None):
         else:
             chi_values[j] = np.NaN
     return chi_values[1] - chi_values[0]
+
+
+def qubit_matrixelement(sweep, param_index, qubit_subsys, qubit_operator):
+    """
+    For given ParameterSweep and parameter_index, calculate the matrix elements for the provided qubit operator.
+
+    Parameters
+    ----------
+    sweep: ParameterSweep
+    param_index: int
+    qubit_subsys: QuantumSystem
+    qubit_operator: ndarray
+       operator within the qubit subspace
+
+    Returns
+    -------
+    ndarray
+    """
+    bare_evecs = sweep.lookup_bare_eigenstates(param_index, qubit_subsys)
+    return get_matrixelement_table(qubit_operator, bare_evecs)

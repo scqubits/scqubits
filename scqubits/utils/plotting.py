@@ -446,8 +446,8 @@ def evals_vs_paramvals(specdata, which=-1, xlim=False, ymax=None, subtract_groun
                              label_list=label_list, filename=filename, fig_ax=fig_ax, **kwargs)
 
 
-def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=False, filename=None,
-                         fig_ax=None, **kwargs):
+def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=False, xlabel=None, ylabel=None,
+                         title=None, filename=None, fig_ax=None, **kwargs):
     """Generates a simple plot of matrix elements as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
 
@@ -485,8 +485,19 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=
         axes.set_xlim(*xlim)
     if ylim:
         axes.set_ylim(*ylim)
-    axes.set_xlabel(specdata.param_name)
-    axes.set_ylabel('matrix element')
+
+    if xlabel is None:
+        axes.set_xlabel(specdata.param_name)
+    else:
+        axes.set_xlabel(xlabel)
+
+    if ylabel is None:
+        axes.set_ylabel('matrix element')
+    else:
+        axes.set_ylabel(ylabel)
+
+    if title is not None:
+        axes.set_title(title)
 
     modefunction = constants.MODE_FUNC_DICT[mode]
     x = specdata.param_vals
@@ -502,7 +513,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=
             axes.plot(x, y, label=str(index_pair[0]) + ',' + str(index_pair[1]), **kwargs)
 
     if _labellines_enabled:
-        labelLines(axes.get_lines(), zorder=2.5)
+        labelLines(axes.get_lines(), zorder=1.75)
     else:
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 

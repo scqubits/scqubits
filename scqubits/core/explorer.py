@@ -91,9 +91,13 @@ class Explorer:
                               fig_ax=(fig, axes_list_flattened[index]))
             axes_list_flattened[index].axvline(param_val, color='gray', linestyle=':')
 
-        if initial_index >= final_index:
-            print("The initial-state index must be smaller than the final-state index, here.")
-            return
+        def display_charge_matrixelems(index):
+            bare_qbt_initial = bare_initial[qbt_index]
+            title = r'charge matrix elements for {} [{}]'.format(type(qbt_subsys).__name__, qbt_index)
+            __ = splot.charge_matrixelem(self.sweep, qbt_index, bare_qbt_initial, title=title,
+                                         fig_ax=(fig, axes_list_flattened[index]))
+
+            axes_list_flattened[index].axvline(param_val, color='gray', linestyle=':')
 
         param_index = np.searchsorted(self.param_vals, param_val)
         param_val = self.param_vals[param_index]
@@ -103,6 +107,8 @@ class Explorer:
         energy_initial = self.sweep.lookup_energy_dressed_index(initial_index, param_index) - energy_ground
         energy_final = self.sweep.lookup_energy_dressed_index(final_index, param_index) - energy_ground
         energy_difference = energy_final - energy_initial
+        qbt_index = chi_qbt_index
+        qbt_subsys = self.sweep.hilbertspace[chi_qbt_index]
 
         dynamic_subsys_count = len(self.sweep.subsys_update_list)
         ncols = 2
@@ -125,9 +131,12 @@ class Explorer:
         display_n_photon_qubit_transitions(index)
         index += 1
 
-        # next row: left - dispersive shifts
+        # next row: left - dispersive shifts, right: charge matrix elements
         display_chi_01()
+        index += 1
 
+        if type(self.sweep.hilbertspace[chi_qbt_index]).__name__ in ['Transmon', 'Fluxonium']:
+            display_charge_matrixelems(index)
         fig.tight_layout()
         return fig, axs
 
@@ -159,7 +168,8 @@ class Explorer:
                                              'initial_index': initial_slider,
                                              'final_index': final_slider,
                                              'chi_qbt_index': chi_qbt_dropdown,
-                                             'chi_osc_index': chi_osc_dropdown})
+                                             'chi_osc_index': chi_osc_dropdown
+                                            })
 
         left_box = ipywidgets.VBox([param_slider])
         mid_box = ipywidgets.VBox([initial_slider, final_slider, photon_slider])
