@@ -154,7 +154,7 @@ def chi(sweep, qbt_index, osc_index, title=None, fig_ax=None):
     ylabel = r'$\chi_j$' + DEFAULT_ENERGY_UNITS
     state_count = ydata.shape[1]
     label_list = list(range(state_count))
-    return plot.data_vs_paramvals(xdata, ydata, xlim=None, ymax=None, xlabel=xlabel, ylabel=ylabel, title=title,
+    return plot.data_vs_paramvals(xdata, ydata, x_range=None, ymax=None, xlabel=xlabel, ylabel=ylabel, title=title,
                                   label_list=label_list, fig_ax=fig_ax)
 
 
@@ -181,7 +181,7 @@ def chi_01(sweep, qbt_index, osc_index, param_index=0, fig_ax=None):
     xlabel = sweep.param_name
     ylabel = r'$\chi_{{01}}$ [{}]'.format(DEFAULT_ENERGY_UNITS)
     title = r'$\chi_{{01}}=${:.4f} {}'.format(ydata[param_index], DEFAULT_ENERGY_UNITS)
-    return plot.data_vs_paramvals(xdata, ydata, xlim=None, ymax=None, xlabel=xlabel, ylabel=ylabel, title=title,
+    return plot.data_vs_paramvals(xdata, ydata, x_range=None, ymax=None, xlabel=xlabel, ylabel=ylabel, title=title,
                                   label_list=None, fig_ax=fig_ax)
 
 

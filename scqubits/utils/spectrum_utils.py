@@ -236,6 +236,5 @@ def convert_esys_to_ndarray(esys_qutip):
     dimension = esys_qutip[0].shape[0]
     esys_ndarray = np.empty((evals_count, dimension), dtype=np.complex_)
     for index, eigenstate in enumerate(esys_qutip):
-        esys_ndarray[index] = eigenstate.full().reshape(dimension)
-
+        esys_ndarray[index] = eigenstate.full()[:,0]
     return esys_ndarray
