@@ -130,7 +130,7 @@ class Transmon(QubitBaseClass1d):
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
         modefunction = constants.MODE_FUNC_DICT[mode]
         n_wavefunc.amplitudes = modefunction(n_wavefunc.amplitudes)
-        return plot.wavefunction1d_discrete(n_wavefunc, nrange, xlabel='n', ylabel=r'psi_j(n)',
+        return plot.wavefunction1d_discrete(n_wavefunc, x_range=nrange, xlabel='n', ylabel=r'psi_j(n)',
                                             filename=filename)
 
     def plot_phi_wavefunction(self, esys, which=0, phi_range=None, phi_count=None, mode='abs_sqr', scaling=None,
@@ -194,7 +194,7 @@ class Transmon(QubitBaseClass1d):
         phi_basis_labels = np.linspace(*phi_range, phi_count)
         phi_wavefunc_amplitudes = np.empty(phi_count, dtype=np.complex_)
         for k in range(phi_count):
-            phi_wavefunc_amplitudes[k] = ((1.0 / math.sqrt(2 * np.pi)) *
+            phi_wavefunc_amplitudes[k] = ((1j**which / math.sqrt(2 * np.pi)) *
                                           np.sum(n_wavefunc.amplitudes * np.exp(1j * phi_basis_labels[k] *
                                                                                 n_wavefunc.basis_labels)))
         return WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes, energy=evals[which])

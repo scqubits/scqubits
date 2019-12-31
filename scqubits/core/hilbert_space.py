@@ -17,7 +17,7 @@ import qutip as qt
 from scqubits.core.data_containers import SpectrumData
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.settings import in_ipython, TQDM_KWARGS
-from scqubits.utils.spectrum_utils import get_eigenstate_index_maxoverlap, get_matrixelement_table
+from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 if in_ipython:
     from tqdm.notebook import tqdm
@@ -350,15 +350,23 @@ class HilbertSpace(list):
         list(int), list(tuple)
             dressed indices, corresponding bare indices
         """
-        dims = [subsys.truncated_dim for subsys in self]
-        basis_label_ranges = [list(range(subsys.truncated_dim)) for subsys in self]
-        basis_labels_list = [elem for elem in itertools.product(*basis_label_ranges)]
+        dims = self.subsystem_dims
+        product_dim = np.prod(dims)
+        unit_vecs = np.eye(product_dim)
+        bare_basis = [qt.Qobj(dims=[dims, [1]*self.subsystem_count], inpt=unit_vecs[j]) for j in range(product_dim)]
 
-        basis_kets_list = [[qt.basis(dims[subsys_index], label) for subsys_index, label in enumerate(basis_labels)]
-                           for basis_labels in basis_labels_list]
-        bare_basis = [qt.tensor(basis_kets) for basis_kets in basis_kets_list]
-        dressed_indices = [get_eigenstate_index_maxoverlap(spectrum_data.state_table[param_index], bare_state)
-                           for bare_state in bare_basis]
+        overlap_matrix = np.asarray([[eigenstate.overlap(bare_basis_state) for bare_basis_state in bare_basis]
+                                    for eigenstate in spectrum_data.state_table[param_index]])
+
+        dressed_indices = []
+        for bare_basis_index in range(product_dim):
+            max_overlap = np.max(np.abs(overlap_matrix[:, bare_basis_index]))
+            if max_overlap < 0.5:
+                dressed_indices.append(None)
+            else:
+                dressed_indices.append((np.abs(overlap_matrix[:, bare_basis_index])).argmax())
+        basis_label_ranges = [list(range(dims[subsys_index])) for subsys_index in range(self.subsystem_count)]
+        basis_labels_list = [elem for elem in itertools.product(*basis_label_ranges)]
         return [dressed_indices, basis_labels_list]
 
     def lookup_dressed_index(self, bare_labels, param_index=0):
@@ -410,4 +418,3 @@ class HilbertSpace(list):
                 renamed_subsys_meta[type(subsystem).__name__ + str(index) + '_' + key] = subsys_meta[key]
             meta_dict.update(renamed_subsys_meta)
         return meta_dict
-

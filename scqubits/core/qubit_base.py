@@ -316,8 +316,8 @@ class QubitBaseClass(QuantumSystem):
 
         return spectrumdata
 
-    def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                x_range=False, ymax=None, filename=None, fig_ax=None):
+    def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None,
+                                x_range=None, ymax=None, filename=None, fig_ax=None):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -345,11 +345,11 @@ class QubitBaseClass(QuantumSystem):
         Figure, Axes
         """
         specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground)
-        return plot.evals_vs_paramvals(specdata, which=range(evals_count), xlim=x_range, ymax=ymax,
+        return plot.evals_vs_paramvals(specdata, which=range(evals_count), x_range=x_range, ymax=ymax,
                                        filename=filename, fig_ax=fig_ax)
 
     def plot_matelem_vs_paramvals(self, operator, param_name, param_vals, select_elems=4, mode='abs',
-                                  x_range=False, y_range=False, filename=None, fig_ax=None):
+                                  x_range=None, y_range=None, filename=None, fig_ax=None):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -387,8 +387,8 @@ class QubitBaseClass(QuantumSystem):
 
         specdata = self.get_matelements_vs_paramvals(operator, param_name, param_vals, evals_count=evals_count,
                                                      filename=None)
-        return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, xlim=x_range, ylim=y_range,
-                                         filename=filename, fig_ax=fig_ax)
+        return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, x_range=x_range,
+                                         y_range=y_range, filename=filename, fig_ax=fig_ax)
 
     def set_params_from_dict(self, meta_dict):
         """Set object parameters by given metadata dictionary

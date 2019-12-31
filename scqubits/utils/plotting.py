@@ -16,7 +16,6 @@ import numpy as np
 
 try:
     from labellines import labelLines
-
     _labellines_enabled = True
 except ImportError:
     _labellines_enabled = False
@@ -30,8 +29,18 @@ mpl.rcParams['font.family'] = "sans-serif"
 mpl.rcParams['figure.dpi'] = 150
 
 
-def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=None, ylabel='wavefunction', xlabel='phi',
-                   y_range=None, title=None, fig_ax=None, filename=None, **kwargs):
+def _process_options(axes, x_range=None, y_range=None, xlabel=None, ylabel=None, title=None):
+    if x_range is not None:
+        axes.set_xlim(x_range)
+    if y_range is not None:
+        axes.set_ylim(y_range)
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
+    axes.set_title(title)
+
+
+def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=None, xlabel='phi', ylabel='wavefunction',
+                   x_range=None, y_range=None, title=None, fig_ax=None, filename=None, **kwargs):
     """
     Plots the amplitude of a real-valued 1d wave function, along with the potential energy if provided.
 
@@ -49,6 +58,8 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=None, ylabel
         y-axis label
     xlabel: str
         x-axis label
+    x_range: (float, float)
+        plot range for x-axis
     y_range: (float, float)
         plot range for y-axis
     title: str, optional
@@ -65,33 +76,18 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=None, ylabel
     tuple(Figure, Axes)
         matplotlib objects for further editing
     """
-    if fig_ax is None:
-        fig, axes = plt.subplots()
-    else:
-        fig, axes = fig_ax
+    fig, axes = fig_ax or plt.subplots()
 
-    if scaling is None:
-        scaling = 1
-
+    scaling = scaling or 1
     x_vals = wavefunc.basis_labels
     y_vals = offset + scaling * wavefunc.amplitudes
     offset_vals = [offset] * len(x_vals)
 
-    axes.plot(x_vals, y_vals, **kwargs)
-    axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
-
     if potential_vals is not None:
         axes.plot(x_vals, potential_vals, color='gray')
-
-    axes.set_xlabel(xlabel)
-    axes.set_ylabel(ylabel)
-
-    axes.set_xlim(left=x_vals[0], right=x_vals[-1])
-    if y_range is not None:
-        axes.set_ylim(*y_range)
-
-    if title:
-        axes.set_title(title)
+    axes.plot(x_vals, y_vals, **kwargs)
+    axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
+    _process_options(axes, x_range, y_range, xlabel, ylabel, title)
 
     if filename:
         out_file = mplpdf.PdfPages(filename)
@@ -101,8 +97,8 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=None, ylabel
     return fig, axes
 
 
-def wavefunction1d_discrete(wavefunc, x_range, xlabel='x', ylabel='wavefunction', title=None, filename=None,
-                            fig_ax=None, **kwargs):
+def wavefunction1d_discrete(wavefunc, xlabel='x', ylabel='wavefunction', x_range=None, y_range=None, title=None,
+                            filename=None, fig_ax=None, **kwargs):
     """
     Plots the amplitude of a real-valued 1d wave function in a discrete basis. (Example: transmon in the charge basis.)
 
@@ -112,6 +108,8 @@ def wavefunction1d_discrete(wavefunc, x_range, xlabel='x', ylabel='wavefunction'
         basis and amplitude data of wave function to be plotted
     x_range: tupel(int, int)
         lower and upper bound for values on the x axis
+    y_range: (float, float)
+        plot range for y-axis
     xlabel: str
         x-axis label
     ylabel: str
@@ -131,10 +129,7 @@ def wavefunction1d_discrete(wavefunc, x_range, xlabel='x', ylabel='wavefunction'
     tuple(Figure, Axes)
         matplotlib objects for further editing
     """
-    if fig_ax is None:
-        fig, axes = plt.subplots()
-    else:
-        fig, axes = fig_ax
+    fig, axes = fig_ax or plt.subplots()
 
     x_vals = wavefunc.basis_labels
     width = .75
@@ -142,11 +137,7 @@ def wavefunction1d_discrete(wavefunc, x_range, xlabel='x', ylabel='wavefunction'
     axes.bar(x_vals, wavefunc.amplitudes, width=width, **kwargs)
     axes.set_xticks(x_vals + width / 2)
     axes.set_xticklabels(x_vals)
-    axes.set_xlabel(xlabel)
-    axes.set_ylabel(ylabel)
-    axes.set_xlim(x_range)
-    if title:
-        axes.set_title(title)
+    _process_options(axes, x_range, y_range, xlabel, ylabel, title)
 
     if filename:
         out_file = mplpdf.PdfPages(filename)
@@ -180,10 +171,7 @@ def wavefunction2d(wavefunc, figsize=(10, 5), aspect_ratio=3, zero_calibrate=Fal
     tuple(Figure, Axes)
         matplotlib objects for further editing
     """
-    if fig_ax is None:
-        fig, axes = plt.subplots(figsize=figsize)
-    else:
-        fig, axes = fig_ax
+    fig, axes = fig_ax or plt.subplots()
 
     min_vals = wavefunc.gridspec.min_vals
     max_vals = wavefunc.gridspec.max_vals
@@ -333,7 +321,7 @@ def matrix(data_matrix, mode='abs', xlabel='', ylabel='', zlabel='', filename=No
     return fig, (ax1, ax2)
 
 
-def data_vs_paramvals(xdata, ydata, xlim=None, ymax=None, xlabel=None, ylabel=None, title=None, label_list=None,
+def data_vs_paramvals(xdata, ydata, x_range=None, ymax=None, xlabel=None, ylabel=None, title=None, label_list=None,
                       filename=None, fig_ax=None, **kwargs):
     """Plot of a set of yadata vs xdata.
     The individual points correspond to the a provided array of parameter values.
@@ -342,7 +330,7 @@ def data_vs_paramvals(xdata, ydata, xlim=None, ymax=None, xlabel=None, ylabel=No
     ----------
     xdata, ydata: ndarray
         must have compatible shapes for matplotlib.pyplot.plot
-    xlim: tuple(float, float), optional
+    x_range: tuple(float, float), optional
         custom x-range for the plot
     ymax: float, optional
         custom maximum y value for the plot
@@ -364,31 +352,22 @@ def data_vs_paramvals(xdata, ydata, xlim=None, ymax=None, xlabel=None, ylabel=No
     tuple(Figure, Axes)
         matplotlib objects for further editing
     """
+    fig, axes = fig_ax or plt.subplots()
 
-    if fig_ax is None:
-        fig, axes = plt.subplots()
-    else:
-        fig, axes = fig_ax
-
-    if xlim:
-        axes.set_xlim(*xlim)
     if ymax:
         ymin, _ = axes.get_ylim()
         ymin = ymin - (ymax - ymin) * 0.05
-        axes.set_ylim(ymin, ymax)
+        y_range = (ymin, ymax)
+    else:
+        y_range = None
 
-    if title:
-        axes.set_title(title)
-    if xlabel:
-        axes.set_xlabel(xlabel)
-    if ylabel:
-        axes.set_ylabel(ylabel)
     if label_list is None:
         axes.plot(xdata, ydata, **kwargs)
     else:
         for idx, ydataset in enumerate(ydata.T):
             axes.plot(xdata, ydataset, label=label_list[idx], **kwargs)
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    _process_options(axes, x_range, y_range, xlabel, ylabel, title)
 
     if filename:
         out_file = mplpdf.PdfPages(filename + '.pdf')
@@ -398,7 +377,7 @@ def data_vs_paramvals(xdata, ydata, xlim=None, ymax=None, xlabel=None, ylabel=No
     return fig, axes
 
 
-def evals_vs_paramvals(specdata, which=-1, xlim=False, ymax=None, subtract_ground=False, filename=None,
+def evals_vs_paramvals(specdata, which=-1, x_range=None, ymax=None, subtract_ground=False, filename=None,
                        title=None, label_list=None, fig_ax=None, **kwargs):
     """Generates a simple plot of a set of eigenvalues as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
@@ -410,7 +389,7 @@ def evals_vs_paramvals(specdata, which=-1, xlim=False, ymax=None, subtract_groun
     which: int or list(int)
         number of desired eigenvalues (sorted from smallest to largest); default: -1, signals all eigenvalues
         or: list of specific eigenvalues to include
-    xlim: (float, float)
+    x_range: (float, float)
         custom x-range for the plot
     ymax: float, optional
         custom maximum y value for the plot
@@ -442,11 +421,11 @@ def evals_vs_paramvals(specdata, which=-1, xlim=False, ymax=None, subtract_groun
     xlabel = specdata.param_name
     ylabel = 'energy [{}]'.format(DEFAULT_ENERGY_UNITS)
 
-    return data_vs_paramvals(xdata, ydata, xlabel=xlabel, ylabel=ylabel, xlim=xlim, ymax=ymax, title=title,
+    return data_vs_paramvals(xdata, ydata, xlabel=xlabel, ylabel=ylabel, x_range=x_range, ymax=ymax, title=title,
                              label_list=label_list, filename=filename, fig_ax=fig_ax, **kwargs)
 
 
-def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=False, xlabel=None, ylabel=None,
+def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', x_range=None, y_range=None, xlabel=None, ylabel=None,
                          title=None, filename=None, fig_ax=None, **kwargs):
     """Generates a simple plot of matrix elements as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
@@ -460,10 +439,14 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=
         for specific desired matrix elements
     mode: str from `constants.MODE_FUNC_DICT`
         choice of processing function to be applied to data
-    xlim: (float, float)
+    x_range: (float, float)
         custom x-range for the plot
-    ylim: (float, float)
+    y_range: (float, float)
         custom y-range for the plot
+    xlabel, ylabel: str
+        axes labels
+    title: str
+        plot title
     filename: str
         write graphics and parameter set to file if path and filename are specified
     fig_ax: None or tuple(Figure, Axes)
@@ -476,28 +459,10 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=
     tuple(Figure, Axes)
         matplotlib objects for further editing
     """
-    if fig_ax is None:
-        fig, axes = plt.subplots()
-    else:
-        fig, axes = fig_ax
-
-    if xlim:
-        axes.set_xlim(*xlim)
-    if ylim:
-        axes.set_ylim(*ylim)
-
-    if xlabel is None:
-        axes.set_xlabel(specdata.param_name)
-    else:
-        axes.set_xlabel(xlabel)
-
-    if ylabel is None:
-        axes.set_ylabel('matrix element')
-    else:
-        axes.set_ylabel(ylabel)
-
-    if title is not None:
-        axes.set_title(title)
+    fig, axes = fig_ax or plt.subplots()
+    xlabel = xlabel or specdata.param_name
+    ylabel = ylabel or 'matrix_element'
+    _process_options(axes, x_range, y_range, xlabel, ylabel, title)
 
     modefunction = constants.MODE_FUNC_DICT[mode]
     x = specdata.param_vals
@@ -513,7 +478,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=
             axes.plot(x, y, label=str(index_pair[0]) + ',' + str(index_pair[1]), **kwargs)
 
     if _labellines_enabled:
-        labelLines(axes.get_lines(), zorder=1.75)
+        labelLines(axes.get_lines(), zorder=2.0)
     else:
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
@@ -528,10 +493,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', xlim=False, ylim=
 def print_matrix(matrix, show_numbers=True, fig_ax=None, **kwargs):
     """Pretty print a matrix, optionally printing the numerical values of the data.
     """
-    if fig_ax is None:
-        fig, axes = plt.subplots(1, 1, figsize=(6, 4))
-    else:
-        fig, axes = fig_ax
+    fig, axes = fig_ax or plt.subplots()
 
     m = axes.matshow(matrix, cmap=plt.cm.viridis, interpolation='none', **kwargs)
     fig.colorbar(m, ax=axes)

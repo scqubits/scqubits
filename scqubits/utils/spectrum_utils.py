@@ -156,7 +156,7 @@ def closest_dressed_energy(bare_energy, dressed_energy_vals):
 
 def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj, return_overlap=False):
     """For given list of qutip states, find index of the state that has largest overlap with the qutip ket
-    `reference_state_Qobj`.
+    `reference_state_Qobj`. If |overlap| is smaller than 0.5, return None.
 
     Parameters
     ----------
@@ -169,10 +169,14 @@ def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj, retu
 
     Returns
     -------
-    int
-        index of eigenstate from `eigenstates_Qobj` with the largest overlap with the `reference_state_Qobj`
+    int or None
+        index of eigenstate from `eigenstates_Qobj` with the largest overlap with the `reference_state_Qobj`;
+        None if |overlap|<0.5
     """
     overlaps = np.asarray([eigenstates_Qobj[j].overlap(reference_state_Qobj) for j in range(len(eigenstates_Qobj))])
+    max_overlap = np.max(np.abs(overlaps))
+    if max_overlap < 0.5:
+        return None
     index = (np.abs(overlaps)).argmax()
     if return_overlap:
         return index, np.abs(overlaps[index])

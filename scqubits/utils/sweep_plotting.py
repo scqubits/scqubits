@@ -10,8 +10,8 @@
 ############################################################################
 
 
-import numpy as np
 import copy
+import numpy as np
 
 import scqubits.utils.plotting as plot
 from scqubits.settings import DEFAULT_ENERGY_UNITS
@@ -73,7 +73,7 @@ def difference_spectrum(sweep, initial_state_ind=0):
     return sweep.get_difference_spectrum(initial_state_ind).plot_evals_vs_paramvals()
 
 
-def n_photon_qubit_spectrum(sweep, photonnumber, osc_subsys_list, initial_state_ind=0, title=None, fig_ax=None):
+def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, title=None, fig_ax=None):
     """
     Plots the n-photon qubit transition spectrum.
 
@@ -82,10 +82,8 @@ def n_photon_qubit_spectrum(sweep, photonnumber, osc_subsys_list, initial_state_
     sweep: ParameterSweep
     photonnumber: int
         number of photons used in the transition
-    osc_subsys_list: list(Oscillator)
-        list of oscillator subsystems
-    initial_state_ind: int
-        state index of the initial state for the transitions
+    initial_state_labels: tuple(int1, int2, ...)
+        bare state index of the initial state for the transitions
     title: str, optional
         plot title
     fig_ax: (Figure, Axes), optional
@@ -94,8 +92,8 @@ def n_photon_qubit_spectrum(sweep, photonnumber, osc_subsys_list, initial_state_
     -------
     Figure, Axes
     """
-    label_array, specdata = sweep.get_n_photon_qubit_spectrum(photonnumber, osc_subsys_list, initial_state_ind)
-    return specdata.plot_evals_vs_paramvals(title=title, label_list=label_array.tolist(), fig_ax=fig_ax)
+    label_list, specdata = sweep.get_n_photon_qubit_spectrum(photonnumber, initial_state_labels)
+    return specdata.plot_evals_vs_paramvals(title=title, label_list=label_list, fig_ax=fig_ax)
 
 
 def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=None, fig_ax=None):
@@ -171,8 +169,6 @@ def chi_01(sweep, qbt_index, osc_index, param_index=0, fig_ax=None):
         index of the qubit system within the underlying HilbertSpace
     osc_index: int
         index of the oscillator system within the underlying HilbertSpace
-    title: str, optional
-        plot title
     fig_ax: (Figure, Axes), optional
 
     Returns

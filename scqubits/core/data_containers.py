@@ -126,7 +126,7 @@ class SpectrumData:
         -------
         Figure, Axes
         """
-        return plot.evals_vs_paramvals(self, xlim=x_range, ymax=ymax, which=which, subtract_ground=subtract_ground,
+        return plot.evals_vs_paramvals(self, x_range=x_range, ymax=ymax, which=which, subtract_ground=subtract_ground,
                                        title=title, label_list=label_list, fig_ax=fig_ax, **kwargs)
 
     def _get_metadata_dict(self):

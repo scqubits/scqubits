@@ -371,39 +371,6 @@ class ParameterSweep:
         """
         return self.dressed_specdata.energy_table[param_index][dressed_index]
 
-    @staticmethod
-    def _process_diff_eigendata(labels_table, energies_table):
-        """
-        Helper routine to process difference spectrum energy data. The `energies_table` produced by
-        `get_n_photon_qubit_spectrum` includes NaNs and has more columns than there are transitions. Recombine
-        data, and order according to target labels.
-
-        Parameters
-        ----------
-        labels_table: list
-            python matrix of str, giving the transition target labels corresponding to the entries in the
-            `energies_table`. NaN energies are marked by '' entries
-        energies_table: list
-            python matrix with transition energies and NaNs
-
-        Returns
-        -------
-        list(str), ndarray
-            Unique transition targets, cleaned up transition energy matrix
-        """
-        energies_table = np.asarray(energies_table)
-        labels_table = np.asarray(labels_table)
-        unique_labels = np.unique(labels_table)[1:]
-        nrow, _ = energies_table.shape
-        ncol = unique_labels.size
-        diff_array = np.full(shape=(nrow, ncol), fill_value=np.NaN)
-        for col_idx, label in enumerate(unique_labels):
-            for row_idx, row in enumerate(labels_table):
-                position = np.where(row == label)
-                if position[0].size > 0:
-                    diff_array[row_idx, col_idx] = energies_table[row_idx, position[0][0]]
-        return unique_labels, diff_array
-
     def get_difference_spectrum(self, initial_state_ind=0):
         """Takes spectral data of energy eigenvalues and subtracts the energy of a select state, given by its state
         index.
@@ -431,7 +398,7 @@ class ParameterSweep:
             diff_eigenenergy_table[param_index] = diff_eigenenergies
         return SpectrumData(self.param_name, self.param_vals, diff_eigenenergy_table, self.hilbertspace.__dict__)
 
-    def get_n_photon_qubit_spectrum(self, photonnumber, osc_subsys_list, initial_state_ind=0):
+    def get_n_photon_qubit_spectrum(self, photonnumber, initial_state_labels=0):
         """
         Extracts energies for transitions among qubit states only, while all oscillator subsystems maintain their
         excitation level.
@@ -440,49 +407,39 @@ class ParameterSweep:
         ----------
         photonnumber: int
             number of photons used in transition
-        osc_subsys_list: list of (index, QuantumSystem)
-            specifies the oscillator subsystem, assumed to be only one
-        initial_state_ind: int or tuple (i1, i2, ...)
-            index of the initial state whose energy is supposed to be subtracted from the spectral data
+        initial_state_labels: tuple(int1, int2, ...)
+            bare-state labels of the initial state whose energy is supposed to be subtracted from the spectral data
 
         Returns
         -------
         SpectrumData object
         """
-        param_count = self.param_count
-        osc_index_list = [index for (index, subsys) in osc_subsys_list]
-        diff_eigenenergy_table = [[] for _ in range(param_count)]
-        target_labels_table = [[] for _ in range(param_count)]
+        def generate_target_states_list():
+            target_states_list = []
+            for subsys_index, qbt_subsys in self.hilbertspace.qbt_subsys_list:
+                initial_qbt_state = initial_state_labels[subsys_index]
+                for state_label in range(initial_qbt_state + 1, qbt_subsys.truncated_dim):
+                    target_labels = list(initial_state_labels)
+                    target_labels[subsys_index] = state_label
+                    target_states_list.append(tuple(target_labels))
+            return target_states_list
 
-        eigenenergy_index = initial_state_ind
-        for param_index in range(param_count):
-            if not isinstance(initial_state_ind, int):
-                eigenenergy_index = self.hilbertspace.lookup_dressed_index(initial_state_ind, param_index)
+        target_states_list = generate_target_states_list()
+        difference_energies_table = []
 
-            initial_energy = self.dressed_specdata.energy_table[param_index][eigenenergy_index]
-            initial_labels = self.hilbertspace.lookup_bare_index(eigenenergy_index, param_index)
-            eigenenergies = self.dressed_specdata.energy_table[param_index]
-
-            for index, _ in enumerate(eigenenergies):
-                target_labels = self.hilbertspace.lookup_bare_index(index, param_index)
-                if target_labels is not None and initial_labels is not None:
-                    oscillator_change = sum(abs(target_labels[osc_index] - initial_labels[osc_index])
-                                            for osc_index in osc_index_list)
-                    energy_difference = (eigenenergies[index] - initial_energy) / photonnumber
-                    if (oscillator_change == 0) and (energy_difference > 0):
-                        diff_eigenenergy_table[param_index].append(energy_difference)
-                        target_labels_table[param_index].append(str(target_labels))
-                    else:
-                        diff_eigenenergy_table[param_index].append(np.NaN)
-                        target_labels_table[param_index].append('')
+        for param_index in range(self.param_count):
+            difference_energies = []
+            initial_energy = self.lookup_energy_bare_index(initial_state_labels, param_index)
+            for target_labels in target_states_list:
+                target_energy = self.lookup_energy_bare_index(target_labels, param_index)
+                if target_energy is None or initial_energy is None:
+                    difference_energies.append(np.NaN)
                 else:
-                    diff_eigenenergy_table[param_index].append(np.NaN)
-                    target_labels_table[param_index].append('')
+                    difference_energies.append((target_energy - initial_energy)/photonnumber)
+            difference_energies_table.append(difference_energies)
 
-        target_label_list, diff_eigenenergy_table = self._process_diff_eigendata(target_labels_table,
-                                                                                 diff_eigenenergy_table)
-        return target_label_list, SpectrumData(self.param_name, self.param_vals,
-                                               diff_eigenenergy_table, self.hilbertspace.__dict__)
+        return target_states_list, SpectrumData(self.param_name, self.param_vals, np.asarray(difference_energies_table),
+                                                self.hilbertspace.__dict__)
 
 # sweep_data generators --------------------------------------------------------------------------------
 
