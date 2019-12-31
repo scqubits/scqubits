@@ -17,7 +17,7 @@ import qutip as qt
 from scqubits.core.data_containers import SpectrumData
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.settings import in_ipython, TQDM_KWARGS
-from scqubits.utils.spectrum_utils import get_matrixelement_table
+from scqubits.utils.spectrum_utils import get_matrixelement_table, convert_esys_to_ndarray
 
 if in_ipython:
     from tqdm.notebook import tqdm
@@ -324,7 +324,7 @@ class HilbertSpace(list):
                 eigenenergy_table[param_index] = eigenenergies
                 eigenstatesQobj_table[param_index] = eigenstates_Qobj
             else:
-                eigenenergies = hamiltonian.eigenstates(eigvals=evals_count)
+                eigenenergies = hamiltonian.eigenenergies(eigvals=evals_count)
                 eigenenergy_table[param_index] = eigenenergies
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenenergy_table, self.__dict__,
@@ -352,19 +352,19 @@ class HilbertSpace(list):
         """
         dims = self.subsystem_dims
         product_dim = np.prod(dims)
-        unit_vecs = np.eye(product_dim)
-        bare_basis = [qt.Qobj(dims=[dims, [1]*self.subsystem_count], inpt=unit_vecs[j]) for j in range(product_dim)]
-
-        overlap_matrix = np.asarray([[eigenstate.overlap(bare_basis_state) for bare_basis_state in bare_basis]
-                                    for eigenstate in spectrum_data.state_table[param_index]])
-
+        # unit_vecs = np.eye(product_dim)
+        # bare_basis = [qt.Qobj(dims=[dims, [1]*self.subsystem_count], inpt=unit_vecs[j]) for j in range(product_dim)]
+        #overlap_matrix = np.asarray([[eigenstate.overlap(bare_basis_state) for bare_basis_state in bare_basis]
+        #                            for eigenstate in spectrum_data.state_table[param_index]])
+        overlap_matrix = convert_esys_to_ndarray(spectrum_data.state_table[param_index])
         dressed_indices = []
         for bare_basis_index in range(product_dim):
-            max_overlap = np.max(np.abs(overlap_matrix[:, bare_basis_index]))
+            max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
+            max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
             if max_overlap < 0.5:
                 dressed_indices.append(None)
             else:
-                dressed_indices.append((np.abs(overlap_matrix[:, bare_basis_index])).argmax())
+                dressed_indices.append(max_position)
         basis_label_ranges = [list(range(dims[subsys_index])) for subsys_index in range(self.subsystem_count)]
         basis_labels_list = [elem for elem in itertools.product(*basis_label_ranges)]
         return [dressed_indices, basis_labels_list]
