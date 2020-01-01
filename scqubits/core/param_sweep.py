@@ -22,9 +22,10 @@ from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 class ParameterSweep:
     """
-    This class allows interactive exploration of coupled quantum systems. The generate() method pre-calculates spectral
-    data as a function of a given parameter, which can then be displayed and modified by sliders (when inside jupyter
-    notebook or jupyter lab).
+    The ParameterSweep class helps generate spectral and associated data for a composite quantum system, as an externa,
+    parameter, such as flux, is swept over some given interval of values. Upon initialization, these data are calculated
+    and stored internally, so that plots can be generade efficiently. This is of particular use for interactive displays
+    used in the Explorer class.
 
     Parameters
     ----------
@@ -41,11 +42,8 @@ class ParameterSweep:
     update_hilbertspace: function
         update_hilbertspace(param_val) specifies how a change in the external parameter affects
         the Hilbert space components
-    interaction_list: list or iterable of InteractionTerm
-        specifies the interaction Hamiltonian
     """
-    def __init__(self, param_name, param_vals, evals_count, hilbertspace, subsys_update_list, update_hilbertspace,
-                 interaction_list):
+    def __init__(self, param_name, param_vals, evals_count, hilbertspace, subsys_update_list, update_hilbertspace):
         self.param_name = param_name
         self.param_vals = param_vals
         self.param_count = len(param_vals)
@@ -53,7 +51,6 @@ class ParameterSweep:
         self.hilbertspace = hilbertspace
         self.subsys_update_list = subsys_update_list
         self.update_hilbertspace = update_hilbertspace
-        self.interaction_list = interaction_list
 
         self.bare_specdata_list = None
         self.dressed_specdata = None
@@ -231,7 +228,7 @@ class ParameterSweep:
     def _compute_dressed_eigensystem(self, param_index):
         hamiltonian = self._bare_hamiltonian_constant + self._compute_bare_hamiltonian_varying(param_index)
 
-        for interaction_term in self.interaction_list:
+        for interaction_term in self.hilbertspace.interaction_list:
             evecs1 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys1)
             evecs2 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys2)
             hamiltonian += interaction_term.hamiltonian(evecs1=evecs1, evecs2=evecs2)
