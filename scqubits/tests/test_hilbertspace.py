@@ -267,6 +267,7 @@ class TestParameterSweep:
         )
 
         interaction_list = [interaction1, interaction2]
+        hilbertspace.interaction_list = interaction_list
 
         param_name = 'flux'  # name of varying external parameter
         param_vals = np.linspace(-0.1, 0.6, 100)  # parameter values
@@ -283,8 +284,7 @@ class TestParameterSweep:
             evals_count=15,
             hilbertspace=hilbertspace,
             subsys_update_list=subsys_update_list,
-            update_hilbertspace=update_hilbertspace,
-            interaction_list=interaction_list
+            update_hilbertspace=update_hilbertspace
         )
         return sweep
 
