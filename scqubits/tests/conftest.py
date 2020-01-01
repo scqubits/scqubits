@@ -13,6 +13,7 @@
 import os
 
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -38,6 +39,11 @@ class BaseTest:
     def set_tmpdir(self, request):
         """Pytest fixture that provides a temporary directory for writing test files"""
         setattr(self, 'tmpdir', request.getfixturevalue('tmpdir'))
+
+    @classmethod
+    def teardown_class(cls):
+        plt.close('all')
+
 
     def set_params(self, h5file_root):
         """Read and store parameters from open h5 file
