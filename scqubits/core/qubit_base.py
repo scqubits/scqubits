@@ -241,7 +241,7 @@ class QubitBaseClass(QuantumSystem):
         """
         previous_paramval = getattr(self, param_name)
         paramvals_count = len(param_vals)
-        eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=self._evec_dtype)
+        eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
 
         if get_eigenstates:
             eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=self._evec_dtype)
@@ -256,7 +256,7 @@ class QubitBaseClass(QuantumSystem):
                 eigenstate_table[index] = evecs
             else:
                 evals = self.eigenvals(evals_count)
-            eigenvalue_table[index] = evals
+            eigenvalue_table[index] = np.real(evals)   # for complex-hermitean H, eigenvalues have type np.complex_
 
             if subtract_ground:
                 eigenvalue_table[index] -= evals[0]
