@@ -30,4 +30,4 @@ jobs:
         pip install pytest
         pip install ipywidgets
         pip install scqubits
-        pytest -v -Werror --pyargs scqubits
+        pytest --pyargs scqubits
