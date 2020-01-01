@@ -163,8 +163,8 @@ class Explorer:
         out = ipywidgets.interactive_output(self.plot_explorer_panels,
                                             {'param_val': param_slider,
                                              'photonnumber': photon_slider,
-                                            'initial_index': initial_slider,
-                                            'final_index': final_slider,
+                                             'initial_index': initial_slider,
+                                             'final_index': final_slider,
                                              'chi_qbt_index': chi_qbt_dropdown,
                                              'chi_osc_index': chi_osc_dropdown
                                              })

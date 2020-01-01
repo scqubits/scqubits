@@ -260,14 +260,12 @@ class QubitBaseClass(QuantumSystem):
 
             if subtract_ground:
                 eigenvalue_table[index] -= evals[0]
-
         setattr(self, param_name, previous_paramval)
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
                                     state_table=eigenstate_table)
         if filename:
             spectrumdata.filewrite(filename)
-
         return spectrumdata
 
     def get_matelements_vs_paramvals(self, operator, param_name, param_vals, evals_count=6, filename=None):
@@ -294,7 +292,6 @@ class QubitBaseClass(QuantumSystem):
         previous_paramval = getattr(self, param_name)
         paramvals_count = len(param_vals)
         eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
-
         eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=np.complex_)
         matelem_table = np.empty(shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_)
 
@@ -303,16 +300,13 @@ class QubitBaseClass(QuantumSystem):
             evals, evecs = self.eigensys(evals_count)
             eigenstate_table[index] = evecs
             eigenvalue_table[index] = evals
-
             matelem_table[index] = self.matrixelement_table(operator, evals_count=evals_count)
-
         setattr(self, param_name, previous_paramval)
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
                                     state_table=eigenstate_table, matrixelem_table=matelem_table)
         if filename:
             spectrumdata.filewrite(filename)
-
         return spectrumdata
 
     def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None,

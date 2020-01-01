@@ -162,7 +162,7 @@ class HilbertSpace(list):
         diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))
         return self.identity_wrap(diag_qt_op, subsystem)
 
-    def identity_wrap(self, operator, subsystem, op_in_eigenbasis=None, evecs=None):
+    def identity_wrap(self, operator, subsystem, op_in_eigenbasis=False, evecs=None):
         """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
 
         Parameters
@@ -172,7 +172,7 @@ class HilbertSpace(list):
             the subsystem, typically not in eigenbasis
         subsystem: object derived from QuantumSystem
             subsystem where diagonal operator is defined
-        op_in_eigenbasis: None or bool
+        op_in_eigenbasis: bool
             whether `operator` is given in the `subsystem` eigenbasis; otherwise, the internal QuantumSystem basis is
             assumed
         evecs: None or ndarray
@@ -352,10 +352,6 @@ class HilbertSpace(list):
         """
         dims = self.subsystem_dims
         product_dim = np.prod(dims)
-        # unit_vecs = np.eye(product_dim)
-        # bare_basis = [qt.Qobj(dims=[dims, [1]*self.subsystem_count], inpt=unit_vecs[j]) for j in range(product_dim)]
-        #overlap_matrix = np.asarray([[eigenstate.overlap(bare_basis_state) for bare_basis_state in bare_basis]
-        #                            for eigenstate in spectrum_data.state_table[param_index]])
         overlap_matrix = convert_esys_to_ndarray(spectrum_data.state_table[param_index])
         dressed_indices = []
         for bare_basis_index in range(product_dim):

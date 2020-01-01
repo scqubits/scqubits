@@ -25,6 +25,7 @@ from scqubits.settings import in_ipython
 
 if not in_ipython:
     matplotlib.use('Agg')
+
 scqubits.settings.file_format = FileType.h5
 
 TESTSDIR, _ = os.path.split(scqubits.tests.__file__)
@@ -43,7 +44,6 @@ class BaseTest:
     @classmethod
     def teardown_class(cls):
         plt.close('all')
-
 
     def set_params(self, h5file_root):
         """Read and store parameters from open h5 file
