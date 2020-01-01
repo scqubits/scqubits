@@ -175,4 +175,3 @@ class Explorer:
 
         ui = ipywidgets.HBox([left_box, mid_box, right_box])
         display(ui, out)
-

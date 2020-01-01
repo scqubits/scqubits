@@ -52,7 +52,6 @@ class QuantumSystem:
     @abc.abstractmethod
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
-        pass
 
     def _get_metadata_dict(self):
         return process_metadata(self.__dict__)
