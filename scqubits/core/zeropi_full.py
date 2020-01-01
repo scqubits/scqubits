@@ -17,7 +17,6 @@ from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
-
 class FullZeroPi(QubitBaseClass):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
     Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
@@ -77,54 +76,106 @@ class FullZeroPi(QubitBaseClass):
 
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
                  ECS=None, truncated_dim=None):
-        self.EJ = EJ
-        self.EL = EL
-        self.ECJ = ECJ
 
-        if EC is None and ECS is None:
-            raise ValueError("Argument missing: must either provide EC or ECS")
-        if EC and ECS:
-            raise ValueError("Argument error: can only provide either EC or ECS")
-        if EC:
-            self.EC = EC
-        else:
-            self.EC = 1 / (1 / ECS - 1 / self.ECJ)
-
-        self.dEJ = dEJ
-        self.dCJ = dCJ
         self.dC = dC
         self.dEL = dEL
-        self.flux = flux
-        self.ng = ng
         self.zeta_cutoff = zeta_cutoff
-        self.zeropi_cutoff = zeropi_cutoff
-        self.grid = grid
-        self.ncut = ncut
-        self.truncated_dim = truncated_dim
+        self.truncated_dim=truncated_dim
+
         self._sys_type = 'full 0-Pi circuit (phi, theta, zeta) in 0pi - zeta product basis'
         self._evec_dtype = np.complex_
 
         self._zeropi = ZeroPi(
-            EJ=self.EJ,
-            EL=self.EL,
-            ECJ=self.ECJ,
-            EC=self.EC,
-            dEJ=self.dEJ,
-            dCJ=self.dCJ,
-            flux=self.flux,
-            ng=self.ng,
-            grid=self.grid,
-            ncut=self.ncut,
-            truncated_dim=self.zeropi_cutoff
+            EJ=EJ,
+            EL=EL,
+            ECJ=ECJ,
+            EC=EC,
+            ng=ng,
+            flux=flux,
+            grid=grid,
+            ncut=ncut,
+            dEJ=dEJ,
+            dCJ=dCJ,
+            ECS=ECS,
+            #the zeropi_cutoff defines the truncated_dim of the "base" zeropi object 
+            truncated_dim=zeropi_cutoff
         )
 
-    def ECS(self):
-        """Helper function to calculate and return `ECS`"""
-        return 1 / (1 / self.EC + 1 / self.ECJ)
+    def get_EJ(self):
+        return self._zeropi.EJ 
+    def set_EJ(self, value):
+        self._zeropi.EJ=value
+    EJ = property(get_EJ,set_EJ)
+
+    def get_EL(self):
+        return self._zeropi.EL
+    def set_EL(self, value):
+        self._zeropi.EL=value
+    EL = property(get_EL, set_EL)
+
+    def get_ECJ(self):
+        return self._zeropi.ECJ
+    def set_ECJ(self, value):
+        self._zeropi.ECJ=value
+    ECJ = property(get_ECJ, set_ECJ)
+
+    def get_EC(self):
+        return self._zeropi.EC
+    def set_EC(self, value):
+        self._zeropi.EC=value
+    EC = property(get_EC, set_EC)
+    
+    def get_ng(self):
+        return self._zeropi.ng
+    def set_ng(self, value):
+        self._zeropi.ng=value
+    ng = property(get_ng, set_ng)
+
+    def get_flux(self):
+        return self._zeropi.flux
+    def set_flux(self, value):
+        self._zeropi.flux=value
+    flux = property(get_flux, set_flux)
+
+    def get_grid(self):
+        return self._zeropi.grid
+    def set_grid(self, value):
+        self._zeropi.grid=value
+    grid = property(get_grid, set_grid)
+
+    def get_ncut(self):
+        return self._zeropi.ncut
+    def set_ncut(self, value):
+        self._zeropi.ncut=value
+    ncut = property(get_ncut, set_ncut)
+
+    def get_dEJ(self):
+        return self._zeropi.dEJ 
+    def set_dEJ(self, value):
+        self._zeropi.dEJ=value
+    dEJ = property(get_dEJ, set_dEJ)
+
+    def get_dCJ(self):
+        return self._zeropi.dCJ 
+    def set_dCJ(self, value):
+        self._zeropi.dCJ=value
+    dCJ = property(get_dCJ, set_dCJ)
+
+    def get_ECS(self):
+        return self._zeropi.ECS 
+    def set_ECS(self, value):
+        self._zeropi.ECS=value
+    ECS = property(get_ECS, set_ECS)
+
+    def get_zeropi_cutoff(self):
+        return self._zeropi.truncated_dim
+    def set_zeropi_cutoff(self, value):
+        self._zeropi.truncated_dim=value
+    zeropi_cutoff = property(get_zeropi_cutoff, set_zeropi_cutoff)
 
     def set_EC_via_ECS(self, ECS):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
-        self.EC = 1 / (1 / ECS - 1 / self.ECJ)
+        self._zero_pi.set_EC_via_ECS(ECS)
 
     def omega_zeta(self):
         """Returns (angular) frequency of the zeta mode"""
@@ -185,7 +236,6 @@ class FullZeroPi(QubitBaseClass):
         """
         return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_flux(), 
                 zeropi_evecs=zeropi_evecs)
-
 
     def _zeropi_operator_in_product_basis(self, zeropi_operator, zeropi_evecs=None):
         """Helper method that converts a zeropi operator into one in the product basis.
@@ -271,7 +321,7 @@ class FullZeroPi(QubitBaseClass):
         """Returns a matrix of coupling strengths i*g^\\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
         from the list 'zeropi_states'.
         """
-        prefactor = 1j * self.ECS() * (self.dC / 2.0) * (32.0 * self.EL / self.EC) ** 0.25
+        prefactor = 1j * self.ECS * (self.dC / 2.0) * (32.0 * self.EL / self.EC) ** 0.25
         return prefactor * get_matrixelement_table(self._zeropi.n_theta_operator(), zeropi_states)
 
     def g_coupling_matrix(self, zeropi_states=None, evals_count=None):
@@ -298,6 +348,11 @@ class FullZeroPi(QubitBaseClass):
     def set_params_from_h5(self, h5file_root):
         """Read and store parameters from open h5 file
 
+        TODO: make sure this works ok, once updated various variables 
+            that should be contained in self._zero_pi to properties   
+        TODO: seems like some things are missing from here...
+            double check this is working correctly 
+
         Parameters
         ----------
         h5file_root: h5py.Group
@@ -322,3 +377,4 @@ class FullZeroPi(QubitBaseClass):
             ncut=self.ncut,
             truncated_dim=self.zeropi_cutoff
         )
+

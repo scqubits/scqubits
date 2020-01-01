@@ -110,22 +110,11 @@ class ZeroPi(QubitBaseClass):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
-    # def ECS(self):
-        # """
-        # Returns
-        # -------
-        # float: value for ECS, calculated from EC and ECJ
-        # """
-        # return 1 / (1 / self.EC + 1 / self.ECJ)
-
     def get_ECS(self):
         return 1 / (1 / self.EC + 1 / self.ECJ)
-
     def set_ECS(self, value):
-        raise ValueError("It's not possible to directly set ECS. Instead one can set EC or ECS, or use set_EC_via_ECS().")
-
+        raise ValueError("It's not possible to directly set ECS. Instead one can set EC or ECJ,\nor use set_EC_via_ECS() to update EC indirectly.")
     ECS = property(get_ECS,set_ECS)
-
 
     def set_EC_via_ECS(self, ECS):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
