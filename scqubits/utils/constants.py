@@ -27,9 +27,9 @@ class FileType(Enum):
 
 # helper functions for plotting wave functions
 MODE_FUNC_DICT = {'abs_sqr': (lambda x: np.abs(x)**2),
-                  'abs': (lambda x: np.abs(x)),
-                  'real': (lambda x: np.real(x)),
-                  'imag': (lambda x: np.imag(x))}
+                  'abs': np.abs,
+                  'real': np.real,
+                  'imag': np.imag}
 
 
 # enumerate variables for zero-pi qubit
