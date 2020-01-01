@@ -14,6 +14,7 @@ Users Guide
    ipynb/basics.ipynb
    guide-qubits.rst
    ipynb/hilbertspace.ipynb
+   ipynb/explorer.ipynb
    guide-example-ipynb.rst
    guide-settings.rst
 
