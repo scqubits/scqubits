@@ -17,6 +17,7 @@ from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
+
 class FullZeroPi(QubitBaseClass):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
     Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
@@ -76,13 +77,11 @@ class FullZeroPi(QubitBaseClass):
 
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
                  ECS=None, truncated_dim=None):
-
         self.dC = dC
         self.dEL = dEL
         self.zeta_cutoff = zeta_cutoff
         self._sys_type = 'full 0-pi'
-        self.truncated_dim=truncated_dim
-
+        self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
 
         self._zeropi = ZeroPi(
@@ -97,85 +96,109 @@ class FullZeroPi(QubitBaseClass):
             dEJ=dEJ,
             dCJ=dCJ,
             ECS=ECS,
-            #the zeropi_cutoff defines the truncated_dim of the "base" zeropi object 
+            # the zeropi_cutoff defines the truncated_dim of the "base" zeropi object
             truncated_dim=zeropi_cutoff
         )
 
     def get_EJ(self):
         return self._zeropi.EJ 
+
     def set_EJ(self, value):
-        self._zeropi.EJ=value
-    EJ = property(get_EJ,set_EJ)
+        self._zeropi.EJ = value
+
+    EJ = property(get_EJ, set_EJ)
 
     def get_EL(self):
         return self._zeropi.EL
+
     def set_EL(self, value):
-        self._zeropi.EL=value
+        self._zeropi.EL = value
+
     EL = property(get_EL, set_EL)
 
     def get_ECJ(self):
         return self._zeropi.ECJ
+
     def set_ECJ(self, value):
-        self._zeropi.ECJ=value
+        self._zeropi.ECJ = value
+
     ECJ = property(get_ECJ, set_ECJ)
 
     def get_EC(self):
         return self._zeropi.EC
+
     def set_EC(self, value):
-        self._zeropi.EC=value
+        self._zeropi.EC = value
+
     EC = property(get_EC, set_EC)
     
     def get_ng(self):
         return self._zeropi.ng
+
     def set_ng(self, value):
-        self._zeropi.ng=value
+        self._zeropi.ng = value
+
     ng = property(get_ng, set_ng)
 
     def get_flux(self):
         return self._zeropi.flux
+
     def set_flux(self, value):
-        self._zeropi.flux=value
+        self._zeropi.flux = value
+
     flux = property(get_flux, set_flux)
 
     def get_grid(self):
         return self._zeropi.grid
+
     def set_grid(self, value):
-        self._zeropi.grid=value
+        self._zeropi.grid = value
+
     grid = property(get_grid, set_grid)
 
     def get_ncut(self):
         return self._zeropi.ncut
+
     def set_ncut(self, value):
-        self._zeropi.ncut=value
+        self._zeropi.ncut = value
+
     ncut = property(get_ncut, set_ncut)
 
     def get_dEJ(self):
         return self._zeropi.dEJ 
+
     def set_dEJ(self, value):
-        self._zeropi.dEJ=value
+        self._zeropi.dEJ = value
+
     dEJ = property(get_dEJ, set_dEJ)
 
     def get_dCJ(self):
         return self._zeropi.dCJ 
+
     def set_dCJ(self, value):
-        self._zeropi.dCJ=value
+        self._zeropi.dCJ = value
+
     dCJ = property(get_dCJ, set_dCJ)
 
     def get_ECS(self):
         return self._zeropi.ECS 
+
     def set_ECS(self, value):
-        self._zeropi.ECS=value
+        self._zeropi.ECS = value
+
     ECS = property(get_ECS, set_ECS)
 
     def get_zeropi_cutoff(self):
         return self._zeropi.truncated_dim
+
     def set_zeropi_cutoff(self, value):
-        self._zeropi.truncated_dim=value
+        self._zeropi.truncated_dim = value
+
     zeropi_cutoff = property(get_zeropi_cutoff, set_zeropi_cutoff)
 
     def set_EC_via_ECS(self, ECS):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
-        self._zero_pi.set_EC_via_ECS(ECS)
+        self._zeropi.set_EC_via_ECS(ECS)
 
     def omega_zeta(self):
         """Returns (angular) frequency of the zeta mode"""
@@ -222,7 +245,7 @@ class FullZeroPi(QubitBaseClass):
         return hamiltonian_mat.tocsc()
 
     def d_hamiltonian_d_flux(self, zeropi_evecs=None):
-        """Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux, 
+        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
         as stored in the object. The returned operator is in the product basis
 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
@@ -234,8 +257,8 @@ class FullZeroPi(QubitBaseClass):
         scipy.sparse.csc_matrix
             matrix representing the derivative of the Hamiltonian 
         """
-        return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_flux(), 
-                zeropi_evecs=zeropi_evecs)
+        return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_flux(),
+                                                      zeropi_evecs=zeropi_evecs)
 
     def _zeropi_operator_in_product_basis(self, zeropi_operator, zeropi_evecs=None):
         """Helper method that converts a zeropi operator into one in the product basis.
@@ -362,4 +385,3 @@ class FullZeroPi(QubitBaseClass):
             ncut=self.ncut,
             truncated_dim=self.zeropi_cutoff
         )
-

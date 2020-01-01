@@ -11,7 +11,6 @@
 
 import numpy as np
 from scipy import sparse
-import itertools
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.data_containers import WaveFunctionOnGrid
@@ -105,18 +104,19 @@ class ZeroPi(QubitBaseClass):
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
-
         # TODO consider normalization of zeropi wavefunctions
         # evecs /= np.sqrt(self.grid.grid_spacing())
-
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
     def get_ECS(self):
         return 1 / (1 / self.EC + 1 / self.ECJ)
+
     def set_ECS(self, value):
-        raise ValueError("It's not possible to directly set ECS. Instead one can set EC or ECJ,\nor use set_EC_via_ECS() to update EC indirectly.")
-    ECS = property(get_ECS,set_ECS)
+        raise ValueError("It's not possible to directly set ECS. Instead one can set EC or ECJ,\nor use "
+                         "set_EC_via_ECS() to update EC indirectly.")
+
+    ECS = property(get_ECS, set_ECS)
 
     def set_EC_via_ECS(self, ECS):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
@@ -167,7 +167,6 @@ class ZeroPi(QubitBaseClass):
                          + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc')
 
         kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
-
         return kinetic_matrix
 
     def sparse_potential_mat(self):
@@ -201,7 +200,6 @@ class ZeroPi(QubitBaseClass):
                          + 2 * self.EJ * sparse.kron(self._identity_phi(), self._identity_theta(), format='csc'))
         potential_mat += self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')\
                          * self.sin_theta_operator()
-
         return potential_mat
 
     def hamiltonian(self):
@@ -214,9 +212,8 @@ class ZeroPi(QubitBaseClass):
         """
         return self.sparse_kinetic_mat() + self.sparse_potential_mat()
 
-
     def sparse_d_potential_d_flux_mat(self):
-        """Calculates a of the potential energy w.r.t flux, at the current value of flux, 
+        r"""Calculates a of the potential energy w.r.t flux, at the current value of flux,
         as stored in the object. 
 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
@@ -228,24 +225,14 @@ class ZeroPi(QubitBaseClass):
         scipy.sparse.csc_matrix
             matrix representing the derivative of the potential energy 
         """
-
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
-        pt_count = self.grid.pt_count
-        dim_theta = 2 * self.ncut + 1
-        
-        op_1=sparse.kron(self._sin_phi_operator(x=- 2.0 * np.pi * self.flux / 2.0),
-                self._cos_theta_operator(), format='csc')
-        op_2=sparse.kron(self._cos_phi_operator(x=- 2.0 * np.pi * self.flux / 2.0),
-                self._sin_theta_operator(), format='csc')
-
-        # return  - (2.0 * np.pi * self.EJ * np.cos(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))  \
-                # - (np.pi * self.EJ * self.dEJ * np.sin(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0))
-        return - 2.0 * np.pi * self.EJ * op_1  - np.pi * self.EJ * self.dEJ *  op_2
-
+        op_1 = sparse.kron(self._sin_phi_operator(x=- 2.0 * np.pi * self.flux / 2.0),
+                           self._cos_theta_operator(), format='csc')
+        op_2 = sparse.kron(self._cos_phi_operator(x=- 2.0 * np.pi * self.flux / 2.0),
+                           self._sin_theta_operator(), format='csc')
+        return - 2.0 * np.pi * self.EJ * op_1 - np.pi * self.EJ * self.dEJ * op_2
 
     def d_hamiltonian_d_flux(self):
-        """Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux, 
+        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
         as stored in the object. 
 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
@@ -291,7 +278,6 @@ class ZeroPi(QubitBaseClass):
         """
         return sparse.kron(self.grid.first_derivative_matrix(prefactor=1j), self._identity_theta(), format='csc')
 
-
     def _phi_operator(self):
         r"""
         Operator :math:`\varphi`, acting only on the `\varphi` Hilbert subspace.
@@ -308,7 +294,6 @@ class ZeroPi(QubitBaseClass):
         phi_matrix = sparse.dia_matrix((pt_count, pt_count), dtype=np.complex_)
         diag_elements = np.linspace(min_val, max_val, pt_count)
         phi_matrix.setdiag(diag_elements)
-
         return phi_matrix
 
     def phi_operator(self):
@@ -332,7 +317,6 @@ class ZeroPi(QubitBaseClass):
         dim_theta = 2 * self.ncut + 1
         diag_elements = np.arange(-self.ncut, self.ncut + 1)
         n_theta_matrix = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
-
         return sparse.kron(self._identity_phi(), n_theta_matrix, format='csc')
 
     def _sin_phi_operator(self, x=0):
@@ -349,7 +333,6 @@ class ZeroPi(QubitBaseClass):
 
         vals = np.sin(np.linspace(min_val, max_val, pt_count) + x)
         sin_phi_matrix = sparse.dia_matrix((vals, [0]), shape=(pt_count, pt_count)).tocsc()
-
         return sin_phi_matrix
 
     def _cos_phi_operator(self, x=0):
@@ -366,9 +349,7 @@ class ZeroPi(QubitBaseClass):
 
         vals = np.cos(np.linspace(min_val, max_val, pt_count) + x)
         cos_phi_matrix = sparse.dia_matrix((vals, [0]), shape=(pt_count, pt_count)).tocsc()
-
         return cos_phi_matrix
-
 
     def _cos_theta_operator(self):
         r"""
@@ -381,9 +362,7 @@ class ZeroPi(QubitBaseClass):
         dim_theta = 2 * self.ncut + 1
         cos_theta_matrix = 0.5 * (sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)) +
                                   sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta))).tocsc()
-
         return cos_theta_matrix
-
 
     def cos_theta_operator(self):
         r"""
@@ -407,7 +386,6 @@ class ZeroPi(QubitBaseClass):
         sin_theta_matrix = -0.5 * 1j * \
                            (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
                             sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc()
-
         return sin_theta_matrix
 
     def sin_theta_operator(self):
@@ -435,7 +413,6 @@ class ZeroPi(QubitBaseClass):
         filename: None or str, optional
             (Default value = None)
         """
-
         theta_range, theta_count = self.try_defaults(theta_range, theta_count)
 
         min_val = self.grid.min_val
@@ -486,7 +463,6 @@ class ZeroPi(QubitBaseClass):
 
         grid2d = GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, pt_count],
                                       [*theta_range, theta_count]]))
-
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
     def plot_wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None, mode='abs',
