@@ -311,8 +311,6 @@ def matrix(data_matrix, mode='abs', xlabel='', ylabel='', zlabel='', filename=No
     cax, _ = mpl.colorbar.make_axes(ax2, shrink=.75, pad=.02)  # add colorbar with normalized range
     _ = mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
 
-    plt.show()
-
     if filename:
         out_file = mplpdf.PdfPages(filename)
         out_file.savefig()
@@ -549,4 +547,4 @@ def spectrum_with_matrixelement(spectrum_data, matrixelement_table, param_name='
 
     axcb = fig.colorbar(line_collection)
     axcb.set_label(matrixelement_name)
-    plt.show()
+    return fig, axcb
