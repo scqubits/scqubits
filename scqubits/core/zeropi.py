@@ -397,8 +397,7 @@ class ZeroPi(QubitBaseClass):
         """
         return sparse.kron(self._identity_phi(), self._sin_theta_operator(), format='csc')
 
-    def plot_potential(self, theta_range=None, theta_count=None, contour_vals=None, aspect_ratio=None,
-                       filename=None):
+    def plot_potential(self, theta_range=None, theta_count=None, contour_vals=None, figsize=None, filename=None):
         """Draw contour plot of the potential energy.
 
         Parameters
@@ -407,7 +406,6 @@ class ZeroPi(QubitBaseClass):
             used for setting a custom plot range for theta
         theta_count: int, optional
         contour_vals: list, optional
-        aspect_ratio: float, optional
         filename: str, optional
         """
         theta_range, theta_count = self.try_defaults(theta_range, theta_count)
@@ -418,7 +416,8 @@ class ZeroPi(QubitBaseClass):
 
         x_vals = np.linspace(min_val, max_val, pt_count)
         y_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, theta_count)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals, aspect_ratio, filename)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, figsize=figsize,
+                             filename=filename)
 
     def wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None):
         """Returns a zero-pi wave function in `phi`, `theta` basis
@@ -463,7 +462,7 @@ class ZeroPi(QubitBaseClass):
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
     def plot_wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None, mode='abs',
-                          zero_calibrate=False, figsize=(10, 5), aspect_ratio=3, fig_ax=None):
+                          zero_calibrate=True, figsize=(6, 2.75), fig_ax=None):
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -482,8 +481,6 @@ class ZeroPi(QubitBaseClass):
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
         figsize: (float, float), optional
             figure size specifications for matplotlib
-        aspect_ratio: float, optional
-            aspect ratio for matplotlib
         fig_ax: Figure, Axes, optional
             existing Figure, Axis if previous objects are to be appended
 
@@ -496,8 +493,7 @@ class ZeroPi(QubitBaseClass):
         modefunction = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_count=theta_count, which=which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, figsize=figsize, aspect_ratio=aspect_ratio, zero_calibrate=zero_calibrate,
-                                   fig_ax=fig_ax)
+        return plot.wavefunction2d(wavefunc, figsize=figsize, zero_calibrate=zero_calibrate, fig_ax=fig_ax)
 
     def set_params_from_dict(self, meta_dict):
         """Set object parameters by given metadata dictionary

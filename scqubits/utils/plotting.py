@@ -12,6 +12,7 @@
 import matplotlib as mpl
 import matplotlib.backends.backend_pdf as mplpdf
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
 try:
@@ -147,7 +148,7 @@ def wavefunction1d_discrete(wavefunc, xlabel='x', ylabel='wavefunction', x_range
     return fig, axes
 
 
-def wavefunction2d(wavefunc, figsize=(10, 5), aspect_ratio=3, zero_calibrate=False, filename=None, fig_ax=None):
+def wavefunction2d(wavefunc, figsize=(8, 3), zero_calibrate=False, filename=None, fig_ax=None):
     """
     Creates a density plot of the amplitude of a real-valued wave function in 2 "spatial" dimensions.
 
@@ -157,8 +158,6 @@ def wavefunction2d(wavefunc, figsize=(10, 5), aspect_ratio=3, zero_calibrate=Fal
         basis and amplitude data of wave function to be plotted
     figsize: tuple(float, float)
         width, height in inches
-    aspect_ratio: float, optional
-        aspect ratio
     zero_calibrate: bool, optional
         whether to calibrate plot to zero amplitude
     filename: str, , optional
@@ -171,7 +170,7 @@ def wavefunction2d(wavefunc, figsize=(10, 5), aspect_ratio=3, zero_calibrate=Fal
     tuple(Figure, Axes)
         matplotlib objects for further editing
     """
-    fig, axes = fig_ax or plt.subplots()
+    fig, axes = fig_ax or plt.subplots(figsize=figsize)
 
     min_vals = wavefunc.gridspec.min_vals
     max_vals = wavefunc.gridspec.max_vals
@@ -186,9 +185,11 @@ def wavefunction2d(wavefunc, figsize=(10, 5), aspect_ratio=3, zero_calibrate=Fal
         imshow_maxval = np.max(wavefunc.amplitudes)
         cmap = plt.cm.viridis
 
-    m = axes.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
-                    aspect=aspect_ratio, cmap=cmap, vmin=imshow_minval, vmax=imshow_maxval, origin='lower')
-    fig.colorbar(m, ax=axes)
+    im = axes.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
+                     cmap=cmap, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
+    divider = make_axes_locatable(axes)
+    cax = divider.append_axes("right", size="2%", pad=0.05)
+    fig.colorbar(im, cax=cax)
 
     if filename:
         out_file = mplpdf.PdfPages(filename)
@@ -198,7 +199,7 @@ def wavefunction2d(wavefunc, figsize=(10, 5), aspect_ratio=3, zero_calibrate=Fal
     return fig, axes
 
 
-def contours(x_vals, y_vals, func, contour_vals=None, aspect_ratio=None, show_colorbar=True, filename=None,
+def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, figsize=None, filename=None,
              fig_ax=None):
     """Contour plot of a 2d function `func(x,y)`.
 
@@ -229,17 +230,19 @@ def contours(x_vals, y_vals, func, contour_vals=None, aspect_ratio=None, show_co
     z_array = func(x_grid, y_grid)
 
     if fig_ax is None:
-        if aspect_ratio is None:
+        if figsize is None:
             aspect_ratio = (y_vals[-1] - y_vals[0]) / (x_vals[-1] - x_vals[0])
-        w, h = plt.figaspect(aspect_ratio)
-        fig, axes = plt.subplots(figsize=(w, h))
+            figsize = (8, 8 * aspect_ratio)
+        fig, axes = plt.subplots(figsize=figsize)
     else:
         fig, axes = fig_ax
 
     im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower")
 
     if show_colorbar:
-        fig.colorbar(im, ax=axes)
+        divider = make_axes_locatable(axes)
+        cax = divider.append_axes("right", size="2%", pad=0.05)
+        fig.colorbar(im, cax=cax)
 
     if filename:
         out_file = mplpdf.PdfPages(filename)

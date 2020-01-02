@@ -235,6 +235,7 @@ class ParameterSweep:
         return hamiltonian.eigenstates(eigvals=self.evals_count)
 
     def generate_chi_sweep(self):
+        """Generate data for the AC Stark shift chi as a function of the sweep parameter"""
         osc_subsys_list = self.hilbertspace.osc_subsys_list
         qbt_subsys_list = self.hilbertspace.qbt_subsys_list
 
@@ -244,6 +245,7 @@ class ParameterSweep:
                                                qubit_subsys=qubit_subsys, osc_subsys=osc_subsys)
 
     def generate_charge_matrixelem_sweep(self):
+        """Generate data for the charge matrix elements as a function of the sweep parameter"""
         for qbt_index, subsys in self.hilbertspace.qbt_subsys_list:
             if type(subsys).__name__ in ['Transmon', 'Fluxonium']:
                 self.compute_custom_data_sweep('n_op_qbt{}'.format(qbt_index), qubit_matrixelement, qubit_subsys=subsys,

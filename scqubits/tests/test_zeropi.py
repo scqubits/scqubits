@@ -72,7 +72,7 @@ class TestZeroPi(BaseTest):
     def test_plot_wavefunction(self):
         # testname = 'zeropi_8'
         self.qbt.plot_wavefunction(esys=None, which=4, mode='real', zero_calibrate=True)
-        self.qbt.plot_potential(contour_vals=np.linspace(0, 3, 25), aspect_ratio=0.12)
+        self.qbt.plot_potential(contour_vals=np.linspace(0, 3, 25))
 
     def test_plot_matrixelements(self):
         # testname = 'zeropi_9'
