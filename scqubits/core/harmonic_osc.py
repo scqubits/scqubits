@@ -54,7 +54,7 @@ class Oscillator(QuantumSystem):
         Parameters
         ----------
         evals_count: int, optional
-            number of desired eigenvalues (Default value = 6)
+            number of desired eigenvalues (default value = 6)
 
         Returns
         -------
@@ -69,7 +69,7 @@ class Oscillator(QuantumSystem):
         Parameters
         ----------
         evals_count: int, optional
-            number of desired eigenvalues (Default value = 6)
+            number of desired eigenvalues (default value = 6)
 
         Returns
         -------

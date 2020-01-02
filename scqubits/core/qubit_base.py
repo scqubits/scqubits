@@ -67,6 +67,7 @@ class QubitBaseClass(QuantumSystem):
 
     def __init__(self, truncated_dim=None):
         super().__init__()
+        self.truncated_dim = truncated_dim
         self._default_var_range = None
         self._default_var_count = None
         self._evec_dtype = None
@@ -92,9 +93,9 @@ class QubitBaseClass(QuantumSystem):
         Parameters
         ----------
         evals_count: int
-            number of desired eigenvalues/eigenstates (Default value = 6)
+            number of desired eigenvalues/eigenstates (default value = 6)
         filename: str, optional
-            path and filename without suffix, if file output desired (Default value = None)
+            path and filename without suffix, if file output desired (default value = None)
 
         Returns
         -------
@@ -114,9 +115,9 @@ class QubitBaseClass(QuantumSystem):
         Parameters
         ----------
         evals_count: int, optional
-            number of desired eigenvalues/eigenstates (Default value = 6)
+            number of desired eigenvalues/eigenstates (default value = 6)
         filename: str, optional
-            path and filename without suffix, if file output desired (Default value = None)
+            path and filename without suffix, if file output desired (default value = None)
 
         Returns
         -------
@@ -134,8 +135,8 @@ class QubitBaseClass(QuantumSystem):
         """
         Parameters
         ----------
-        var_range: None or tuple(float, float)
-        var_count: None or int
+        var_range: tuple(float, float), optional
+        var_count: int, optional
 
         Returns
         -------
@@ -160,8 +161,8 @@ class QubitBaseClass(QuantumSystem):
             name of class method in string form, returning operator matrix in qubit-internal basis.
         evecs: ndarray, optional
             if not provided, then the necesssary eigenstates are calculated on the fly
-        evals_count: int
-            number of desired matrix elements, starting with ground state (Default value = 6)
+        evals_count: int, optional
+            number of desired matrix elements, starting with ground state (default value = 6)
         filename: str, optional
             output file name
 
@@ -190,22 +191,16 @@ class QubitBaseClass(QuantumSystem):
         ----------
         operator: str
             name of class method in string form, returning operator matrix
-        evecs: None or ndarray, optional
-            eigensystem data of evals, evecs; calculates eigensystem if set to None (Default value = None)
+        evecs: ndarray, optional
+            eigensystem data of evals, evecs; eigensystem will be calculated if set to None (default value = None)
         evals_count: int, optional
-            number of desired matrix elements, starting with ground state (Default value = 6)
+            number of desired matrix elements, starting with ground state (default value = 6)
         mode: str, optional
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
         xlabel, ylabel, zlabel: str, optional
             labels for the three plot axes
         fig_ax: tuple(Figure, Axes), optional
-            fig and ax objects for matplotlib figure addition (Default value = None)
-        xlabel :
-             (Default value = '')
-        ylabel :
-             (Default value = '')
-        zlabel :
-             (Default value = '')
+            fig and ax objects for matplotlib figure addition (default value = None)
 
         Returns
         -------
@@ -227,13 +222,13 @@ class QubitBaseClass(QuantumSystem):
         param_vals: ndarray
             parameter values to be plugged in
         evals_count: int, optional
-            number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)
+            number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
         subtract_ground: bool, optional
-            if True, eigenvalues are returned relative to the ground state eigenvalue (Default value = False)
+            if True, eigenvalues are returned relative to the ground state eigenvalue (default value = False)
         get_eigenstates: bool, optional
-            return eigenstates along with eigenvalues (Default value = False)
+            return eigenstates along with eigenvalues (default value = False)
         filename: str, optional
-            write data to file if path and filename are specified (Default value = None)
+            write data to file if path and filename are specified (default value = None)
 
         Returns
         -------
@@ -281,9 +276,9 @@ class QubitBaseClass(QuantumSystem):
         param_vals: ndarray
             parameter values to be plugged in
         evals_count: int, optional
-            number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)
+            number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
         filename: str, optional
-            write data to file if path and filename are specified (Default value = None)
+            write data to file if path and filename are specified (default value = None)
 
         Returns
         -------
@@ -321,17 +316,17 @@ class QubitBaseClass(QuantumSystem):
         param_vals: ndarray
             parameter values to be plugged in
         evals_count: int, optional
-            number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)
+            number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
         subtract_ground: bool, optional
-            whether to subtract ground state energy from all eigenvalues (Default value = False)
+            whether to subtract ground state energy from all eigenvalues (default value = False)
         x_range: (float, float), optional
             custom x-range for the plot
         ymax: float, optional
             custom upper y bound for the plot
         filename: str, optional
-            write graphics and parameter set to file if path and filename are specified (Default value = None)
+            write graphics and parameter set to file if path and filename are specified (default value = None)
         fig_ax: tuple(Figure, Axes), optional
-            fig and ax objects for matplotlib figure addition (Default value = None)
+            fig and ax objects for matplotlib figure addition (default value = None)
 
         Returns
         -------
@@ -356,17 +351,17 @@ class QubitBaseClass(QuantumSystem):
             parameter values to be plugged in
         select_elems: int or list, optional
             either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples
-            for specific desired matrix elements (Default value = 4)
+            for specific desired matrix elements (default value = 4)
         mode: str, optional
-            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (Default value = 'abs')
+            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default value = 'abs')
         x_range: (float, float), optional
-            custom x-range for the plot (Default value = False)
+            custom x-range for the plot (default value = False)
         y_range: (float, float), optional
-            custom y-range for the plot (Default value = False)
+            custom y-range for the plot (default value = False)
         filename: str, optional
-            write graphics and parameter set to file if path and filename are specified (Default value = None)
+            write graphics and parameter set to file if path and filename are specified (default value = None)
         fig_ax: tuple(Figure, Axes), optional
-            fig and ax objects for matplotlib figure addition (Default value = None)
+            fig and ax objects for matplotlib figure addition (default value = None)
 
         Returns
         -------
@@ -396,7 +391,7 @@ class QubitBaseClass(QuantumSystem):
                 setattr(self, param_name, param_value)
 
 
-# —QubitBaseClass1d———————————————————————————————————————————————————————————————————————————————————————————————————————
+# —QubitBaseClass1d—————————————————————————————————————————————————————————————————————————————————————————————————————
 
 class QubitBaseClass1d(QubitBaseClass):
     """Base class for superconducting qubit objects with one degree of freedom. Provide general mechanisms and routines
@@ -432,12 +427,12 @@ class QubitBaseClass1d(QubitBaseClass):
         which: int or tuple or list, optional
             single index or tuple/list of integers indexing the wave function(s) to be plotted.
             If which is -1, all wavefunctions up to the truncation limit are plotted.
-        phi_range: None or tuple(float, float)
+        phi_range: tuple(float, float), optional
             used for setting a custom plot range for phi
         phi_count: int, optional
-            number of points on the x-axis (resolution) (Default value = 251)
+            number of points on the x-axis (resolution) (default value = 251)
         mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
+            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         scaling: float or None, optional
             custom scaling of wave function amplitude/modulus
         xlabel, ylabel: str, optional

@@ -25,7 +25,7 @@ def bare_spectrum(sweep, subsys, which=-1, title=None, fig_ax=None):
     ----------
     sweep: ParameterSweep
     subsys: QuantumSystem
-    which: None or int or list(int)
+    which: int or list(int), optional
         default: -1, signals to plot all wavefunctions within the truncated Hilbert space;
         int>0: plot wavefunctions 0..int-1; list(int) plot specific wavefunctions
     title: str, optional
@@ -106,12 +106,12 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=
     param_val: float
         value of the external parameter
     subsys: QuantumSystem
-    which: int or list(int)
+    which: int or list(int), optional
         default: -1, signals to plot all wavefunctions; int>0: plot wavefunctions 0..int-1; list(int) plot specific
         wavefunctions
-    phi_count: None or int
+    phi_count: int, optional
     title: str, optional
-    fig_ax: Figure, Axes
+    fig_ax: (Figure, Axes), optional
 
     Returns
     -------

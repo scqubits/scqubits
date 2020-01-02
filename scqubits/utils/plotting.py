@@ -66,7 +66,7 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=None, xlabel
         plot title
     filename: str, optional
         file path and name (not including suffix) for output
-    fig_ax: None or tuple(Figure, Axes)
+    fig_ax: tuple(Figure, Axes), optional
         fig and ax objects for matplotlib figure addition
     **kwargs:
         keyword arguments passed on to axes.plot()
@@ -116,9 +116,9 @@ def wavefunction1d_discrete(wavefunc, xlabel='x', ylabel='wavefunction', x_range
         y-axis label
     title: str, optional
         plot title
-    filename: None or str
+    filename: str, optional
         file path and name (not including suffix)
-    fig_ax: None or tuple(Figure, Axes)
+    fig_ax: tuple(Figure, Axes), optional
         fig and ax objects for matplotlib figure addition
     **kwargs:
         keyword arguments passed on to axes.plot()
@@ -157,13 +157,13 @@ def wavefunction2d(wavefunc, figsize=(10, 5), aspect_ratio=3, zero_calibrate=Fal
         basis and amplitude data of wave function to be plotted
     figsize: tuple(float, float)
         width, height in inches
-    aspect_ratio: float
+    aspect_ratio: float, optional
         aspect ratio
-    zero_calibrate: bool
+    zero_calibrate: bool, optional
         whether to calibrate plot to zero amplitude
-    filename: None or str
+    filename: str, , optional
         file path and name (not including suffix)
-    fig_ax: None or tuple(Figure, Axes)
+    fig_ax: tuple(Figure, Axes), optional
         fig and ax objects for matplotlib figure addition
 
     Returns
@@ -210,13 +210,13 @@ def contours(x_vals, y_vals, func, contour_vals=None, aspect_ratio=None, show_co
         y values for the x-y evaluation grid
     func: function f(x,y)
         function for which contours are to be plotted
-    contour_vals: list
+    contour_vals: list of float, optional
         contour values can be specified if so desired
-    aspect_ratio: float
-    show_colorbar: bool
+    aspect_ratio: float, optional
+    show_colorbar: bool, optional
     filename: str, optional
         file path and name (not including suffix)
-    fig_ax: None or tuple(Figure, Axes)
+    fig_ax: tuple(Figure, Axes), optional
         fig and ax objects for matplotlib figure addition
 
     Returns
@@ -259,12 +259,10 @@ def matrix(data_matrix, mode='abs', xlabel='', ylabel='', zlabel='', filename=No
         2d matrix data
     mode: str from `constants.MODE_FUNC_DICT`
         choice of processing function to be applied to data
-    xlabel: str
-    ylabel: str
-    zlabel: str
-    filename: None or str
+    xlabel, ylabel, zlabel: str, optional
+    filename: str, optional
         file path and name (not including suffix)
-    fig_ax: None or tuple(Figure, (Axes, Axes))
+    fig_ax: tuple(Figure, (Axes, Axes)), optional
         fig and ax objects for matplotlib figure addition
 
     Returns
@@ -399,7 +397,7 @@ def evals_vs_paramvals(specdata, which=-1, x_range=None, ymax=None, subtract_gro
         plot title
     label_list: list(str), optional
         list of labels associated with the individual curves to be plotted
-    fig_ax: None or tuple(Figure, Axes)
+    fig_ax: tuple(Figure, Axes), optional
         fig and ax objects for matplotlib figure addition
     **kwargs:
         keyword arguments passed on to axes.plot()
@@ -435,19 +433,19 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', x_range=None, y_r
     select_elems: int or list
         either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples
         for specific desired matrix elements
-    mode: str from `constants.MODE_FUNC_DICT`
-        choice of processing function to be applied to data
-    x_range: (float, float)
+    mode: str from `constants.MODE_FUNC_DICT`, optional
+        choice of processing function to be applied to data (default value = 'abs')
+    x_range: (float, float), optional
         custom x-range for the plot
-    y_range: (float, float)
+    y_range: (float, float), optional
         custom y-range for the plot
-    xlabel, ylabel: str
+    xlabel, ylabel: str, optional
         axes labels
-    title: str
+    title: str, optional
         plot title
-    filename: str
+    filename: str, optional
         write graphics and parameter set to file if path and filename are specified
-    fig_ax: None or tuple(Figure, Axes)
+    fig_ax: tuple(Figure, Axes), optional
         fig and ax objects for matplotlib figure addition
     **kwargs:
         keyword arguments passed on to axes.plot()

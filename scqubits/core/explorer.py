@@ -173,5 +173,5 @@ class Explorer:
         mid_box = ipywidgets.VBox([initial_slider, final_slider, photon_slider])
         right_box = ipywidgets.VBox([chi_qbt_dropdown, chi_osc_dropdown])
 
-        ui = ipywidgets.HBox([left_box, mid_box, right_box])
-        display(ui, out)
+        user_interface = ipywidgets.HBox([left_box, mid_box, right_box])
+        display(user_interface, out)

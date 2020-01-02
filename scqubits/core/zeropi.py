@@ -10,6 +10,7 @@
 ############################################################################
 
 import numpy as np
+
 from scipy import sparse
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
@@ -145,8 +146,7 @@ class ZeroPi(QubitBaseClass):
     def sparse_kinetic_mat(self):
         """
         Kinetic energy portion of the Hamiltonian.
-
-        TODO: update this method to use single-variable operator methods 
+        TODO: update this method to use single-variable operator methods
 
         Returns
         -------
@@ -172,8 +172,7 @@ class ZeroPi(QubitBaseClass):
     def sparse_potential_mat(self):
         """
         Potential energy portion of the Hamiltonian.
-
-        TODO: update this method to use single-variable operator methods 
+        TODO: update this method to use single-variable operator methods
 
         Returns
         -------
@@ -216,14 +215,14 @@ class ZeroPi(QubitBaseClass):
         r"""Calculates a of the potential energy w.r.t flux, at the current value of flux,
         as stored in the object. 
 
-        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
-        So if \frac{\partial U}{ \partial \Phi_{\rm ext}}, is needed, the expression returned 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
+        So if \frac{\partial U}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
         by this function, needs to be multiplied by 1/\Phi_0.
 
         Returns
         -------
         scipy.sparse.csc_matrix
-            matrix representing the derivative of the potential energy 
+            matrix representing the derivative of the potential energy
         """
         op_1 = sparse.kron(self._sin_phi_operator(x=- 2.0 * np.pi * self.flux / 2.0),
                            self._cos_theta_operator(), format='csc')
@@ -233,16 +232,16 @@ class ZeroPi(QubitBaseClass):
 
     def d_hamiltonian_d_flux(self):
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
-        as stored in the object. 
+        as stored in the object.
 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
-        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned 
+        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
         by this function, needs to be multiplied by 1/\Phi_0.
 
         Returns
         -------
         scipy.sparse.csc_matrix
-            matrix representing the derivative of the Hamiltonian 
+            matrix representing the derivative of the Hamiltonian
         """
         return self.sparse_d_potential_d_flux_mat()
 
@@ -376,7 +375,7 @@ class ZeroPi(QubitBaseClass):
 
     def _sin_theta_operator(self):
         r"""
-        Operator :math:`\sin(\theta)`, acting only on the `\theta` Hilbert space. 
+        Operator :math:`\sin(\theta)`, acting only on the `\theta` Hilbert space.
 
         Returns
         -------
@@ -398,20 +397,18 @@ class ZeroPi(QubitBaseClass):
         """
         return sparse.kron(self._identity_phi(), self._sin_theta_operator(), format='csc')
 
-    def plot_potential(self, theta_range=None, theta_count=None, contour_vals=None, aspect_ratio=None, filename=None):
+    def plot_potential(self, theta_range=None, theta_count=None, contour_vals=None, aspect_ratio=None,
+                       filename=None):
         """Draw contour plot of the potential energy.
 
         Parameters
         ----------
-        theta_range: None or tuple(float, float)
+        theta_range: tuple(float, float), optional
             used for setting a custom plot range for theta
-        theta_count: None or int, optional
+        theta_count: int, optional
         contour_vals: list, optional
-            (Default value = None)
         aspect_ratio: float, optional
-            (Default value = None)
-        filename: None or str, optional
-            (Default value = None)
+        filename: str, optional
         """
         theta_range, theta_count = self.try_defaults(theta_range, theta_count)
 
@@ -431,8 +428,8 @@ class ZeroPi(QubitBaseClass):
         esys: ndarray, ndarray
             eigenvalues, eigenvectors
         which: int, optional
-             index of desired wave function (Default value = 0)
-        theta_range: None or tuple(float, float)
+             index of desired wave function (default value = 0)
+        theta_range: tuple(float, float), optional
             used for setting a custom plot range for theta
         theta_count: int, optional
             number of points to be used in the interval for theta
@@ -474,13 +471,13 @@ class ZeroPi(QubitBaseClass):
         esys: ndarray, ndarray
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which: int, optional
-            index of wave function to be plotted (Default value = (0)
-        theta_range: None or tuple(float, float)
+            index of wave function to be plotted (default value = (0)
+        theta_range: tuple(float, float), optional
             used for setting a custom plot range for theta
         theta_count: int, optional
             number of points to be used in the interval for theta
         mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
+            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
         figsize: (float, float), optional

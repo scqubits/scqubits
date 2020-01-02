@@ -115,9 +115,9 @@ class Transmon(QubitBaseClass1d):
         mode: str from MODE_FUNC_DICT
             `'abs_sqr', 'abs', 'real', 'imag'`
         which: int or tuple of ints, optional
-             index or indices of wave functions to plot (Default value = 0)
+             index or indices of wave functions to plot (default value = 0)
         nrange: tuple of two ints
-             range of `n` to be included on the x-axis (Default value = (-5,6))
+             range of `n` to be included on the x-axis (default value = (-5,6))
         filename: str, optional
             file path and name (not including suffix) for output
 
@@ -147,9 +147,9 @@ class Transmon(QubitBaseClass1d):
         ----------
         esys: ndarray, ndarray, optional
             if `None`, the eigensystem is calculated on the fly; otherwise, the provided eigenvalue, eigenvector arrays
-            as obtained from `.eigensystem()`, are used (Default value = None)
+            as obtained from `.eigensystem()`, are used (default value = None)
         which: int, optional
-            eigenfunction index (Default value = 0)
+            eigenfunction index (default value = 0)
 
         Returns
         -------
@@ -173,11 +173,11 @@ class Transmon(QubitBaseClass1d):
             if None, the eigensystem is calculated on the fly; otherwise, the provided eigenvalue, eigenvector arrays
             as obtained from `.eigensystem()` are used
         which: int, optional
-            eigenfunction index (Default value = 0)
-        phi_range: None or tuple(float, float)
+            eigenfunction index (default value = 0)
+        phi_range: tuple(float, float), optional
             used for setting a custom plot range for phi
         phi_count: int, optional
-            number of phi values at which the wave function is evaluated (Default value = 251)
+            number of phi values at which the wave function is evaluated (default value = 251)
 
         Returns
         -------

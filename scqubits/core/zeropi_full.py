@@ -165,7 +165,7 @@ class FullZeroPi(QubitBaseClass):
     ncut = property(get_ncut, set_ncut)
 
     def get_dEJ(self):
-        return self._zeropi.dEJ 
+        return self._zeropi.dEJ
 
     def set_dEJ(self, value):
         self._zeropi.dEJ = value
@@ -173,7 +173,7 @@ class FullZeroPi(QubitBaseClass):
     dEJ = property(get_dEJ, set_dEJ)
 
     def get_dCJ(self):
-        return self._zeropi.dCJ 
+        return self._zeropi.dCJ
 
     def set_dCJ(self, value):
         self._zeropi.dCJ = value

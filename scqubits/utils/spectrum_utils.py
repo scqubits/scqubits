@@ -43,7 +43,7 @@ def extract_phase(complex_array, position=None):
     complex_array: ndarray
         complex-valued array
     position: int, optional
-        position where the phase is extracted (Default value = None)
+        position where the phase is extracted (default value = None)
     """
     if position is None:
         flattened_position = np.argmax(
@@ -165,7 +165,7 @@ def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj, retu
     reference_state_Qobj: qutip.Qobj ket
         specific reference state
     return_overlap: bool, optional
-        set to true if the value of largest overlap should be also returned (Default value = False)
+        set to true if the value of largest overlap should be also returned (default value = False)
 
     Returns
     -------

@@ -177,11 +177,11 @@ class Fluxonium(QubitBaseClass1d):
         esys: ndarray, ndarray
             eigenvalues, eigenvectors
         which: int, optional
-             index of desired wave function (Default value = 0)
-        phi_range: None or tuple(float,float), optional
+             index of desired wave function (default value = 0)
+        phi_range: tuple(float,float), optional
              custom boundaries of `phi` values range
         phi_count: int
-             number of points in the specified `phi` interval (Default value = 251)
+             number of points in the specified `phi` interval
 
         Returns
         -------

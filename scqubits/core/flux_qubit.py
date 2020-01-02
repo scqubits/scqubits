@@ -223,16 +223,14 @@ class FluxQubit(QubitBaseClass):
 
         Parameters
         ----------
-        phi_range: None or tuple(float, float)
+        phi_range: tuple(float, float), optional
             used for setting a custom plot range for phi
         phi_count: int, optional
-            (Default value = 100)
-        contour_vals: list, optional
-            (Default value = None)
+            number of points in the phi interval
+        contour_vals: list of float, optional
+            specific contours to draw
         aspect_ratio: float, optional
-            (Default value = None)
-        filename: None or str, optional
-            (Default value = None)
+        filename: str, optional
         """
         phi_range, phi_count = self.try_defaults(phi_range, phi_count)
 
@@ -249,8 +247,8 @@ class FluxQubit(QubitBaseClass):
         esys: ndarray, ndarray
             eigenvalues, eigenvectors
         which: int, optional
-            index of desired wave function (Default value = 0)
-        phi_range: None or tuple(float, float)
+            index of desired wave function (default value = 0)
+        phi_range: tuple(float, float), optional
             used for setting a custom plot range for phi
         phi_count: int, optional
             number of points to use on grid in each direction
@@ -292,13 +290,13 @@ class FluxQubit(QubitBaseClass):
         esys: ndarray, ndarray
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which: int, optional
-            index of wave function to be plotted (Default value = (0)
-        phi_range: None or tuple(float, float)
+            index of wave function to be plotted (default value = (0)
+        phi_range: tuple(float, float), optional
             used for setting a custom plot range for phi
         phi_count: int, optional
             number of points to be used in the 2pi interval in each direction
         mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
+            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
         figsize: (float, float), optional

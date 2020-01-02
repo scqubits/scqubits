@@ -58,7 +58,7 @@ class InteractionTerm:
         """
         Parameters
         ----------
-        evecs1, evecs2: None or ndarray
+        evecs1, evecs2: ndarray, optional
             subsystem eigenvectors used to calculated interaction Hamiltonian; calculated on the fly if not given
 
         Returns
@@ -150,7 +150,7 @@ class HilbertSpace(list):
         subsystem: object derived from `QuantumSystem`
             Subsystem for which the Hamiltonian is to be provided.
         evals: ndarray, optional
-            Eigenenergies can be provided as `evals`; otherwise, they are calculated. (Default value = None)
+            Eigenenergies can be provided as `evals`; otherwise, they are calculated.
 
         Returns
         -------
@@ -175,7 +175,7 @@ class HilbertSpace(list):
         op_in_eigenbasis: bool
             whether `operator` is given in the `subsystem` eigenbasis; otherwise, the internal QuantumSystem basis is
             assumed
-        evecs: None or ndarray
+        evecs: ndarray, optional
             internal QuantumSystem eigenstates, used to convert `operator` into eigenbasis
 
         Returns
@@ -295,13 +295,13 @@ class HilbertSpace(list):
         param_vals: ndarray of floats
             array of parameter values
         evals_count: int, optional
-            number of desired energy levels (Default value = 10)
+            number of desired energy levels (default value = 10)
         get_eigenstates: bool, optional
-            set to true if eigenstates should be returned as well (Default value = False)
+            set to true if eigenstates should be returned as well (default value = False)
         param_name: str, optional
-            name for the parameter that is varied in `param_vals` (Default value = "external_parameter")
+            name for the parameter that is varied in `param_vals` (default value = "external_parameter")
         filename: str, optional
-            write data to file if path/filename is provided (Default value = None)
+            write data to file if path/filename is provided (default value = None)
 
         Returns
         -------

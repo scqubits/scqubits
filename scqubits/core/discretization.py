@@ -84,10 +84,9 @@ class Grid1d:
         Parameters
         ----------
         prefactor: float, optional
-            optional prefactor of the derivative matrix (Default value = 1.0)
-        periodic: bool, periodic
-            set to True if variable is a periodic variable (Default value = False)
-
+            optional prefactor of the derivative matrix (default value = 1.0)
+        periodic: bool, optional
+            set to True if variable is a periodic variable (default value = False)
 
         Returns
         -------

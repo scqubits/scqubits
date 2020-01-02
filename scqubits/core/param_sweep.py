@@ -14,7 +14,6 @@ import numpy as np
 from tqdm.notebook import tqdm
 
 from scqubits.core.data_containers import SpectrumData
-from scqubits.core.harmonic_osc import Oscillator
 from scqubits.settings import TQDM_KWARGS
 from scqubits.utils.misc import make_bare_labels
 from scqubits.utils.spectrum_utils import get_matrixelement_table
