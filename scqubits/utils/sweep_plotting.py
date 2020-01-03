@@ -190,7 +190,7 @@ def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, title=None, fig_ax=
     specdata = copy.deepcopy(sweep.bare_specdata_list[qbt_index])
     specdata.matrixelem_table = sweep.sweep_data[data_key]
     xlabel = sweep.param_name
-    ylabel = r'$|\langle i |n| j \rangle$'
+    ylabel = r'$|\langle i |n| j \rangle|$'
     label_list = [(initial_state_idx, final_idx) for final_idx in range(sweep.hilbertspace[qbt_index].truncated_dim)]
     return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs', xlabel=xlabel, ylabel=ylabel,
                                      title=title, fig_ax=fig_ax)
