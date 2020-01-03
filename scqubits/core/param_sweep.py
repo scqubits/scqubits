@@ -231,7 +231,6 @@ class ParameterSweep:
             evecs1 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys1)
             evecs2 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys2)
             hamiltonian += interaction_term.hamiltonian(evecs1=evecs1, evecs2=evecs2)
-
         return hamiltonian.eigenstates(eigvals=self.evals_count)
 
     def generate_chi_sweep(self):
@@ -433,7 +432,7 @@ class ParameterSweep:
                 if target_energy is None or initial_energy is None:
                     difference_energies.append(np.NaN)
                 else:
-                    difference_energies.append((target_energy - initial_energy)/photonnumber)
+                    difference_energies.append((target_energy - initial_energy) / photonnumber)
             difference_energies_table.append(difference_energies)
 
         return target_states_list, SpectrumData(self.param_name, self.param_vals, np.asarray(difference_energies_table),

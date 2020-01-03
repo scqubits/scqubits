@@ -88,7 +88,6 @@ class FluxQubit(QubitBaseClass):
     def EC_matrix(self):
         """Return the charging energy matrix"""
         Cmat = np.zeros((2, 2))
-
         CJ1 = 1. / (2 * self.ECJ1)  # capacitances in units where e is set to 1
         CJ2 = 1. / (2 * self.ECJ2)
         CJ3 = 1. / (2 * self.ECJ3)
@@ -267,7 +266,6 @@ class FluxQubit(QubitBaseClass):
 
         grid2d = GridSpec(np.asarray([[*phi_range, phi_count],
                                       [*phi_range, phi_count]]))
-
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
     def plot_wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None, mode='abs', zero_calibrate=True,
