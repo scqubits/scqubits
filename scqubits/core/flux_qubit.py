@@ -132,11 +132,8 @@ class FluxQubit(QubitBaseClass):
         kinetic_mat += 4.0 * ECmat[1, 1] * np.kron(self._identity(),
                                                    np.matmul(self._n_operator() - self.ng2 * self._identity(),
                                                              self._n_operator() - self.ng2 * self._identity()))
-        kinetic_mat += 4.0 * ECmat[0, 1] * np.kron(self._n_operator() - self.ng1 * self._identity(),
-                                                   self._n_operator() - self.ng2 * self._identity())
-        kinetic_mat += 4.0 * ECmat[1, 0] * np.kron(self._n_operator() - self.ng1 * self._identity(),
-                                                   self._n_operator() - self.ng2 * self._identity())
-
+        kinetic_mat += 4.0 * (ECmat[0, 1] + ECmat[1, 0]) * np.kron(self._n_operator() - self.ng1 * self._identity(),
+                                                                   self._n_operator() - self.ng2 * self._identity())
         return kinetic_mat
 
     def potentialmat(self):
@@ -171,27 +168,19 @@ class FluxQubit(QubitBaseClass):
 
     def n_1_operator(self):
         r"""Return charge number operator conjugate to :math:`\phi_1`"""
-        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
-        return np.kron(np.diag(diag_elements), self._identity())
+        return np.kron(self._n_operator(), self._identity())
 
     def n_2_operator(self):
         r"""Return charge number operator conjugate to :math:`\phi_2`"""
-        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
-        return np.kron(self._identity(), np.diag(diag_elements))
+        return np.kron(self._identity(), self._n_operator())
 
     def exp_i_phi_1_operator(self):
         r"""Return operator :math:`e^{i\phi_1}` in the charge basis."""
-        dim = 2 * self.ncut + 1
-        off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
-        e_iphi_matrix = np.diag(off_diag_elements, k=1)
-        return np.kron(e_iphi_matrix, self._identity())
+        return np.kron(self._exp_i_phi_operator(), self._identity())
 
     def exp_i_phi_2_operator(self):
         r"""Return operator :math:`e^{i\phi_2}` in the charge basis."""
-        dim = 2 * self.ncut + 1
-        off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
-        e_iphi_matrix = np.diag(off_diag_elements, k=1)
-        return np.kron(self._identity(), e_iphi_matrix)
+        return np.kron(self._identity(), self._exp_i_phi_operator())
 
     def cos_phi_1_operator(self):
         """Return operator :math:`\\cos \\phi_1` in the charge basis"""
@@ -208,13 +197,13 @@ class FluxQubit(QubitBaseClass):
     def sin_phi_1_operator(self):
         """Return operator :math:`\\sin \\phi_1` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_1_operator()
-        sin_op += sin_op.H
+        sin_op += sin_op.conj().T
         return sin_op
 
     def sin_phi_2_operator(self):
         """Return operator :math:`\\sin \\phi_2` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_2_operator()
-        sin_op += sin_op.H
+        sin_op += sin_op.conj().T
         return sin_op
 
     def plot_potential(self, phi_range=None, phi_count=None, contour_vals=None, figsize=(5, 5), filename=None):
@@ -234,7 +223,6 @@ class FluxQubit(QubitBaseClass):
         filename: str, optional
         """
         phi_range, phi_count = self.try_defaults(phi_range, phi_count)
-
         x_vals = np.linspace(*phi_range, phi_count)
         y_vals = np.linspace(*phi_range, phi_count)
         return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, figsize=figsize,
@@ -264,7 +252,6 @@ class FluxQubit(QubitBaseClass):
             _, evecs = self.eigensys(evals_count)
         else:
             _, evecs = esys
-
         phi_range, phi_count = self.try_defaults(phi_range, phi_count)
 
         dim = 2 * self.ncut + 1
