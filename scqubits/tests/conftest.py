@@ -21,15 +21,16 @@ import scqubits
 import scqubits.settings
 import scqubits.utils.plotting as plot
 from scqubits import FileType
-from scqubits.settings import in_ipython
+from scqubits.core.data_containers import SpectrumData
+from scqubits.settings import IN_IPYTHON
 
-if not in_ipython:
+if not IN_IPYTHON:
     matplotlib.use('Agg')
 
-scqubits.settings.file_format = FileType.h5
+scqubits.settings.FILE_FORMAT = FileType.h5
 
-TESTSDIR, _ = os.path.split(scqubits.tests.__file__)
-DATADIR = os.path.join(TESTSDIR, 'data', '')
+TESTDIR, _ = os.path.split(scqubits.tests.__file__)
+DATADIR = os.path.join(TESTDIR, 'data', '')
 
 
 class BaseTest:
@@ -98,3 +99,64 @@ class BaseTest:
     def plot_matelem_vs_paramvals(self, op, param_name, param_list, select_elems):
         self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, select_elems=select_elems,
                                            filename=self.tmpdir + 'test')
+
+
+class StandardTests(BaseTest):
+    @classmethod
+    def setup_class(cls):
+        cls.qbt = None
+        cls.qubit_str = ''
+        cls.op1_str = ''
+        cls.op2_str = ''
+        cls.param_name = ''
+        cls.param_list = None
+
+    def test_eigenvals(self):
+        testname = self.qubit_str + '_1'
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + testname)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        evals_reference = specdata.energy_table
+        return self.eigenvals(evals_reference)
+
+    def test_eigenvecs(self):
+        testname = self.qubit_str + '_2'
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + testname)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        evecs_reference = specdata.state_table
+        return self.eigenvecs(evecs_reference)
+
+    def test_plot_wavefunction(self):
+        self.qbt.plot_wavefunction(esys=None, which=5, mode='real')
+        self.qbt.plot_wavefunction(esys=None, which=(0, 3, 9), mode='abs_sqr')
+
+    def test_plot_evals_vs_paramvals(self):
+        return self.plot_evals_vs_paramvals(self.param_name, self.param_list)
+
+    def test_get_spectrum_vs_paramvals(self):
+        testname = self.qubit_str + '_4'
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + testname)
+        self.param_list = specdata.param_vals
+        evecs_reference = specdata.state_table
+        evals_reference = specdata.energy_table
+        return self.get_spectrum_vs_paramvals(self.param_name, self.param_list, evals_reference, evecs_reference)
+
+    def test_matrixelement_table(self):
+        testname = self.qubit_str + '_5'
+        specdata = SpectrumData(param_name=None, param_vals=None, energy_table=None, system_params=None)
+        specdata.fileread(DATADIR + testname)
+        self.qbt.set_params_from_dict(specdata._get_metadata_dict())
+        matelem_reference = specdata.matrixelem_table
+        return self.matrixelement_table(self.op1_str, matelem_reference)
+
+    def test_plot_matrixelements(self):
+        self.plot_matrixelements(self.op1_str, evals_count=10)
+
+    def test_print_matrixelements(self):
+        self.print_matrixelements(self.op2_str)
+
+    def test_plot_matelem_vs_paramvals(self):
+        self.plot_matelem_vs_paramvals(self.op1_str, self.param_name, self.param_list,
+                                       select_elems=[(0, 0), (1, 4), (1, 0)])
