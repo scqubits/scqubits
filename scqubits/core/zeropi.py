@@ -213,7 +213,7 @@ class ZeroPi(QubitBaseClass):
 
     def sparse_d_potential_d_flux_mat(self):
         r"""Calculates a of the potential energy w.r.t flux, at the current value of flux,
-        as stored in the object. 
+        as stored in the object.
 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
         So if \frac{\partial U}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
@@ -234,7 +234,7 @@ class ZeroPi(QubitBaseClass):
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
         as stored in the object.
 
-        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
         So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
         by this function, needs to be multiplied by 1/\Phi_0.
 
@@ -406,6 +406,7 @@ class ZeroPi(QubitBaseClass):
             used for setting a custom plot range for theta
         theta_count: int, optional
         contour_vals: list, optional
+        figsize: tupel(float, float), optitional
         filename: str, optional
         """
         theta_range, theta_count = self.try_defaults(theta_range, theta_count)
