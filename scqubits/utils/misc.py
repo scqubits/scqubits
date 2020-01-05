@@ -79,3 +79,12 @@ def process_metadata(full_dict):
         else:
             reduced_dict[key] = str(param_obj)
     return reduced_dict
+
+
+def filter_metadata(full_dict):
+    """Filter for entries in the full dictionary that have numerical values"""
+    reduced_dict = {}
+    for param_name, param_value in full_dict.items():
+        if isinstance(param_value, (int, float, np.number)):
+            reduced_dict[param_name] = param_value
+    return reduced_dict

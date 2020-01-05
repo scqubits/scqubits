@@ -22,13 +22,10 @@ scqubits.settings.FILE_FORMAT = FileType.h5
 class TestFluxonium(StandardTests):
     @classmethod
     def setup_class(cls):
-        cls.qbt = Fluxonium(EJ=None, EC=None, EL=None, flux=None, cutoff=None)
-        cls.qubit_str = 'fluxonium'
+        cls.qbt = None
+        cls.qbt_type = Fluxonium
+        cls.file_str = 'fluxonium'
         cls.op1_str = 'n_operator'
         cls.op2_str = 'phi_operator'
         cls.param_name = 'flux'
         cls.param_list = np.linspace(0.45, 0.55, 50)
-
-    def test_plot_evals_vs_paramvals_EJ(self):
-        ej_vals = self.qbt.EJ * np.cos(np.linspace(-np.pi / 2, np.pi / 2, 40))
-        self.plot_evals_vs_paramvals('EJ', ej_vals)

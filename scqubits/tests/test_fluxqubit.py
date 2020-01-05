@@ -22,17 +22,10 @@ scqubits.settings.FILE_FORMAT = FileType.h5
 class TestFluxQubit(StandardTests):
     @classmethod
     def setup_class(cls):
-        cls.qbt = FluxQubit(EJ1=None, EJ2=None, EJ3=None, ECJ1=None, ECJ2=None, ECJ3=None, ECg1=None, ECg2=None,
-                            ng1=None, ng2=None, flux=None, ncut=None)
-        cls.qubit_str = 'fluxqubit'
+        cls.qbt = None
+        cls.qbt_type = FluxQubit
+        cls.file_str = 'fluxqubit'
         cls.op1_str = 'n_1_operator'
         cls.op2_str = 'n_2_operator'
         cls.param_name = 'flux'
         cls.param_list = np.linspace(0.45, 0.55, 50)
-
-    def test_plot_wavefunction(self):
-        self.qbt.plot_wavefunction(esys=None, which=5, mode='real')
-
-    def test_plot_evals_vs_paramvals_EJ(self):
-        ej_vals = self.qbt.EJ1 * np.cos(np.linspace(-np.pi / 2, np.pi / 2, 40))
-        self.plot_evals_vs_paramvals('EJ1', ej_vals)
