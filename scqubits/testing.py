@@ -11,7 +11,7 @@
 
 import pytest
 
-from scqubits.tests.conftest import TESTSDIR
+from scqubits.tests.conftest import TESTDIR
 
 
 def run():
@@ -19,4 +19,4 @@ def run():
     Run the pytest scripts for scqubits.
     """
     # runs tests in scqubits.tests directory
-    pytest.main(['-v', TESTSDIR])
+    pytest.main(['-v', TESTDIR])

@@ -175,7 +175,7 @@ class SpectrumData:
         ----------
         filename: str
         """
-        file_format = config.file_format
+        file_format = config.FILE_FORMAT
         writer = io.ObjectWriter()
         writer.filewrite(self, file_format, filename)
 
@@ -186,6 +186,6 @@ class SpectrumData:
         ----------
         filename: str
         """
-        file_format = config.file_format
+        file_format = config.FILE_FORMAT
         reader = io.ObjectReader()
         reader.fileread(self, file_format, filename)

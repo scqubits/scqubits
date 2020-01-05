@@ -22,11 +22,11 @@ import scqubits as qubits
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.data_containers import SpectrumData
-from scqubits.settings import in_ipython, TQDM_KWARGS
+from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.misc import process_which, process_metadata
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
-if in_ipython:
+if IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm

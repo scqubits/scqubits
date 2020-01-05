@@ -16,10 +16,10 @@ import qutip as qt
 
 from scqubits.core.data_containers import SpectrumData
 from scqubits.core.harmonic_osc import Oscillator
-from scqubits.settings import in_ipython, TQDM_KWARGS
+from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.spectrum_utils import get_matrixelement_table, convert_esys_to_ndarray
 
-if in_ipython:
+if IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
@@ -263,7 +263,7 @@ class HilbertSpace(list):
             composite Hamiltonian composed of bare Hamiltonians of subsystems independent of the external parameter
         """
         bare_hamiltonian = 0
-        for index, subsys in enumerate(self):
+        for subsys in self:
             evals = subsys.eigenvals(evals_count=subsys.truncated_dim)
             bare_hamiltonian += self.diag_hamiltonian(subsys, evals)
         return bare_hamiltonian
@@ -362,7 +362,7 @@ class HilbertSpace(list):
             else:
                 dressed_indices.append(max_position)
         basis_label_ranges = [list(range(dims[subsys_index])) for subsys_index in range(self.subsystem_count)]
-        basis_labels_list = [elem for elem in itertools.product(*basis_label_ranges)]
+        basis_labels_list = list(itertools.product(*basis_label_ranges))
         return [dressed_indices, basis_labels_list]
 
     def lookup_dressed_index(self, bare_labels, param_index=0):

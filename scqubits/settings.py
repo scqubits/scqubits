@@ -27,23 +27,23 @@ from cycler import cycler
 
 from scqubits.utils.constants import FileType
 
-file_format = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
+FILE_FORMAT = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
 
 # a switch for displaying of progress bar; default: show only in ipython
-progressbar_disabled = False
+PROGRESSBAR_DISABLED = False
 try:
     if __IPYTHON__:
-        in_ipython = True
+        IN_IPYTHON = True
 except NameError:
-    progressbar_disabled = True
-    in_ipython = False
+    PROGRESSBAR_DISABLED = True
+    IN_IPYTHON = False
 
 # default energy units
 DEFAULT_ENERGY_UNITS = 'GHz'
 
 
 # define settings for tqdm progressbar
-TQDM_KWARGS = {'disable': progressbar_disabled,
+TQDM_KWARGS = {'disable': PROGRESSBAR_DISABLED,
                'leave': False}
 
 # set custom matplotlib color cycle
