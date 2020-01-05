@@ -169,6 +169,8 @@ def chi_01(sweep, qbt_index, osc_index, param_index=0, fig_ax=None):
         index of the qubit system within the underlying HilbertSpace
     osc_index: int
         index of the oscillator system within the underlying HilbertSpace
+    param_index: int, optional
+        index of the external parameter to be used
     fig_ax: (Figure, Axes), optional
 
     Returns

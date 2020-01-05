@@ -24,13 +24,13 @@ class FileIOFactory:
     def get_writer(self, file_format):
         if file_format is FileType.csv:
             return CsvWriter()
-        elif file_format is FileType.h5:
+        if file_format is FileType.h5:
             return H5Writer()
 
     def get_reader(self, file_format):
         if file_format is FileType.csv:
             return CsvReader()
-        elif file_format is FileType.h5:
+        if file_format is FileType.h5:
             return H5Reader()
 
 

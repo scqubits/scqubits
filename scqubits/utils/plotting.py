@@ -17,9 +17,9 @@ import numpy as np
 
 try:
     from labellines import labelLines
-    _labellines_enabled = True
+    _LABELLINES_ENABLED = True
 except ImportError:
-    _labellines_enabled = False
+    _LABELLINES_ENABLED = False
 
 import scqubits.utils.constants as constants
 from scqubits.utils.misc import process_which
@@ -213,8 +213,9 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, figsiz
         function for which contours are to be plotted
     contour_vals: list of float, optional
         contour values can be specified if so desired
-    aspect_ratio: float, optional
     show_colorbar: bool, optional
+    figsize: tuple(float, float), optional
+        figure size
     filename: str, optional
         file path and name (not including suffix)
     fig_ax: tuple(Figure, Axes), optional
@@ -476,7 +477,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', x_range=None, y_r
             y = modefunction(specdata.matrixelem_table[:, index_pair[0], index_pair[1]])
             axes.plot(x, y, label=str(index_pair[0]) + ',' + str(index_pair[1]), **kwargs)
 
-    if _labellines_enabled:
+    if _LABELLINES_ENABLED:
         labelLines(axes.get_lines(), zorder=2.0)
     else:
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
