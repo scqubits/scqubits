@@ -8,5 +8,3 @@
 """scqubits.utils contains utility modules for plotting, file input/output, constants used throughout the package \
 and other routines."""
 #######################################################################################################################
-
-
