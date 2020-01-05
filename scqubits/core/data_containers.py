@@ -152,9 +152,9 @@ class SpectrumData:
         if self.matrixelem_table is not None:
             writer.add_dataset('matrixelem_table', self.matrixelem_table)
 
-    def _initialize_from_fileread(self, *data_from_file):
+    def set_from_data(self, *data_from_file):
         """
-        Uses data extracted from file to initialize the SpectrumData object
+        Uses data extracted from file to set parameters and data entries of self
 
         Parameters
         ----------
@@ -168,6 +168,31 @@ class SpectrumData:
         for index, attribute in enumerate(name_list):
             setattr(self, attribute, data_list[index])
 
+    @classmethod
+    def _init_from_data(cls, *data_from_file):
+        """
+        Uses data extracted from file to create and initialize a new SpectrumData object
+
+        Parameters
+        ----------
+        data_from_file: (dict, list(str), list(ndarray))
+            metadata dictionary, list of dataset names, list of datasets (ndarray)
+
+        Returns
+        -------
+        SpectrumData
+        """
+        metadata_dict, name_list, data_list = data_from_file
+        param_name = metadata_dict.pop('param_name')
+        param_vals = metadata_dict.pop('param_vals')
+        system_params = metadata_dict
+        data_dict = {name: data_list[i] for i, name in enumerate(name_list)}
+        energy_table = data_dict.get('energy_table')
+        state_table = data_dict.get('state_table')
+        matrixelem_table = data_dict.get('matrixelem_table')
+        return cls(param_name=param_name, param_vals=param_vals, energy_table=energy_table, system_params=system_params,
+                   state_table=state_table, matrixelem_table=matrixelem_table)
+
     def filewrite(self, filename):
         """Write metadata and spectral data to file
 
@@ -179,8 +204,8 @@ class SpectrumData:
         writer = io.ObjectWriter()
         writer.filewrite(self, file_format, filename)
 
-    def fileread(self, filename):
-        """Read metadata and spectral data from file, and use those to initialize th SpectrumData object (self).
+    def set_from_fileread(self, filename):
+        """Read metadata and spectral data from file, and use those to set parameters of the SpectrumData object (self).
 
         Parameters
         ----------
@@ -188,4 +213,21 @@ class SpectrumData:
         """
         file_format = config.FILE_FORMAT
         reader = io.ObjectReader()
-        reader.fileread(self, file_format, filename)
+        reader.set_params_from_fileread(self, file_format, filename)
+
+    @classmethod
+    def create_from_fileread(cls, filename):
+        """Read metadata and spectral data from file, and use those to create a new SpectrumData object.
+
+        Parameters
+        ----------
+        filename: str
+
+        Returns
+        -------
+        SpectrumData
+            new SpectrumData object, initialized with data read from file
+        """
+        file_format = config.FILE_FORMAT
+        reader = io.ObjectReader()
+        return reader.create_from_fileread(cls, file_format, filename)
