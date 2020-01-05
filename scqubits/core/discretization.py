@@ -107,11 +107,26 @@ class Grid1d:
         return derivative_matrix
 
     def _get_metadata_dict(self):
+        """Extract a dictionary of current grid object"""
         meta_dict = {}
         for key, param_obj in self.__dict__.items():
             if isinstance(param_obj, (int, float, np.number)):
                 meta_dict[key] = param_obj
         return meta_dict
+
+    @classmethod
+    def create_from_dict(cls, meta_dict):
+        """
+        Create and initialize a new grid object from metadata dictionary
+        Parameters
+        ----------
+        meta_dict: dict
+
+        Returns
+        -------
+        Grid1d
+        """
+        return cls(min_val=meta_dict['min_val'], max_val=meta_dict['max_val'], pt_count=meta_dict['pt_count'])
 
 
 class GridSpec:
