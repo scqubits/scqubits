@@ -105,18 +105,18 @@ class Transmon(QubitBaseClass1d):
         """
         return -self.EJ * np.cos(phi)
 
-    def plot_n_wavefunction(self, esys, mode, which=0, nrange=None, filename=None):
+    def plot_n_wavefunction(self, esys=None, mode='real', which=0, nrange=None, filename=None):
         """Plots transmon wave function in charge basis
 
         Parameters
         ----------
-        esys: ndarray, ndarray
+        esys: tuple(ndarray, ndarray), optional
             eigenvalues, eigenvectors
-        mode: str from MODE_FUNC_DICT
+        mode: str from MODE_FUNC_DICT, optional
             `'abs_sqr', 'abs', 'real', 'imag'`
         which: int or tuple of ints, optional
              index or indices of wave functions to plot (default value = 0)
-        nrange: tuple of two ints
+        nrange: tuple of two ints, optional
              range of `n` to be included on the x-axis (default value = (-5,6))
         filename: str, optional
             file path and name (not including suffix) for output

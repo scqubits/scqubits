@@ -15,6 +15,7 @@ from scipy import sparse
 import scqubits.core.operators as op
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
+from scqubits.core.discretization import Grid1d
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
 
@@ -365,8 +366,7 @@ class FullZeroPi(QubitBaseClass):
         ----------
         meta_dict: dict
         """
-        for param_name in meta_dict.keys():
-            param_value = meta_dict[param_name]
+        for param_name, param_value in meta_dict.items():
             if isinstance(param_value, (int, float, np.number)):
                 if param_name in self.grid.__dict__.keys():
                     setattr(self.grid, param_name, param_value)
@@ -385,3 +385,23 @@ class FullZeroPi(QubitBaseClass):
             ncut=self.ncut,
             truncated_dim=self.zeropi_cutoff
         )
+
+    @classmethod
+    def create_from_dict(cls, meta_dict):
+        """Set object parameters by given metadata dictionary
+
+        Parameters
+        ----------
+        meta_dict: dict
+        """
+        filtered_dict = {}
+        grid_dict = {}
+        for param_name, param_value in meta_dict.items():
+            if isinstance(param_value, (int, float, np.number)):
+                if param_name in ['min_val', 'max_val', 'pt_count']:
+                    grid_dict[param_name] = param_value
+                else:
+                    filtered_dict[param_name] = param_value
+        grid = Grid1d(**grid_dict)
+        filtered_dict['grid'] = grid
+        return cls(**filtered_dict)

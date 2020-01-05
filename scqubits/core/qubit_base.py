@@ -25,6 +25,7 @@ from scqubits.core.data_containers import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.misc import process_which, process_metadata
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
+from scqubits.utils.misc import filter_metadata
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -385,10 +386,24 @@ class QubitBaseClass(QuantumSystem):
         ----------
         meta_dict: dict
         """
-        for param_name in meta_dict.keys():
-            param_value = meta_dict[param_name]
-            if isinstance(param_value, (int, float, np.number)):
-                setattr(self, param_name, param_value)
+        filtered_dict = filter_metadata(meta_dict)
+        for param_name, param_value in filtered_dict.items():
+            setattr(self, param_name, param_value)
+
+    @classmethod
+    def create_from_dict(cls, meta_dict):
+        """Return a qubit object initialized by data from metadata dictionary
+
+        Parameters
+        ----------
+        meta_dict: dict
+
+        Returns
+        -------
+        object
+        """
+        filtered_dict = filter_metadata(meta_dict)
+        return cls(**filtered_dict)
 
 
 # —QubitBaseClass1d—————————————————————————————————————————————————————————————————————————————————————————————————————
