@@ -30,6 +30,8 @@ Contributors
 
 **Nicholas Irons** - Code contributor
 
+**David Schuster** - Code contributor
+
 **Sydney Wang** (IMSA) - Code contributor
 
 **Daniel Weiss** (Northwestern University) - Code contributor
