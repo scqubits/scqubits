@@ -18,9 +18,3 @@ Users Guide
    guide-example-ipynb.rst
    guide-settings.rst
 
-
-.. _figure-scqubits_org:
-
-.. figure:: ../tree-gen/tree.png
-   :align: center
-   :figwidth: 100%
