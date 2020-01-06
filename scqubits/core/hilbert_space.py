@@ -9,13 +9,66 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import itertools
+
 import numpy as np
 import qutip as qt
-import h5py
 
-import scqubits.utils.progressbar as progressbar
 from scqubits.core.data_containers import SpectrumData
-from scqubits.utils.spectrum_utils import get_eigenstate_index_maxoverlap
+from scqubits.core.harmonic_osc import Oscillator
+from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
+from scqubits.utils.spectrum_utils import get_matrixelement_table, convert_esys_to_ndarray
+
+if IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
+
+
+class InteractionTerm:
+    """
+    Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
+    the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is g A B, where g is the
+    interaction strength, A an operator in subsystem 1 and B and operator in subsystem 2.
+
+    Parameters
+    ----------
+    g_strength: float
+        coefficient parametrizing the interaction strength
+    hilbertspace: HilbertSpace
+        specifies the Hilbert space components
+    subsys1, subsys2: QuantumSystem
+        the two subsystems involved in the interaction
+    op1, op2: str or ndarray
+        names of operators in the two subsystems
+    evecs1, evecs2: ndarray
+        bare eigenvectors allowing the calculation of op1, op2 in the two bare eigenbases
+    """
+    def __init__(self, g_strength, hilbertspace, subsys1, op1, subsys2, op2, evecs1=None, evecs2=None):
+        self.g_strength = g_strength
+        self.hilbertspace = hilbertspace
+        self.subsys1 = subsys1
+        self.op1 = op1
+        self.subsys2 = subsys2
+        self.op2 = op2
+        self.evecs1 = evecs1
+        self.evecs2 = evecs2
+
+    def hamiltonian(self, evecs1=None, evecs2=None):
+        """
+        Parameters
+        ----------
+        evecs1, evecs2: ndarray, optional
+            subsystem eigenvectors used to calculated interaction Hamiltonian; calculated on the fly if not given
+
+        Returns
+        -------
+        qutip.Qobj operator
+            interaction Hamiltonian
+        """
+        interaction_op1 = self.hilbertspace.identity_wrap(self.op1, self.subsys1, op_in_eigenbasis=False, evecs=evecs1)
+        interaction_op2 = self.hilbertspace.identity_wrap(self.op2, self.subsys2, op_in_eigenbasis=False, evecs=evecs2)
+        return self.g_strength * interaction_op1 * interaction_op2
 
 
 class HilbertSpace(list):
@@ -25,10 +78,16 @@ class HilbertSpace(list):
     for obtaining eigenvalues, absorption and emission spectra as a function of an external parameter.
     """
 
-    def __init__(self, subsystem_list):
+    def __init__(self, subsystem_list, interaction_list=None):
         list.__init__(self, subsystem_list)
+        self.interaction_list = interaction_list
+        self.state_lookup_table = None
+        self.osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
+                                if isinstance(subsys, Oscillator)]
+        self.qbt_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
+                                if not isinstance(subsys, Oscillator)]
 
-    def __repr__(self):
+    def __str__(self):
         output = '====== HilbertSpace object ======\n'
         for subsystem in self:
             output += '\n' + str(subsystem) + '\n'
@@ -91,7 +150,7 @@ class HilbertSpace(list):
         subsystem: object derived from `QuantumSystem`
             Subsystem for which the Hamiltonian is to be provided.
         evals: ndarray, optional
-            Eigenenergies can be provided as `evals`; otherwise, they are calculated. (Default value = None)
+            Eigenenergies can be provided as `evals`; otherwise, they are calculated.
 
         Returns
         -------
@@ -103,27 +162,48 @@ class HilbertSpace(list):
         diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))
         return self.identity_wrap(diag_qt_op, subsystem)
 
-    def identity_wrap(self, operator, subsystem):
+    def identity_wrap(self, operator, subsystem, op_in_eigenbasis=False, evecs=None):
         """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
 
         Parameters
         ----------
-        operator: ndarray or list or qutip.Qobj
-            operator acting in Hilbert space of `subsystem`
+        operator: ndarray or qutip.Qobj or str
+            operator acting in Hilbert space of `subsystem`; if str, then this should be an operator name in
+            the subsystem, typically not in eigenbasis
         subsystem: object derived from QuantumSystem
             subsystem where diagonal operator is defined
+        op_in_eigenbasis: bool
+            whether `operator` is given in the `subsystem` eigenbasis; otherwise, the internal QuantumSystem basis is
+            assumed
+        evecs: ndarray, optional
+            internal QuantumSystem eigenstates, used to convert `operator` into eigenbasis
 
         Returns
         -------
         qutip.Qobj operator
         """
-        if isinstance(operator, (list, np.ndarray)):
-            dim = subsystem.truncated_dim
-            subsys_operator = qt.Qobj(inpt=operator[:dim, :dim])
-        else:
+        dim = subsystem.truncated_dim
+
+        if isinstance(operator, np.ndarray):
+            if op_in_eigenbasis is False:
+                if evecs is None:
+                    _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+                operator_matrixelements = get_matrixelement_table(operator, evecs)
+                subsys_operator = qt.Qobj(inpt=operator_matrixelements)
+            else:
+                subsys_operator = qt.Qobj(inpt=operator[:dim, :dim])
+        elif isinstance(operator, str):
+            if evecs is None:
+                _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+            operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
+            subsys_operator = qt.Qobj(inpt=operator_matrixelements)
+        elif isinstance(operator, qt.Qobj):
             subsys_operator = operator
+        else:
+            raise TypeError('Unsupported operator type: ', type(operator))
+
         operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in self]
-        subsystem_index = self.index(subsystem)
+        subsystem_index = self.get_subsys_index(subsystem)
         operator_identitywrap_list[subsystem_index] = subsys_operator
         return qt.tensor(operator_identitywrap_list)
 
@@ -161,6 +241,46 @@ class HilbertSpace(list):
         operator = (qt.destroy(dim))
         return self.identity_wrap(operator, subsystem)
 
+    def get_subsys_index(self, subsys):
+        """
+        Return the index of the given subsystem in the HilbertSpace.
+
+        Parameters
+        ----------
+        subsys: QuantumSystem
+
+        Returns
+        -------
+        int
+        """
+        return self.index(subsys)
+
+    def get_bare_hamiltonian(self):
+        """
+        Returns
+        -------
+        qutip.Qobj operator
+            composite Hamiltonian composed of bare Hamiltonians of subsystems independent of the external parameter
+        """
+        bare_hamiltonian = 0
+        for subsys in self:
+            evals = subsys.eigenvals(evals_count=subsys.truncated_dim)
+            bare_hamiltonian += self.diag_hamiltonian(subsys, evals)
+        return bare_hamiltonian
+
+    def get_hamiltonian(self):
+        """
+
+        Returns
+        -------
+        qutip.qobj
+            Hamiltonian of the composite system, including the interaction between components
+        """
+        hamiltonian = self.get_bare_hamiltonian()
+        for interaction_term in self.interaction_list:
+            hamiltonian += interaction_term.hamiltonian()
+        return hamiltonian
+
     def get_spectrum_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, get_eigenstates=False,
                                   param_name="external_parameter", filename=None):
         """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as a function of a parameter.
@@ -175,13 +295,13 @@ class HilbertSpace(list):
         param_vals: ndarray of floats
             array of parameter values
         evals_count: int, optional
-            number of desired energy levels (Default value = 10)
+            number of desired energy levels (default value = 10)
         get_eigenstates: bool, optional
-            set to true if eigenstates should be returned as well (Default value = False)
+            set to true if eigenstates should be returned as well (default value = False)
         param_name: str, optional
-            name for the parameter that is varied in `param_vals` (Default value = "external_parameter")
+            name for the parameter that is varied in `param_vals` (default value = "external_parameter")
         filename: str, optional
-            write data to file if path/filename is provided (Default value = None)
+            write data to file if path/filename is provided (default value = None)
 
         Returns
         -------
@@ -195,8 +315,7 @@ class HilbertSpace(list):
         else:
             eigenstatesQobj_table = None
 
-        progressbar.initialize()
-        for param_index, paramval in enumerate(param_vals):
+        for param_index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
             paramval = param_vals[param_index]
             hamiltonian = hamiltonian_func(paramval)
 
@@ -205,9 +324,8 @@ class HilbertSpace(list):
                 eigenenergy_table[param_index] = eigenenergies
                 eigenstatesQobj_table[param_index] = eigenstates_Qobj
             else:
-                eigenenergy_table[param_index] = hamiltonian.eigenenergies(eigvals=evals_count)
-            progress_in_percent = (param_index + 1) / paramvals_count
-            progressbar.update(progress_in_percent)
+                eigenenergies = hamiltonian.eigenenergies(eigvals=evals_count)
+                eigenenergy_table[param_index] = eigenenergies
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenenergy_table, self.__dict__,
                                     state_table=eigenstatesQobj_table)
@@ -216,113 +334,83 @@ class HilbertSpace(list):
 
         return spectrumdata
 
-    def difference_spectrum(self, spectrum_data, initial_state_ind, initial_as_bare=False):
-        """Takes spectral data of energy eigenvalues and subtracts the energy of a select state, given by its state
-        index.
+    def generate_state_lookup_table(self, spectrum_data, param_index=0):
+        """
+        Create a lookup table that associates each dressed-state index with the corresponding bare-state product state
+        index (whenever possible). Usually to be saved as self.state_lookup_table.
 
         Parameters
         ----------
-        spectrum_data: SpectrumData object
-            spectral data composed of eigenenergies
-        initial_state_ind: int or tuple ((subsys1, i1), (subsys2, i2), ...)
-            index of the initial state whose energy is supposed to be subtracted from the spectral data
-        initial_as_bare: bool, optional
-            if `True`, then the index is a tuple labeling a bare eigenstate; if `False`, label refers to a state from
-            `spectrum_data` (Default value = False)
+        spectrum_data: SpectrumData
+        param_index: int
+            indices > 0 become relevant when using ParameterSweep
 
         Returns
         -------
-        SpectrumData object
+        list(int), list(tuple)
+            dressed indices, corresponding bare indices
         """
-        paramvals_count = len(spectrum_data.param_vals)
-        evals_count = len(spectrum_data.energy_table[0])
-        diff_eigenenergy_table = np.empty((paramvals_count, evals_count))
-
-        progressbar.initialize()
-        for param_index in range(paramvals_count):
-            eigenenergies = spectrum_data.energy_table[param_index]
-            if initial_as_bare:
-                basis_list = [None] * self.subsystem_count
-                for (subsys, state_index) in initial_state_ind:
-                    subsys_index = self.index(subsys)
-                    basis_list[subsys_index] = qt.basis(subsys.truncated_dim, state_index)
-                bare_state = qt.tensor(basis_list)
-                eigenenergy_index = get_eigenstate_index_maxoverlap(spectrum_data.state_table[param_index],
-                                                                    bare_state)
+        dims = self.subsystem_dims
+        product_dim = np.prod(dims)
+        overlap_matrix = convert_esys_to_ndarray(spectrum_data.state_table[param_index])
+        dressed_indices = []
+        for bare_basis_index in range(product_dim):
+            max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
+            max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
+            if max_overlap < 0.5:
+                dressed_indices.append(None)
             else:
-                eigenenergy_index = initial_state_ind
+                dressed_indices.append(max_position)
+        basis_label_ranges = [list(range(dims[subsys_index])) for subsys_index in range(self.subsystem_count)]
+        basis_labels_list = list(itertools.product(*basis_label_ranges))
+        return [dressed_indices, basis_labels_list]
 
-            diff_eigenenergies = eigenenergies - eigenenergies[eigenenergy_index]
-            diff_eigenenergy_table[param_index] = diff_eigenenergies
-
-            progress_in_percent = (param_index + 1) / paramvals_count
-            progressbar.update(progress_in_percent)
-        return SpectrumData(spectrum_data.param_name, spectrum_data.param_vals, diff_eigenenergy_table,
-                            self.__dict__, state_table=None)
-
-    def absorption_spectrum(self, spectrum_data, initial_state_ind, initial_as_bare=False):
-        """Takes spectral data of energy eigenvalues and returns the absorption spectrum relative to a state
-        of given index. Calculated by subtracting from eigenenergies the energy of the select state. Resulting negative
-        frequencies, if the reference state is not the ground state, are omitted.
-
+    def lookup_dressed_index(self, bare_labels, param_index=0):
+        """
         Parameters
         ----------
-        spectrum_data: SpectrumData object
-            spectral data composed of eigenenergies
-        initial_state_ind: int or tuple ((subsys1, i1), (subsys2, i2), ...)
-            index of the initial state whose energy is supposed to be subtracted from the spectral data
-        initial_as_bare: bool, optional
-            if `True`, then the index is a tuple labeling a bare eigenstate; if `False`, label refers to a state from
-            `spectrum_data` (Default value = False)
+        bare_labels: tuple of ints
+            bare_labels = (index, index2, ...)
+        param_index: int
+            index of parameter value of interest
 
         Returns
         -------
-        SpectrumData object
+        int
+            dressed state index closest to the specified bare state
         """
-        spectrum_data = self.difference_spectrum(spectrum_data, initial_state_ind, initial_as_bare)
-        spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
-        return spectrum_data
+        try:
+            lookup_position = self.state_lookup_table[param_index][1].index(bare_labels)
+        except ValueError:
+            return None
+        return self.state_lookup_table[param_index][0][lookup_position]
 
-    def emission_spectrum(self, spectrum_data, initial_state_ind, initial_as_bare=False):
-        """Takes spectral data of energy eigenvalues and returns the emission spectrum relative to a state
-        of given index. The resulting "upwards" transition frequencies are calculated by subtracting from eigenenergies
-        the energy of the select state, and multiplying the result by -1. Resulting negative
-        frequencies, corresponding to absorption instead, are omitted.
+    def lookup_bare_index(self, dressed_index, param_index=0):
+        """
+        For given dressed index, look up the corresponding bare index from the state_lookup_table.
 
         Parameters
         ----------
-        spectrum_data: SpectrumData object
-            spectral data composed of eigenenergies
-        initial_state_ind: int or tuple ((subsys1, i1), (subsys2, i2), ...)
-            index of the initial state whose energy is supposed to be subtracted from the spectral data
-        initial_as_bare: bool, optional
-            if `True`, then the index is a tuple labeling a bare eigenstate; if `False`, label refers to a state from
-            `spectrum_data` (Default value = False)
+        dressed_index: int
+        param_index: int
 
         Returns
         -------
-        SpectrumData object
+        tuple(int)
         """
-        spectrum_data = self.difference_spectrum(spectrum_data, initial_state_ind, initial_as_bare)
-        spectrum_data.energy_table *= -1.0
-        spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
-        return spectrum_data
+        try:
+            lookup_position = self.state_lookup_table[param_index][0].index(dressed_index)
+        except ValueError:
+            return None
+        basis_labels = self.state_lookup_table[param_index][1][lookup_position]
+        return basis_labels
 
-    def filewrite_h5(self, file_hook):
-        """Write spectrum data to h5 file
-
-            Parameters
-            ----------
-            file_hook: str or h5py root group
-                path for file to be openend, or h5py.Group handle to root in open h5 file
-            """
-        if isinstance(file_hook, str):
-            h5file = h5py.File(file_hook + '.hdf5', 'w')
-            h5file_root = h5file.create_group('root')
-        else:
-            h5file_root = file_hook
-
-        for index, subsys in enumerate(self):
-            h5file_subgroup = h5file_root.create_group('subsys_' + str(index))
-            h5file_subgroup.attrs['type'] = type(subsys)
-            subsys.filewrite_params_h5(h5file_subgroup)
+    def _get_metadata_dict(self):
+        meta_dict = {}
+        for index, subsystem in enumerate(self):
+            subsys_meta = subsystem._get_metadata_dict()
+            renamed_subsys_meta = {}
+            for key in subsys_meta.keys():
+                renamed_subsys_meta[type(subsystem).__name__ + str(index) + '_' + key] = subsys_meta[key]
+            meta_dict.update(renamed_subsys_meta)
+        return meta_dict

@@ -42,7 +42,7 @@ Wavefunctions and visualization of eigenstates
 .. autosummary::
 
     scqubits.Transmon.numberbasis_wavefunction
-    scqubits.Transmon.phasebasis_wavefunction
+    scqubits.Transmon.wavefunction
     scqubits.Transmon.plot_n_wavefunction
     scqubits.Transmon.plot_phi_wavefunction
 

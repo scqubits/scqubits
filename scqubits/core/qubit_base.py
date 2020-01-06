@@ -14,18 +14,23 @@ Provides the base classes for qubits
 
 import abc
 
-import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
-import scqubits.settings as config
+import scqubits as qubits
 import scqubits.utils.constants as constants
 import scqubits.utils.plotting as plot
-import scqubits.utils.progressbar as progressbar
 from scqubits.core.data_containers import SpectrumData
-from scqubits.utils.constants import FileType
-from scqubits.utils.file_io import filewrite_csvdata, filewrite_h5data
+from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
+from scqubits.utils.misc import process_which, process_metadata
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
+from scqubits.utils.misc import filter_metadata
+
+if IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 # —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
@@ -35,14 +40,13 @@ class QuantumSystem:
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
-        self._sys_type = 'generic quantum system - only used as class template'
+        self._sys_type = 'quantum_system'
 
-    def __repr__(self):
-        output = self._sys_type + '\n ———— PARAMETERS ————'
-        for param_name in self.__dict__:
+    def __str__(self):
+        output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
+        for param_name, param_val in self.__dict__.items():
             if param_name[0] != '_':
-                paramval = self.__dict__[param_name]
-                output += '\n' + str(param_name) + '\t: ' + str(paramval)
+                output += '\n' + str(param_name) + '\t: ' + str(param_val)
         output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())
         return output
 
@@ -50,31 +54,24 @@ class QuantumSystem:
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
 
-    def filewrite_params_h5(self, h5file_root):
-        """Write current qubit parameters into a given h5 data file.
-
-        Parameters
-        ----------
-        h5file_root: root group of open h5py file
-        """
-        for key, info in self.__dict__.items():
-            if isinstance(info, (int, float, np.number)):
-                h5file_root.attrs[key] = info
-            else:
-                h5file_root.attrs[key] = str(info)
+    def _get_metadata_dict(self):
+        return process_metadata(self.__dict__)
 
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
 
 class QubitBaseClass(QuantumSystem):
-    """Base class for superconducting qubit objects. Provide general mechanisms and routines for
-    checking validity of initialization parameters, writing data to files, and plotting.
+    """Base class for superconducting qubit objects. Provide general mechanisms and routines
+    for plotting spectra, matrix elements, and writing data to files
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self):
-        self._sys_type = 'QubitBaseClass - mainly used as class template'
-        self._evec_dtype = np.float_
+    def __init__(self, truncated_dim=None):
+        super().__init__()
+        self.truncated_dim = truncated_dim
+        self._default_var_range = None
+        self._default_var_count = None
+        self._evec_dtype = None
 
     @abc.abstractmethod
     def hamiltonian(self):
@@ -97,9 +94,9 @@ class QubitBaseClass(QuantumSystem):
         Parameters
         ----------
         evals_count: int
-            number of desired eigenvalues/eigenstates (Default value = 6)
+            number of desired eigenvalues/eigenstates (default value = 6)
         filename: str, optional
-            path and filename without suffix, if file output desired (Default value = None)
+            path and filename without suffix, if file output desired (default value = None)
 
         Returns
         -------
@@ -107,7 +104,9 @@ class QubitBaseClass(QuantumSystem):
         """
         evals = self._evals_calc(evals_count)
         if filename:
-            self.filewrite_data(filename, [evals], [''])
+            specdata = SpectrumData('const_parameters', param_vals=np.empty(0), energy_table=evals,
+                                    system_params=self._get_metadata_dict())
+            specdata.filewrite(filename)
         return evals
 
     def eigensys(self, evals_count=6, filename=None):
@@ -117,9 +116,9 @@ class QubitBaseClass(QuantumSystem):
         Parameters
         ----------
         evals_count: int, optional
-            number of desired eigenvalues/eigenstates (Default value = 6)
+            number of desired eigenvalues/eigenstates (default value = 6)
         filename: str, optional
-            path and filename without suffix, if file output desired (Default value = None)
+            path and filename without suffix, if file output desired (default value = None)
 
         Returns
         -------
@@ -128,10 +127,29 @@ class QubitBaseClass(QuantumSystem):
         """
         evals, evecs = self._esys_calc(evals_count)
         if filename:
-            self.filewrite_data(filename, [evals, evecs], ["evals", "evecs"])
+            specdata = SpectrumData('const_parameters', param_vals=np.empty(0), energy_table=evals,
+                                    system_params=self._get_metadata_dict(), state_table=evecs)
+            specdata.filewrite(filename)
         return evals, evecs
 
-    def matrixelement_table(self, operator, esys=None, evals_count=6, filename=None):
+    def try_defaults(self, var_range, var_count):
+        """
+        Parameters
+        ----------
+        var_range: tuple(float, float), optional
+        var_count: int, optional
+
+        Returns
+        -------
+        If any of the arguments is None, return default values.
+        """
+        if var_range is None:
+            var_range = self._default_var_range
+        if var_count is None:
+            var_count = self._default_var_count
+        return var_range, var_count
+
+    def matrixelement_table(self, operator, evecs=None, evals_count=6, filename=None):
         """Returns table of matrix elements for `operator` with respect to the eigenstates of the qubit.
         The operator is given as a string matching a class method returning an operator matrix.
         E.g., for an instance `trm` of Transmon,  the matrix element table for the charge operator is given by
@@ -142,10 +160,10 @@ class QubitBaseClass(QuantumSystem):
         ----------
         operator: str
             name of class method in string form, returning operator matrix in qubit-internal basis.
-        esys: tuple(ndarray, ndarray), optional
-            if set, matrix elements are calculated based on the provided eigensystem data (Default value = None)
-        evals_count: int
-            number of desired matrix elements, starting with ground state (Default value = 6)
+        evecs: ndarray, optional
+            if not provided, then the necesssary eigenstates are calculated on the fly
+        evals_count: int, optional
+            number of desired matrix elements, starting with ground state (default value = 6)
         filename: str, optional
             output file name
 
@@ -153,49 +171,43 @@ class QubitBaseClass(QuantumSystem):
         -------
         ndarray
         """
-        if esys is None:
+        if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
-        else:
-            _, evecs = esys
         operator_matrix = getattr(self, operator)()
-        table = get_matrixelement_table(operator_matrix, evecs, real_valued=isinstance(self._evec_dtype, np.float_))
+        table = get_matrixelement_table(operator_matrix, evecs)
         if filename:
-            self.filewrite_data(filename, [table], [''])
+            specdata = SpectrumData('const_parameters', param_vals=np.empty(0), energy_table=np.empty(0),
+                                    system_params=self._get_metadata_dict(), matrixelem_table=table)
+            specdata.filewrite(filename)
         return table
 
-    def plot_matrixelements(self, operator, esys=None, evals_count=6, mode='abs', xlabel='', ylabel='', zlabel='',
+    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', xlabel='', ylabel='', zlabel='',
                             fig_ax=None):
         """Plots matrix elements for `operator`, given as a string referring to a class method
         that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
         for the charge operator `n` is obtained by `trm.plot_matrixelements('n')`.
-        When `esys` is set to None, the eigensystem with `evals_count` eigenvectors is calculated.
+        When `esys` is set to None, the eigensystem with `which` eigenvectors is calculated.
 
         Parameters
         ----------
         operator: str
             name of class method in string form, returning operator matrix
-        esys: tuple(ndarray,ndarray), optional
-            eigensystem data of evals, evecs; calculates eigensystem if set to None (Default value = None)
+        evecs: ndarray, optional
+            eigensystem data of evals, evecs; eigensystem will be calculated if set to None (default value = None)
         evals_count: int, optional
-            number of desired matrix elements, starting with ground state (Default value = 6)
+            number of desired matrix elements, starting with ground state (default value = 6)
         mode: str, optional
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
         xlabel, ylabel, zlabel: str, optional
             labels for the three plot axes
         fig_ax: tuple(Figure, Axes), optional
-            fig and ax objects for matplotlib figure addition (Default value = None)
-        xlabel :
-             (Default value = '')
-        ylabel :
-             (Default value = '')
-        zlabel :
-             (Default value = '')
+            fig and ax objects for matplotlib figure addition (default value = None)
 
         Returns
         -------
         Figure, Axes
         """
-        matrixelem_array = self.matrixelement_table(operator, esys, evals_count)
+        matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
         return plot.matrix(matrixelem_array, mode, xlabel, ylabel, zlabel, fig_ax=fig_ax)
 
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
@@ -211,13 +223,13 @@ class QubitBaseClass(QuantumSystem):
         param_vals: ndarray
             parameter values to be plugged in
         evals_count: int, optional
-            number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)
+            number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
         subtract_ground: bool, optional
-            if True, eigenvalues are returned relative to the ground state eigenvalue (Default value = False)
+            if True, eigenvalues are returned relative to the ground state eigenvalue (default value = False)
         get_eigenstates: bool, optional
-            return eigenstates along with eigenvalues (Default value = False)
+            return eigenstates along with eigenvalues (default value = False)
         filename: str, optional
-            write data to file if path and filename are specified (Default value = None)
+            write data to file if path and filename are specified (default value = None)
 
         Returns
         -------
@@ -225,15 +237,14 @@ class QubitBaseClass(QuantumSystem):
         """
         previous_paramval = getattr(self, param_name)
         paramvals_count = len(param_vals)
-        eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=self._evec_dtype)
+        eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
 
         if get_eigenstates:
             eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=self._evec_dtype)
         else:
             eigenstate_table = None
 
-        progressbar.initialize()
-        for index, paramval in enumerate(param_vals):
+        for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
             setattr(self, param_name, paramval)
 
             if get_eigenstates:
@@ -241,20 +252,16 @@ class QubitBaseClass(QuantumSystem):
                 eigenstate_table[index] = evecs
             else:
                 evals = self.eigenvals(evals_count)
-            eigenvalue_table[index] = evals
+            eigenvalue_table[index] = np.real(evals)   # for complex-hermitean H, eigenvalues have type np.complex_
 
             if subtract_ground:
                 eigenvalue_table[index] -= evals[0]
-
-            progress_in_percent = (index + 1) / paramvals_count
-            progressbar.update(progress_in_percent)
         setattr(self, param_name, previous_paramval)
 
-        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self.__dict__,
+        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
                                     state_table=eigenstate_table)
         if filename:
             spectrumdata.filewrite(filename)
-
         return spectrumdata
 
     def get_matelements_vs_paramvals(self, operator, param_name, param_vals, evals_count=6, filename=None):
@@ -270,9 +277,9 @@ class QubitBaseClass(QuantumSystem):
         param_vals: ndarray
             parameter values to be plugged in
         evals_count: int, optional
-            number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)
+            number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
         filename: str, optional
-            write data to file if path and filename are specified (Default value = None)
+            write data to file if path and filename are specified (default value = None)
 
         Returns
         -------
@@ -281,33 +288,25 @@ class QubitBaseClass(QuantumSystem):
         previous_paramval = getattr(self, param_name)
         paramvals_count = len(param_vals)
         eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
-
         eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=np.complex_)
         matelem_table = np.empty(shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_)
 
-        progressbar.initialize()
-        for index, paramval in enumerate(param_vals):
+        for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
             setattr(self, param_name, paramval)
             evals, evecs = self.eigensys(evals_count)
             eigenstate_table[index] = evecs
             eigenvalue_table[index] = evals
-
             matelem_table[index] = self.matrixelement_table(operator, evals_count=evals_count)
-
-            progress_in_percent = (index + 1) / paramvals_count
-            progressbar.update(progress_in_percent)
-
         setattr(self, param_name, previous_paramval)
 
-        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self.__dict__,
+        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
                                     state_table=eigenstate_table, matrixelem_table=matelem_table)
         if filename:
             spectrumdata.filewrite(filename)
-
         return spectrumdata
 
-    def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                x_range=False, y_range=False, filename=None, fig_ax=None):
+    def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None,
+                                x_range=None, ymax=None, filename=None, fig_ax=None):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -318,28 +317,28 @@ class QubitBaseClass(QuantumSystem):
         param_vals: ndarray
             parameter values to be plugged in
         evals_count: int, optional
-            number of desired eigenvalues (sorted from smallest to largest) (Default value = 6)
+            number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
         subtract_ground: bool, optional
-            whether to subtract ground state energy from all eigenvalues (Default value = False)
+            whether to subtract ground state energy from all eigenvalues (default value = False)
         x_range: (float, float), optional
-            custom x-range for the plot (Default value = False)
-        y_range: (float, float), optional
-            custom y-range for the plot (Default value = False)
+            custom x-range for the plot
+        ymax: float, optional
+            custom upper y bound for the plot
         filename: str, optional
-            write graphics and parameter set to file if path and filename are specified (Default value = None)
+            write graphics and parameter set to file if path and filename are specified (default value = None)
         fig_ax: tuple(Figure, Axes), optional
-            fig and ax objects for matplotlib figure addition (Default value = None)
+            fig and ax objects for matplotlib figure addition (default value = None)
 
         Returns
         -------
         Figure, Axes
         """
         specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground)
-        return plot.evals_vs_paramvals(specdata, evals_count=evals_count, xlim=x_range, ylim=y_range, filename=filename,
-                                       fig_ax=fig_ax)
+        return plot.evals_vs_paramvals(specdata, which=range(evals_count), x_range=x_range, ymax=ymax,
+                                       filename=filename, fig_ax=fig_ax)
 
     def plot_matelem_vs_paramvals(self, operator, param_name, param_vals, select_elems=4, mode='abs',
-                                  x_range=False, y_range=False, filename=None, fig_ax=None):
+                                  x_range=None, y_range=None, filename=None, fig_ax=None):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -353,17 +352,17 @@ class QubitBaseClass(QuantumSystem):
             parameter values to be plugged in
         select_elems: int or list, optional
             either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples
-            for specific desired matrix elements (Default value = 4)
+            for specific desired matrix elements (default value = 4)
         mode: str, optional
-            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (Default value = 'abs')
+            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default value = 'abs')
         x_range: (float, float), optional
-            custom x-range for the plot (Default value = False)
+            custom x-range for the plot (default value = False)
         y_range: (float, float), optional
-            custom y-range for the plot (Default value = False)
+            custom y-range for the plot (default value = False)
         filename: str, optional
-            write graphics and parameter set to file if path and filename are specified (Default value = None)
+            write graphics and parameter set to file if path and filename are specified (default value = None)
         fig_ax: tuple(Figure, Axes), optional
-            fig and ax objects for matplotlib figure addition (Default value = None)
+            fig and ax objects for matplotlib figure addition (default value = None)
 
         Returns
         -------
@@ -377,41 +376,123 @@ class QubitBaseClass(QuantumSystem):
 
         specdata = self.get_matelements_vs_paramvals(operator, param_name, param_vals, evals_count=evals_count,
                                                      filename=None)
-        return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, xlim=x_range, ylim=y_range,
-                                         filename=filename, fig_ax=fig_ax)
+        return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, x_range=x_range,
+                                         y_range=y_range, filename=filename, fig_ax=fig_ax)
 
-    def filewrite_data(self, filename, list_of_arrays, list_of_names):
-        """Write data to file.
-
-        Parameters
-        ----------
-        filename: str
-            path and name of output file (suffix appended automatically)
-        list_of_arrays: list of ndarray
-        list_of_names: list of str
-        """
-        if config.file_format is FileType.csv:
-            for data, name in zip(list_of_arrays, list_of_names):
-                filewrite_csvdata(filename + name, data)
-                with open(filename + constants.PARAMETER_FILESUFFIX, 'w') as target_file:
-                    target_file.write(self.__repr__())
-        elif config.file_format is FileType.h5:
-            h5file = h5py.File(filename + '.hdf5', 'w')
-            h5file_root = h5file.create_group('root')
-            filewrite_h5data(h5file_root, list_of_arrays, list_of_names)
-            self.filewrite_params_h5(h5file_root)
-            h5file.close()
-
-    def set_params_from_h5(self, h5file_root):
-        """Read and store parameters from h5 file
+    def set_params_from_dict(self, meta_dict):
+        """Set object parameters by given metadata dictionary
 
         Parameters
         ----------
-        h5file_root: h5py.Group
-            handle to root group in open h5 file
+        meta_dict: dict
         """
-        h5params = h5file_root.attrs
-        for paramname in h5params.keys():
-            paramvalue = h5params[paramname]
-            if isinstance(paramvalue, (int, float, np.number)):
-                setattr(self, paramname, h5params[paramname])
+        filtered_dict = filter_metadata(meta_dict)
+        for param_name, param_value in filtered_dict.items():
+            setattr(self, param_name, param_value)
+
+    @classmethod
+    def create_from_dict(cls, meta_dict):
+        """Return a qubit object initialized by data from metadata dictionary
+
+        Parameters
+        ----------
+        meta_dict: dict
+
+        Returns
+        -------
+        object
+        """
+        filtered_dict = filter_metadata(meta_dict)
+        return cls(**filtered_dict)
+
+
+# —QubitBaseClass1d—————————————————————————————————————————————————————————————————————————————————————————————————————
+
+class QubitBaseClass1d(QubitBaseClass):
+    """Base class for superconducting qubit objects with one degree of freedom. Provide general mechanisms and routines
+    for plotting spectra, matrix elements, and writing data to files.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, truncated_dim=None):
+        self._sys_type = 'qubit system'
+        self._evec_dtype = np.float_
+        self.truncated_dim = truncated_dim
+        self._default_var_range = None
+        self._default_var_count = None
+
+    @abc.abstractmethod
+    def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
+        pass
+
+    @abc.abstractmethod
+    def potential(self, phi):
+        pass
+
+    def plot_wavefunction(self, esys, which=0, phi_range=None, phi_count=None, mode='real', scaling=None,
+                          xlabel=r'$\varphi$', ylabel=r'$\psi_j(\varphi),\, V(\varphi)$', y_range=None, title=None,
+                          filename=None, fig_ax=None):
+        """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional qubits like FluxQubits and
+        ZeroPi.
+
+        Parameters
+        ----------
+        esys: ndarray, ndarray
+            eigenvalues, eigenvectors
+        which: int or tuple or list, optional
+            single index or tuple/list of integers indexing the wave function(s) to be plotted.
+            If which is -1, all wavefunctions up to the truncation limit are plotted.
+        phi_range: tuple(float, float), optional
+            used for setting a custom plot range for phi
+        phi_count: int, optional
+            number of points on the x-axis (resolution) (default value = 251)
+        mode: str, optional
+            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
+        scaling: float or None, optional
+            custom scaling of wave function amplitude/modulus
+        xlabel, ylabel: str, optional
+            axes labels
+        y_range: tuple(float, float), optional
+            used to set custom y range for plot
+        title: str, optional
+            plot title
+        filename: str, optional
+            file path and name (not including suffix) for output
+        fig_ax: Figure, Axes
+
+        Returns
+        -------
+        Figure, Axes
+        """
+        modefunction = constants.MODE_FUNC_DICT[mode]
+
+        index_list = process_which(which, self.truncated_dim)
+
+        if fig_ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            fig, ax = fig_ax
+
+        phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_range=phi_range, phi_count=phi_count)
+        potential_vals = self.potential(phi_wavefunc.basis_labels)
+
+        if scaling is None:
+            if isinstance(self, qubits.Transmon):
+                scale = 0.2 * self.EJ
+            elif isinstance(self, qubits.Fluxonium):
+                scale = 0.125 * (np.max(potential_vals) - np.min(potential_vals))
+        else:
+            scale = scaling
+
+        for wavefunc_index in index_list:
+            phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_range=phi_range, phi_count=phi_count)
+            if np.sum(phi_wavefunc.amplitudes) < 0:
+                phi_wavefunc.amplitudes *= -1.0
+
+            phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
+
+            plot.wavefunction1d(phi_wavefunc, potential_vals=potential_vals, offset=phi_wavefunc.energy,
+                                scaling=scale, xlabel=xlabel, ylabel=ylabel, y_range=y_range, title=title,
+                                fig_ax=(fig, ax), filename=filename)
+        return fig, ax

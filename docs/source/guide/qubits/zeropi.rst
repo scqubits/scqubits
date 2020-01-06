@@ -74,7 +74,6 @@ The following operators are implemented for use in matrix element calculations.
     scqubits.ZeroPi.cos_theta_operator
     scqubits.ZeroPi.sin_theta_operator
 
-.. todo:: may want to implement additional ops
 
 
 Computation and visualization of matrix elements

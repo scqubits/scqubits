@@ -23,7 +23,6 @@ import sys
 
 import setuptools
 
-
 DOCLINES = __doc__.split('\n')
 
 CLASSIFIERS = """\
@@ -45,8 +44,8 @@ EXTRA_KWARGS = {}
 
 # all information about scqubits goes here
 MAJOR = 1
-MINOR = 0
-MICRO = 4
+MINOR = 1
+MICRO = 0
 ISRELEASED = True
 
 
@@ -56,15 +55,18 @@ REQUIRES = ['cython (>=0.28.5)',
             'scipy (>=1.1.0)',
             'matplotlib (>=3.0.0)',
             'qutip (>=4.3.1)',
-            'h5py (>=2.7.1)']
+            'h5py (>=2.7.1)',
+            'tqdm']
 
-EXTRAS_REQUIRE = {'graphics': ['matplotlib-label-lines (>=0.3.6)']}
+EXTRAS_REQUIRE = {'graphics': ['matplotlib-label-lines (>=0.3.6)'],
+                  'explorer': ['ipywidgets (>=7.5)']}
 INSTALL_REQUIRES = ['cython (>=0.28.5)',
                     'numpy (>=1.14.2)',
                     'scipy (>=1.1.0)',
                     'matplotlib (>=3.0.0)',
                     'qutip (>=4.3.1)',
-                    'h5py (>=2.7.1)']
+                    'h5py (>=2.7.1)',
+                    'tqdm']
 PACKAGES = ['scqubits', 'scqubits/core', 'scqubits/tests', 'scqubits/utils']
 PYTHON_VERSION = '>=3.5'
 
@@ -86,7 +88,7 @@ PLATFORMS = ["Linux", "Mac OSX", "Unix", "Windows"]
 def git_short_hash():
     try:
         git_str = "+" + os.popen('git log -1 --format="%h"').read().strip()
-    except:
+    except OSError:
         git_str = ""
     else:
         if git_str == '+':   # fixes setuptools PEP issues with versioning

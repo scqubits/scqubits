@@ -11,7 +11,9 @@
 
 
 import os
+
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -19,12 +21,16 @@ import scqubits
 import scqubits.settings
 import scqubits.utils.plotting as plot
 from scqubits import FileType
+from scqubits.core.data_containers import SpectrumData
+from scqubits.settings import IN_IPYTHON
 
-matplotlib.use('Agg')
-scqubits.settings.file_format = FileType.h5
+if not IN_IPYTHON:
+    matplotlib.use('Agg')
 
-TESTSDIR, _ = os.path.split(scqubits.tests.__file__)
-DATADIR = os.path.join(TESTSDIR, 'data', '')
+scqubits.settings.FILE_FORMAT = FileType.h5
+
+TESTDIR, _ = os.path.split(scqubits.tests.__file__)
+DATADIR = os.path.join(TESTDIR, 'data', '')
 
 
 class BaseTest:
@@ -35,6 +41,10 @@ class BaseTest:
     def set_tmpdir(self, request):
         """Pytest fixture that provides a temporary directory for writing test files"""
         setattr(self, 'tmpdir', request.getfixturevalue('tmpdir'))
+
+    @classmethod
+    def teardown_class(cls):
+        plt.close('all')
 
     def set_params(self, h5file_root):
         """Read and store parameters from open h5 file
@@ -75,17 +85,91 @@ class BaseTest:
 
     def matrixelement_table(self, op, matelem_reference):
         evals_count = len(matelem_reference)
-        calculated_matrix = self.qbt.matrixelement_table(op, esys=None, evals_count=evals_count,
+        calculated_matrix = self.qbt.matrixelement_table(op, evecs=None, evals_count=evals_count,
                                                          filename=self.tmpdir + 'test')
         assert np.allclose(np.abs(matelem_reference), np.abs(calculated_matrix))
 
     def plot_matrixelements(self, op, evals_count=7):
-        self.qbt.plot_matrixelements(op, esys=None, evals_count=evals_count)
+        self.qbt.plot_matrixelements(op, evecs=None, evals_count=evals_count)
 
     def print_matrixelements(self, op):
         mat_data = self.qbt.matrixelement_table(op)
         plot.print_matrix(abs(mat_data))
 
     def plot_matelem_vs_paramvals(self, op, param_name, param_list, select_elems):
-        fig, ax = self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, select_elems=select_elems,
-                                                     filename=self.tmpdir + 'test')
+        self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, select_elems=select_elems,
+                                           filename=self.tmpdir + 'test')
+
+
+class StandardTests(BaseTest):
+    @classmethod
+    def setup_class(cls):
+        cls.qbt = None
+        cls.qbt_type = None
+        cls.file_str = ''
+        cls.op1_str = ''
+        cls.op2_str = ''
+        cls.param_name = ''
+        cls.param_list = None
+
+    def test_eigenvals(self):
+        testname = self.file_str + '_1'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        evals_reference = specdata.energy_table
+        return self.eigenvals(evals_reference)
+
+    def test_eigenvecs(self):
+        testname = self.file_str + '_2'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        evecs_reference = specdata.state_table
+        return self.eigenvecs(evecs_reference)
+
+    def test_plot_wavefunction(self):
+        testname = self.file_str + '_1'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt.plot_wavefunction(esys=None, which=5, mode='real')
+        self.qbt.plot_wavefunction(esys=None, which=9, mode='abs_sqr')
+
+    def test_plot_evals_vs_paramvals(self):
+        testname = self.file_str + '_1'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        return self.plot_evals_vs_paramvals(self.param_name, self.param_list)
+
+    def test_get_spectrum_vs_paramvals(self):
+        testname = self.file_str + '_4'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.param_list = specdata.param_vals
+        evecs_reference = specdata.state_table
+        evals_reference = specdata.energy_table
+        return self.get_spectrum_vs_paramvals(self.param_name, self.param_list, evals_reference, evecs_reference)
+
+    def test_matrixelement_table(self):
+        testname = self.file_str + '_5'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        matelem_reference = specdata.matrixelem_table
+        return self.matrixelement_table(self.op1_str, matelem_reference)
+
+    def test_plot_matrixelements(self):
+        testname = self.file_str + '_1'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.plot_matrixelements(self.op1_str, evals_count=10)
+
+    def test_print_matrixelements(self):
+        testname = self.file_str + '_1'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.print_matrixelements(self.op2_str)
+
+    def test_plot_matelem_vs_paramvals(self):
+        testname = self.file_str + '_1'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.plot_matelem_vs_paramvals(self.op1_str, self.param_name, self.param_list,
+                                       select_elems=[(0, 0), (1, 4), (1, 0)])
