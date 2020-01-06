@@ -9,9 +9,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import h5py
 import numpy as np
 import qutip as qt
-import h5py
 
 import scqubits.utils.progressbar as progressbar
 from scqubits.core.data_containers import SpectrumData

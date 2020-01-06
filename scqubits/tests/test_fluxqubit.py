@@ -17,7 +17,6 @@ from scqubits import FluxQubit, FileType
 from scqubits.tests.conftest import BaseTest, DATADIR
 from scqubits.utils.file_io import read_h5
 
-
 scqubits.settings.file_format = FileType.h5
 
 
