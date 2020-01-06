@@ -8,6 +8,7 @@ dependencies:
 - qutip
 - matplotlib
 - h5py
+- tqdm
 - pip:
     - nbsphinx
     - numpydoc

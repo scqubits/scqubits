@@ -12,21 +12,18 @@
 import cmath
 import math
 
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
 import scqubits.core.operators as op
-import scqubits.utils.constants as constants
-import scqubits.utils.plotting as plot
 from scqubits.core.data_containers import WaveFunction
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
-from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.qubit_base import QubitBaseClass1d
 
 
 # —Fluxonium qubit ————————————————————————
 
-class Fluxonium(QubitBaseClass):
+class Fluxonium(QubitBaseClass1d):
     r"""Class for the fluxonium qubit. Hamiltonian
     :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi-\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
     is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
@@ -57,8 +54,10 @@ class Fluxonium(QubitBaseClass):
         self.flux = flux
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
-        self._sys_type = 'Fluxonium qubit'
+        self._sys_type = 'fluxonium'
         self._evec_dtype = np.float_
+        self._default_var_range = (-4.5*np.pi, 4.5*np.pi)
+        self._default_var_count = 151
 
     def phi_osc(self):
         """
@@ -170,7 +169,7 @@ class Fluxonium(QubitBaseClass):
         """
         return 0.5 * self.EL * phi * phi - self.EJ * np.cos(phi + 2.0 * np.pi * self.flux)
 
-    def wavefunction(self, esys, which=0, phi_range=(-6 * np.pi, 6 * np.pi), phi_points=251):
+    def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
         """Returns a fluxonium wave function in `phi` basis
 
         Parameters
@@ -178,81 +177,30 @@ class Fluxonium(QubitBaseClass):
         esys: ndarray, ndarray
             eigenvalues, eigenvectors
         which: int, optional
-             index of desired wave function (Default value = 0)
-        phi_range: tuple of float, optional
-             boundaries of `phi` values range  (Default value = `(-6 * np.pi, 6 * np.pi)`)
-        phi_points: int
-             number of points in the specified `phi` interval (Default value = 251)
+             index of desired wave function (default value = 0)
+        phi_range: tuple(float,float), optional
+             custom boundaries of `phi` values range
+        phi_count: int
+             number of points in the specified `phi` interval
 
         Returns
         -------
         WaveFunction object
         """
-        evals_count = max(which + 1, 3)
         if esys is None:
+            evals_count = max(which + 1, 3)
             evals, evecs = self.eigensys(evals_count)
         else:
             evals, evecs = esys
-
         dim = self.hilbertdim()
-        phi_basis_labels = np.linspace(phi_range[0], phi_range[1], phi_points)
+
+        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
+
+        phi_basis_labels = np.linspace(phi_range[0], phi_range[1], phi_count)
         wavefunc_osc_basis_amplitudes = evecs[:, which]
-        phi_wavefunc_amplitudes = np.zeros(phi_points, dtype=np.complex_)
+        phi_wavefunc_amplitudes = np.zeros(phi_count, dtype=np.complex_)
         phi_osc = self.phi_osc()
         for n in range(dim):
             phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[n] * harm_osc_wavefunction(n, phi_basis_labels,
                                                                                                 phi_osc)
-        return WaveFunction(phi_basis_labels, phi_wavefunc_amplitudes, energy=evals[which])
-
-    def plot_wavefunction(self, esys, which=(0,), phi_range=(-6 * np.pi, 6 * np.pi), y_range=None, mode='abs_sqr',
-                          scaling=None, phi_points=251, filename=None):
-        """Plot phase-basis wave function(s).
-
-        Parameters
-        ----------
-        esys: ndarray, ndarray
-            eigenvalues, eigenvectors as obtained from `.eigensystem()`
-        which: int or tuple(i1, i2, ...), optional
-            single index or tuple of integers indexing the wave function(s) to be plotted (Default value = (0)
-        phi_range: tuple(float, float), optional
-            phi range to be plotted (Default value = (-6 * np.pi, 6 * np.pi))
-        y_range: None or tuple(float, float), optional
-            y_range to be plotted (Default value = None)
-        mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
-        scaling: float, optional
-            custom choice for scaling of wave functions
-        phi_points: int, optional
-            number of points on the x-axis (resolution) (Default value = 251)
-        filename: str, optional
-            file path and name (not including suffix) for output
-
-        Returns
-        -------
-        Figure, Axes
-        """
-        modefunction = constants.MODE_FUNC_DICT[mode]
-
-        if isinstance(which, int):
-            index_tuple = (which,)
-        else:
-            index_tuple = which
-
-        if scaling is None:
-            scale = 5 * self.EJ
-        else:
-            scale = scaling
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-
-        for wavefunc_index in index_tuple:
-            phi_wavefunc = self.wavefunction(esys, wavefunc_index, phi_range, phi_points)
-            if np.sum(phi_wavefunc.amplitudes) < 0:
-                phi_wavefunc.amplitudes *= -1.0
-
-            phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
-            plot.wavefunction1d(phi_wavefunc, potential_vals=self.potential(phi_wavefunc.basis_labels),
-                                offset=phi_wavefunc.energy, scaling=scale, xlabel='phi', y_range=y_range,
-                                fig_ax=(fig, ax), filename=filename)
-        return fig, ax
+        return WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes, energy=evals[which])

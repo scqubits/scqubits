@@ -11,9 +11,10 @@ Users Guide
    :maxdepth: 2
 
    guide-overview.rst
-   ipynb/basics.ipynb
+   ./ipynb/basics.ipynb
    guide-qubits.rst
-   ipynb/hilbertspace.ipynb
+   ./ipynb/hilbertspace.ipynb
+   ./ipynb/explorer.ipynb
    guide-example-ipynb.rst
    guide-settings.rst
 

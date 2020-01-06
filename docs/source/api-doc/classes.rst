@@ -14,6 +14,7 @@ Transmon
 
 .. autoclass:: scqubits.Transmon
     :members:
+    :inherited-members:
 
 ----------------------------------
 
@@ -24,6 +25,7 @@ Fluxonium
 
 .. autoclass:: scqubits.Fluxonium
     :members:
+    :inherited-members:
 
 ----------------------------------
 
@@ -34,6 +36,7 @@ FluxQubit
 
 .. autoclass:: scqubits.FluxQubit
     :members:
+    :inherited-members:
 
 ----------------------------------
 
@@ -44,6 +47,7 @@ ZeroPi
 
 .. autoclass:: scqubits.ZeroPi
     :members:
+    :inherited-members:
 
 ----------------------------------
 
@@ -54,6 +58,7 @@ FullZeroPi
 
 .. autoclass:: scqubits.FullZeroPi
     :members:
+    :inherited-members:
 
 ----------------------------------
 
@@ -64,11 +69,11 @@ Oscillator
 
 .. autoclass:: scqubits.Oscillator
     :members:
-
+    :inherited-members:
 
 
 **********************************************************
-Class for Composite Hilbert Spaces, Interface with QuTiP
+Classes for Composite Hilbert Spaces, Interface with QuTiP
 **********************************************************
 
 .. _classes-hilbertspace:
@@ -77,6 +82,14 @@ HilbertSpace
 --------------
 
 .. autoclass:: scqubits.HilbertSpace
+    :members:
+
+.. _classes-paramsweep:
+
+ParameterSweep
+--------------
+
+.. autoclass:: scqubits.ParameterSweep
     :members:
 
 

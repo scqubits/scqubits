@@ -43,7 +43,7 @@ def extract_phase(complex_array, position=None):
     complex_array: ndarray
         complex-valued array
     position: int, optional
-        position where the phase is extracted (Default value = None)
+        position where the phase is extracted (default value = None)
     """
     if position is None:
         flattened_position = np.argmax(
@@ -89,7 +89,6 @@ def matrix_element(state1, operator, state2):
     -------
     float or complex
         matrix element
-    
     """
     if isinstance(operator, qt.Qobj):
         op_matrix = operator.data
@@ -108,7 +107,7 @@ def matrix_element(state1, operator, state2):
     return np.vdot(vec1, op_matrix.dot(vec2))  # No, operator is sparse. Must use its own 'dot' method.
 
 
-def get_matrixelement_table(operator, state_table, real_valued=False):
+def get_matrixelement_table(operator, state_table):
     """Calculates a table of matrix elements.
 
     Parameters
@@ -118,8 +117,6 @@ def get_matrixelement_table(operator, state_table, real_valued=False):
     state_table: list or ndarray
         list or array of numpy arrays representing the states `|v0>, |v1>, ...`
         Note: `state_table` is expected to be in scipy's `eigsh` transposed form.
-    real_valued: bool, optional
-        signals whether matrix elements are real valued (Default value = False)
 
     Returns
     -------
@@ -131,21 +128,11 @@ def get_matrixelement_table(operator, state_table, real_valued=False):
     else:
         state_list = state_table.T
 
-    if real_valued:
-        the_dtype = np.float_
-    else:
-        the_dtype = np.complex_
-
     tablesize = len(state_list)
-    mtable = np.empty(shape=[tablesize, tablesize], dtype=the_dtype)
-    for n in range(tablesize):
-        for m in range(n + 1):
-            mtable[n, m] = matrix_element(state_list[n], operator, state_list[m])
-            if real_valued:
-                mtable[m, n] = mtable[n, m]
-            else:
-                mtable[m, n] = np.conj(mtable[n, m])
-    return mtable
+    mtable = [[matrix_element(state_list[n], operator, state_list[m]) for m in range(tablesize)]
+              for n in range(tablesize)]
+
+    return np.asarray(mtable)
 
 
 def closest_dressed_energy(bare_energy, dressed_energy_vals):
@@ -167,29 +154,69 @@ def closest_dressed_energy(bare_energy, dressed_energy_vals):
     return dressed_energy_vals[index]
 
 
-def get_eigenstate_index_maxoverlap(eigenstates_Qobj, reference_state_Qobj, return_overlap=False):
+def get_eigenstate_index_maxoverlap(eigenstates_qobj, reference_state_qobj, return_overlap=False):
     """For given list of qutip states, find index of the state that has largest overlap with the qutip ket
-    `reference_state_Qobj`.
+    `reference_state_qobj`. If `|overlap|` is smaller than 0.5, return None.
 
     Parameters
     ----------
-    eigenstates_Qobj: ndarray of qutip.Qobj
+    eigenstates_qobj: ndarray of qutip.Qobj
         as obtained from qutip `.eigenstates()`
-    reference_state_Qobj: qutip.Qobj ket
+    reference_state_qobj: qutip.Qobj ket
         specific reference state
     return_overlap: bool, optional
-        set to true if the value of largest overlap should be also returned (Default value = False)
+        set to true if the value of largest overlap should be also returned (default value = False)
 
     Returns
     -------
-    int
-        index of eigenstate from `eigenstates_Qobj` with the largest overlap with the `reference_state_Qobj`
+    int or None
+        index of eigenstate from `eigenstates_Qobj` with the largest overlap with the `reference_state_qobj`;
+        None if `|overlap|<0.5`
     """
-    overlaps = np.asarray([eigenstates_Qobj[j].overlap(reference_state_Qobj) for j in range(len(eigenstates_Qobj))])
+    overlaps = np.asarray([eigenstates_qobj[j].overlap(reference_state_qobj) for j in range(len(eigenstates_qobj))])
+    max_overlap = np.max(np.abs(overlaps))
+    if max_overlap < 0.5:
+        return None
     index = (np.abs(overlaps)).argmax()
     if return_overlap:
         return index, np.abs(overlaps[index])
     return index
+
+
+def absorption_spectrum(spectrum_data):
+    """Takes spectral data of energy eigenvalues and returns the absorption spectrum relative to a state
+    of given index. Calculated by subtracting from eigenenergies the energy of the select state. Resulting negative
+    frequencies, if the reference state is not the ground state, are omitted.
+
+    Parameters
+    ----------
+    spectrum_data: SpectrumData
+
+    Returns
+    -------
+    SpectrumData object
+    """
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
+    return spectrum_data
+
+
+def emission_spectrum(spectrum_data):
+    """Takes spectral data of energy eigenvalues and returns the emission spectrum relative to a state
+    of given index. The resulting "upwards" transition frequencies are calculated by subtracting from eigenenergies
+    the energy of the select state, and multiplying the result by -1. Resulting negative
+    frequencies, corresponding to absorption instead, are omitted.
+
+    Parameters
+    ----------
+    spectrum_data: SpectrumData
+
+    Returns
+    -------
+    SpectrumData object
+    """
+    spectrum_data.energy_table *= -1.0
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
+    return spectrum_data
 
 
 def convert_esys_to_ndarray(esys_qutip):
@@ -209,6 +236,5 @@ def convert_esys_to_ndarray(esys_qutip):
     dimension = esys_qutip[0].shape[0]
     esys_ndarray = np.empty((evals_count, dimension), dtype=np.complex_)
     for index, eigenstate in enumerate(esys_qutip):
-        esys_ndarray[index] = eigenstate.full().reshape(dimension)
-
+        esys_ndarray[index] = eigenstate.full()[:, 0]
     return esys_ndarray

@@ -28,5 +28,6 @@ jobs:
     - name: Test with pytest
       run: |
         pip install pytest
+        pip install ipywidgets
         pip install scqubits
-        pytest --pyargs scqubits
+        pytest -v -Werror --pyargs scqubits

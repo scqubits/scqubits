@@ -33,6 +33,8 @@ scqubits depends on the following Python open-source libraries:
 +----------------+--------------+-----------------------------------------------------+
 | **h5py**       | 2.7.1+       |  Needed for writing h5 data to file                 |
 +----------------+--------------+-----------------------------------------------------+
+| **tqdm**       | 4.0+         |  Needed for display of progress bar                 |
++----------------+--------------+-----------------------------------------------------+
 
 
 The following packages are optional:
@@ -40,6 +42,8 @@ The following packages are optional:
 +------------------------+--------------+-----------------------------------------------------+
 | Package                | Version      | Details                                             |
 +========================+==============+=====================================================+
+| ipywidgets             | 7.5+         | For use of the interactive explorer                 |
++------------------------+--------------+-----------------------------------------------------+
 | pytest                 | 5.3+         | For running the test suite.                         |
 +------------------------+--------------+-----------------------------------------------------+
 | matplotlib-label-lines | 0.3.6+       | For smart labelling of matrix element plots         |

@@ -9,15 +9,14 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import h5py
+
 import numpy as np
 
 import scqubits.settings as config
-import scqubits.utils.constants as constants
+import scqubits.utils.file_io as io
 import scqubits.utils.plotting as plot
-from scqubits.utils.constants import FileType
-from scqubits.utils.file_io import filewrite_csvdata, filewrite_h5data
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
+from scqubits.utils.misc import process_metadata
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -79,10 +78,10 @@ class SpectrumData:
         parameter values for which spectrum data are stored
     energy_table: ndarray
         energy eigenvalues stored for each `param_vals` point
-    system_params: dict(str)
+    system_params: dict
         info about system parameters
-    state_table: ndarray, optional
-        eigenstate data stored for each `param_vals` point, either as pure ndarray or ndarray of qutip.qobj
+    state_table: ndarray or list, optional
+        eigenstate data stored for each `param_vals` point, either as pure ndarray or list of qutip.qobj
     matrixelem_table: ndarray, optional
         matrix element data stored for each `param_vals` point
     """
@@ -95,17 +94,29 @@ class SpectrumData:
         self.matrixelem_table = matrixelem_table
         self.system_params = system_params
 
-    def plot_evals_vs_paramvals(self, x_range=None, y_range=None, fig_ax=None, **kwargs):
+    def subtract_ground(self):
+        """Subtract ground state energies from spectrum"""
+        self.energy_table -= self.energy_table[:, 9]
+
+    def plot_evals_vs_paramvals(self, x_range=None, ymax=None, which=-1, subtract_ground=False, title=None,
+                                label_list=None, fig_ax=None, **kwargs):
         """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
 
         Parameters
         ----------
         x_range: tuple(float, float), optional
-             (Default value = None)
-        y_range: tuple(float, float), optional
-             (Default value = None)
+        ymax: float, optional
+            used to modify the upper boundary for the y-axis
+        which: int or list(int)
+            default: -1, signals to plot all eigenvalues; int>0: plot eigenvalues 0..int-1; list(int) plot the specific
+            eigenvalues (indices listed)
+        subtract_ground: bool, optional
+            whether to subtract the ground state energy, default: False
+        title: str, optional
+            plot title
+        label_list: list(str), optional
+            list of labels associated with the individual curves to be plotted
         fig_ax: Figure, Axes, optional
-             (Default value = None)
         **kwargs: optional
             keyword arguments passed on to axes.plot()
 
@@ -113,56 +124,110 @@ class SpectrumData:
         -------
         Figure, Axes
         """
-        return plot.evals_vs_paramvals(self, xlim=x_range, ylim=y_range, fig_ax=fig_ax, **kwargs)
+        return plot.evals_vs_paramvals(self, x_range=x_range, ymax=ymax, which=which, subtract_ground=subtract_ground,
+                                       title=title, label_list=label_list, fig_ax=fig_ax, **kwargs)
 
-    def filewrite_params_h5(self, h5file_root):
-        """Write current qubit parameters into a given h5 data file.
+    def _get_metadata_dict(self):
+        meta_dict = {'param_name': self.param_name, 'param_vals': self.param_vals}
+        meta_dict.update(process_metadata(self.system_params))
+        return meta_dict
+
+    def _serialize(self, writer):
+        """
+        Parameters
+        ----------
+        writer: BaseWriter
+        """
+        np_state_table = None
+        if isinstance(self.state_table, list):
+            np_state_table = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
+        elif isinstance(self.state_table, np.ndarray):
+            np_state_table = self.state_table
+
+        metadata_dict = self._get_metadata_dict()
+        writer.create_meta(metadata_dict)
+        writer.add_dataset('energy_table', self.energy_table)
+        if self.state_table is not None:
+            writer.add_dataset('state_table', np_state_table)
+        if self.matrixelem_table is not None:
+            writer.add_dataset('matrixelem_table', self.matrixelem_table)
+
+    def set_from_data(self, *data_from_file):
+        """
+        Uses data extracted from file to set parameters and data entries of self
 
         Parameters
         ----------
-        h5file_root: root group of open h5py file
+        data_from_file: (dict, list(str), list(ndarray))
+            metadata dictionary, list of dataset names, list of datasets (ndarray)
         """
-        for key, param_obj in self.system_params.items():
-            if isinstance(param_obj, (int, float)):
-                h5file_root.attrs[key] = param_obj
-            elif key == 'grid':
-                param_obj.filewrite_params_h5(h5file_root)
-            else:
-                h5file_root.attrs[key] = str(param_obj)
+        metadata_dict, name_list, data_list = data_from_file
+        self.param_name = metadata_dict.pop('param_name')
+        self.param_vals = metadata_dict.pop('param_vals')
+        self.system_params = metadata_dict
+        for index, attribute in enumerate(name_list):
+            setattr(self, attribute, data_list[index])
+
+    @classmethod
+    def _init_from_data(cls, *data_from_file):
+        """
+        Uses data extracted from file to create and initialize a new SpectrumData object
+
+        Parameters
+        ----------
+        data_from_file: (dict, list(str), list(ndarray))
+            metadata dictionary, list of dataset names, list of datasets (ndarray)
+
+        Returns
+        -------
+        SpectrumData
+        """
+        metadata_dict, name_list, data_list = data_from_file
+        param_name = metadata_dict.pop('param_name')
+        param_vals = metadata_dict.pop('param_vals')
+        system_params = metadata_dict
+        data_dict = {name: data_list[i] for i, name in enumerate(name_list)}
+        energy_table = data_dict.get('energy_table')
+        state_table = data_dict.get('state_table')
+        matrixelem_table = data_dict.get('matrixelem_table')
+        return cls(param_name=param_name, param_vals=param_vals, energy_table=energy_table, system_params=system_params,
+                   state_table=state_table, matrixelem_table=matrixelem_table)
 
     def filewrite(self, filename):
-        """Write data of eigenenergies, eigenstates, and matrix elements to file with specified filename.
+        """Write metadata and spectral data to file
 
         Parameters
         ----------
         filename: str
-            path and name of output file (file suffix appended automatically)
         """
-        if self.state_table is not None:
-            if isinstance(self.state_table, list):
-                state_table_numpy = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
-            elif isinstance(self.state_table, np.ndarray):
-                state_table_numpy = self.state_table
-            else:
-                raise TypeError('Unexpected type for state_table: neither a pure ndarray, nor a list of eigenstates '
-                                'obtained via qutip.')
-        else:
-            state_table_numpy = np.array([])
+        file_format = config.FILE_FORMAT
+        writer = io.ObjectWriter()
+        writer.filewrite(self, file_format, filename)
 
-        if config.file_format is FileType.csv:
-            filewrite_csvdata(filename + '_' + self.param_name, self.param_vals)
-            filewrite_csvdata(filename + '_energies', self.energy_table)
-            if self.state_table:
-                filewrite_csvdata(filename + '_states', state_table_numpy)
-            if self.matrixelem_table:
-                filewrite_csvdata(filename + '_melem', self.matrixelem_table)
-            with open(filename + constants.PARAMETER_FILESUFFIX, 'w') as target_file:
-                target_file.write(self.system_params)
-        elif config.file_format is FileType.h5:
-            h5file = h5py.File(filename + '.hdf5', 'w')
-            h5file_root = h5file.create_group('root')
-            filewrite_h5data(h5file_root,
-                             [self.param_vals, self.energy_table, state_table_numpy, self.matrixelem_table],
-                             [self.param_name, "spectrum energies", "states", "mat_elem"])
-            self.filewrite_params_h5(h5file_root)
-            h5file.close()
+    def set_from_fileread(self, filename):
+        """Read metadata and spectral data from file, and use those to set parameters of the SpectrumData object (self).
+
+        Parameters
+        ----------
+        filename: str
+        """
+        file_format = config.FILE_FORMAT
+        reader = io.ObjectReader()
+        reader.set_params_from_fileread(self, file_format, filename)
+
+    @classmethod
+    def create_from_fileread(cls, filename):
+        """Read metadata and spectral data from file, and use those to create a new SpectrumData object.
+
+        Parameters
+        ----------
+        filename: str
+
+        Returns
+        -------
+        SpectrumData
+            new SpectrumData object, initialized with data read from file
+        """
+        file_format = config.FILE_FORMAT
+        reader = io.ObjectReader()
+        return reader.create_from_fileread(cls, file_format, filename)

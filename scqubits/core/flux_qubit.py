@@ -28,23 +28,23 @@ class FluxQubit(QubitBaseClass):
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
 
     The original flux qubit as defined in [1], where the junctions are allowed to have varying junction
-    energies and capacitances to allow for junction asymmetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and 
+    energies and capacitances to allow for junction asymmetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and
     :math:`E_{J3}=\alpha E_J` where :math:`0\le \alpha \le 1`. The same relations typically hold
     for the junction capacitances. The Hamiltonian is given by
 
     .. math::
-    
-       H_\text{flux}=&(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
-                    -&E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}), 
 
-    where :math:`i,j\in\{1,2\}` is represented in the charge basis for both degrees of freedom. 
+       H_\text{flux}=&(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
+                    -&E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}),
+
+    where :math:`i,j\in\{1,2\}` is represented in the charge basis for both degrees of freedom.
     Initialize with, for example::
-    
+
         EJ = 35.0
         alpha = 0.6
         flux_qubit = qubit.FluxQubit(EJ1 = EJ, EJ2 = EJ, EJ3 = alpha*EJ,
                                      ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0/alpha,
-                                     ECg1 = 50.0, ECg2 = 50.0, ng1 = 0.0, ng2 = 0.0, 
+                                     ECg1 = 50.0, ECg2 = 50.0, ng1 = 0.0, ng2 = 0.0,
                                      flux = 0.5, ncut = 10)
 
     Parameters
@@ -80,13 +80,14 @@ class FluxQubit(QubitBaseClass):
         self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = 'flux qubit'
+        self._sys_type = '3-jct. flux qubit'
         self._evec_dtype = np.complex_
+        self._default_var_range = (-np.pi / 2, 3 * np.pi / 2)
+        self._default_var_count = 100
 
     def EC_matrix(self):
         """Return the charging energy matrix"""
         Cmat = np.zeros((2, 2))
-
         CJ1 = 1. / (2 * self.ECJ1)  # capacitances in units where e is set to 1
         CJ2 = 1. / (2 * self.ECJ2)
         CJ3 = 1. / (2 * self.ECJ3)
@@ -130,11 +131,8 @@ class FluxQubit(QubitBaseClass):
         kinetic_mat += 4.0 * ECmat[1, 1] * np.kron(self._identity(),
                                                    np.matmul(self._n_operator() - self.ng2 * self._identity(),
                                                              self._n_operator() - self.ng2 * self._identity()))
-        kinetic_mat += 4.0 * ECmat[0, 1] * np.kron(self._n_operator() - self.ng1 * self._identity(),
-                                                   self._n_operator() - self.ng2 * self._identity())
-        kinetic_mat += 4.0 * ECmat[1, 0] * np.kron(self._n_operator() - self.ng1 * self._identity(),
-                                                   self._n_operator() - self.ng2 * self._identity())
-
+        kinetic_mat += 4.0 * (ECmat[0, 1] + ECmat[1, 0]) * np.kron(self._n_operator() - self.ng1 * self._identity(),
+                                                                   self._n_operator() - self.ng2 * self._identity())
         return kinetic_mat
 
     def potentialmat(self):
@@ -169,27 +167,19 @@ class FluxQubit(QubitBaseClass):
 
     def n_1_operator(self):
         r"""Return charge number operator conjugate to :math:`\phi_1`"""
-        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
-        return np.kron(np.diag(diag_elements), self._identity())
+        return np.kron(self._n_operator(), self._identity())
 
     def n_2_operator(self):
         r"""Return charge number operator conjugate to :math:`\phi_2`"""
-        diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
-        return np.kron(self._identity(), np.diag(diag_elements))
+        return np.kron(self._identity(), self._n_operator())
 
     def exp_i_phi_1_operator(self):
         r"""Return operator :math:`e^{i\phi_1}` in the charge basis."""
-        dim = 2 * self.ncut + 1
-        off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
-        e_iphi_matrix = np.diag(off_diag_elements, k=1)
-        return np.kron(e_iphi_matrix, self._identity())
+        return np.kron(self._exp_i_phi_operator(), self._identity())
 
     def exp_i_phi_2_operator(self):
         r"""Return operator :math:`e^{i\phi_2}` in the charge basis."""
-        dim = 2 * self.ncut + 1
-        off_diag_elements = np.ones(dim - 1, dtype=np.complex_)
-        e_iphi_matrix = np.diag(off_diag_elements, k=1)
-        return np.kron(self._identity(), e_iphi_matrix)
+        return np.kron(self._identity(), self._exp_i_phi_operator())
 
     def cos_phi_1_operator(self):
         """Return operator :math:`\\cos \\phi_1` in the charge basis"""
@@ -206,35 +196,38 @@ class FluxQubit(QubitBaseClass):
     def sin_phi_1_operator(self):
         """Return operator :math:`\\sin \\phi_1` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_1_operator()
-        sin_op += sin_op.H
+        sin_op += sin_op.conj().T
         return sin_op
 
     def sin_phi_2_operator(self):
         """Return operator :math:`\\sin \\phi_2` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_2_operator()
-        sin_op += sin_op.H
+        sin_op += sin_op.conj().T
         return sin_op
 
-    def plot_potential(self, phi_pts=100, contour_vals=None, aspect_ratio=None, filename=None):
+    def plot_potential(self, phi_range=None, phi_count=None, contour_vals=None, figsize=(5, 5), filename=None):
         """
         Draw contour plot of the potential energy.
 
         Parameters
         ----------
-        phi_pts: int, optional
-            (Default value = 100)
-        contour_vals: list, optional
-            (Default value = None)
-        aspect_ratio: float, optional
-            (Default value = None)
+        phi_range: tuple(float, float), optional
+            used for setting a custom plot range for phi
+        phi_count: int, optional
+            number of points in the phi interval
+        contour_vals: list of float, optional
+            specific contours to draw
+        figsize: tuple(float, float), optional
+            plot figure size
         filename: str, optional
-            (Default value = None)
         """
-        x_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
-        y_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals, aspect_ratio, filename)
+        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
+        x_vals = np.linspace(*phi_range, phi_count)
+        y_vals = np.linspace(*phi_range, phi_count)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, figsize=figsize,
+                             filename=filename)
 
-    def wavefunction(self, esys=None, which=0, phi_pts=100):
+    def wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None):
         """
         Return a flux qubit wave function in phi1, phi2 basis
 
@@ -243,8 +236,10 @@ class FluxQubit(QubitBaseClass):
         esys: ndarray, ndarray
             eigenvalues, eigenvectors
         which: int, optional
-            index of desired wave function (Default value = 0)
-        phi_pts: int, optional
+            index of desired wave function (default value = 0)
+        phi_range: tuple(float, float), optional
+            used for setting a custom plot range for phi
+        phi_count: int, optional
             number of points to use on grid in each direction
 
         Returns
@@ -256,25 +251,25 @@ class FluxQubit(QubitBaseClass):
             _, evecs = self.eigensys(evals_count)
         else:
             _, evecs = esys
+        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
 
         dim = 2 * self.ncut + 1
         state_amplitudes = np.reshape(evecs[:, which], (dim, dim))
 
         n_vec = np.arange(-self.ncut, self.ncut + 1)
-        phi_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
+        phi_vec = np.linspace(*phi_range, phi_count)
         a_1_phim = np.exp(-1j * np.outer(phi_vec, n_vec)) / (2 * np.pi) ** 0.5
         a_2_phip = np.exp(1j * np.outer(n_vec, phi_vec)) / (2 * np.pi) ** 0.5
         wavefunc_amplitudes = np.matmul(a_1_phim, state_amplitudes)
         wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, a_2_phip).T
         wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
 
-        grid2d = GridSpec(np.asarray([[-np.pi / 2, 3 * np.pi / 2, phi_pts],
-                                      [-np.pi / 2, 3 * np.pi / 2, phi_pts]]))
-
+        grid2d = GridSpec(np.asarray([[*phi_range, phi_count],
+                                      [*phi_range, phi_count]]))
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, phi_pts=100, mode='abs', zero_calibrate=False, figsize=(10, 10),
-                          aspect_ratio=1, fig_ax=None):
+    def plot_wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None, mode='abs', zero_calibrate=True,
+                          figsize=(5, 5), fig_ax=None):
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -282,17 +277,17 @@ class FluxQubit(QubitBaseClass):
         esys: ndarray, ndarray
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which: int, optional
-            index of wave function to be plotted (Default value = (0)
-        phi_pts: int, optional
+            index of wave function to be plotted (default value = (0)
+        phi_range: tuple(float, float), optional
+            used for setting a custom plot range for phi
+        phi_count: int, optional
             number of points to be used in the 2pi interval in each direction
         mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT` (Default value = 'abs_sqr')
+            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
         figsize: (float, float), optional
             figure size specifications for matplotlib
-        aspect_ratio: float, optional
-            aspect ratio for matplotlib
         fig_ax: Figure, Axes, optional
             existing Figure, Axis if previous objects are to be appended
 
@@ -301,7 +296,6 @@ class FluxQubit(QubitBaseClass):
         Figure, Axes
         """
         modefunction = constants.MODE_FUNC_DICT[mode]
-        wavefunc = self.wavefunction(esys, phi_pts=phi_pts, which=which)
+        wavefunc = self.wavefunction(esys, phi_range=phi_range, phi_count=phi_count, which=which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, figsize=figsize, aspect_ratio=aspect_ratio,
-                                   zero_calibrate=zero_calibrate, fig_ax=fig_ax)
+        return plot.wavefunction2d(wavefunc, figsize=figsize, zero_calibrate=zero_calibrate, fig_ax=fig_ax)

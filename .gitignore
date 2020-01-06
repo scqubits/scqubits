@@ -17,3 +17,7 @@
 /dist/
 /sc_qubits.egg-info/
 /scqubits/tests/_tempdata/
+/scqubits/core/hspace.py
+/scratch/
+
+scqubits/tests/explorer_run.py
