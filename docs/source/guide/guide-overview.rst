@@ -1,7 +1,7 @@
 .. scqubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
-.. _overview:
+.. _guide_overview:
 
 ******************
 Guide Overview
@@ -12,4 +12,5 @@ Topics addressed here include the different implemented superconducting qubits, 
 QuTiP. The latter allows for simple creation of composite Hilbert spaces, consisting of multiple qubits and/or
 oscillators.
 
-This guide does not mean to be exhaustive. For a complete references see  the :ref:`apidoc` at the end which lists all relevant classes and functions of scqubits.
+This guide does not mean to be exhaustive. For a complete references see  the :ref:`apidoc` at the end which lists all
+relevant classes and functions of scqubits.

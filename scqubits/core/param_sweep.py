@@ -251,13 +251,13 @@ class ParameterSweep:
                                                qubit_operator=subsys.n_operator())
 
     def compute_custom_data_sweep(self, data_name, func, **kwargs):
-        """Method for computing custom data as a function of the external parameter, calculated via the function func
+        """Method for computing custom data as a function of the external parameter, calculated via the function `func`.
 
         Parameters
         ----------
         data_name: str
         func: function
-            signature: func(parametersweep, param_value, **kwargs), specifies how to calculate the data
+            signature: `func(parametersweep, param_value, **kwargs)`, specifies how to calculate the data
         **kwargs: optional
             other parameters to be included in func
         """
