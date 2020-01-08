@@ -258,10 +258,10 @@ class FluxQubit(QubitBaseClass):
 
         n_vec = np.arange(-self.ncut, self.ncut + 1)
         phi_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_count)
-        a_1_phi = np.exp(-1j * np.outer(phi_vec, n_vec)) / (2 * np.pi) ** 0.5
+        a_1_phi = np.exp(1j * np.outer(phi_vec, n_vec)) / (2 * np.pi) ** 0.5
         a_2_phi = a_1_phi.T
         wavefunc_amplitudes = np.matmul(a_1_phi, state_amplitudes)
-        wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, a_2_phi).T
+        wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, a_2_phi)
         wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
 
         grid2d = GridSpec(np.asarray([[*phi_range, phi_count],
