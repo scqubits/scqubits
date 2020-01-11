@@ -17,7 +17,7 @@ import scqubits.utils.plotting as plot
 from scqubits.settings import DEFAULT_ENERGY_UNITS
 
 
-def bare_spectrum(sweep, subsys, which=-1, title=None, fig_ax=None):
+def bare_spectrum(sweep, subsys, which=-1, title=None, filename=None, fig_ax=None):
     """
     Plots energy spectrum of bare system `subsys` for given parameter sweep `sweep`.
 
@@ -30,6 +30,7 @@ def bare_spectrum(sweep, subsys, which=-1, title=None, fig_ax=None):
         int>0: plot wavefunctions 0..int-1; list(int) plot specific wavefunctions
     title: str, optional
         plot title
+    filename: str, optional
     fig_ax: Figure, Axes
 
     Returns
@@ -40,10 +41,10 @@ def bare_spectrum(sweep, subsys, which=-1, title=None, fig_ax=None):
     specdata = sweep.bare_specdata_list[subsys_index]
     if which is None:
         which = subsys.truncated_dim
-    return specdata.plot_evals_vs_paramvals(which=which, title=title, fig_ax=fig_ax)
+    return specdata.plot_evals_vs_paramvals(which=which, title=title, filename=filename, fig_ax=fig_ax)
 
 
-def dressed_spectrum(sweep, title=None, fig_ax=None):
+def dressed_spectrum(sweep, title=None, filename=None, fig_ax=None):
     """
     Plots energy spectrum of dressed system
 
@@ -53,10 +54,10 @@ def dressed_spectrum(sweep, title=None, fig_ax=None):
     """
     ymax = np.max(sweep.dressed_specdata.energy_table) - np.min(sweep.dressed_specdata.energy_table)
     return sweep.dressed_specdata.plot_evals_vs_paramvals(subtract_ground=True, ymax=min(15, ymax),
-                                                          title=title, fig_ax=fig_ax)
+                                                          title=title, filename=filename, fig_ax=fig_ax)
 
 
-def difference_spectrum(sweep, initial_state_ind=0):
+def difference_spectrum(sweep, initial_state_ind=0, filename=None):
     """
     Plots a transition energy spectrum with reference to the given initial_state_ind, obtained by taking energy
     differences of the eigenenergy spectrum.
@@ -65,15 +66,16 @@ def difference_spectrum(sweep, initial_state_ind=0):
     ----------
     sweep: ParameterSweep
     initial_state_ind: int
+    filename: str, optional
 
     Returns
     -------
     Figure, Axes
     """
-    return sweep.get_difference_spectrum(initial_state_ind).plot_evals_vs_paramvals()
+    return sweep.get_difference_spectrum(initial_state_ind).plot_evals_vs_paramvals(filename=filename)
 
 
-def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, title=None, fig_ax=None):
+def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, title=None, filename=None, fig_ax=None):
     """
     Plots the n-photon qubit transition spectrum.
 
@@ -86,6 +88,7 @@ def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, title=Non
         bare state index of the initial state for the transitions
     title: str, optional
         plot title
+    filename: str, optional
     fig_ax: (Figure, Axes), optional
 
     Returns
@@ -93,10 +96,10 @@ def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, title=Non
     Figure, Axes
     """
     label_list, specdata = sweep.get_n_photon_qubit_spectrum(photonnumber, initial_state_labels)
-    return specdata.plot_evals_vs_paramvals(title=title, label_list=label_list, fig_ax=fig_ax)
+    return specdata.plot_evals_vs_paramvals(title=title, label_list=label_list, filename=filename, fig_ax=fig_ax)
 
 
-def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=None, fig_ax=None):
+def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=None, filename=None, fig_ax=None):
     """
     Plot bare wavefunctions for given parameter value and subsystem.
 
@@ -111,6 +114,7 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=
         wavefunctions
     phi_count: int, optional
     title: str, optional
+    filename: str, optional
     fig_ax: (Figure, Axes), optional
 
     Returns
@@ -125,7 +129,7 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
     evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]
     return subsys.plot_wavefunction(esys=(evals, evecs), which=which, mode='real', phi_count=phi_count,
-                                    title=title, fig_ax=fig_ax)
+                                    title=title, filename=filename, fig_ax=fig_ax)
 
 
 def chi(sweep, qbt_index, osc_index, title=None, fig_ax=None):
