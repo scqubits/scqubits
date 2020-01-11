@@ -136,7 +136,7 @@ def wavefunction1d_discrete(wavefunc, xlabel='x', ylabel='wavefunction', x_range
     width = .75
 
     axes.bar(x_vals, wavefunc.amplitudes, width=width, **kwargs)
-    axes.set_xticks(x_vals + width / 2)
+    axes.set_xticks(x_vals)
     axes.set_xticklabels(x_vals)
     _process_options(axes, x_range, y_range, xlabel, ylabel, title)
 
@@ -461,7 +461,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', x_range=None, y_r
     """
     fig, axes = fig_ax or plt.subplots()
     xlabel = xlabel or specdata.param_name
-    ylabel = ylabel or 'matrix_element'
+    ylabel = ylabel or 'matrix element'
     _process_options(axes, x_range, y_range, xlabel, ylabel, title)
 
     modefunction = constants.MODE_FUNC_DICT[mode]
@@ -490,7 +490,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', x_range=None, y_r
     return fig, axes
 
 
-def print_matrix(matrix, show_numbers=True, fig_ax=None, **kwargs):
+def print_matrix(matrix, show_numbers=True, filename=None, fig_ax=None, **kwargs):
     """Pretty print a matrix, optionally printing the numerical values of the data.
     """
     fig, axes = fig_ax or plt.subplots()
@@ -509,6 +509,11 @@ def print_matrix(matrix, show_numbers=True, fig_ax=None, **kwargs):
         axis.set(ticks=locs, ticklabels=locs)
     axes.grid(True, which='minor')
     axes.grid(False, which='major')
+
+    if filename:
+        out_file = mplpdf.PdfPages(filename + '.pdf')
+        out_file.savefig()
+        out_file.close()
 
     return fig, axes
 
