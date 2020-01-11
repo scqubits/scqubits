@@ -182,7 +182,7 @@ class QubitBaseClass(QuantumSystem):
         return table
 
     def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', xlabel='', ylabel='', zlabel='',
-                            fig_ax=None):
+                            filename=None, fig_ax=None):
         """Plots matrix elements for `operator`, given as a string referring to a class method
         that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
         for the charge operator `n` is obtained by `trm.plot_matrixelements('n')`.
@@ -200,6 +200,8 @@ class QubitBaseClass(QuantumSystem):
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
         xlabel, ylabel, zlabel: str, optional
             labels for the three plot axes
+        filename: str, optional
+            name of file to which pdf pf figure is written
         fig_ax: tuple(Figure, Axes), optional
             fig and ax objects for matplotlib figure addition (default value = None)
 
@@ -208,7 +210,7 @@ class QubitBaseClass(QuantumSystem):
         Figure, Axes
         """
         matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
-        return plot.matrix(matrixelem_array, mode, xlabel, ylabel, zlabel, fig_ax=fig_ax)
+        return plot.matrix(matrixelem_array, mode, xlabel, ylabel, zlabel, filename=filename, fig_ax=fig_ax)
 
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
                                   get_eigenstates=False, filename=None):
