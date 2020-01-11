@@ -59,3 +59,5 @@ mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
                                                 "#EDE83B",
                                                 "#ABD379",
                                                 "#F9E6BE"])
+# increase matplotlib font size
+mpl.rcParams.update({'font.size': 11})
