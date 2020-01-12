@@ -465,8 +465,8 @@ def dispersive_chis(sweep, param_index, qubit_subsys=None, osc_subsys=None):
     chi_values = np.empty(qubit_dim, dtype=np.float_)
     # chi_j = E_1j - E_0j - omega
     for j in range(qubit_dim):
-        bare_0j = make_bare_labels(sweep.hilbertspace, qubitsys_index, j, oscsys_index, 0)
-        bare_1j = make_bare_labels(sweep.hilbertspace, qubitsys_index, j, oscsys_index, 1)
+        bare_0j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 0))
+        bare_1j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 1))
         energy_0j = sweep.lookup_energy_bare_index(bare_0j, param_index)
         energy_1j = sweep.lookup_energy_bare_index(bare_1j, param_index)
 
@@ -501,8 +501,8 @@ def dispersive_chi_01(sweep, param_index, qubit_subsys=None, osc_subsys=None):
     chi_values = np.empty(2, dtype=np.float_)
     # chi_j = E_1j - E_0j - omega
     for j in range(2):
-        bare_0j = make_bare_labels(sweep.hilbertspace, qubitsys_index, j, oscsys_index, 0)
-        bare_1j = make_bare_labels(sweep.hilbertspace, qubitsys_index, j, oscsys_index, 1)
+        bare_0j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 0))
+        bare_1j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 1))
         energy_0j = sweep.lookup_energy_bare_index(bare_0j, param_index)
         energy_1j = sweep.lookup_energy_bare_index(bare_1j, param_index)
 
