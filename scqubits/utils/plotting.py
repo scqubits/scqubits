@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-import scqubits.utils.constants as constants
+import scqubits.core.constants as constants
 import scqubits.utils.plot_defaults as defaults
 from scqubits.settings import DEFAULT_ENERGY_UNITS
 from scqubits.utils.misc import process_which
@@ -49,7 +49,7 @@ def _process_options(figure, axes, opts=None, **kwargs):
         option_dict = {**opts, **kwargs}
 
     for key, value in option_dict.items():
-        if key not in constants.SPECIAL_PLOT_OPTIONS:
+        if key not in defaults.SPECIAL_PLOT_OPTIONS:
             set_method = getattr(axes, 'set_' + key)
             set_method(value)
         elif key == 'x_range':

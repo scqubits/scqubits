@@ -24,18 +24,11 @@ Matplotlib.
 
 import matplotlib as mpl
 from cycler import cycler
-from enum import Enum, unique
+
+from scqubits.core.constants import FileType
 
 
-# file types
-@unique
-class FileType(Enum):
-    """Specifies the available file types for writing data to disk."""
-    csv = 0
-    h5 = 1
-
-
-# default file formal setting
+# default file format setting
 FILE_FORMAT = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
 
 # a switch for displaying of progress bar; default: show only in ipython

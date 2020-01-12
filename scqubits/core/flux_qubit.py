@@ -12,7 +12,7 @@
 import numpy as np
 import scipy as sp
 
-import scqubits.utils.constants as constants
+import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.data_containers import WaveFunctionOnGrid
 from scqubits.core.discretization import GridSpec

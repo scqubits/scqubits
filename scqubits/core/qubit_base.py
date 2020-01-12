@@ -19,13 +19,12 @@ import numpy as np
 import scipy as sp
 
 import scqubits as qubits
-import scqubits.utils.constants as constants
+import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.data_containers import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
-from scqubits.utils.misc import process_which, process_metadata
+from scqubits.utils.misc import process_which, process_metadata, filter_metadata
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
-from scqubits.utils.misc import filter_metadata
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm

@@ -13,7 +13,7 @@ import math
 
 import numpy as np
 
-import scqubits.utils.constants as constants
+import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.data_containers import WaveFunction
 from scqubits.core.qubit_base import QubitBaseClass1d
