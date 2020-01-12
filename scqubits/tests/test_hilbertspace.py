@@ -44,7 +44,7 @@ class TestHilbertSpace:
         )
 
         resonator = qubit.Oscillator(
-            omega=6.0,
+            E_osc=6.0,
             truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
         # Form a list of all components making up the Hilbert space.
@@ -164,7 +164,7 @@ class TestHilbertSpace:
         )
 
         resonator = qubit.Oscillator(
-            omega=6.0,
+            E_osc=6.0,
             truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
 
@@ -238,7 +238,7 @@ class TestParameterSweep:
         )
 
         resonator = qubit.Oscillator(
-            omega=6.0,
+            E_osc=6.0,
             truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
 
