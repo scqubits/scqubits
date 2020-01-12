@@ -96,3 +96,14 @@ def charge_matrixelem(sweep, **kwargs):
     kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
     kwargs['ylabel'] = kwargs.get('ylabel') or r'$|\langle i |n| j \rangle|$'
     return kwargs
+
+
+# supported keyword arguments for plotting and sweep_plotting functions
+SPECIAL_PLOT_OPTIONS = {
+    'x_range',
+    'y_range',
+    'ymax',
+    'figsize',
+    'fig_ax',
+    'filename'
+}
