@@ -18,6 +18,7 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import scqubits.utils.constants as constants
+import scqubits.utils.plot_defaults as defaults
 from scqubits.settings import DEFAULT_ENERGY_UNITS
 from scqubits.utils.misc import process_which
 
@@ -103,7 +104,7 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs)
 
     axes.plot(x_vals, y_vals)
     axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
-    _process_options(fig, axes, opts=constants.wavefunction1d_defaults(), **kwargs)
+    _process_options(fig, axes, opts=defaults.wavefunction1d(), **kwargs)
     return fig, axes
 
 
@@ -131,7 +132,7 @@ def wavefunction1d_discrete(wavefunc, **kwargs):
     axes.bar(x_vals, wavefunc.amplitudes, width=width)
     axes.set_xticks(x_vals)
     axes.set_xticklabels(x_vals)
-    _process_options(fig, axes, constants.wavefunction1d_discrete_defaults(), **kwargs)
+    _process_options(fig, axes, defaults.wavefunction1d_discrete(), **kwargs)
 
     return fig, axes
 
@@ -175,7 +176,7 @@ def wavefunction2d(wavefunc, zero_calibrate=False, **kwargs):
     cax = divider.append_axes("right", size="2%", pad=0.05)
     fig.colorbar(im, cax=cax)
 
-    _process_options(fig, axes, constants.wavefunction2d_defaults(), **kwargs)
+    _process_options(fig, axes, defaults.wavefunction2d(), **kwargs)
     return fig, axes
 
 
@@ -213,7 +214,7 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
         cax = divider.append_axes("right", size="2%", pad=0.05)
         fig.colorbar(im, cax=cax)
 
-    _process_options(fig, axes, opts=constants.contours_defaults(x_vals, y_vals), **kwargs)
+    _process_options(fig, axes, opts=defaults.contours(x_vals, y_vals), **kwargs)
     return fig, axes
 
 
@@ -270,7 +271,7 @@ def matrix(data_matrix, mode='abs', **kwargs):
     cax, _ = mpl.colorbar.make_axes(ax2, shrink=.75, pad=.02)  # add colorbar with normalized range
     _ = mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
 
-    _process_options(fig, ax1, opts=constants.matrix_defaults(), **kwargs)
+    _process_options(fig, ax1, opts=defaults.matrix(), **kwargs)
     return fig, (ax1, ax2)
 
 
@@ -334,7 +335,7 @@ def evals_vs_paramvals(specdata, which=-1, subtract_ground=False, label_list=Non
     if subtract_ground:
         ydata = (ydata.T - ydata[:, 0]).T
     return data_vs_paramvals(xdata, ydata, label_list=label_list,
-                             **constants.evals_vs_paramvals_defaults(specdata, **kwargs))
+                             **defaults.evals_vs_paramvals(specdata, **kwargs))
 
 
 def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
@@ -377,7 +378,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
         labelLines(axes.get_lines(), zorder=2.0)
     else:
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    _process_options(fig, axes, opts=constants.matelem_vs_paramvals_defaults(specdata), **kwargs)
+    _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)
     return fig, axes
 
 

@@ -13,9 +13,8 @@
 import copy
 import numpy as np
 
+import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-import scqubits.utils.constants as constants
-from scqubits.settings import DEFAULT_ENERGY_UNITS
 
 
 def bare_spectrum(sweep, subsys, which=-1, **kwargs):
@@ -58,7 +57,7 @@ def dressed_spectrum(sweep, **kwargs):
     fig, axes
     """
     return sweep.dressed_specdata.plot_evals_vs_paramvals(subtract_ground=True,
-                                                          **constants.dressed_spectrum_defaults(sweep, **kwargs))
+                                                          **defaults.dressed_spectrum(sweep, **kwargs))
 
 
 def difference_spectrum(sweep, initial_state_ind=0, **kwargs):
@@ -156,7 +155,7 @@ def chi(sweep, qbt_index, osc_index, **kwargs):
     xdata = sweep.param_vals
     state_count = ydata.shape[1]
     label_list = list(range(state_count))
-    return plot.data_vs_paramvals(xdata, ydata, label_list=label_list, **constants.chi_defaults(sweep, **kwargs))
+    return plot.data_vs_paramvals(xdata, ydata, label_list=label_list, **defaults.chi(sweep, **kwargs))
 
 
 def chi_01(sweep, qbt_index, osc_index, param_index=0, **kwargs):
@@ -183,7 +182,7 @@ def chi_01(sweep, qbt_index, osc_index, param_index=0, **kwargs):
     ydata = sweep.sweep_data[data_key]
     xdata = sweep.param_vals
     yval = ydata[param_index]
-    return plot.data_vs_paramvals(xdata, ydata, label_list=None, **constants.chi01_defaults(sweep, yval, **kwargs))
+    return plot.data_vs_paramvals(xdata, ydata, label_list=None, **defaults.chi01(sweep, yval, **kwargs))
 
 
 def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
@@ -208,4 +207,4 @@ def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
     specdata.matrixelem_table = sweep.sweep_data[data_key]
     label_list = [(initial_state_idx, final_idx) for final_idx in range(sweep.hilbertspace[qbt_index].truncated_dim)]
     return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs',
-                                     **constants.charge_matrixelem_defaults(sweep, **kwargs))
+                                     **defaults.charge_matrixelem(sweep, **kwargs))
