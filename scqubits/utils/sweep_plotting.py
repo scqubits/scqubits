@@ -14,6 +14,7 @@ import copy
 import numpy as np
 
 import scqubits.utils.plotting as plot
+import scqubits.utils.constants as constants
 from scqubits.settings import DEFAULT_ENERGY_UNITS
 
 
@@ -56,10 +57,8 @@ def dressed_spectrum(sweep, **kwargs):
     -------
     fig, axes
     """
-    if 'ymax' not in kwargs:
-        kwargs['ymax'] = min(15, (np.max(sweep.dressed_specdata.energy_table) -
-                                  np.min(sweep.dressed_specdata.energy_table)))
-    return sweep.dressed_specdata.plot_evals_vs_paramvals(subtract_ground=True, **kwargs)
+    return sweep.dressed_specdata.plot_evals_vs_paramvals(subtract_ground=True,
+                                                          **constants.dressed_spectrum_defaults(sweep, **kwargs))
 
 
 def difference_spectrum(sweep, initial_state_ind=0, **kwargs):
@@ -155,11 +154,9 @@ def chi(sweep, qbt_index, osc_index, **kwargs):
     data_key = 'chi_osc{}_qbt{}'.format(osc_index, qbt_index)
     ydata = sweep.sweep_data[data_key]
     xdata = sweep.param_vals
-    kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$' + DEFAULT_ENERGY_UNITS
     state_count = ydata.shape[1]
     label_list = list(range(state_count))
-    return plot.data_vs_paramvals(xdata, ydata, label_list=label_list, **kwargs)
+    return plot.data_vs_paramvals(xdata, ydata, label_list=label_list, **constants.chi_defaults(sweep, **kwargs))
 
 
 def chi_01(sweep, qbt_index, osc_index, param_index=0, **kwargs):
@@ -185,10 +182,8 @@ def chi_01(sweep, qbt_index, osc_index, param_index=0, **kwargs):
     data_key = 'chi_osc{}_qbt{}'.format(osc_index, qbt_index)
     ydata = sweep.sweep_data[data_key]
     xdata = sweep.param_vals
-    kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(DEFAULT_ENERGY_UNITS)
-    kwargs['title'] = kwargs.get('title') or r'$\chi_{{01}}=${:.4f} {}'.format(ydata[param_index], DEFAULT_ENERGY_UNITS)
-    return plot.data_vs_paramvals(xdata, ydata, label_list=None, **kwargs)
+    yval = ydata[param_index]
+    return plot.data_vs_paramvals(xdata, ydata, label_list=None, **constants.chi01_defaults(sweep, yval, **kwargs))
 
 
 def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
@@ -200,7 +195,7 @@ def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
     qbt_index: int
         index of the qubit system within the underlying HilbertSpace
     initial_state_idx: int
-        index of initial state 
+        index of initial state
     **kwargs: dict
         standard plotting option (see separate documentation)
 
@@ -211,7 +206,6 @@ def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
     data_key = 'n_op_qbt{}'.format(qbt_index)
     specdata = copy.deepcopy(sweep.bare_specdata_list[qbt_index])
     specdata.matrixelem_table = sweep.sweep_data[data_key]
-    kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$|\langle i |n| j \rangle|$'
     label_list = [(initial_state_idx, final_idx) for final_idx in range(sweep.hilbertspace[qbt_index].truncated_dim)]
-    return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs', **kwargs)
+    return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs',
+                                     **constants.charge_matrixelem_defaults(sweep, **kwargs))

@@ -16,7 +16,7 @@ import os
 import csv
 import h5py
 import numpy as np
-from scqubits.utils.constants import FileType
+from scqubits.settings import FileType
 
 
 class FileIOFactory:

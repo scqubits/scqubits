@@ -31,7 +31,7 @@ from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.explorer import Explorer
 
 # utils
-from scqubits.utils.constants import FileType
+from scqubits.settings import FileType
 from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 # version

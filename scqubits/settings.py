@@ -24,9 +24,18 @@ Matplotlib.
 
 import matplotlib as mpl
 from cycler import cycler
+from enum import Enum, unique
 
-from scqubits.utils.constants import FileType
 
+# file types
+@unique
+class FileType(Enum):
+    """Specifies the available file types for writing data to disk."""
+    csv = 0
+    h5 = 1
+
+
+# default file formal setting
 FILE_FORMAT = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
 
 # a switch for displaying of progress bar; default: show only in ipython
@@ -40,7 +49,6 @@ except NameError:
 
 # default energy units
 DEFAULT_ENERGY_UNITS = 'GHz'
-
 
 # define settings for tqdm progressbar
 TQDM_KWARGS = {'disable': PROGRESSBAR_DISABLED,
@@ -60,7 +68,7 @@ mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
                                                 "#ABD379",
                                                 "#F9E6BE"])
 
-# increase matplotlib font size
+# set matplotlib defaults
 mpl.rcParams['font.sans-serif'] = "Arial"
 mpl.rcParams['font.family'] = "sans-serif"
 mpl.rcParams['figure.dpi'] = 150

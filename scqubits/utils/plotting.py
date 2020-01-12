@@ -10,6 +10,7 @@
 ############################################################################
 
 import warnings
+import os
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -66,7 +67,7 @@ def _process_options(figure, axes, opts=None, **kwargs):
 
     filename = kwargs.get('filename')
     if filename:
-        figure.savefig(filename)
+        figure.savefig(os.path.splitext(filename)[0] + '.pdf')
 
 
 def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs):
@@ -102,7 +103,7 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs)
 
     axes.plot(x_vals, y_vals)
     axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
-    _process_options(fig, axes, opts=constants.WAVEFUNCTION1D_PLOT_OPTIONS, **kwargs)
+    _process_options(fig, axes, opts=constants.wavefunction1d_defaults(), **kwargs)
     return fig, axes
 
 
@@ -130,7 +131,7 @@ def wavefunction1d_discrete(wavefunc, **kwargs):
     axes.bar(x_vals, wavefunc.amplitudes, width=width)
     axes.set_xticks(x_vals)
     axes.set_xticklabels(x_vals)
-    _process_options(fig, axes, constants.WAVEFUNCTION1D_DISCRETE_PLOT_OPTIONS, **kwargs)
+    _process_options(fig, axes, constants.wavefunction1d_discrete_defaults(), **kwargs)
 
     return fig, axes
 
@@ -174,7 +175,7 @@ def wavefunction2d(wavefunc, zero_calibrate=False, **kwargs):
     cax = divider.append_axes("right", size="2%", pad=0.05)
     fig.colorbar(im, cax=cax)
 
-    _process_options(fig, axes, constants.WAVEFUNCTION2D_PLOT_OPTIONS, **kwargs)
+    _process_options(fig, axes, constants.wavefunction2d_defaults(), **kwargs)
     return fig, axes
 
 
@@ -200,18 +201,10 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
     tuple(Figure, Axes)
         matplotlib objects for further editing
     """
+    fig, axes = kwargs.get('fig_ax') or plt.subplots()
 
     x_grid, y_grid = np.meshgrid(x_vals, y_vals)
     z_array = func(x_grid, y_grid)
-
-    if 'fig_ax' in kwargs:
-        fig, axes = kwargs['fig_ax']
-    else:
-        figsize = kwargs.get('figsize')
-        if figsize is None:
-            aspect_ratio = (y_vals[-1] - y_vals[0]) / (x_vals[-1] - x_vals[0])
-            figsize = (8, 8 * aspect_ratio)
-        fig, axes = plt.subplots(figsize=figsize)
 
     im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower")
 
@@ -220,7 +213,7 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
         cax = divider.append_axes("right", size="2%", pad=0.05)
         fig.colorbar(im, cax=cax)
 
-    _process_options(fig, axes, **kwargs)
+    _process_options(fig, axes, opts=constants.contours_defaults(x_vals, y_vals), **kwargs)
     return fig, axes
 
 
@@ -245,7 +238,7 @@ def matrix(data_matrix, mode='abs', **kwargs):
     if 'fig_ax' in kwargs:
         fig, (ax1, ax2) = kwargs['fig_ax']
     else:
-        fig = plt.figure(figsize=(10, 5))
+        fig = plt.figure()
         ax1 = fig.add_subplot(1, 2, 1, projection='3d')
         ax2 = plt.subplot(1, 2, 2)
 
@@ -277,7 +270,7 @@ def matrix(data_matrix, mode='abs', **kwargs):
     cax, _ = mpl.colorbar.make_axes(ax2, shrink=.75, pad=.02)  # add colorbar with normalized range
     _ = mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
 
-    _process_options(fig, ax1, **kwargs)
+    _process_options(fig, ax1, opts=constants.matrix_defaults(), **kwargs)
     return fig, (ax1, ax2)
 
 
@@ -340,10 +333,8 @@ def evals_vs_paramvals(specdata, which=-1, subtract_ground=False, label_list=Non
     ydata = specdata.energy_table[:, index_list]
     if subtract_ground:
         ydata = (ydata.T - ydata[:, 0]).T
-
-    kwargs['xlabel'] = kwargs.get('xlabel') or specdata.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or 'energy [{}]'.format(DEFAULT_ENERGY_UNITS)
-    return data_vs_paramvals(xdata, ydata, label_list=label_list, **kwargs)
+    return data_vs_paramvals(xdata, ydata, label_list=label_list,
+                             **constants.evals_vs_paramvals_defaults(specdata, **kwargs))
 
 
 def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
@@ -368,8 +359,6 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
         matplotlib objects for further editing
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
-    kwargs['xlabel'] = kwargs.get('xlabel') or specdata.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or 'matrix element'
 
     x = specdata.param_vals
 
@@ -388,7 +377,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
         labelLines(axes.get_lines(), zorder=2.0)
     else:
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    _process_options(fig, axes, **kwargs)
+    _process_options(fig, axes, opts=constants.matelem_vs_paramvals_defaults(specdata), **kwargs)
     return fig, axes
 
 
