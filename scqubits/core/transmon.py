@@ -188,7 +188,7 @@ class Transmon(QubitBaseClass1d):
         evals, _ = esys
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
 
-        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
+        phi_range, phi_count = self._try_defaults(phi_range, phi_count)
 
         phi_basis_labels = np.linspace(*phi_range, phi_count)
         phi_wavefunc_amplitudes = np.empty(phi_count, dtype=np.complex_)

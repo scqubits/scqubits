@@ -221,7 +221,7 @@ class FluxQubit(QubitBaseClass):
             plot figure size
         filename: str, optional
         """
-        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
+        phi_range, phi_count = self._try_defaults(phi_range, phi_count)
         x_vals = np.linspace(*phi_range, phi_count)
         y_vals = np.linspace(*phi_range, phi_count)
         return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, figsize=figsize,
@@ -251,7 +251,7 @@ class FluxQubit(QubitBaseClass):
             _, evecs = self.eigensys(evals_count)
         else:
             _, evecs = esys
-        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
+        phi_range, phi_count = self._try_defaults(phi_range, phi_count)
 
         dim = 2 * self.ncut + 1
         state_amplitudes = np.reshape(evecs[:, which], (dim, dim))

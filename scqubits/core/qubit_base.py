@@ -131,7 +131,7 @@ class QubitBaseClass(QuantumSystem):
             specdata.filewrite(filename)
         return evals, evecs
 
-    def try_defaults(self, var_range, var_count):
+    def _try_defaults(self, var_range, var_count):
         """
         Parameters
         ----------

@@ -409,7 +409,7 @@ class ZeroPi(QubitBaseClass):
         figsize: tupel(float, float), optitional
         filename: str, optional
         """
-        theta_range, theta_count = self.try_defaults(theta_range, theta_count)
+        theta_range, theta_count = self._try_defaults(theta_range, theta_count)
 
         min_val = self.grid.min_val
         max_val = self.grid.max_val
@@ -443,7 +443,7 @@ class ZeroPi(QubitBaseClass):
         else:
             _, evecs = esys
 
-        theta_range, theta_count = self.try_defaults(theta_range, theta_count)
+        theta_range, theta_count = self._try_defaults(theta_range, theta_count)
 
         pt_count = self.grid.pt_count
         dim_theta = 2 * self.ncut + 1
@@ -488,7 +488,7 @@ class ZeroPi(QubitBaseClass):
         -------
         Figure, Axes
         """
-        theta_range, theta_count = self.try_defaults(theta_range, theta_count)
+        theta_range, theta_count = self._try_defaults(theta_range, theta_count)
 
         modefunction = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_count=theta_count, which=which)

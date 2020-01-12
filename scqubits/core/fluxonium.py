@@ -194,7 +194,7 @@ class Fluxonium(QubitBaseClass1d):
             evals, evecs = esys
         dim = self.hilbertdim()
 
-        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
+        phi_range, phi_count = self._try_defaults(phi_range, phi_count)
 
         phi_basis_labels = np.linspace(phi_range[0], phi_range[1], phi_count)
         wavefunc_osc_basis_amplitudes = evecs[:, which]
