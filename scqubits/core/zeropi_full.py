@@ -28,7 +28,7 @@ class FullZeroPi(QubitBaseClass):
         &H_{0-\pi} = -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
                      +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta\\
         &\qquad\qquad\qquad+2E_{C\Sigma}(\delta C_J/C_J)\partial_\phi\partial_\theta
-                     +2\,\delta E_J \sin\theta\sin(\phi-\phi_\text{ext}/2)\\
+                     +2\,\delta E_J \sin\theta\sin(\phi-\varphi_\text{ext}/2)\\
         &H_\text{int} = 2E_{C\Sigma}dC\,\partial_\theta\partial_\zeta + E_L dE_L \phi\,\zeta\\
         &H_\zeta = \omega_\zeta a^\dagger a
 
@@ -201,9 +201,14 @@ class FullZeroPi(QubitBaseClass):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
         self._zeropi.set_EC_via_ECS(ECS)
 
-    def omega_zeta(self):
-        """Returns (angular) frequency of the zeta mode"""
+    def get_omega_zeta(self):
         return (8.0 * self.EL * self.EC) ** 0.5
+
+    def set_omega_zeta(self, value):
+        raise ValueError("It's not possible to directly set omega_zeta. Instead, one can modify EL or EC.")
+
+    omega_zeta = property(get_omega_zeta, set_omega_zeta)
+
 
     def hamiltonian(self, return_parts=False):
         """Returns Hamiltonian in basis obtained by discretizing phi, employing charge basis for theta, and Fock
@@ -224,7 +229,7 @@ class FullZeroPi(QubitBaseClass):
         zeropi_diag_hamiltonian.setdiag(zeropi_evals)
 
         zeta_dim = self.zeta_cutoff
-        prefactor = self.omega_zeta()
+        prefactor = self.omega_zeta
         zeta_diag_hamiltonian = op.number_sparse(zeta_dim, prefactor)
 
         hamiltonian_mat = sparse.kron(zeropi_diag_hamiltonian,
@@ -261,6 +266,17 @@ class FullZeroPi(QubitBaseClass):
         return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_flux(),
                                                       zeropi_evecs=zeropi_evecs)
 
+    def d_hamiltonian_d_EJ(self, zeropi_evecs=None):
+        r"""Calculates a derivative of the Hamiltonian w.r.t EJ. 
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the Hamiltonian 
+        """
+        return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_EJ(),
+                                                      zeropi_evecs=zeropi_evecs)
+
     def _zeropi_operator_in_product_basis(self, zeropi_operator, zeropi_evecs=None):
         """Helper method that converts a zeropi operator into one in the product basis.
 
@@ -287,7 +303,7 @@ class FullZeroPi(QubitBaseClass):
 
     def i_d_dphi_operator(self, zeropi_evecs=None):
         r"""
-        Operator :math:`i d/d\varphi`.
+        Operator :math:`i d/d\phi`.
 
         Returns
         -------
@@ -301,13 +317,13 @@ class FullZeroPi(QubitBaseClass):
 
         Returns
         -------
-        scipy.sparse.csc_matrix
+            scipy.sparse.csc_matrix
         """
         return self._zeropi_operator_in_product_basis(self._zeropi.n_theta_operator(), zeropi_evecs=zeropi_evecs)
 
     def phi_operator(self, zeropi_evecs=None):
         r"""
-        Operator :math:`\varphi`.
+        Operator :math:`\phi`.
 
         Returns
         -------
@@ -316,7 +332,12 @@ class FullZeroPi(QubitBaseClass):
         return self._zeropi_operator_in_product_basis(self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs)
 
     def hilbertdim(self):
-        """Returns Hilbert space dimension"""
+        """Returns Hilbert space dimension
+
+        Returns
+        -------
+        int
+        """
         return self.zeropi_cutoff * self.zeta_cutoff
 
     def _evals_calc(self, evals_count, hamiltonian_mat=None):

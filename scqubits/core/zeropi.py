@@ -245,6 +245,29 @@ class ZeroPi(QubitBaseClass):
         """
         return self.sparse_d_potential_d_flux_mat()
 
+    def sparse_d_potential_d_EJ_mat(self):
+        r"""Calculates a of the potential energy w.r.t EJ.
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the potential energy
+        """
+        return - 2.0 * sparse.kron(self._cos_phi_operator(x=- 2.0 * np.pi * self.flux / 2.0),
+                                   self._cos_theta_operator(), format='csc')
+
+    def d_hamiltonian_d_EJ(self):
+        r"""Calculates a derivative of the Hamiltonian w.r.t EJ.
+        for calcu 
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the Hamiltonian
+        """
+        return self.sparse_d_potential_d_EJ_mat()
+
+
     def _identity_phi(self):
         r"""
         Identity operator acting only on the `\phi` Hilbert subspace.
@@ -269,7 +292,7 @@ class ZeroPi(QubitBaseClass):
 
     def i_d_dphi_operator(self):
         r"""
-        Operator :math:`i d/d\varphi`.
+        Operator :math:`i d/d\phi`.
 
         Returns
         -------
@@ -279,7 +302,7 @@ class ZeroPi(QubitBaseClass):
 
     def _phi_operator(self):
         r"""
-        Operator :math:`\varphi`, acting only on the `\varphi` Hilbert subspace.
+        Operator :math:`\phi`, acting only on the `\phi` Hilbert subspace.
 
 
         Returns
@@ -297,7 +320,7 @@ class ZeroPi(QubitBaseClass):
 
     def phi_operator(self):
         r"""
-        Operator :math:`\varphi`.
+        Operator :math:`\phi`.
 
         Returns
         -------
