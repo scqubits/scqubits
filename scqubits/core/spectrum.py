@@ -1,4 +1,4 @@
-# data_containers.py
+# spectrum.py
 #
 # This file is part of scqubits.
 #
@@ -34,7 +34,6 @@ class WaveFunction:
     energy: float, optional
         energy of the wave function
     """
-
     def __init__(self, basis_labels, amplitudes, energy=None):
         self.basis_labels = basis_labels
         self.amplitudes = amplitudes
@@ -56,7 +55,6 @@ class WaveFunctionOnGrid:
     energy: float, optional
         energy corresponding to the wave function
     """
-
     def __init__(self, gridspec, amplitudes, energy=None):
         self.gridspec = gridspec
         self.amplitudes = amplitudes
@@ -85,7 +83,6 @@ class SpectrumData:
     matrixelem_table: ndarray, optional
         matrix element data stored for each `param_vals` point
     """
-
     def __init__(self, param_name, param_vals, energy_table, system_params, state_table=None, matrixelem_table=None):
         self.param_name = param_name
         self.param_vals = param_vals

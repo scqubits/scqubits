@@ -20,8 +20,8 @@ import pytest
 import scqubits
 import scqubits.settings
 import scqubits.utils.plotting as plot
-from scqubits import FileType
-from scqubits.core.data_containers import SpectrumData
+from scqubits.core.constants import FileType
+from scqubits.core.spectrum import SpectrumData
 from scqubits.settings import IN_IPYTHON
 
 if not IN_IPYTHON:

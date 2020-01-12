@@ -201,8 +201,8 @@ class FullZeroPi(QubitBaseClass):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
         self._zeropi.set_EC_via_ECS(ECS)
 
-    def omega_zeta(self):
-        """Returns (angular) frequency of the zeta mode"""
+    def E_zeta(self):
+        """Returns energy quantum of the zeta mode"""
         return (8.0 * self.EL * self.EC) ** 0.5
 
     def hamiltonian(self, return_parts=False):
@@ -224,7 +224,7 @@ class FullZeroPi(QubitBaseClass):
         zeropi_diag_hamiltonian.setdiag(zeropi_evals)
 
         zeta_dim = self.zeta_cutoff
-        prefactor = self.omega_zeta()
+        prefactor = self.E_zeta()
         zeta_diag_hamiltonian = op.number_sparse(zeta_dim, prefactor)
 
         hamiltonian_mat = sparse.kron(zeropi_diag_hamiltonian,

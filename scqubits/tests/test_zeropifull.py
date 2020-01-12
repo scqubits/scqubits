@@ -11,7 +11,7 @@
 ############################################################################
 
 from scqubits import FullZeroPi
-from scqubits.core.data_containers import SpectrumData
+from scqubits.core.spectrum import SpectrumData
 from scqubits.tests.conftest import BaseTest, DATADIR
 
 

@@ -13,7 +13,7 @@
 import numpy as np
 from tqdm.notebook import tqdm
 
-from scqubits.core.data_containers import SpectrumData
+from scqubits.core.spectrum import SpectrumData
 from scqubits.settings import TQDM_KWARGS
 from scqubits.utils.misc import make_bare_labels
 from scqubits.utils.spectrum_utils import get_matrixelement_table
@@ -460,7 +460,7 @@ def dispersive_chis(sweep, param_index, qubit_subsys=None, osc_subsys=None):
     qubitsys_index = sweep.hilbertspace.get_subsys_index(qubit_subsys)
     oscsys_index = sweep.hilbertspace.get_subsys_index(osc_subsys)
     qubit_dim = qubit_subsys.truncated_dim
-    omega = osc_subsys.omega
+    omega = osc_subsys.E_osc
 
     chi_values = np.empty(qubit_dim, dtype=np.float_)
     # chi_j = E_1j - E_0j - omega
@@ -496,7 +496,7 @@ def dispersive_chi_01(sweep, param_index, qubit_subsys=None, osc_subsys=None):
     """
     qubitsys_index = sweep.hilbertspace.get_subsys_index(qubit_subsys)
     oscsys_index = sweep.hilbertspace.get_subsys_index(osc_subsys)
-    omega = osc_subsys.omega
+    omega = osc_subsys.E_osc
 
     chi_values = np.empty(2, dtype=np.float_)
     # chi_j = E_1j - E_0j - omega

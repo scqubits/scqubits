@@ -13,7 +13,8 @@
 import numpy as np
 
 import scqubits.settings
-from scqubits import Transmon, FileType
+from scqubits import Transmon
+from scqubits.core.constants import FileType
 from scqubits.tests.conftest import StandardTests
 
 scqubits.settings.FILE_FORMAT = FileType.h5

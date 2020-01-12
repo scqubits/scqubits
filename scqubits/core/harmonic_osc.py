@@ -11,6 +11,7 @@
 
 import numpy as np
 import scipy as sp
+import warnings
 
 import scqubits.core.operators as op
 from scqubits.core.qubit_base import QuantumSystem
@@ -42,11 +43,34 @@ def harm_osc_wavefunction(n, x, losc):
 
 class Oscillator(QuantumSystem):
     """General class for mode of an oscillator/resonator."""
-
-    def __init__(self, omega, truncated_dim=None):
+    def __init__(self, E_osc=None, omega=None, truncated_dim=None):
         self._sys_type = 'oscillator'
-        self.omega = omega
+        # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
+        if E_osc is None and omega is None:
+            raise ValueError('E_osc is a mandatory argument.')
+        elif omega:
+            warnings.warn('To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.',
+                          FutureWarning)
+            self.E_osc = omega
+        # end of code supporting deprecated omega
+        else:
+            self.E_osc = E_osc
+
         self.truncated_dim = truncated_dim
+
+    # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
+    def get_omega(self):
+        warnings.warn('To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.',
+                      FutureWarning)
+        return self.E_osc
+
+    def set_omega(self, value):
+        warnings.warn('To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.',
+                      FutureWarning)
+        self.E_osc = value
+
+    omega = property(get_omega, set_omega)
+    # end of code for deprecated omega
 
     def eigenvals(self, evals_count=6):
         """Returns array of eigenvalues.
@@ -60,7 +84,7 @@ class Oscillator(QuantumSystem):
         -------
         ndarray
         """
-        evals = [self.omega * n for n in range(evals_count)]
+        evals = [self.E_osc * n for n in range(evals_count)]
         return np.asarray(evals)
 
     def eigensys(self, evals_count=6):

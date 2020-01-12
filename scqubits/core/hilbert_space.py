@@ -14,7 +14,7 @@ import itertools
 import numpy as np
 import qutip as qt
 
-from scqubits.core.data_containers import SpectrumData
+from scqubits.core.spectrum import SpectrumData
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.spectrum_utils import get_matrixelement_table, convert_esys_to_ndarray

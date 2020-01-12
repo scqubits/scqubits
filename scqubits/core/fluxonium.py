@@ -16,7 +16,7 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.operators as op
-from scqubits.core.data_containers import WaveFunction
+from scqubits.core.spectrum import WaveFunction
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
 from scqubits.core.qubit_base import QubitBaseClass1d
 
@@ -68,14 +68,14 @@ class Fluxonium(QubitBaseClass1d):
         """
         return (8.0 * self.EC / self.EL) ** 0.25  # LC oscillator length
 
-    def omega_p(self):
+    def E_plasma(self):
         """
         Returns
         -------
         float
             Returns the plasma oscillation frequency.
         """
-        return math.sqrt(8.0 * self.EL * self.EC)  # LC plasma oscillation frequency
+        return math.sqrt(8.0 * self.EL * self.EC)  # LC plasma oscillation energy
 
     def phi_operator(self):
         """
@@ -137,7 +137,7 @@ class Fluxonium(QubitBaseClass1d):
         ndarray
         """
         dimension = self.hilbertdim()
-        diag_elements = [i * self.omega_p() for i in range(dimension)]
+        diag_elements = [i * self.E_plasma() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
 
         exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
