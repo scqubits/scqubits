@@ -197,12 +197,8 @@ class QubitBaseClass(QuantumSystem):
             number of desired matrix elements, starting with ground state (default value = 6)
         mode: str, optional
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
-        xlabel, ylabel, zlabel: str, optional
-            labels for the three plot axes
-        filename: str, optional
-            name of file to which pdf pf figure is written
-        fig_ax: tuple(Figure, Axes), optional
-            fig and ax objects for matplotlib figure addition (default value = None)
+        **kwargs: dict
+            standard plotting option (see separate documentation)
 
         Returns
         -------
@@ -320,14 +316,8 @@ class QubitBaseClass(QuantumSystem):
             number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
         subtract_ground: bool, optional
             whether to subtract ground state energy from all eigenvalues (default value = False)
-        x_range: (float, float), optional
-            custom x-range for the plot
-        ymax: float, optional
-            custom upper y bound for the plot
-        filename: str, optional
-            write graphics and parameter set to file if path and filename are specified (default value = None)
-        fig_ax: tuple(Figure, Axes), optional
-            fig and ax objects for matplotlib figure addition (default value = None)
+        **kwargs: dict
+            standard plotting option (see separate documentation)
 
         Returns
         -------
@@ -353,14 +343,8 @@ class QubitBaseClass(QuantumSystem):
             for specific desired matrix elements (default value = 4)
         mode: str, optional
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default value = 'abs')
-        x_range: (float, float), optional
-            custom x-range for the plot (default value = False)
-        y_range: (float, float), optional
-            custom y-range for the plot (default value = False)
-        filename: str, optional
-            write graphics and parameter set to file if path and filename are specified (default value = None)
-        fig_ax: tuple(Figure, Axes), optional
-            fig and ax objects for matplotlib figure addition (default value = None)
+        **kwargs: dict
+            standard plotting option (see separate documentation)
 
         Returns
         -------
@@ -445,15 +429,8 @@ class QubitBaseClass1d(QubitBaseClass):
             choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         scaling: float or None, optional
             custom scaling of wave function amplitude/modulus
-        xlabel, ylabel: str, optional
-            axes labels
-        y_range: tuple(float, float), optional
-            used to set custom y range for plot
-        title: str, optional
-            plot title
-        filename: str, optional
-            file path and name (not including suffix) for output
-        fig_ax: Figure, Axes
+        **kwargs: dict
+            standard plotting option (see separate documentation)
 
         Returns
         -------

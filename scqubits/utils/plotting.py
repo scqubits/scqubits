@@ -9,17 +9,16 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import warnings
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import scqubits.utils.constants as constants
-from scqubits.utils.misc import process_which
 from scqubits.settings import DEFAULT_ENERGY_UNITS
-
-import warnings
-warnings.simplefilter('always', DeprecationWarning)
+from scqubits.utils.misc import process_which
 
 
 try:
@@ -52,10 +51,10 @@ def _process_options(figure, axes, opts=None, **kwargs):
             set_method = getattr(axes, 'set_' + key)
             set_method(value)
         elif key == 'x_range':
-            warnings.warn('x_range is deprecated, use xlim instead', DeprecationWarning)
+            warnings.warn('x_range is deprecated, use xlim instead', FutureWarning)
             axes.set_xlim(value)
         elif key == 'y_range':
-            warnings.warn('y_range is deprecated, use ylim instead', DeprecationWarning)
+            warnings.warn('y_range is deprecated, use ylim instead', FutureWarning)
             axes.set_ylim(value)
         elif key == 'ymax':
             ymax = value
@@ -325,6 +324,8 @@ def evals_vs_paramvals(specdata, which=-1, subtract_ground=False, label_list=Non
         or: list of specific eigenvalues to include
     subtract_ground: bool
         whether to subtract the ground state energy
+    label_list: list(str), optional
+        list of labels associated with the individual curves to be plotted
     **kwargs: dict
         standard plotting option (see separate documentation)
 

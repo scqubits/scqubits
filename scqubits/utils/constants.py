@@ -52,7 +52,7 @@ WAVEFUNCTION1D_PLOT_OPTIONS = {
 }
 
 WAVEFUNCTION1D_DISCRETE_PLOT_OPTIONS = {
-    'xlabel': 'x',
+    'xlabel': 'n',
     'ylabel': 'wavefunction',
 }
 

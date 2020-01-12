@@ -103,21 +103,15 @@ class SpectrumData:
 
         Parameters
         ----------
-        x_range: tuple(float, float), optional
-        ymax: float, optional
-            used to modify the upper boundary for the y-axis
         which: int or list(int)
             default: -1, signals to plot all eigenvalues; int>0: plot eigenvalues 0..int-1; list(int) plot the specific
             eigenvalues (indices listed)
         subtract_ground: bool, optional
             whether to subtract the ground state energy, default: False
-        title: str, optional
-            plot title
         label_list: list(str), optional
             list of labels associated with the individual curves to be plotted
-        fig_ax: Figure, Axes, optional
-        **kwargs: optional
-            keyword arguments passed on to axes.plot()
+        **kwargs: dict
+            standard plotting option (see separate documentation)
 
         Returns
         -------
