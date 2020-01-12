@@ -10,7 +10,6 @@
 ############################################################################
 
 from enum import Enum, unique
-
 import numpy as np
 
 # file name suffices
@@ -36,3 +35,27 @@ MODE_FUNC_DICT = {'abs_sqr': (lambda x: np.abs(x)**2),
 PHI_INDEX = 0
 THETA_INDEX = 1
 ZETA_INDEX = 2
+
+# supported keyword arguments for plotting and sweep_plotting functions, default values
+SPECIAL_PLOT_OPTIONS = {
+    'x_range',
+    'y_range',
+    'ymax',
+    'figsize',
+    'fig_ax',
+    'filename'
+}
+
+WAVEFUNCTION1D_PLOT_OPTIONS = {
+    'xlabel': r'$\varphi$',
+    'ylabel': r'$\psi_j(\varphi)$',
+}
+
+WAVEFUNCTION1D_DISCRETE_PLOT_OPTIONS = {
+    'xlabel': 'x',
+    'ylabel': 'wavefunction',
+}
+
+WAVEFUNCTION2D_PLOT_OPTIONS = {
+    'figsize': (8, 3)
+}

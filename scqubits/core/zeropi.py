@@ -163,8 +163,8 @@ class ZeroPi(QubitBaseClass):
         diag_elements = 2.0 * self.ECS * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
 
-        kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc') \
-                         + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc')
+        kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc') + \
+                         sparse.kron(identity_phi, kinetic_matrix_theta, format='csc')
 
         kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
         return kinetic_matrix
@@ -397,7 +397,7 @@ class ZeroPi(QubitBaseClass):
         """
         return sparse.kron(self._identity_phi(), self._sin_theta_operator(), format='csc')
 
-    def plot_potential(self, theta_range=None, theta_count=None, contour_vals=None, figsize=None, filename=None):
+    def plot_potential(self, theta_range=None, theta_count=None, contour_vals=None, **kwargs):
         """Draw contour plot of the potential energy.
 
         Parameters
@@ -417,8 +417,7 @@ class ZeroPi(QubitBaseClass):
 
         x_vals = np.linspace(min_val, max_val, pt_count)
         y_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, theta_count)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, figsize=figsize,
-                             filename=filename)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
     def wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None):
         """Returns a zero-pi wave function in `phi`, `theta` basis

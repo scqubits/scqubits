@@ -181,8 +181,7 @@ class QubitBaseClass(QuantumSystem):
             specdata.filewrite(filename)
         return table
 
-    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', xlabel='', ylabel='', zlabel='',
-                            filename=None, fig_ax=None):
+    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', **kwargs):
         """Plots matrix elements for `operator`, given as a string referring to a class method
         that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
         for the charge operator `n` is obtained by `trm.plot_matrixelements('n')`.
@@ -210,7 +209,7 @@ class QubitBaseClass(QuantumSystem):
         Figure, Axes
         """
         matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
-        return plot.matrix(matrixelem_array, mode, xlabel, ylabel, zlabel, filename=filename, fig_ax=fig_ax)
+        return plot.matrix(matrixelem_array, mode, **kwargs)
 
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
                                   get_eigenstates=False, filename=None):
@@ -307,8 +306,7 @@ class QubitBaseClass(QuantumSystem):
             spectrumdata.filewrite(filename)
         return spectrumdata
 
-    def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None,
-                                x_range=None, ymax=None, filename=None, fig_ax=None):
+    def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None, **kwargs):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -336,11 +334,9 @@ class QubitBaseClass(QuantumSystem):
         Figure, Axes
         """
         specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground)
-        return plot.evals_vs_paramvals(specdata, which=range(evals_count), x_range=x_range, ymax=ymax,
-                                       filename=filename, fig_ax=fig_ax)
+        return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
 
-    def plot_matelem_vs_paramvals(self, operator, param_name, param_vals, select_elems=4, mode='abs',
-                                  x_range=None, y_range=None, filename=None, fig_ax=None):
+    def plot_matelem_vs_paramvals(self, operator, param_name, param_vals, select_elems=4, mode='abs', **kwargs):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -376,10 +372,8 @@ class QubitBaseClass(QuantumSystem):
             flattened_list = [index for tupl in select_elems for index in tupl]
             evals_count = max(flattened_list) + 1
 
-        specdata = self.get_matelements_vs_paramvals(operator, param_name, param_vals, evals_count=evals_count,
-                                                     filename=None)
-        return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, x_range=x_range,
-                                         y_range=y_range, filename=filename, fig_ax=fig_ax)
+        specdata = self.get_matelements_vs_paramvals(operator, param_name, param_vals, evals_count=evals_count)
+        return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, **kwargs)
 
     def set_params_from_dict(self, meta_dict):
         """Set object parameters by given metadata dictionary
@@ -431,15 +425,14 @@ class QubitBaseClass1d(QubitBaseClass):
     def potential(self, phi):
         pass
 
-    def plot_wavefunction(self, esys, which=0, phi_range=None, phi_count=None, mode='real', scaling=None,
-                          xlabel=r'$\varphi$', ylabel=r'$\psi_j(\varphi),\, V(\varphi)$', y_range=None, title=None,
-                          filename=None, fig_ax=None):
+    def plot_wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None, mode='real', scaling=None,
+                          **kwargs):
         """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional qubits like FluxQubits and
         ZeroPi.
 
         Parameters
         ----------
-        esys: ndarray, ndarray
+        esys: (ndarray, ndarray), optional
             eigenvalues, eigenvectors
         which: int or tuple or list, optional
             single index or tuple/list of integers indexing the wave function(s) to be plotted.
@@ -466,17 +459,12 @@ class QubitBaseClass1d(QubitBaseClass):
         -------
         Figure, Axes
         """
-        modefunction = constants.MODE_FUNC_DICT[mode]
+        fig_ax = kwargs.get('fig_ax') or plt.subplots()
+        kwargs['fig_ax'] = fig_ax
 
         index_list = process_which(which, self.truncated_dim)
-
-        if fig_ax is None:
-            fig = plt.figure()
-            ax = fig.add_subplot(111)
-        else:
-            fig, ax = fig_ax
-
         phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_range=phi_range, phi_count=phi_count)
+
         potential_vals = self.potential(phi_wavefunc.basis_labels)
 
         if scaling is None:
@@ -487,14 +475,13 @@ class QubitBaseClass1d(QubitBaseClass):
         else:
             scale = scaling
 
+        modefunction = constants.MODE_FUNC_DICT[mode]
         for wavefunc_index in index_list:
             phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_range=phi_range, phi_count=phi_count)
             if np.sum(phi_wavefunc.amplitudes) < 0:
                 phi_wavefunc.amplitudes *= -1.0
 
             phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
-
             plot.wavefunction1d(phi_wavefunc, potential_vals=potential_vals, offset=phi_wavefunc.energy,
-                                scaling=scale, xlabel=xlabel, ylabel=ylabel, y_range=y_range, title=title,
-                                fig_ax=(fig, ax), filename=filename)
-        return fig, ax
+                                scaling=scale, **kwargs)
+        return fig_ax

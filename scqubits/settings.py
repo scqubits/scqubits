@@ -59,5 +59,9 @@ mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
                                                 "#EDE83B",
                                                 "#ABD379",
                                                 "#F9E6BE"])
+
 # increase matplotlib font size
-mpl.rcParams.update({'font.size': 11})
+mpl.rcParams['font.sans-serif'] = "Arial"
+mpl.rcParams['font.family'] = "sans-serif"
+mpl.rcParams['figure.dpi'] = 150
+mpl.rcParams['font.size'] = 11

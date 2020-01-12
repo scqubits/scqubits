@@ -17,7 +17,7 @@ import scqubits.utils.plotting as plot
 from scqubits.settings import DEFAULT_ENERGY_UNITS
 
 
-def bare_spectrum(sweep, subsys, which=-1, title=None, filename=None, fig_ax=None):
+def bare_spectrum(sweep, subsys, which=-1, **kwargs):
     """
     Plots energy spectrum of bare system `subsys` for given parameter sweep `sweep`.
 
@@ -41,10 +41,10 @@ def bare_spectrum(sweep, subsys, which=-1, title=None, filename=None, fig_ax=Non
     specdata = sweep.bare_specdata_list[subsys_index]
     if which is None:
         which = subsys.truncated_dim
-    return specdata.plot_evals_vs_paramvals(which=which, title=title, filename=filename, fig_ax=fig_ax)
+    return specdata.plot_evals_vs_paramvals(which=which, **kwargs)
 
 
-def dressed_spectrum(sweep, title=None, filename=None, fig_ax=None):
+def dressed_spectrum(sweep, **kwargs):
     """
     Plots energy spectrum of dressed system
 
@@ -52,12 +52,13 @@ def dressed_spectrum(sweep, title=None, filename=None, fig_ax=None):
     -------
     fig, axes
     """
-    ymax = np.max(sweep.dressed_specdata.energy_table) - np.min(sweep.dressed_specdata.energy_table)
-    return sweep.dressed_specdata.plot_evals_vs_paramvals(subtract_ground=True, ymax=min(15, ymax),
-                                                          title=title, filename=filename, fig_ax=fig_ax)
+    if 'ymax' not in kwargs:
+        kwargs['ymax'] = min(15, (np.max(sweep.dressed_specdata.energy_table) -
+                                  np.min(sweep.dressed_specdata.energy_table)))
+    return sweep.dressed_specdata.plot_evals_vs_paramvals(subtract_ground=True, **kwargs)
 
 
-def difference_spectrum(sweep, initial_state_ind=0, filename=None):
+def difference_spectrum(sweep, initial_state_ind=0, **kwargs):
     """
     Plots a transition energy spectrum with reference to the given initial_state_ind, obtained by taking energy
     differences of the eigenenergy spectrum.
@@ -66,16 +67,17 @@ def difference_spectrum(sweep, initial_state_ind=0, filename=None):
     ----------
     sweep: ParameterSweep
     initial_state_ind: int
+    ymax: float, optional
     filename: str, optional
 
     Returns
     -------
     Figure, Axes
     """
-    return sweep.get_difference_spectrum(initial_state_ind).plot_evals_vs_paramvals(filename=filename)
+    return sweep.get_difference_spectrum(initial_state_ind).plot_evals_vs_paramvals(**kwargs)
 
 
-def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, title=None, filename=None, fig_ax=None):
+def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, **kwargs):
     """
     Plots the n-photon qubit transition spectrum.
 
@@ -96,10 +98,10 @@ def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, title=Non
     Figure, Axes
     """
     label_list, specdata = sweep.get_n_photon_qubit_spectrum(photonnumber, initial_state_labels)
-    return specdata.plot_evals_vs_paramvals(title=title, label_list=label_list, filename=filename, fig_ax=fig_ax)
+    return specdata.plot_evals_vs_paramvals(label_list=label_list, **kwargs)
 
 
-def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=None, filename=None, fig_ax=None):
+def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, **kwargs):
     """
     Plot bare wavefunctions for given parameter value and subsystem.
 
@@ -128,11 +130,10 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, title=
 
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
     evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]
-    return subsys.plot_wavefunction(esys=(evals, evecs), which=which, mode='real', phi_count=phi_count,
-                                    title=title, filename=filename, fig_ax=fig_ax)
+    return subsys.plot_wavefunction(esys=(evals, evecs), which=which, mode='real', phi_count=phi_count, **kwargs)
 
 
-def chi(sweep, qbt_index, osc_index, title=None, fig_ax=None):
+def chi(sweep, qbt_index, osc_index, **kwargs):
     """
     Plot dispersive shifts chi_j for a given pair of qubit and oscillator.
 
@@ -154,15 +155,14 @@ def chi(sweep, qbt_index, osc_index, title=None, fig_ax=None):
     data_key = 'chi_osc{}_qbt{}'.format(osc_index, qbt_index)
     ydata = sweep.sweep_data[data_key]
     xdata = sweep.param_vals
-    xlabel = sweep.param_name
-    ylabel = r'$\chi_j$' + DEFAULT_ENERGY_UNITS
+    kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$' + DEFAULT_ENERGY_UNITS
     state_count = ydata.shape[1]
     label_list = list(range(state_count))
-    return plot.data_vs_paramvals(xdata, ydata, x_range=None, ymax=None, xlabel=xlabel, ylabel=ylabel, title=title,
-                                  label_list=label_list, fig_ax=fig_ax)
+    return plot.data_vs_paramvals(xdata, ydata, label_list=label_list, **kwargs)
 
 
-def chi_01(sweep, qbt_index, osc_index, param_index=0, fig_ax=None):
+def chi_01(sweep, qbt_index, osc_index, param_index=0, **kwargs):
     """
     Plot the dispersive shift chi01 for a given pair of qubit and oscillator.
 
@@ -184,19 +184,17 @@ def chi_01(sweep, qbt_index, osc_index, param_index=0, fig_ax=None):
     data_key = 'chi_osc{}_qbt{}'.format(osc_index, qbt_index)
     ydata = sweep.sweep_data[data_key]
     xdata = sweep.param_vals
-    xlabel = sweep.param_name
-    ylabel = r'$\chi_{{01}}$ [{}]'.format(DEFAULT_ENERGY_UNITS)
-    title = r'$\chi_{{01}}=${:.4f} {}'.format(ydata[param_index], DEFAULT_ENERGY_UNITS)
-    return plot.data_vs_paramvals(xdata, ydata, x_range=None, ymax=None, xlabel=xlabel, ylabel=ylabel, title=title,
-                                  label_list=None, fig_ax=fig_ax)
+    kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(DEFAULT_ENERGY_UNITS)
+    kwargs['title'] = kwargs.get('title') or r'$\chi_{{01}}=${:.4f} {}'.format(ydata[param_index], DEFAULT_ENERGY_UNITS)
+    return plot.data_vs_paramvals(xdata, ydata, label_list=None, **kwargs)
 
 
-def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, title=None, fig_ax=None):
+def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
     data_key = 'n_op_qbt{}'.format(qbt_index)
     specdata = copy.deepcopy(sweep.bare_specdata_list[qbt_index])
     specdata.matrixelem_table = sweep.sweep_data[data_key]
-    xlabel = sweep.param_name
-    ylabel = r'$|\langle i |n| j \rangle|$'
+    kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$|\langle i |n| j \rangle|$'
     label_list = [(initial_state_idx, final_idx) for final_idx in range(sweep.hilbertspace[qbt_index].truncated_dim)]
-    return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs', xlabel=xlabel, ylabel=ylabel,
-                                     title=title, fig_ax=fig_ax)
+    return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs', **kwargs)

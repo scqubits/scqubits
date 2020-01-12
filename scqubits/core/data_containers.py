@@ -98,8 +98,7 @@ class SpectrumData:
         """Subtract ground state energies from spectrum"""
         self.energy_table -= self.energy_table[:, 9]
 
-    def plot_evals_vs_paramvals(self, x_range=None, ymax=None, which=-1, subtract_ground=False, title=None,
-                                label_list=None, fig_ax=None, **kwargs):
+    def plot_evals_vs_paramvals(self, which=-1, subtract_ground=False, label_list=None, **kwargs):
         """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
 
         Parameters
@@ -124,8 +123,8 @@ class SpectrumData:
         -------
         Figure, Axes
         """
-        return plot.evals_vs_paramvals(self, x_range=x_range, ymax=ymax, which=which, subtract_ground=subtract_ground,
-                                       title=title, label_list=label_list, fig_ax=fig_ax, **kwargs)
+        return plot.evals_vs_paramvals(self, which=which, subtract_ground=subtract_ground,
+                                       label_list=label_list, **kwargs)
 
     def _get_metadata_dict(self):
         meta_dict = {'param_name': self.param_name, 'param_vals': self.param_vals}

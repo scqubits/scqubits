@@ -158,6 +158,7 @@ class Explorer:
 
         def update_min_final_index(*args):
             final_slider.min = initial_slider.value + 1
+
         initial_slider.observe(update_min_final_index, 'value')
 
         out = ipywidgets.interactive_output(self.plot_explorer_panels,
