@@ -10,6 +10,14 @@
 ############################################################################
 
 import numpy as np
+from enum import Enum, unique
+
+# file types
+@unique
+class FileType(Enum):
+    """Specifies the available file types for writing data to disk."""
+    csv = 0
+    h5 = 1
 
 # file name suffices
 PARAMETER_FILESUFFIX = '.prm'
@@ -24,13 +32,3 @@ MODE_FUNC_DICT = {'abs_sqr': (lambda x: np.abs(x)**2),
 PHI_INDEX = 0
 THETA_INDEX = 1
 ZETA_INDEX = 2
-
-# supported keyword arguments for plotting and sweep_plotting functions, default values
-SPECIAL_PLOT_OPTIONS = {
-    'x_range',
-    'y_range',
-    'ymax',
-    'figsize',
-    'fig_ax',
-    'filename'
-}
