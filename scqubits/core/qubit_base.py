@@ -49,12 +49,16 @@ class QuantumSystem:
         output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())
         return output
 
+    def _get_metadata_dict(self):
+        return process_metadata(self.__dict__)
+
     @abc.abstractmethod
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
 
-    def _get_metadata_dict(self):
-        return process_metadata(self.__dict__)
+    @abc.abstractmethod
+    def hamiltonian(self):
+        """Returns the Hamiltonian"""
 
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -72,10 +76,6 @@ class QubitBaseClass(QuantumSystem):
         self._default_var_count = None
         self._evec_dtype = None
 
-    @abc.abstractmethod
-    def hamiltonian(self):
-        """Returns the Hamiltonian"""
-
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(hamiltonian_mat, eigvals_only=True, eigvals=(0, evals_count - 1))
@@ -86,6 +86,49 @@ class QubitBaseClass(QuantumSystem):
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals_only=False, eigvals=(0, evals_count - 1))
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
+
+    def _try_defaults(self, var_range, var_count):
+        """
+        Parameters
+        ----------
+        var_range: tuple(float, float), optional
+        var_count: int, optional
+
+        Returns
+        -------
+        If any of the arguments is None, return default values.
+        """
+        if var_range is None:
+            var_range = self._default_var_range
+        if var_count is None:
+            var_count = self._default_var_count
+        return var_range, var_count
+
+    @classmethod
+    def create_from_dict(cls, meta_dict):
+        """Return a qubit object initialized by data from metadata dictionary
+
+        Parameters
+        ----------
+        meta_dict: dict
+
+        Returns
+        -------
+        object
+        """
+        filtered_dict = filter_metadata(meta_dict)
+        return cls(**filtered_dict)
+
+    def set_params_from_dict(self, meta_dict):
+        """Set object parameters by given metadata dictionary
+
+        Parameters
+        ----------
+        meta_dict: dict
+        """
+        filtered_dict = filter_metadata(meta_dict)
+        for param_name, param_value in filtered_dict.items():
+            setattr(self, param_name, param_value)
 
     def eigenvals(self, evals_count=6, filename=None):
         """Calculates eigenvalues using `scipy.linalg.eigh`, returns numpy array of eigenvalues.
@@ -131,23 +174,6 @@ class QubitBaseClass(QuantumSystem):
             specdata.filewrite(filename)
         return evals, evecs
 
-    def _try_defaults(self, var_range, var_count):
-        """
-        Parameters
-        ----------
-        var_range: tuple(float, float), optional
-        var_count: int, optional
-
-        Returns
-        -------
-        If any of the arguments is None, return default values.
-        """
-        if var_range is None:
-            var_range = self._default_var_range
-        if var_count is None:
-            var_count = self._default_var_count
-        return var_range, var_count
-
     def matrixelement_table(self, operator, evecs=None, evals_count=6, filename=None):
         """Returns table of matrix elements for `operator` with respect to the eigenstates of the qubit.
         The operator is given as a string matching a class method returning an operator matrix.
@@ -179,32 +205,6 @@ class QubitBaseClass(QuantumSystem):
                                     system_params=self._get_metadata_dict(), matrixelem_table=table)
             specdata.filewrite(filename)
         return table
-
-    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', **kwargs):
-        """Plots matrix elements for `operator`, given as a string referring to a class method
-        that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
-        for the charge operator `n` is obtained by `trm.plot_matrixelements('n')`.
-        When `esys` is set to None, the eigensystem with `which` eigenvectors is calculated.
-
-        Parameters
-        ----------
-        operator: str
-            name of class method in string form, returning operator matrix
-        evecs: ndarray, optional
-            eigensystem data of evals, evecs; eigensystem will be calculated if set to None (default value = None)
-        evals_count: int, optional
-            number of desired matrix elements, starting with ground state (default value = 6)
-        mode: str, optional
-            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
-        **kwargs: dict
-            standard plotting option (see separate documentation)
-
-        Returns
-        -------
-        Figure, Axes
-        """
-        matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
-        return plot.matrix(matrixelem_array, mode, **kwargs)
 
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
                                   get_eigenstates=False, filename=None):
@@ -301,6 +301,32 @@ class QubitBaseClass(QuantumSystem):
             spectrumdata.filewrite(filename)
         return spectrumdata
 
+    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', **kwargs):
+        """Plots matrix elements for `operator`, given as a string referring to a class method
+        that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
+        for the charge operator `n` is obtained by `trm.plot_matrixelements('n')`.
+        When `esys` is set to None, the eigensystem with `which` eigenvectors is calculated.
+
+        Parameters
+        ----------
+        operator: str
+            name of class method in string form, returning operator matrix
+        evecs: ndarray, optional
+            eigensystem data of evals, evecs; eigensystem will be calculated if set to None (default value = None)
+        evals_count: int, optional
+            number of desired matrix elements, starting with ground state (default value = 6)
+        mode: str, optional
+            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
+        **kwargs: dict
+            standard plotting option (see separate documentation)
+
+        Returns
+        -------
+        Figure, Axes
+        """
+        matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
+        return plot.matrix(matrixelem_array, mode, **kwargs)
+
     def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None, **kwargs):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
@@ -358,32 +384,6 @@ class QubitBaseClass(QuantumSystem):
         specdata = self.get_matelements_vs_paramvals(operator, param_name, param_vals, evals_count=evals_count)
         return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, **kwargs)
 
-    def set_params_from_dict(self, meta_dict):
-        """Set object parameters by given metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-        """
-        filtered_dict = filter_metadata(meta_dict)
-        for param_name, param_value in filtered_dict.items():
-            setattr(self, param_name, param_value)
-
-    @classmethod
-    def create_from_dict(cls, meta_dict):
-        """Return a qubit object initialized by data from metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-
-        Returns
-        -------
-        object
-        """
-        filtered_dict = filter_metadata(meta_dict)
-        return cls(**filtered_dict)
-
 
 # —QubitBaseClass1d—————————————————————————————————————————————————————————————————————————————————————————————————————
 
@@ -401,11 +401,11 @@ class QubitBaseClass1d(QubitBaseClass):
         self._default_var_count = None
 
     @abc.abstractmethod
-    def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
+    def potential(self, phi):
         pass
 
     @abc.abstractmethod
-    def potential(self, phi):
+    def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
         pass
 
     def plot_wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None, mode='real', scaling=None,
@@ -435,8 +435,7 @@ class QubitBaseClass1d(QubitBaseClass):
         -------
         Figure, Axes
         """
-        fig_ax = kwargs.get('fig_ax') or plt.subplots()
-        kwargs['fig_ax'] = fig_ax
+        kwargs['fig_ax'] = kwargs.get('fig_ax') or plt.subplots()
 
         index_list = process_which(which, self.truncated_dim)
         phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_range=phi_range, phi_count=phi_count)
