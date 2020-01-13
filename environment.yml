@@ -9,6 +9,7 @@ dependencies:
 - matplotlib
 - h5py
 - tqdm
+- ipywidgets
 - pip:
     - nbsphinx
     - numpydoc
