@@ -118,8 +118,8 @@ class Transmon(QubitBaseClass1d):
              index or indices of wave functions to plot (default value = 0)
         nrange: tuple of two ints, optional
              range of `n` to be included on the x-axis (default value = (-5,6))
-        filename: str, optional
-            file path and name (not including suffix) for output
+        **kwargs:
+            plotting parameters
 
         Returns
         -------

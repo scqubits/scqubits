@@ -73,13 +73,15 @@ def dressed_spectrum(sweep, **kwargs):
     """Plot defaults for sweep_plotting.dressed_spectrum"""
     kwargs['ymax'] = kwargs.get('ymax') or min(15, (np.max(sweep.dressed_specdata.energy_table) -
                                                     np.min(sweep.dressed_specdata.energy_table)))
+    kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'energy [{}]'.format(DEFAULT_ENERGY_UNITS)
     return kwargs
 
 
 def chi(sweep, **kwargs):
     """Plot defaults for sweep_plotting.chi"""
     kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$' + DEFAULT_ENERGY_UNITS
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$ [{}]'.format(DEFAULT_ENERGY_UNITS)
     return kwargs
 
 

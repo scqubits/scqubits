@@ -12,12 +12,14 @@
 import numpy as np
 from enum import Enum, unique
 
+
 # file types
 @unique
 class FileType(Enum):
     """Specifies the available file types for writing data to disk."""
     csv = 0
     h5 = 1
+
 
 # file name suffices
 PARAMETER_FILESUFFIX = '.prm'

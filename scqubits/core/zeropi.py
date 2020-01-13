@@ -406,8 +406,8 @@ class ZeroPi(QubitBaseClass):
             used for setting a custom plot range for theta
         theta_count: int, optional
         contour_vals: list, optional
-        figsize: tupel(float, float), optitional
-        filename: str, optional
+        **kwargs:
+            plotting parameters
         """
         theta_range, theta_count = self._try_defaults(theta_range, theta_count)
 
