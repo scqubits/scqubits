@@ -50,16 +50,16 @@ class FluxQubit(QubitBaseClass):
     Parameters
     ----------
     EJ1, EJ2, EJ3: float
-        Josephson energy of the ith junction in GHz; typically
+        Josephson energy of the ith junction
         `EJ1 = EJ2`, with `EJ3 = alpha * EJ1` and `alpha <= 1`
     ECJ1, ECJ2, ECJ3: float
-        charging energy associated with the ith junction in GHz
+        charging energy associated with the ith junction
     ECg1, ECg2: float
-        charging energy associated with the capacitive coupling to ground for the two islands in GHz
+        charging energy associated with the capacitive coupling to ground for the two islands
     ng1, ng2: float
         offset charge associated with island i
     flux: float
-        magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
+        magnetic flux through the circuit loop, measured in units of the flux quantum
     ncut: int
         charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
     truncated_dim: int, optional
