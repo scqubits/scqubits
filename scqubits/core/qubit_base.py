@@ -435,7 +435,8 @@ class QubitBaseClass1d(QubitBaseClass):
         -------
         Figure, Axes
         """
-        kwargs['fig_ax'] = kwargs.get('fig_ax') or plt.subplots()
+        fig_ax = kwargs.get('fig_ax') or plt.subplots()
+        kwargs['fig_ax'] = fig_ax
 
         index_list = process_which(which, self.truncated_dim)
         phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_range=phi_range, phi_count=phi_count)
