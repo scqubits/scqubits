@@ -17,3 +17,9 @@ Version 1.1.0
    - new ParameterSweep class efficiently generates spectral data for performing a scan of a HilbertSpace object over an external parameters
    - new Explorer class introduces interactive plots (see docs and demo ipynb)
    - cleaned up implementation of file IO operations
+
+Version 1.1.1
++++++++++++++
+
+   - fixed a bug in display of FluxQubit wavefunction
+   - internal refactoring
