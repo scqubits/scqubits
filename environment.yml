@@ -2,7 +2,7 @@ channels:
 - conda-forge
 dependencies:
 - cython
-- python=3.5
+- python=3.6
 - numpy
 - scipy
 - qutip
