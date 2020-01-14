@@ -205,7 +205,7 @@ class FluxQubit(QubitBaseClass):
         sin_op += sin_op.conj().T
         return sin_op
 
-    def plot_potential(self, phi_range=None, phi_count=None, contour_vals=None, figsize=(5, 5), filename=None):
+    def plot_potential(self, phi_range=None, phi_count=None, contour_vals=None, **kwargs):
         """
         Draw contour plot of the potential energy.
 
@@ -217,15 +217,15 @@ class FluxQubit(QubitBaseClass):
             number of points in the phi interval
         contour_vals: list of float, optional
             specific contours to draw
-        figsize: tuple(float, float), optional
-            plot figure size
-        filename: str, optional
+        **kwargs:
+            plot options
         """
         phi_range, phi_count = self._try_defaults(phi_range, phi_count)
         x_vals = np.linspace(*phi_range, phi_count)
         y_vals = np.linspace(*phi_range, phi_count)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, figsize=figsize,
-                             filename=filename)
+        if 'figsize' not in kwargs:
+            kwargs['figsize'] = (5,5)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
     def wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None):
         """
@@ -269,7 +269,7 @@ class FluxQubit(QubitBaseClass):
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
     def plot_wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None, mode='abs', zero_calibrate=True,
-                          figsize=(5, 5), fig_ax=None):
+                          **kwargs):
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -286,10 +286,8 @@ class FluxQubit(QubitBaseClass):
             choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
-        figsize: (float, float), optional
-            figure size specifications for matplotlib
-        fig_ax: Figure, Axes, optional
-            existing Figure, Axis if previous objects are to be appended
+        **kwargs:
+            plot options
 
         Returns
         -------
@@ -298,4 +296,6 @@ class FluxQubit(QubitBaseClass):
         modefunction = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, phi_range=phi_range, phi_count=phi_count, which=which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, figsize=figsize, zero_calibrate=zero_calibrate, fig_ax=fig_ax)
+        if 'figsize' not in kwargs:
+            kwargs['figsize'] = (5,5)
+        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)

@@ -461,8 +461,8 @@ class ZeroPi(QubitBaseClass):
                                       [*theta_range, theta_count]]))
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None, mode='abs',
-                          zero_calibrate=True, figsize=(6, 2.75), fig_ax=None):
+    def plot_wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None, mode='abs', zero_calibrate=True,
+                          **kwargs):
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -479,10 +479,8 @@ class ZeroPi(QubitBaseClass):
             choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
-        figsize: (float, float), optional
-            figure size specifications for matplotlib
-        fig_ax: Figure, Axes, optional
-            existing Figure, Axis if previous objects are to be appended
+        **kwargs:
+            plot options
 
         Returns
         -------
@@ -493,7 +491,7 @@ class ZeroPi(QubitBaseClass):
         modefunction = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_count=theta_count, which=which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, figsize=figsize, zero_calibrate=zero_calibrate, fig_ax=fig_ax)
+        return plot.wavefunction2d(wavefunc,zero_calibrate=zero_calibrate, **kwargs)
 
     def set_params_from_dict(self, meta_dict):
         """Set object parameters by given metadata dictionary

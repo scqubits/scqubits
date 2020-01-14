@@ -301,6 +301,30 @@ class QubitBaseClass(QuantumSystem):
             spectrumdata.filewrite(filename)
         return spectrumdata
 
+    def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None, **kwargs):
+        """Generates a simple plot of a set of eigenvalues as a function of one parameter.
+        The individual points correspond to the a provided array of parameter values.
+
+        Parameters
+        ----------
+        param_name: str
+            name of parameter to be varied
+        param_vals: ndarray
+            parameter values to be plugged in
+        evals_count: int, optional
+            number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
+        subtract_ground: bool, optional
+            whether to subtract ground state energy from all eigenvalues (default value = False)
+        **kwargs: dict
+            standard plotting option (see separate documentation)
+
+        Returns
+        -------
+        Figure, Axes
+        """
+        specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground)
+        return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
+
     def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', **kwargs):
         """Plots matrix elements for `operator`, given as a string referring to a class method
         that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
@@ -326,30 +350,6 @@ class QubitBaseClass(QuantumSystem):
         """
         matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
         return plot.matrix(matrixelem_array, mode, **kwargs)
-
-    def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None, **kwargs):
-        """Generates a simple plot of a set of eigenvalues as a function of one parameter.
-        The individual points correspond to the a provided array of parameter values.
-
-        Parameters
-        ----------
-        param_name: str
-            name of parameter to be varied
-        param_vals: ndarray
-            parameter values to be plugged in
-        evals_count: int, optional
-            number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
-        subtract_ground: bool, optional
-            whether to subtract ground state energy from all eigenvalues (default value = False)
-        **kwargs: dict
-            standard plotting option (see separate documentation)
-
-        Returns
-        -------
-        Figure, Axes
-        """
-        specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground)
-        return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
 
     def plot_matelem_vs_paramvals(self, operator, param_name, param_vals, select_elems=4, mode='abs', **kwargs):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
