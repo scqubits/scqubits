@@ -55,13 +55,26 @@ exclude_patterns = ['_build', '**.ipynb_checkpoints']
 
 # -- Options for HTML output -------------------------------------------------
 
+# These folders are copied to the documentation's HTML output
+html_static_path = ['_static']
+
+# These paths are either relative to html_static_path
+# or fully qualified paths (eg. https://...)
+# html_css_files = [
+#     'css/custom.css',
+# ]
+
+
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
+
 html_theme = 'sphinx_rtd_theme'
+html_logo = './logo/scqubits-logo2.png'
 full_logo = True
 
 html_theme_options = {
+    'logo_only': True
 }
 # Add any paths that contain custom themes here, relative to this directory.
 
