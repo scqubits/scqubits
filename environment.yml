@@ -10,7 +10,6 @@ dependencies:
 - h5py
 - tqdm
 - ipywidgets
-- sphinx=1.8.5
 - pip:
     - nbsphinx
     - numpydoc
