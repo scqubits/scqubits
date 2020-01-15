@@ -42,6 +42,7 @@ extensions = ['sphinx.ext.autodoc',
 html_show_sourcelink = False
 
 autodoc_default_flags = ['members', 'inherited-members']
+autodoc_mock_imports = ['qutip', 'cython', 'ipywidgets']
 
 
 # Add any paths that contain templates here, relative to this directory.
@@ -100,7 +101,7 @@ add_function_parentheses = False
 # unit titles (such as .. function::).
 add_module_names = True
 
-# If true, sectionauthor and moduleauthor directives will be shown in the
+# If true, sectionauthor and module author directives will be shown in the
 # output. They are ignored by default.
 show_authors = True
 
