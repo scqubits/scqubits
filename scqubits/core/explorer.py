@@ -18,6 +18,12 @@ except ImportError:
     raise Exception("ImportError: failed to import ipywidgets. For use of scqubits.explorer,"
                     "ipywidgets must be installed")
 
+try:
+    from IPython.display import display
+except ImportError:
+    raise Exception("ImportError: failed to import IPython. For use of scqubits.explorer,"
+                    "IPython must be installed")
+
 import scqubits.utils.sweep_plotting as splot
 from scqubits.settings import DEFAULT_ENERGY_UNITS
 

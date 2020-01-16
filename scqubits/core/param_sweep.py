@@ -395,7 +395,7 @@ class ParameterSweep:
             diff_eigenenergy_table[param_index] = diff_eigenenergies
         return SpectrumData(self.param_name, self.param_vals, diff_eigenenergy_table, self.hilbertspace.__dict__)
 
-    def get_n_photon_qubit_spectrum(self, photonnumber, initial_state_labels=0):
+    def get_n_photon_qubit_spectrum(self, photonnumber, initial_state_labels):
         """
         Extracts energies for transitions among qubit states only, while all oscillator subsystems maintain their
         excitation level.
@@ -412,10 +412,20 @@ class ParameterSweep:
         SpectrumData object
         """
         def generate_target_states_list():
+            """Based on a bare state label (i1, i2, ...)  with i1 being the excitation level of subsystem 1, i2 the
+            excitation level of subsystem 2 etc., generate a list of bare state labels. These bare state labels
+            correspond to target states reached from the given initial one by single-photon qubit transitions. These
+            are transitions where one of the qubit excitation levels increases at a time. There are no changes in
+            oscillator photon numbers.
+
+            Returns
+            -------
+            list of tuple"""
             target_states_list = []
-            for subsys_index, qbt_subsys in self.hilbertspace.qbt_subsys_list:
+            for subsys_index, qbt_subsys in self.hilbertspace.qbt_subsys_list:   # iterate through qubit subsystems
                 initial_qbt_state = initial_state_labels[subsys_index]
                 for state_label in range(initial_qbt_state + 1, qbt_subsys.truncated_dim):
+                    # for given qubit subsystem, generate target labels by increasing that qubit excitation level
                     target_labels = list(initial_state_labels)
                     target_labels[subsys_index] = state_label
                     target_states_list.append(tuple(target_labels))
@@ -441,7 +451,7 @@ class ParameterSweep:
 # sweep_data generators --------------------------------------------------------------------------------
 
 
-def dispersive_chis(sweep, param_index, qubit_subsys=None, osc_subsys=None):
+def dispersive_chis(sweep, param_index, qubit_subsys, osc_subsys):
     """
     For a given HilbertSpaceSweep, calculate dispersive shift data for one value of the external parameter.
 
@@ -477,7 +487,7 @@ def dispersive_chis(sweep, param_index, qubit_subsys=None, osc_subsys=None):
     return chi_values
 
 
-def dispersive_chi_01(sweep, param_index, qubit_subsys=None, osc_subsys=None):
+def dispersive_chi_01(sweep, param_index, qubit_subsys, osc_subsys):
     """
     For a given HilbertSpaceSweep, calculate the dispersive shift difference chi_01 for one value of the
     external parameter.
