@@ -6,8 +6,5 @@ dependencies:
 - scipy
 - matplotlib
 - h5py
-- tqdm
-- pip
-- pip:
-    - nbsphinx
-    - numpydoc
+- nbsphinx
+- numpydoc
