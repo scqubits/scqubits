@@ -451,9 +451,9 @@ class ParameterSweep:
 # sweep_data generators --------------------------------------------------------------------------------
 
 
-def dispersive_chis(sweep, param_index, qubit_subsys, osc_subsys):
+def dispersive_chis(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=None):
     """
-    For a given HilbertSpaceSweep, calculate dispersive shift data for one value of the external parameter.
+    For a given ParameterSweep, calculate dispersive shift data for one value of the external parameter.
 
     Parameters
     ----------
@@ -461,20 +461,27 @@ def dispersive_chis(sweep, param_index, qubit_subsys, osc_subsys):
     param_index: int
     qubit_subsys: QuantumSystem
     osc_subsys: Oscillator
+    chi_indices: tuple(int, int), optional
+        If specified, calculate chi_i - chi_j; otherwise return table of all chis in subspace of qubit_subsys
 
     Returns
     -------
-    ndarray
-        dispersive shifts chi_0, chi_1, ...
+    float or ndarray
+        chi_i - chi_j   or   chi_0, chi_1, ...
     """
     qubitsys_index = sweep.hilbertspace.get_subsys_index(qubit_subsys)
     oscsys_index = sweep.hilbertspace.get_subsys_index(osc_subsys)
-    qubit_dim = qubit_subsys.truncated_dim
+    if chi_indices is not None:
+        chi_count = 2
+        chi_range = chi_indices
+    else:
+        chi_count = qubit_subsys.truncated_dim
+        chi_range = range(chi_count)
     omega = osc_subsys.E_osc
 
-    chi_values = np.empty(qubit_dim, dtype=np.float_)
+    chi_values = np.empty(chi_count, dtype=np.float_)
     # chi_j = E_1j - E_0j - omega
-    for j in range(qubit_dim):
+    for j in chi_range:
         bare_0j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 0))
         bare_1j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 1))
         energy_0j = sweep.lookup_energy_bare_index(bare_0j, param_index)
@@ -484,6 +491,9 @@ def dispersive_chis(sweep, param_index, qubit_subsys, osc_subsys):
             chi_values[j] = energy_1j - energy_0j - omega
         else:
             chi_values[j] = np.NaN
+            
+    if chi_indices is not None:
+        return chi_values[1] - chi_values[0]
     return chi_values
 
 
