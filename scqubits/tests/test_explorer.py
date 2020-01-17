@@ -14,6 +14,7 @@ import numpy as np
 
 import scqubits as qubit
 from scqubits import HilbertSpace, InteractionTerm, ParameterSweep, Explorer
+import scqubits.core.sweep_generators as swp
 
 
 def test_explorer():
@@ -63,8 +64,8 @@ def test_explorer():
         subsys_update_list=subsys_update_list,
         update_hilbertspace=update_hilbertspace,
     )
-    sweep.generate_chi_sweep()
-    sweep.generate_charge_matrixelem_sweep()
+    swp.generate_chi_sweep(sweep)
+    swp.generate_charge_matrixelem_sweep(sweep)
 
     explorer = Explorer(
         sweep=sweep,

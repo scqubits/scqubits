@@ -15,15 +15,13 @@ from tqdm.notebook import tqdm
 
 from scqubits.core.spectrum import SpectrumData
 from scqubits.settings import TQDM_KWARGS
-from scqubits.utils.misc import make_bare_labels
-from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 
 class ParameterSweep:
     """
     The ParameterSweep class helps generate spectral and associated data for a composite quantum system, as an externa,
     parameter, such as flux, is swept over some given interval of values. Upon initialization, these data are calculated
-    and stored internally, so that plots can be generade efficiently. This is of particular use for interactive displays
+    and stored internally, so that plots can be generated efficiently. This is of particular use for interactive displays
     used in the Explorer class.
 
     Parameters
@@ -233,23 +231,6 @@ class ParameterSweep:
             hamiltonian += interaction_term.hamiltonian(evecs1=evecs1, evecs2=evecs2)
         return hamiltonian.eigenstates(eigvals=self.evals_count)
 
-    def generate_chi_sweep(self):
-        """Generate data for the AC Stark shift chi as a function of the sweep parameter"""
-        osc_subsys_list = self.hilbertspace.osc_subsys_list
-        qbt_subsys_list = self.hilbertspace.qbt_subsys_list
-
-        for osc_index, osc_subsys in osc_subsys_list:
-            for qbt_index, qubit_subsys in qbt_subsys_list:
-                self.compute_custom_data_sweep('chi_osc{}_qbt{}'.format(osc_index, qbt_index), dispersive_chi_01,
-                                               qubit_subsys=qubit_subsys, osc_subsys=osc_subsys)
-
-    def generate_charge_matrixelem_sweep(self):
-        """Generate data for the charge matrix elements as a function of the sweep parameter"""
-        for qbt_index, subsys in self.hilbertspace.qbt_subsys_list:
-            if type(subsys).__name__ in ['Transmon', 'Fluxonium']:
-                self.compute_custom_data_sweep('n_op_qbt{}'.format(qbt_index), qubit_matrixelement, qubit_subsys=subsys,
-                                               qubit_operator=subsys.n_operator())
-
     def compute_custom_data_sweep(self, data_name, func, **kwargs):
         """Method for computing custom data as a function of the external parameter, calculated via the function `func`.
 
@@ -447,107 +428,3 @@ class ParameterSweep:
 
         return target_states_list, SpectrumData(self.param_name, self.param_vals, np.asarray(difference_energies_table),
                                                 self.hilbertspace.__dict__)
-
-# sweep_data generators --------------------------------------------------------------------------------
-
-
-def dispersive_chis(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=None):
-    """
-    For a given ParameterSweep, calculate dispersive shift data for one value of the external parameter.
-
-    Parameters
-    ----------
-    sweep: ParameterSweep
-    param_index: int
-    qubit_subsys: QuantumSystem
-    osc_subsys: Oscillator
-    chi_indices: tuple(int, int), optional
-        If specified, calculate chi_i - chi_j; otherwise return table of all chis in subspace of qubit_subsys
-
-    Returns
-    -------
-    float or ndarray
-        chi_i - chi_j   or   chi_0, chi_1, ...
-    """
-    qubitsys_index = sweep.hilbertspace.get_subsys_index(qubit_subsys)
-    oscsys_index = sweep.hilbertspace.get_subsys_index(osc_subsys)
-    if chi_indices is not None:
-        chi_count = 2
-        chi_range = chi_indices
-    else:
-        chi_count = qubit_subsys.truncated_dim
-        chi_range = range(chi_count)
-    omega = osc_subsys.E_osc
-
-    chi_values = np.empty(chi_count, dtype=np.float_)
-    # chi_j = E_1j - E_0j - omega
-    for j in chi_range:
-        bare_0j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 0))
-        bare_1j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 1))
-        energy_0j = sweep.lookup_energy_bare_index(bare_0j, param_index)
-        energy_1j = sweep.lookup_energy_bare_index(bare_1j, param_index)
-
-        if energy_0j and energy_1j:
-            chi_values[j] = energy_1j - energy_0j - omega
-        else:
-            chi_values[j] = np.NaN
-            
-    if chi_indices is not None:
-        return chi_values[1] - chi_values[0]
-    return chi_values
-
-
-def dispersive_chi_01(sweep, param_index, qubit_subsys, osc_subsys):
-    """
-    For a given HilbertSpaceSweep, calculate the dispersive shift difference chi_01 for one value of the
-    external parameter.
-
-    Parameters
-    ----------
-    sweep: ParameterSweep
-    param_index: int
-    qubit_subsys: QuantumSystem
-    osc_subsys: Oscillator
-
-    Returns
-    -------
-    float
-        dispersive shift chi_01
-    """
-    qubitsys_index = sweep.hilbertspace.get_subsys_index(qubit_subsys)
-    oscsys_index = sweep.hilbertspace.get_subsys_index(osc_subsys)
-    omega = osc_subsys.E_osc
-
-    chi_values = np.empty(2, dtype=np.float_)
-    # chi_j = E_1j - E_0j - omega
-    for j in range(2):
-        bare_0j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 0))
-        bare_1j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 1))
-        energy_0j = sweep.lookup_energy_bare_index(bare_0j, param_index)
-        energy_1j = sweep.lookup_energy_bare_index(bare_1j, param_index)
-
-        if energy_0j and energy_1j:
-            chi_values[j] = energy_1j - energy_0j - omega
-        else:
-            chi_values[j] = np.NaN
-    return chi_values[1] - chi_values[0]
-
-
-def qubit_matrixelement(sweep, param_index, qubit_subsys, qubit_operator):
-    """
-    For given ParameterSweep and parameter_index, calculate the matrix elements for the provided qubit operator.
-
-    Parameters
-    ----------
-    sweep: ParameterSweep
-    param_index: int
-    qubit_subsys: QuantumSystem
-    qubit_operator: ndarray
-       operator within the qubit subspace
-
-    Returns
-    -------
-    ndarray
-    """
-    bare_evecs = sweep.lookup_bare_eigenstates(param_index, qubit_subsys)
-    return get_matrixelement_table(qubit_operator, bare_evecs)
