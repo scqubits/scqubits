@@ -101,7 +101,7 @@ def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, **kwargs)
     return specdata.plot_evals_vs_paramvals(label_list=label_list, **kwargs)
 
 
-def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, **kwargs):
+def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_grid=None, **kwargs):
     """
     Plot bare wavefunctions for given parameter value and subsystem.
 
@@ -114,7 +114,8 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, **kwar
     which: int or list(int), optional
         default: -1, signals to plot all wavefunctions; int>0: plot wavefunctions 0..int-1; list(int) plot specific
         wavefunctions
-    phi_count: int, optional
+    phi_grid: Grid1d, optional
+        used for setting a custom grid for phi; if None use self._default_grid
     **kwargs: dict
         standard plotting option (see separate documentation)
 
@@ -129,7 +130,7 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_count=None, **kwar
 
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
     evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]
-    return subsys.plot_wavefunction(esys=(evals, evecs), which=which, mode='real', phi_count=phi_count, **kwargs)
+    return subsys.plot_wavefunction(esys=(evals, evecs), which=which, mode='real', phi_grid=phi_grid, **kwargs)
 
 
 def chi(sweep, qbt_index, osc_index, **kwargs):

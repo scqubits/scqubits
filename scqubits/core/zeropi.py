@@ -94,8 +94,7 @@ class ZeroPi(QubitBaseClass):
         self.truncated_dim = truncated_dim
         self._sys_type = '0-pi'
         self._evec_dtype = np.complex_
-        self._default_var_range = (-np.pi / 2, 3 * np.pi / 2)
-        self._default_var_count = 100
+        self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)  # for theta, needed for plotting wavefunction
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -326,11 +325,9 @@ class ZeroPi(QubitBaseClass):
         -------
             scipy.sparse.csc_matrix
         """
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
         pt_count = self.grid.pt_count
 
-        vals = np.sin(np.linspace(min_val, max_val, pt_count) + x)
+        vals = np.sin(self.grid.make_linspace() + x)
         sin_phi_matrix = sparse.dia_matrix((vals, [0]), shape=(pt_count, pt_count)).tocsc()
         return sin_phi_matrix
 
@@ -342,11 +339,9 @@ class ZeroPi(QubitBaseClass):
         -------
             scipy.sparse.csc_matrix
         """
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
         pt_count = self.grid.pt_count
 
-        vals = np.cos(np.linspace(min_val, max_val, pt_count) + x)
+        vals = np.cos(self.grid.make_linspace() + x)
         cos_phi_matrix = sparse.dia_matrix((vals, [0]), shape=(pt_count, pt_count)).tocsc()
         return cos_phi_matrix
 
@@ -397,29 +392,24 @@ class ZeroPi(QubitBaseClass):
         """
         return sparse.kron(self._identity_phi(), self._sin_theta_operator(), format='csc')
 
-    def plot_potential(self, theta_range=None, theta_count=None, contour_vals=None, **kwargs):
+    def plot_potential(self, theta_grid=None, contour_vals=None, **kwargs):
         """Draw contour plot of the potential energy.
 
         Parameters
         ----------
-        theta_range: tuple(float, float), optional
-            used for setting a custom plot range for theta
-        theta_count: int, optional
+        theta_grid: Grid1d, optional
+            used for setting a custom grid for theta; if None use self._default_grid
         contour_vals: list, optional
         **kwargs:
             plotting parameters
         """
-        theta_range, theta_count = self._try_defaults(theta_range, theta_count)
+        theta_grid = self._try_defaults(theta_grid)
 
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
-        pt_count = self.grid.pt_count
-
-        x_vals = np.linspace(min_val, max_val, pt_count)
-        y_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, theta_count)
+        x_vals = self.grid.make_linspace()
+        y_vals = theta_grid.make_linspace
         return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
-    def wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None):
+    def wavefunction(self, esys=None, which=0, theta_grid=None):
         """Returns a zero-pi wave function in `phi`, `theta` basis
 
         Parameters
@@ -428,10 +418,8 @@ class ZeroPi(QubitBaseClass):
             eigenvalues, eigenvectors
         which: int, optional
              index of desired wave function (default value = 0)
-        theta_range: tuple(float, float), optional
-            used for setting a custom plot range for theta
-        theta_count: int, optional
-            number of points to be used in the interval for theta
+        theta_grid: Grid1d, optional
+            used for setting a custom grid for theta; if None use self._default_grid
 
         Returns
         -------
@@ -443,26 +431,23 @@ class ZeroPi(QubitBaseClass):
         else:
             _, evecs = esys
 
-        theta_range, theta_count = self._try_defaults(theta_range, theta_count)
-
-        pt_count = self.grid.pt_count
+        theta_grid = self._try_defaults(theta_grid)
         dim_theta = 2 * self.ncut + 1
-        state_amplitudes = evecs[:, which].reshape(pt_count, dim_theta)
+        state_amplitudes = evecs[:, which].reshape(self.grid.pt_count, dim_theta)
 
         # Calculate psi_{phi, theta} = sum_n state_amplitudes_{phi, n} A_{n, theta}
         # where a_{n, theta} = 1/sqrt(2 pi) e^{i n theta}
         n_vec = np.arange(-self.ncut, self.ncut + 1)
-        theta_vec = np.linspace(*theta_range, theta_count)
+        theta_vec = theta_grid.make_linspace()
         a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi) ** 0.5
         wavefunc_amplitudes = np.matmul(state_amplitudes, a_n_theta).T
         wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
 
-        grid2d = GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, pt_count],
-                                      [*theta_range, theta_count]]))
+        grid2d = GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, self.grid.pt_count],
+                                      [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count]]))
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None, mode='abs', zero_calibrate=True,
-                          **kwargs):
+    def plot_wavefunction(self, esys=None, which=0, theta_grid=None, mode='abs', zero_calibrate=True, **kwargs):
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -471,10 +456,8 @@ class ZeroPi(QubitBaseClass):
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which: int, optional
             index of wave function to be plotted (default value = (0)
-        theta_range: tuple(float, float), optional
-            used for setting a custom plot range for theta
-        theta_count: int, optional
-            number of points to be used in the interval for theta
+        theta_grid: Grid1d, optional
+            used for setting a custom grid for theta; if None use self._default_grid
         mode: str, optional
             choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         zero_calibrate: bool, optional
@@ -486,12 +469,12 @@ class ZeroPi(QubitBaseClass):
         -------
         Figure, Axes
         """
-        theta_range, theta_count = self._try_defaults(theta_range, theta_count)
+        theta_grid = self._try_defaults(theta_grid)
 
         modefunction = constants.MODE_FUNC_DICT[mode]
-        wavefunc = self.wavefunction(esys, theta_count=theta_count, which=which)
+        wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc,zero_calibrate=zero_calibrate, **kwargs)
+        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
 
     def set_params_from_dict(self, meta_dict):
         """Set object parameters by given metadata dictionary

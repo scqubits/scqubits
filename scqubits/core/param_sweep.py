@@ -112,6 +112,7 @@ class ParameterSweep:
             if subsys in self.subsys_update_list:
                 evals_count = subsys.truncated_dim
                 dim = subsys.hilbertdim()
+
                 esys_dtype = subsys._evec_dtype
                 energy_table = np.empty(shape=(self.param_count, evals_count), dtype=np.float_)
                 state_table = np.empty(shape=(self.param_count, dim, evals_count), dtype=esys_dtype)
@@ -394,7 +395,7 @@ class ParameterSweep:
         """
         def generate_target_states_list():
             """Based on a bare state label (i1, i2, ...)  with i1 being the excitation level of subsystem 1, i2 the
-            excitation level of subsystem 2 etc., generate a list of bare state labels. These bare state labels
+            excitation level of subsystem 2 etc., generate a list of new bare state labels. These bare state labels
             correspond to target states reached from the given initial one by single-photon qubit transitions. These
             are transitions where one of the qubit excitation levels increases at a time. There are no changes in
             oscillator photon numbers.

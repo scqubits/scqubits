@@ -44,6 +44,9 @@ class Grid1d:
         """
         return (self.max_val - self.min_val) / self.pt_count
 
+    def make_linspace(self):
+        return np.linspace(self.min_val, self.max_val, self.pt_count)
+
     def first_derivative_matrix(self, prefactor=1.0, periodic=False):
         """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
         Uses :math:`f'(x) \\approx [f(x+h) - f(x-h)]/2h`.

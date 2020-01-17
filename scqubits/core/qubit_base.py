@@ -72,8 +72,7 @@ class QubitBaseClass(QuantumSystem):
     def __init__(self, truncated_dim=None):
         super().__init__()
         self.truncated_dim = truncated_dim
-        self._default_var_range = None
-        self._default_var_count = None
+        self._default_grid = None
         self._evec_dtype = None
 
     def _evals_calc(self, evals_count):
@@ -87,22 +86,20 @@ class QubitBaseClass(QuantumSystem):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def _try_defaults(self, var_range, var_count):
+    def _try_defaults(self, var_grid):
         """
         Parameters
         ----------
-        var_range: tuple(float, float), optional
-        var_count: int, optional
+        var_grid: Grid1d, optional
+            used for setting a custom grid for a variable treated in charge basis; if None use self._default_grid
 
         Returns
         -------
         If any of the arguments is None, return default values.
         """
-        if var_range is None:
-            var_range = self._default_var_range
-        if var_count is None:
-            var_count = self._default_var_count
-        return var_range, var_count
+        if var_grid is None:
+            var_grid = self._default_grid
+        return var_grid
 
     @classmethod
     def create_from_dict(cls, meta_dict):
@@ -397,19 +394,17 @@ class QubitBaseClass1d(QubitBaseClass):
         self._sys_type = 'qubit system'
         self._evec_dtype = np.float_
         self.truncated_dim = truncated_dim
-        self._default_var_range = None
-        self._default_var_count = None
+        self._default_grid = None
 
     @abc.abstractmethod
     def potential(self, phi):
         pass
 
     @abc.abstractmethod
-    def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
+    def wavefunction(self, esys, which=0, phi_grid=None):
         pass
 
-    def plot_wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None, mode='real', scaling=None,
-                          **kwargs):
+    def plot_wavefunction(self, esys=None, which=0, phi_grid=None, mode='real', scaling=None, **kwargs):
         """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional qubits like FluxQubits and
         ZeroPi.
 
@@ -420,10 +415,8 @@ class QubitBaseClass1d(QubitBaseClass):
         which: int or tuple or list, optional
             single index or tuple/list of integers indexing the wave function(s) to be plotted.
             If which is -1, all wavefunctions up to the truncation limit are plotted.
-        phi_range: tuple(float, float), optional
-            used for setting a custom plot range for phi
-        phi_count: int, optional
-            number of points on the x-axis (resolution) (default value = 251)
+        phi_grid: Grid1d, optional
+            used for setting a custom grid for phi; if None use self._default_grid
         mode: str, optional
             choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         scaling: float or None, optional
@@ -439,7 +432,7 @@ class QubitBaseClass1d(QubitBaseClass):
         kwargs['fig_ax'] = fig_ax
 
         index_list = process_which(which, self.truncated_dim)
-        phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_range=phi_range, phi_count=phi_count)
+        phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_grid=phi_grid)
 
         potential_vals = self.potential(phi_wavefunc.basis_labels)
 
@@ -453,7 +446,7 @@ class QubitBaseClass1d(QubitBaseClass):
 
         modefunction = constants.MODE_FUNC_DICT[mode]
         for wavefunc_index in index_list:
-            phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_range=phi_range, phi_count=phi_count)
+            phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_grid=phi_grid)
             if np.sum(phi_wavefunc.amplitudes) < 0:
                 phi_wavefunc.amplitudes *= -1.0
 

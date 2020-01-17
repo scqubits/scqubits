@@ -29,4 +29,3 @@ def generate_charge_matrixelem_sweep(sweep):
         if type(subsys).__name__ in ['Transmon', 'Fluxonium']:
             sweep.compute_custom_data_sweep('n_op_qbt{}'.format(qbt_index), obs.qubit_matrixelement,
                                             qubit_subsys=subsys, qubit_operator=subsys.n_operator())
-

@@ -19,6 +19,7 @@ import scqubits.core.operators as op
 from scqubits.core.spectrum import WaveFunction
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
 from scqubits.core.qubit_base import QubitBaseClass1d
+from scqubits.core.discretization import Grid1d
 
 
 # —Fluxonium qubit ————————————————————————
@@ -56,8 +57,7 @@ class Fluxonium(QubitBaseClass1d):
         self.truncated_dim = truncated_dim
         self._sys_type = 'fluxonium'
         self._evec_dtype = np.float_
-        self._default_var_range = (-4.5*np.pi, 4.5*np.pi)
-        self._default_var_count = 151
+        self._default_grid = Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
 
     def phi_osc(self):
         """
@@ -169,7 +169,7 @@ class Fluxonium(QubitBaseClass1d):
         """
         return 0.5 * self.EL * phi * phi - self.EJ * np.cos(phi + 2.0 * np.pi * self.flux)
 
-    def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
+    def wavefunction(self, esys, which=0, phi_grid=None):
         """Returns a fluxonium wave function in `phi` basis
 
         Parameters
@@ -194,11 +194,11 @@ class Fluxonium(QubitBaseClass1d):
             evals, evecs = esys
         dim = self.hilbertdim()
 
-        phi_range, phi_count = self._try_defaults(phi_range, phi_count)
+        phi_grid = self._try_defaults(phi_grid)
 
-        phi_basis_labels = np.linspace(phi_range[0], phi_range[1], phi_count)
+        phi_basis_labels = phi_grid.make_linspace()
         wavefunc_osc_basis_amplitudes = evecs[:, which]
-        phi_wavefunc_amplitudes = np.zeros(phi_count, dtype=np.complex_)
+        phi_wavefunc_amplitudes = np.zeros(phi_grid.pt_count, dtype=np.complex_)
         phi_osc = self.phi_osc()
         for n in range(dim):
             phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[n] * harm_osc_wavefunction(n, phi_basis_labels,

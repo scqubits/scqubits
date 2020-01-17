@@ -44,15 +44,13 @@ class InteractionTerm:
     evecs1, evecs2: ndarray
         bare eigenvectors allowing the calculation of op1, op2 in the two bare eigenbases
     """
-    def __init__(self, g_strength, hilbertspace, subsys1, op1, subsys2, op2, evecs1=None, evecs2=None):
+    def __init__(self, g_strength, hilbertspace, subsys1, op1, subsys2, op2):
         self.g_strength = g_strength
         self.hilbertspace = hilbertspace
         self.subsys1 = subsys1
         self.op1 = op1
         self.subsys2 = subsys2
         self.op2 = op2
-        self.evecs1 = evecs1
-        self.evecs2 = evecs2
 
     def hamiltonian(self, evecs1=None, evecs2=None):
         """
@@ -80,7 +78,7 @@ class HilbertSpace(list):
 
     def __init__(self, subsystem_list, interaction_list=None):
         list.__init__(self, subsystem_list)
-        self.interaction_list = interaction_list
+        self._interaction_list = interaction_list
         self.state_lookup_table = None
         self.osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
                                 if isinstance(subsys, Oscillator)]
