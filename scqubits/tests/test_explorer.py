@@ -51,10 +51,8 @@ def test_explorer():
 
     subsys_update_list = [qbt]
 
-
     def update_hilbertspace(param_val):
         qbt.flux = param_val
-
 
     sweep = ParameterSweep(
         param_name=param_name,
