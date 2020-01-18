@@ -26,6 +26,7 @@ except ImportError:
 
 import scqubits.utils.sweep_plotting as splot
 from scqubits.settings import DEFAULT_ENERGY_UNITS
+import scqubits.core.sweep_generators as swp
 
 
 class Explorer:
@@ -47,6 +48,9 @@ class Explorer:
         self.sweep = sweep
         self.evals_count = evals_count
         self.figsize = figsize
+
+        swp.generate_chi_sweep(sweep)
+        swp.generate_charge_matrixelem_sweep(sweep)
 
     def plot_explorer_panels(self, param_val, photonnumber, initial_index, final_index, chi_qbt_index, chi_osc_index):
         """
