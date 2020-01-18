@@ -49,14 +49,13 @@ class Oscillator(QuantumSystem):
         # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
         if E_osc is None and omega is None:
             raise ValueError('E_osc is a mandatory argument.')
-        elif omega:
+        if omega:
             warnings.warn('To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.',
                           FutureWarning)
             self.E_osc = omega
         # end of code supporting deprecated omega
         else:
             self.E_osc = E_osc
-
         self.truncated_dim = truncated_dim
 
     # Support for omega will be rolled back eventually. For now allow with deprecation warnings.

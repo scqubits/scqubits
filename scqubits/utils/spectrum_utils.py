@@ -274,4 +274,3 @@ def convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs):
         return qt.Qobj(inpt=operator_matrixelements)
 
     raise TypeError('Unsupported operator type: ', type(operator))
-

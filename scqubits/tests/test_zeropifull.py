@@ -10,7 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from scqubits import FullZeroPi
+import scqubits as qubit
 from scqubits.core.spectrum import SpectrumData
 from scqubits.tests.conftest import BaseTest, DATADIR
 
@@ -19,7 +19,7 @@ class TestFullZeroPi(BaseTest):
     @classmethod
     def setup_class(cls):
         cls.qbt = None
-        cls.qbt_type = FullZeroPi
+        cls.qbt_type = qubit.FullZeroPi
         cls.file_str = 'fullzeropi'
 
     def test_eigenvals(self):
