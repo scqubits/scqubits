@@ -15,7 +15,7 @@ import qutip as qt
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.spectrum import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
-from scqubits.utils.spectrum_utils import get_matrixelement_table
+from scqubits.utils.spectrum_utils import get_matrixelement_table, convert_operator_to_qobj
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -176,26 +176,7 @@ class HilbertSpace(list):
         -------
         qutip.Qobj operator
         """
-        dim = subsystem.truncated_dim
-
-        if isinstance(operator, np.ndarray):
-            if op_in_eigenbasis is False:
-                if evecs is None:
-                    _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
-                operator_matrixelements = get_matrixelement_table(operator, evecs)
-                subsys_operator = qt.Qobj(inpt=operator_matrixelements)
-            else:
-                subsys_operator = qt.Qobj(inpt=operator[:dim, :dim])
-        elif isinstance(operator, str):
-            if evecs is None:
-                _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
-            operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
-            subsys_operator = qt.Qobj(inpt=operator_matrixelements)
-        elif isinstance(operator, qt.Qobj):
-            subsys_operator = operator
-        else:
-            raise TypeError('Unsupported operator type: ', type(operator))
-
+        subsys_operator = convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
         operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in self]
         subsystem_index = self.get_subsys_index(subsystem)
         operator_identitywrap_list[subsystem_index] = subsys_operator

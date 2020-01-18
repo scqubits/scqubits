@@ -50,23 +50,28 @@ def _process_options(figure, axes, opts=None, **kwargs):
         if key not in defaults.SPECIAL_PLOT_OPTIONS:
             set_method = getattr(axes, 'set_' + key)
             set_method(value)
-        elif key == 'x_range':
-            warnings.warn('x_range is deprecated, use xlim instead', FutureWarning)
-            axes.set_xlim(value)
-        elif key == 'y_range':
-            warnings.warn('y_range is deprecated, use ylim instead', FutureWarning)
-            axes.set_ylim(value)
-        elif key == 'ymax':
-            ymax = value
-            ymin, _ = axes.get_ylim()
-            ymin = ymin - (ymax - ymin) * 0.05
-            axes.set_ylim(ymin, ymax)
-        elif key == 'figsize':
-            figure.set_size_inches(value)
+        else:
+            _process_special_option(figure, axes, key, value)
 
     filename = kwargs.get('filename')
     if filename:
         figure.savefig(os.path.splitext(filename)[0] + '.pdf')
+
+
+def _process_special_option(figure, axes, key, value):
+    if key == 'x_range':
+        warnings.warn('x_range is deprecated, use xlim instead', FutureWarning)
+        axes.set_xlim(value)
+    elif key == 'y_range':
+        warnings.warn('y_range is deprecated, use ylim instead', FutureWarning)
+        axes.set_ylim(value)
+    elif key == 'ymax':
+        ymax = value
+        ymin, _ = axes.get_ylim()
+        ymin = ymin - (ymax - ymin) * 0.05
+        axes.set_ylim(ymin, ymax)
+    elif key == 'figsize':
+        figure.set_size_inches(value)
 
 
 def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs):
