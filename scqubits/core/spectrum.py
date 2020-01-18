@@ -15,8 +15,8 @@ import numpy as np
 import scqubits.settings as config
 import scqubits.utils.file_io as io
 import scqubits.utils.plotting as plot
-from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
 from scqubits.utils.misc import process_metadata
+from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————

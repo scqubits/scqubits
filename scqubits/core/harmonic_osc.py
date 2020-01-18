@@ -9,9 +9,10 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import warnings
+
 import numpy as np
 import scipy as sp
-import warnings
 
 import scqubits.core.operators as op
 from scqubits.core.qubit_base import QuantumSystem

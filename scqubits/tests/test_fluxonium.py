@@ -12,8 +12,8 @@
 
 import numpy as np
 
-from scqubits import Fluxonium
 import scqubits.settings
+from scqubits import Fluxonium
 from scqubits.core.constants import FileType
 from scqubits.tests.conftest import StandardTests
 

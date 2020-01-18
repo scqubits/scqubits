@@ -10,13 +10,13 @@
 ############################################################################
 
 import numpy as np
-
 from scipy import sparse
+
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
-from scqubits.core.spectrum import WaveFunctionOnGrid
 from scqubits.core.discretization import Grid1d, GridSpec
 from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.spectrum import WaveFunctionOnGrid
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 

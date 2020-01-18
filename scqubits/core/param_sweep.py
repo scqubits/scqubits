@@ -21,8 +21,8 @@ class ParameterSweep:
     """
     The ParameterSweep class helps generate spectral and associated data for a composite quantum system, as an externa,
     parameter, such as flux, is swept over some given interval of values. Upon initialization, these data are calculated
-    and stored internally, so that plots can be generated efficiently. This is of particular use for interactive displays
-    used in the Explorer class.
+    and stored internally, so that plots can be generated efficiently. This is of particular use for interactive
+    displays used in the Explorer class.
 
     Parameters
     ----------
@@ -212,8 +212,8 @@ class ParameterSweep:
             (evals, evecs) bare eigendata for each subsystem that is parameter-dependent
         """
         eigendata = []
+        self.update_hilbertspace(param_val)
         for subsys in self.hilbertspace:
-            self.update_hilbertspace(param_val)
             evals_count = subsys.truncated_dim
 
             if subsys in self.subsys_update_list:

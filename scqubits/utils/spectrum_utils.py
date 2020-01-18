@@ -70,6 +70,21 @@ def standardize_phases(complex_array):
     return std_array
 
 
+def standardize_sign(real_array):
+    """Standardizes the sign of a real-valued wavefunction by calculating the sign of the sum of all amplitudes and
+    making it positive.
+
+    Parameters
+    ----------
+    real_array: ndarray
+
+    Returns
+    -------
+    ndarray (float)
+    """
+    return np.sign(np.sum(real_array)) * real_array
+
+
 # —Matrix elements and operators (outside qutip) ———————————————————————————————————————————————————————————————————————
 
 

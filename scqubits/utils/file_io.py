@@ -12,10 +12,12 @@
 Helper routines for writing data to CSV and h5 files.
 """
 
-import os
 import csv
+import os
+
 import h5py
 import numpy as np
+
 from scqubits.settings import FileType
 
 

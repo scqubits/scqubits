@@ -14,8 +14,8 @@ import itertools
 import numpy as np
 import qutip as qt
 
-from scqubits.core.spectrum import SpectrumData
 from scqubits.core.harmonic_osc import Oscillator
+from scqubits.core.spectrum import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.spectrum_utils import get_matrixelement_table, convert_esys_to_ndarray
 
@@ -41,8 +41,6 @@ class InteractionTerm:
         the two subsystems involved in the interaction
     op1, op2: str or ndarray
         names of operators in the two subsystems
-    evecs1, evecs2: ndarray
-        bare eigenvectors allowing the calculation of op1, op2 in the two bare eigenbases
     """
     def __init__(self, g_strength, hilbertspace, subsys1, op1, subsys2, op2):
         self.g_strength = g_strength
@@ -78,7 +76,7 @@ class HilbertSpace(list):
 
     def __init__(self, subsystem_list, interaction_list=None):
         list.__init__(self, subsystem_list)
-        self._interaction_list = interaction_list
+        self.interaction_list = interaction_list
         self.state_lookup_table = None
         self.osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
                                 if isinstance(subsys, Oscillator)]

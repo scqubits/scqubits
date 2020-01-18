@@ -77,8 +77,8 @@ class BaseTest:
     def get_spectrum_vs_paramvals(self, param_name, param_list, evals_reference, evecs_reference):
         evals_count = len(evals_reference[0])
         calculated_spectrum = self.qbt.get_spectrum_vs_paramvals(param_name, param_list, evals_count=evals_count,
-                                                                 subtract_ground=False, get_eigenstates=True,
-                                                                 filename=self.tmpdir + 'test')
+                                                                 subtract_ground=False, get_eigenstates=True)
+        calculated_spectrum.filewrite(filename=self.tmpdir + 'test')
 
         assert np.allclose(evals_reference, calculated_spectrum.energy_table)
         assert np.allclose(np.abs(evecs_reference), np.abs(calculated_spectrum.state_table), atol=1e-07)

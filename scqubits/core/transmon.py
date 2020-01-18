@@ -15,9 +15,9 @@ import numpy as np
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
-from scqubits.core.spectrum import WaveFunction
-from scqubits.core.qubit_base import QubitBaseClass1d
 from scqubits.core.discretization import Grid1d
+from scqubits.core.qubit_base import QubitBaseClass1d
+from scqubits.core.spectrum import WaveFunction
 
 
 # —Cooper pair box / transmon———————————————————————————————————————————————————————————————————————————————————————————
@@ -188,7 +188,7 @@ class Transmon(QubitBaseClass1d):
 
         phi_basis_labels = phi_grid.make_linspace()
         phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
-        for k in range( phi_grid.pt_count):
+        for k in range(phi_grid.pt_count):
             phi_wavefunc_amplitudes[k] = ((1j**which / math.sqrt(2 * np.pi)) *
                                           np.sum(n_wavefunc.amplitudes *
                                                  np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)))

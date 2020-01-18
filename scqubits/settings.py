@@ -27,7 +27,6 @@ from cycler import cycler
 
 from scqubits.core.constants import FileType
 
-
 # default file format setting
 FILE_FORMAT = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
 

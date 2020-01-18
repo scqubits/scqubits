@@ -9,8 +9,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import warnings
 import os
+import warnings
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -19,9 +19,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import scqubits.core.constants as constants
 import scqubits.utils.plot_defaults as defaults
-from scqubits.settings import DEFAULT_ENERGY_UNITS
 from scqubits.utils.misc import process_which
-
 
 try:
     from labellines import labelLines

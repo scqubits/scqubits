@@ -12,7 +12,31 @@
 
 import numpy as np
 
+import scqubits
 from scqubits.settings import DEFAULT_ENERGY_UNITS
+
+
+def set_scaling(qubit, scaling, potential_vals=None):
+    """
+    Sets the scaling parameter for 1d wavefunctions
+
+    Parameters
+    ----------
+    qubit: QuantumSystem
+    scaling: float
+    potential_vals: ndarray
+
+    Returns
+    -------
+    float
+        scaling factor
+    """
+    if scaling is None:
+        if isinstance(qubit, scqubits.Transmon):
+            scaling = 0.2 * qubit.EJ
+        elif isinstance(qubit, scqubits.Fluxonium):
+            scaling = 0.125 * (np.max(potential_vals) - np.min(potential_vals))
+    return scaling
 
 
 def wavefunction1d():

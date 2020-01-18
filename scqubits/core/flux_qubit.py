@@ -14,9 +14,9 @@ import scipy as sp
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
-from scqubits.core.spectrum import WaveFunctionOnGrid
 from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.spectrum import WaveFunctionOnGrid
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
@@ -220,7 +220,7 @@ class FluxQubit(QubitBaseClass):
         phi_grid = self._try_defaults(phi_grid)
         x_vals = y_vals = phi_grid.make_linspace()
         if 'figsize' not in kwargs:
-            kwargs['figsize'] = (5,5)
+            kwargs['figsize'] = (5, 5)
         return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
     def wavefunction(self, esys=None, which=0, phi_grid=None):
@@ -288,5 +288,5 @@ class FluxQubit(QubitBaseClass):
         wavefunc = self.wavefunction(esys, phi_grid=phi_grid, which=which)
         wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
         if 'figsize' not in kwargs:
-            kwargs['figsize'] = (5,5)
+            kwargs['figsize'] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)

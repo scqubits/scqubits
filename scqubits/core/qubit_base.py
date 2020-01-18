@@ -18,13 +18,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
-import scqubits as qubits
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.spectrum import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.misc import process_which, process_metadata, filter_metadata
-from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
+from scqubits.utils.plot_defaults import set_scaling
+from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table, standardize_sign
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -204,7 +204,7 @@ class QubitBaseClass(QuantumSystem):
         return table
 
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                  get_eigenstates=False, filename=None):
+                                  get_eigenstates=False):
         """Calculates eigenvalues for a varying system parameter, given an array of parameter values. Returns a
         `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for
         parameter value `param_vals[n]`.
@@ -221,8 +221,6 @@ class QubitBaseClass(QuantumSystem):
             if True, eigenvalues are returned relative to the ground state eigenvalue (default value = False)
         get_eigenstates: bool, optional
             return eigenstates along with eigenvalues (default value = False)
-        filename: str, optional
-            write data to file if path and filename are specified (default value = None)
 
         Returns
         -------
@@ -231,11 +229,9 @@ class QubitBaseClass(QuantumSystem):
         previous_paramval = getattr(self, param_name)
         paramvals_count = len(param_vals)
         eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
-
+        eigenstate_table = None
         if get_eigenstates:
             eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=self._evec_dtype)
-        else:
-            eigenstate_table = None
 
         for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
             setattr(self, param_name, paramval)
@@ -253,11 +249,9 @@ class QubitBaseClass(QuantumSystem):
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
                                     state_table=eigenstate_table)
-        if filename:
-            spectrumdata.filewrite(filename)
         return spectrumdata
 
-    def get_matelements_vs_paramvals(self, operator, param_name, param_vals, evals_count=6, filename=None):
+    def get_matelements_vs_paramvals(self, operator, param_name, param_vals, evals_count=6):
         """Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a
         `SpectrumData` object containing matrix element data, eigenvalue data, and eigenstate data..
 
@@ -271,8 +265,6 @@ class QubitBaseClass(QuantumSystem):
             parameter values to be plugged in
         evals_count: int, optional
             number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
-        filename: str, optional
-            write data to file if path and filename are specified (default value = None)
 
         Returns
         -------
@@ -294,8 +286,6 @@ class QubitBaseClass(QuantumSystem):
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
                                     state_table=eigenstate_table, matrixelem_table=matelem_table)
-        if filename:
-            spectrumdata.filewrite(filename)
         return spectrumdata
 
     def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None, **kwargs):
@@ -404,7 +394,7 @@ class QubitBaseClass1d(QubitBaseClass):
     def wavefunction(self, esys, which=0, phi_grid=None):
         pass
 
-    def plot_wavefunction(self, esys=None, which=0, phi_grid=None, mode='real', scaling=None, **kwargs):
+    def plot_wavefunction(self, which=0,  mode='real', esys=None, phi_grid=None, scaling=None, **kwargs):
         """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional qubits like FluxQubits and
         ZeroPi.
 
@@ -433,23 +423,13 @@ class QubitBaseClass1d(QubitBaseClass):
 
         index_list = process_which(which, self.truncated_dim)
         phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_grid=phi_grid)
-
         potential_vals = self.potential(phi_wavefunc.basis_labels)
-
-        if scaling is None:
-            if isinstance(self, qubits.Transmon):
-                scale = 0.2 * self.EJ
-            elif isinstance(self, qubits.Fluxonium):
-                scale = 0.125 * (np.max(potential_vals) - np.min(potential_vals))
-        else:
-            scale = scaling
+        scale = set_scaling(self, scaling, potential_vals)
 
         modefunction = constants.MODE_FUNC_DICT[mode]
         for wavefunc_index in index_list:
             phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_grid=phi_grid)
-            if np.sum(phi_wavefunc.amplitudes) < 0:
-                phi_wavefunc.amplitudes *= -1.0
-
+            phi_wavefunc.amplitudes = standardize_sign(phi_wavefunc.amplitudes)
             phi_wavefunc.amplitudes = modefunction(phi_wavefunc.amplitudes)
             plot.wavefunction1d(phi_wavefunc, potential_vals=potential_vals, offset=phi_wavefunc.energy,
                                 scaling=scale, **kwargs)

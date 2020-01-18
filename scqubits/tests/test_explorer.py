@@ -13,8 +13,8 @@
 import numpy as np
 
 import scqubits as qubit
-from scqubits import HilbertSpace, InteractionTerm, ParameterSweep, Explorer
 import scqubits.core.sweep_generators as swp
+from scqubits import InteractionTerm, ParameterSweep, Explorer
 
 
 def test_explorer():

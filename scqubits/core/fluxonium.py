@@ -16,10 +16,10 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.operators as op
-from scqubits.core.spectrum import WaveFunction
+from scqubits.core.discretization import Grid1d
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
 from scqubits.core.qubit_base import QubitBaseClass1d
-from scqubits.core.discretization import Grid1d
+from scqubits.core.spectrum import WaveFunction
 
 
 # —Fluxonium qubit ————————————————————————
@@ -178,10 +178,8 @@ class Fluxonium(QubitBaseClass1d):
             eigenvalues, eigenvectors
         which: int, optional
              index of desired wave function (default value = 0)
-        phi_range: tuple(float,float), optional
-             custom boundaries of `phi` values range
-        phi_count: int
-             number of points in the specified `phi` interval
+        phi_grid: Grid1d, optional
+            used for setting a custom grid for phi; if None use self._default_grid
 
         Returns
         -------

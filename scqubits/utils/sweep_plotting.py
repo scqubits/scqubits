@@ -11,6 +11,7 @@
 
 
 import copy
+
 import numpy as np
 
 import scqubits.utils.plot_defaults as defaults
