@@ -162,8 +162,8 @@ class ZeroPi(QubitBaseClass):
         diag_elements = 2.0 * self.ECS * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
 
-        kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc') + \
-                         sparse.kron(identity_phi, kinetic_matrix_theta, format='csc')
+        kinetic_matrix = (sparse.kron(kinetic_matrix_phi, identity_theta, format='csc')
+                          + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc'))
 
         kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
         return kinetic_matrix
@@ -196,8 +196,8 @@ class ZeroPi(QubitBaseClass):
         potential_mat = (sparse.kron(phi_cos_potential, theta_cos_potential, format='csc')
                          + sparse.kron(phi_inductive_potential, self._identity_theta(), format='csc')
                          + 2 * self.EJ * sparse.kron(self._identity_phi(), self._identity_theta(), format='csc'))
-        potential_mat += self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')\
-                         * self.sin_theta_operator()
+        potential_mat += (self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')
+                          * self.sin_theta_operator())
         return potential_mat
 
     def hamiltonian(self):
@@ -377,9 +377,9 @@ class ZeroPi(QubitBaseClass):
             scipy.sparse.csc_matrix
         """
         dim_theta = 2 * self.ncut + 1
-        sin_theta_matrix = -0.5 * 1j * \
-                           (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
-                            sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc()
+        sin_theta_matrix = (-0.5 * 1j
+                            * (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
+                               sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc())
         return sin_theta_matrix
 
     def sin_theta_operator(self):

@@ -69,41 +69,40 @@ class Explorer:
         -------
         Figure, Axes
         """
-        def display_bare_spectrum(index):
+        def display_bare_spectrum(fig_ax):
             title = 'bare spectrum: subsystem {} ({})'.format(self.sweep.hilbertspace.index(subsys), subsys._sys_type)
-            __ = splot.bare_spectrum(self.sweep, subsys, title=title, fig_ax=(fig, axes_list_flattened[index]))
+            __ = splot.bare_spectrum(self.sweep, subsys, title=title, fig_ax=fig_ax)
             axes_list_flattened[index].axvline(param_val, color='gray', linestyle=':')
 
-        def display_bare_wavefunctions(index):
+        def display_bare_wavefunctions(fig_ax):
             title = 'wavefunctions: subsystem {} ({})'.format(self.sweep.hilbertspace.index(subsys), subsys._sys_type)
-            __ = splot.bare_wavefunction(self.sweep, param_val, subsys, title=title,
-                                         fig_ax=(fig, axes_list_flattened[index]))
+            __ = splot.bare_wavefunction(self.sweep, param_val, subsys, title=title, fig_ax=fig_ax)
 
-        def display_dressed_spectrum(index):
+        def display_dressed_spectrum(fig_ax):
             title = r'{} $\rightarrow$ {}: {:.4f} {}'.format(initial_bare, final_bare, energy_difference,
                                                              DEFAULT_ENERGY_UNITS)
-            __ = splot.dressed_spectrum(self.sweep, title=title, fig_ax=(fig, axes_list_flattened[index]))
-            axes_list_flattened[index].axvline(param_val, color='gray', linestyle=':')
-            axes_list_flattened[index].scatter([param_val] * 2, [energy_initial, energy_final], s=40, c='gray')
+            __ = splot.dressed_spectrum(self.sweep, title=title, fig_ax=fig_ax)
+            fig_ax[1].axvline(param_val, color='gray', linestyle=':')
+            fig_ax[1].scatter([param_val] * 2, [energy_initial, energy_final], s=40, c='gray')
 
-        def display_n_photon_qubit_transitions(index):
+        def display_n_photon_qubit_transitions(fig_ax):
             title = r'{}-photon qubit transitions, {} $\rightarrow$'.format(photonnumber, initial_bare)
             __ = splot.n_photon_qubit_spectrum(self.sweep, photonnumber, initial_state_labels=initial_bare,
-                                               title=title, fig_ax=(fig, axes_list_flattened[index]))
-            axes_list_flattened[index].axvline(param_val, color='gray', linestyle=':')
+                                               title=title, fig_ax=fig_ax)
+            fig_ax[1].axvline(param_val, color='gray', linestyle=':')
 
-        def display_chi_01():
-            __ = splot.chi_01(self.sweep, chi_qbt_index, chi_osc_index, param_index=param_index,
-                              fig_ax=(fig, axes_list_flattened[index]))
-            axes_list_flattened[index].axvline(param_val, color='gray', linestyle=':')
+        def display_chi_01(fig_ax):
+            __ = splot.chi_01(self.sweep, chi_qbt_index, chi_osc_index, param_index=param_index, fig_ax=fig_ax)
+            fig_ax[1].axvline(param_val, color='gray', linestyle=':')
 
-        def display_charge_matrixelems(index):
+        def display_charge_matrixelems(fig_ax):
             bare_qbt_initial = initial_bare[qbt_index]
             title = r'charge matrix elements for {} [{}]'.format(type(qbt_subsys).__name__, qbt_index)
-            __ = splot.charge_matrixelem(self.sweep, qbt_index, bare_qbt_initial, title=title,
-                                         fig_ax=(fig, axes_list_flattened[index]))
+            __ = splot.charge_matrixelem(self.sweep, qbt_index, bare_qbt_initial, title=title, fig_ax=fig_ax)
+            fig_ax[1].axvline(param_val, color='gray', linestyle=':')
 
-            axes_list_flattened[index].axvline(param_val, color='gray', linestyle=':')
+        def fig_ax(index):
+            return (fig, axes_list_flattened[index])
 
         param_index = np.searchsorted(self.param_vals, param_val)
         param_val = self.param_vals[param_index]
@@ -111,10 +110,10 @@ class Explorer:
         final_bare = self.sweep.lookup.bare_index(final_index, param_index)
 
         energy_ground = self.sweep.lookup.energy_dressed_index(0, param_index)
-        energy_initial = self.sweep.lookup.energy_dressed_index(initial_index, param_index) \
-                         - energy_ground
-        energy_final = self.sweep.lookup.energy_dressed_index(final_index, param_index) \
-                       - energy_ground
+        energy_initial = (self.sweep.lookup.energy_dressed_index(initial_index, param_index)
+                          - energy_ground)
+        energy_final = (self.sweep.lookup.energy_dressed_index(final_index, param_index)
+                        - energy_ground)
         energy_difference = energy_final - energy_initial
         qbt_index = chi_qbt_index
         qbt_subsys = self.sweep.hilbertspace[chi_qbt_index]
@@ -124,28 +123,28 @@ class Explorer:
         fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=self.figsize)
 
         axes_list_flattened = [elem for sublist in axs for elem in sublist]
-        index = 0
         # start with plots for bare qubit subsystems
         # left: bare spectrum, right: wavefunctions
         subsys = self.sweep.hilbertspace[chi_qbt_index]
-        display_bare_spectrum(index)
+        index = 0
+        display_bare_spectrum(fig_ax(index))
         index += 1
         if type(subsys).__name__ in ['Transmon', 'Fluxonium']:   # do not plot wavefunctions if multi-dimensional
-            display_bare_wavefunctions(index)
+            display_bare_wavefunctions(fig_ax(index))
         index += 1
 
         # next row - left: dressed spectrum, right: n-photon qubit transition spectrum
-        display_dressed_spectrum(index)
+        display_dressed_spectrum(fig_ax(index))
         index += 1
-        display_n_photon_qubit_transitions(index)
+        display_n_photon_qubit_transitions(fig_ax(index))
         index += 1
 
         # next row: left - dispersive shifts, right: charge matrix elements
-        display_chi_01()
+        display_chi_01(fig_ax(index))
         index += 1
 
         if type(self.sweep.hilbertspace[chi_qbt_index]).__name__ in ['Transmon', 'Fluxonium']:
-            display_charge_matrixelems(index)
+            display_charge_matrixelems(fig_ax(index))
         fig.tight_layout()
         return fig, axs
 
