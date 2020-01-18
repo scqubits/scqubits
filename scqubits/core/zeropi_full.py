@@ -17,6 +17,7 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
+from scqubits.utils.misc import is_numerical, key_in_grid1d
 
 
 class FullZeroPi(QubitBaseClass):
@@ -367,11 +368,11 @@ class FullZeroPi(QubitBaseClass):
         meta_dict: dict
         """
         for param_name, param_value in meta_dict.items():
-            if isinstance(param_value, (int, float, np.number)):
-                if param_name in self.grid.__dict__.keys():
-                    setattr(self.grid, param_name, param_value)
-                else:
-                    setattr(self, param_name, param_value)
+            if key_in_grid1d(param_name):
+                setattr(self.grid, param_name, param_value)
+            elif is_numerical(param_value):
+                setattr(self, param_name, param_value)
+
         self._zeropi = ZeroPi(
             EJ=self.EJ,
             EL=self.EL,
@@ -397,11 +398,11 @@ class FullZeroPi(QubitBaseClass):
         filtered_dict = {}
         grid_dict = {}
         for param_name, param_value in meta_dict.items():
-            if isinstance(param_value, (int, float, np.number)):
-                if param_name in ['min_val', 'max_val', 'pt_count']:
-                    grid_dict[param_name] = param_value
-                else:
-                    filtered_dict[param_name] = param_value
+            if key_in_grid1d(param_name):
+                grid_dict[param_name] = param_value
+            elif is_numerical(param_value):
+                filtered_dict[param_name] = param_value
+
         grid = Grid1d(**grid_dict)
         filtered_dict['grid'] = grid
         return cls(**filtered_dict)

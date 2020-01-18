@@ -41,17 +41,15 @@ def _process_options(figure, axes, opts=None, **kwargs):
     **kwargs: dict
         standard plotting option (see separate documentation)
     """
-    if opts is None:
-        option_dict = kwargs
-    else:
-        option_dict = {**opts, **kwargs}
+    opts = opts or {}
+    option_dict = {**opts, **kwargs}
 
     for key, value in option_dict.items():
-        if key not in defaults.SPECIAL_PLOT_OPTIONS:
+        if key in defaults.SPECIAL_PLOT_OPTIONS:
+            _process_special_option(figure, axes, key, value)
+        else:
             set_method = getattr(axes, 'set_' + key)
             set_method(value)
-        else:
-            _process_special_option(figure, axes, key, value)
 
     filename = kwargs.get('filename')
     if filename:
