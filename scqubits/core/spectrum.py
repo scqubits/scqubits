@@ -91,6 +91,9 @@ class SpectrumData:
         self.matrixelem_table = matrixelem_table
         self.system_params = system_params
 
+    def param_count(self):
+        return len(self.param_vals)
+
     def subtract_ground(self):
         """Subtract ground state energies from spectrum"""
         self.energy_table -= self.energy_table[:, 9]

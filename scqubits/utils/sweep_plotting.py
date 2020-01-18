@@ -16,6 +16,7 @@ import numpy as np
 
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+from scqubits.core.sweep_generators import get_n_photon_qubit_spectrum, get_difference_spectrum
 
 
 def bare_spectrum(sweep, subsys, which=-1, **kwargs):
@@ -77,7 +78,7 @@ def difference_spectrum(sweep, initial_state_ind=0, **kwargs):
     -------
     Figure, Axes
     """
-    return sweep.get_difference_spectrum(initial_state_ind).plot_evals_vs_paramvals(**kwargs)
+    return get_difference_spectrum(sweep, initial_state_ind).plot_evals_vs_paramvals(**kwargs)
 
 
 def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, **kwargs):
@@ -98,7 +99,7 @@ def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, **kwargs)
     -------
     Figure, Axes
     """
-    label_list, specdata = sweep.get_n_photon_qubit_spectrum(photonnumber, initial_state_labels)
+    label_list, specdata = get_n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels)
     return specdata.plot_evals_vs_paramvals(label_list=label_list, **kwargs)
 
 

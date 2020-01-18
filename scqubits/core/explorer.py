@@ -48,8 +48,7 @@ class Explorer:
         self.evals_count = evals_count
         self.figsize = figsize
 
-    def plot_explorer_panels(self, param_val, photonnumber, initial_index, final_index,
-                             chi_qbt_index, chi_osc_index, ):
+    def plot_explorer_panels(self, param_val, photonnumber, initial_index, final_index, chi_qbt_index, chi_osc_index):
         """
         Create a panel of plots (bare spectra, bare wavefunctions, dressed spectrum, n-photon qubit transitions, chi).
 
@@ -104,12 +103,14 @@ class Explorer:
 
         param_index = np.searchsorted(self.param_vals, param_val)
         param_val = self.param_vals[param_index]
-        initial_bare = self.sweep.hilbertspace.lookup_bare_index(initial_index, param_index)
-        final_bare = self.sweep.hilbertspace.lookup_bare_index(final_index, param_index)
+        initial_bare = self.sweep.lookup.bare_index(initial_index, param_index)
+        final_bare = self.sweep.lookup.bare_index(final_index, param_index)
 
-        energy_ground = self.sweep.lookup_energy_dressed_index(0, param_index)
-        energy_initial = self.sweep.lookup_energy_dressed_index(initial_index, param_index) - energy_ground
-        energy_final = self.sweep.lookup_energy_dressed_index(final_index, param_index) - energy_ground
+        energy_ground = self.sweep.lookup.energy_dressed_index(0, param_index)
+        energy_initial = self.sweep.lookup.energy_dressed_index(initial_index, param_index) \
+                         - energy_ground
+        energy_final = self.sweep.lookup.energy_dressed_index(final_index, param_index) \
+                       - energy_ground
         energy_difference = energy_final - energy_initial
         qbt_index = chi_qbt_index
         qbt_subsys = self.sweep.hilbertspace[chi_qbt_index]

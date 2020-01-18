@@ -9,15 +9,13 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import itertools
-
 import numpy as np
 import qutip as qt
 
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.spectrum import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
-from scqubits.utils.spectrum_utils import get_matrixelement_table, convert_esys_to_ndarray
+from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -278,7 +276,7 @@ class HilbertSpace(list):
         return hamiltonian
 
     def get_spectrum_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, get_eigenstates=False,
-                                  param_name="external_parameter", filename=None):
+                                  param_name="external_parameter"):
         """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as a function of a parameter.
         Parameter values are specified as a list or array in `param_vals`. The Hamiltonian `hamiltonian_func`
         must be a function of that particular parameter, and is expected to internally set subsystem parameters.
@@ -296,8 +294,6 @@ class HilbertSpace(list):
             set to true if eigenstates should be returned as well (default value = False)
         param_name: str, optional
             name for the parameter that is varied in `param_vals` (default value = "external_parameter")
-        filename: str, optional
-            write data to file if path/filename is provided (default value = None)
 
         Returns
         -------
@@ -325,80 +321,7 @@ class HilbertSpace(list):
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenenergy_table, self.__dict__,
                                     state_table=eigenstates_qobj_table)
-        if filename:
-            spectrumdata.filewrite(filename)
-
         return spectrumdata
-
-    def generate_state_lookup_table(self, spectrum_data, param_index=0):
-        """
-        Create a lookup table that associates each dressed-state index with the corresponding bare-state product state
-        index (whenever possible). Usually to be saved as self.state_lookup_table.
-
-        Parameters
-        ----------
-        spectrum_data: SpectrumData
-        param_index: int
-            indices > 0 become relevant when using ParameterSweep
-
-        Returns
-        -------
-        list(int), list(tuple)
-            dressed indices, corresponding bare indices
-        """
-        overlap_matrix = convert_esys_to_ndarray(spectrum_data.state_table[param_index])
-        dressed_indices = []
-        for bare_basis_index in range(self.dimension):
-            max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
-            max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
-            if max_overlap < 0.5:
-                dressed_indices.append(None)
-            else:
-                dressed_indices.append(max_position)
-        dims = self.subsystem_dims
-        basis_label_ranges = [list(range(dims[subsys_index])) for subsys_index in range(self.subsystem_count)]
-        basis_labels_list = list(itertools.product(*basis_label_ranges))
-        return [dressed_indices, basis_labels_list]
-
-    def lookup_dressed_index(self, bare_labels, param_index=0):
-        """
-        Parameters
-        ----------
-        bare_labels: tuple of ints
-            bare_labels = (index, index2, ...)
-        param_index: int
-            index of parameter value of interest
-
-        Returns
-        -------
-        int
-            dressed state index closest to the specified bare state
-        """
-        try:
-            lookup_position = self.state_lookup_table[param_index][1].index(bare_labels)
-        except ValueError:
-            return None
-        return self.state_lookup_table[param_index][0][lookup_position]
-
-    def lookup_bare_index(self, dressed_index, param_index=0):
-        """
-        For given dressed index, look up the corresponding bare index from the state_lookup_table.
-
-        Parameters
-        ----------
-        dressed_index: int
-        param_index: int
-
-        Returns
-        -------
-        tuple(int)
-        """
-        try:
-            lookup_position = self.state_lookup_table[param_index][0].index(dressed_index)
-        except ValueError:
-            return None
-        basis_labels = self.state_lookup_table[param_index][1][lookup_position]
-        return basis_labels
 
     def _get_metadata_dict(self):
         meta_dict = {}

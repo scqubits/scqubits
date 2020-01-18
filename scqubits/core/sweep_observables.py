@@ -48,8 +48,8 @@ def dispersive_chi(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=Non
     for j in chi_range:
         bare_0j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 0))
         bare_1j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 1))
-        energy_0j = sweep.lookup_energy_bare_index(bare_0j, param_index)
-        energy_1j = sweep.lookup_energy_bare_index(bare_1j, param_index)
+        energy_0j = sweep.lookup.energy_bare_index(bare_0j, param_index)
+        energy_1j = sweep.lookup.energy_bare_index(bare_1j, param_index)
         if energy_0j and energy_1j:
             chi_values[j] = energy_1j - energy_0j - omega
         else:
@@ -76,5 +76,5 @@ def qubit_matrixelement(sweep, param_index, qubit_subsys, qubit_operator):
     -------
     ndarray
     """
-    bare_evecs = sweep.lookup_bare_eigenstates(param_index, qubit_subsys)
+    bare_evecs = sweep.lookup.bare_eigenstates(param_index, qubit_subsys)
     return get_matrixelement_table(qubit_operator, bare_evecs)

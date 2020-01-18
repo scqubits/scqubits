@@ -16,6 +16,7 @@ import pytest
 import scqubits as qubit
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
+from scqubits.core.sweep_generators import get_difference_spectrum
 from scqubits.utils.spectrum_utils import get_matrixelement_table, absorption_spectrum
 
 
@@ -134,7 +135,8 @@ class TestHilbertSpace:
 
         flux_list = np.linspace(-0.1, 0.6, 100)
         specdata = hilbertspc.get_spectrum_vs_paramvals(self.hamiltonian, flux_list, evals_count=15,
-                                                        get_eigenstates=True, filename=self.tmpdir + 'test')
+                                                        get_eigenstates=True)
+        specdata.filewrite(filename=self.tmpdir + 'test')
 
         reference_evals = np.array([-35.61671109, -30.87536252, -29.93935539, -29.62839549,
                                     -27.95521996, -24.89469034, -23.95779031, -23.64010506,
@@ -291,7 +293,7 @@ class TestParameterSweep:
     def test_ParameterSweep_(self):
         sweep = self.initialize()
 
-        specdata = absorption_spectrum(sweep.get_difference_spectrum(initial_state_ind=0))
+        specdata = absorption_spectrum(get_difference_spectrum(sweep, initial_state_ind=0))
         calculated_energies = specdata.energy_table[5]
 
         reference_energies = np.array([0., 4.74135372, 5.6773522, 5.98902462, 7.72420838, 10.72273595, 11.65962582,

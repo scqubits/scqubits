@@ -56,10 +56,6 @@ class QuantumSystem:
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
 
-    @abc.abstractmethod
-    def hamiltonian(self):
-        """Returns the Hamiltonian"""
-
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
 
@@ -74,6 +70,10 @@ class QubitBaseClass(QuantumSystem):
         self.truncated_dim = truncated_dim
         self._default_grid = None
         self._evec_dtype = None
+
+    @abc.abstractmethod
+    def hamiltonian(self):
+        """Returns the Hamiltonian"""
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
