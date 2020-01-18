@@ -407,7 +407,7 @@ class ZeroPi(QubitBaseClass):
         theta_grid = self._try_defaults(theta_grid)
 
         x_vals = self.grid.make_linspace()
-        y_vals = theta_grid.make_linspace
+        y_vals = theta_grid.make_linspace()
         return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
     def wavefunction(self, esys=None, which=0, theta_grid=None):
