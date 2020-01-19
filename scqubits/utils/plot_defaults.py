@@ -125,11 +125,11 @@ def charge_matrixelem(sweep, **kwargs):
 
 
 # supported keyword arguments for plotting and sweep_plotting functions
-SPECIAL_PLOT_OPTIONS = {
+SPECIAL_PLOT_OPTIONS = [
     'x_range',
     'y_range',
     'ymax',
     'figsize',
     'fig_ax',
     'filename'
-}
+]

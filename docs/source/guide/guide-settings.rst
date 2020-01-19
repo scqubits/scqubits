@@ -18,14 +18,14 @@ scqubits has a few internal parameters that can be changed by the user:
 
 .. cssclass:: table-striped
 
-+-------------------------------+-------------------------------------------+-----------------------------+
-| Setting                       | Description                               | Options                     |
-+===============================+===========================================+=============================+
-| `file_format`                 | Switches between supported file formats   | FileType.h5, FileType.csv   |
-|                               | for writing data to disk.                 |                             |
-+-------------------------------+-------------------------------------------+-----------------------------+
-| `progressbar_enabled`         | Switches display of progressbar on/off.   | True / False                |
-+-------------------------------+-------------------------------------------+-----------------------------+
++------------------------+-------------------------------------------+-----------------------------+
+| Setting                | Description                               | Options                     |
++========================+===========================================+=============================+
+| `file_format`          | Switches between supported file formats   | FileType.h5, FileType.csv   |
+|                        | for writing data to disk.                 |                             |
++------------------------+-------------------------------------------+-----------------------------+
+| `progressbar_enabled`  | Switches display of progressbar on/off.   | True / False                |
++------------------------+-------------------------------------------+-----------------------------+
 
 .. _settings-usage:
 
