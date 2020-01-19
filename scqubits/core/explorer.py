@@ -102,7 +102,7 @@ class Explorer:
             fig_ax[1].axvline(param_val, color='gray', linestyle=':')
 
         def fig_ax(index):
-            return (fig, axes_list_flattened[index])
+            return fig, axes_list_flattened[index]
 
         param_index = np.searchsorted(self.param_vals, param_val)
         param_val = self.param_vals[param_index]
