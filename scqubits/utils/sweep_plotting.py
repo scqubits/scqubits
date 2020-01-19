@@ -206,7 +206,7 @@ def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
     Figure, Axes
     """
     data_key = 'n_op_qbt{}'.format(qbt_index)
-    specdata = copy.deepcopy(sweep.bare_specdata_list[qbt_index])
+    specdata = copy.copy(sweep.bare_specdata_list[qbt_index])
     specdata.matrixelem_table = sweep.sweep_data[data_key]
     label_list = [(initial_state_idx, final_idx) for final_idx in range(sweep.hilbertspace[qbt_index].truncated_dim)]
     return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs',

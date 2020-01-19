@@ -57,6 +57,16 @@ def _process_options(figure, axes, opts=None, **kwargs):
 
 
 def _process_special_option(figure, axes, key, value):
+    """Processes a single 'special' option, i.e., one internal to scqubits and not to be handed further down to
+    matplotlib.
+
+    Parameters
+    ----------
+    figure: matplotlib.Figure
+    axes: matplotlib.Axes
+    key: str
+    value: anything
+    """
     if key == 'x_range':
         warnings.warn('x_range is deprecated, use xlim instead', FutureWarning)
         axes.set_xlim(value)
@@ -129,8 +139,8 @@ def wavefunction1d_discrete(wavefunc, **kwargs):
 
     x_vals = wavefunc.basis_labels
     width = .75
-
     axes.bar(x_vals, wavefunc.amplitudes, width=width)
+
     axes.set_xticks(x_vals)
     axes.set_xticklabels(x_vals)
     _process_options(fig, axes, defaults.wavefunction1d_discrete(), **kwargs)
@@ -360,20 +370,21 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
     tuple(Figure, Axes)
         matplotlib objects for further editing
     """
+    def request_range(sel_elems):
+        return isinstance(sel_elems, int)
+
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
-
     x = specdata.param_vals
-
     modefunction = constants.MODE_FUNC_DICT[mode]
-    if isinstance(select_elems, int):
-        for row in range(select_elems):
-            for col in range(row + 1):
-                y = modefunction(specdata.matrixelem_table[:, row, col])
-                axes.plot(x, y, label=str(row) + ',' + str(col))
+
+    if request_range(select_elems):
+        index_pairs = [(row, col) for row in range(select_elems) for col in range(row + 1)]
     else:
-        for index_pair in select_elems:
-            y = modefunction(specdata.matrixelem_table[:, index_pair[0], index_pair[1]])
-            axes.plot(x, y, label=str(index_pair[0]) + ',' + str(index_pair[1]))
+        index_pairs = select_elems
+
+    for (row, col) in index_pairs:
+        y = modefunction(specdata.matrixelem_table[:, row, col])
+        axes.plot(x, y, label=str(row) + ',' + str(col))
 
     if _LABELLINES_ENABLED:
         labelLines(axes.get_lines(), zorder=2.0)
