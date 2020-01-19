@@ -17,7 +17,7 @@ import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass1d
-from scqubits.core.spectrum import WaveFunction
+from scqubits.core.storage import WaveFunction
 
 
 # —Cooper pair box / transmon———————————————————————————————————————————————————————————————————————————————————————————
@@ -128,8 +128,8 @@ class Transmon(QubitBaseClass1d):
         if nrange is None:
             nrange = self._default_n_range
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
-        modefunction = constants.MODE_FUNC_DICT[mode]
-        n_wavefunc.amplitudes = modefunction(n_wavefunc.amplitudes)
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        n_wavefunc.amplitudes = amplitude_modifier(n_wavefunc.amplitudes)
         return plot.wavefunction1d_discrete(n_wavefunc, xlim=nrange, xlabel='n', ylabel=r'$\psi_j(n)$', **kwargs)
 
     def plot_phi_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs_sqr', scaling=None, **kwargs):

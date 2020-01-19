@@ -16,8 +16,8 @@ import scqubits.core.operators as op
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
-from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 from scqubits.utils.misc import is_numerical, key_in_grid1d
+from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
 
 class FullZeroPi(QubitBaseClass):

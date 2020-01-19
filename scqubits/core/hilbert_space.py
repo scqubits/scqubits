@@ -13,9 +13,9 @@ import numpy as np
 import qutip as qt
 
 from scqubits.core.harmonic_osc import Oscillator
-from scqubits.core.spectrum import SpectrumData
+from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
-from scqubits.utils.spectrum_utils import get_matrixelement_table, convert_operator_to_qobj
+from scqubits.utils.spectrum_utils import convert_operator_to_qobj
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm

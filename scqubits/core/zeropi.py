@@ -16,9 +16,9 @@ import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.discretization import Grid1d, GridSpec
 from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.core.spectrum import WaveFunctionOnGrid
-from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
+from scqubits.core.storage import WaveFunctionOnGrid
 from scqubits.utils.misc import is_numerical, key_in_grid1d
+from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
@@ -472,9 +472,9 @@ class ZeroPi(QubitBaseClass):
         """
         theta_grid = self._try_defaults(theta_grid)
 
-        modefunction = constants.MODE_FUNC_DICT[mode]
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
-        wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
 
     def set_params_from_dict(self, meta_dict):

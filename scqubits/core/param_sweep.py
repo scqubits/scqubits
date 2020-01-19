@@ -14,7 +14,7 @@ import numpy as np
 from tqdm.notebook import tqdm
 
 from scqubits.core.spec_lookup import SpectrumLookup, shared_lookup_bare_eigenstates
-from scqubits.core.spectrum import SpectrumData
+from scqubits.core.storage import SpectrumData
 from scqubits.settings import TQDM_KWARGS
 
 
@@ -54,7 +54,6 @@ class ParameterSweep:
         self.bare_specdata_list = None
         self.dressed_specdata = None
         self._bare_hamiltonian_constant = None
-
         self.sweep_data = {}
 
         # generate the spectral data sweep
@@ -241,7 +240,8 @@ class ParameterSweep:
         **kwargs: optional
             other parameters to be included in func
         """
-        data = [func(self, param_index, **kwargs) for param_index in range(self.param_count)]
+        data = [func(self, param_index, **kwargs) for param_index
+                in tqdm(range(self.param_count), desc=data_name, **TQDM_KWARGS)]
         self.sweep_data[data_name] = np.asarray(data)
 
     lookup_bare_eigenstates = shared_lookup_bare_eigenstates

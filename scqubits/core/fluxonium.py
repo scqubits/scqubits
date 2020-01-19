@@ -19,7 +19,7 @@ import scqubits.core.operators as op
 from scqubits.core.discretization import Grid1d
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
 from scqubits.core.qubit_base import QubitBaseClass1d
-from scqubits.core.spectrum import WaveFunction
+from scqubits.core.storage import WaveFunction
 
 
 # —Fluxonium qubit ————————————————————————

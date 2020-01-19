@@ -11,7 +11,7 @@
 ############################################################################
 
 import scqubits as qubit
-from scqubits.core.spectrum import SpectrumData
+from scqubits.core.storage import SpectrumData
 from scqubits.tests.conftest import BaseTest, DATADIR
 
 
