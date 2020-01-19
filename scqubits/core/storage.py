@@ -1,4 +1,4 @@
-# spectrum.py
+# storage.py
 #
 # This file is part of scqubits.
 #
@@ -10,13 +10,10 @@
 ############################################################################
 
 
-import numpy as np
-
 import scqubits.settings as config
 import scqubits.utils.file_io as io
 import scqubits.utils.plotting as plot
-from scqubits.utils.misc import process_metadata
-from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
+from scqubits.utils.misc import process_metadata, value_not_none, convert_to_ndarray
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -61,12 +58,11 @@ class WaveFunctionOnGrid:
         self.energy = energy
 
 
-# —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
+# —BaseData class———————————————————————————————————————————————————————————————————————————————————————————————————
 
-class SpectrumData:
-    """Container holding energy and state data as a function of a particular parameter that is varied.
-    Also stores all other system parameters used for generating the set, and provides method for writing
-    data to file.
+
+class DataStore:
+    """Base class for storing and processing spectral data and custom data from parameter sweeps.
 
     Parameters
     ----------
@@ -74,56 +70,30 @@ class SpectrumData:
         name of parameter being varies
     param_vals: ndarray
         parameter values for which spectrum data are stored
-    energy_table: ndarray
-        energy eigenvalues stored for each `param_vals` point
     system_params: dict
         info about system parameters
-    state_table: ndarray or list, optional
-        eigenstate data stored for each `param_vals` point, either as pure ndarray or list of qutip.qobj
-    matrixelem_table: ndarray, optional
-        matrix element data stored for each `param_vals` point
+
+    **kwargs:
+        keyword arguments for data to be stored
     """
-    def __init__(self, param_name, param_vals, energy_table, system_params, state_table=None, matrixelem_table=None):
+    def __init__(self, param_name, param_vals, system_params, **kwargs):
         self.param_name = param_name
         self.param_vals = param_vals
-        self.energy_table = energy_table
-        self.state_table = state_table
-        self.matrixelem_table = matrixelem_table
         self.system_params = system_params
+        self.data_names = kwargs.keys()
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def param_count(self):
         return len(self.param_vals)
-
-    def subtract_ground(self):
-        """Subtract ground state energies from spectrum"""
-        self.energy_table -= self.energy_table[:, 9]
-
-    def plot_evals_vs_paramvals(self, which=-1, subtract_ground=False, label_list=None, **kwargs):
-        """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
-
-        Parameters
-        ----------
-        which: int or list(int)
-            default: -1, signals to plot all eigenvalues; int>0: plot eigenvalues 0..int-1; list(int) plot the specific
-            eigenvalues (indices listed)
-        subtract_ground: bool, optional
-            whether to subtract the ground state energy, default: False
-        label_list: list(str), optional
-            list of labels associated with the individual curves to be plotted
-        **kwargs: dict
-            standard plotting option (see separate documentation)
-
-        Returns
-        -------
-        Figure, Axes
-        """
-        return plot.evals_vs_paramvals(self, which=which, subtract_ground=subtract_ground,
-                                       label_list=label_list, **kwargs)
 
     def _get_metadata_dict(self):
         meta_dict = {'param_name': self.param_name, 'param_vals': self.param_vals}
         meta_dict.update(process_metadata(self.system_params))
         return meta_dict
+
+    def _get_data_dict(self):
+        return {key: value for key, value in self.__dict__.items() if key in self.data_names}
 
     def _serialize(self, writer):
         """
@@ -131,19 +101,10 @@ class SpectrumData:
         ----------
         writer: BaseWriter
         """
-        np_state_table = None
-        if isinstance(self.state_table, list):
-            np_state_table = np.asarray([convert_esys_to_ndarray(esys_qutip) for esys_qutip in self.state_table])
-        elif isinstance(self.state_table, np.ndarray):
-            np_state_table = self.state_table
-
         metadata_dict = self._get_metadata_dict()
         writer.create_meta(metadata_dict)
-        writer.add_dataset('energy_table', self.energy_table)
-        if self.state_table is not None:
-            writer.add_dataset('state_table', np_state_table)
-        if self.matrixelem_table is not None:
-            writer.add_dataset('matrixelem_table', self.matrixelem_table)
+        for data_name, data in filter(value_not_none, self._get_data_dict().items()):
+            writer.add_dataset(data_name, convert_to_ndarray(data))
 
     def set_from_data(self, *data_from_file):
         """
@@ -180,11 +141,7 @@ class SpectrumData:
         param_vals = metadata_dict.pop('param_vals')
         system_params = metadata_dict
         data_dict = {name: data_list[i] for i, name in enumerate(name_list)}
-        energy_table = data_dict.get('energy_table')
-        state_table = data_dict.get('state_table')
-        matrixelem_table = data_dict.get('matrixelem_table')
-        return cls(param_name=param_name, param_vals=param_vals, energy_table=energy_table, system_params=system_params,
-                   state_table=state_table, matrixelem_table=matrixelem_table)
+        return cls(param_name=param_name, param_vals=param_vals, system_params=system_params, **data_dict)
 
     def filewrite(self, filename):
         """Write metadata and spectral data to file
@@ -224,3 +181,59 @@ class SpectrumData:
         file_format = config.FILE_FORMAT
         reader = io.ObjectReader()
         return reader.create_from_fileread(cls, file_format, filename)
+
+
+# —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
+
+
+class SpectrumData(DataStore):
+    """Container holding energy and state data as a function of a particular parameter that is varied.
+    Also stores all other system parameters used for generating the set, and provides method for writing
+    data to file.
+
+    Parameters
+    ----------
+    param_name: str
+        name of parameter being varies
+    param_vals: ndarray
+        parameter values for which spectrum data are stored
+    energy_table: ndarray
+        energy eigenvalues stored for each `param_vals` point
+    system_params: dict
+        info about system parameters
+    state_table: ndarray or list, optional
+        eigenstate data stored for each `param_vals` point, either as pure ndarray or list of qutip.qobj
+    matrixelem_table: ndarray, optional
+        matrix element data stored for each `param_vals` point
+    """
+    def __init__(self, param_name, param_vals, energy_table, system_params, state_table=None, matrixelem_table=None):
+        super().__init__(param_name, param_vals, system_params)
+        self.energy_table = energy_table
+        self.state_table = state_table
+        self.matrixelem_table = matrixelem_table
+
+    def subtract_ground(self):
+        """Subtract ground state energies from spectrum"""
+        self.energy_table -= self.energy_table[:, 0]
+
+    def plot_evals_vs_paramvals(self, which=-1, subtract_ground=False, label_list=None, **kwargs):
+        """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
+
+        Parameters
+        ----------
+        which: int or list(int)
+            default: -1, signals to plot all eigenvalues; int>0: plot eigenvalues 0..int-1; list(int) plot the specific
+            eigenvalues (indices listed)
+        subtract_ground: bool, optional
+            whether to subtract the ground state energy, default: False
+        label_list: list(str), optional
+            list of labels associated with the individual curves to be plotted
+        **kwargs: dict
+            standard plotting option (see separate documentation)
+
+        Returns
+        -------
+        Figure, Axes
+        """
+        return plot.evals_vs_paramvals(self, which=which, subtract_ground=subtract_ground,
+                                       label_list=label_list, **kwargs)

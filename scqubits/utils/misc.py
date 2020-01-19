@@ -11,6 +11,9 @@
 
 
 import numpy as np
+import qutip as qt
+
+from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
 
 
 def process_which(which, max_index):
@@ -69,7 +72,7 @@ def process_metadata(full_dict):
     for key, param_obj in full_dict.items():
         if key[0] == '_':
             continue
-        if isinstance(param_obj, (int, float, np.number)):
+        if is_numerical(param_obj):
             reduced_dict[key] = param_obj
         elif key == 'grid':
             grid_dict = param_obj._get_metadata_dict()
@@ -92,5 +95,38 @@ def is_numerical(entity):
     return isinstance(entity, (int, float, complex, np.number))
 
 
+def is_array_like(entity):
+    return isinstance(entity, (list, np.ndarray))
+
+
 def key_in_grid1d(key):
     return key in ['min_val', 'max_val', 'pt_count']
+
+
+def value_not_none(key_value):
+    _, value = key_value
+    return value is not None
+
+
+def convert_to_ndarray(entity):
+    """Convert the object `entity` to a numpy ndarray of numerical dtype. This is needed in the routines for writing
+    content of DataStores and SpectrumData to disk.
+
+    Parameters
+    ----------
+    entity: array_like
+    """
+    if isinstance(entity, np.ndarray) and entity.dtype.kind in set('biufc'):
+        # entity is numerical ndarray already
+        return entity
+    if isinstance(entity, np.ndarray) and isinstance(entity.flat[0], qt.Qobj):
+        # entity is output from qt.eigenstates
+        return convert_esys_to_ndarray(entity)
+    if isinstance(entity, list) and isinstance(entity[0], np.ndarray) and isinstance(entity[0].flat[0], qt.Qobj):
+        # entity is a list of qt.eigenstates
+        return np.asarray([convert_esys_to_ndarray(entry) for entry in entity])
+    # possibly we have a list of numerical values or a list of ndarrays
+    converted_entity = np.asarray(entity)
+    if converted_entity.dtype.kind not in set('biufc'):
+        raise TypeError('Unable to convert data to numerical numpy array: ', entity)
+    return converted_entity
