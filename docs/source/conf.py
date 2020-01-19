@@ -30,7 +30,6 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.todo',
               'sphinx.ext.doctest',
               'sphinx.ext.autosummary',
-              'numpydoc',
               'sphinx.ext.extlinks',
               'sphinx.ext.viewcode',
               'sphinx.ext.ifconfig',
@@ -42,7 +41,7 @@ extensions = ['sphinx.ext.autodoc',
 html_show_sourcelink = False
 
 autodoc_default_options = {'members': True, 'inherited-members': True}
-autodoc_mock_imports = ['qutip', 'cython', 'ipywidgets', 'tqdm']
+autodoc_mock_imports = ['ipywidgets', 'IPython']
 
 
 # Add any paths that contain templates here, relative to this directory.
