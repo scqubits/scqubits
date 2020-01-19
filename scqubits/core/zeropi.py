@@ -179,16 +179,15 @@ class ZeroPi(QubitBaseClass):
         scipy.sparse.csc_matrix
             matrix representing the potential energy operator
         """
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
         pt_count = self.grid.pt_count
+        grid_linspace = self.grid.make_linspace()
         dim_theta = 2 * self.ncut + 1
 
-        phi_inductive_vals = self.EL * np.square(np.linspace(min_val, max_val, pt_count))
+        phi_inductive_vals = self.EL * np.square(grid_linspace)
         phi_inductive_potential = sparse.dia_matrix((phi_inductive_vals, [0]), shape=(pt_count, pt_count)).tocsc()
-        phi_cos_vals = np.cos(np.linspace(min_val, max_val, pt_count) - 2.0 * np.pi * self.flux / 2.0)
+        phi_cos_vals = np.cos(grid_linspace - 2.0 * np.pi * self.flux / 2.0)
         phi_cos_potential = sparse.dia_matrix((phi_cos_vals, [0]), shape=(pt_count, pt_count)).tocsc()
-        phi_sin_vals = np.sin(np.linspace(min_val, max_val, pt_count) - 2.0 * np.pi * self.flux / 2.0)
+        phi_sin_vals = np.sin(grid_linspace - 2.0 * np.pi * self.flux / 2.0)
         phi_sin_potential = sparse.dia_matrix((phi_sin_vals, [0]), shape=(pt_count, pt_count)).tocsc()
 
         theta_cos_potential = (-self.EJ
@@ -286,12 +285,10 @@ class ZeroPi(QubitBaseClass):
         -------
             scipy.sparse.csc_matrix
         """
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
         pt_count = self.grid.pt_count
 
         phi_matrix = sparse.dia_matrix((pt_count, pt_count), dtype=np.complex_)
-        diag_elements = np.linspace(min_val, max_val, pt_count)
+        diag_elements = self.grid.make_linspace()
         phi_matrix.setdiag(diag_elements)
         return phi_matrix
 
