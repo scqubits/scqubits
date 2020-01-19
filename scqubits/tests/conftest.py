@@ -173,3 +173,11 @@ class StandardTests(BaseTest):
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.plot_matelem_vs_paramvals(self.op1_str, self.param_name, self.param_list,
                                        select_elems=[(0, 0), (1, 4), (1, 0)])
+
+    def test_plot_potential(self):
+        testname = self.file_str + '_1'
+        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        if 'plot_potential' not in dir(self.qbt):
+            pytest.skip('This is expected, no reason for concern.')
+        self.qbt.plot_potential()
