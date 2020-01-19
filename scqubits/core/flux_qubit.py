@@ -16,7 +16,7 @@ import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.core.spectrum import WaveFunctionOnGrid
+from scqubits.core.storage import WaveFunctionOnGrid
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
@@ -284,9 +284,9 @@ class FluxQubit(QubitBaseClass):
         -------
         Figure, Axes
         """
-        modefunction = constants.MODE_FUNC_DICT[mode]
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, phi_grid=phi_grid, which=which)
-        wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
         if 'figsize' not in kwargs:
             kwargs['figsize'] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
