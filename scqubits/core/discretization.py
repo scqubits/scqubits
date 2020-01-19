@@ -12,12 +12,11 @@
 import numpy as np
 from scipy import sparse
 
+from scqubits.utils.misc import is_numerical
+
 
 def _shared_get_metadata_dict(self):
-    meta_dict = {}
-    for key, param_obj in self.__dict__.items():
-        if isinstance(param_obj, (int, float, np.number)):
-            meta_dict[key] = param_obj
+    meta_dict = {key: value for key, value in self.__dict__.items() if is_numerical(value)}
     return meta_dict
 
 
