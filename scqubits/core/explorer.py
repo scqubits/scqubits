@@ -24,9 +24,8 @@ except ImportError:
     raise Exception("ImportError: failed to import IPython. For use of scqubits.explorer,"
                     "IPython must be installed")
 
-import scqubits.utils.sweep_plotting as splot
-from scqubits.settings import DEFAULT_ENERGY_UNITS
 import scqubits.core.sweep_generators as swp
+import scqubits.utils.explorer_panels as panels
 
 
 class Explorer:
@@ -52,99 +51,65 @@ class Explorer:
         swp.generate_chi_sweep(sweep)
         swp.generate_charge_matrixelem_sweep(sweep)
 
-    def plot_explorer_panels(self, param_val, photonnumber, initial_index, final_index, chi_qbt_index, chi_osc_index):
+    def plot_explorer_panels(self, param_val, photonnumber, initial_index, final_index, qbt_index, osc_index):
         """
         Create a panel of plots (bare spectra, bare wavefunctions, dressed spectrum, n-photon qubit transitions, chi).
 
         Parameters
         ----------
         param_val: float
+            current value of the external parameter
         photonnumber: int
+            photon number n used for display of n-photon qubit transition
         initial_index: int
+            dressed-state index of the initial state used in transition
         final_index: int
-        chi_qbt_index: int
-        chi_osc_index: int
+            dressed-state index of the final state used in transition (in dressed spectrum display)
+        qbt_index: int
+            index of qubit subsystem for which matrix elements and chi's are displayed
+        osc_index: int
+            index of oscillator subsystem for which chi's are calculated
 
         Returns
         -------
-        Figure, Axes
+        Figure, Axes: matplotlib.Figure, matplotlib.Axes
         """
-        def display_bare_spectrum(fig_ax):
-            title = 'bare spectrum: subsystem {} ({})'.format(self.sweep.hilbertspace.index(subsys), subsys._sys_type)
-            __ = splot.bare_spectrum(self.sweep, subsys, title=title, fig_ax=fig_ax)
-            axes_list_flattened[index].axvline(param_val, color='gray', linestyle=':')
-
-        def display_bare_wavefunctions(fig_ax):
-            title = 'wavefunctions: subsystem {} ({})'.format(self.sweep.hilbertspace.index(subsys), subsys._sys_type)
-            __ = splot.bare_wavefunction(self.sweep, param_val, subsys, title=title, fig_ax=fig_ax)
-
-        def display_dressed_spectrum(fig_ax):
-            title = r'{} $\rightarrow$ {}: {:.4f} {}'.format(initial_bare, final_bare, energy_difference,
-                                                             DEFAULT_ENERGY_UNITS)
-            __ = splot.dressed_spectrum(self.sweep, title=title, fig_ax=fig_ax)
-            fig_ax[1].axvline(param_val, color='gray', linestyle=':')
-            fig_ax[1].scatter([param_val] * 2, [energy_initial, energy_final], s=40, c='gray')
-
-        def display_n_photon_qubit_transitions(fig_ax):
-            title = r'{}-photon qubit transitions, {} $\rightarrow$'.format(photonnumber, initial_bare)
-            __ = splot.n_photon_qubit_spectrum(self.sweep, photonnumber, initial_state_labels=initial_bare,
-                                               title=title, fig_ax=fig_ax)
-            fig_ax[1].axvline(param_val, color='gray', linestyle=':')
-
-        def display_chi_01(fig_ax):
-            __ = splot.chi_01(self.sweep, chi_qbt_index, chi_osc_index, param_index=param_index, fig_ax=fig_ax)
-            fig_ax[1].axvline(param_val, color='gray', linestyle=':')
-
-        def display_charge_matrixelems(fig_ax):
-            bare_qbt_initial = initial_bare[qbt_index]
-            title = r'charge matrix elements for {} [{}]'.format(type(qbt_subsys).__name__, qbt_index)
-            __ = splot.charge_matrixelem(self.sweep, qbt_index, bare_qbt_initial, title=title, fig_ax=fig_ax)
-            fig_ax[1].axvline(param_val, color='gray', linestyle=':')
-
         def fig_ax(index):
             return fig, axes_list_flattened[index]
 
         param_index = np.searchsorted(self.param_vals, param_val)
         param_val = self.param_vals[param_index]
+
         initial_bare = self.sweep.lookup.bare_index(initial_index, param_index)
         final_bare = self.sweep.lookup.bare_index(final_index, param_index)
-
         energy_ground = self.sweep.lookup.energy_dressed_index(0, param_index)
-        energy_initial = (self.sweep.lookup.energy_dressed_index(initial_index, param_index)
-                          - energy_ground)
-        energy_final = (self.sweep.lookup.energy_dressed_index(final_index, param_index)
-                        - energy_ground)
-        energy_difference = energy_final - energy_initial
-        qbt_index = chi_qbt_index
-        qbt_subsys = self.sweep.hilbertspace[chi_qbt_index]
+        energy_initial = self.sweep.lookup.energy_dressed_index(initial_index, param_index) - energy_ground
+        energy_final = self.sweep.lookup.energy_dressed_index(final_index, param_index) - energy_ground
+        qbt_subsys = self.sweep.hilbertspace[qbt_index]
 
         nrows = 3
         ncols = 2
         fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=self.figsize)
-
         axes_list_flattened = [elem for sublist in axs for elem in sublist]
-        # start with plots for bare qubit subsystems
-        # left: bare spectrum, right: wavefunctions
-        subsys = self.sweep.hilbertspace[chi_qbt_index]
-        index = 0
-        display_bare_spectrum(fig_ax(index))
-        index += 1
-        if type(subsys).__name__ in ['Transmon', 'Fluxonium']:   # do not plot wavefunctions if multi-dimensional
-            display_bare_wavefunctions(fig_ax(index))
-        index += 1
 
-        # next row - left: dressed spectrum, right: n-photon qubit transition spectrum
-        display_dressed_spectrum(fig_ax(index))
-        index += 1
-        display_n_photon_qubit_transitions(fig_ax(index))
-        index += 1
+        # Panel 1 ----------------------------------
+        panels.display_bare_spectrum(self.sweep, qbt_subsys, param_val, fig_ax(0))
 
-        # next row: left - dispersive shifts, right: charge matrix elements
-        display_chi_01(fig_ax(index))
-        index += 1
+        # Panels 2 and 6----------------------------
+        if type(qbt_subsys).__name__ in ['Transmon', 'Fluxonium']:   # do not plot wavefunctions if multi-dimensional
+            panels.display_bare_wavefunctions(self.sweep, qbt_subsys, param_val, fig_ax(1))
+            panels.display_charge_matrixelems(self.sweep, initial_bare, qbt_subsys, param_val, fig_ax(5))
 
-        if type(self.sweep.hilbertspace[chi_qbt_index]).__name__ in ['Transmon', 'Fluxonium']:
-            display_charge_matrixelems(fig_ax(index))
+        # Panel 3 ----------------------------------
+        panels.display_dressed_spectrum(self.sweep, initial_bare, final_bare, energy_initial, energy_final, param_val,
+                                        fig_ax(2))
+
+        # Panel 4 ----------------------------------
+        panels.display_n_photon_qubit_transitions(self.sweep, photonnumber, initial_bare, param_val, fig_ax(3))
+
+        # Panel 5 ----------------------------------
+        panels.display_chi_01(self.sweep, qbt_index, osc_index, param_index, fig_ax(4))
+
         fig.tight_layout()
         return fig, axs
 
@@ -163,8 +128,8 @@ class Explorer:
         initial_slider = ipywidgets.IntSlider(value=0, min=0, max=self.evals_count, description='initial state index')
         final_slider = ipywidgets.IntSlider(value=1, min=1, max=self.evals_count, description='final state index')
 
-        chi_qbt_dropdown = ipywidgets.Dropdown(options=qbt_indices, description='qubit subsys')
-        chi_osc_dropdown = ipywidgets.Dropdown(options=osc_indices, description='oscillator subsys')
+        qbt_dropdown = ipywidgets.Dropdown(options=qbt_indices, description='qubit subsys')
+        osc_dropdown = ipywidgets.Dropdown(options=osc_indices, description='oscillator subsys')
 
         def update_min_final_index(*args):
             final_slider.min = initial_slider.value + 1
@@ -176,13 +141,13 @@ class Explorer:
                                              'photonnumber': photon_slider,
                                              'initial_index': initial_slider,
                                              'final_index': final_slider,
-                                             'chi_qbt_index': chi_qbt_dropdown,
-                                             'chi_osc_index': chi_osc_dropdown
+                                             'qbt_index': qbt_dropdown,
+                                             'osc_index': osc_dropdown
                                              })
 
         left_box = ipywidgets.VBox([param_slider])
         mid_box = ipywidgets.VBox([initial_slider, final_slider, photon_slider])
-        right_box = ipywidgets.VBox([chi_qbt_dropdown, chi_osc_dropdown])
+        right_box = ipywidgets.VBox([qbt_dropdown, osc_dropdown])
 
         user_interface = ipywidgets.HBox([left_box, mid_box, right_box])
         display(user_interface, out)
