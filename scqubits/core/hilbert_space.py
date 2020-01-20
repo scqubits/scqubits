@@ -11,6 +11,7 @@
 
 import numpy as np
 import qutip as qt
+import warnings
 
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.storage import SpectrumData
@@ -113,6 +114,38 @@ class HilbertSpace(list):
         -------
         int"""
         return len(self)
+
+    def eigenvals(self, evals_count=6):
+        """Calculates eigenvalues of the full Hamiltonian using `qutip.Qob.eigenenergies()`.
+
+        Parameters
+        ----------
+        evals_count: int, optional
+            number of desired eigenvalues/eigenstates
+
+        Returns
+        -------
+        eigenvalues: ndarray of float
+        """
+        hamiltonian_mat = self.hamiltonian()
+        return hamiltonian_mat.eigenenergies(eigvals=evals_count)
+
+    def eigensys(self, evals_count):
+        """Calculates eigenvalues and eigenvectore of the full Hamiltonian using `qutip.Qob.eigenstates()`.
+
+        Parameters
+        ----------
+        evals_count: int, optional
+            number of desired eigenvalues/eigenstates
+
+        Returns
+        -------
+        evals: ndarray of float
+        evecs: ndarray of Qobj kets
+        """
+        hamiltonian_mat = self.hamiltonian()
+        evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
+        return evals, evecs
 
     def diag_operator(self, diag_elements, subsystem):
         """For given diagonal elements of a diagonal operator in `subsystem`, return the `Qobj` operator for the
@@ -230,7 +263,7 @@ class HilbertSpace(list):
         """
         return self.index(subsys)
 
-    def get_bare_hamiltonian(self):
+    def bare_hamiltonian(self):
         """
         Returns
         -------
@@ -243,7 +276,12 @@ class HilbertSpace(list):
             bare_hamiltonian += self.diag_hamiltonian(subsys, evals)
         return bare_hamiltonian
 
-    def get_hamiltonian(self):
+    def get_bare_hamiltonian(self):
+        """Deprecated, use `bare_hamiltonian()` instead."""
+        warnings.warn('bare_hamiltonian() is deprecated, use bare_hamiltonian() instead', FutureWarning)
+        return self.bare_hamiltonian()
+
+    def hamiltonian(self):
         """
 
         Returns
@@ -251,10 +289,14 @@ class HilbertSpace(list):
         qutip.qobj
             Hamiltonian of the composite system, including the interaction between components
         """
-        hamiltonian = self.get_bare_hamiltonian()
+        hamiltonian = self.bare_hamiltonian()
         for interaction_term in self.interaction_list:
             hamiltonian += interaction_term.hamiltonian()
         return hamiltonian
+
+    def get_hamiltonian(self):
+        """Deprecated, use `hamiltonian()` instead."""
+        return self.hamiltonian()
 
     def get_spectrum_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, get_eigenstates=False,
                                   param_name="external_parameter"):
