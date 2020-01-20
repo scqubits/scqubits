@@ -7,12 +7,41 @@
 Installation
 **************
 
+
+.. _install-via_conda:
+
+Installing via conda
+====================
+
+For Python 3.6, 3.7 and 3.8, installation via conda is supported.
+
+.. code-block:: bash
+
+   conda install -c conda-forge scqubits
+
+
+
+.. _install-via_pip:
+
+Installing via pip
+==================
+
+scqubits can also be installed using the Python package manager `pip <http://www.pip-installer.org/>`_.
+
+.. code-block:: bash
+
+   pip install scqubits
+
+
+
+
 .. _install-requires:
 
 General Requirements
 =====================
 
 scqubits depends on the following Python open-source libraries:
+
 
 .. cssclass:: table-striped
 
@@ -48,31 +77,6 @@ The following packages are optional:
 +------------------------+--------------+-----------------------------------------------------+
 | matplotlib-label-lines | 0.3.6+       | For smart labelling of matrix element plots         |
 +------------------------+--------------+-----------------------------------------------------+
-
-
-.. _install-via_conda:
-
-Installing via conda
-====================
-
-For Python 3.6, 3.7 and 3.8, installation via conda is supported.
-
-.. code-block:: bash
-
-   conda install -c conda-forge scqubits
-
-
-
-.. _install-via_pip:
-
-Installing via pip
-==================
-
-scqubits can also be installed using the Python package manager `pip <http://www.pip-installer.org/>`_.
-
-.. code-block:: bash
-
-   pip install scqubits
 
 
 

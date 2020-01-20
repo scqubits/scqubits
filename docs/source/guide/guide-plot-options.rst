@@ -1,10 +1,10 @@
 .. scqubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
-.. _guide_plotparameters:
+.. _guide_plotoptions:
 
 ***************
-Plot Parameters
+Plot Options
 ***************
 
 scqubits implements a number of routines for plotting a variety of viewgraphs, such as one-dimensional and

@@ -1,7 +1,7 @@
 .. scqubits
    Copyright (C) 2019, Jens Koch & Peter Groszkowski
 
-.. _settings:
+.. _guide-settings:
 
 *************************************
 Modifying Internal scqubits Settings
