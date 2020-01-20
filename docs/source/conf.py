@@ -13,7 +13,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath('../../'))
 
 # -- Project information -----------------------------------------------------
 
@@ -41,7 +41,10 @@ extensions = ['sphinx.ext.autodoc',
 html_show_sourcelink = False
 
 autodoc_default_options = {'members': True, 'inherited-members': True}
-autodoc_mock_imports = ['qutip', 'pytest', 'ipywidgets', 'IPython']
+autodoc_mock_imports = ['qutip', 'pytest', 'ipywidgets', 'IPython', 'tqdm']
+
+# The master toctree document.
+master_doc = 'index'
 
 
 # Add any paths that contain templates here, relative to this directory.
@@ -108,6 +111,5 @@ show_authors = True
 # modindex_common_prefix = []
 todo_include_todos = True
 
-numpydoc_show_class_members = False
 napoleon_numpy_docstring = True
 napoleon_use_admonition_for_notes = True
