@@ -201,7 +201,7 @@ class TestHilbertSpace:
 
     def test_HilbertSpace_interface_1_1(self):
         hilbertspace = self.initialize()
-        evals, _ = hilbertspace.get_hamiltonian().eigenstates()
+        evals, _ = hilbertspace.hamiltonian().eigenstates()
 
         evals_reference = np.asarray([-36.9898613, -32.2485069, -31.31250908, -31.00035225,
                                       -29.18345776, -26.26664068, -25.32975243, -25.01086732,

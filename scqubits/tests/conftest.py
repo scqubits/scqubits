@@ -114,34 +114,34 @@ class StandardTests(BaseTest):
 
     def test_eigenvals(self):
         testname = self.file_str + '_1'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         evals_reference = specdata.energy_table
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
         testname = self.file_str + '_2'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         evecs_reference = specdata.state_table
         return self.eigenvecs(evecs_reference)
 
     def test_plot_wavefunction(self):
         testname = self.file_str + '_1'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.qbt.plot_wavefunction(esys=None, which=5, mode='real')
         self.qbt.plot_wavefunction(esys=None, which=9, mode='abs_sqr')
 
     def test_plot_evals_vs_paramvals(self):
         testname = self.file_str + '_1'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         return self.plot_evals_vs_paramvals(self.param_name, self.param_list)
 
     def test_get_spectrum_vs_paramvals(self):
         testname = self.file_str + '_4'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.param_list = specdata.param_vals
         evecs_reference = specdata.state_table
@@ -150,33 +150,33 @@ class StandardTests(BaseTest):
 
     def test_matrixelement_table(self):
         testname = self.file_str + '_5'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         matelem_reference = specdata.matrixelem_table
         return self.matrixelement_table(self.op1_str, matelem_reference)
 
     def test_plot_matrixelements(self):
         testname = self.file_str + '_1'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.plot_matrixelements(self.op1_str, evals_count=10)
 
     def test_print_matrixelements(self):
         testname = self.file_str + '_1'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.print_matrixelements(self.op2_str)
 
     def test_plot_matelem_vs_paramvals(self):
         testname = self.file_str + '_1'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.plot_matelem_vs_paramvals(self.op1_str, self.param_name, self.param_list,
                                        select_elems=[(0, 0), (1, 4), (1, 0)])
 
     def test_plot_potential(self):
         testname = self.file_str + '_1'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         if 'plot_potential' not in dir(self.qbt):
             pytest.skip('This is expected, no reason for concern.')

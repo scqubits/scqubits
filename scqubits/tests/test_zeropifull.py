@@ -24,7 +24,7 @@ class TestFullZeroPi(BaseTest):
 
     def test_eigenvals(self):
         testname = self.file_str + '_1'
-        specdata = SpectrumData.create_from_fileread(DATADIR + testname)
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         evals_reference = specdata.energy_table
         return self.eigenvals(evals_reference)
