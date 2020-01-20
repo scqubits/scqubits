@@ -19,6 +19,7 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.constants as constants
+import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
@@ -427,6 +428,7 @@ class QubitBaseClass1d(QubitBaseClass):
         scale = set_scaling(self, scaling, potential_vals)
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
         for wavefunc_index in index_list:
             phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_grid=phi_grid)
             phi_wavefunc.amplitudes = standardize_sign(phi_wavefunc.amplitudes)

@@ -15,6 +15,7 @@ import numpy as np
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
+import scqubits.utils.plot_defaults as defaults
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass1d
 from scqubits.core.storage import WaveFunction
@@ -130,7 +131,8 @@ class Transmon(QubitBaseClass1d):
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         n_wavefunc.amplitudes = amplitude_modifier(n_wavefunc.amplitudes)
-        return plot.wavefunction1d_discrete(n_wavefunc, xlim=nrange, xlabel='n', ylabel=r'$\psi_j(n)$', **kwargs)
+        kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}    # if any duplicates, later ones survive
+        return plot.wavefunction1d_discrete(n_wavefunc, xlim=nrange, **kwargs)
 
     def plot_phi_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs_sqr', scaling=None, **kwargs):
         """Alias for plot_wavefunction"""

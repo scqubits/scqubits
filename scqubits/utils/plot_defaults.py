@@ -13,6 +13,7 @@
 import numpy as np
 
 import scqubits
+from scqubits.core.constants import MODE_STR_DICT
 from scqubits.settings import DEFAULT_ENERGY_UNITS
 
 
@@ -39,19 +40,35 @@ def set_scaling(qubit, scaling, potential_vals=None):
     return scaling
 
 
-def wavefunction1d():
-    """Plot defaults for plotting.wavefunction1d"""
+def wavefunction1d(mode=None):
+    """Plot defaults for plotting.wavefunction1d.
+
+    Parameters
+    ----------
+    mode: str
+        amplitude modifier, needed to give the correct default y label"""
+    ylabel = r'$\psi_j(\varphi)$'
+    if mode:
+        ylabel = MODE_STR_DICT[mode](ylabel)
     return {
         'xlabel': r'$\varphi$',
-        'ylabel': r'$\psi_j(\varphi)$'
+        'ylabel': ylabel
     }
 
 
-def wavefunction1d_discrete():
-    """Plot defaults for plotting.wavefunction1d_discrete"""
+def wavefunction1d_discrete(mode=None):
+    """Plot defaults for plotting.wavefunction1d_discrete.
+
+    Parameters
+    ----------
+    mode: str
+        amplitude modifier, needed to give the correct default y label"""
+    ylabel = r'$\psi_j(n)$'
+    if mode:
+        ylabel = MODE_STR_DICT[mode](ylabel)
     return {
         'xlabel': 'n',
-        'ylabel': r'$\psi_j(n)$'
+        'ylabel': ylabel
     }
 
 

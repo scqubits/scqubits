@@ -31,6 +31,12 @@ MODE_FUNC_DICT = {'abs_sqr': (lambda x: np.abs(x)**2),
                   'real': np.real,
                   'imag': np.imag}
 
+# the following string manipulations are used in automatic generation of default ylabels of wavefunction plots
+MODE_STR_DICT = {'abs_sqr': (lambda x: '$|$' + x + '$|^2$'),
+                  'abs': (lambda x: '$|$' + x + '$|$'),
+                  'real': (lambda x: 'Re ' + x),
+                  'imag': (lambda x: 'Im ' + x)}
+
 # enumerate variables for zero-pi qubit
 PHI_INDEX = 0
 THETA_INDEX = 1
