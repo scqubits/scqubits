@@ -12,17 +12,20 @@
 import numpy as np
 
 from scqubits.utils.misc import make_bare_labels
-from scqubits.utils.spectrum_utils import get_matrixelement_table
+import scqubits.utils.spectrum_utils as spectrum_utils
 
 
 def dispersive_chi(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=None):
-    """
-    For a given ParameterSweep, calculate dispersive shift data for one value of the external parameter.
+    r"""For a given ParameterSweep, calculate dispersive shift data for a single value of the external parameter. The
+    dispersive shift relates to a qubit subsystem coupled to an oscillator subsystem. :math:`\chi_j` is the shift of
+    qubit level :math:`j` due to the addition of a photon in the oscillator. It is calculated here from the exact
+    spectrum by means of :math:`\chi_j = E_{n=1,j} - E_{n=0,j} - \hbar\omega_\text{osc}`.
 
     Parameters
     ----------
     sweep: ParameterSweep
     param_index: int
+        index of the parameter value for which chis should be calculated
     qubit_subsys: QuantumSystem
     osc_subsys: Oscillator
     chi_indices: tuple(int, int), optional
@@ -77,4 +80,4 @@ def qubit_matrixelement(sweep, param_index, qubit_subsys, qubit_operator):
     ndarray
     """
     bare_evecs = sweep.lookup.bare_eigenstates(param_index, qubit_subsys)
-    return get_matrixelement_table(qubit_operator, bare_evecs)
+    return spectrum_utils.get_matrixelement_table(qubit_operator, bare_evecs)
