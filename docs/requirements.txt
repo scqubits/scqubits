@@ -1,6 +1,6 @@
 sphinx_rtd_theme
 nbsphinx
-napoleon
+sphinxcontrib-napoleon
 autodoc
 numpy>=1.14.2
 scipy>=1.1.0
