@@ -163,10 +163,10 @@ class DataStore:
         """
         file_format = config.FILE_FORMAT
         reader = io.ObjectReader()
-        reader.set_params_from_fileread(self, file_format, filename)
+        reader.set_params_from_file(self, file_format, filename)
 
     @classmethod
-    def create_from_fileread(cls, filename):
+    def create_from_file(cls, filename):
         """Read metadata and spectral data from file, and use those to create a new SpectrumData object.
 
         Parameters
@@ -180,7 +180,7 @@ class DataStore:
         """
         file_format = config.FILE_FORMAT
         reader = io.ObjectReader()
-        return reader.create_from_fileread(cls, file_format, filename)
+        return reader.create_from_file(cls, file_format, filename)
 
 
 # —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
