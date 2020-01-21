@@ -88,6 +88,16 @@ class HilbertSpace(list):
             output += '\n' + str(subsystem) + '\n'
         return output
 
+    def _get_metadata_dict(self):
+        meta_dict = {}
+        for index, subsystem in enumerate(self):
+            subsys_meta = subsystem._get_metadata_dict()
+            renamed_subsys_meta = {}
+            for key in subsys_meta.keys():
+                renamed_subsys_meta[type(subsystem).__name__ + str(index) + '_' + key] = subsys_meta[key]
+            meta_dict.update(renamed_subsys_meta)
+        return meta_dict
+
     @property
     def subsystem_dims(self):
         """Returns list of the Hilbert space dimensions of each subsystem
@@ -345,13 +355,3 @@ class HilbertSpace(list):
         spectrumdata = SpectrumData(param_name, param_vals, eigenenergy_table, self.__dict__,
                                     state_table=eigenstates_qobj_table)
         return spectrumdata
-
-    def _get_metadata_dict(self):
-        meta_dict = {}
-        for index, subsystem in enumerate(self):
-            subsys_meta = subsystem._get_metadata_dict()
-            renamed_subsys_meta = {}
-            for key in subsys_meta.keys():
-                renamed_subsys_meta[type(subsystem).__name__ + str(index) + '_' + key] = subsys_meta[key]
-            meta_dict.update(renamed_subsys_meta)
-        return meta_dict
