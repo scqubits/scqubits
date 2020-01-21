@@ -1,7 +1,7 @@
 ---
 name: Ideas, Suggestions, Feature Requests
 about: Suggest an idea for enhancing scqubits
-title: "[SUGGESTIONS & REQUESTS]"
+title: "[Suggestion/request]"
 labels: enhancement
 assignees: jkochNU
 
