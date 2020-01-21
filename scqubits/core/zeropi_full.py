@@ -20,6 +20,27 @@ from scqubits.utils.misc import is_numerical, key_in_grid1d
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
 
+class FZPProperty:
+    """Common setter and getter function for FullZeroPi
+
+    Parameters
+    ----------
+    name: str
+        Name of property to be accessed in FullZeroPi._zeropi
+    """
+    def __init__(self, name):
+        self.name = name
+
+    def __get__(self, instance, owner):
+        if instance is None:   # when accessed on class level rather than instance level
+            return self
+        else:
+            return getattr(instance._zeropi, self.name)  # return x._zeropi.prop
+
+    def __set__(self, instance, value):
+        setattr(instance._zeropi, self.name, value)  # x._zeropi.prop = value
+
+
 class FullZeroPi(QubitBaseClass):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
     Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
@@ -76,7 +97,6 @@ class FullZeroPi(QubitBaseClass):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
-
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
                  ECS=None, truncated_dim=None):
         self.dC = dC
@@ -102,93 +122,17 @@ class FullZeroPi(QubitBaseClass):
             truncated_dim=zeropi_cutoff
         )
 
-    def get_EJ(self):
-        return self._zeropi.EJ 
-
-    def set_EJ(self, value):
-        self._zeropi.EJ = value
-
-    EJ = property(get_EJ, set_EJ)
-
-    def get_EL(self):
-        return self._zeropi.EL
-
-    def set_EL(self, value):
-        self._zeropi.EL = value
-
-    EL = property(get_EL, set_EL)
-
-    def get_ECJ(self):
-        return self._zeropi.ECJ
-
-    def set_ECJ(self, value):
-        self._zeropi.ECJ = value
-
-    ECJ = property(get_ECJ, set_ECJ)
-
-    def get_EC(self):
-        return self._zeropi.EC
-
-    def set_EC(self, value):
-        self._zeropi.EC = value
-
-    EC = property(get_EC, set_EC)
-    
-    def get_ng(self):
-        return self._zeropi.ng
-
-    def set_ng(self, value):
-        self._zeropi.ng = value
-
-    ng = property(get_ng, set_ng)
-
-    def get_flux(self):
-        return self._zeropi.flux
-
-    def set_flux(self, value):
-        self._zeropi.flux = value
-
-    flux = property(get_flux, set_flux)
-
-    def get_grid(self):
-        return self._zeropi.grid
-
-    def set_grid(self, value):
-        self._zeropi.grid = value
-
-    grid = property(get_grid, set_grid)
-
-    def get_ncut(self):
-        return self._zeropi.ncut
-
-    def set_ncut(self, value):
-        self._zeropi.ncut = value
-
-    ncut = property(get_ncut, set_ncut)
-
-    def get_dEJ(self):
-        return self._zeropi.dEJ
-
-    def set_dEJ(self, value):
-        self._zeropi.dEJ = value
-
-    dEJ = property(get_dEJ, set_dEJ)
-
-    def get_dCJ(self):
-        return self._zeropi.dCJ
-
-    def set_dCJ(self, value):
-        self._zeropi.dCJ = value
-
-    dCJ = property(get_dCJ, set_dCJ)
-
-    def get_ECS(self):
-        return self._zeropi.ECS 
-
-    def set_ECS(self, value):
-        self._zeropi.ECS = value
-
-    ECS = property(get_ECS, set_ECS)
+    EJ = FZPProperty('EJ')
+    EL = FZPProperty('EL')
+    ECJ = FZPProperty('ECJ')
+    EC = FZPProperty('EC')
+    ECS = FZPProperty('ECS')
+    dEJ = FZPProperty('dEJ')
+    dCJ = FZPProperty('dCJ')
+    ng = FZPProperty('ng')
+    flux = FZPProperty('flux')
+    grid = FZPProperty('grid')
+    ncut = FZPProperty('ncut')
 
     def get_zeropi_cutoff(self):
         return self._zeropi.truncated_dim
