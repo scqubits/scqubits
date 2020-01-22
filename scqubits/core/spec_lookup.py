@@ -43,7 +43,7 @@ class SpectrumLookup:
     """
     Generate and store a lookup table facilitating a map between bare state labels and dressed-state indices. The class
     provides such a lookup table for either a HilbertSpace or a ParameterSweep object.
-    `dressed_indices` and `bare_labels` are lists of as many elements as there are parameter values. (For HilbertSpace
+    `_dressed_indices` and `bare_labels` are lists of as many elements as there are parameter values. (For HilbertSpace
     objects these are single-element lists.) Each element is a list of dressed indices (int) or bare labels (tuples).
 
 
@@ -51,7 +51,7 @@ class SpectrumLookup:
     ----------
     framework: HilbertSpace or ParameterSweep
     spectrumdata: SpectrumData
-        given in HilbertSpace mode
+        must be provided when generating for a HilbertSpace object, as HilbertSpace does not store specdata internally
     """
     def __init__(self, framework, spectrumdata=None):
         if isinstance(framework, scqubits.ParameterSweep):
@@ -67,8 +67,9 @@ class SpectrumLookup:
         else:
             raise TypeError
 
-        self.canonical_bare_labels = self.generate_bare_labels()
-        self.dressed_indices = self.generate_lookup()      # includes sweeps and single elements
+        self._canonical_bare_labels = self.generate_bare_labels()
+        self._dressed_indices = self.generate_lookup()      # lists of as many elements as there are parameter values.
+                                                            # For HilbertSpace objects this is a single-element list.
 
     def generate_bare_labels(self):
         dim_list = self.hilbertspace.subsystem_dims
@@ -102,7 +103,7 @@ class SpectrumLookup:
         overlap_matrix = convert_esys_to_ndarray(self.dressed_specdata.state_table[param_index])  # overlap amplitudes
 
         dressed_indices = []
-        for bare_basis_index in range(self.hilbertspace.dimension):   # for given bare base index, find dressed index
+        for bare_basis_index in range(self.hilbertspace.dimension):   # for given bare basis index, find dressed index
             max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
             max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
             if max_overlap < 0.5:     # overlap too low, make no assignment
@@ -126,10 +127,10 @@ class SpectrumLookup:
             dressed state index closest to the specified bare state
         """
         try:
-            lookup_position = self.canonical_bare_labels.index(bare_labels)
+            lookup_position = self._canonical_bare_labels.index(bare_labels)
         except ValueError:
             return None
-        return self.dressed_indices[param_index][lookup_position]
+        return self._dressed_indices[param_index][lookup_position]
 
     def bare_index(self, dressed_index, param_index=0):
         """
@@ -145,10 +146,10 @@ class SpectrumLookup:
         tuple(int)
         """
         try:
-            lookup_position = self.dressed_indices[param_index].index(dressed_index)
+            lookup_position = self._dressed_indices[param_index].index(dressed_index)
         except ValueError:
             return None
-        basis_labels = self.canonical_bare_labels[lookup_position]
+        basis_labels = self._canonical_bare_labels[lookup_position]
         return basis_labels
 
     def dressed_eigenstates(self, param_index):
