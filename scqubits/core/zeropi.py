@@ -9,11 +9,14 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import warnings
+
 import numpy as np
 from scipy import sparse
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
+from scqubits.core.central_dispatch import WatchedProperty, DispatchClient, CENTRAL_DISPATCH
 from scqubits.core.discretization import Grid1d, GridSpec
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import WaveFunctionOnGrid
@@ -71,8 +74,17 @@ class ZeroPi(QubitBaseClass):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
+    EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EC = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dEJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dCJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EL, ECJ, EC, ng, flux, grid, ncut, dEJ=0, dCJ=0, ECS=None, truncated_dim=None):
+        DispatchClient.__init__(self)
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
@@ -97,6 +109,12 @@ class ZeroPi(QubitBaseClass):
         self._evec_dtype = np.complex_
         self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)  # for theta, needed for plotting wavefunction
 
+        CENTRAL_DISPATCH.register('GRID_UPDATE', self)
+
+    def receive(self, event, sender, **kwargs):
+        if sender is self.grid:
+            self.broadcast('QUANTUMSYSTEM_UPDATE')
+
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
@@ -114,8 +132,8 @@ class ZeroPi(QubitBaseClass):
         return 1 / (1 / self.EC + 1 / self.ECJ)
 
     def set_ECS(self, value):
-        raise ValueError("It's not possible to directly set ECS. Instead one can set EC or ECJ,\nor use "
-                         "set_EC_via_ECS() to update EC indirectly.")
+        warnings.warn("It is not possible to directly set ECS (except in initialization). Instead, set EC or ECJ, "
+                      "or use set_EC_via_ECS() to update EC indirectly.", Warning)
 
     ECS = property(get_ECS, set_ECS)
 

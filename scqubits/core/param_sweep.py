@@ -13,12 +13,17 @@
 import numpy as np
 from tqdm.notebook import tqdm
 
+import scqubits.settings as settings
+from scqubits.core.central_dispatch import (DispatchClient,
+                                            ReadOnlyProperty,
+                                            WatchedProperty,
+                                            CENTRAL_DISPATCH)
 from scqubits.core.spec_lookup import SpectrumLookup, shared_lookup_bare_eigenstates
 from scqubits.core.storage import SpectrumData
-from scqubits.settings import TQDM_KWARGS
+from scqubits.settings import TQDM_KWARGS, AUTORUN_SWEEP
 
 
-class ParameterSweep:
+class ParameterSweep(DispatchClient):
     """
     The ParameterSweep class helps generate spectral and associated data for a composite quantum system, as an externa,
     parameter, such as flux, is swept over some given interval of values. Upon initialization, these data are calculated
@@ -41,29 +46,63 @@ class ParameterSweep:
         update_hilbertspace(param_val) specifies how a change in the external parameter affects
         the Hilbert space components
     """
+
+    param_name = WatchedProperty('PARAMETERSWEEP_UPDATE')
+    param_vals = WatchedProperty('PARAMETERSWEEP_UPDATE')
+    param_count = WatchedProperty('PARAMETERSWEEP_UPDATE')
+    evals_count = WatchedProperty('PARAMETERSWEEP_UPDATE')
+    subsys_update_list = WatchedProperty('PARAMETERSWEEP_UPDATE')
+    update_hilbertspace = WatchedProperty('PARAMETERSWEEP_UPDATE')
+    lookup = ReadOnlyProperty()
+
     def __init__(self, param_name, param_vals, evals_count, hilbertspace, subsys_update_list, update_hilbertspace):
         self.param_name = param_name
         self.param_vals = param_vals
         self.param_count = len(param_vals)
         self.evals_count = evals_count
-        self.hilbertspace = hilbertspace
-        self.subsys_update_list = subsys_update_list
+        self._hilbertspace = hilbertspace
+        self.subsys_update_list = tuple(subsys_update_list)
         self.update_hilbertspace = update_hilbertspace
 
-        self.lookup = None
-        self.bare_specdata_list = None
-        self.dressed_specdata = None
+        self._lookup = None
         self._bare_hamiltonian_constant = None
         self.sweep_data = {}
 
-        # generate the spectral data sweep
-        self.generate_parameter_sweep()
+        CENTRAL_DISPATCH.register('PARAMETERSWEEP_UPDATE', self)
+        CENTRAL_DISPATCH.register('HILBERTSPACE_UPDATE', self)
 
-    def generate_parameter_sweep(self):
+        # generate the spectral data sweep
+        if AUTORUN_SWEEP:
+            self.run()
+
+    def run(self):
         """Top-level method for generating all parameter sweep data"""
-        self.bare_specdata_list = self._compute_bare_specdata_sweep()
-        self.dressed_specdata = self._compute_dressed_specdata_sweep()
-        self.lookup = SpectrumLookup(self)
+        self.cause_dispatch()   # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
+        settings.DISPATCH_ENABLED = False
+        bare_specdata_list = self._compute_bare_specdata_sweep()
+        dressed_specdata = self._compute_dressed_specdata_sweep(bare_specdata_list)
+        self._lookup = SpectrumLookup(self, dressed_specdata, bare_specdata_list)
+        settings.DISPATCH_ENABLED = True
+
+    def cause_dispatch(self):
+        self.update_hilbertspace(self.param_vals[0])
+
+    @property
+    def bare_specdata_list(self):
+        return self.lookup._bare_specdata_list
+
+    @property
+    def dressed_specdata(self):
+        return self.lookup._dressed_specdata
+
+    def receive(self, event, sender, **kwargs):
+        if self.lookup is not None:
+            if event == 'HILBERTSPACE_UPDATE' and sender is self._hilbertspace:
+                self._lookup._out_of_sync = True
+                # print('Lookup table now out of sync')
+            elif event == 'PARAMETERSWEEP_UPDATE' and sender is self:
+                self._lookup._out_of_sync = True
+                # print('Lookup table now out of sync')
 
     def _compute_bare_specdata_sweep(self):
         """
@@ -77,17 +116,17 @@ class ParameterSweep:
         del bare_eigendata_varying
         return bare_specdata_list
 
-    def _compute_dressed_specdata_sweep(self):
+    def _compute_dressed_specdata_sweep(self, bare_specdata_list):
         """
         Pre-calculates and all dressed spectral data.
 
         Returns
         -------
-        list(SpectrumData)
+        SpectrumData
         """
-        self._bare_hamiltonian_constant = self._compute_bare_hamiltonian_constant()
+        self._bare_hamiltonian_constant = self._compute_bare_hamiltonian_constant(bare_specdata_list)
 
-        dressed_eigendata = [self._compute_dressed_eigensystem(j)
+        dressed_eigendata = [self._compute_dressed_eigensystem(bare_specdata_list, j)
                              for j in tqdm(range(self.param_count), desc='Dressed spectrum', **TQDM_KWARGS)]
         dressed_specdata = self._recast_dressed_eigendata(dressed_eigendata)
         del dressed_eigendata
@@ -105,7 +144,7 @@ class ParameterSweep:
         list of SpectrumData
         """
         specdata_list = []
-        for index, subsys in enumerate(self.hilbertspace):
+        for index, subsys in enumerate(self._hilbertspace):
             if subsys in self.subsys_update_list:
                 evals_count = subsys.truncated_dim
                 dim = subsys.hilbertdim()
@@ -116,13 +155,13 @@ class ParameterSweep:
                 for j in range(self.param_count):
                     energy_table[j] = bare_eigendata[j][index][0]
                     state_table[j] = bare_eigendata[j][index][1]
-                specdata_list.append(SpectrumData(self.param_name, self.param_vals,
-                                                  energy_table, subsys.__dict__, state_table))
+                specdata_list.append(
+                    SpectrumData(energy_table, subsys.__dict__, self.param_name, self.param_vals, state_table))
             else:
-                specdata_list.append(SpectrumData(self.param_name, self.param_vals,
-                                                  energy_table=static_eigendata[index][0],
-                                                  system_params=subsys.__dict__,
-                                                  state_table=static_eigendata[index][1]))
+                specdata_list.append(
+                    SpectrumData(energy_table=static_eigendata[index][0], system_params=subsys.__dict__,
+                                 param_name=self.param_name, param_vals=self.param_vals,
+                                 state_table=static_eigendata[index][1]))
         return specdata_list
 
     def _recast_dressed_eigendata(self, dressed_eigendata):
@@ -141,11 +180,11 @@ class ParameterSweep:
         for j in range(self.param_count):
             energy_table[j] = dressed_eigendata[j][0]
             state_table.append(dressed_eigendata[j][1])
-        specdata = SpectrumData(self.param_name, self.param_vals, energy_table, state_table=state_table,
-                                system_params=self.hilbertspace._get_metadata_dict())
+        specdata = SpectrumData(energy_table, system_params=self._hilbertspace._get_metadata_dict(),
+                                param_name=self.param_name, param_vals=self.param_vals, state_table=state_table)
         return specdata
 
-    def _compute_bare_hamiltonian_constant(self):
+    def _compute_bare_hamiltonian_constant(self, bare_specdata_list):
         """
         Returns
         -------
@@ -153,13 +192,13 @@ class ParameterSweep:
             composite Hamiltonian composed of bare Hamiltonians of subsystems independent of the external parameter
         """
         static_hamiltonian = 0
-        for index, subsys in enumerate(self.hilbertspace):
+        for index, subsys in enumerate(self._hilbertspace):
             if subsys not in self.subsys_update_list:
-                evals = self.bare_specdata_list[index].energy_table
-                static_hamiltonian += self.hilbertspace.diag_hamiltonian(subsys, evals)
+                evals = bare_specdata_list[index].energy_table
+                static_hamiltonian += self._hilbertspace.diag_hamiltonian(subsys, evals)
         return static_hamiltonian
 
-    def _compute_bare_hamiltonian_varying(self, param_index):
+    def _compute_bare_hamiltonian_varying(self, bare_specdata_list, param_index):
         """
         Parameters
         ----------
@@ -172,10 +211,10 @@ class ParameterSweep:
             composite Hamiltonian consisting of all bare Hamiltonians which depend on the external parameter
         """
         hamiltonian = 0
-        for index, subsys in enumerate(self.hilbertspace):
+        for index, subsys in enumerate(self._hilbertspace):
             if subsys in self.subsys_update_list:
-                evals = self.bare_specdata_list[index].energy_table[param_index]
-                hamiltonian += self.hilbertspace.diag_hamiltonian(subsys, evals)
+                evals = bare_specdata_list[index].energy_table[param_index]
+                hamiltonian += self._hilbertspace.diag_hamiltonian(subsys, evals)
         return hamiltonian
 
     def _compute_bare_spectrum_constant(self):
@@ -186,7 +225,7 @@ class ParameterSweep:
             eigensystem data for each subsystem that is not affected by a change of the external parameter
         """
         eigendata = []
-        for subsys in self.hilbertspace:
+        for subsys in self._hilbertspace:
             if subsys not in self.subsys_update_list:
                 evals_count = subsys.truncated_dim
                 eigendata.append(subsys.eigensys(evals_count=evals_count))
@@ -210,23 +249,25 @@ class ParameterSweep:
         """
         eigendata = []
         self.update_hilbertspace(param_val)
-        for subsys in self.hilbertspace:
+        for subsys in self._hilbertspace:
             evals_count = subsys.truncated_dim
 
             if subsys in self.subsys_update_list:
-                subsys_index = self.hilbertspace.index(subsys)
-                eigendata.append(self.hilbertspace[subsys_index].eigensys(evals_count=evals_count))
+                subsys_index = self._hilbertspace.index(subsys)
+                eigendata.append(self._hilbertspace[subsys_index].eigensys(evals_count=evals_count))
             else:
                 eigendata.append(None)
         return eigendata
 
-    def _compute_dressed_eigensystem(self, param_index):
-        hamiltonian = self._bare_hamiltonian_constant + self._compute_bare_hamiltonian_varying(param_index)
+    def _compute_dressed_eigensystem(self, bare_specdata_list, param_index):
+        hamiltonian = (self._bare_hamiltonian_constant +
+                       self._compute_bare_hamiltonian_varying(bare_specdata_list, param_index))
 
-        for interaction_term in self.hilbertspace.interaction_list:
-            evecs1 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys1)
-            evecs2 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys2)
-            hamiltonian += interaction_term.hamiltonian(evecs1=evecs1, evecs2=evecs2)
+        for interaction_term in self._hilbertspace.interaction_list:
+            evecs1 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys1, bare_specdata_list)
+            evecs2 = self.lookup_bare_eigenstates(param_index, interaction_term.subsys2, bare_specdata_list)
+            hamiltonian += self._hilbertspace.interactionterm_hamiltonian(interaction_term,
+                                                                          evecs1=evecs1, evecs2=evecs2)
         return hamiltonian.eigenstates(eigvals=self.evals_count)
 
     def compute_custom_data_sweep(self, data_name, func, **kwargs):

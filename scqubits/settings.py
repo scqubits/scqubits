@@ -46,6 +46,12 @@ DEFAULT_ENERGY_UNITS = 'GHz'
 TQDM_KWARGS = {'disable': PROGRESSBAR_DISABLED,
                'leave': False}
 
+# run ParameterSweep directly upon initialization
+AUTORUN_SWEEP = True
+
+# enable/disable the CENTRAL_DISPATCH system
+DISPATCH_ENABLED = True
+
 # set custom matplotlib color cycle
 mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
                                                 "#333795",
