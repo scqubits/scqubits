@@ -37,7 +37,7 @@ def bare_spectrum(sweep, subsys, which=-1, **kwargs):
     -------
     fig, axes
     """
-    subsys_index = sweep.hilbertspace.index(subsys)
+    subsys_index = sweep._hilbertspace.index(subsys)
     specdata = sweep.bare_specdata_list[subsys_index]
     if which is None:
         which = subsys.truncated_dim
@@ -125,7 +125,7 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_grid=None, **kwarg
     -------
     fig, axes
     """
-    subsys_index = sweep.hilbertspace.index(subsys)
+    subsys_index = sweep._hilbertspace.index(subsys)
     sweep.update_hilbertspace(param_val)
 
     param_index = np.searchsorted(sweep.param_vals, param_val)
@@ -208,6 +208,6 @@ def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
     data_key = 'n_op_qbt{}'.format(qbt_index)
     specdata = copy.copy(sweep.bare_specdata_list[qbt_index])
     specdata.matrixelem_table = sweep.sweep_data[data_key]
-    label_list = [(initial_state_idx, final_idx) for final_idx in range(sweep.hilbertspace[qbt_index].truncated_dim)]
+    label_list = [(initial_state_idx, final_idx) for final_idx in range(sweep._hilbertspace[qbt_index].truncated_dim)]
     return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs',
                                      **defaults.charge_matrixelem(sweep, **kwargs))

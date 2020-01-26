@@ -12,6 +12,7 @@
 import numpy as np
 from scipy import sparse
 
+from scqubits.core.central_dispatch import WatchedProperty, DispatchClient
 from scqubits.utils.misc import is_numerical
 
 
@@ -20,7 +21,7 @@ def _shared_get_metadata_dict(self):
     return meta_dict
 
 
-class Grid1d:
+class Grid1d(DispatchClient):
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
 
@@ -31,6 +32,10 @@ class Grid1d:
     pt_count: int
         number of grid points
     """
+
+    min_val = WatchedProperty('GRID_UPDATE')
+    max_val = WatchedProperty('GRID_UPDATE')
+    pt_count = WatchedProperty('GRID_UPDATE')
 
     def __init__(self, min_val, max_val, pt_count):
         self.min_val = min_val
@@ -133,7 +138,7 @@ class Grid1d:
         return cls(min_val=meta_dict['min_val'], max_val=meta_dict['max_val'], pt_count=meta_dict['pt_count'])
 
 
-class GridSpec:
+class GridSpec(DispatchClient):
     """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
 
     Parameters
@@ -141,6 +146,12 @@ class GridSpec:
     minmaxpts_array: ndarray
         array of with entries [minvalue, maxvalue, number of points]
     """
+
+    min_vals = WatchedProperty('GRID_UPDATE')
+    max_vals = WatchedProperty('GRID_UPDATE')
+    var_count = WatchedProperty('GRID_UPDATE')
+    pt_counts = WatchedProperty('GRID_UPDATE')
+
     def __init__(self, minmaxpts_array):
         self.min_vals = minmaxpts_array[:, 0]
         self.max_vals = minmaxpts_array[:, 1]

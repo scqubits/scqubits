@@ -14,15 +14,14 @@ import numpy as np
 from tqdm.notebook import tqdm
 
 import scqubits.core.sweep_observables as obs
-from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import TQDM_KWARGS
 
 
 def generate_chi_sweep(sweep):
     """Generate data for the AC Stark shift chi as a function of the sweep parameter"""
-    osc_subsys_list = sweep.hilbertspace.osc_subsys_list
-    qbt_subsys_list = sweep.hilbertspace.qbt_subsys_list
+    osc_subsys_list = sweep._hilbertspace.osc_subsys_list
+    qbt_subsys_list = sweep._hilbertspace.qbt_subsys_list
 
     for osc_index, osc_subsys in osc_subsys_list:
         for qbt_index, qubit_subsys in qbt_subsys_list:
@@ -32,7 +31,7 @@ def generate_chi_sweep(sweep):
 
 def generate_charge_matrixelem_sweep(sweep):
     """Generate data for the charge matrix elements as a function of the sweep parameter"""
-    for qbt_index, subsys in sweep.hilbertspace.qbt_subsys_list:
+    for qbt_index, subsys in sweep._hilbertspace.qbt_subsys_list:
         if type(subsys).__name__ in ['Transmon', 'Fluxonium']:
             sweep.compute_custom_data_sweep('n_op_qbt{}'.format(qbt_index), obs.qubit_matrixelement,
                                             qubit_subsys=subsys, qubit_operator=subsys.n_operator())
@@ -56,7 +55,7 @@ def get_difference_spectrum(sweep, initial_state_ind=0, lookup=None):
     -------
     SpectrumData object
     """
-    lookup = lookup or SpectrumLookup(sweep)
+    lookup = lookup or sweep.lookup
     param_count = sweep.param_count
     evals_count = sweep.evals_count
     diff_eigenenergy_table = np.empty(shape=(param_count, evals_count))
@@ -69,7 +68,7 @@ def get_difference_spectrum(sweep, initial_state_ind=0, lookup=None):
             eigenenergy_index = lookup.dressed_index(initial_state_ind, param_index)
         diff_eigenenergies = eigenenergies - eigenenergies[eigenenergy_index]
         diff_eigenenergy_table[param_index] = diff_eigenenergies
-    return SpectrumData(sweep.param_name, sweep.param_vals, diff_eigenenergy_table, sweep.hilbertspace.__dict__)
+    return SpectrumData(diff_eigenenergy_table, sweep._hilbertspace.__dict__, sweep.param_name, sweep.param_vals)
 
 
 def generate_target_states_list(sweep, initial_state_labels):
@@ -89,7 +88,7 @@ def generate_target_states_list(sweep, initial_state_labels):
     -------
     list of tuple"""
     target_states_list = []
-    for subsys_index, qbt_subsys in sweep.hilbertspace.qbt_subsys_list:   # iterate through qubit subsystems
+    for subsys_index, qbt_subsys in sweep._hilbertspace.qbt_subsys_list:   # iterate through qubit subsystems
         initial_qbt_state = initial_state_labels[subsys_index]
         for state_label in range(initial_qbt_state + 1, qbt_subsys.truncated_dim):
             # for given qubit subsystem, generate target labels by increasing that qubit excitation level
@@ -117,12 +116,12 @@ def get_n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, looku
     -------
     SpectrumData object
     """
-    lookup = lookup or SpectrumLookup(sweep)
+    lookup = lookup or sweep.lookup
 
     target_states_list = generate_target_states_list(sweep, initial_state_labels)
     difference_energies_table = []
 
-    for param_index in tqdm(range(sweep.param_count), desc="n-photon spectrum", **TQDM_KWARGS):
+    for param_index in range(sweep.param_count):
         difference_energies = []
         initial_energy = lookup.energy_bare_index(initial_state_labels, param_index)
         for target_labels in target_states_list:
@@ -132,5 +131,5 @@ def get_n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, looku
             else:
                 difference_energies.append((target_energy - initial_energy) / photonnumber)
         difference_energies_table.append(difference_energies)
-    return target_states_list, SpectrumData(sweep.param_name, sweep.param_vals, np.asarray(difference_energies_table),
-                                            sweep.hilbertspace.__dict__)
+    return target_states_list, SpectrumData(np.asarray(difference_energies_table), sweep._hilbertspace.__dict__,
+                                            sweep.param_name, sweep.param_vals)

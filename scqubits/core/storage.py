@@ -76,16 +76,17 @@ class DataStore:
     **kwargs:
         keyword arguments for data to be stored
     """
-    def __init__(self, param_name, param_vals, system_params, **kwargs):
-        self.param_name = param_name
+    def __init__(self, system_params, param_name=None, param_vals=None, **kwargs):
+        self.param_name = param_name or 'no parameter sweep'
         self.param_vals = param_vals
+        if param_vals is not None:
+            self.param_count = len(self.param_vals)
+        else:
+            self.param_count = 1   # just one value if there is no parameter sweep
         self.system_params = system_params
         self.data_names = kwargs.keys()
         for key, value in kwargs.items():
             setattr(self, key, value)
-
-    def param_count(self):
-        return len(self.param_vals)
 
     def _get_metadata_dict(self):
         meta_dict = {'param_name': self.param_name, 'param_vals': self.param_vals}
@@ -206,8 +207,9 @@ class SpectrumData(DataStore):
     matrixelem_table: ndarray, optional
         matrix element data stored for each `param_vals` point
     """
-    def __init__(self, param_name, param_vals, energy_table, system_params, state_table=None, matrixelem_table=None):
-        super().__init__(param_name, param_vals, system_params)
+    def __init__(self, energy_table, system_params, param_name=None, param_vals=None, state_table=None,
+                 matrixelem_table=None):
+        super().__init__(system_params=system_params, param_name=param_name, param_vals=param_vals)
         self.energy_table = energy_table
         self.state_table = state_table
         self.matrixelem_table = matrixelem_table

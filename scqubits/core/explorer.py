@@ -85,7 +85,7 @@ class Explorer:
         energy_ground = self.sweep.lookup.energy_dressed_index(0, param_index)
         energy_initial = self.sweep.lookup.energy_dressed_index(initial_index, param_index) - energy_ground
         energy_final = self.sweep.lookup.energy_dressed_index(final_index, param_index) - energy_ground
-        qbt_subsys = self.sweep.hilbertspace[qbt_index]
+        qbt_subsys = self.sweep._hilbertspace[qbt_index]
 
         nrows = 3
         ncols = 2
@@ -119,8 +119,8 @@ class Explorer:
         param_max = self.param_vals[-1]
         param_step = self.param_vals[1] - self.param_vals[0]
 
-        qbt_indices = [index for (index, subsystem) in self.sweep.hilbertspace.qbt_subsys_list]
-        osc_indices = [index for (index, subsystem) in self.sweep.hilbertspace.osc_subsys_list]
+        qbt_indices = [index for (index, subsystem) in self.sweep._hilbertspace.qbt_subsys_list]
+        osc_indices = [index for (index, subsystem) in self.sweep._hilbertspace.osc_subsys_list]
 
         param_slider = ipywidgets.FloatSlider(min=param_min, max=param_max, step=param_step,
                                               description=self.param_name, continuous_update=False)

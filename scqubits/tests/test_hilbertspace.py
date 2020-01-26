@@ -178,7 +178,6 @@ class TestHilbertSpace:
 
         interaction1 = InteractionTerm(
             g_strength=g1,
-            hilbertspace=hilbertspace,
             op1=CPB1.n_operator(),
             subsys1=CPB1,
             op2=resonator.creation_operator() + resonator.annihilation_operator(),
@@ -187,7 +186,6 @@ class TestHilbertSpace:
 
         interaction2 = InteractionTerm(
             g_strength=g2,
-            hilbertspace=hilbertspace,
             op1=CPB2.n_operator(),
             subsys1=CPB2,
             op2=resonator.creation_operator() + resonator.annihilation_operator(),
@@ -252,7 +250,6 @@ class TestParameterSweep:
 
         interaction1 = InteractionTerm(
             g_strength=g1,
-            hilbertspace=hilbertspace,
             op1=CPB1.n_operator(),
             subsys1=CPB1,
             op2=resonator.creation_operator() + resonator.annihilation_operator(),
@@ -261,7 +258,6 @@ class TestParameterSweep:
 
         interaction2 = InteractionTerm(
             g_strength=g2,
-            hilbertspace=hilbertspace,
             op1=CPB2.n_operator(),
             subsys1=CPB2,
             op2=resonator.creation_operator() + resonator.annihilation_operator(),

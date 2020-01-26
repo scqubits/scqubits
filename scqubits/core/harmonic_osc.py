@@ -15,6 +15,7 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.operators as op
+from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.qubit_base import QuantumSystem
 
 
@@ -45,6 +46,7 @@ def harm_osc_wavefunction(n, x, losc):
 class Oscillator(QuantumSystem):
     """General class for mode of an oscillator/resonator."""
     def __init__(self, E_osc=None, omega=None, truncated_dim=None):
+        DispatchClient.__init__(self)
         self._sys_type = 'oscillator'
         # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
         if E_osc is None and omega is None:
