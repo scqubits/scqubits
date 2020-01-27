@@ -112,8 +112,9 @@ def matelem_vs_paramvals(specdata):
 
 def dressed_spectrum(sweep, **kwargs):
     """Plot defaults for sweep_plotting.dressed_spectrum"""
-    kwargs['ymax'] = kwargs.get('ymax') or min(15, (np.max(sweep.dressed_specdata.energy_table) -
-                                                    np.min(sweep.dressed_specdata.energy_table)))
+    if 'ylim' not in kwargs:
+        kwargs['ymax'] = kwargs.get('ymax') or min(15, (np.max(sweep.dressed_specdata.energy_table) -
+                                                        np.min(sweep.dressed_specdata.energy_table)))
     kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
     kwargs['ylabel'] = kwargs.get('ylabel') or r'energy [{}]'.format(DEFAULT_ENERGY_UNITS)
     return kwargs
