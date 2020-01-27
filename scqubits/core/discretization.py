@@ -12,6 +12,13 @@
 import numpy as np
 from scipy import sparse
 
+from scqubits.utils.misc import is_numerical
+
+
+def _shared_get_metadata_dict(self):
+    meta_dict = {key: value for key, value in self.__dict__.items() if is_numerical(value)}
+    return meta_dict
+
 
 class Grid1d:
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
@@ -31,7 +38,7 @@ class Grid1d:
         self.pt_count = pt_count
 
     def __str__(self):
-        output = '    Grid (1d) ......'
+        output = '    Grid1d ......'
         for param_name, param_val in sorted(self.__dict__.items()):
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
@@ -43,6 +50,9 @@ class Grid1d:
         float: spacing between neighboring grid points
         """
         return (self.max_val - self.min_val) / self.pt_count
+
+    def make_linspace(self):
+        return np.linspace(self.min_val, self.max_val, self.pt_count)
 
     def first_derivative_matrix(self, prefactor=1.0, periodic=False):
         """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
@@ -106,13 +116,7 @@ class Grid1d:
 
         return derivative_matrix
 
-    def _get_metadata_dict(self):
-        """Extract a dictionary of current grid object"""
-        meta_dict = {}
-        for key, param_obj in self.__dict__.items():
-            if isinstance(param_obj, (int, float, np.number)):
-                meta_dict[key] = param_obj
-        return meta_dict
+    _get_metadata_dict = _shared_get_metadata_dict
 
     @classmethod
     def create_from_dict(cls, meta_dict):
@@ -144,7 +148,7 @@ class GridSpec:
         self.pt_counts = minmaxpts_array[:, 2].astype(np.int)  # these are used as indices; need to be whole numbers.
 
     def __str__(self):
-        output = '    Grid (1d) ......'
+        output = '    GridSpec ......'
         for param_name, param_val in sorted(self.__dict__.items()):
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
@@ -153,9 +157,4 @@ class GridSpec:
         """Auxiliary routine that yields a tuple of the parameters specifying the grid."""
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count
 
-    def _get_metadata_dict(self):
-        meta_dict = {}
-        for key, param_obj in self.__dict__.items():
-            if isinstance(param_obj, (int, float, np.number)):
-                meta_dict[key] = param_obj
-        return meta_dict
+    _get_metadata_dict = _shared_get_metadata_dict

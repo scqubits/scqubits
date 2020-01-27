@@ -70,6 +70,21 @@ def standardize_phases(complex_array):
     return std_array
 
 
+def standardize_sign(real_array):
+    """Standardizes the sign of a real-valued wavefunction by calculating the sign of the sum of all amplitudes and
+    making it positive.
+
+    Parameters
+    ----------
+    real_array: ndarray
+
+    Returns
+    -------
+    ndarray (float)
+    """
+    return np.sign(np.sum(real_array)) * real_array
+
+
 # —Matrix elements and operators (outside qutip) ———————————————————————————————————————————————————————————————————————
 
 
@@ -238,3 +253,24 @@ def convert_esys_to_ndarray(esys_qutip):
     for index, eigenstate in enumerate(esys_qutip):
         esys_ndarray[index] = eigenstate.full()[:, 0]
     return esys_ndarray
+
+
+def convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs):
+    dim = subsystem.truncated_dim
+    if isinstance(operator, qt.Qobj):
+        return operator
+
+    if isinstance(operator, np.ndarray):
+        if op_in_eigenbasis is False:
+            if evecs is None:
+                _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+            operator_matrixelements = get_matrixelement_table(operator, evecs)
+            return qt.Qobj(inpt=operator_matrixelements)
+        return qt.Qobj(inpt=operator[:dim, :dim])
+    elif isinstance(operator, str):
+        if evecs is None:
+            _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+        operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
+        return qt.Qobj(inpt=operator_matrixelements)
+
+    raise TypeError('Unsupported operator type: ', type(operator))

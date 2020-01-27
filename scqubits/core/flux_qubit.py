@@ -12,11 +12,11 @@
 import numpy as np
 import scipy as sp
 
-import scqubits.utils.constants as constants
+import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
-from scqubits.core.data_containers import WaveFunctionOnGrid
-from scqubits.core.discretization import GridSpec
+from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.storage import WaveFunctionOnGrid
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
@@ -50,16 +50,16 @@ class FluxQubit(QubitBaseClass):
     Parameters
     ----------
     EJ1, EJ2, EJ3: float
-        Josephson energy of the ith junction in GHz; typically
+        Josephson energy of the ith junction
         `EJ1 = EJ2`, with `EJ3 = alpha * EJ1` and `alpha <= 1`
     ECJ1, ECJ2, ECJ3: float
-        charging energy associated with the ith junction in GHz
+        charging energy associated with the ith junction
     ECg1, ECg2: float
-        charging energy associated with the capacitive coupling to ground for the two islands in GHz
+        charging energy associated with the capacitive coupling to ground for the two islands
     ng1, ng2: float
         offset charge associated with island i
     flux: float
-        magnetic flux through the circuit loop, measured in units of flux quanta (h/2e)
+        magnetic flux through the circuit loop, measured in units of the flux quantum
     ncut: int
         charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
     truncated_dim: int, optional
@@ -82,8 +82,7 @@ class FluxQubit(QubitBaseClass):
         self.truncated_dim = truncated_dim
         self._sys_type = '3-jct. flux qubit'
         self._evec_dtype = np.complex_
-        self._default_var_range = (-np.pi / 2, 3 * np.pi / 2)
-        self._default_var_count = 100
+        self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)    # for plotting in phi_j basis
 
     def EC_matrix(self):
         """Return the charging energy matrix"""
@@ -205,29 +204,26 @@ class FluxQubit(QubitBaseClass):
         sin_op += sin_op.conj().T
         return sin_op
 
-    def plot_potential(self, phi_range=None, phi_count=None, contour_vals=None, figsize=(5, 5), filename=None):
+    def plot_potential(self, phi_grid=None, contour_vals=None, **kwargs):
         """
         Draw contour plot of the potential energy.
 
         Parameters
         ----------
-        phi_range: tuple(float, float), optional
-            used for setting a custom plot range for phi
-        phi_count: int, optional
-            number of points in the phi interval
+        phi_grid: Grid1d, optional
+            used for setting a custom grid for phi; if None use self._default_grid
         contour_vals: list of float, optional
             specific contours to draw
-        figsize: tuple(float, float), optional
-            plot figure size
-        filename: str, optional
+        **kwargs:
+            plot options
         """
-        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
-        x_vals = np.linspace(*phi_range, phi_count)
-        y_vals = np.linspace(*phi_range, phi_count)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, figsize=figsize,
-                             filename=filename)
+        phi_grid = self._try_defaults(phi_grid)
+        x_vals = y_vals = phi_grid.make_linspace()
+        if 'figsize' not in kwargs:
+            kwargs['figsize'] = (5, 5)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
-    def wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None):
+    def wavefunction(self, esys=None, which=0, phi_grid=None):
         """
         Return a flux qubit wave function in phi1, phi2 basis
 
@@ -237,10 +233,8 @@ class FluxQubit(QubitBaseClass):
             eigenvalues, eigenvectors
         which: int, optional
             index of desired wave function (default value = 0)
-        phi_range: tuple(float, float), optional
-            used for setting a custom plot range for phi
-        phi_count: int, optional
-            number of points to use on grid in each direction
+        phi_grid: Grid1d, optional
+            used for setting a custom grid for phi; if None use self._default_grid
 
         Returns
         -------
@@ -251,25 +245,24 @@ class FluxQubit(QubitBaseClass):
             _, evecs = self.eigensys(evals_count)
         else:
             _, evecs = esys
-        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
+        phi_grid = self._try_defaults(phi_grid)
 
         dim = 2 * self.ncut + 1
         state_amplitudes = np.reshape(evecs[:, which], (dim, dim))
 
         n_vec = np.arange(-self.ncut, self.ncut + 1)
-        phi_vec = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_count)
+        phi_vec = phi_grid.make_linspace()
         a_1_phi = np.exp(1j * np.outer(phi_vec, n_vec)) / (2 * np.pi) ** 0.5
         a_2_phi = a_1_phi.T
         wavefunc_amplitudes = np.matmul(a_1_phi, state_amplitudes)
         wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, a_2_phi)
         wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
 
-        grid2d = GridSpec(np.asarray([[*phi_range, phi_count],
-                                      [*phi_range, phi_count]]))
+        grid2d = GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                                      [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, phi_range=None, phi_count=None, mode='abs', zero_calibrate=True,
-                          figsize=(5, 5), fig_ax=None):
+    def plot_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs', zero_calibrate=True, **kwargs):
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -278,24 +271,22 @@ class FluxQubit(QubitBaseClass):
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which: int, optional
             index of wave function to be plotted (default value = (0)
-        phi_range: tuple(float, float), optional
-            used for setting a custom plot range for phi
-        phi_count: int, optional
-            number of points to be used in the 2pi interval in each direction
+        phi_grid: Grid1d, optional
+            used for setting a custom grid for phi; if None use self._default_grid
         mode: str, optional
             choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
-        figsize: (float, float), optional
-            figure size specifications for matplotlib
-        fig_ax: Figure, Axes, optional
-            existing Figure, Axis if previous objects are to be appended
+        **kwargs:
+            plot options
 
         Returns
         -------
         Figure, Axes
         """
-        modefunction = constants.MODE_FUNC_DICT[mode]
-        wavefunc = self.wavefunction(esys, phi_range=phi_range, phi_count=phi_count, which=which)
-        wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, figsize=figsize, zero_calibrate=zero_calibrate, fig_ax=fig_ax)
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, which=which)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+        if 'figsize' not in kwargs:
+            kwargs['figsize'] = (5, 5)
+        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)

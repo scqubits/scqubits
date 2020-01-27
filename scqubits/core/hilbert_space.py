@@ -9,15 +9,14 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import itertools
-
 import numpy as np
 import qutip as qt
+import warnings
 
-from scqubits.core.data_containers import SpectrumData
 from scqubits.core.harmonic_osc import Oscillator
+from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
-from scqubits.utils.spectrum_utils import get_matrixelement_table, convert_esys_to_ndarray
+from scqubits.utils.spectrum_utils import convert_operator_to_qobj
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -41,18 +40,14 @@ class InteractionTerm:
         the two subsystems involved in the interaction
     op1, op2: str or ndarray
         names of operators in the two subsystems
-    evecs1, evecs2: ndarray
-        bare eigenvectors allowing the calculation of op1, op2 in the two bare eigenbases
     """
-    def __init__(self, g_strength, hilbertspace, subsys1, op1, subsys2, op2, evecs1=None, evecs2=None):
+    def __init__(self, g_strength, hilbertspace, subsys1, op1, subsys2, op2):
         self.g_strength = g_strength
         self.hilbertspace = hilbertspace
         self.subsys1 = subsys1
         self.op1 = op1
         self.subsys2 = subsys2
         self.op2 = op2
-        self.evecs1 = evecs1
-        self.evecs2 = evecs2
 
     def hamiltonian(self, evecs1=None, evecs2=None):
         """
@@ -93,6 +88,16 @@ class HilbertSpace(list):
             output += '\n' + str(subsystem) + '\n'
         return output
 
+    def _get_metadata_dict(self):
+        meta_dict = {}
+        for index, subsystem in enumerate(self):
+            subsys_meta = subsystem._get_metadata_dict()
+            renamed_subsys_meta = {}
+            for key in subsys_meta.keys():
+                renamed_subsys_meta[type(subsystem).__name__ + str(index) + '_' + key] = subsys_meta[key]
+            meta_dict.update(renamed_subsys_meta)
+        return meta_dict
+
     @property
     def subsystem_dims(self):
         """Returns list of the Hilbert space dimensions of each subsystem
@@ -119,6 +124,38 @@ class HilbertSpace(list):
         -------
         int"""
         return len(self)
+
+    def eigenvals(self, evals_count=6):
+        """Calculates eigenvalues of the full Hamiltonian using `qutip.Qob.eigenenergies()`.
+
+        Parameters
+        ----------
+        evals_count: int, optional
+            number of desired eigenvalues/eigenstates
+
+        Returns
+        -------
+        eigenvalues: ndarray of float
+        """
+        hamiltonian_mat = self.hamiltonian()
+        return hamiltonian_mat.eigenenergies(eigvals=evals_count)
+
+    def eigensys(self, evals_count):
+        """Calculates eigenvalues and eigenvectore of the full Hamiltonian using `qutip.Qob.eigenstates()`.
+
+        Parameters
+        ----------
+        evals_count: int, optional
+            number of desired eigenvalues/eigenstates
+
+        Returns
+        -------
+        evals: ndarray of float
+        evecs: ndarray of Qobj kets
+        """
+        hamiltonian_mat = self.hamiltonian()
+        evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
+        return evals, evecs
 
     def diag_operator(self, diag_elements, subsystem):
         """For given diagonal elements of a diagonal operator in `subsystem`, return the `Qobj` operator for the
@@ -182,26 +219,7 @@ class HilbertSpace(list):
         -------
         qutip.Qobj operator
         """
-        dim = subsystem.truncated_dim
-
-        if isinstance(operator, np.ndarray):
-            if op_in_eigenbasis is False:
-                if evecs is None:
-                    _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
-                operator_matrixelements = get_matrixelement_table(operator, evecs)
-                subsys_operator = qt.Qobj(inpt=operator_matrixelements)
-            else:
-                subsys_operator = qt.Qobj(inpt=operator[:dim, :dim])
-        elif isinstance(operator, str):
-            if evecs is None:
-                _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
-            operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
-            subsys_operator = qt.Qobj(inpt=operator_matrixelements)
-        elif isinstance(operator, qt.Qobj):
-            subsys_operator = operator
-        else:
-            raise TypeError('Unsupported operator type: ', type(operator))
-
+        subsys_operator = convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
         operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in self]
         subsystem_index = self.get_subsys_index(subsystem)
         operator_identitywrap_list[subsystem_index] = subsys_operator
@@ -255,7 +273,7 @@ class HilbertSpace(list):
         """
         return self.index(subsys)
 
-    def get_bare_hamiltonian(self):
+    def bare_hamiltonian(self):
         """
         Returns
         -------
@@ -268,7 +286,12 @@ class HilbertSpace(list):
             bare_hamiltonian += self.diag_hamiltonian(subsys, evals)
         return bare_hamiltonian
 
-    def get_hamiltonian(self):
+    def get_bare_hamiltonian(self):
+        """Deprecated, use `bare_hamiltonian()` instead."""
+        warnings.warn('bare_hamiltonian() is deprecated, use bare_hamiltonian() instead', FutureWarning)
+        return self.bare_hamiltonian()
+
+    def hamiltonian(self):
         """
 
         Returns
@@ -276,13 +299,17 @@ class HilbertSpace(list):
         qutip.qobj
             Hamiltonian of the composite system, including the interaction between components
         """
-        hamiltonian = self.get_bare_hamiltonian()
+        hamiltonian = self.bare_hamiltonian()
         for interaction_term in self.interaction_list:
             hamiltonian += interaction_term.hamiltonian()
         return hamiltonian
 
+    def get_hamiltonian(self):
+        """Deprecated, use `hamiltonian()` instead."""
+        return self.hamiltonian()
+
     def get_spectrum_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, get_eigenstates=False,
-                                  param_name="external_parameter", filename=None):
+                                  param_name="external_parameter"):
         """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as a function of a parameter.
         Parameter values are specified as a list or array in `param_vals`. The Hamiltonian `hamiltonian_func`
         must be a function of that particular parameter, and is expected to internally set subsystem parameters.
@@ -300,8 +327,6 @@ class HilbertSpace(list):
             set to true if eigenstates should be returned as well (default value = False)
         param_name: str, optional
             name for the parameter that is varied in `param_vals` (default value = "external_parameter")
-        filename: str, optional
-            write data to file if path/filename is provided (default value = None)
 
         Returns
         -------
@@ -311,106 +336,22 @@ class HilbertSpace(list):
 
         eigenenergy_table = np.empty((paramvals_count, evals_count))
         if get_eigenstates:
-            eigenstatesQobj_table = [0] * paramvals_count
+            eigenstates_qobj_table = [0] * paramvals_count
         else:
-            eigenstatesQobj_table = None
+            eigenstates_qobj_table = None
 
         for param_index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
             paramval = param_vals[param_index]
             hamiltonian = hamiltonian_func(paramval)
 
             if get_eigenstates:
-                eigenenergies, eigenstates_Qobj = hamiltonian.eigenstates(eigvals=evals_count)
+                eigenenergies, eigenstates_qobj = hamiltonian.eigenstates(eigvals=evals_count)
                 eigenenergy_table[param_index] = eigenenergies
-                eigenstatesQobj_table[param_index] = eigenstates_Qobj
+                eigenstates_qobj_table[param_index] = eigenstates_qobj
             else:
                 eigenenergies = hamiltonian.eigenenergies(eigvals=evals_count)
                 eigenenergy_table[param_index] = eigenenergies
 
         spectrumdata = SpectrumData(param_name, param_vals, eigenenergy_table, self.__dict__,
-                                    state_table=eigenstatesQobj_table)
-        if filename:
-            spectrumdata.filewrite(filename)
-
+                                    state_table=eigenstates_qobj_table)
         return spectrumdata
-
-    def generate_state_lookup_table(self, spectrum_data, param_index=0):
-        """
-        Create a lookup table that associates each dressed-state index with the corresponding bare-state product state
-        index (whenever possible). Usually to be saved as self.state_lookup_table.
-
-        Parameters
-        ----------
-        spectrum_data: SpectrumData
-        param_index: int
-            indices > 0 become relevant when using ParameterSweep
-
-        Returns
-        -------
-        list(int), list(tuple)
-            dressed indices, corresponding bare indices
-        """
-        dims = self.subsystem_dims
-        product_dim = np.prod(dims)
-        overlap_matrix = convert_esys_to_ndarray(spectrum_data.state_table[param_index])
-        dressed_indices = []
-        for bare_basis_index in range(product_dim):
-            max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
-            max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
-            if max_overlap < 0.5:
-                dressed_indices.append(None)
-            else:
-                dressed_indices.append(max_position)
-        basis_label_ranges = [list(range(dims[subsys_index])) for subsys_index in range(self.subsystem_count)]
-        basis_labels_list = list(itertools.product(*basis_label_ranges))
-        return [dressed_indices, basis_labels_list]
-
-    def lookup_dressed_index(self, bare_labels, param_index=0):
-        """
-        Parameters
-        ----------
-        bare_labels: tuple of ints
-            bare_labels = (index, index2, ...)
-        param_index: int
-            index of parameter value of interest
-
-        Returns
-        -------
-        int
-            dressed state index closest to the specified bare state
-        """
-        try:
-            lookup_position = self.state_lookup_table[param_index][1].index(bare_labels)
-        except ValueError:
-            return None
-        return self.state_lookup_table[param_index][0][lookup_position]
-
-    def lookup_bare_index(self, dressed_index, param_index=0):
-        """
-        For given dressed index, look up the corresponding bare index from the state_lookup_table.
-
-        Parameters
-        ----------
-        dressed_index: int
-        param_index: int
-
-        Returns
-        -------
-        tuple(int)
-        """
-        try:
-            lookup_position = self.state_lookup_table[param_index][0].index(dressed_index)
-        except ValueError:
-            return None
-        basis_labels = self.state_lookup_table[param_index][1][lookup_position]
-        return basis_labels
-
-    def _get_metadata_dict(self):
-        meta_dict = {}
-        for index, subsystem in enumerate(self):
-            subsys_meta = subsystem._get_metadata_dict()
-            renamed_subsys_meta = {}
-            for key in subsys_meta.keys():
-                renamed_subsys_meta[type(subsystem).__name__ + str(index) + '_' + key] = subsys_meta[key]
-            meta_dict.update(renamed_subsys_meta)
-        return meta_dict

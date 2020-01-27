@@ -94,15 +94,21 @@ ParameterSweep
 
 
 **********************************************************
-Data-container Classes
+Data Storage Classes
 **********************************************************
 
-.. _classes-spectrumdata:
+.. _classes-datastore:
 
 SpectrumData
 --------------
 
-.. autoclass:: scqubits.core.data_containers.SpectrumData
+.. autoclass:: scqubits.core.storage.SpectrumData
+    :members:
+
+DataStore
+--------------
+
+.. autoclass:: scqubits.core.storage.DataStore
     :members:
 
 ----------------------------------
@@ -112,7 +118,7 @@ SpectrumData
 WaveFunction
 --------------
 
-.. autoclass:: scqubits.core.data_containers.WaveFunction
+.. autoclass:: scqubits.core.storage.WaveFunction
     :members:
 
 ----------------------------------
@@ -122,7 +128,7 @@ WaveFunction
 WaveFunctionOnGrid
 ------------------
 
-.. autoclass:: scqubits.core.data_containers.WaveFunctionOnGrid
+.. autoclass:: scqubits.core.storage.WaveFunctionOnGrid
     :members:
 
 

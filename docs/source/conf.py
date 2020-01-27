@@ -13,7 +13,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath('../../'))
 
 # -- Project information -----------------------------------------------------
 
@@ -30,7 +30,6 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.todo',
               'sphinx.ext.doctest',
               'sphinx.ext.autosummary',
-              'numpydoc',
               'sphinx.ext.extlinks',
               'sphinx.ext.viewcode',
               'sphinx.ext.ifconfig',
@@ -41,7 +40,11 @@ extensions = ['sphinx.ext.autodoc',
 
 html_show_sourcelink = False
 
-autodoc_default_flags = ['members', 'inherited-members']
+autodoc_default_options = {'members': True, 'inherited-members': True}
+autodoc_mock_imports = ['qutip', 'pytest', 'ipywidgets', 'IPython', 'tqdm']
+
+# The master toctree document.
+master_doc = 'index'
 
 
 # Add any paths that contain templates here, relative to this directory.
@@ -55,13 +58,26 @@ exclude_patterns = ['_build', '**.ipynb_checkpoints']
 
 # -- Options for HTML output -------------------------------------------------
 
+# These folders are copied to the documentation's HTML output
+# html_static_path = ['_static']
+
+# These paths are either relative to html_static_path
+# or fully qualified paths (eg. https://...)
+# html_css_files = [
+#     'css/custom.css',
+# ]
+
+
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
+
 html_theme = 'sphinx_rtd_theme'
+html_logo = './logo/scqubits-logo2.png'
 full_logo = True
 
 html_theme_options = {
+    'logo_only': True
 }
 # Add any paths that contain custom themes here, relative to this directory.
 
@@ -87,7 +103,7 @@ add_function_parentheses = False
 # unit titles (such as .. function::).
 add_module_names = True
 
-# If true, sectionauthor and moduleauthor directives will be shown in the
+# If true, sectionauthor and module author directives will be shown in the
 # output. They are ignored by default.
 show_authors = True
 
@@ -95,6 +111,5 @@ show_authors = True
 # modindex_common_prefix = []
 todo_include_todos = True
 
-numpydoc_show_class_members = False
 napoleon_numpy_docstring = True
 napoleon_use_admonition_for_notes = True

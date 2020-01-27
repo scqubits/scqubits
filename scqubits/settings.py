@@ -25,8 +25,9 @@ Matplotlib.
 import matplotlib as mpl
 from cycler import cycler
 
-from scqubits.utils.constants import FileType
+from scqubits.core.constants import FileType
 
+# default file format setting
 FILE_FORMAT = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
 
 # a switch for displaying of progress bar; default: show only in ipython
@@ -40,7 +41,6 @@ except NameError:
 
 # default energy units
 DEFAULT_ENERGY_UNITS = 'GHz'
-
 
 # define settings for tqdm progressbar
 TQDM_KWARGS = {'disable': PROGRESSBAR_DISABLED,
@@ -59,5 +59,9 @@ mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
                                                 "#EDE83B",
                                                 "#ABD379",
                                                 "#F9E6BE"])
-# increase matplotlib font size
-mpl.rcParams.update({'font.size': 11})
+
+# set matplotlib defaults
+mpl.rcParams['font.sans-serif'] = "Arial"
+mpl.rcParams['font.family'] = "sans-serif"
+mpl.rcParams['figure.dpi'] = 150
+mpl.rcParams['font.size'] = 11

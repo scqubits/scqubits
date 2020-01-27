@@ -15,6 +15,8 @@ Users Guide
    guide-qubits.rst
    ./ipynb/hilbertspace.ipynb
    ./ipynb/explorer.ipynb
+   guide-plot-options.rst
+   guide-io.rst
    guide-example-ipynb.rst
    guide-settings.rst
 

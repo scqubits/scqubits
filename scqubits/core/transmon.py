@@ -13,10 +13,12 @@ import math
 
 import numpy as np
 
-import scqubits.utils.constants as constants
+import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
-from scqubits.core.data_containers import WaveFunction
+import scqubits.utils.plot_defaults as defaults
+from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass1d
+from scqubits.core.storage import WaveFunction
 
 
 # —Cooper pair box / transmon———————————————————————————————————————————————————————————————————————————————————————————
@@ -49,10 +51,9 @@ class Transmon(QubitBaseClass1d):
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = 'transmon'
-        self._default_var_range = (-np.pi, np.pi)
-        self._default_n_range = (-5, 6)
-        self._default_var_count = 151
         self._evec_dtype = np.float_
+        self._default_grid = Grid1d(-np.pi, np.pi, 151)
+        self._default_n_range = (-5, 6)
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
@@ -105,7 +106,7 @@ class Transmon(QubitBaseClass1d):
         """
         return -self.EJ * np.cos(phi)
 
-    def plot_n_wavefunction(self, esys=None, mode='real', which=0, nrange=None, filename=None):
+    def plot_n_wavefunction(self, esys=None, mode='real', which=0, nrange=None, **kwargs):
         """Plots transmon wave function in charge basis
 
         Parameters
@@ -118,8 +119,8 @@ class Transmon(QubitBaseClass1d):
              index or indices of wave functions to plot (default value = 0)
         nrange: tuple of two ints, optional
              range of `n` to be included on the x-axis (default value = (-5,6))
-        filename: str, optional
-            file path and name (not including suffix) for output
+        **kwargs:
+            plotting parameters
 
         Returns
         -------
@@ -128,16 +129,14 @@ class Transmon(QubitBaseClass1d):
         if nrange is None:
             nrange = self._default_n_range
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
-        modefunction = constants.MODE_FUNC_DICT[mode]
-        n_wavefunc.amplitudes = modefunction(n_wavefunc.amplitudes)
-        return plot.wavefunction1d_discrete(n_wavefunc, x_range=nrange, xlabel='n', ylabel=r'$\psi_j(n)$',
-                                            filename=filename)
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        n_wavefunc.amplitudes = amplitude_modifier(n_wavefunc.amplitudes)
+        kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}    # if any duplicates, later ones survive
+        return plot.wavefunction1d_discrete(n_wavefunc, xlim=nrange, **kwargs)
 
-    def plot_phi_wavefunction(self, esys, which=0, phi_range=None, phi_count=None, mode='abs_sqr', scaling=None,
-                              filename=None):
+    def plot_phi_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs_sqr', scaling=None, **kwargs):
         """Alias for plot_wavefunction"""
-        return self.plot_wavefunction(esys, which=which, phi_range=phi_range, phi_count=phi_count, mode=mode,
-                                      scaling=scaling, filename=filename)
+        return self.plot_wavefunction(esys=esys, which=which, phi_grid=phi_grid, mode=mode, scaling=scaling, **kwargs)
 
     def numberbasis_wavefunction(self, esys=None, which=0):
         """Return the transmon wave function in number basis. The specific index of the wave function to be returned is
@@ -163,21 +162,19 @@ class Transmon(QubitBaseClass1d):
         n_vals = np.arange(-self.ncut, self.ncut + 1)
         return WaveFunction(n_vals, evecs[:, which], evals[which])
 
-    def wavefunction(self, esys, which=0, phi_range=None, phi_count=None):
+    def wavefunction(self, esys=None, which=0, phi_grid=None):
         """Return the transmon wave function in phase basis. The specific index of the wavefunction is `which`.
         `esys` can be provided, but if set to `None` then it is calculated on the fly.
 
         Parameters
         ----------
-        esys: `None` or tuple (ndarray, ndarray)
+        esys: tuple(ndarray, ndarray), optional
             if None, the eigensystem is calculated on the fly; otherwise, the provided eigenvalue, eigenvector arrays
             as obtained from `.eigensystem()` are used
         which: int, optional
             eigenfunction index (default value = 0)
-        phi_range: tuple(float, float), optional
-            used for setting a custom plot range for phi
-        phi_count: int, optional
-            number of phi values at which the wave function is evaluated (default value = 251)
+        phi_grid: Grid1d, optional
+            used for setting a custom grid for phi; if None use self._default_grid
 
         Returns
         -------
@@ -189,12 +186,12 @@ class Transmon(QubitBaseClass1d):
         evals, _ = esys
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
 
-        phi_range, phi_count = self.try_defaults(phi_range, phi_count)
+        phi_grid = self._try_defaults(phi_grid)
 
-        phi_basis_labels = np.linspace(*phi_range, phi_count)
-        phi_wavefunc_amplitudes = np.empty(phi_count, dtype=np.complex_)
-        for k in range(phi_count):
+        phi_basis_labels = phi_grid.make_linspace()
+        phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
+        for k in range(phi_grid.pt_count):
             phi_wavefunc_amplitudes[k] = ((1j**which / math.sqrt(2 * np.pi)) *
-                                          np.sum(n_wavefunc.amplitudes * np.exp(1j * phi_basis_labels[k] *
-                                                                                n_wavefunc.basis_labels)))
+                                          np.sum(n_wavefunc.amplitudes *
+                                                 np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)))
         return WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes, energy=evals[which])

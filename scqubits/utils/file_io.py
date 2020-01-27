@@ -12,11 +12,13 @@
 Helper routines for writing data to CSV and h5 files.
 """
 
-import os
 import csv
+import os
+
 import h5py
 import numpy as np
-from scqubits.utils.constants import FileType
+
+from scqubits.settings import FileType
 
 
 class FileIOFactory:
@@ -59,7 +61,7 @@ class ObjectWriter:
 class ObjectReader:
     """Sets up the appropriate reader, extracts data from file, the sets parameters of existing object or creates
     a new object initialized to read data."""
-    def set_params_from_fileread(self, the_object, file_format, filename):
+    def set_params_from_file(self, the_object, file_format, filename):
         """
         Parameters
         ----------
@@ -71,7 +73,7 @@ class ObjectReader:
         extracted_data = reader.do_reading(filename)
         the_object.set_from_data(*extracted_data)
 
-    def create_from_fileread(self, class_object, file_format, filename):
+    def create_from_file(self, class_object, file_format, filename):
         """
         Parameters
         ----------

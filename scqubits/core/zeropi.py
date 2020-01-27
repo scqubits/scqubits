@@ -10,13 +10,14 @@
 ############################################################################
 
 import numpy as np
-
 from scipy import sparse
-import scqubits.utils.constants as constants
+
+import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
-from scqubits.core.data_containers import WaveFunctionOnGrid
 from scqubits.core.discretization import Grid1d, GridSpec
 from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.storage import WaveFunctionOnGrid
+from scqubits.utils.misc import is_numerical, key_in_grid1d
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
@@ -94,8 +95,7 @@ class ZeroPi(QubitBaseClass):
         self.truncated_dim = truncated_dim
         self._sys_type = '0-pi'
         self._evec_dtype = np.complex_
-        self._default_var_range = (-np.pi / 2, 3 * np.pi / 2)
-        self._default_var_count = 100
+        self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)  # for theta, needed for plotting wavefunction
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -163,8 +163,8 @@ class ZeroPi(QubitBaseClass):
         diag_elements = 2.0 * self.ECS * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
 
-        kinetic_matrix = sparse.kron(kinetic_matrix_phi, identity_theta, format='csc') \
-                         + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc')
+        kinetic_matrix = (sparse.kron(kinetic_matrix_phi, identity_theta, format='csc')
+                          + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc'))
 
         kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
         return kinetic_matrix
@@ -179,16 +179,15 @@ class ZeroPi(QubitBaseClass):
         scipy.sparse.csc_matrix
             matrix representing the potential energy operator
         """
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
         pt_count = self.grid.pt_count
+        grid_linspace = self.grid.make_linspace()
         dim_theta = 2 * self.ncut + 1
 
-        phi_inductive_vals = self.EL * np.square(np.linspace(min_val, max_val, pt_count))
+        phi_inductive_vals = self.EL * np.square(grid_linspace)
         phi_inductive_potential = sparse.dia_matrix((phi_inductive_vals, [0]), shape=(pt_count, pt_count)).tocsc()
-        phi_cos_vals = np.cos(np.linspace(min_val, max_val, pt_count) - 2.0 * np.pi * self.flux / 2.0)
+        phi_cos_vals = np.cos(grid_linspace - 2.0 * np.pi * self.flux / 2.0)
         phi_cos_potential = sparse.dia_matrix((phi_cos_vals, [0]), shape=(pt_count, pt_count)).tocsc()
-        phi_sin_vals = np.sin(np.linspace(min_val, max_val, pt_count) - 2.0 * np.pi * self.flux / 2.0)
+        phi_sin_vals = np.sin(grid_linspace - 2.0 * np.pi * self.flux / 2.0)
         phi_sin_potential = sparse.dia_matrix((phi_sin_vals, [0]), shape=(pt_count, pt_count)).tocsc()
 
         theta_cos_potential = (-self.EJ
@@ -197,8 +196,8 @@ class ZeroPi(QubitBaseClass):
         potential_mat = (sparse.kron(phi_cos_potential, theta_cos_potential, format='csc')
                          + sparse.kron(phi_inductive_potential, self._identity_theta(), format='csc')
                          + 2 * self.EJ * sparse.kron(self._identity_phi(), self._identity_theta(), format='csc'))
-        potential_mat += self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')\
-                         * self.sin_theta_operator()
+        potential_mat += (self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')
+                          * self.sin_theta_operator())
         return potential_mat
 
     def hamiltonian(self):
@@ -309,12 +308,10 @@ class ZeroPi(QubitBaseClass):
         -------
             scipy.sparse.csc_matrix
         """
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
         pt_count = self.grid.pt_count
 
         phi_matrix = sparse.dia_matrix((pt_count, pt_count), dtype=np.complex_)
-        diag_elements = np.linspace(min_val, max_val, pt_count)
+        diag_elements = self.grid.make_linspace()
         phi_matrix.setdiag(diag_elements)
         return phi_matrix
 
@@ -349,11 +346,9 @@ class ZeroPi(QubitBaseClass):
         -------
             scipy.sparse.csc_matrix
         """
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
         pt_count = self.grid.pt_count
 
-        vals = np.sin(np.linspace(min_val, max_val, pt_count) + x)
+        vals = np.sin(self.grid.make_linspace() + x)
         sin_phi_matrix = sparse.dia_matrix((vals, [0]), shape=(pt_count, pt_count)).tocsc()
         return sin_phi_matrix
 
@@ -365,11 +360,9 @@ class ZeroPi(QubitBaseClass):
         -------
             scipy.sparse.csc_matrix
         """
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
         pt_count = self.grid.pt_count
 
-        vals = np.cos(np.linspace(min_val, max_val, pt_count) + x)
+        vals = np.cos(self.grid.make_linspace() + x)
         cos_phi_matrix = sparse.dia_matrix((vals, [0]), shape=(pt_count, pt_count)).tocsc()
         return cos_phi_matrix
 
@@ -405,9 +398,9 @@ class ZeroPi(QubitBaseClass):
             scipy.sparse.csc_matrix
         """
         dim_theta = 2 * self.ncut + 1
-        sin_theta_matrix = -0.5 * 1j * \
-                           (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
-                            sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc()
+        sin_theta_matrix = (-0.5 * 1j
+                            * (sparse.dia_matrix(([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)) -
+                               sparse.dia_matrix(([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))).tocsc())
         return sin_theta_matrix
 
     def sin_theta_operator(self):
@@ -420,30 +413,24 @@ class ZeroPi(QubitBaseClass):
         """
         return sparse.kron(self._identity_phi(), self._sin_theta_operator(), format='csc')
 
-    def plot_potential(self, theta_range=None, theta_count=None, contour_vals=None, figsize=None, filename=None):
+    def plot_potential(self, theta_grid=None, contour_vals=None, **kwargs):
         """Draw contour plot of the potential energy.
 
         Parameters
         ----------
-        theta_range: tuple(float, float), optional
-            used for setting a custom plot range for theta
-        theta_count: int, optional
+        theta_grid: Grid1d, optional
+            used for setting a custom grid for theta; if None use self._default_grid
         contour_vals: list, optional
-        figsize: tupel(float, float), optitional
-        filename: str, optional
+        **kwargs:
+            plotting parameters
         """
-        theta_range, theta_count = self.try_defaults(theta_range, theta_count)
+        theta_grid = self._try_defaults(theta_grid)
 
-        min_val = self.grid.min_val
-        max_val = self.grid.max_val
-        pt_count = self.grid.pt_count
+        x_vals = self.grid.make_linspace()
+        y_vals = theta_grid.make_linspace()
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
-        x_vals = np.linspace(min_val, max_val, pt_count)
-        y_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, theta_count)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, figsize=figsize,
-                             filename=filename)
-
-    def wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None):
+    def wavefunction(self, esys=None, which=0, theta_grid=None):
         """Returns a zero-pi wave function in `phi`, `theta` basis
 
         Parameters
@@ -452,10 +439,8 @@ class ZeroPi(QubitBaseClass):
             eigenvalues, eigenvectors
         which: int, optional
              index of desired wave function (default value = 0)
-        theta_range: tuple(float, float), optional
-            used for setting a custom plot range for theta
-        theta_count: int, optional
-            number of points to be used in the interval for theta
+        theta_grid: Grid1d, optional
+            used for setting a custom grid for theta; if None use self._default_grid
 
         Returns
         -------
@@ -467,26 +452,23 @@ class ZeroPi(QubitBaseClass):
         else:
             _, evecs = esys
 
-        theta_range, theta_count = self.try_defaults(theta_range, theta_count)
-
-        pt_count = self.grid.pt_count
+        theta_grid = self._try_defaults(theta_grid)
         dim_theta = 2 * self.ncut + 1
-        state_amplitudes = evecs[:, which].reshape(pt_count, dim_theta)
+        state_amplitudes = evecs[:, which].reshape(self.grid.pt_count, dim_theta)
 
         # Calculate psi_{phi, theta} = sum_n state_amplitudes_{phi, n} A_{n, theta}
         # where a_{n, theta} = 1/sqrt(2 pi) e^{i n theta}
         n_vec = np.arange(-self.ncut, self.ncut + 1)
-        theta_vec = np.linspace(*theta_range, theta_count)
+        theta_vec = theta_grid.make_linspace()
         a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi) ** 0.5
         wavefunc_amplitudes = np.matmul(state_amplitudes, a_n_theta).T
         wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
 
-        grid2d = GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, pt_count],
-                                      [*theta_range, theta_count]]))
+        grid2d = GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, self.grid.pt_count],
+                                      [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count]]))
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, theta_range=None, theta_count=None, mode='abs',
-                          zero_calibrate=True, figsize=(6, 2.75), fig_ax=None):
+    def plot_wavefunction(self, esys=None, which=0, theta_grid=None, mode='abs', zero_calibrate=True, **kwargs):
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -495,29 +477,25 @@ class ZeroPi(QubitBaseClass):
             eigenvalues, eigenvectors as obtained from `.eigensystem()`
         which: int, optional
             index of wave function to be plotted (default value = (0)
-        theta_range: tuple(float, float), optional
-            used for setting a custom plot range for theta
-        theta_count: int, optional
-            number of points to be used in the interval for theta
+        theta_grid: Grid1d, optional
+            used for setting a custom grid for theta; if None use self._default_grid
         mode: str, optional
             choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
         zero_calibrate: bool, optional
             if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
-        figsize: (float, float), optional
-            figure size specifications for matplotlib
-        fig_ax: Figure, Axes, optional
-            existing Figure, Axis if previous objects are to be appended
+        **kwargs:
+            plot options
 
         Returns
         -------
         Figure, Axes
         """
-        theta_range, theta_count = self.try_defaults(theta_range, theta_count)
+        theta_grid = self._try_defaults(theta_grid)
 
-        modefunction = constants.MODE_FUNC_DICT[mode]
-        wavefunc = self.wavefunction(esys, theta_count=theta_count, which=which)
-        wavefunc.amplitudes = modefunction(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, figsize=figsize, zero_calibrate=zero_calibrate, fig_ax=fig_ax)
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
 
     def set_params_from_dict(self, meta_dict):
         """Set object parameters by given metadata dictionary
@@ -527,11 +505,10 @@ class ZeroPi(QubitBaseClass):
         meta_dict: dict
         """
         for param_name, param_value in meta_dict.items():
-            if isinstance(param_value, (int, float, np.number)):
-                if param_name in self.grid.__dict__.keys():
-                    setattr(self.grid, param_name, param_value)
-                else:
-                    setattr(self, param_name, param_value)
+            if key_in_grid1d(param_name):
+                setattr(self.grid, param_name, param_value)
+            elif is_numerical(param_value):
+                setattr(self, param_name, param_value)
 
     @classmethod
     def create_from_dict(cls, meta_dict):
@@ -544,11 +521,11 @@ class ZeroPi(QubitBaseClass):
         filtered_dict = {}
         grid_dict = {}
         for param_name, param_value in meta_dict.items():
-            if isinstance(param_value, (int, float, np.number)):
-                if param_name in ['min_val', 'max_val', 'pt_count']:
-                    grid_dict[param_name] = param_value
-                else:
-                    filtered_dict[param_name] = param_value
+            if key_in_grid1d(param_name):
+                grid_dict[param_name] = param_value
+            elif is_numerical(param_value):
+                filtered_dict[param_name] = param_value
+
         grid = Grid1d(**grid_dict)
         filtered_dict['grid'] = grid
         return cls(**filtered_dict)

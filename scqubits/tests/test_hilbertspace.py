@@ -16,6 +16,7 @@ import pytest
 import scqubits as qubit
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
+from scqubits.core.sweep_generators import get_difference_spectrum
 from scqubits.utils.spectrum_utils import get_matrixelement_table, absorption_spectrum
 
 
@@ -44,7 +45,7 @@ class TestHilbertSpace:
         )
 
         resonator = qubit.Oscillator(
-            omega=6.0,
+            E_osc=6.0,
             truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
         # Form a list of all components making up the Hilbert space.
@@ -134,7 +135,8 @@ class TestHilbertSpace:
 
         flux_list = np.linspace(-0.1, 0.6, 100)
         specdata = hilbertspc.get_spectrum_vs_paramvals(self.hamiltonian, flux_list, evals_count=15,
-                                                        get_eigenstates=True, filename=self.tmpdir + 'test')
+                                                        get_eigenstates=True)
+        specdata.filewrite(filename=self.tmpdir + 'test')
 
         reference_evals = np.array([-35.61671109, -30.87536252, -29.93935539, -29.62839549,
                                     -27.95521996, -24.89469034, -23.95779031, -23.64010506,
@@ -164,7 +166,7 @@ class TestHilbertSpace:
         )
 
         resonator = qubit.Oscillator(
-            omega=6.0,
+            E_osc=6.0,
             truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
 
@@ -199,7 +201,7 @@ class TestHilbertSpace:
 
     def test_HilbertSpace_interface_1_1(self):
         hilbertspace = self.initialize()
-        evals, _ = hilbertspace.get_hamiltonian().eigenstates()
+        evals, _ = hilbertspace.hamiltonian().eigenstates()
 
         evals_reference = np.asarray([-36.9898613, -32.2485069, -31.31250908, -31.00035225,
                                       -29.18345776, -26.26664068, -25.32975243, -25.01086732,
@@ -238,7 +240,7 @@ class TestParameterSweep:
         )
 
         resonator = qubit.Oscillator(
-            omega=6.0,
+            E_osc=6.0,
             truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
 
@@ -291,7 +293,7 @@ class TestParameterSweep:
     def test_ParameterSweep_(self):
         sweep = self.initialize()
 
-        specdata = absorption_spectrum(sweep.get_difference_spectrum(initial_state_ind=0))
+        specdata = absorption_spectrum(get_difference_spectrum(sweep, initial_state_ind=0))
         calculated_energies = specdata.energy_table[5]
 
         reference_energies = np.array([0., 4.74135372, 5.6773522, 5.98902462, 7.72420838, 10.72273595, 11.65962582,

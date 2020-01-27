@@ -13,10 +13,32 @@ import numpy as np
 from scipy import sparse
 
 import scqubits.core.operators as op
+from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
-from scqubits.core.discretization import Grid1d
+from scqubits.utils.misc import is_numerical, key_in_grid1d
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
+
+
+class FZPProperty:
+    """Common setter and getter function for FullZeroPi
+
+    Parameters
+    ----------
+    name: str
+        Name of property to be accessed in FullZeroPi._zeropi
+    """
+    def __init__(self, name):
+        self.name = name
+
+    def __get__(self, instance, owner):
+        if instance is None:   # when accessed on class level rather than instance level
+            return self
+        else:
+            return getattr(instance._zeropi, self.name)  # return x._zeropi.prop
+
+    def __set__(self, instance, value):
+        setattr(instance._zeropi, self.name, value)  # x._zeropi.prop = value
 
 
 class FullZeroPi(QubitBaseClass):
@@ -30,7 +52,7 @@ class FullZeroPi(QubitBaseClass):
         &\qquad\qquad\qquad+2E_{C\Sigma}(\delta C_J/C_J)\partial_\phi\partial_\theta
                      +2\,\delta E_J \sin\theta\sin(\phi-\varphi_\text{ext}/2)\\
         &H_\text{int} = 2E_{C\Sigma}dC\,\partial_\theta\partial_\zeta + E_L dE_L \phi\,\zeta\\
-        &H_\zeta = \omega_\zeta a^\dagger a
+        &H_\zeta = E_{\zeta} a^\dagger a
 
     expressed in phase basis. The definition of the relevant charging energies :math:`E_\text{CJ}`,
     :math:`E_{\text{C}\Sigma}`,     Josephson energies :math:`E_\text{J}`, inductive energies :math:`E_\text{L}`,
@@ -75,7 +97,6 @@ class FullZeroPi(QubitBaseClass):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
-
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
                  ECS=None, truncated_dim=None):
         self.dC = dC
@@ -101,93 +122,17 @@ class FullZeroPi(QubitBaseClass):
             truncated_dim=zeropi_cutoff
         )
 
-    def get_EJ(self):
-        return self._zeropi.EJ 
-
-    def set_EJ(self, value):
-        self._zeropi.EJ = value
-
-    EJ = property(get_EJ, set_EJ)
-
-    def get_EL(self):
-        return self._zeropi.EL
-
-    def set_EL(self, value):
-        self._zeropi.EL = value
-
-    EL = property(get_EL, set_EL)
-
-    def get_ECJ(self):
-        return self._zeropi.ECJ
-
-    def set_ECJ(self, value):
-        self._zeropi.ECJ = value
-
-    ECJ = property(get_ECJ, set_ECJ)
-
-    def get_EC(self):
-        return self._zeropi.EC
-
-    def set_EC(self, value):
-        self._zeropi.EC = value
-
-    EC = property(get_EC, set_EC)
-    
-    def get_ng(self):
-        return self._zeropi.ng
-
-    def set_ng(self, value):
-        self._zeropi.ng = value
-
-    ng = property(get_ng, set_ng)
-
-    def get_flux(self):
-        return self._zeropi.flux
-
-    def set_flux(self, value):
-        self._zeropi.flux = value
-
-    flux = property(get_flux, set_flux)
-
-    def get_grid(self):
-        return self._zeropi.grid
-
-    def set_grid(self, value):
-        self._zeropi.grid = value
-
-    grid = property(get_grid, set_grid)
-
-    def get_ncut(self):
-        return self._zeropi.ncut
-
-    def set_ncut(self, value):
-        self._zeropi.ncut = value
-
-    ncut = property(get_ncut, set_ncut)
-
-    def get_dEJ(self):
-        return self._zeropi.dEJ
-
-    def set_dEJ(self, value):
-        self._zeropi.dEJ = value
-
-    dEJ = property(get_dEJ, set_dEJ)
-
-    def get_dCJ(self):
-        return self._zeropi.dCJ
-
-    def set_dCJ(self, value):
-        self._zeropi.dCJ = value
-
-    dCJ = property(get_dCJ, set_dCJ)
-
-    def get_ECS(self):
-        return self._zeropi.ECS 
-
-    def set_ECS(self, value):
-        self._zeropi.ECS = value
-
-    ECS = property(get_ECS, set_ECS)
+    EJ = FZPProperty('EJ')
+    EL = FZPProperty('EL')
+    ECJ = FZPProperty('ECJ')
+    EC = FZPProperty('EC')
+    ECS = FZPProperty('ECS')
+    dEJ = FZPProperty('dEJ')
+    dCJ = FZPProperty('dCJ')
+    ng = FZPProperty('ng')
+    flux = FZPProperty('flux')
+    grid = FZPProperty('grid')
+    ncut = FZPProperty('ncut')
 
     def get_zeropi_cutoff(self):
         return self._zeropi.truncated_dim
@@ -201,14 +146,14 @@ class FullZeroPi(QubitBaseClass):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
         self._zeropi.set_EC_via_ECS(ECS)
 
-    def get_omega_zeta(self):
+    def get_E_zeta(self):
+        """Returns energy quantum of the zeta mode"""
         return (8.0 * self.EL * self.EC) ** 0.5
 
-    def set_omega_zeta(self, value):
-        raise ValueError("It's not possible to directly set omega_zeta. Instead, one can modify EL or EC.")
+    def set_E_zeta(self, value):
+        raise ValueError("It's not possible to directly set `E_zeta`. Instead one can set its value through `EL` or `EC`.")
 
-    omega_zeta = property(get_omega_zeta, set_omega_zeta)
-
+    E_zeta = property(get_E_zeta, set_E_zeta)
 
     def hamiltonian(self, return_parts=False):
         """Returns Hamiltonian in basis obtained by discretizing phi, employing charge basis for theta, and Fock
@@ -229,7 +174,8 @@ class FullZeroPi(QubitBaseClass):
         zeropi_diag_hamiltonian.setdiag(zeropi_evals)
 
         zeta_dim = self.zeta_cutoff
-        prefactor = self.omega_zeta
+        prefactor = self.E_zeta
+
         zeta_diag_hamiltonian = op.number_sparse(zeta_dim, prefactor)
 
         hamiltonian_mat = sparse.kron(zeropi_diag_hamiltonian,
@@ -388,11 +334,11 @@ class FullZeroPi(QubitBaseClass):
         meta_dict: dict
         """
         for param_name, param_value in meta_dict.items():
-            if isinstance(param_value, (int, float, np.number)):
-                if param_name in self.grid.__dict__.keys():
-                    setattr(self.grid, param_name, param_value)
-                else:
-                    setattr(self, param_name, param_value)
+            if key_in_grid1d(param_name):
+                setattr(self.grid, param_name, param_value)
+            elif is_numerical(param_value):
+                setattr(self, param_name, param_value)
+
         self._zeropi = ZeroPi(
             EJ=self.EJ,
             EL=self.EL,
@@ -418,11 +364,11 @@ class FullZeroPi(QubitBaseClass):
         filtered_dict = {}
         grid_dict = {}
         for param_name, param_value in meta_dict.items():
-            if isinstance(param_value, (int, float, np.number)):
-                if param_name in ['min_val', 'max_val', 'pt_count']:
-                    grid_dict[param_name] = param_value
-                else:
-                    filtered_dict[param_name] = param_value
+            if key_in_grid1d(param_name):
+                grid_dict[param_name] = param_value
+            elif is_numerical(param_value):
+                filtered_dict[param_name] = param_value
+
         grid = Grid1d(**grid_dict)
         filtered_dict['grid'] = grid
         return cls(**filtered_dict)
