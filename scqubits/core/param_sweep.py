@@ -14,12 +14,10 @@ import numpy as np
 from tqdm.notebook import tqdm
 
 import scqubits.settings as settings
-from scqubits.core.central_dispatch import (DispatchClient,
-                                            ReadOnlyProperty,
-                                            WatchedProperty,
-                                            CENTRAL_DISPATCH)
+from scqubits.core.central_dispatch import (DispatchClient, CENTRAL_DISPATCH)
+from scqubits.core.descriptors import ReadOnlyProperty, WatchedProperty
 from scqubits.core.spec_lookup import SpectrumLookup, shared_lookup_bare_eigenstates
-from scqubits.core.storage import SpectrumData
+from scqubits.core.storage import SpectrumData, DataStore
 from scqubits.settings import TQDM_KWARGS, AUTORUN_SWEEP
 
 
@@ -66,7 +64,6 @@ class ParameterSweep(DispatchClient):
 
         self._lookup = None
         self._bare_hamiltonian_constant = None
-        self.sweep_data = {}
 
         CENTRAL_DISPATCH.register('PARAMETERSWEEP_UPDATE', self)
         CENTRAL_DISPATCH.register('HILBERTSPACE_UPDATE', self)
@@ -87,15 +84,19 @@ class ParameterSweep(DispatchClient):
     def cause_dispatch(self):
         self.update_hilbertspace(self.param_vals[0])
 
-    @property
-    def bare_specdata_list(self):
-        return self.lookup._bare_specdata_list
-
-    @property
-    def dressed_specdata(self):
-        return self.lookup._dressed_specdata
-
     def receive(self, event, sender, **kwargs):
+        """Hook to CENTRAL_DISPATCH. This method is accessed by the global CentralDispatch instance whenever an event
+        occurs that ParameterSweep is registered for. In reaction to update events, the lookup table is marked as out
+        of sync.
+
+        Parameters
+        ----------
+        event: str
+            type of event being received
+        sender: object
+            identity of sender announcing the event
+        **kwargs
+        """
         if self.lookup is not None:
             if event == 'HILBERTSPACE_UPDATE' and sender is self._hilbertspace:
                 self._lookup._out_of_sync = True
@@ -103,6 +104,32 @@ class ParameterSweep(DispatchClient):
             elif event == 'PARAMETERSWEEP_UPDATE' and sender is self:
                 self._lookup._out_of_sync = True
                 # print('Lookup table now out of sync')
+
+    def get_subsys(self, index):
+        return self._hilbertspace[index]
+
+    def get_subsys_index(self, subsys):
+        return self._hilbertspace.get_subsys_index(subsys)
+
+    @property
+    def osc_subsys_list(self):
+        return self._hilbertspace.osc_subsys_list
+
+    @property
+    def qbt_subsys_list(self):
+        return self._hilbertspace.qbt_subsys_list
+
+    @property
+    def subsystem_count(self):
+        return self._hilbertspace.subsystem_count
+
+    @property
+    def bare_specdata_list(self):
+        return self.lookup._bare_specdata_list
+
+    @property
+    def dressed_specdata(self):
+        return self.lookup._dressed_specdata
 
     def _compute_bare_specdata_sweep(self):
         """
@@ -270,19 +297,13 @@ class ParameterSweep(DispatchClient):
                                                                           evecs1=evecs1, evecs2=evecs2)
         return hamiltonian.eigenstates(eigvals=self.evals_count)
 
-    def compute_custom_data_sweep(self, data_name, func, **kwargs):
-        """Method for computing custom data as a function of the external parameter, calculated via the function `func`.
-
-        Parameters
-        ----------
-        data_name: str
-        func: function
-            signature: `func(parametersweep, param_value, **kwargs)`, specifies how to calculate the data
-        **kwargs: optional
-            other parameters to be included in func
-        """
-        data = [func(self, param_index, **kwargs) for param_index
-                in tqdm(range(self.param_count), desc=data_name, **TQDM_KWARGS)]
-        self.sweep_data[data_name] = np.asarray(data)
-
     lookup_bare_eigenstates = shared_lookup_bare_eigenstates
+
+    @property
+    def system_params(self):
+        return self._hilbertspace.__dict__
+
+    def new_datastore(self, **kwargs):
+        return DataStore(self.system_params, self.param_name, self.param_vals, **kwargs)
+
+

@@ -21,7 +21,8 @@ import scipy as sp
 import scqubits.core.constants as constants
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-from scqubits.core.central_dispatch import DispatchClient, WatchedProperty
+from scqubits.core.central_dispatch import DispatchClient
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.misc import process_which, process_metadata, filter_metadata
@@ -41,7 +42,6 @@ class QuantumSystem(DispatchClient):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
-        DispatchClient.__init__(self)
         self._sys_type = 'quantum_system'
 
     def __str__(self):
@@ -72,7 +72,6 @@ class QubitBaseClass(QuantumSystem):
     truncated_dim = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, truncated_dim=None):
-        DispatchClient.__init__(self)
         self.truncated_dim = truncated_dim
         self._default_grid = None
         self._evec_dtype = None
@@ -387,7 +386,6 @@ class QubitBaseClass1d(QubitBaseClass):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, truncated_dim=None):
-        DispatchClient.__init__(self)
         self._sys_type = 'qubit system'
         self._evec_dtype = np.float_
         self.truncated_dim = truncated_dim

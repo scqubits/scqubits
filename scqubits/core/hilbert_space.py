@@ -14,10 +14,9 @@ import warnings
 import numpy as np
 import qutip as qt
 
-from scqubits.core.central_dispatch import (ReadOnlyProperty,
-                                            WatchedProperty,
-                                            DispatchClient,
+from scqubits.core.central_dispatch import (DispatchClient,
                                             CENTRAL_DISPATCH)
+from scqubits.core.descriptors import ReadOnlyProperty, WatchedProperty
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import SpectrumData
@@ -76,7 +75,6 @@ class HilbertSpace(DispatchClient):
     interaction_list = WatchedProperty('INTERACTIONLIST_UPDATE')
 
     def __init__(self, subsystem_list, interaction_list=None):
-        DispatchClient.__init__(self)
         self._subsystems = tuple(subsystem_list)
         if interaction_list:
             self.interaction_list = tuple(interaction_list)

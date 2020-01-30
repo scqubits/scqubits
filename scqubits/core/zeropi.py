@@ -16,7 +16,8 @@ from scipy import sparse
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
-from scqubits.core.central_dispatch import WatchedProperty, DispatchClient, CENTRAL_DISPATCH
+from scqubits.core.central_dispatch import CENTRAL_DISPATCH
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import Grid1d, GridSpec
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import WaveFunctionOnGrid
@@ -84,7 +85,6 @@ class ZeroPi(QubitBaseClass):
     ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EL, ECJ, EC, ng, flux, grid, ncut, dEJ=0, dCJ=0, ECS=None, truncated_dim=None):
-        DispatchClient.__init__(self)
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ

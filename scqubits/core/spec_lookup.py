@@ -11,6 +11,7 @@
 
 import itertools
 import warnings
+import weakref
 
 import numpy as np
 
@@ -38,7 +39,7 @@ def shared_lookup_bare_eigenstates(self, param_index, subsys, bare_specdata_list
     """
     if isinstance(self, scqubits.ParameterSweep):
         bare_specdata_list = bare_specdata_list or self.lookup._bare_specdata_list
-        subsys_index = self._hilbertspace.get_subsys_index(subsys)
+        subsys_index = self.get_subsys_index(subsys)
         if subsys in self.subsys_update_list:
             return bare_specdata_list[subsys_index].state_table[param_index]
         return bare_specdata_list[subsys_index].state_table
@@ -76,18 +77,20 @@ class SpectrumLookup:
     def __init__(self, framework, dressed_specdata, bare_specdata_list):
         self._dressed_specdata = dressed_specdata
         self._bare_specdata_list = bare_specdata_list
+        # Store ParameterSweep and/or HilbertSpace objects only as weakref.proxy objects to avoid circular references
+        # that would prevent objects from expiring appropriately and being garbage collected
         if isinstance(framework, scqubits.ParameterSweep):
-            self._sweep = framework
-            self._hilbertspace = self._sweep._hilbertspace
+            self._sweep = weakref.proxy(framework)
+            self._hilbertspace = weakref.proxy(self._sweep._hilbertspace)
         elif isinstance(framework, scqubits.HilbertSpace):
             self._sweep = None
-            self._hilbertspace = framework
+            self._hilbertspace = weakref.proxy(framework)
         else:
             raise TypeError
 
         self._canonical_bare_labels = self.generate_bare_labels()
         self._dressed_indices = self.generate_mapping_list()  # lists of as many elements as there are parameter values.
-                                                              # For HilbertSpace objects this is a single-element list.
+                                                            # For HilbertSpace objects this is a single-element list.
         self._out_of_sync = False
 
     def generate_bare_labels(self):

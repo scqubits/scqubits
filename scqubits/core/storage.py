@@ -88,6 +88,10 @@ class DataStore:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def add_data(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
     def _get_metadata_dict(self):
         meta_dict = {'param_name': self.param_name, 'param_vals': self.param_vals}
         meta_dict.update(process_metadata(self.system_params))

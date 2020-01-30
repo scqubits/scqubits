@@ -14,7 +14,7 @@ import scipy as sp
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
-from scqubits.core.central_dispatch import WatchedProperty, DispatchClient
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import WaveFunctionOnGrid
@@ -81,7 +81,6 @@ class FluxQubit(QubitBaseClass):
     ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, ncut, truncated_dim=None):
-        DispatchClient.__init__(self)
         self.EJ1 = EJ1
         self.EJ2 = EJ2
         self.EJ3 = EJ3

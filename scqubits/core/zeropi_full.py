@@ -13,7 +13,8 @@ import numpy as np
 from scipy import sparse
 
 import scqubits.core.operators as op
-from scqubits.core.central_dispatch import WatchedProperty, DispatchClient, CENTRAL_DISPATCH
+from scqubits.core.central_dispatch import CENTRAL_DISPATCH
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
@@ -95,8 +96,6 @@ class FullZeroPi(QubitBaseClass):
 
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
                  ECS=None, truncated_dim=None):
-        DispatchClient.__init__(self)
-
         self._zeropi = ZeroPi(
             EJ=EJ,
             EL=EL,
@@ -112,17 +111,6 @@ class FullZeroPi(QubitBaseClass):
             # the zeropi_cutoff defines the truncated_dim of the "base" zeropi object
             truncated_dim=zeropi_cutoff
         )
-        # self.EJ = EJ,
-        # self.EL = EL,
-        # self.ECJ = ECJ,
-        # self.EC = EC,
-        # self.ng = ng,
-        # self.flux = flux,
-        # self.grid = grid,
-        # self.ncut = ncut,
-        # self.dEJ = dEJ,
-        # self.dCJ = dCJ,
-        # self.ECS = ECS,
         self.dC = dC
         self.dEL = dEL
         self.zeta_cutoff = zeta_cutoff
