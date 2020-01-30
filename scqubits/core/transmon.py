@@ -16,7 +16,7 @@ import numpy as np
 import scqubits.core.constants as constants
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-from scqubits.core.central_dispatch import WatchedProperty, DispatchClient
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass1d
 from scqubits.core.storage import WaveFunction
@@ -51,7 +51,6 @@ class Transmon(QubitBaseClass1d):
     ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EC, ng, ncut, truncated_dim=None):
-        DispatchClient.__init__(self)
         self.EJ = EJ
         self.EC = EC
         self.ng = ng

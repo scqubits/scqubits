@@ -112,8 +112,9 @@ def matelem_vs_paramvals(specdata):
 
 def dressed_spectrum(sweep, **kwargs):
     """Plot defaults for sweep_plotting.dressed_spectrum"""
-    kwargs['ymax'] = kwargs.get('ymax') or min(15, (np.max(sweep.dressed_specdata.energy_table) -
-                                                    np.min(sweep.dressed_specdata.energy_table)))
+    if 'ylim' not in kwargs:
+        kwargs['ymax'] = kwargs.get('ymax') or min(15, (np.max(sweep.dressed_specdata.energy_table) -
+                                                        np.min(sweep.dressed_specdata.energy_table)))
     kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
     kwargs['ylabel'] = kwargs.get('ylabel') or r'energy [{}]'.format(DEFAULT_ENERGY_UNITS)
     return kwargs
@@ -126,17 +127,17 @@ def chi(sweep, **kwargs):
     return kwargs
 
 
-def chi01(sweep, yval, **kwargs):
+def chi01(param_name, yval, **kwargs):
     """Plot defaults for sweep_plotting.chi01"""
-    kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
+    kwargs['xlabel'] = kwargs.get('xlabel') or param_name
     kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(DEFAULT_ENERGY_UNITS)
     kwargs['title'] = kwargs.get('title') or r'$\chi_{{01}}=${:.4f} {}'.format(yval, DEFAULT_ENERGY_UNITS)
     return kwargs
 
 
-def charge_matrixelem(sweep, **kwargs):
+def charge_matrixelem(param_name, **kwargs):
     """Plot defaults for sweep_plotting.charge_matrixelem"""
-    kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
+    kwargs['xlabel'] = kwargs.get('xlabel') or param_name
     kwargs['ylabel'] = kwargs.get('ylabel') or r'$|\langle i |n| j \rangle|$'
     return kwargs
 

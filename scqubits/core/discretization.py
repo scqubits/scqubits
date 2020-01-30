@@ -12,7 +12,8 @@
 import numpy as np
 from scipy import sparse
 
-from scqubits.core.central_dispatch import WatchedProperty, DispatchClient
+from scqubits.core.central_dispatch import DispatchClient
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.utils.misc import is_numerical
 
 

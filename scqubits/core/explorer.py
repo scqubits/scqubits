@@ -48,8 +48,8 @@ class Explorer:
         self.evals_count = evals_count
         self.figsize = figsize
 
-        swp.generate_chi_sweep(sweep)
-        swp.generate_charge_matrixelem_sweep(sweep)
+        self.chi_data = swp.generate_chi_sweep(sweep)
+        self.charge_matelem_data = swp.generate_charge_matrixelem_sweep(sweep)
 
     def plot_explorer_panels(self, param_val, photonnumber, initial_index, final_index, qbt_index, osc_index):
         """
@@ -85,11 +85,11 @@ class Explorer:
         energy_ground = self.sweep.lookup.energy_dressed_index(0, param_index)
         energy_initial = self.sweep.lookup.energy_dressed_index(initial_index, param_index) - energy_ground
         energy_final = self.sweep.lookup.energy_dressed_index(final_index, param_index) - energy_ground
-        qbt_subsys = self.sweep._hilbertspace[qbt_index]
+        qbt_subsys = self.sweep.get_subsys(qbt_index)
 
-        nrows = 3
-        ncols = 2
-        fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=self.figsize)
+        row_count = 3
+        column_count = 2
+        fig, axs = plt.subplots(ncols=column_count, nrows=row_count, figsize=self.figsize)
         axes_list_flattened = [elem for sublist in axs for elem in sublist]
 
         # Panel 1 ----------------------------------
@@ -98,7 +98,8 @@ class Explorer:
         # Panels 2 and 6----------------------------
         if type(qbt_subsys).__name__ in ['Transmon', 'Fluxonium']:   # do not plot wavefunctions if multi-dimensional
             panels.display_bare_wavefunctions(self.sweep, qbt_subsys, param_val, fig_ax(1))
-            panels.display_charge_matrixelems(self.sweep, initial_bare, qbt_subsys, param_val, fig_ax(5))
+            panels.display_charge_matrixelems(self.charge_matelem_data, initial_bare, (qbt_index, qbt_subsys),
+                                              param_val, fig_ax(5))
 
         # Panel 3 ----------------------------------
         panels.display_dressed_spectrum(self.sweep, initial_bare, final_bare, energy_initial, energy_final, param_val,
@@ -108,7 +109,7 @@ class Explorer:
         panels.display_n_photon_qubit_transitions(self.sweep, photonnumber, initial_bare, param_val, fig_ax(3))
 
         # Panel 5 ----------------------------------
-        panels.display_chi_01(self.sweep, qbt_index, osc_index, param_index, fig_ax(4))
+        panels.display_chi_01(self.chi_data, qbt_index, osc_index, param_index, fig_ax(4))
 
         fig.tight_layout()
         return fig, axs
@@ -119,8 +120,8 @@ class Explorer:
         param_max = self.param_vals[-1]
         param_step = self.param_vals[1] - self.param_vals[0]
 
-        qbt_indices = [index for (index, subsystem) in self.sweep._hilbertspace.qbt_subsys_list]
-        osc_indices = [index for (index, subsystem) in self.sweep._hilbertspace.osc_subsys_list]
+        qbt_indices = [index for (index, subsystem) in self.sweep.qbt_subsys_list]
+        osc_indices = [index for (index, subsystem) in self.sweep.osc_subsys_list]
 
         param_slider = ipywidgets.FloatSlider(min=param_min, max=param_max, step=param_step,
                                               description=self.param_name, continuous_update=False)
