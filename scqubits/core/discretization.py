@@ -28,8 +28,10 @@ class Grid1d(DispatchClient):
 
     Parameters
     ----------
-    min_val, max_val: float
-        minimum and maximum values of the discretized variable
+    min_val: float
+        minimum value of the discretized variable
+    max_val: float
+        maximum value of the discretized variable
     pt_count: int
         number of grid points
     """

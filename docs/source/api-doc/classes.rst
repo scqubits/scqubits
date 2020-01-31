@@ -92,6 +92,15 @@ ParameterSweep
 .. autoclass:: scqubits.ParameterSweep
     :members:
 
+.. _classes-spectrumlookup:
+
+SpectrumLookup
+--------------
+
+.. autoclass:: scqubits.core.spec_lookup.SpectrumLookup
+    :members:
+
+    .. automethod:: SpectrumLookup.dressed_index(self, bare_labels, param_index=0)
 
 **********************************************************
 Data Storage Classes
