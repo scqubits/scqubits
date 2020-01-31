@@ -79,5 +79,5 @@ def qubit_matrixelement(sweep, param_index, qubit_subsys, qubit_operator):
     -------
     ndarray
     """
-    bare_evecs = sweep.lookup.bare_eigenstates(param_index, qubit_subsys)
+    bare_evecs = sweep.lookup.bare_eigenstates(qubit_subsys, param_index=param_index)
     return spectrum_utils.get_matrixelement_table(qubit_operator, bare_evecs)

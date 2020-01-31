@@ -32,9 +32,10 @@ else:
 class InteractionTerm(DispatchClient):
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
-    the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is g A B, where g is the
-    interaction strength, A an operator in subsystem 1 and B and operator in subsystem 2.
-
+    the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
+    1. V = g A B, where A, B are Hermitean operators in two specified subsystems,
+    2. V = g A B + h.c., where A, B may be non-Hermitean
+    
     Parameters
     ----------
     g_strength: float
@@ -45,6 +46,8 @@ class InteractionTerm(DispatchClient):
         the two subsystems involved in the interaction
     op1, op2: str or ndarray
         names of operators in the two subsystems
+    add_hc: bool, optional (default=False)
+        If set to True, the interaction Hamiltonian is of type 2, and the Hermitean conjugate is added.
     """
     g_strength = WatchedProperty('INTERACTIONTERM_UPDATE')
     subsys1 = WatchedProperty('INTERACTIONTERM_UPDATE')
@@ -52,7 +55,7 @@ class InteractionTerm(DispatchClient):
     op1 = WatchedProperty('INTERACTIONTERM_UPDATE')
     op2 = WatchedProperty('INTERACTIONTERM_UPDATE')
 
-    def __init__(self, g_strength, subsys1, op1, subsys2, op2, hilbertspace=None):
+    def __init__(self, g_strength, subsys1, op1, subsys2, op2, add_hc=False, hilbertspace=None):
         if hilbertspace:
             warnings.warn("`hilbertspace` is no longer a parameter for initializing an InteractionTerm object.",
                           FutureWarning)
@@ -61,6 +64,7 @@ class InteractionTerm(DispatchClient):
         self.op1 = op1
         self.subsys2 = subsys2
         self.op2 = op2
+        self.add_hc = add_hc
 
 
 class HilbertSpace(DispatchClient):
@@ -363,7 +367,10 @@ class HilbertSpace(DispatchClient):
     def interactionterm_hamiltonian(self, interactionterm, evecs1=None, evecs2=None):
         interaction_op1 = self.identity_wrap(interactionterm.op1, interactionterm.subsys1, evecs=evecs1)
         interaction_op2 = self.identity_wrap(interactionterm.op2, interactionterm.subsys2, evecs=evecs2)
-        return interactionterm.g_strength * interaction_op1 * interaction_op2
+        hamiltonian = interactionterm.g_strength * interaction_op1 * interaction_op2
+        if interactionterm.add_hc:
+            return hamiltonian + hamiltonian.conj()
+        return hamiltonian
 
     def get_spectrum_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, get_eigenstates=False,
                                   param_name="external_parameter"):
