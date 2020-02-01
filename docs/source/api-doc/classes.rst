@@ -195,3 +195,25 @@ DispatchClient
 
 .. autoclass:: scqubits.core.central_dispatch.DispatchClient
     :members:
+
+
+
+**********************************************************
+Descriptor classes
+**********************************************************
+
+.. _classes-WatchedProperty:
+
+WatchedProperty
+---------------
+
+.. autoclass:: scqubits.core.descriptors.WatchedProperty
+    :members:
+
+.. _classes-readonly:
+
+ReadOnlyProperty
+----------------
+
+.. autoclass:: scqubits.core.descriptors.ReadOnlyProperty
+    :members:
