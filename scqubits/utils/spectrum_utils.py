@@ -273,7 +273,6 @@ def convert_opstring_to_qobj(operator, subsystem, evecs):
 
 
 def convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs):
-    dim = subsystem.truncated_dim
     if isinstance(operator, qt.Qobj):
         return operator
     if isinstance(operator, np.ndarray):
