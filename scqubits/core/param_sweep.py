@@ -305,5 +305,3 @@ class ParameterSweep(DispatchClient):
 
     def new_datastore(self, **kwargs):
         return DataStore(self.system_params, self.param_name, self.param_vals, **kwargs)
-
-

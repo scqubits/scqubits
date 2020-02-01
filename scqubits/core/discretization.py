@@ -17,12 +17,16 @@ from scqubits.core.descriptors import WatchedProperty
 from scqubits.utils.misc import is_numerical
 
 
-def _shared_get_metadata_dict(self):
-    meta_dict = {key: value for key, value in self.__dict__.items() if is_numerical(value)}
-    return meta_dict
+class MetaDataMixin:
+    """
+    Mix-in for both grid classes
+    """
+    def _get_metadata_dict(self):
+        meta_dict = {key: value for key, value in self.__dict__.items() if is_numerical(value)}
+        return meta_dict
 
 
-class Grid1d(DispatchClient):
+class Grid1d(DispatchClient, MetaDataMixin):
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
 
@@ -55,7 +59,8 @@ class Grid1d(DispatchClient):
         """
         Returns
         -------
-        float: spacing between neighboring grid points
+        float
+            spacing between neighboring grid points
         """
         return (self.max_val - self.min_val) / self.pt_count
 
@@ -124,8 +129,6 @@ class Grid1d(DispatchClient):
 
         return derivative_matrix
 
-    _get_metadata_dict = _shared_get_metadata_dict
-
     @classmethod
     def create_from_dict(cls, meta_dict):
         """
@@ -141,7 +144,7 @@ class Grid1d(DispatchClient):
         return cls(min_val=meta_dict['min_val'], max_val=meta_dict['max_val'], pt_count=meta_dict['pt_count'])
 
 
-class GridSpec(DispatchClient):
+class GridSpec(DispatchClient, MetaDataMixin):
     """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
 
     Parameters
@@ -170,5 +173,3 @@ class GridSpec(DispatchClient):
     def unwrap(self):
         """Auxiliary routine that yields a tuple of the parameters specifying the grid."""
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count
-
-    _get_metadata_dict = _shared_get_metadata_dict

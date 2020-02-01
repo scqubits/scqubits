@@ -11,7 +11,9 @@
 
 
 class ReadOnlyProperty:
-    """Descriptor for read-only properties (stored in xxx._name)"""
+    """
+    Descriptor for read-only properties (stored in xxx._name)
+    """
     def __set_name__(self, owner, name):
         self.name = '_' + name
 
@@ -26,8 +28,9 @@ class ReadOnlyProperty:
 
 
 class WatchedProperty:
-    """Descriptor class for properties that are to be monitored for changes. Upon change of the value, the instance
-     class invokes its `broadcast()` method to send the appropriate event notification to CentralDispatch
+    """
+    Descriptor class for properties that are to be monitored for changes. Upon change of the value, the instance
+    class invokes its `broadcast()` method to send the appropriate event notification to CentralDispatch
 
     Parameters
     ----------

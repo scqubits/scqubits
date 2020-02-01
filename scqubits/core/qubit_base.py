@@ -58,7 +58,7 @@ class QuantumSystem(DispatchClient):
     @abc.abstractmethod
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
-        pass
+        raise NotImplementedError
 
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -393,11 +393,11 @@ class QubitBaseClass1d(QubitBaseClass):
 
     @abc.abstractmethod
     def potential(self, phi):
-        pass
+        raise NotImplementedError
 
     @abc.abstractmethod
     def wavefunction(self, esys, which=0, phi_grid=None):
-        pass
+        raise NotImplementedError
 
     def plot_wavefunction(self, which=0,  mode='real', esys=None, phi_grid=None, scaling=None, **kwargs):
         """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional qubits like FluxQubits and
