@@ -103,7 +103,7 @@ class BaseWriter:
         self._current_object_data[name] = data
 
     def do_writing(self, filename):
-        pass
+        raise NotImplementedError
 
 
 class CsvWriter(BaseWriter):
@@ -137,7 +137,7 @@ class H5Writer(BaseWriter):
 
 
 class CsvReader:
-    pass
+    raise NotImplementedError
 
 
 class H5Reader:

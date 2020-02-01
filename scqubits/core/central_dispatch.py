@@ -26,6 +26,9 @@ EVENTS = [
 
 
 class CentralDispatch:
+    """
+    Primary class managing the central dispatch system.
+    """
     def __init__(self):
         self.clients_dict = {event: weakref.WeakKeyDictionary() for event in EVENTS}    # central dispatch information
     # For each event, store a dict that maps the clients registered for that event to their callback routines
@@ -145,7 +148,7 @@ class DispatchClient:
             original sender reporting the event
         **kwargs
         """
-        pass
+        raise NotImplementedError
 
     def __del__(self):
         logging.debug("Unregistering {}. au revoir.".format(type(self).__name__))

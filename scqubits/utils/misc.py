@@ -109,6 +109,14 @@ def value_not_none(key_value):
     return value is not None
 
 
+def is_numerical_ndarray(entity):
+    return isinstance(entity, np.ndarray) and entity.dtype.kind in set('biufc')
+
+
+def is_ndarray_of_qobj(entity):
+    return isinstance(entity, np.ndarray) and isinstance(entity.flat[0], qt.Qobj)
+
+
 def convert_to_ndarray(entity):
     """Convert the object `entity` to a numpy ndarray of numerical dtype. This is needed in the routines for writing
     content of DataStores and SpectrumData to disk.
@@ -117,13 +125,11 @@ def convert_to_ndarray(entity):
     ----------
     entity: array_like
     """
-    if isinstance(entity, np.ndarray) and entity.dtype.kind in set('biufc'):
-        # entity is numerical ndarray already
+    if is_numerical_ndarray(entity):
         return entity
-    if isinstance(entity, np.ndarray) and isinstance(entity.flat[0], qt.Qobj):
-        # entity is output from qt.eigenstates
+    if is_ndarray_of_qobj(entity):  # entity is output from qt.eigenstates
         return convert_esys_to_ndarray(entity)
-    if isinstance(entity, list) and isinstance(entity[0], np.ndarray) and isinstance(entity[0].flat[0], qt.Qobj):
+    if isinstance(entity, list) and is_ndarray_of_qobj(entity[0]):
         # entity is a list of qt.eigenstates
         return np.asarray([convert_esys_to_ndarray(entry) for entry in entity])
     # possibly we have a list of numerical values or a list of ndarrays
