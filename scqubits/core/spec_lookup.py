@@ -12,9 +12,9 @@
 import itertools
 import warnings
 import weakref
-import numpy as np
-
 from functools import wraps
+
+import numpy as np
 
 import scqubits
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray

@@ -124,6 +124,7 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_grid=None, **kwarg
     fig, axes
     """
     subsys_index = sweep.get_subsys_index(subsys)
+    sweep.update_hilbertspace(param_val)
     param_index = np.searchsorted(sweep.param_vals, param_val)
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
     evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]

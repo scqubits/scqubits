@@ -162,3 +162,36 @@ GridSpec
 
 .. autoclass:: scqubits.core.discretization.GridSpec
     :members:
+
+
+**********************************************************
+CentralDispatch and related classes
+**********************************************************
+
+.. figure:: ../graphics/dispatch1.JPG
+   :align: center
+   :width: 7.5in
+
+.. figure:: ../graphics/dispatch2.JPG
+   :align: center
+   :width: 7.5in
+
+.. figure:: ../graphics/dispatch3.JPG
+   :align: center
+   :width: 7.5in
+
+.. _classes-centraldispatch:
+
+CentralDispatch
+---------------
+
+.. autoclass:: scqubits.core.central_dispatch.CentralDispatch
+    :members:
+
+.. _classes-dispatchclient:
+
+DispatchClient
+---------------
+
+.. autoclass:: scqubits.core.central_dispatch.DispatchClient
+    :members:
