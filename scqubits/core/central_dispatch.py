@@ -12,6 +12,7 @@
 
 import logging
 import weakref
+import warnings
 
 import scqubits.settings as settings
 
@@ -148,7 +149,7 @@ class DispatchClient:
             original sender reporting the event
         **kwargs
         """
-        raise NotImplementedError
+        warnings.warn("`receive() method not implemented for {}".format(self))
 
     def __del__(self):
         logging.debug("Unregistering {}. au revoir.".format(type(self).__name__))

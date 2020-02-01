@@ -20,36 +20,6 @@ import scqubits
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
 
 
-def shared_lookup_bare_eigenstates(self, param_index, subsys, bare_specdata_list=None):
-    """
-    Parameters
-    ----------
-    self: ParameterSweep or HilbertSpace
-    param_index: int
-        position index of parameter value in question
-    subsys: QuantumSystem
-        Hilbert space subsystem for which bare eigendata is to be looked up
-    bare_specdata_list: list of SpectrumData, optional
-        may be provided during partial generation of the lookup
-
-    Returns
-    -------
-    ndarray
-        bare eigenvectors for the specified subsystem and the external parameter fixed to the value indicated by
-        its index
-    """
-    if isinstance(self, scqubits.ParameterSweep):
-        bare_specdata_list = bare_specdata_list or self.lookup._bare_specdata_list
-        subsys_index = self.get_subsys_index(subsys)
-        if subsys in self.subsys_update_list:
-            return bare_specdata_list[subsys_index].state_table[param_index]
-        return bare_specdata_list[subsys_index].state_table
-    if isinstance(self, scqubits.HilbertSpace):
-        subsys_index = self.get_subsys_index(subsys)
-        return bare_specdata_list[subsys_index].state_table
-    raise TypeError
-
-
 def check_sync_status(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -115,8 +85,12 @@ class SpectrumLookup:
         list of tuples of ints
         """
         dim_list = self._hilbertspace.subsystem_dims
-        basis_label_ranges = [list(range(dim_list[subsys_index])) for subsys_index
-                              in range(self._hilbertspace.subsystem_count)]
+        subsys_count = self._hilbertspace.subsystem_count
+
+        basis_label_ranges = []
+        for subsys_index in range(subsys_count):
+            basis_label_ranges.append(range(dim_list[subsys_index]))
+
         basis_labels_list = list(itertools.product(*basis_label_ranges))   # generate list of bare basis states (tuples)
         return basis_labels_list
 
@@ -199,7 +173,7 @@ class SpectrumLookup:
 
         Returns
         -------
-        tuple(int)
+        tuple of int
             Bare state specification in tuple form. Example: (1,0,3) means subsystem 1 is in bare state 1, subsystem 2
             in bare state 0, and subsystem 3 in bare state 3.
         """
@@ -258,12 +232,13 @@ class SpectrumLookup:
 
         Returns
         -------
-        dressed energy: float
+        float or None
+            dressed energy, if lookup successful
         """
         dressed_index = self.dressed_index(bare_tuples, param_index)
-        if dressed_index is not None:
-            return self._dressed_specdata.energy_table[param_index][dressed_index]
-        return None
+        if dressed_index is None:
+            return None
+        return self._dressed_specdata.energy_table[param_index][dressed_index]
 
     @check_sync_status
     def energy_dressed_index(self, dressed_index, param_index=0):
@@ -296,7 +271,9 @@ class SpectrumLookup:
         -------
         ndarray
         """
-        return shared_lookup_bare_eigenstates(self._sweep, param_index, subsys)
+        framework = self._sweep or self._hilbertspace
+        subsys_index = framework.get_subsys_index(subsys)
+        return self._bare_specdata_list[subsys_index].state_table[param_index]
 
     @check_sync_status
     def bare_eigenenergies(self, subsys, param_index=0):
@@ -317,6 +294,4 @@ class SpectrumLookup:
             its index
         """
         subsys_index = self._hilbertspace.index(subsys)
-        if subsys in self._sweep.subsys_update_list:
-            return self._bare_specdata_list[subsys_index].energy_table[param_index]
-        return self._bare_specdata_list[subsys_index].energy_table
+        return self._bare_specdata_list[subsys_index].energy_table[param_index]
