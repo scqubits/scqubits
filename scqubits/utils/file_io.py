@@ -138,7 +138,7 @@ class H5Writer(BaseWriter):
 
 
 class CsvReader:
-    warnings.warn("CSVReader not implemented.")
+    # not currently implemented
     pass
 
 

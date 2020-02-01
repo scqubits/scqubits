@@ -22,7 +22,7 @@ import scqubits.core.constants as constants
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
-from scqubits.core.descriptors import WatchedProperty
+from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.misc import process_which, process_metadata, filter_metadata
@@ -41,8 +41,10 @@ class QuantumSystem(DispatchClient):
     """Generic quantum system class"""
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self):
-        self._sys_type = 'quantum_system'
+    # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
+    truncated_dim: int
+    _evec_dtype: type
+    _sys_type: str
 
     def __str__(self):
         output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
@@ -69,12 +71,11 @@ class QubitBaseClass(QuantumSystem):
     """
     __metaclass__ = abc.ABCMeta
 
-    truncated_dim = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
-    def __init__(self, truncated_dim=None):
-        self.truncated_dim = truncated_dim
-        self._default_grid = None
-        self._evec_dtype = None
+    # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
+    truncated_dim: int
+    _default_grid: Grid1d
+    _evec_dtype: type
+    _sys_type: str
 
     @abc.abstractmethod
     def hamiltonian(self):
@@ -385,11 +386,7 @@ class QubitBaseClass1d(QubitBaseClass):
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, truncated_dim=None):
-        self._sys_type = 'qubit system'
-        self._evec_dtype = np.float_
-        self.truncated_dim = truncated_dim
-        self._default_grid = None
+    _evec_dtype = np.float_
 
     @abc.abstractmethod
     def potential(self, phi):
