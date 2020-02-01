@@ -18,14 +18,20 @@ scqubits has a few internal parameters that can be changed by the user:
 
 .. cssclass:: table-striped
 
-+------------------------+-------------------------------------------+-----------------------------+
-| Setting                | Description                               | Options                     |
-+========================+===========================================+=============================+
-| `file_format`          | Switches between supported file formats   | FileType.h5, FileType.csv   |
-|                        | for writing data to disk.                 |                             |
-+------------------------+-------------------------------------------+-----------------------------+
-| `progressbar_enabled`  | Switches display of progressbar on/off.   | True / False                |
-+------------------------+-------------------------------------------+-----------------------------+
++------------------------+------------------------------+-------------------------------------------------------------------+
+| Setting                |  Options                     | Description                                                       |
++========================+==============================+=============+=====================================================+
+| `FILE_FORMAT`          | `FileType.h5`, `FileType.csv`| Switches between supported file formats for writing data to disk. |
++------------------------+------------------------------+-------------------------------------------------------------------+
+| `PROGRESSBAR_DISABLED` |  True / False                | Switches display of progressbar on/off.                           |
++------------------------+------------------------------+-------------------------------------------------------------------+
+| `DEFAULT_ENERGY_UNIT`  |  `str` (default: GHz)        | Used in axes labels with plotting                                 |
++------------------------+------------------------------+-------------------------------------------------------------------+
+| `AUTORUN_SWEEP`        | True / False (default: True) | Whether to generate `ParameterSweep`                              |
+|                        |                              | immediately upon initialization                                   |
++------------------------+------------------------------+-------------------------------------------------------------------+
+| `DISPATCH_ENABLED`     | True / False (default: True) | Whether to use central dispatch system                            |
++------------------------+------------------------------+-------------------------------------------------------------------+
 
 .. _settings-usage:
 
