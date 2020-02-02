@@ -255,22 +255,55 @@ def convert_esys_to_ndarray(esys_qutip):
     return esys_ndarray
 
 
-def convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs):
+def convert_ndarray_to_qobj(operator, subsystem, op_in_eigenbasis, evecs):
     dim = subsystem.truncated_dim
-    if isinstance(operator, qt.Qobj):
-        return operator
-
-    if isinstance(operator, np.ndarray):
-        if op_in_eigenbasis is False:
-            if evecs is None:
-                _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
-            operator_matrixelements = get_matrixelement_table(operator, evecs)
-            return qt.Qobj(inpt=operator_matrixelements)
-        return qt.Qobj(inpt=operator[:dim, :dim])
-    elif isinstance(operator, str):
+    if op_in_eigenbasis is False:
         if evecs is None:
             _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
-        operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
+        operator_matrixelements = get_matrixelement_table(operator, evecs)
         return qt.Qobj(inpt=operator_matrixelements)
+    return qt.Qobj(inpt=operator[:dim, :dim])
 
+
+def convert_opstring_to_qobj(operator, subsystem, evecs):
+    if evecs is None:
+        _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+    operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
+    return qt.Qobj(inpt=operator_matrixelements)
+
+
+def convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs):
+    if isinstance(operator, qt.Qobj):
+        return operator
+    if isinstance(operator, np.ndarray):
+        return convert_ndarray_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+    if isinstance(operator, str):
+        return convert_opstring_to_qobj(operator, subsystem, evecs)
     raise TypeError('Unsupported operator type: ', type(operator))
+
+
+def generate_target_states_list(sweep, initial_state_labels):
+    """Based on a bare state label (i1, i2, ...)  with i1 being the excitation level of subsystem 1, i2 the
+    excitation level of subsystem 2 etc., generate a list of new bare state labels. These bare state labels
+    correspond to target states reached from the given initial one by single-photon qubit transitions. These
+    are transitions where one of the qubit excitation levels increases at a time. There are no changes in
+    oscillator photon numbers.
+
+    Parameters
+    ----------
+    sweep: ParameterSweep
+    initial_state_labels: tuple(int1, int2, ...)
+        bare-state labels of the initial state whose energy is supposed to be subtracted from the spectral data
+
+    Returns
+    -------
+    list of tuple"""
+    target_states_list = []
+    for subsys_index, qbt_subsys in sweep.qbt_subsys_list:   # iterate through qubit subsystems
+        initial_qbt_state = initial_state_labels[subsys_index]
+        for state_label in range(initial_qbt_state + 1, qbt_subsys.truncated_dim):
+            # for given qubit subsystem, generate target labels by increasing that qubit excitation level
+            target_labels = list(initial_state_labels)
+            target_labels[subsys_index] = state_label
+            target_states_list.append(tuple(target_labels))
+    return target_states_list

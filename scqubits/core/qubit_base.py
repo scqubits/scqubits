@@ -21,6 +21,8 @@ import scipy as sp
 import scqubits.core.constants as constants
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+from scqubits.core.central_dispatch import DispatchClient
+from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.misc import process_which, process_metadata, filter_metadata
@@ -35,12 +37,14 @@ else:
 
 # —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
 
-class QuantumSystem:
+class QuantumSystem(DispatchClient):
     """Generic quantum system class"""
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self):
-        self._sys_type = 'quantum_system'
+    # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
+    truncated_dim: int
+    _evec_dtype: type
+    _sys_type: str
 
     def __str__(self):
         output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
@@ -56,6 +60,7 @@ class QuantumSystem:
     @abc.abstractmethod
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
+        raise NotImplementedError
 
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -66,11 +71,11 @@ class QubitBaseClass(QuantumSystem):
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, truncated_dim=None):
-        super().__init__()
-        self.truncated_dim = truncated_dim
-        self._default_grid = None
-        self._evec_dtype = None
+    # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
+    truncated_dim: int
+    _default_grid: Grid1d
+    _evec_dtype: type
+    _sys_type: str
 
     @abc.abstractmethod
     def hamiltonian(self):
@@ -144,8 +149,8 @@ class QubitBaseClass(QuantumSystem):
         """
         evals = self._evals_calc(evals_count)
         if filename:
-            specdata = SpectrumData('const_parameters', param_vals=np.empty(0), energy_table=evals,
-                                    system_params=self._get_metadata_dict())
+            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict(),
+                                    param_name='const_parameters', param_vals=np.empty(0))
             specdata.filewrite(filename)
         return evals
 
@@ -167,8 +172,8 @@ class QubitBaseClass(QuantumSystem):
         """
         evals, evecs = self._esys_calc(evals_count)
         if filename:
-            specdata = SpectrumData('const_parameters', param_vals=np.empty(0), energy_table=evals,
-                                    system_params=self._get_metadata_dict(), state_table=evecs)
+            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict(),
+                                    param_name='const_parameters', param_vals=np.empty(0), state_table=evecs)
             specdata.filewrite(filename)
         return evals, evecs
 
@@ -199,8 +204,8 @@ class QubitBaseClass(QuantumSystem):
         operator_matrix = getattr(self, operator)()
         table = get_matrixelement_table(operator_matrix, evecs)
         if filename:
-            specdata = SpectrumData('const_parameters', param_vals=np.empty(0), energy_table=np.empty(0),
-                                    system_params=self._get_metadata_dict(), matrixelem_table=table)
+            specdata = SpectrumData(energy_table=np.empty(0), system_params=self._get_metadata_dict(),
+                                    param_name='const_parameters', param_vals=np.empty(0), matrixelem_table=table)
             specdata.filewrite(filename)
         return table
 
@@ -248,7 +253,7 @@ class QubitBaseClass(QuantumSystem):
                 eigenvalue_table[index] -= evals[0]
         setattr(self, param_name, previous_paramval)
 
-        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
+        spectrumdata = SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
                                     state_table=eigenstate_table)
         return spectrumdata
 
@@ -285,7 +290,7 @@ class QubitBaseClass(QuantumSystem):
             matelem_table[index] = self.matrixelement_table(operator, evals_count=evals_count)
         setattr(self, param_name, previous_paramval)
 
-        spectrumdata = SpectrumData(param_name, param_vals, eigenvalue_table, self._get_metadata_dict(),
+        spectrumdata = SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
                                     state_table=eigenstate_table, matrixelem_table=matelem_table)
         return spectrumdata
 
@@ -381,19 +386,15 @@ class QubitBaseClass1d(QubitBaseClass):
     """
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, truncated_dim=None):
-        self._sys_type = 'qubit system'
-        self._evec_dtype = np.float_
-        self.truncated_dim = truncated_dim
-        self._default_grid = None
+    _evec_dtype = np.float_
 
     @abc.abstractmethod
     def potential(self, phi):
-        pass
+        raise NotImplementedError
 
     @abc.abstractmethod
     def wavefunction(self, esys, which=0, phi_grid=None):
-        pass
+        raise NotImplementedError
 
     def plot_wavefunction(self, which=0,  mode='real', esys=None, phi_grid=None, scaling=None, **kwargs):
         """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional qubits like FluxQubits and

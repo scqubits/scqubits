@@ -387,7 +387,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
         axes.plot(x, y, label=str(row) + ',' + str(col))
 
     if _LABELLINES_ENABLED:
-        labelLines(axes.get_lines(), zorder=2.0)
+        labelLines(axes.get_lines(), zorder=1.5)
     else:
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)

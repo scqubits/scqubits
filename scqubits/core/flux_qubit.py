@@ -14,6 +14,7 @@ import scipy as sp
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import WaveFunctionOnGrid
@@ -65,6 +66,19 @@ class FluxQubit(QubitBaseClass):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
+
+    EJ1 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ2 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ3 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ1 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ2 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ3 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg1 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg2 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng1 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng2 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, ncut, truncated_dim=None):
         self.EJ1 = EJ1

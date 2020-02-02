@@ -17,6 +17,7 @@ within scqubits is carried out with the help of Numpy and Scipy; plotting capabi
 import warnings
 
 import scqubits.settings
+from scqubits.core.central_dispatch import CentralDispatch
 # core
 from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer
@@ -28,10 +29,6 @@ from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.transmon import Transmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-
-# utils
-# from scqubits.settings import FileType
-# from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 # version
 try:

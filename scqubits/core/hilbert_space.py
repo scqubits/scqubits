@@ -9,11 +9,16 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import numpy as np
-import qutip as qt
 import warnings
 
+import numpy as np
+import qutip as qt
+
+from scqubits.core.central_dispatch import (DispatchClient,
+                                            CENTRAL_DISPATCH)
+from scqubits.core.descriptors import ReadOnlyProperty, WatchedProperty
 from scqubits.core.harmonic_osc import Oscillator
+from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.spectrum_utils import convert_operator_to_qobj
@@ -24,12 +29,13 @@ else:
     from tqdm import tqdm
 
 
-class InteractionTerm:
+class InteractionTerm(DispatchClient):
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
-    the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is g A B, where g is the
-    interaction strength, A an operator in subsystem 1 and B and operator in subsystem 2.
-
+    the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
+    1. V = g A B, where A, B are Hermitean operators in two specified subsystems,
+    2. V = g A B + h.c., where A, B may be non-Hermitean
+    
     Parameters
     ----------
     g_strength: float
@@ -40,53 +46,66 @@ class InteractionTerm:
         the two subsystems involved in the interaction
     op1, op2: str or ndarray
         names of operators in the two subsystems
+    add_hc: bool, optional (default=False)
+        If set to True, the interaction Hamiltonian is of type 2, and the Hermitean conjugate is added.
     """
-    def __init__(self, g_strength, hilbertspace, subsys1, op1, subsys2, op2):
+    g_strength = WatchedProperty('INTERACTIONTERM_UPDATE')
+    subsys1 = WatchedProperty('INTERACTIONTERM_UPDATE')
+    subsys2 = WatchedProperty('INTERACTIONTERM_UPDATE')
+    op1 = WatchedProperty('INTERACTIONTERM_UPDATE')
+    op2 = WatchedProperty('INTERACTIONTERM_UPDATE')
+
+    def __init__(self, g_strength, subsys1, op1, subsys2, op2, add_hc=False, hilbertspace=None):
+        if hilbertspace:
+            warnings.warn("`hilbertspace` is no longer a parameter for initializing an InteractionTerm object.",
+                          FutureWarning)
         self.g_strength = g_strength
-        self.hilbertspace = hilbertspace
         self.subsys1 = subsys1
         self.op1 = op1
         self.subsys2 = subsys2
         self.op2 = op2
-
-    def hamiltonian(self, evecs1=None, evecs2=None):
-        """
-        Parameters
-        ----------
-        evecs1, evecs2: ndarray, optional
-            subsystem eigenvectors used to calculated interaction Hamiltonian; calculated on the fly if not given
-
-        Returns
-        -------
-        qutip.Qobj operator
-            interaction Hamiltonian
-        """
-        interaction_op1 = self.hilbertspace.identity_wrap(self.op1, self.subsys1, op_in_eigenbasis=False, evecs=evecs1)
-        interaction_op2 = self.hilbertspace.identity_wrap(self.op2, self.subsys2, op_in_eigenbasis=False, evecs=evecs2)
-        return self.g_strength * interaction_op1 * interaction_op2
+        self.add_hc = add_hc
 
 
-class HilbertSpace(list):
+class HilbertSpace(DispatchClient):
     """Class holding information about the full Hilbert space, usually composed of multiple subsystems.
     The class provides methods to turn subsystem operators into operators acting on the full Hilbert space, and
     establishes the interface to qutip. Returned operators are of the `qutip.Qobj` type. The class also provides methods
     for obtaining eigenvalues, absorption and emission spectra as a function of an external parameter.
     """
+    osc_subsys_list = ReadOnlyProperty()
+    qbt_subsys_list = ReadOnlyProperty()
+    lookup = ReadOnlyProperty()
+    interaction_list = WatchedProperty('INTERACTIONLIST_UPDATE')
 
     def __init__(self, subsystem_list, interaction_list=None):
-        list.__init__(self, subsystem_list)
-        self.interaction_list = interaction_list
-        self.state_lookup_table = None
-        self.osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
-                                if isinstance(subsys, Oscillator)]
-        self.qbt_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
-                                if not isinstance(subsys, Oscillator)]
+        self._subsystems = tuple(subsystem_list)
+        if interaction_list:
+            self.interaction_list = tuple(interaction_list)
+        else:
+            self.interaction_list = None
+
+        self._lookup = None
+        self._osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
+                                 if isinstance(subsys, Oscillator)]
+        self._qbt_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
+                                 if not isinstance(subsys, Oscillator)]
+
+        CENTRAL_DISPATCH.register('QUANTUMSYSTEM_UPDATE', self)
+        CENTRAL_DISPATCH.register('INTERACTIONTERM_UPDATE', self)
+        CENTRAL_DISPATCH.register('INTERACTIONLIST_UPDATE', self)
+
+    def __getitem__(self, index):
+        return self._subsystems[index]
 
     def __str__(self):
         output = '====== HilbertSpace object ======\n'
         for subsystem in self:
             output += '\n' + str(subsystem) + '\n'
         return output
+
+    def index(self, item):
+        return self._subsystems.index(item)
 
     def _get_metadata_dict(self):
         meta_dict = {}
@@ -97,6 +116,21 @@ class HilbertSpace(list):
                 renamed_subsys_meta[type(subsystem).__name__ + str(index) + '_' + key] = subsys_meta[key]
             meta_dict.update(renamed_subsys_meta)
         return meta_dict
+
+    def receive(self, event, sender, **kwargs):
+        if self.lookup is not None:
+            if event == 'QUANTUMSYSTEM_UPDATE' and sender in self:
+                self.broadcast('HILBERTSPACE_UPDATE')
+                self._lookup._out_of_sync = True
+                # print('Lookup table now out of sync')
+            elif event == 'INTERACTIONTERM_UPDATE' and sender in self.interaction_list:
+                self.broadcast('HILBERTSPACE_UPDATE')
+                self._lookup._out_of_sync = True
+                # print('Lookup table now out of sync')
+            elif event == 'INTERACTIONLIST_UPDATE' and sender is self:
+                self.broadcast('HILBERTSPACE_UPDATE')
+                self._lookup._out_of_sync = True
+                # print('Lookup table now out of sync')
 
     @property
     def subsystem_dims(self):
@@ -123,7 +157,19 @@ class HilbertSpace(list):
         Returns
         -------
         int"""
-        return len(self)
+        return len(self._subsystems)
+
+    def generate_lookup(self):
+        bare_specdata_list = []
+        for index, subsys in enumerate(self):
+            evals, evecs = subsys.eigensys(evals_count=subsys.truncated_dim)
+            bare_specdata_list.append(SpectrumData(energy_table=[evals], state_table=[evecs],
+                                                   system_params=subsys.__dict__))
+
+        evals, evecs = self.eigensys(evals_count=self.dimension)
+        dressed_specdata = SpectrumData(energy_table=[evals], state_table=[evecs],
+                                        system_params=self._get_metadata_dict())
+        self._lookup = SpectrumLookup(self, bare_specdata_list=bare_specdata_list, dressed_specdata=dressed_specdata)
 
     def eigenvals(self, evals_count=6):
         """Calculates eigenvalues of the full Hamiltonian using `qutip.Qob.eigenenergies()`.
@@ -299,14 +345,32 @@ class HilbertSpace(list):
         qutip.qobj
             Hamiltonian of the composite system, including the interaction between components
         """
-        hamiltonian = self.bare_hamiltonian()
-        for interaction_term in self.interaction_list:
-            hamiltonian += interaction_term.hamiltonian()
-        return hamiltonian
+        return self.bare_hamiltonian() + self.interaction_hamiltonian()
 
     def get_hamiltonian(self):
         """Deprecated, use `hamiltonian()` instead."""
         return self.hamiltonian()
+
+    def interaction_hamiltonian(self):
+        """
+        Returns
+        -------
+        qutip.Qobj operator
+            interaction Hamiltonian
+        """
+        if self.interaction_list is None:
+            return 0
+
+        hamiltonian = [self.interactionterm_hamiltonian(term) for term in self.interaction_list]
+        return sum(hamiltonian)
+
+    def interactionterm_hamiltonian(self, interactionterm, evecs1=None, evecs2=None):
+        interaction_op1 = self.identity_wrap(interactionterm.op1, interactionterm.subsys1, evecs=evecs1)
+        interaction_op2 = self.identity_wrap(interactionterm.op2, interactionterm.subsys2, evecs=evecs2)
+        hamiltonian = interactionterm.g_strength * interaction_op1 * interaction_op2
+        if interactionterm.add_hc:
+            return hamiltonian + hamiltonian.conj()
+        return hamiltonian
 
     def get_spectrum_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, get_eigenstates=False,
                                   param_name="external_parameter"):
@@ -352,6 +416,6 @@ class HilbertSpace(list):
                 eigenenergies = hamiltonian.eigenenergies(eigvals=evals_count)
                 eigenenergy_table[param_index] = eigenenergies
 
-        spectrumdata = SpectrumData(param_name, param_vals, eigenenergy_table, self.__dict__,
+        spectrumdata = SpectrumData(eigenenergy_table, self.__dict__, param_name, param_vals,
                                     state_table=eigenstates_qobj_table)
         return spectrumdata

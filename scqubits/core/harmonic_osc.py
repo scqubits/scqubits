@@ -46,6 +46,9 @@ class Oscillator(QuantumSystem):
     """General class for mode of an oscillator/resonator."""
     def __init__(self, E_osc=None, omega=None, truncated_dim=None):
         self._sys_type = 'oscillator'
+        self._evec_dtype = np.float_
+        self.truncated_dim = truncated_dim
+
         # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
         if E_osc is None and omega is None:
             raise ValueError('E_osc is a mandatory argument.')
@@ -56,7 +59,7 @@ class Oscillator(QuantumSystem):
         # end of code supporting deprecated omega
         else:
             self.E_osc = E_osc
-        self.truncated_dim = truncated_dim
+
 
     # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
     def get_omega(self):
