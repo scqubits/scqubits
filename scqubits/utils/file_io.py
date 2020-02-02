@@ -14,6 +14,7 @@ Helper routines for writing data to CSV and h5 files.
 
 import csv
 import os
+import warnings
 
 import h5py
 import numpy as np
@@ -103,7 +104,7 @@ class BaseWriter:
         self._current_object_data[name] = data
 
     def do_writing(self, filename):
-        pass
+        raise NotImplementedError
 
 
 class CsvWriter(BaseWriter):
@@ -137,6 +138,7 @@ class H5Writer(BaseWriter):
 
 
 class CsvReader:
+    # not currently implemented
     pass
 
 

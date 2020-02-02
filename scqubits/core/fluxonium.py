@@ -16,6 +16,7 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.operators as op
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import Grid1d
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
 from scqubits.core.qubit_base import QubitBaseClass1d
@@ -47,6 +48,12 @@ class Fluxonium(QubitBaseClass1d):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
+
+    EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EC = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    cutoff = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EC, EL, flux, cutoff, truncated_dim=None):
         self.EJ = EJ

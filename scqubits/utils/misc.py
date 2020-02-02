@@ -37,14 +37,15 @@ def process_which(which, max_index):
     return which
 
 
-def make_bare_labels(hilbertspace, *args):
+def make_bare_labels(subsystem_count, *args):
     """
     For two given subsystem states, return the full-system bare state label obtained by placing all remaining
     subsystems in their ground states.
 
     Parameters
     ----------
-    hilbertspace: HilbertSpace
+    subsystem_count: int
+        number of subsystems inside Hilbert space
     *args: tuple(int, int)
         each argument is a tuple of the form (subsys_index, label)
 
@@ -54,7 +55,7 @@ def make_bare_labels(hilbertspace, *args):
         Suppose there are 5 subsystems in total. Let (subsys_index1=0, label1=3), (subsys_index2=2, label2=1). Then the
         returned bare-state tuple is: (3,0,1,0,0)
     """
-    bare_labels = [0] * hilbertspace.subsystem_count
+    bare_labels = [0] * subsystem_count
     for subsys_index, label in args:
         bare_labels[subsys_index] = label
     return tuple(bare_labels)
@@ -108,6 +109,14 @@ def value_not_none(key_value):
     return value is not None
 
 
+def is_numerical_ndarray(entity):
+    return isinstance(entity, np.ndarray) and entity.dtype.kind in set('biufc')
+
+
+def is_ndarray_of_qobj(entity):
+    return isinstance(entity, np.ndarray) and isinstance(entity.flat[0], qt.Qobj)
+
+
 def convert_to_ndarray(entity):
     """Convert the object `entity` to a numpy ndarray of numerical dtype. This is needed in the routines for writing
     content of DataStores and SpectrumData to disk.
@@ -116,13 +125,11 @@ def convert_to_ndarray(entity):
     ----------
     entity: array_like
     """
-    if isinstance(entity, np.ndarray) and entity.dtype.kind in set('biufc'):
-        # entity is numerical ndarray already
+    if is_numerical_ndarray(entity):
         return entity
-    if isinstance(entity, np.ndarray) and isinstance(entity.flat[0], qt.Qobj):
-        # entity is output from qt.eigenstates
+    if is_ndarray_of_qobj(entity):  # entity is output from qt.eigenstates
         return convert_esys_to_ndarray(entity)
-    if isinstance(entity, list) and isinstance(entity[0], np.ndarray) and isinstance(entity[0].flat[0], qt.Qobj):
+    if isinstance(entity, list) and is_ndarray_of_qobj(entity[0]):
         # entity is a list of qt.eigenstates
         return np.asarray([convert_esys_to_ndarray(entry) for entry in entity])
     # possibly we have a list of numerical values or a list of ndarrays

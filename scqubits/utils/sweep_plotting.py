@@ -10,18 +10,16 @@
 ############################################################################
 
 
-import copy
-
 import numpy as np
 
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-from scqubits.core.sweep_generators import get_n_photon_qubit_spectrum, get_difference_spectrum
+from scqubits.core.sweep_generators import generate_qubit_transitions_sweep, generate_diffspec_sweep
 
 
 def bare_spectrum(sweep, subsys, which=-1, **kwargs):
     """
-    Plots energy spectrum of bare system `subsys` for given parameter sweep `sweep`.
+    Plots energy spectrum of bare system `subsys` for given ParameterSweep `sweep`.
 
     Parameters
     ----------
@@ -37,7 +35,7 @@ def bare_spectrum(sweep, subsys, which=-1, **kwargs):
     -------
     fig, axes
     """
-    subsys_index = sweep.hilbertspace.index(subsys)
+    subsys_index = sweep.get_subsys_index(subsys)
     specdata = sweep.bare_specdata_list[subsys_index]
     if which is None:
         which = subsys.truncated_dim
@@ -78,7 +76,7 @@ def difference_spectrum(sweep, initial_state_ind=0, **kwargs):
     -------
     Figure, Axes
     """
-    return get_difference_spectrum(sweep, initial_state_ind).plot_evals_vs_paramvals(**kwargs)
+    return generate_diffspec_sweep(sweep, initial_state_ind).plot_evals_vs_paramvals(**kwargs)
 
 
 def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, **kwargs):
@@ -99,7 +97,7 @@ def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, **kwargs)
     -------
     Figure, Axes
     """
-    label_list, specdata = get_n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels)
+    label_list, specdata = generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels)
     return specdata.plot_evals_vs_paramvals(label_list=label_list, **kwargs)
 
 
@@ -125,27 +123,22 @@ def bare_wavefunction(sweep, param_val, subsys, which=-1, phi_grid=None, **kwarg
     -------
     fig, axes
     """
-    subsys_index = sweep.hilbertspace.index(subsys)
+    subsys_index = sweep.get_subsys_index(subsys)
     sweep.update_hilbertspace(param_val)
-
     param_index = np.searchsorted(sweep.param_vals, param_val)
-
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
     evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]
     return subsys.plot_wavefunction(esys=(evals, evecs), which=which, mode='real', phi_grid=phi_grid, **kwargs)
 
 
-def chi(sweep, qbt_index, osc_index, **kwargs):
+def chi(datastore, **kwargs):
     """
     Plot dispersive shifts chi_j for a given pair of qubit and oscillator.
 
     Parameters
     ----------
-    sweep: ParameterSweep
-    qbt_index: int
-        index of the qubit system within the underlying HilbertSpace
-    osc_index: int
-        index of the oscillator system within the underlying HilbertSpace
+    datastore: DataStore
+        contains sweep data for the dispersive shift, stored as datastore.chi
     **kwargs: dict
         standard plotting option (see separate documentation)
 
@@ -153,25 +146,20 @@ def chi(sweep, qbt_index, osc_index, **kwargs):
     -------
     Figure, Axes
     """
-    data_key = 'chi_osc{}_qbt{}'.format(osc_index, qbt_index)
-    ydata = sweep.sweep_data[data_key]
-    xdata = sweep.param_vals
+    ydata = datastore.chi
+    xdata = datastore.param_vals
     state_count = ydata.shape[1]
     label_list = list(range(state_count))
-    return plot.data_vs_paramvals(xdata, ydata, label_list=label_list, **defaults.chi(sweep, **kwargs))
+    return plot.data_vs_paramvals(xdata, ydata, label_list=label_list, **defaults.chi(datastore.param_name, **kwargs))
 
 
-def chi_01(sweep, qbt_index, osc_index, param_index=0, **kwargs):
+def chi_01(datastore, param_index=0, **kwargs):
     """
     Plot the dispersive shift chi01 for a given pair of qubit and oscillator.
 
     Parameters
     ----------
-    sweep: ParameterSweep
-    qbt_index: int
-        index of the qubit system within the underlying HilbertSpace
-    osc_index: int
-        index of the oscillator system within the underlying HilbertSpace
+    datastore: DataStore
     param_index: int, optional
         index of the external parameter to be used
     **kwargs: dict
@@ -181,21 +169,20 @@ def chi_01(sweep, qbt_index, osc_index, param_index=0, **kwargs):
     -------
     Figure, Axes
     """
-    data_key = 'chi_osc{}_qbt{}'.format(osc_index, qbt_index)
-    ydata = sweep.sweep_data[data_key]
-    xdata = sweep.param_vals
+    ydata = datastore.chi
+    xdata = datastore.param_vals
     yval = ydata[param_index]
-    return plot.data_vs_paramvals(xdata, ydata, label_list=None, **defaults.chi01(sweep, yval, **kwargs))
+    return plot.data_vs_paramvals(xdata, ydata, label_list=None, **defaults.chi01(datastore.param_name, yval, **kwargs))
 
 
-def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
+def charge_matrixelem(datastore, qbt_index_subsys, initial_state_idx=0, **kwargs):
     """
 
     Parameters
     ----------
-    sweep: ParameterSweep
-    qbt_index: int
-        index of the qubit system within the underlying HilbertSpace
+    datastore: DataStore
+    qbt_index_subsys: tuple(int, QuantumSystem)
+        index of the qubit system within the underlying HilbertSpace, and qubit object
     initial_state_idx: int
         index of initial state
     **kwargs: dict
@@ -205,9 +192,7 @@ def charge_matrixelem(sweep, qbt_index, initial_state_idx=0, **kwargs):
     -------
     Figure, Axes
     """
-    data_key = 'n_op_qbt{}'.format(qbt_index)
-    specdata = copy.copy(sweep.bare_specdata_list[qbt_index])
-    specdata.matrixelem_table = sweep.sweep_data[data_key]
-    label_list = [(initial_state_idx, final_idx) for final_idx in range(sweep.hilbertspace[qbt_index].truncated_dim)]
-    return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs',
-                                     **defaults.charge_matrixelem(sweep, **kwargs))
+    (qbt_index, qbt_subsys) = qbt_index_subsys
+    label_list = [(initial_state_idx, final_idx) for final_idx in range(qbt_subsys.truncated_dim)]
+    return plot.matelem_vs_paramvals(datastore, select_elems=label_list, mode='abs',
+                                     **defaults.charge_matrixelem(datastore.param_name, **kwargs))

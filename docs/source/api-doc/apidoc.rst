@@ -13,6 +13,11 @@ of scqubits.
 .. toctree::
    :maxdepth: 3
 
-   classes.rst
+   qubit_classes.rst
+   hilbertspace_class.rst
+   parametersweep_class.rst
+   spectrumlookup_class.rst
+   datastorage_classes.rst
+   discretization_classes.rst
    functions.rst
    for_developer.rst

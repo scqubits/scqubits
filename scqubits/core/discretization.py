@@ -12,25 +12,37 @@
 import numpy as np
 from scipy import sparse
 
+from scqubits.core.central_dispatch import DispatchClient
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.utils.misc import is_numerical
 
 
-def _shared_get_metadata_dict(self):
-    meta_dict = {key: value for key, value in self.__dict__.items() if is_numerical(value)}
-    return meta_dict
+class MetaDataMixin:
+    """
+    Mix-in for both grid classes
+    """
+    def _get_metadata_dict(self):
+        meta_dict = {key: value for key, value in self.__dict__.items() if is_numerical(value)}
+        return meta_dict
 
 
-class Grid1d:
+class Grid1d(DispatchClient, MetaDataMixin):
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
 
     Parameters
     ----------
-    min_val, max_val: float
-        minimum and maximum values of the discretized variable
+    min_val: float
+        minimum value of the discretized variable
+    max_val: float
+        maximum value of the discretized variable
     pt_count: int
         number of grid points
     """
+
+    min_val = WatchedProperty('GRID_UPDATE')
+    max_val = WatchedProperty('GRID_UPDATE')
+    pt_count = WatchedProperty('GRID_UPDATE')
 
     def __init__(self, min_val, max_val, pt_count):
         self.min_val = min_val
@@ -47,7 +59,8 @@ class Grid1d:
         """
         Returns
         -------
-        float: spacing between neighboring grid points
+        float
+            spacing between neighboring grid points
         """
         return (self.max_val - self.min_val) / self.pt_count
 
@@ -116,8 +129,6 @@ class Grid1d:
 
         return derivative_matrix
 
-    _get_metadata_dict = _shared_get_metadata_dict
-
     @classmethod
     def create_from_dict(cls, meta_dict):
         """
@@ -133,7 +144,7 @@ class Grid1d:
         return cls(min_val=meta_dict['min_val'], max_val=meta_dict['max_val'], pt_count=meta_dict['pt_count'])
 
 
-class GridSpec:
+class GridSpec(DispatchClient, MetaDataMixin):
     """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
 
     Parameters
@@ -141,6 +152,12 @@ class GridSpec:
     minmaxpts_array: ndarray
         array of with entries [minvalue, maxvalue, number of points]
     """
+
+    min_vals = WatchedProperty('GRID_UPDATE')
+    max_vals = WatchedProperty('GRID_UPDATE')
+    var_count = WatchedProperty('GRID_UPDATE')
+    pt_counts = WatchedProperty('GRID_UPDATE')
+
     def __init__(self, minmaxpts_array):
         self.min_vals = minmaxpts_array[:, 0]
         self.max_vals = minmaxpts_array[:, 1]
@@ -156,5 +173,3 @@ class GridSpec:
     def unwrap(self):
         """Auxiliary routine that yields a tuple of the parameters specifying the grid."""
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count
-
-    _get_metadata_dict = _shared_get_metadata_dict

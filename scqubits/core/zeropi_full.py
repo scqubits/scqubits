@@ -13,32 +13,13 @@ import numpy as np
 from scipy import sparse
 
 import scqubits.core.operators as op
+from scqubits.core.central_dispatch import CENTRAL_DISPATCH
+from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
 from scqubits.utils.misc import is_numerical, key_in_grid1d
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
-
-
-class FZPProperty:
-    """Common setter and getter function for FullZeroPi
-
-    Parameters
-    ----------
-    name: str
-        Name of property to be accessed in FullZeroPi._zeropi
-    """
-    def __init__(self, name):
-        self.name = name
-
-    def __get__(self, instance, owner):
-        if instance is None:   # when accessed on class level rather than instance level
-            return self
-        else:
-            return getattr(instance._zeropi, self.name)  # return x._zeropi.prop
-
-    def __set__(self, instance, value):
-        setattr(instance._zeropi, self.name, value)  # x._zeropi.prop = value
 
 
 class FullZeroPi(QubitBaseClass):
@@ -97,15 +78,24 @@ class FullZeroPi(QubitBaseClass):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
+
+    EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    EL = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    ECJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    EC = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    ECS = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    dEJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    dCJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    ng = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    flux = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    grid = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    zeropi_cutoff = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi', attr_name='truncated_dim')
+    dC = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dEL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
                  ECS=None, truncated_dim=None):
-        self.dC = dC
-        self.dEL = dEL
-        self.zeta_cutoff = zeta_cutoff
-        self._sys_type = 'full 0-pi'
-        self.truncated_dim = truncated_dim
-        self._evec_dtype = np.complex_
-
         self._zeropi = ZeroPi(
             EJ=EJ,
             EL=EL,
@@ -121,39 +111,35 @@ class FullZeroPi(QubitBaseClass):
             # the zeropi_cutoff defines the truncated_dim of the "base" zeropi object
             truncated_dim=zeropi_cutoff
         )
+        self.dC = dC
+        self.dEL = dEL
+        self.zeta_cutoff = zeta_cutoff
+        self._sys_type = 'full 0-pi'
+        self.truncated_dim = truncated_dim
+        self._evec_dtype = np.complex_
 
-    EJ = FZPProperty('EJ')
-    EL = FZPProperty('EL')
-    ECJ = FZPProperty('ECJ')
-    EC = FZPProperty('EC')
-    ECS = FZPProperty('ECS')
-    dEJ = FZPProperty('dEJ')
-    dCJ = FZPProperty('dCJ')
-    ng = FZPProperty('ng')
-    flux = FZPProperty('flux')
-    grid = FZPProperty('grid')
-    ncut = FZPProperty('ncut')
+        CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
-    def get_zeropi_cutoff(self):
-        return self._zeropi.truncated_dim
+    def receive(self, event, sender, **kwargs):
+        if sender is self._zeropi.grid:
+            self.broadcast('QUANTUMSYSTEM_UPDATE')
 
-    def set_zeropi_cutoff(self, value):
-        self._zeropi.truncated_dim = value
-
-    zeropi_cutoff = property(get_zeropi_cutoff, set_zeropi_cutoff)
+    def __str__(self):
+        output_str = super().__str__() + '\n\n'
+        output_str += 'INTERNAL 0-Pi object: ' + self._zeropi.__str__()
+        return output_str
 
     def set_EC_via_ECS(self, ECS):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
         self._zeropi.set_EC_via_ECS(ECS)
 
-    def get_E_zeta(self):
+    @property
+    def E_zeta(self):
         """Returns energy quantum of the zeta mode"""
         return (8.0 * self.EL * self.EC) ** 0.5
 
     def set_E_zeta(self, value):
         raise ValueError("It's not possible to directly set `E_zeta`. Instead one can set its value through `EL` or `EC`.")
-
-    E_zeta = property(get_E_zeta, set_E_zeta)
 
     def hamiltonian(self, return_parts=False):
         """Returns Hamiltonian in basis obtained by discretizing phi, employing charge basis for theta, and Fock

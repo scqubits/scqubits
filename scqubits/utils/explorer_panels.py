@@ -14,14 +14,14 @@ from scqubits.settings import DEFAULT_ENERGY_UNITS
 
 
 def display_bare_spectrum(sweep, subsys, param_val, fig_ax):
-    title = 'bare spectrum: subsystem {} ({})'.format(sweep.hilbertspace.index(subsys), subsys._sys_type)
+    title = 'bare spectrum: subsystem {} ({})'.format(sweep.get_subsys_index(subsys), subsys._sys_type)
     __ = splot.bare_spectrum(sweep, subsys, title=title, fig_ax=fig_ax)
     _, axes = fig_ax
     axes.axvline(param_val, color='gray', linestyle=':')
 
 
 def display_bare_wavefunctions(sweep, subsys, param_val, fig_ax):
-    title = 'wavefunctions: subsystem {} ({})'.format(sweep.hilbertspace.index(subsys), subsys._sys_type)
+    title = 'wavefunctions: subsystem {} ({})'.format(sweep.get_subsys_index(subsys), subsys._sys_type)
     __ = splot.bare_wavefunction(sweep, param_val, subsys, title=title, fig_ax=fig_ax)
 
 
@@ -42,16 +42,18 @@ def display_n_photon_qubit_transitions(sweep, photonnumber, initial_bare, param_
     axes.axvline(param_val, color='gray', linestyle=':')
 
 
-def display_chi_01(sweep, qbt_index, osc_index, param_index, fig_ax):
-    __ = splot.chi_01(sweep, qbt_index, osc_index, param_index=param_index, fig_ax=fig_ax)
+def display_chi_01(data_dict, qbt_index, osc_index, param_index, fig_ax):
+    datastore = data_dict[(osc_index, qbt_index)]
+    __ = splot.chi_01(datastore, param_index=param_index, fig_ax=fig_ax)
     _, axes = fig_ax
-    axes.axvline(sweep.param_vals[param_index], color='gray', linestyle=':')
+    axes.axvline(datastore.param_vals[param_index], color='gray', linestyle=':')
 
 
-def display_charge_matrixelems(sweep, initial_bare, qbt_subsys, param_val, fig_ax):
-    qbt_index = sweep.hilbertspace.index(qbt_subsys)
+def display_charge_matrixelems(data_dict, initial_bare, qbt_index_subsys, param_val, fig_ax):
+    qbt_index, qbt_subsys = qbt_index_subsys
     bare_qbt_initial = initial_bare[qbt_index]
     title = r'charge matrix elements for {} [{}]'.format(type(qbt_subsys).__name__, qbt_index)
-    __ = splot.charge_matrixelem(sweep, qbt_index, bare_qbt_initial, title=title, fig_ax=fig_ax)
+    __ = splot.charge_matrixelem(data_dict[qbt_index_subsys], qbt_index_subsys, bare_qbt_initial,
+                                 title=title, fig_ax=fig_ax)
     _, axes = fig_ax
     axes.axvline(param_val, color='gray', linestyle=':')

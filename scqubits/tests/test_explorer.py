@@ -36,7 +36,6 @@ def test_explorer():
 
     interaction = InteractionTerm(
         g_strength=0.2,
-        hilbertspace=hilbertspace,
         op1=qbt.n_operator(),
         subsys1=qbt,
         op2=osc.creation_operator() + osc.annihilation_operator(),

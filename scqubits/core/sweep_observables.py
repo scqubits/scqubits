@@ -11,8 +11,8 @@
 
 import numpy as np
 
-from scqubits.utils.misc import make_bare_labels
 import scqubits.utils.spectrum_utils as spectrum_utils
+from scqubits.utils.misc import make_bare_labels
 
 
 def dispersive_chi(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=None):
@@ -36,8 +36,8 @@ def dispersive_chi(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=Non
     float or ndarray
         chi_i - chi_j   or   chi_0, chi_1, ...
     """
-    qubitsys_index = sweep.hilbertspace.get_subsys_index(qubit_subsys)
-    oscsys_index = sweep.hilbertspace.get_subsys_index(osc_subsys)
+    qubitsys_index = sweep.get_subsys_index(qubit_subsys)
+    oscsys_index = sweep.get_subsys_index(osc_subsys)
     if chi_indices is not None:
         chi_count = 2
         chi_range = chi_indices
@@ -49,8 +49,8 @@ def dispersive_chi(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=Non
     omega = osc_subsys.E_osc
     # chi_j = E_1j - E_0j - omega
     for j in chi_range:
-        bare_0j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 0))
-        bare_1j = make_bare_labels(sweep.hilbertspace, (qubitsys_index, j), (oscsys_index, 1))
+        bare_0j = make_bare_labels(sweep.subsystem_count, (qubitsys_index, j), (oscsys_index, 0))
+        bare_1j = make_bare_labels(sweep.subsystem_count, (qubitsys_index, j), (oscsys_index, 1))
         energy_0j = sweep.lookup.energy_bare_index(bare_0j, param_index)
         energy_1j = sweep.lookup.energy_bare_index(bare_1j, param_index)
         if energy_0j and energy_1j:
@@ -79,5 +79,5 @@ def qubit_matrixelement(sweep, param_index, qubit_subsys, qubit_operator):
     -------
     ndarray
     """
-    bare_evecs = sweep.lookup.bare_eigenstates(param_index, qubit_subsys)
+    bare_evecs = sweep.lookup.bare_eigenstates(qubit_subsys, param_index=param_index)
     return spectrum_utils.get_matrixelement_table(qubit_operator, bare_evecs)
