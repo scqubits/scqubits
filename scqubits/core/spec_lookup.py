@@ -15,6 +15,7 @@ import weakref
 from functools import wraps
 
 import numpy as np
+import qutip as qt
 
 import scqubits
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
@@ -261,6 +262,7 @@ class SpectrumLookup:
     def bare_eigenstates(self, subsys, param_index=0):
         """
         Return ndarray of bare eigenstates for given subsystem and parameter index.
+        Eigenstates are expressed in the basis internal to the subsystem.
 
         Parameters
         ----------
@@ -295,3 +297,23 @@ class SpectrumLookup:
         """
         subsys_index = self._hilbertspace.index(subsys)
         return self._bare_specdata_list[subsys_index].energy_table[param_index]
+
+    def bare_productstate(self, bare_index):
+        """
+        Return the bare product state specified by `bare_index`.
+
+        Parameters
+        ----------
+        bare_index: tuple of int
+
+        Returns
+        -------
+        qutip.Qobj
+            ket in full Hilbert space
+        """
+        subsys_dims = self._hilbertspace.subsystem_dims
+        product_state_list = []
+        for subsys_index, state_index in enumerate(bare_index):
+            dim = subsys_dims[subsys_index]
+            product_state_list.append(qt.basis(dim, state_index))
+        return qt.tensor(*product_state_list)
