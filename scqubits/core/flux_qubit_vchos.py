@@ -45,8 +45,8 @@ class FluxQubitVCHOS(QubitBaseClass):
         """Return the capacitance matrix"""
         Cmat = np.zeros((2, 2))
                 
-        CJ = 2*np.pi*const.alpha / self.ECJ
-        Cg = 2*np.pi*const.alpha / self.ECg
+        CJ = 1. / (2.*self.ECJ)
+        Cg = 1. / (2.*self.ECg)
         
         Cmat[0, 0] = CJ + self.alpha*CJ + Cg
         Cmat[1, 1] = CJ + self.alpha*CJ + Cg
@@ -58,7 +58,7 @@ class FluxQubitVCHOS(QubitBaseClass):
     def build_EC_matrix(self):
         """Return the charging energy matrix"""
         Cmat = self.build_capacitance_matrix()
-        return 2 * np.pi * const.alpha * np.linalg.inv(Cmat)
+        return  0.5*sp.linalg.inv(Cmat)
     
     def build_gamma_matrix(self):
         """
@@ -101,42 +101,23 @@ class FluxQubitVCHOS(QubitBaseClass):
         a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)])
         a_mat = np.diag(a,k=1)
         return self._full_o([a_mat], [mu])
-    
-    def n_operator(self, x):
-        """Return the number operator associated with the x d.o.f., expressed using ladder ops"""
-        #Note that this is not used below
-        Xi_inv_mat = np.linalg.inv(self.Xi_matrix())
-        n_op = -(1./np.sqrt(2.))*1j*np.sum([Xi_inv_mat[x,mu]*(self.a_operator(mu)-self.a_operator(mu).T) 
-                                            for mu in range(2)], axis=0)
-        
+            
     def normal_ordered_exp_i_phi_operator(self, x):
         """Return the normal ordered e^{i\phi_x} operator, expressed using ladder ops"""
         Xi_mat = self.Xi_matrix()
-        return(np.exp(-.25*np.dot(Xi_mat[x, :], Xi_mat[:, x]))
+        return(np.exp(-.25*np.dot(Xi_mat[x, :], np.transpose(Xi_mat[:, x])))
                *np.matmul(self.matrix_exp(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu).T 
                                             for mu in range(2)], axis=0)/np.sqrt(2)), 
                           self.matrix_exp(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu) 
                                             for mu in range(2)], axis=0)/np.sqrt(2))))
-    
-    def phi_operator(self, x):
-        """Return the phi operator associated with the x d.o.f., expressed using ladder ops"""
-        #Note that this is not used below
-        Xi_mat = self.Xi_matrix()
-        return (1./np.sqrt(2.))*np.sum([Xi_mat[x,mu]*(self.a_operator(mu)+self.a_operator(mu).T) 
-                                        for mu in range(2)], axis=0)
-    
+        
     def _identity(self):
         return(np.identity((self.num_exc+1)**2))
-    
-    def delta_matrix(self):
-        """"Construct the delta matrix, as described in David's notes """
-        #Note that this is not used below
-        return np.matmul(self.Xi_matrix(),np.transpose(self.Xi_matrix()))
-    
+        
     def delta_inv_matrix(self):
         """"Construct the delta inverse matrix, as described in David's notes """
-        Xi_T_inv = np.transpose(np.linalg.inv(self.Xi_matrix()))
-        Xi_inv = np.linalg.inv(self.Xi_matrix())
+        Xi_T_inv = np.transpose(sp.linalg.inv(self.Xi_matrix()))
+        Xi_inv = sp.linalg.inv(self.Xi_matrix())
         return np.matmul(Xi_T_inv,Xi_inv)
     
     def matrix_exp(self, matrix):
@@ -154,14 +135,14 @@ class FluxQubitVCHOS(QubitBaseClass):
         """Return the V operator """
         phi_delta_phi = np.matmul(phi,np.matmul(self.delta_inv_matrix(),phi))
         prefactor = np.exp(-.125 * phi_delta_phi)
-        phi_Xi_inv = np.matmul(phi,np.transpose(np.linalg.inv(self.Xi_matrix())))
+        phi_Xi_inv = np.matmul(phi,np.transpose(sp.linalg.inv(self.Xi_matrix())))
         phi_Xi_inv_a = np.sum([phi_Xi_inv[mu]*self.a_operator(mu) for mu in range(2)], axis=0)
         op = self.matrix_exp((1./np.sqrt(2.))*phi_Xi_inv_a)
         return prefactor * op
     
     def kineticmat(self):
         """Return the kinetic part of the hamiltonian"""
-        Xi_inv = np.linalg.inv(self.Xi_matrix())
+        Xi_inv = sp.linalg.inv(self.Xi_matrix())
         EC_mat = self.build_EC_matrix()
         EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
         dim = self.hilbertdim()
@@ -184,9 +165,9 @@ class FluxQubitVCHOS(QubitBaseClass):
                         for nu in range(2):
                             a_mu = self.a_operator(mu)
                             a_nu = self.a_operator(nu)
-                            kinetic_temp += (- 0.5*4*EC_mat_t[mu, nu]*a_mu*a_nu
-                                            + 0.5*4*EC_mat_t[mu, nu]*a_mu.T*a_nu
-                                            - 0.5*4*EC_mat_t[mu, nu]*a_mu.T*a_nu.T
+                            kinetic_temp += (- 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu, a_nu)
+                                            + 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu.T, a_nu)
+                                            - 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu.T, a_nu.T)
                                             +((2.*np.sqrt(2))**(-1) * (a_mu - a_mu.T)
                                               *4*EC_mat_t[mu, nu] * np.dot(Xi_inv[nu,:], delta_phi_kpm))
                                             +((2.*np.sqrt(2))**(-1) * np.dot(delta_phi_kpm, np.transpose(Xi_inv[:,mu]))
@@ -194,9 +175,9 @@ class FluxQubitVCHOS(QubitBaseClass):
                                             -(0.25*np.dot(delta_phi_kpm, np.transpose(Xi_inv[:,mu]))
                                               *EC_mat_t[mu, nu]*np.dot(Xi_inv[nu,:], delta_phi_kpm)*self._identity()))
                             if (mu == nu):
-                                kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*(a_nu.T*a_mu+self._identity())
+                                kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*(np.matmul(a_nu.T, a_mu)+self._identity())
                             else:
-                                kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*a_nu.T*a_mu
+                                kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_nu.T, a_mu)
                                                 
                     kinetic_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                     *np.matmul(V_op_dag, kinetic_temp))
@@ -238,7 +219,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                          +np.matmul(exp_i_phi_0_op.conjugate().T, exp_i_phi_1_op)
                                          *np.exp(-1j*2.0*np.pi*self.flux)))
                     #normalization to compare with the literature
-                    potential_temp += (2.0*self.EJ+self.alpha*self.EJ)*np.identity((self.num_exc+1)**2)
+                    potential_temp += (2.0*self.EJ + self.alpha*self.EJ)*np.identity((self.num_exc+1)**2)
                     potential_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                       *np.matmul(V_op_dag, potential_temp))
                     potential_temp = np.matmul(potential_temp, V_op)
