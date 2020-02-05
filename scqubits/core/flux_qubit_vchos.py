@@ -1,81 +1,3 @@
-    def wavefunction(self, esys=None, which=0, phi_grid=None):
-        """
-        Return a flux qubit wave function in phi1, phi2 basis
-
-        Parameters
-        ----------
-        esys: ndarray, ndarray
-            eigenvalues, eigenvectors
-        which: int, optional
-            index of desired wave function (default value = 0)
-        phi_range: tuple(float, float), optional
-            used for setting a custom plot range for phi
-        phi_count: int, optional
-            number of points to use on grid in each direction
-
-        Returns
-        -------
-        WaveFunctionOnGrid object
-        """
-        evals_count = max(which + 1, 3)
-        if esys is None:
-            _, evecs = self.eigensys(evals_count)
-        else:
-            _, evecs = esys
-        phi_grid = self._try_defaults(phi_grid)
-        phi_vec = phi_grid.make_linspace()
-        zeta_vec = phi_grid.make_linspace()
-#        phi_vec = np.linspace(phi_grid.min_val, phi_grid.max_val, 10)
-        
-        minima_list = self.sorted_minima()
-        num_minima = len(minima_list)
-        dim = self.hilbertdim()
-        num_deg_freedom = (self.num_exc+1)**2
-        
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        
-        state_amplitudes_list = []
-        #TODO implement summation over k
-        for i, minimum in enumerate(minima_list):
-            klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-            wavefunc_amplitudes_temp = 0
-            while True:
-                jkvals = next(klist,-1)
-                if jkvals != -1:
-                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                    zeta_1 = (zeta_vec - Xi_inv[0,0] * (minimum[0] + phik[0])
-                              - Xi_inv[0,1] * (minimum[1] + phik[1]))
-                    zeta_2 = (zeta_vec - Xi_inv[1,0] * (minimum[0] + phik[0]) 
-                              - Xi_inv[1,1] * (minimum[1] + phik[1]))                              
-                    #TODO figure out correct normalization involving norm of Xi_inv
-                    zeta_1_s_1 = (sp.linalg.norm(Xi_inv[0,:]) 
-                                  * np.transpose(np.array([self.harm_osc_wavefunction(s, zeta_1) 
-                                                           for s in range(self.num_exc+1)])))
-                    zeta_2_s_2 = (sp.linalg.norm(Xi_inv[1,:]) 
-                                  * np.array([self.harm_osc_wavefunction(s, zeta_2) 
-                                              for s in range(self.num_exc+1)]))
-                    
-                    state_amplitudes = np.reshape(evecs[i*num_deg_freedom : (i+1)*num_deg_freedom, which], 
-                                           (self.num_exc+1, self.num_exc+1))
-#                    state_amplitudes=np.zeros((self.num_exc+1, self.num_exc+1))
-#                    state_amplitudes[0,1]=1.0
-                    wavefunc_amplitudes = np.matmul(zeta_1_s_1, state_amplitudes)
-                    wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, zeta_2_s_2)
-                    wavefunc_amplitudes_temp += wavefunc_amplitudes
-                else:
-                    break
-                state_amplitudes_list.append(wavefunc_amplitudes_temp)
-            
-        total_wavefunc_amplitudes = np.sum(state_amplitudes_list, axis=0)   
-        
-        grid2d = GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
-                                      [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
-    
-        return WaveFunctionOnGrid(grid2d, total_wavefunc_amplitudes)
-    
-    
-    
 import numpy as np
 import scipy as sp
 import itertools
@@ -275,16 +197,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                 kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*(a_nu.T*a_mu+self._identity())
                             else:
                                 kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*a_nu.T*a_mu
-                        
-                    #Because of normal ordering, need to account for \delta_{mu,nu}
-#                    kinetic_temp = np.sum([-2.0*EC_mat_transformed[mu, nu]
-#                                           *(self._kineticmat_helper(mu, nu, delta_phi_kpm)
-#                                             -np.eye((self.num_exc+1)**2))
-#                                           if (mu == nu) else 
-#                                           -2.0*EC_mat_transformed[mu, nu]
-#                                           *(self._kineticmat_helper(mu, nu, delta_phi_kpm))
-#                                           for mu in range(2) for nu in range(2)], axis=0)
-                        
+                                                
                     kinetic_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                     *np.matmul(V_op_dag, kinetic_temp))
                     kinetic_temp = np.matmul(kinetic_temp, V_op)
@@ -296,22 +209,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                     jkvals = next(klist,-1)
                                            
         return kinetic_mat
-    
-    def _kinetic_offset(self, mu, delta_phi_kpm):
-        Xi_inv = np.linalg.inv(self.Xi_matrix())
-        return(-(1./np.sqrt(2.))*np.dot(Xi_inv[mu,:], delta_phi_kpm)
-               *np.identity((self.num_exc+1)**2))
-    
-    def _kineticmat_helper(self, mu, nu, delta_phi_kpm):
-        a_mu = self.a_operator(mu)
-        a_nu = self.a_operator(nu)
-        return(np.matmul(a_mu,a_nu) - np.matmul(a_nu.T,a_mu) - np.matmul(a_mu.T,a_nu)
-               + np.matmul(a_mu.T, self._kinetic_offset(nu, delta_phi_kpm)) 
-               - np.matmul(a_nu, self._kinetic_offset(mu, delta_phi_kpm))
-               + np.matmul(a_nu.T, self._kinetic_offset(mu, delta_phi_kpm)) 
-               - np.matmul(a_mu, self._kinetic_offset(nu, delta_phi_kpm)))
         
-    
     def potentialmat(self):
         """Return the potential part of the hamiltonian"""
         dim = self.hilbertdim()
