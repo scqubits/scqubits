@@ -13,7 +13,13 @@
 import numpy as np
 import qutip as qt
 
+from scqubits.settings import IN_IPYTHON
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
+
+if IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 def process_which(which, max_index):
@@ -137,3 +143,15 @@ def convert_to_ndarray(entity):
     if converted_entity.dtype.kind not in set('biufc'):
         raise TypeError('Unable to convert data to numerical numpy array: ', entity)
     return converted_entity
+
+
+class InfoBar:
+    def __init__(self, desc):
+        self.desc = desc
+        self.infobar = None
+
+    def __enter__(self):
+        self.infobar = tqdm(total=0, leave=False, desc=self.desc, bar_format="{desc}")
+
+    def __exit__(self, *args):
+        self.infobar.close()

@@ -77,6 +77,8 @@ class FullZeroPi(QubitBaseClass):
         of EC
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
+    pool: pathos.pools.ProcessPool, optional
+        if provided, speed up certain calculations by pathos multiprocessing
     """
 
     EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
@@ -95,7 +97,7 @@ class FullZeroPi(QubitBaseClass):
     dEL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
-                 ECS=None, truncated_dim=None):
+                 ECS=None, truncated_dim=None, pool=None):
         self._zeropi = ZeroPi(
             EJ=EJ,
             EL=EL,
@@ -117,6 +119,7 @@ class FullZeroPi(QubitBaseClass):
         self._sys_type = 'full 0-pi'
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
+        self.pool = None
 
         CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 

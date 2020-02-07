@@ -11,13 +11,10 @@
 ############################################################################
 
 import numpy as np
-import pytest
 
 import scqubits as qubit
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
-from scqubits.core.sweep_generators import generate_diffspec_sweep
-from scqubits.utils.spectrum_utils import get_matrixelement_table, absorption_spectrum
 
 
 class TestSpectrumLookup:

@@ -15,8 +15,9 @@ import numpy as np
 try:
     import ipywidgets
 except ImportError:
-    raise Exception("ImportError: failed to import ipywidgets. For use of scqubits.explorer,"
-                    "ipywidgets must be installed")
+    pass
+    # raise Exception("ImportError: failed to import ipywidgets. For use of scqubits.explorer,"
+    #                "ipywidgets must be installed")
 
 try:
     from IPython.display import display

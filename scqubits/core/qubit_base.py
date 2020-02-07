@@ -13,6 +13,7 @@ Provides the base classes for qubits
 """
 
 import abc
+import functools
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,7 +26,7 @@ from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
-from scqubits.utils.misc import process_which, process_metadata, filter_metadata
+from scqubits.utils.misc import process_which, process_metadata, filter_metadata, InfoBar
 from scqubits.utils.plot_defaults import set_scaling
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table, standardize_sign
 
@@ -76,6 +77,7 @@ class QubitBaseClass(QuantumSystem):
     _default_grid: Grid1d
     _evec_dtype: type
     _sys_type: str
+    pool: None
 
     @abc.abstractmethod
     def hamiltonian(self):
@@ -209,11 +211,19 @@ class QubitBaseClass(QuantumSystem):
             specdata.filewrite(filename)
         return table
 
-    def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                  get_eigenstates=False):
-        """Calculates eigenvalues for a varying system parameter, given an array of parameter values. Returns a
-        `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for
-        parameter value `param_vals[n]`.
+    def _esys_for_paramval(self, paramval, param_name, evals_count):
+        setattr(self, param_name, paramval)
+        return self.eigensys(evals_count)
+
+    def _evals_for_paramval(self, paramval, param_name, evals_count):
+        setattr(self, param_name, paramval)
+        return self.eigenvals(evals_count)
+
+    def _parallel_get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
+                                            get_eigenstates=False):
+        """Parallel pathos.pools.ProcessPool implementation for calculating eigenvalues/eigenstate for a varying system
+        parameter, given an array of parameter values. Returns a `SpectrumData` object with `energy_data[n]` containing
+        eigenvalues calculated for parameter value `param_vals[n]`.
 
         Parameters
         ----------
@@ -233,6 +243,54 @@ class QubitBaseClass(QuantumSystem):
         SpectrumData object
         """
         previous_paramval = getattr(self, param_name)
+        if get_eigenstates:
+            func = functools.partial(self._esys_for_paramval, param_name=param_name, evals_count=evals_count)
+            with InfoBar('Parallel computation of spectral data, please wait...'):
+                eigensystem_data = np.asarray(self.pool.map(func, param_vals))
+            eigenvalue_table = eigensystem_data[:, 0]
+            eigenstate_table = eigensystem_data[:, 1]
+        else:
+            func = functools.partial(self._evals_for_paramval, param_name=param_name, evals_count=evals_count)
+            with InfoBar('Parallel computation of spectral data, please wait...'):
+                eigenvalue_table = np.asarray(self.pool.map(func, param_vals))
+            eigenstate_table = None
+
+        if subtract_ground:
+            for param_index, _ in enumerate(param_vals):
+                eigenvalue_table[param_index] -= eigenvalue_table[param_index, 0]
+
+        setattr(self, param_name, previous_paramval)
+        return SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
+                            state_table=eigenstate_table)
+
+    def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
+                                  get_eigenstates=False):
+        """Calculates eigenvalues/eigenstates for a varying system parameter, given an array of parameter values.
+        Returns a `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for
+        parameter value `param_vals[n]`.
+
+        Parameters
+        ----------
+        param_name: str
+            name of parameter to be varied
+        param_vals: ndarray
+            parameter values to be plugged in
+        evals_count: int, optional
+            number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
+        subtract_ground: bool, optional
+            if True, eigenvalues are returned relative to the ground state eigenvalue (default value = False)
+        get_eigenstates: bool, optional
+            return eigenstates along with eigenvalues (default value = False)
+
+        Returns
+        -------
+        SpectrumData object
+        """
+        if self.pool:
+            return self._parallel_get_spectrum_vs_paramvals(param_name, param_vals, evals_count=evals_count,
+                                                            subtract_ground=subtract_ground,
+                                                            get_eigenstates=get_eigenstates)
+        previous_paramval = getattr(self, param_name)
         paramvals_count = len(param_vals)
         eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
         eigenstate_table = None
@@ -247,15 +305,13 @@ class QubitBaseClass(QuantumSystem):
                 eigenstate_table[index] = evecs
             else:
                 evals = self.eigenvals(evals_count)
-            eigenvalue_table[index] = np.real(evals)   # for complex-hermitean H, eigenvalues have type np.complex_
 
+            eigenvalue_table[index] = np.real(evals)   # for complex-hermitean H, eigenvalues have type np.complex_
             if subtract_ground:
                 eigenvalue_table[index] -= evals[0]
         setattr(self, param_name, previous_paramval)
-
-        spectrumdata = SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
-                                    state_table=eigenstate_table)
-        return spectrumdata
+        return SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
+                            state_table=eigenstate_table)
 
     def get_matelements_vs_paramvals(self, operator, param_name, param_vals, evals_count=6):
         """Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a

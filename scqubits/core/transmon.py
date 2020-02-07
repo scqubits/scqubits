@@ -43,6 +43,8 @@ class Transmon(QubitBaseClass1d):
         charge basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
+    pool: pathos.pools.ProcessPool, optional
+        if provided, speed up certain calculations by pathos multiprocessing
     """
 
     EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -50,7 +52,7 @@ class Transmon(QubitBaseClass1d):
     ng = WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EC, ng, ncut, truncated_dim=None):
+    def __init__(self, EJ, EC, ng, ncut, truncated_dim=None, pool=None):
         self.EJ = EJ
         self.EC = EC
         self.ng = ng
@@ -60,6 +62,7 @@ class Transmon(QubitBaseClass1d):
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
+        self.pool = pool
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""

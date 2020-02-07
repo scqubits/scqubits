@@ -84,7 +84,7 @@ class DataStore:
         else:
             self.param_count = 1   # just one value if there is no parameter sweep
         self.system_params = system_params
-        self.data_names = kwargs.keys()
+        self.data_names = list(kwargs.keys())
         for key, value in kwargs.items():
             setattr(self, key, value)
 

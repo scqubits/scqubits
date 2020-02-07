@@ -10,15 +10,22 @@
 ############################################################################
 
 
+import functools
+
 import numpy as np
-from tqdm.notebook import tqdm
 
 import scqubits.settings as settings
 from scqubits.core.central_dispatch import (DispatchClient, CENTRAL_DISPATCH)
 from scqubits.core.descriptors import ReadOnlyProperty, WatchedProperty
 from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import SpectrumData, DataStore
-from scqubits.settings import TQDM_KWARGS, AUTORUN_SWEEP
+from scqubits.settings import TQDM_KWARGS, AUTORUN_SWEEP, IN_IPYTHON
+from scqubits.utils.misc import InfoBar
+
+if IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 class ParameterSweep(DispatchClient):
@@ -43,6 +50,8 @@ class ParameterSweep(DispatchClient):
     update_hilbertspace: function
         update_hilbertspace(param_val) specifies how a change in the external parameter affects
         the Hilbert space components
+    pool: pathos.pools.ProcessPool or None, optional
+        If a pool is provided, parallelization based on the pathos package is applied (default: `None`).
     """
 
     param_name = WatchedProperty('PARAMETERSWEEP_UPDATE')
@@ -53,7 +62,8 @@ class ParameterSweep(DispatchClient):
     update_hilbertspace = WatchedProperty('PARAMETERSWEEP_UPDATE')
     lookup = ReadOnlyProperty()
 
-    def __init__(self, param_name, param_vals, evals_count, hilbertspace, subsys_update_list, update_hilbertspace):
+    def __init__(self, param_name, param_vals, evals_count, hilbertspace, subsys_update_list, update_hilbertspace,
+                 pool=None):
         self.param_name = param_name
         self.param_vals = param_vals
         self.param_count = len(param_vals)
@@ -61,6 +71,7 @@ class ParameterSweep(DispatchClient):
         self._hilbertspace = hilbertspace
         self.subsys_update_list = tuple(subsys_update_list)
         self.update_hilbertspace = update_hilbertspace
+        self.pool = pool
 
         self._lookup = None
         self._bare_hamiltonian_constant = None
@@ -136,8 +147,12 @@ class ParameterSweep(DispatchClient):
         Pre-calculates all bare spectral data needed for the interactive explorer display.
         """
         bare_eigendata_constant = [self._compute_bare_spectrum_constant()] * self.param_count
-        bare_eigendata_varying = [self._compute_bare_spectrum_varying(param_val)
-                                  for param_val in tqdm(self.param_vals, desc='Bare spectra', **TQDM_KWARGS)]
+        if self.pool:
+            with InfoBar('Calculating bare eigensystem using pathos. Please wait...'):
+                bare_eigendata_varying = self.pool.map(self._compute_bare_spectrum_varying, self.param_vals)
+        else:
+            bare_eigendata_varying = [self._compute_bare_spectrum_varying(param_val)
+                                      for param_val in tqdm(self.param_vals, desc='Bare spectra', **TQDM_KWARGS)]
         bare_specdata_list = self._recast_bare_eigendata(bare_eigendata_constant, bare_eigendata_varying)
         del bare_eigendata_constant
         del bare_eigendata_varying
@@ -145,7 +160,7 @@ class ParameterSweep(DispatchClient):
 
     def _compute_dressed_specdata_sweep(self, bare_specdata_list):
         """
-        Pre-calculates and all dressed spectral data.
+        Calculates and returns all dressed spectral data.
 
         Returns
         -------
@@ -153,8 +168,15 @@ class ParameterSweep(DispatchClient):
         """
         self._bare_hamiltonian_constant = self._compute_bare_hamiltonian_constant(bare_specdata_list)
 
-        dressed_eigendata = [self._compute_dressed_eigensystem(bare_specdata_list, j)
-                             for j in tqdm(range(self.param_count), desc='Dressed spectrum', **TQDM_KWARGS)]
+        if self.pool:
+            param_indices = range(self.param_count)
+            func = functools.partial(self._compute_dressed_eigensystem, bare_specdata_list=bare_specdata_list)
+            with InfoBar('Calculating dressed eigensystem using pathos. Please wait...'):
+                dressed_eigendata = self.pool.map(func, param_indices)
+        else:
+            dressed_eigendata = [self._compute_dressed_eigensystem(j, bare_specdata_list)
+                                 for j in tqdm(range(self.param_count), desc='Dressed spectrum', **TQDM_KWARGS)]
+
         dressed_specdata = self._recast_dressed_eigendata(dressed_eigendata)
         del dressed_eigendata
         return dressed_specdata
@@ -283,7 +305,7 @@ class ParameterSweep(DispatchClient):
                 eigendata.append(None)
         return eigendata
 
-    def _compute_dressed_eigensystem(self, bare_specdata_list, param_index):
+    def _compute_dressed_eigensystem(self, param_index, bare_specdata_list):
         hamiltonian = (self._bare_hamiltonian_constant +
                        self._compute_bare_hamiltonian_varying(bare_specdata_list, param_index))
 

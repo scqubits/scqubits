@@ -14,7 +14,6 @@ Helper routines for writing data to CSV and h5 files.
 
 import csv
 import os
-import warnings
 
 import h5py
 import numpy as np

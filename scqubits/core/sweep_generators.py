@@ -11,12 +11,16 @@
 
 
 import numpy as np
-from tqdm.notebook import tqdm
 
 import scqubits.core.sweep_observables as observable
 from scqubits.core.storage import SpectrumData
-from scqubits.settings import TQDM_KWARGS
+from scqubits.settings import TQDM_KWARGS, IN_IPYTHON
 from scqubits.utils.spectrum_utils import generate_target_states_list
+
+if IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 def compute_custom_data_sweep(sweep, func, **kwargs):

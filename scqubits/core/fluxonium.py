@@ -47,6 +47,8 @@ class Fluxonium(QubitBaseClass1d):
         number of harm. osc. basis states used in diagonalization
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
+    pool: pathos.pools.ProcessPool, optional
+        if provided, speed up certain calculations by pathos multiprocessing
     """
 
     EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -55,7 +57,7 @@ class Fluxonium(QubitBaseClass1d):
     flux = WatchedProperty('QUANTUMSYSTEM_UPDATE')
     cutoff = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EC, EL, flux, cutoff, truncated_dim=None):
+    def __init__(self, EJ, EC, EL, flux, cutoff, truncated_dim=None, pool=None):
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
@@ -65,6 +67,7 @@ class Fluxonium(QubitBaseClass1d):
         self._sys_type = 'fluxonium'
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
+        self.pool = pool
 
     def phi_osc(self):
         """
