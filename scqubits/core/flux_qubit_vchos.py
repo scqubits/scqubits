@@ -110,6 +110,22 @@ class FluxQubitVCHOS(QubitBaseClass):
                                             for mu in range(2)], axis=0)/np.sqrt(2)), 
                           self.matrix_exp(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu) 
                                             for mu in range(2)], axis=0)/np.sqrt(2))))
+    
+    def normal_ordered_exp_i_phix_mi_phiy(self, x, y):
+        """Return the normal ordered e^{i\phi_x-i\phi_y} operator, expressed using ladder ops"""
+        Xi_mat = self.Xi_matrix()
+        a_dag_prod = np.matmul(self.matrix_exp(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu).T 
+                                                          for mu in range(2)], axis=0)/np.sqrt(2)),
+                               self.matrix_exp(-1j*np.sum([Xi_mat[y,mu]*self.a_operator(mu).T 
+                                                           for mu in range(2)], axis=0)/np.sqrt(2)))
+        a_prod = np.matmul(self.matrix_exp(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu)
+                                                      for mu in range(2)], axis=0)/np.sqrt(2)),
+                           self.matrix_exp(-1j*np.sum([Xi_mat[y,mu]*self.a_operator(mu)
+                                                       for mu in range(2)], axis=0)/np.sqrt(2)))
+        return(np.matmul(a_dag_prod, a_prod)
+               *np.exp(-.25*np.dot(Xi_mat[x, :], np.transpose(Xi_mat[:, x])))
+               *np.exp(-.25*np.dot(Xi_mat[y, :], np.transpose(Xi_mat[:, y])))
+               *np.exp(0.5*np.dot(Xi_mat[y, :], np.transpose(Xi_mat[:, x]))))
         
     def _identity(self):
         return(np.identity((self.num_exc+1)**2))
@@ -193,6 +209,8 @@ class FluxQubitVCHOS(QubitBaseClass):
         
     def potentialmat(self):
         """Return the potential part of the hamiltonian"""
+        Xi = self.Xi_matrix()
+        Xi_inv = sp.linalg.inv(Xi)
         dim = self.hilbertdim()
         potential_mat = np.zeros((dim,dim), dtype=np.complex128)
         minima_list = self.sorted_minima()
@@ -213,12 +231,16 @@ class FluxQubitVCHOS(QubitBaseClass):
                         
                     potential_temp = -0.5*self.EJ*(exp_i_phi_0_op+exp_i_phi_0_op.conjugate().T)
                     potential_temp += -0.5*self.EJ*(exp_i_phi_1_op+exp_i_phi_1_op.conjugate().T)
-                    potential_temp += (-0.5*self.alpha*self.EJ
-                                       *(np.matmul(exp_i_phi_0_op, exp_i_phi_1_op.conjugate().T)
-                                         *np.exp(1j*2.0*np.pi*self.flux)
-                                         +np.matmul(exp_i_phi_0_op.conjugate().T, exp_i_phi_1_op)
-                                         *np.exp(-1j*2.0*np.pi*self.flux)))
-                    #normalization to compare with the literature
+                    potential_temp += -0.5*self.alpha*self.EJ*(self.normal_ordered_exp_i_phix_mi_phiy(0, 1)
+                                                               *np.exp(1j*2.0*np.pi*self.flux)
+                                                               *np.exp(-1j*phibar_kpm[0])
+                                                               *np.exp(1j*phibar_kpm[1])
+                                                               +self.normal_ordered_exp_i_phix_mi_phiy(0, 1).conjugate().T
+                                                               *np.exp(-1j*2.0*np.pi*self.flux)
+                                                               *np.exp(1j*phibar_kpm[0])
+                                                               *np.exp(-1j*phibar_kpm[1])
+                                                              )
+
                     potential_temp += (2.0*self.EJ + self.alpha*self.EJ)*np.identity((self.num_exc+1)**2)
                     potential_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                       *np.matmul(V_op_dag, potential_temp))
