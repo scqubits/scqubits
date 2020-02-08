@@ -33,7 +33,8 @@ steps:
 - script: |
     pip install --upgrade cython
     pip install --upgrade numpy
-  displayName: 'Install/upgrade cython and numpy'
+    pip install --upgrade scipy
+  displayName: 'Install/upgrade cython, numpy, scipy'
 
 - script: |
     pip install -r requirements.txt
