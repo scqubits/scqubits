@@ -38,7 +38,9 @@ steps:
 
 - script: |
     pip install -r requirements.txt
-    pip install -e .
+    cd scqubits
+    ls
+    pip install '.[test]'
   displayName: 'Install dependencies and scqubits'
 
 - script: |
