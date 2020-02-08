@@ -27,7 +27,6 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       python -m pip install --upgrade pip
-      pip install --upgrade cython
     displayName: 'Upgrade pip'
   - script: |
       pip install --upgrade cython
@@ -67,7 +66,6 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       python -m pip install --upgrade pip
-      pip install --upgrade cython
     displayName: 'Upgrade pip'
   - script: |
       pip install --upgrade cython
@@ -95,15 +93,18 @@ jobs:
   strategy:
     matrix:
       Python36:
-        CONFIG: osx_python3.6
+        python.version: '3.6'
       Python37:
-        CONFIG: osx_python3.7
+        python.version: '3.7'
       Python38:
-        CONFIG: osx_python3.8
+        python.version: '3.8'
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(python.version)'
+    displayName: 'Use Python $(python.version)'
   - script: |
       python -m pip install --upgrade pip
-      pip install --upgrade cython
     displayName: 'Upgrade pip'
   - script: |
       pip install --upgrade cython
