@@ -91,15 +91,15 @@ jobs:
     displayName: 'Install scqubits and run pytest'
 - job: macOS
   pool:
-    vmImage: 'macOS-latest'
+    vmImage: macOS-10.13
   strategy:
     matrix:
       Python36:
-        python.version: '3.6'
+        CONFIG: osx_python3.6
       Python37:
-        python.version: '3.7'
+        CONFIG: osx_python3.7
       Python38:
-        python.version: '3.8'
+        CONFIG: osx_python3.8
   steps:
   - task: UsePythonVersion@0
     inputs:
