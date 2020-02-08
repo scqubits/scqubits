@@ -29,8 +29,18 @@ if not IN_IPYTHON:
 
 scqubits.settings.FILE_FORMAT = FileType.h5
 
-TESTDIR, _ = os.path.split(scqubits.tests.__file__)
+TESTDIR, _ = os.path.split(scqubits.__file__)
+TESTDIR = os.path.join(TESTDIR, 'tests', '')
 DATADIR = os.path.join(TESTDIR, 'data', '')
+
+
+def pytest_addoption(parser):
+    parser.addoption("--num_cpus", action="store", default=1, help="number of cores to be used")
+
+
+@pytest.fixture(autouse=True)
+def num_cpus(pytestconfig):
+    scqubits.settings.NUM_CPUS = int(pytestconfig.getoption("num_cpus"))
 
 
 class BaseTest:
@@ -72,12 +82,14 @@ class BaseTest:
 
     def plot_evals_vs_paramvals(self, param_name, param_list):
         self.qbt.plot_evals_vs_paramvals(param_name, param_list, evals_count=5, subtract_ground=True,
-                                         filename=self.tmpdir + 'test')
+                                         filename=self.tmpdir + 'test', num_cpus=scqubits.settings.NUM_CPUS)
 
     def get_spectrum_vs_paramvals(self, param_name, param_list, evals_reference, evecs_reference):
+        # raise Exception("scqubits.settings.NUM_CPUS = {}".format(scqubits.settings.NUM_CPUS))
         evals_count = len(evals_reference[0])
         calculated_spectrum = self.qbt.get_spectrum_vs_paramvals(param_name, param_list, evals_count=evals_count,
-                                                                 subtract_ground=False, get_eigenstates=True)
+                                                                 subtract_ground=False, get_eigenstates=True,
+                                                                 num_cpus=scqubits.settings.NUM_CPUS)
         calculated_spectrum.filewrite(filename=self.tmpdir + 'test')
 
         assert np.allclose(evals_reference, calculated_spectrum.energy_table)
@@ -98,7 +110,7 @@ class BaseTest:
 
     def plot_matelem_vs_paramvals(self, op, param_name, param_list, select_elems):
         self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, select_elems=select_elems,
-                                           filename=self.tmpdir + 'test')
+                                           filename=self.tmpdir + 'test', num_cpus=scqubits.settings.NUM_CPUS)
 
 
 class StandardTests(BaseTest):

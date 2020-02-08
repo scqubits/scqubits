@@ -146,12 +146,13 @@ def convert_to_ndarray(entity):
 
 
 class InfoBar:
-    def __init__(self, desc):
+    def __init__(self, desc, num_cpus):
         self.desc = desc
+        self.num_cpus = num_cpus
         self.infobar = None
 
     def __enter__(self):
-        self.infobar = tqdm(total=0, leave=False, desc=self.desc, bar_format="{desc}")
+        self.infobar = tqdm(total=0, disable=(self.num_cpus == 1), leave=False, desc=self.desc, bar_format="{desc}")
 
     def __exit__(self, *args):
         self.infobar.close()

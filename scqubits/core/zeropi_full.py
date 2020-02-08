@@ -97,7 +97,7 @@ class FullZeroPi(QubitBaseClass):
     dEL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
-                 ECS=None, truncated_dim=None, pool=None):
+                 ECS=None, truncated_dim=None):
         self._zeropi = ZeroPi(
             EJ=EJ,
             EL=EL,

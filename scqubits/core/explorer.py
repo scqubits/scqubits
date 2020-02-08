@@ -22,8 +22,9 @@ except ImportError:
 try:
     from IPython.display import display
 except ImportError:
-    raise Exception("ImportError: failed to import IPython. For use of scqubits.explorer,"
-                    "IPython must be installed")
+    pass
+    # raise Exception("ImportError: failed to import IPython. For use of scqubits.explorer,"
+    #                 "IPython must be installed")
 
 import scqubits.core.sweep_generators as swp
 import scqubits.utils.explorer_panels as panels
@@ -117,6 +118,8 @@ class Explorer:
 
     def interact(self):
         """Drives the interactive display of the plot explorer panels"""
+        # settings.PROGRESSBAR_DISABLED = True
+
         param_min = self.param_vals[0]
         param_max = self.param_vals[-1]
         param_step = self.param_vals[1] - self.param_vals[0]
