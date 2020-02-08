@@ -38,9 +38,8 @@ steps:
 
 - script: |
     pip install -r requirements.txt
-    cd scqubits
     pip install -e .
-  displayName: 'Install dependencies'
+  displayName: 'Install dependencies and scqubits'
 
 - script: |
     pip install pytest pytest-azurepipelines
