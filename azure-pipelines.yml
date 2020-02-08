@@ -28,7 +28,12 @@ steps:
 - script: |
     python -m pip install --upgrade pip
     pip install --upgrade cython
-  displayName: 'Upgrade pip, upgrade cython'
+  displayName: 'Upgrade pip'
+
+- script: |
+    pip install --upgrade cython
+    pip install --upgrade numpy
+displayName: 'Install/upgrade cython and numpy'
 
 - script: |
     pip install -r requirements.txt
