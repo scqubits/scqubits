@@ -404,7 +404,7 @@ class HilbertSpace(DispatchClient):
             set to true if eigenstates should be returned as well (default value = False)
         param_name: str, optional
             name for the parameter that is varied in `param_vals` (default value = "external_parameter")
-       num_cpus: int, optional
+        num_cpus: int, optional
             number of cores to be used for computation (default value: settings.NUM_CPUS)
 
         Returns
