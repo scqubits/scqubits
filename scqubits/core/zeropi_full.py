@@ -77,8 +77,6 @@ class FullZeroPi(QubitBaseClass):
         of EC
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
-    pool: pathos.pools.ProcessPool, optional
-        if provided, speed up certain calculations by pathos multiprocessing
     """
 
     EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')

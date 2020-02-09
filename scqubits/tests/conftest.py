@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-import scqubits
 import scqubits.settings
 import scqubits.utils.plotting as plot
 from scqubits.core.constants import FileType
@@ -38,11 +37,12 @@ def pytest_addoption(parser):
     parser.addoption("--num_cpus", action="store", default=1, help="number of cores to be used")
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope='session')
 def num_cpus(pytestconfig):
-    scqubits.settings.NUM_CPUS = int(pytestconfig.getoption("num_cpus"))
+    return int(pytestconfig.getoption("num_cpus"))
 
 
+@pytest.mark.usefixtures("num_cpus")
 class BaseTest:
     """Used as base class for pytests of qubit classes"""
     qbt = None
@@ -80,16 +80,15 @@ class BaseTest:
         _, evecs_tst = self.qbt.eigensys(evals_count=evals_count, filename=self.tmpdir + 'test')
         assert np.allclose(np.abs(evecs_reference), np.abs(evecs_tst))
 
-    def plot_evals_vs_paramvals(self, param_name, param_list):
+    def plot_evals_vs_paramvals(self, num_cpus, param_name, param_list):
         self.qbt.plot_evals_vs_paramvals(param_name, param_list, evals_count=5, subtract_ground=True,
-                                         filename=self.tmpdir + 'test', num_cpus=scqubits.settings.NUM_CPUS)
+                                         filename=self.tmpdir + 'test', num_cpus=num_cpus)
 
-    def get_spectrum_vs_paramvals(self, param_name, param_list, evals_reference, evecs_reference):
-        # raise Exception("scqubits.settings.NUM_CPUS = {}".format(scqubits.settings.NUM_CPUS))
+    def get_spectrum_vs_paramvals(self, num_cpus, param_name, param_list, evals_reference, evecs_reference):
         evals_count = len(evals_reference[0])
         calculated_spectrum = self.qbt.get_spectrum_vs_paramvals(param_name, param_list, evals_count=evals_count,
                                                                  subtract_ground=False, get_eigenstates=True,
-                                                                 num_cpus=scqubits.settings.NUM_CPUS)
+                                                                 num_cpus=num_cpus)
         calculated_spectrum.filewrite(filename=self.tmpdir + 'test')
 
         assert np.allclose(evals_reference, calculated_spectrum.energy_table)
@@ -108,11 +107,12 @@ class BaseTest:
         mat_data = self.qbt.matrixelement_table(op)
         plot.print_matrix(abs(mat_data))
 
-    def plot_matelem_vs_paramvals(self, op, param_name, param_list, select_elems):
+    def plot_matelem_vs_paramvals(self, num_cpus, op, param_name, param_list, select_elems):
         self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, select_elems=select_elems,
-                                           filename=self.tmpdir + 'test', num_cpus=scqubits.settings.NUM_CPUS)
+                                           filename=self.tmpdir + 'test', num_cpus=num_cpus)
 
 
+@pytest.mark.usefixtures("num_cpus")
 class StandardTests(BaseTest):
     @classmethod
     def setup_class(cls):
@@ -145,20 +145,21 @@ class StandardTests(BaseTest):
         self.qbt.plot_wavefunction(esys=None, which=5, mode='real')
         self.qbt.plot_wavefunction(esys=None, which=9, mode='abs_sqr')
 
-    def test_plot_evals_vs_paramvals(self):
+    def test_plot_evals_vs_paramvals(self, num_cpus):
         testname = self.file_str + '_1'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
-        return self.plot_evals_vs_paramvals(self.param_name, self.param_list)
+        return self.plot_evals_vs_paramvals(num_cpus, self.param_name, self.param_list)
 
-    def test_get_spectrum_vs_paramvals(self):
+    def test_get_spectrum_vs_paramvals(self, num_cpus):
         testname = self.file_str + '_4'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.param_list = specdata.param_vals
         evecs_reference = specdata.state_table
         evals_reference = specdata.energy_table
-        return self.get_spectrum_vs_paramvals(self.param_name, self.param_list, evals_reference, evecs_reference)
+        return self.get_spectrum_vs_paramvals(num_cpus, self.param_name, self.param_list, evals_reference,
+                                              evecs_reference)
 
     def test_matrixelement_table(self):
         testname = self.file_str + '_5'
@@ -179,11 +180,11 @@ class StandardTests(BaseTest):
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.print_matrixelements(self.op2_str)
 
-    def test_plot_matelem_vs_paramvals(self):
+    def test_plot_matelem_vs_paramvals(self, num_cpus):
         testname = self.file_str + '_1'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
-        self.plot_matelem_vs_paramvals(self.op1_str, self.param_name, self.param_list,
+        self.plot_matelem_vs_paramvals(num_cpus, self.op1_str, self.param_name, self.param_list,
                                        select_elems=[(0, 0), (1, 4), (1, 0)])
 
     def test_plot_potential(self):

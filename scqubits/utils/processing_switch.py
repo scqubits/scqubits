@@ -14,7 +14,8 @@ import scqubits.settings as settings
 
 def get_map_method(num_cpus):
     """
-    Selects the correct `.map` method depending on the specified number of desired cores.
+    Selects the correct `.map` method depending on the specified number of desired cores. If num_cpus>1, the
+    multiprocessing/pathos pool is started here.
 
     Parameters
     ----------
@@ -34,16 +35,12 @@ def get_map_method(num_cpus):
     # if sys.platform == 'win32' and settings.POOL is None:
     #     warnings.warn("Windows users may explicitly need to  provide scqubits.settings.POOL.")
 
-    # pool has been provided, return its map method
-    if settings.POOL is not None:
-        return settings.POOL.map
-
-    # no pool, but user is asking for more than 1 cpu; try to start pool from here
+    # user is asking for more than 1 cpu; start pool from here
     if settings.MULTIPROC == 'pathos':
         import pathos
         import dill
         dill.settings['recurse'] = True
-        settings.POOL = pathos.pools.ProcessPool(cores=num_cpus)
+        settings.POOL = pathos.pools.ProcessPool(nodes=num_cpus)
         return settings.POOL.map
     if settings.MULTIPROC == 'multiprocessing':
         import multiprocessing

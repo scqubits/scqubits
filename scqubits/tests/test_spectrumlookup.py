@@ -91,7 +91,7 @@ class TestSpectrumLookup:
         reference = 21
         assert hilbertspace.lookup.dressed_index((1, 2, 1)) == reference
 
-    def test_hilbertspace_lookup_dressed_index(self):
+    def test_hilbertspace_lookup_bare_eigenstates(self):
         hilbertspace = self.initialize_hilbertspace()
         hilbertspace.generate_lookup()
         CPB = hilbertspace[0]

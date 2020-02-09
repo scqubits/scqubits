@@ -40,13 +40,14 @@ jobs:
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
+      pip install pathos
       pip install .
       pytest -v --pyargs scqubits
-      export OMP_NUM_THREADS=2
-      export OPENBLAS_NUM_THREADS=2
-      export MKL_NUM_THREADS=2
-      export VECLIB_MAXIMUM_THREADS=2
-      export NUMEXPR_NUM_THREADS=2
+      export OMP_NUM_THREADS=1
+      export OPENBLAS_NUM_THREADS=1
+      export MKL_NUM_THREADS=1
+      export VECLIB_MAXIMUM_THREADS=1
+      export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Install scqubits and run pytest'
 - job: Windows
@@ -80,13 +81,14 @@ jobs:
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
+      pip install pathos
       pip install .
       pytest -v --pyargs scqubits
-      set OMP_NUM_THREADS=2
-      set OPENBLAS_NUM_THREADS=2
-      set MKL_NUM_THREADS=2
-      set VECLIB_MAXIMUM_THREADS=2
-      set NUMEXPR_NUM_THREADS=2
+      set OMP_NUM_THREADS=1
+      set OPENBLAS_NUM_THREADS=1
+      set MKL_NUM_THREADS=1
+      set VECLIB_MAXIMUM_THREADS=1
+      set NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Install scqubits and run pytest'
 - job: macOS
@@ -120,12 +122,13 @@ jobs:
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
+      pip install pathos
       pip install .
       pytest -v --pyargs scqubits
-      export OMP_NUM_THREADS=2
-      export OPENBLAS_NUM_THREADS=2
-      export MKL_NUM_THREADS=2
-      export VECLIB_MAXIMUM_THREADS=2
-      export NUMEXPR_NUM_THREADS=2
+      export OMP_NUM_THREADS=1
+      export OPENBLAS_NUM_THREADS=1
+      export MKL_NUM_THREADS=1
+      export VECLIB_MAXIMUM_THREADS=1
+      export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Install scqubits and run pytest'

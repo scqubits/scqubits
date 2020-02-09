@@ -20,9 +20,9 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.constants as constants
+import scqubits.settings as settings
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-import scqubits.settings as settings
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
