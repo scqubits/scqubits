@@ -15,16 +15,13 @@ import numpy as np
 try:
     import ipywidgets
 except ImportError:
-    pass
-    # raise Exception("ImportError: failed to import ipywidgets. For use of scqubits.explorer,"
-    #                "ipywidgets must be installed")
+    pass # enable usage of scqubits if ipywidgets is not installed
 
 try:
     from IPython.display import display
 except ImportError:
-    pass
-    # raise Exception("ImportError: failed to import IPython. For use of scqubits.explorer,"
-    #                 "IPython must be installed")
+    pass # enable usage of scqubits if IPython is not installed
+  
 
 import scqubits.core.sweep_generators as swp
 import scqubits.utils.explorer_panels as panels
