@@ -9,19 +9,23 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import functools
 import warnings
 
 import numpy as np
 import qutip as qt
 
+import scqubits.settings as settings
 from scqubits.core.central_dispatch import (DispatchClient,
                                             CENTRAL_DISPATCH)
 from scqubits.core.descriptors import ReadOnlyProperty, WatchedProperty
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import SpectrumData
-from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
-from scqubits.utils.spectrum_utils import convert_operator_to_qobj
+from scqubits.settings import IN_IPYTHON
+from scqubits.utils.misc import InfoBar
+from scqubits.utils.processing_switch import get_map_method
+from scqubits.utils.spectrum_utils import convert_operator_to_qobj, recast_esys_mapdata
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -372,8 +376,16 @@ class HilbertSpace(DispatchClient):
             return hamiltonian + hamiltonian.conj()
         return hamiltonian
 
-    def get_spectrum_vs_paramvals(self, hamiltonian_func, param_vals, evals_count=10, get_eigenstates=False,
-                                  param_name="external_parameter"):
+    def _esys_for_paramval(self, paramval, update_hilbertspace, evals_count):
+        update_hilbertspace(paramval)
+        return self.eigensys(evals_count)
+
+    def _evals_for_paramval(self, paramval, update_hilbertspace, evals_count):
+        update_hilbertspace(paramval)
+        return self.eigenvals(evals_count)
+
+    def get_spectrum_vs_paramvals(self, param_vals, update_hilbertspace, evals_count=10, get_eigenstates=False,
+                                  param_name="external_parameter", num_cpus=settings.NUM_CPUS):
         """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as a function of a parameter.
         Parameter values are specified as a list or array in `param_vals`. The Hamiltonian `hamiltonian_func`
         must be a function of that particular parameter, and is expected to internally set subsystem parameters.
@@ -381,41 +393,40 @@ class HilbertSpace(DispatchClient):
 
         Parameters
         ----------
-        hamiltonian_func: function of one parameter
-            function returning the Hamiltonian in `qutip.Qobj` format
         param_vals: ndarray of floats
             array of parameter values
+        update_hilbertspace: function
+            update_hilbertspace(param_val) specifies how a change in the external parameter affects
+            the Hilbert space components
         evals_count: int, optional
             number of desired energy levels (default value = 10)
         get_eigenstates: bool, optional
             set to true if eigenstates should be returned as well (default value = False)
         param_name: str, optional
             name for the parameter that is varied in `param_vals` (default value = "external_parameter")
+        num_cpus: int, optional
+            number of cores to be used for computation (default value: settings.NUM_CPUS)
 
         Returns
         -------
         SpectrumData object
         """
-        paramvals_count = len(param_vals)
-
-        eigenenergy_table = np.empty((paramvals_count, evals_count))
+        target_map = get_map_method(num_cpus)
         if get_eigenstates:
-            eigenstates_qobj_table = [0] * paramvals_count
+            func = functools.partial(self._esys_for_paramval, update_hilbertspace=update_hilbertspace,
+                                     evals_count=evals_count)
+            with InfoBar("Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus), num_cpus):
+                eigensystem_mapdata = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
+                                                                 disable=(num_cpus > 1))))
+            eigenvalue_table, eigenstate_table = recast_esys_mapdata(eigensystem_mapdata)
         else:
-            eigenstates_qobj_table = None
+            func = functools.partial(self._evals_for_paramval,  update_hilbertspace=update_hilbertspace,
+                                     evals_count=evals_count)
+            with InfoBar("Parallel computation of eigensystems [num_cpus={}]".format(num_cpus), num_cpus):
+                eigenvalue_table = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
+                                                              disable=(num_cpus > 1))))
+            eigenvalue_table = np.asarray(eigenvalue_table)
+            eigenstate_table = None
 
-        for param_index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
-            paramval = param_vals[param_index]
-            hamiltonian = hamiltonian_func(paramval)
-
-            if get_eigenstates:
-                eigenenergies, eigenstates_qobj = hamiltonian.eigenstates(eigvals=evals_count)
-                eigenenergy_table[param_index] = eigenenergies
-                eigenstates_qobj_table[param_index] = eigenstates_qobj
-            else:
-                eigenenergies = hamiltonian.eigenenergies(eigvals=evals_count)
-                eigenenergy_table[param_index] = eigenenergies
-
-        spectrumdata = SpectrumData(eigenenergy_table, self.__dict__, param_name, param_vals,
-                                    state_table=eigenstates_qobj_table)
-        return spectrumdata
+        return SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
+                            state_table=eigenstate_table)

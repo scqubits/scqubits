@@ -117,6 +117,7 @@ class FullZeroPi(QubitBaseClass):
         self._sys_type = 'full 0-pi'
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
+        self.pool = None
 
         CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 

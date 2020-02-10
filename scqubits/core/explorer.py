@@ -21,6 +21,7 @@ try:
     from IPython.display import display
 except ImportError:
     pass # enable usage of scqubits if IPython is not installed
+  
 
 import scqubits.core.sweep_generators as swp
 import scqubits.utils.explorer_panels as panels
@@ -114,6 +115,8 @@ class Explorer:
 
     def interact(self):
         """Drives the interactive display of the plot explorer panels"""
+        # settings.PROGRESSBAR_DISABLED = True
+
         param_min = self.param_vals[0]
         param_max = self.param_vals[-1]
         param_step = self.param_vals[1] - self.param_vals[0]

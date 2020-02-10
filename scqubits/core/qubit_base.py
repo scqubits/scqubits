@@ -13,21 +13,25 @@ Provides the base classes for qubits
 """
 
 import abc
+import functools
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
 import scqubits.core.constants as constants
+import scqubits.settings as settings
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
-from scqubits.utils.misc import process_which, process_metadata, filter_metadata
+from scqubits.utils.misc import process_which, process_metadata, filter_metadata, InfoBar
 from scqubits.utils.plot_defaults import set_scaling
-from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table, standardize_sign
+from scqubits.utils.processing_switch import get_map_method
+from scqubits.utils.spectrum_utils import (order_eigensystem, get_matrixelement_table, standardize_sign,
+                                           recast_esys_mapdata)
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -76,6 +80,7 @@ class QubitBaseClass(QuantumSystem):
     _default_grid: Grid1d
     _evec_dtype: type
     _sys_type: str
+    pool: None
 
     @abc.abstractmethod
     def hamiltonian(self):
@@ -209,10 +214,18 @@ class QubitBaseClass(QuantumSystem):
             specdata.filewrite(filename)
         return table
 
+    def _esys_for_paramval(self, paramval, param_name, evals_count):
+        setattr(self, param_name, paramval)
+        return self.eigensys(evals_count)
+
+    def _evals_for_paramval(self, paramval, param_name, evals_count):
+        setattr(self, param_name, paramval)
+        return self.eigenvals(evals_count)
+
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                  get_eigenstates=False):
-        """Calculates eigenvalues for a varying system parameter, given an array of parameter values. Returns a
-        `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for
+                                  get_eigenstates=False, num_cpus=settings.NUM_CPUS):
+        """Calculates eigenvalues/eigenstates for a varying system parameter, given an array of parameter values.
+        Returns a `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for
         parameter value `param_vals[n]`.
 
         Parameters
@@ -227,37 +240,39 @@ class QubitBaseClass(QuantumSystem):
             if True, eigenvalues are returned relative to the ground state eigenvalue (default value = False)
         get_eigenstates: bool, optional
             return eigenstates along with eigenvalues (default value = False)
+        num_cpus: int, optional
+            number of cores to be used for computation (default value: settings.NUM_CPUS)
 
         Returns
         -------
         SpectrumData object
         """
         previous_paramval = getattr(self, param_name)
-        paramvals_count = len(param_vals)
-        eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
-        eigenstate_table = None
+
+        target_map = get_map_method(num_cpus)
         if get_eigenstates:
-            eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=self._evec_dtype)
+            func = functools.partial(self._esys_for_paramval, param_name=param_name, evals_count=evals_count)
+            with InfoBar("Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus), num_cpus):
+                eigensystem_mapdata = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
+                                                                 disable=(num_cpus > 1))))
+            eigenvalue_table, eigenstate_table = recast_esys_mapdata(eigensystem_mapdata)
+        else:
+            func = functools.partial(self._evals_for_paramval, param_name=param_name, evals_count=evals_count)
+            with InfoBar("Parallel computation of eigensystems [num_cpus={}]".format(num_cpus), num_cpus):
+                eigenvalue_table = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
+                                                              disable=(num_cpus > 1))))
+            eigenvalue_table = np.asarray(eigenvalue_table)
+            eigenstate_table = None
 
-        for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
-            setattr(self, param_name, paramval)
+        if subtract_ground:
+            for param_index, _ in enumerate(param_vals):
+                eigenvalue_table[param_index] -= eigenvalue_table[param_index, 0]
 
-            if get_eigenstates:
-                evals, evecs = self.eigensys(evals_count)
-                eigenstate_table[index] = evecs
-            else:
-                evals = self.eigenvals(evals_count)
-            eigenvalue_table[index] = np.real(evals)   # for complex-hermitean H, eigenvalues have type np.complex_
-
-            if subtract_ground:
-                eigenvalue_table[index] -= evals[0]
         setattr(self, param_name, previous_paramval)
+        return SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
+                            state_table=eigenstate_table)
 
-        spectrumdata = SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
-                                    state_table=eigenstate_table)
-        return spectrumdata
-
-    def get_matelements_vs_paramvals(self, operator, param_name, param_vals, evals_count=6):
+    def get_matelements_vs_paramvals(self, operator, param_name, param_vals, evals_count=6, num_cpus=settings.NUM_CPUS):
         """Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a
         `SpectrumData` object containing matrix element data, eigenvalue data, and eigenstate data..
 
@@ -271,30 +286,27 @@ class QubitBaseClass(QuantumSystem):
             parameter values to be plugged in
         evals_count: int, optional
             number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
+        num_cpus: int, optional
+            number of cores to be used for computation (default value: settings.NUM_CPUS)
 
         Returns
         -------
         SpectrumData object
         """
-        previous_paramval = getattr(self, param_name)
+        spectrumdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=evals_count,
+                                                      get_eigenstates=True, num_cpus=num_cpus)
         paramvals_count = len(param_vals)
-        eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
-        eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=np.complex_)
         matelem_table = np.empty(shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_)
 
         for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
-            setattr(self, param_name, paramval)
-            evals, evecs = self.eigensys(evals_count)
-            eigenstate_table[index] = evecs
-            eigenvalue_table[index] = evals
-            matelem_table[index] = self.matrixelement_table(operator, evals_count=evals_count)
-        setattr(self, param_name, previous_paramval)
+            evecs = spectrumdata.state_table[index]
+            matelem_table[index] = self.matrixelement_table(operator, evecs=evecs, evals_count=evals_count)
 
-        spectrumdata = SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
-                                    state_table=eigenstate_table, matrixelem_table=matelem_table)
+        spectrumdata.matrixelem_table = matelem_table
         return spectrumdata
 
-    def plot_evals_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=None, **kwargs):
+    def plot_evals_vs_paramvals(self, param_name, param_vals,
+                                evals_count=6, subtract_ground=None, num_cpus=settings.NUM_CPUS, **kwargs):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -308,6 +320,8 @@ class QubitBaseClass(QuantumSystem):
             number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
         subtract_ground: bool, optional
             whether to subtract ground state energy from all eigenvalues (default value = False)
+        num_cpus: int, optional
+            number of cores to be used for computation (default value: settings.NUM_CPUS)
         **kwargs: dict
             standard plotting option (see separate documentation)
 
@@ -315,7 +329,8 @@ class QubitBaseClass(QuantumSystem):
         -------
         Figure, Axes
         """
-        specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count, subtract_ground)
+        specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=evals_count,
+                                                  subtract_ground=subtract_ground, num_cpus=num_cpus)
         return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
 
     def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', **kwargs):
@@ -344,7 +359,8 @@ class QubitBaseClass(QuantumSystem):
         matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
         return plot.matrix(matrixelem_array, mode, **kwargs)
 
-    def plot_matelem_vs_paramvals(self, operator, param_name, param_vals, select_elems=4, mode='abs', **kwargs):
+    def plot_matelem_vs_paramvals(self, operator, param_name, param_vals,
+                                  select_elems=4, mode='abs', num_cpus=settings.NUM_CPUS, **kwargs):
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
@@ -361,6 +377,8 @@ class QubitBaseClass(QuantumSystem):
             for specific desired matrix elements (default value = 4)
         mode: str, optional
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default value = 'abs')
+        num_cpus: int, optional
+            number of cores to be used for computation (default value = 1)
         **kwargs: dict
             standard plotting option (see separate documentation)
 
@@ -374,7 +392,8 @@ class QubitBaseClass(QuantumSystem):
             flattened_list = [index for tupl in select_elems for index in tupl]
             evals_count = max(flattened_list) + 1
 
-        specdata = self.get_matelements_vs_paramvals(operator, param_name, param_vals, evals_count=evals_count)
+        specdata = self.get_matelements_vs_paramvals(operator, param_name, param_vals,
+                                                     evals_count=evals_count, num_cpus=num_cpus)
         return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, **kwargs)
 
 

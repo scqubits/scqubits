@@ -60,9 +60,8 @@ class Oscillator(QuantumSystem):
         else:
             self.E_osc = E_osc
 
-
-    # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
     def get_omega(self):
+        # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
         warnings.warn('To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.',
                       FutureWarning)
         return self.E_osc

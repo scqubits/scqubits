@@ -18,8 +18,8 @@ jobs:
         python.version: '3.6'
       Python37:
         python.version: '3.7'
-      Python38:
-        python.version: '3.8'
+ #     Python38:
+ #       python.version: '3.8'
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -27,7 +27,6 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       python -m pip install --upgrade pip
-      pip install --upgrade cython
     displayName: 'Upgrade pip'
   - script: |
       pip install --upgrade cython
@@ -40,10 +39,16 @@ jobs:
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
+      pip install pathos
       pip install .
       pytest -v --pyargs scqubits
+      export OMP_NUM_THREADS=1
+      export OPENBLAS_NUM_THREADS=1
+      export MKL_NUM_THREADS=1
+      export VECLIB_MAXIMUM_THREADS=1
+      export NUMEXPR_NUM_THREADS=1
+      pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Install scqubits and run pytest'
-
 - job: Windows
   pool:
     vmImage: 'windows-latest'
@@ -53,8 +58,8 @@ jobs:
         python.version: '3.6'
       Python37:
         python.version: '3.7'
-      Python38:
-        python.version: '3.8'
+#      Python38:
+#        python.version: '3.8'
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -62,7 +67,6 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       python -m pip install --upgrade pip
-      pip install --upgrade cython
     displayName: 'Upgrade pip'
   - script: |
       pip install --upgrade cython
@@ -75,21 +79,27 @@ jobs:
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
+      pip install pathos
       pip install .
       pytest -v --pyargs scqubits
+      set OMP_NUM_THREADS=1
+      set OPENBLAS_NUM_THREADS=1
+      set MKL_NUM_THREADS=1
+      set VECLIB_MAXIMUM_THREADS=1
+      set NUMEXPR_NUM_THREADS=1
+      pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Install scqubits and run pytest'
-
 - job: macOS
   pool:
-    vmImage: 'macOS-latest'
+    vmImage: macOS-10.13
   strategy:
     matrix:
       Python36:
         python.version: '3.6'
       Python37:
         python.version: '3.7'
-      Python38:
-        python.version: '3.8'
+#      Python38:
+#        python.version: '3.8'
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -97,7 +107,6 @@ jobs:
     displayName: 'Use Python $(python.version)'
   - script: |
       python -m pip install --upgrade pip
-      pip install --upgrade cython
     displayName: 'Upgrade pip'
   - script: |
       pip install --upgrade cython
@@ -110,6 +119,13 @@ jobs:
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
+      pip install pathos
       pip install .
       pytest -v --pyargs scqubits
+      export OMP_NUM_THREADS=1
+      export OPENBLAS_NUM_THREADS=1
+      export MKL_NUM_THREADS=1
+      export VECLIB_MAXIMUM_THREADS=1
+      export NUMEXPR_NUM_THREADS=1
+      pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Install scqubits and run pytest'

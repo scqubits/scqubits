@@ -10,15 +10,23 @@
 ############################################################################
 
 
+import functools
+
 import numpy as np
-from tqdm.notebook import tqdm
 
 import scqubits.settings as settings
 from scqubits.core.central_dispatch import (DispatchClient, CENTRAL_DISPATCH)
 from scqubits.core.descriptors import ReadOnlyProperty, WatchedProperty
 from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import SpectrumData, DataStore
-from scqubits.settings import TQDM_KWARGS, AUTORUN_SWEEP
+from scqubits.settings import AUTORUN_SWEEP, IN_IPYTHON
+from scqubits.utils.misc import InfoBar
+from scqubits.utils.processing_switch import get_map_method
+
+if IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 class ParameterSweep(DispatchClient):
@@ -43,6 +51,8 @@ class ParameterSweep(DispatchClient):
     update_hilbertspace: function
         update_hilbertspace(param_val) specifies how a change in the external parameter affects
         the Hilbert space components
+    num_cpus: int, optional
+        number of CPUS requested for computing the sweep (default value settings.NUM_CPUS)
     """
 
     param_name = WatchedProperty('PARAMETERSWEEP_UPDATE')
@@ -53,7 +63,8 @@ class ParameterSweep(DispatchClient):
     update_hilbertspace = WatchedProperty('PARAMETERSWEEP_UPDATE')
     lookup = ReadOnlyProperty()
 
-    def __init__(self, param_name, param_vals, evals_count, hilbertspace, subsys_update_list, update_hilbertspace):
+    def __init__(self, param_name, param_vals, evals_count, hilbertspace, subsys_update_list, update_hilbertspace,
+                 num_cpus=settings.NUM_CPUS):
         self.param_name = param_name
         self.param_vals = param_vals
         self.param_count = len(param_vals)
@@ -61,6 +72,7 @@ class ParameterSweep(DispatchClient):
         self._hilbertspace = hilbertspace
         self.subsys_update_list = tuple(subsys_update_list)
         self.update_hilbertspace = update_hilbertspace
+        self.num_cpus = num_cpus
 
         self._lookup = None
         self._bare_hamiltonian_constant = None
@@ -136,8 +148,12 @@ class ParameterSweep(DispatchClient):
         Pre-calculates all bare spectral data needed for the interactive explorer display.
         """
         bare_eigendata_constant = [self._compute_bare_spectrum_constant()] * self.param_count
-        bare_eigendata_varying = [self._compute_bare_spectrum_varying(param_val)
-                                  for param_val in tqdm(self.param_vals, desc='Bare spectra', **TQDM_KWARGS)]
+        target_map = get_map_method(self.num_cpus)
+        with InfoBar("Parallel computation of bare eigensystem [num_cpus={}]".format(self.num_cpus), self.num_cpus):
+            bare_eigendata_varying = list(
+                target_map(self._compute_bare_spectrum_varying,
+                           tqdm(self.param_vals, desc='Bare spectra', leave=False, disable=(self.num_cpus > 1)))
+            )
         bare_specdata_list = self._recast_bare_eigendata(bare_eigendata_constant, bare_eigendata_varying)
         del bare_eigendata_constant
         del bare_eigendata_varying
@@ -145,16 +161,20 @@ class ParameterSweep(DispatchClient):
 
     def _compute_dressed_specdata_sweep(self, bare_specdata_list):
         """
-        Pre-calculates and all dressed spectral data.
+        Calculates and returns all dressed spectral data.
 
         Returns
         -------
         SpectrumData
         """
         self._bare_hamiltonian_constant = self._compute_bare_hamiltonian_constant(bare_specdata_list)
+        param_indices = range(self.param_count)
+        func = functools.partial(self._compute_dressed_eigensystem, bare_specdata_list=bare_specdata_list)
+        target_map = get_map_method(self.num_cpus)
 
-        dressed_eigendata = [self._compute_dressed_eigensystem(bare_specdata_list, j)
-                             for j in tqdm(range(self.param_count), desc='Dressed spectrum', **TQDM_KWARGS)]
+        with InfoBar("Parallel computation of dressed eigensystem [num_cpus={}]".format(self.num_cpus), self.num_cpus):
+            dressed_eigendata = list(target_map(func, tqdm(param_indices, desc='Dressed spectrum', leave=False,
+                                                           disable=(self.num_cpus > 1))))
         dressed_specdata = self._recast_dressed_eigendata(dressed_eigendata)
         del dressed_eigendata
         return dressed_specdata
@@ -283,7 +303,7 @@ class ParameterSweep(DispatchClient):
                 eigendata.append(None)
         return eigendata
 
-    def _compute_dressed_eigensystem(self, bare_specdata_list, param_index):
+    def _compute_dressed_eigensystem(self, param_index, bare_specdata_list):
         hamiltonian = (self._bare_hamiltonian_constant +
                        self._compute_bare_hamiltonian_varying(bare_specdata_list, param_index))
 
@@ -320,4 +340,5 @@ class ParameterSweep(DispatchClient):
         return self._hilbertspace.__dict__
 
     def new_datastore(self, **kwargs):
+        """Return DataStore object with system/sweep information obtained from self."""
         return DataStore(self.system_params, self.param_name, self.param_vals, **kwargs)

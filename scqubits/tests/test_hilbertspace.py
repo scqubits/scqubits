@@ -20,135 +20,14 @@ from scqubits.core.sweep_generators import generate_diffspec_sweep
 from scqubits.utils.spectrum_utils import get_matrixelement_table, absorption_spectrum
 
 
+@pytest.mark.usefixtures("num_cpus")
 class TestHilbertSpace:
-
     @pytest.fixture(autouse=True)
     def set_tmpdir(self, request):
         setattr(self, 'tmpdir', request.getfixturevalue('tmpdir'))
 
     @staticmethod
     def hilbertspace_initialize():
-        transmon1 = qubit.Transmon(
-            EJ=40.0,
-            EC=0.2,
-            ng=0.0,
-            ncut=40,
-            truncated_dim=3  # after diagonalization, we will keep 3 levels
-        )
-
-        transmon2 = qubit.Transmon(
-            EJ=3.0,
-            EC=1.0,
-            ng=0.0,
-            ncut=10,
-            truncated_dim=4
-        )
-
-        resonator = qubit.Oscillator(
-            E_osc=6.0,
-            truncated_dim=4  # up to 3 photons (0,1,2,3)
-        )
-        # Form a list of all components making up the Hilbert space.
-        return qubit.HilbertSpace([transmon1, transmon2, resonator])
-
-    def test_HilbertSpace_init(self):
-        _ = self.hilbertspace_initialize()
-
-    def build_hamiltonian(self):
-        hilbertspc = self.hilbertspace_initialize()
-        [transmon1, transmon2, resonator] = hilbertspc
-        # Get resonator Hamiltonian (full product Hilbert space)
-        hres = hilbertspc.diag_hamiltonian(resonator)
-        # Get diagonalized transmon1 Hamiltonian as full-system operator via tensor product with identities.
-        h1 = hilbertspc.diag_hamiltonian(transmon1)
-        # Get diagonalized transmon2 Hamiltonian as full-system operator via tensor product with identities.
-        h2 = hilbertspc.diag_hamiltonian(transmon2)
-        g1 = 0.1  # coupling resonator-transmon1 (without charge matrix elements)
-        g2 = 0.2  # coupling resonator-transmon2 (without charge matrix elements)
-        dim1 = transmon1.truncated_dim
-        dim2 = transmon2.truncated_dim
-        _, evecs1 = transmon1.eigensys(dim1)
-        _, evecs2 = transmon2.eigensys(dim2)
-        gmat1 = g1 * get_matrixelement_table(transmon1.n_operator(), evecs1)  # coupling constants for transmon1
-        gmat2 = g2 * get_matrixelement_table(transmon2.n_operator(), evecs2)  # and for transmon2
-        hbd = hilbertspc.hubbard_operator
-        a = hilbertspc.annihilate(resonator)
-        hamiltonian0 = h1 + h2 + hres
-        vcpb1 = sum([gmat1[j][k] * hbd(j, k, transmon1) for j in range(dim1) for k in range(dim1)])
-        vcpb2 = sum([gmat2[j][k] * hbd(j, k, transmon2) for j in range(dim2) for k in range(dim2)])
-        hamiltonian1 = (vcpb1 + vcpb2) * (a + a.dag())
-        return hamiltonian0 + hamiltonian1
-
-    def hamiltonian(self, flux):
-        hilbertspc = self.hilbertspace_initialize()
-        [transmon1, transmon2, resonator] = hilbertspc
-
-        hres = hilbertspc.diag_hamiltonian(resonator)
-        # Get diagonalized transmon1 Hamiltonian as full-system operator via tensor product with identities.
-
-        g1 = 0.1  # coupling resonator-transmon1 (without charge matrix elements)
-        g2 = 0.2  # coupling resonator-transmon2 (without charge matrix elements)
-        dim1 = transmon1.truncated_dim
-        dim2 = transmon2.truncated_dim
-
-        _, evecs1 = transmon1.eigensys(dim1)
-        _, evecs2 = transmon2.eigensys(dim2)
-        gmat1 = g1 * get_matrixelement_table(transmon1.n_operator(), evecs1)  # coupling constants for transmon1
-        gmat2 = g2 * get_matrixelement_table(transmon2.n_operator(), evecs2)  # and for transmon2
-
-        hbd = hilbertspc.hubbard_operator
-        a = hilbertspc.annihilate(resonator)
-
-        vcpb1 = sum([gmat1[j][k] * hbd(j, k, transmon1) for j in range(dim1) for k in range(dim1)])
-        vcpb2 = sum([gmat2[j][k] * hbd(j, k, transmon2) for j in range(dim2) for k in range(dim2)])
-
-        transmon1.EJ = 40.0 * np.cos(np.pi * flux)
-        h1 = hilbertspc.diag_hamiltonian(transmon1)
-        h2 = hilbertspc.diag_hamiltonian(transmon2)
-
-        return h1 + h2 + hres + (vcpb1 + vcpb2) * (a + a.dag())
-
-    def test_HilbertSpace_build_hamiltonian(self):
-        _ = self.build_hamiltonian()
-
-    def test_HilbertSpace_diagonalize_hamiltonian(self):
-        hamiltonian = self.build_hamiltonian()
-
-        evals_reference = np.asarray([-36.9898613, -32.2485069, -31.31250908, -31.00035225,
-                                      -29.18345776, -26.26664068, -25.32975243, -25.01086732,
-                                      -24.44211916, -23.50612209, -23.19649424, -21.58197308,
-                                      -20.28449459, -19.9790977, -19.34686735, -19.01220621,
-                                      -18.46278662, -17.52590027, -17.2084294, -16.84047711,
-                                      -15.90462096, -15.54530262, -14.25509299, -13.99415794,
-                                      -13.33019265, -12.48208655, -12.1727023, -11.54418665,
-                                      -11.25656601, -10.81121745, -9.87458635, -9.51009429,
-                                      -8.00925198, -6.50020557, -6.19030846, -5.57523232,
-                                      -4.78354995, -4.57123207, -3.84547113, -3.58389199,
-                                      -2.01787739, -0.20685665, 1.17306434, 1.46098501,
-                                      2.09778458, 5.73747149, 7.49164636, 13.4096702])
-
-        evals_calculated = hamiltonian.eigenenergies()
-        assert np.allclose(evals_calculated, evals_reference)
-
-    def test_HilbertSpace_get_spectrum_vs_paramvals(self):
-        hilbertspc = self.hilbertspace_initialize()
-
-        flux_list = np.linspace(-0.1, 0.6, 100)
-        specdata = hilbertspc.get_spectrum_vs_paramvals(self.hamiltonian, flux_list, evals_count=15,
-                                                        get_eigenstates=True)
-        specdata.filewrite(filename=self.tmpdir + 'test')
-
-        reference_evals = np.array([-35.61671109, -30.87536252, -29.93935539, -29.62839549,
-                                    -27.95521996, -24.89469034, -23.95779031, -23.64010506,
-                                    -23.21389138, -22.27788515, -21.97003287, -20.49827277,
-                                    -18.91372364, -18.6059474, -17.97609201])
-        calculated_evals = specdata.energy_table[2]
-
-        assert np.allclose(reference_evals, calculated_evals)
-
-    def initialize(self):
-        # Set up the components / subspaces of our Hilbert space
-
         CPB1 = qubit.Transmon(
             EJ=40.0,
             EC=0.2,
@@ -197,8 +76,99 @@ class TestHilbertSpace:
 
         return hilbertspace
 
-    def test_HilbertSpace_interface_1_1(self):
-        hilbertspace = self.initialize()
+    def test_HilbertSpace_init(self):
+        _ = self.hilbertspace_initialize()
+
+    def build_hamiltonian(self):
+        hilbertspc = self.hilbertspace_initialize()
+        [transmon1, transmon2, resonator] = hilbertspc
+        hres = hilbertspc.diag_hamiltonian(resonator)
+        h1 = hilbertspc.diag_hamiltonian(transmon1)
+        h2 = hilbertspc.diag_hamiltonian(transmon2)
+        g1 = 0.1  # coupling resonator-transmon1 (without charge matrix elements)
+        g2 = 0.2  # coupling resonator-transmon2 (without charge matrix elements)
+        dim1 = transmon1.truncated_dim
+        dim2 = transmon2.truncated_dim
+        _, evecs1 = transmon1.eigensys(dim1)
+        _, evecs2 = transmon2.eigensys(dim2)
+        gmat1 = g1 * get_matrixelement_table(transmon1.n_operator(), evecs1)  # coupling constants for transmon1
+        gmat2 = g2 * get_matrixelement_table(transmon2.n_operator(), evecs2)  # and for transmon2
+        hbd = hilbertspc.hubbard_operator
+        a = hilbertspc.annihilate(resonator)
+        hamiltonian0 = h1 + h2 + hres
+        vcpb1 = sum([gmat1[j][k] * hbd(j, k, transmon1) for j in range(dim1) for k in range(dim1)])
+        vcpb2 = sum([gmat2[j][k] * hbd(j, k, transmon2) for j in range(dim2) for k in range(dim2)])
+        hamiltonian1 = (vcpb1 + vcpb2) * (a + a.dag())
+        return hamiltonian0 + hamiltonian1
+
+    def hamiltonian(self, flux):
+        hilbertspc = self.hilbertspace_initialize()
+        [transmon1, transmon2, resonator] = hilbertspc
+
+        hres = hilbertspc.diag_hamiltonian(resonator)
+        g1 = 0.1  # coupling resonator-transmon1 (without charge matrix elements)
+        g2 = 0.2  # coupling resonator-transmon2 (without charge matrix elements)
+        dim1 = transmon1.truncated_dim
+        dim2 = transmon2.truncated_dim
+        _, evecs1 = transmon1.eigensys(dim1)
+        _, evecs2 = transmon2.eigensys(dim2)
+        gmat1 = g1 * get_matrixelement_table(transmon1.n_operator(), evecs1)  # coupling constants for transmon1
+        gmat2 = g2 * get_matrixelement_table(transmon2.n_operator(), evecs2)  # and for transmon2
+        hbd = hilbertspc.hubbard_operator
+        a = hilbertspc.annihilate(resonator)
+        vcpb1 = sum([gmat1[j][k] * hbd(j, k, transmon1) for j in range(dim1) for k in range(dim1)])
+        vcpb2 = sum([gmat2[j][k] * hbd(j, k, transmon2) for j in range(dim2) for k in range(dim2)])
+
+        transmon1.EJ = 40.0 * np.cos(np.pi * flux)
+        h1 = hilbertspc.diag_hamiltonian(transmon1)
+        h2 = hilbertspc.diag_hamiltonian(transmon2)
+
+        return h1 + h2 + hres + (vcpb1 + vcpb2) * (a + a.dag())
+
+    def test_HilbertSpace_build_hamiltonian(self):
+        _ = self.build_hamiltonian()
+
+    def test_HilbertSpace_diagonalize_hamiltonian(self):
+        hamiltonian = self.build_hamiltonian()
+
+        evals_reference = np.asarray([-36.9898613, -32.2485069, -31.31250908, -31.00035225,
+                                      -29.18345776, -26.26664068, -25.32975243, -25.01086732,
+                                      -24.44211916, -23.50612209, -23.19649424, -21.58197308,
+                                      -20.28449459, -19.9790977, -19.34686735, -19.01220621,
+                                      -18.46278662, -17.52590027, -17.2084294, -16.84047711,
+                                      -15.90462096, -15.54530262, -14.25509299, -13.99415794,
+                                      -13.33019265, -12.48208655, -12.1727023, -11.54418665,
+                                      -11.25656601, -10.81121745, -9.87458635, -9.51009429,
+                                      -8.00925198, -6.50020557, -6.19030846, -5.57523232,
+                                      -4.78354995, -4.57123207, -3.84547113, -3.58389199,
+                                      -2.01787739, -0.20685665, 1.17306434, 1.46098501,
+                                      2.09778458, 5.73747149, 7.49164636, 13.4096702])
+
+        evals_calculated = hamiltonian.eigenenergies()
+        assert np.allclose(evals_calculated, evals_reference)
+
+    def test_HilbertSpace_get_spectrum_vs_paramvals(self, num_cpus):
+        qubit.settings.MULTIPROC = 'pathos'
+        hilbertspc = self.hilbertspace_initialize()
+        [transmon1, transmon2, resonator] = hilbertspc
+
+        def update_func(flux):
+            transmon1.EJ = 40.0 * np.cos(np.pi * flux)
+
+        flux_list = np.linspace(-0.1, 0.6, 100)
+        specdata = hilbertspc.get_spectrum_vs_paramvals(flux_list, update_func, evals_count=15,
+                                                        get_eigenstates=True, num_cpus=num_cpus)
+        specdata.filewrite(filename=self.tmpdir + 'test')
+
+        reference_evals = np.array([-35.61652712, -30.87517395, -29.93917493, -29.62790643, -27.95527403, -24.89419514,
+                                    -23.95730396, -23.63931249, -23.21394042, -22.27794233, -21.96970863, -20.49874123,
+                                    -18.91294047, -18.60576359, -17.97530778])
+        calculated_evals = specdata.energy_table[2]
+
+        assert np.allclose(reference_evals, calculated_evals)
+
+    def test_HilbertSpace_eigenenergies(self):
+        hilbertspace = self.hilbertspace_initialize()
         evals, _ = hilbertspace.hamiltonian().eigenstates()
 
         evals_reference = np.asarray([-36.9898613, -32.2485069, -31.31250908, -31.00035225,
@@ -216,10 +186,11 @@ class TestHilbertSpace:
         assert np.allclose(evals, evals_reference)
 
 
+@pytest.mark.usefixtures("num_cpus")
 class TestParameterSweep:
-
-    def initialize(self):
+    def initialize(self, num_cpus):
         # Set up the components / subspaces of our Hilbert space
+        qubit.settings.MULTIPROC = 'pathos'
 
         CPB1 = qubit.Transmon(
             EJ=40.0,
@@ -282,12 +253,13 @@ class TestParameterSweep:
             evals_count=15,
             hilbertspace=hilbertspace,
             subsys_update_list=subsys_update_list,
-            update_hilbertspace=update_hilbertspace
+            update_hilbertspace=update_hilbertspace,
+            num_cpus=num_cpus
         )
         return sweep
 
-    def test_ParameterSweep(self):
-        sweep = self.initialize()
+    def test_ParameterSweep(self, num_cpus):
+        sweep = self.initialize(num_cpus)
 
         specdata = absorption_spectrum(generate_diffspec_sweep(sweep, initial_state_ind=0))
         calculated_energies = specdata.energy_table[5]

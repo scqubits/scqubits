@@ -74,6 +74,8 @@ class ZeroPi(QubitBaseClass):
         of EC
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
+    pool: pathos.pools.ProcessPool, optional
+        if provided, speed up certain calculations by pathos multiprocessing
     """
     EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -84,7 +86,7 @@ class ZeroPi(QubitBaseClass):
     ng = WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, grid, ncut, dEJ=0, dCJ=0, ECS=None, truncated_dim=None):
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, grid, ncut, dEJ=0, dCJ=0, ECS=None, truncated_dim=None, pool=None):
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
@@ -109,6 +111,7 @@ class ZeroPi(QubitBaseClass):
         self._evec_dtype = np.complex_
         self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)  # for theta, needed for plotting wavefunction
 
+        self.pool = pool
         CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
     def receive(self, event, sender, **kwargs):

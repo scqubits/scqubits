@@ -11,8 +11,8 @@
 
 
 import logging
-import weakref
 import warnings
+import weakref
 
 import scqubits.settings as settings
 
