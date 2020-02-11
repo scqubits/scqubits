@@ -11,7 +11,7 @@ Much of the data computed with scqubits can easily be exported and written to fi
 are:
 
 +-----------------------------+--------------------------------------------------------------+
-| h5                          | HDF5 file with `gzip` compression                            |
+| h5, hdf5                    | HDF5 file with `gzip` compression                            |
 +-----------------------------+--------------------------------------------------------------+
 | csv                         | comma-separated values                                       |
 +-----------------------------+--------------------------------------------------------------+
@@ -44,7 +44,7 @@ data can be exported to a file by using::
     specdata.filewrite('output.h5')
 
 
-The preferred output file format for data can changed by modifying scqubits, see :ref:`guide-settings`.
+The output file format for data is chose automatically according to the extension of the provided file name.
 
 When using h5 files, data can also be read back from disk into a ``SpectrumData`` or ``DataStorage`` object::
 

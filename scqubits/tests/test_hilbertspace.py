@@ -158,7 +158,7 @@ class TestHilbertSpace:
         flux_list = np.linspace(-0.1, 0.6, 100)
         specdata = hilbertspc.get_spectrum_vs_paramvals(flux_list, update_func, evals_count=15,
                                                         get_eigenstates=True, num_cpus=num_cpus)
-        specdata.filewrite(filename=self.tmpdir + 'test')
+        specdata.filewrite(filename=self.tmpdir + 'test.hdf5')
 
         reference_evals = np.array([-35.61652712, -30.87517395, -29.93917493, -29.62790643, -27.95527403, -24.89419514,
                                     -23.95730396, -23.63931249, -23.21394042, -22.27794233, -21.96970863, -20.49874123,

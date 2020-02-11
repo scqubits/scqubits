@@ -9,21 +9,18 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from enum import Enum, unique
-
 import numpy as np
 
 
-# file types
-@unique
-class FileType(Enum):
-    """Specifies the available file types for writing data to disk."""
-    csv = 0
-    h5 = 1
+# supported file types
+FILE_TYPES = ['.h5 | .hdf5',
+              '.csv']
 
-
-# file name suffices
-PARAMETER_FILESUFFIX = '.prm'
+# information on availability of extra packages
+_HAS_H5PY: bool
+_HAS_JSON: bool
+_HAS_IPYTHON: bool
+_HAS_IPYWIDGETS: bool
 
 # helper functions for plotting wave functions
 MODE_FUNC_DICT = {'abs_sqr': (lambda x: np.abs(x)**2),

@@ -19,14 +19,12 @@ import pytest
 
 import scqubits.settings
 import scqubits.utils.plotting as plot
-from scqubits.core.constants import FileType
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON
 
 if not IN_IPYTHON:
     matplotlib.use('Agg')
 
-scqubits.settings.FILE_FORMAT = FileType.h5
 
 TESTDIR, _ = os.path.split(scqubits.__file__)
 TESTDIR = os.path.join(TESTDIR, 'tests', '')
@@ -72,12 +70,12 @@ class BaseTest:
 
     def eigenvals(self, evals_reference):
         evals_count = len(evals_reference)
-        evals_tst = self.qbt.eigenvals(evals_count=evals_count, filename=self.tmpdir + 'test')
+        evals_tst = self.qbt.eigenvals(evals_count=evals_count, filename=self.tmpdir + 'test.hdf5')
         assert np.allclose(evals_reference, evals_tst)
 
     def eigenvecs(self, evecs_reference):
         evals_count = evecs_reference.shape[1]
-        _, evecs_tst = self.qbt.eigensys(evals_count=evals_count, filename=self.tmpdir + 'test')
+        _, evecs_tst = self.qbt.eigensys(evals_count=evals_count, filename=self.tmpdir + 'test.hdf5')
         assert np.allclose(np.abs(evecs_reference), np.abs(evecs_tst))
 
     def plot_evals_vs_paramvals(self, num_cpus, param_name, param_list):
@@ -89,7 +87,7 @@ class BaseTest:
         calculated_spectrum = self.qbt.get_spectrum_vs_paramvals(param_name, param_list, evals_count=evals_count,
                                                                  subtract_ground=False, get_eigenstates=True,
                                                                  num_cpus=num_cpus)
-        calculated_spectrum.filewrite(filename=self.tmpdir + 'test')
+        calculated_spectrum.filewrite(filename=self.tmpdir + 'test.h5')
 
         assert np.allclose(evals_reference, calculated_spectrum.energy_table)
         assert np.allclose(np.abs(evecs_reference), np.abs(calculated_spectrum.state_table), atol=1e-07)
@@ -97,7 +95,7 @@ class BaseTest:
     def matrixelement_table(self, op, matelem_reference):
         evals_count = len(matelem_reference)
         calculated_matrix = self.qbt.matrixelement_table(op, evecs=None, evals_count=evals_count,
-                                                         filename=self.tmpdir + 'test')
+                                                         filename=self.tmpdir + 'test.hdf5')
         assert np.allclose(np.abs(matelem_reference), np.abs(calculated_matrix))
 
     def plot_matrixelements(self, op, evals_count=7):
@@ -125,34 +123,34 @@ class StandardTests(BaseTest):
         cls.param_list = None
 
     def test_eigenvals(self):
-        testname = self.file_str + '_1'
+        testname = self.file_str + '_1.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         evals_reference = specdata.energy_table
         return self.eigenvals(evals_reference)
 
     def test_eigenvecs(self):
-        testname = self.file_str + '_2'
+        testname = self.file_str + '_2.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         evecs_reference = specdata.state_table
         return self.eigenvecs(evecs_reference)
 
     def test_plot_wavefunction(self):
-        testname = self.file_str + '_1'
+        testname = self.file_str + '_1.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.qbt.plot_wavefunction(esys=None, which=5, mode='real')
         self.qbt.plot_wavefunction(esys=None, which=9, mode='abs_sqr')
 
     def test_plot_evals_vs_paramvals(self, num_cpus):
-        testname = self.file_str + '_1'
+        testname = self.file_str + '_1.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         return self.plot_evals_vs_paramvals(num_cpus, self.param_name, self.param_list)
 
     def test_get_spectrum_vs_paramvals(self, num_cpus):
-        testname = self.file_str + '_4'
+        testname = self.file_str + '_4.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.param_list = specdata.param_vals
@@ -162,33 +160,33 @@ class StandardTests(BaseTest):
                                               evecs_reference)
 
     def test_matrixelement_table(self):
-        testname = self.file_str + '_5'
+        testname = self.file_str + '_5.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         matelem_reference = specdata.matrixelem_table
         return self.matrixelement_table(self.op1_str, matelem_reference)
 
     def test_plot_matrixelements(self):
-        testname = self.file_str + '_1'
+        testname = self.file_str + '_1.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.plot_matrixelements(self.op1_str, evals_count=10)
 
     def test_print_matrixelements(self):
-        testname = self.file_str + '_1'
+        testname = self.file_str + '_1.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.print_matrixelements(self.op2_str)
 
     def test_plot_matelem_vs_paramvals(self, num_cpus):
-        testname = self.file_str + '_1'
+        testname = self.file_str + '_1.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         self.plot_matelem_vs_paramvals(num_cpus, self.op1_str, self.param_name, self.param_list,
                                        select_elems=[(0, 0), (1, 4), (1, 0)])
 
     def test_plot_potential(self):
-        testname = self.file_str + '_1'
+        testname = self.file_str + '_1.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         if 'plot_potential' not in dir(self.qbt):

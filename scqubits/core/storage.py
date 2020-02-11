@@ -10,7 +10,6 @@
 ############################################################################
 
 
-import scqubits.settings as config
 import scqubits.utils.file_io as io
 import scqubits.utils.plotting as plot
 from scqubits.utils.misc import process_metadata, value_not_none, convert_to_ndarray
@@ -155,9 +154,8 @@ class DataStore:
         ----------
         filename: str
         """
-        file_format = config.FILE_FORMAT
         writer = io.ObjectWriter()
-        writer.filewrite(self, file_format, filename)
+        writer.filewrite(self, filename)
 
     def set_from_fileread(self, filename):
         """Read metadata and spectral data from file, and use those to set parameters of the SpectrumData object (self).
@@ -166,9 +164,8 @@ class DataStore:
         ----------
         filename: str
         """
-        file_format = config.FILE_FORMAT
         reader = io.ObjectReader()
-        reader.set_params_from_file(self, file_format, filename)
+        reader.set_params_from_file(self, filename)
 
     @classmethod
     def create_from_file(cls, filename):
@@ -183,9 +180,8 @@ class DataStore:
         SpectrumData
             new SpectrumData object, initialized with data read from file
         """
-        file_format = config.FILE_FORMAT
         reader = io.ObjectReader()
-        return reader.create_from_file(cls, file_format, filename)
+        return reader.create_from_file(cls, filename)
 
 
 # —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————

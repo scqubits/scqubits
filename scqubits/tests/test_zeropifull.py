@@ -23,7 +23,7 @@ class TestFullZeroPi(BaseTest):
         cls.file_str = 'fullzeropi'
 
     def test_eigenvals(self):
-        testname = self.file_str + '_1'
+        testname = self.file_str + '_1.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
         evals_reference = specdata.energy_table

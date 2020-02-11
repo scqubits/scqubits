@@ -14,26 +14,40 @@ Helper routines for writing data to CSV and h5 files.
 
 import csv
 import os
-
-import h5py
 import numpy as np
 
-from scqubits.settings import FileType
+import scqubits.core.constants as const
+
+try:
+    import h5py
+except ImportError:
+    const._HAS_H5PY = False
+else:
+    const._HAS_H5PY = True
+
+
+from scqubits.utils.misc import Required
 
 
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format"""
-    def get_writer(self, file_format):
-        if file_format is FileType.csv:
+    def get_writer(self, file_name):
+        _, suffix = os.path.splitext(file_name)
+        if suffix == '.csv':
             return CsvWriter()
-        if file_format is FileType.h5:
+        if suffix in ('.h5', '.hdf5'):
             return H5Writer()
+        raise Exception("Extension '{}' of given file name '{}' does not match any supported "
+                        "file type: {}".format(suffix, file_name, const.FILE_TYPES))
 
-    def get_reader(self, file_format):
-        if file_format is FileType.csv:
+    def get_reader(self, file_name):
+        _, suffix = os.path.splitext(file_name)
+        if suffix == '.csv':
             return CsvReader()
-        if file_format is FileType.h5:
+        if suffix in ('.h5', '.hdf5'):
             return H5Reader()
+        raise Exception("Extension '{}' of given file name '{}' does not match any supported "
+                        "file type: {}".format(suffix, file_name, const.FILE_TYPES))
 
 
 factory = FileIOFactory()
@@ -41,19 +55,18 @@ factory = FileIOFactory()
 
 class ObjectWriter:
     """Sets up the appropriate writer, calls the object's serializer to obtain data, then writes to file."""
-    def filewrite(self, the_object, file_format, filename):
+    def filewrite(self, the_object, filename):
         """
         Parameters
         ----------
         the_object: object
-        file_format: FileType
         filename: str
 
         Returns
         -------
         exit_info
         """
-        writer = factory.get_writer(file_format)
+        writer = factory.get_writer(filename)
         the_object._serialize(writer)
         return writer.do_writing(filename)
 
@@ -61,27 +74,25 @@ class ObjectWriter:
 class ObjectReader:
     """Sets up the appropriate reader, extracts data from file, the sets parameters of existing object or creates
     a new object initialized to read data."""
-    def set_params_from_file(self, the_object, file_format, filename):
+    def set_params_from_file(self, the_object, filename):
         """
         Parameters
         ----------
         the_object: object
-        file_format: FileType
         filename: str
         """
-        reader = factory.get_reader(file_format)
+        reader = factory.get_reader(filename)
         extracted_data = reader.do_reading(filename)
         the_object.set_from_data(*extracted_data)
 
-    def create_from_file(self, class_object, file_format, filename):
+    def create_from_file(self, class_object, filename):
         """
         Parameters
         ----------
         class_object: class
-        file_format: FileType
         filename: str
         """
-        reader = factory.get_reader(file_format)
+        reader = factory.get_reader(filename)
         extracted_data = reader.do_reading(filename)
         return class_object._init_from_data(*extracted_data)
 
@@ -120,6 +131,7 @@ class CsvWriter(BaseWriter):
 
 
 class H5Writer(BaseWriter):
+    @Required(h5py=const._HAS_H5PY)
     def do_writing(self, filename):
         """
         Parameters
@@ -142,6 +154,7 @@ class CsvReader:
 
 
 class H5Reader:
+    @Required(h5py=const._HAS_H5PY)
     def do_reading(self, filename):
         """
         Parameters
