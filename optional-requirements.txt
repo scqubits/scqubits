@@ -1,0 +1,3 @@
+h5py>=2.7.1
+pytest
+ipywidgets

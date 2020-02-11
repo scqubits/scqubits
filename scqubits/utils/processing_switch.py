@@ -37,11 +37,15 @@ def get_map_method(num_cpus):
 
     # user is asking for more than 1 cpu; start pool from here
     if settings.MULTIPROC == 'pathos':
-        import pathos
-        import dill
-        dill.settings['recurse'] = True
-        settings.POOL = pathos.pools.ProcessPool(nodes=num_cpus)
-        return settings.POOL.map
+        try:
+            import pathos
+            import dill
+        except ImportError:
+            raise ImportError("scqubits multiprocessing mode set to 'pathos'. Need but cannot find 'pathos'/'dill'!")
+        else:
+            dill.settings['recurse'] = True
+            settings.POOL = pathos.pools.ProcessPool(nodes=num_cpus)
+            return settings.POOL.map
     if settings.MULTIPROC == 'multiprocessing':
         import multiprocessing
         settings.POOL = multiprocessing.Pool(processes=num_cpus)

@@ -12,6 +12,7 @@
 
 import numpy as np
 import qutip as qt
+import functools
 
 from scqubits.settings import IN_IPYTHON
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
@@ -156,3 +157,23 @@ class InfoBar:
 
     def __exit__(self, *args):
         self.infobar.close()
+
+
+class Required:
+    def __init__(self, **requirements):
+        self.requirements_bools = list(requirements.values())
+        self.requirements_names = list(requirements.keys())
+
+    def __call__(self, func, *args, **kwargs):
+        @functools.wraps(func)
+        def decorated_func(*args, **kwargs):
+            # print("in decorated")
+            # print("requirements: {}".format(self.requirements_bools))
+            if all(self.requirements_bools):
+                # print("all satisfied")
+                # print(args)
+                # print(kwargs)
+                return func(*args, **kwargs)
+            else:
+                raise Exception("ImportError: need extra package(s) {}".format(self.requirements_names))
+        return decorated_func

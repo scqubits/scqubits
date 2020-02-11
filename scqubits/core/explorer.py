@@ -12,22 +12,25 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+import scqubits.core.constants as const
+
 try:
     import ipywidgets
 except ImportError:
-    pass
-    # raise Exception("ImportError: failed to import ipywidgets. For use of scqubits.explorer,"
-    #                "ipywidgets must be installed")
+    const._HAS_IPYWIDGETS = False
+else:
+    const._HAS_IPYWIDGETS = True
 
 try:
     from IPython.display import display
 except ImportError:
-    pass
-    # raise Exception("ImportError: failed to import IPython. For use of scqubits.explorer,"
-    #                 "IPython must be installed")
+    const._HAS_IPYTHON = False
+else:
+    const._HAS_IPYTHON = True
 
 import scqubits.core.sweep_generators as swp
 import scqubits.utils.explorer_panels as panels
+from scqubits.utils.misc import Required
 
 
 class Explorer:
@@ -116,10 +119,9 @@ class Explorer:
         fig.tight_layout()
         return fig, axs
 
+    @Required(ipywidgets=const._HAS_IPYWIDGETS, IPython=const._HAS_IPYTHON)
     def interact(self):
         """Drives the interactive display of the plot explorer panels"""
-        # settings.PROGRESSBAR_DISABLED = True
-
         param_min = self.param_vals[0]
         param_max = self.param_vals[-1]
         param_step = self.param_vals[1] - self.param_vals[0]

@@ -323,19 +323,6 @@ def recast_esys_mapdata(esys_mapdata):
         eigenvalues and eigenvectors
     """
     paramvals_count = len(esys_mapdata)
-    # evals_count = len(esys_mapdata[0][0])
-    # dim = len(esys_mapdata[0][1].T[0])
-    # dtype_eval = esys_mapdata[0][0].dtype
-    # dtype_esys = esys_mapdata[0][1].dtype
-    #
-    # eigenenergy_table = np.empty(shape=(paramvals_count, evals_count), dtype=dtype_eval)
-    # eigenstate_table = np.empty(shape=(paramvals_count, dim, evals_count), dtype=dtype_esys)
-
     eigenenergy_table = np.asarray([esys_mapdata[index][0] for index in range(paramvals_count)])
     eigenstate_table = np.asarray([esys_mapdata[index][1] for index in range(paramvals_count)])
-
-    # for index in range(paramvals_count):
-    #     eigenenergy_table[index] = esys_mapdata[index][0]
-    #     eigenstate_table[index] = esys_mapdata[index][1]
-
     return eigenenergy_table, eigenstate_table
