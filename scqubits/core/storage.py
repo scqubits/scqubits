@@ -209,10 +209,8 @@ class SpectrumData(DataStore):
     """
     def __init__(self, energy_table, system_params, param_name=None, param_vals=None, state_table=None,
                  matrixelem_table=None):
-        super().__init__(system_params=system_params, param_name=param_name, param_vals=param_vals)
-        self.energy_table = energy_table
-        self.state_table = state_table
-        self.matrixelem_table = matrixelem_table
+        super().__init__(system_params=system_params, param_name=param_name, param_vals=param_vals,
+                         energy_table=energy_table, state_table=state_table, matrixelem_table=matrixelem_table)
 
     def subtract_ground(self):
         """Subtract ground state energies from spectrum"""

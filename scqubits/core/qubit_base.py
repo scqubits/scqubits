@@ -80,7 +80,6 @@ class QubitBaseClass(QuantumSystem):
     _default_grid: Grid1d
     _evec_dtype: type
     _sys_type: str
-    pool: None
 
     @abc.abstractmethod
     def hamiltonian(self):

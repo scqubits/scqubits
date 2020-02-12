@@ -65,8 +65,6 @@ class FluxQubit(QubitBaseClass):
         charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
-    pool: pathos.pools.ProcessPool, optional
-        if provided, speed up certain calculations by pathos multiprocessing
     """
 
     EJ1 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -83,7 +81,7 @@ class FluxQubit(QubitBaseClass):
     ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, ncut,
-                 truncated_dim=None, pool=None):
+                 truncated_dim=None):
         self.EJ1 = EJ1
         self.EJ2 = EJ2
         self.EJ3 = EJ3
@@ -100,7 +98,6 @@ class FluxQubit(QubitBaseClass):
         self._sys_type = '3-jct. flux qubit'
         self._evec_dtype = np.complex_
         self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)    # for plotting in phi_j basis
-        self.pool = pool
 
     def EC_matrix(self):
         """Return the charging energy matrix"""
