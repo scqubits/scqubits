@@ -15,6 +15,7 @@ Helper routines for writing data to CSV and h5 files.
 import csv
 import os
 import numpy as np
+import re
 
 import scqubits.core.constants as const
 
@@ -118,15 +119,31 @@ class BaseWriter:
 
 
 class CsvWriter(BaseWriter):
+    """
+    Given filename='somename.csv', write the following metadata into somename.csv
+    1. all dict information provided via ._current_object_meta
+    2. 'dataset0' -> name of first dataset, 'dataset1', -> name of second dataset,...
+    As a result, the first and second row are the only row entries in this csv file and have the form
+
+    paramname1, paramname2, ..., paramname_n, 'dataset0', 'dataset1', ...
+    paramval1,  paramval2,  ..., paramval_n,  dataname0,  dataname1, ...
+
+    Then, additional csv files are written for each dataset, with filenames: 'somename_' + dataname0 + '.csv' etc.
+    """
     def do_writing(self, filename):
-        filename_stub = os.path.splitext(filename)[0]
+        filename_stub, _ = os.path.splitext(filename)
+        metadata = self._current_object_meta
+        datasets = self._current_object_data
 
-        with open(filename_stub + '_meta.csv', mode='w') as meta_file:
+        for index, dataname in enumerate(datasets.keys()):
+            metadata['dataset' + str(index)] = dataname
+
+        with open(filename_stub + '.csv', mode='w', newline='') as meta_file:
             file_writer = csv.writer(meta_file, delimiter=',')
-            file_writer.writerow(self._current_object_meta.keys())
-            file_writer.writerow(self._current_object_meta.values())
+            file_writer.writerow(metadata.keys())
+            file_writer.writerow(metadata.values())
 
-        for dataname, dataset in self._current_object_data.items():
+        for dataname, dataset in datasets.items():
             np.savetxt(filename_stub + '_' + dataname + '.csv', dataset)
 
 
@@ -138,7 +155,7 @@ class H5Writer(BaseWriter):
         ----------
         filename: str
         """
-        filename_stub = os.path.splitext(filename)[0]
+        filename_stub, _ = os.path.splitext(filename)
         h5file = h5py.File(filename_stub + '.hdf5', 'w')
         h5file_root = h5file.create_group('root')
 
@@ -149,8 +166,31 @@ class H5Writer(BaseWriter):
 
 
 class CsvReader:
-    # not currently implemented
-    pass
+    def do_reading(self, filename):
+        """See `CsvWriter` for a description of how metadata and multiple datasets are split up among csv files"""
+        filename_stub, _ = os.path.splitext(filename)
+        with open(filename_stub + '.csv', mode='r') as meta_file:
+            file_reader = csv.reader(meta_file, delimiter=',')
+            meta_keys = file_reader.__next__()
+            meta_values = file_reader.__next__()
+        meta_dict = dict(zip(meta_keys, meta_values))
+
+        metadata = {key: value for key, value in meta_dict if not re.match('dataset\d+', key)}
+        dataname_list = [value for key, value in meta_dict if re.match('dataset\d+', key)]
+        data_list = []
+
+        for dataname in dataname_list:
+            data_filename = filename_stub + '-' + dataname + '.csv'
+            try:
+                data_array = np.loadtxt(data_filename)
+            except ValueError:
+                data_array = np.loadtxt(data_filename, dtype=np.complex_)
+            else:
+                raise ValueError("Unable to read '{}' -- does not appear to be "
+                                 "a float or complex ndarray.".format(data_filename))
+
+            data_list.append(data_array)
+        return metadata, dataname_list, data_list
 
 
 class H5Reader:
