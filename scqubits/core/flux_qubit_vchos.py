@@ -3,6 +3,9 @@ import scipy as sp
 import itertools
 from scipy.optimize import minimize
 import scipy.constants as const
+from scipy.special import hermite
+from scipy.special import factorial
+import scipy.integrate as integrate
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
@@ -138,13 +141,17 @@ class FluxQubitVCHOS(QubitBaseClass):
     
     def matrix_exp(self, matrix):
         """Perform the matrix exponentiation"""
-        expm = np.identity((self.num_exc+1)**2,dtype=np.complex128)
-        for num in range(1,self.num_exc+1):
-            prefact = sp.special.factorial(num)**(-1)
+        dim = matrix.shape[0]
+        expm = np.identity(dim,dtype=np.complex128)
+        prod = matrix
+        num = 1
+        while not np.array_equal(prod, np.zeros((dim, dim))):
             prod = matrix
+            prefact = sp.special.factorial(num)**(-1)
             for m in range(1,num):
                 prod = np.matmul(prod,matrix)
             expm += prefact * prod
+            num += 1
         return(expm)
     
     def V_operator(self, phi):
@@ -175,6 +182,8 @@ class FluxQubitVCHOS(QubitBaseClass):
                     V_op = self.V_operator(delta_phi_kpm)
                     V_op_dag = self.V_operator(-delta_phi_kpm).T
                     
+                    num_exc_tot = (self.num_exc+1)**2
+                    
                     kinetic_temp = 0.
                     
                     for mu in range(2):
@@ -182,25 +191,24 @@ class FluxQubitVCHOS(QubitBaseClass):
                             a_mu = self.a_operator(mu)
                             a_nu = self.a_operator(nu)
                             kinetic_temp += (- 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu, a_nu)
-                                            + 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu.T, a_nu)
-                                            - 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu.T, a_nu.T)
-                                            +((2.*np.sqrt(2))**(-1) * (a_mu - a_mu.T)
-                                              *4*EC_mat_t[mu, nu] * np.dot(Xi_inv[nu,:], delta_phi_kpm))
-                                            +((2.*np.sqrt(2))**(-1) * np.dot(delta_phi_kpm, np.transpose(Xi_inv[:,mu]))
-                                              *4*EC_mat_t[mu, nu]*(a_nu - a_nu.T))
-                                            -(0.25*np.dot(delta_phi_kpm, np.transpose(Xi_inv[:,mu]))
-                                              *EC_mat_t[mu, nu]*np.dot(Xi_inv[nu,:], delta_phi_kpm)*self._identity()))
+                                             + 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu.T, a_nu)
+                                             + 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_nu.T, a_mu)
+                                             - 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu.T, a_nu.T)
+                                             +((2.*np.sqrt(2))**(-1) * (a_mu - a_mu.T)
+                                               *4*EC_mat_t[mu, nu] * np.dot(Xi_inv[nu,:], delta_phi_kpm))
+                                             +((2.*np.sqrt(2))**(-1) * np.dot(delta_phi_kpm, np.transpose(Xi_inv[:,mu]))
+                                               *4*EC_mat_t[mu, nu]*(a_nu - a_nu.T))
+                                             -(0.25*np.dot(delta_phi_kpm, np.transpose(Xi_inv[:,mu]))
+                                               *EC_mat_t[mu, nu]*np.dot(Xi_inv[nu,:], delta_phi_kpm)*self._identity()))
+                                             # *self.inner_product()[m*num_exc_tot:m*num_exc_tot+num_exc_tot, 
+                                             #                       p*num_exc_tot:p*num_exc_tot+num_exc_tot]))
                             if (mu == nu):
-                                kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*(np.matmul(a_nu.T, a_mu)+self._identity())
-                            else:
-                                kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_nu.T, a_mu)
+                                kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*self._identity()
                                                 
                     kinetic_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                     *np.matmul(V_op_dag, kinetic_temp))
                     kinetic_temp = np.matmul(kinetic_temp, V_op)
                     
-                    num_exc_tot = (self.num_exc+1)**2
-#                    print(kinetic_temp)
                     kinetic_mat[m*num_exc_tot:m*num_exc_tot+num_exc_tot, 
                                 p*num_exc_tot:p*num_exc_tot+num_exc_tot] += kinetic_temp
                     jkvals = next(klist,-1)
@@ -241,7 +249,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                *np.exp(-1j*phibar_kpm[1])
                                                               )
 
-                    potential_temp += (2.0*self.EJ + self.alpha*self.EJ)*np.identity((self.num_exc+1)**2)
+                    #potential_temp += (2.0*self.EJ + self.alpha*self.EJ)*np.identity((self.num_exc+1)**2)
                     potential_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                       *np.matmul(V_op_dag, potential_temp))
                     potential_temp = np.matmul(potential_temp, V_op)
@@ -275,6 +283,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                     
                     inner_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                   *np.matmul(V_op_dag, V_op))
+#                    print(m, p, jkvals, inner_temp)
                         
                     num_exc_tot = (self.num_exc+1)**2
                     inner_product_mat[m*num_exc_tot:m*num_exc_tot+num_exc_tot, 
@@ -405,14 +414,12 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                       (self.num_exc+1, self.num_exc+1)))
 #                state_amplitudes = np.zeros_like(state_amplitudes)
 #                state_amplitudes[2,0] = 1.0
-                wavefunc_amplitudes += np.sum([state_amplitudes[s1, s2] 
-                * np.multiply(np.sqrt(sp.linalg.norm(Xi_inv[0,:]))
-                              *self.harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0,0]*phi_vec+phi1_s1_arg, 
+                wavefunc_amplitudes += np.sum([state_amplitudes[s1, s2] * np.sqrt(np.abs(np.linalg.det(Xi)))**(-1)
+                * np.multiply(self.harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0,0]*phi_vec+phi1_s1_arg, 
                                                                           Xi_inv[0,1]*phi_vec+phi2_s1_arg)), 
-                              np.sqrt(sp.linalg.norm(Xi_inv[1,:]))
-                              *self.harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1,0]*phi_vec+phi1_s2_arg,
+                              self.harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1,0]*phi_vec+phi1_s2_arg,
                                                                           Xi_inv[1,1]*phi_vec+phi2_s2_arg)))
-                                               for s2 in range(self.num_exc+1)
+                                               for s2 in range(self.num_exc+1) 
                                                for s1 in range(self.num_exc+1)], axis=0).T #FIX .T NOT CORRECT
                 jkvals = next(klist,-1)
         
@@ -523,4 +530,56 @@ class FluxQubitVCHOS(QubitBaseClass):
                 * sp.special.eval_hermite(n, x) 
                 * np.exp(-x**2/2.))
     
+    def _inner_product_test(self):
+        dim = self.hilbertdim()
+        inner_product_test_mat = np.zeros((dim,dim))
+        minima_list = self.sorted_minima()
+        Xi = self.Xi_matrix()
+        Xi_inv = sp.linalg.inv(Xi)
+        for m, minima_m in enumerate(minima_list):
+            for p, minima_p in enumerate(minima_list):
+                for sone in range(self.num_exc+1):
+                    for stwo in range(self.num_exc+1):
+                        for soneprime in range(self.num_exc+1):
+                            for stwoprime in range(self.num_exc+1):
+                                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
+                                jkvals = next(klist,-1)
+                                while jkvals != -1:
+                                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
+                                    Hsone = hermite(sone)/np.sqrt(np.sqrt(np.pi)*factorial(sone)*2**sone)
+                                    Hstwo = hermite(stwo)/np.sqrt(np.sqrt(np.pi)*factorial(stwo)*2**stwo)
+                                    Hsoneprime = hermite(soneprime)/np.sqrt(np.sqrt(np.pi)*factorial(soneprime)*2**soneprime)
+                                    Hstwoprime = hermite(stwoprime)/np.sqrt(np.sqrt(np.pi)*factorial(stwoprime)*2**stwoprime)
+                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
+                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
+                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
+                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
+                                    
+                                    matelem = integrate.dblquad(lambda zetaone, zetatwo: Hsone(zetaone-zetaoneoffset) 
+                                                                * np.exp(-0.5*(zetaone-zetaoneoffset)**2)
+                                                                * Hsoneprime(zetaone-zetaoneprimeoffset) 
+                                                                * np.exp(-0.5*(zetaone-zetaoneprimeoffset)**2)
+                                                                * Hstwo(zetatwo-zetatwooffset) 
+                                                                * np.exp(-0.5*(zetatwo-zetatwooffset)**2)
+                                                                * Hstwoprime(zetatwo-zetatwoprimeoffset)
+                                                                * np.exp(-0.5*(zetatwo-zetatwoprimeoffset)**2), 
+                                                                -np.inf, np.inf, 
+                                                                lambda zetaone : -np.inf, 
+                                                                lambda zetaone : np.inf)
+                                    print(sone, stwo, soneprime, stwoprime, matelem[0], jkvals)
+                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
+                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
+                                    inner_product_test_mat[i, j] += matelem[0]
+                                    jkvals = next(klist,-1)
+        return(inner_product_test_mat)
+                            
+        
+        
+        
+        
+        
+        
+
  
