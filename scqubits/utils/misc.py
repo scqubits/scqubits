@@ -9,6 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import ast
 
 import numpy as np
 import qutip as qt
@@ -27,7 +28,7 @@ def process_which(which, max_index):
     """
     Parameters
     ----------
-    which: int or tuple or list, optional
+    which: int or tuple or list
         single index or tuple/list of integers indexing the eigenobjects.
         If which is -1, all indices up to the max_index limit are included.
     max_index: int
@@ -120,8 +121,8 @@ def is_numerical_ndarray(entity):
     return isinstance(entity, np.ndarray) and entity.dtype.kind in set('biufc')
 
 
-def is_ndarray_of_qobj(entity):
-    return isinstance(entity, np.ndarray) and isinstance(entity.flat[0], qt.Qobj)
+def is_qutip_eigenstates(entity):
+    return isinstance(entity, np.ndarray) and isinstance(entity[0], qt.Qobj)
 
 
 def convert_to_ndarray(entity):
@@ -134,9 +135,9 @@ def convert_to_ndarray(entity):
     """
     if is_numerical_ndarray(entity):
         return entity
-    if is_ndarray_of_qobj(entity):  # entity is output from qt.eigenstates
+    if is_qutip_eigenstates(entity):  # entity is output from qt.eigenstates
         return convert_esys_to_ndarray(entity)
-    if isinstance(entity, list) and is_ndarray_of_qobj(entity[0]):
+    if isinstance(entity, (list, np.ndarray)) and is_qutip_eigenstates(entity[0]):
         # entity is a list of qt.eigenstates
         return np.asarray([convert_esys_to_ndarray(entry) for entry in entity])
     # possibly we have a list of numerical values or a list of ndarrays
@@ -167,13 +168,19 @@ class Required:
     def __call__(self, func, *args, **kwargs):
         @functools.wraps(func)
         def decorated_func(*args, **kwargs):
-            # print("in decorated")
-            # print("requirements: {}".format(self.requirements_bools))
             if all(self.requirements_bools):
-                # print("all satisfied")
-                # print(args)
-                # print(kwargs)
                 return func(*args, **kwargs)
             else:
                 raise Exception("ImportError: need extra package(s) {}".format(self.requirements_names))
         return decorated_func
+
+
+def to_expression_or_string(string_expr):
+    try:
+        return ast.literal_eval(string_expr)
+    except ValueError:
+        return string_expr
+
+
+def remove_nones(dict_data):
+    return {key: value for key, value in dict_data.items() if value is not None}

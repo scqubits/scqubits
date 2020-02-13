@@ -153,8 +153,7 @@ class QubitBaseClass(QuantumSystem):
         """
         evals = self._evals_calc(evals_count)
         if filename:
-            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict(),
-                                    param_name='const_parameters', param_vals=np.empty(0))
+            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict())
             specdata.filewrite(filename)
         return evals
 
@@ -176,8 +175,7 @@ class QubitBaseClass(QuantumSystem):
         """
         evals, evecs = self._esys_calc(evals_count)
         if filename:
-            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict(),
-                                    param_name='const_parameters', param_vals=np.empty(0), state_table=evecs)
+            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict(), state_table=evecs)
             specdata.filewrite(filename)
         return evals, evecs
 
@@ -222,7 +220,7 @@ class QubitBaseClass(QuantumSystem):
         return self.eigenvals(evals_count)
 
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                  get_eigenstates=False, num_cpus=settings.NUM_CPUS):
+                                  get_eigenstates=False, filename=None, num_cpus=settings.NUM_CPUS):
         """Calculates eigenvalues/eigenstates for a varying system parameter, given an array of parameter values.
         Returns a `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for
         parameter value `param_vals[n]`.
@@ -239,6 +237,8 @@ class QubitBaseClass(QuantumSystem):
             if True, eigenvalues are returned relative to the ground state eigenvalue (default value = False)
         get_eigenstates: bool, optional
             return eigenstates along with eigenvalues (default value = False)
+        filename: str, optional
+            file name if direct output to disk is wanted
         num_cpus: int, optional
             number of cores to be used for computation (default value: settings.NUM_CPUS)
 
@@ -268,6 +268,11 @@ class QubitBaseClass(QuantumSystem):
                 eigenvalue_table[param_index] -= eigenvalue_table[param_index, 0]
 
         setattr(self, param_name, previous_paramval)
+        specdata = SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
+                                state_table=eigenstate_table)
+        if filename:
+            specdata.filewrite(filename)
+
         return SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
                             state_table=eigenstate_table)
 

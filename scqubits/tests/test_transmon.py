@@ -11,11 +11,12 @@
 ############################################################################
 
 import numpy as np
-
+import pytest
 from scqubits import Transmon
 from scqubits.tests.conftest import StandardTests
 
 
+@pytest.mark.usefixtures("num_cpus", "io_type")
 class TestTransmon(StandardTests):
     @classmethod
     def setup_class(cls):
