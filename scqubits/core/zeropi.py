@@ -419,7 +419,7 @@ class ZeroPi(QubitBaseClass):
         **kwargs:
             plotting parameters
         """
-        theta_grid = self._try_defaults(theta_grid)
+        theta_grid = theta_grid or self._default_grid
 
         x_vals = self.grid.make_linspace()
         y_vals = theta_grid.make_linspace()
@@ -447,7 +447,7 @@ class ZeroPi(QubitBaseClass):
         else:
             _, evecs = esys
 
-        theta_grid = self._try_defaults(theta_grid)
+        theta_grid = theta_grid or self._default_grid
         dim_theta = 2 * self.ncut + 1
         state_amplitudes = evecs[:, which].reshape(self.grid.pt_count, dim_theta)
 
@@ -485,7 +485,7 @@ class ZeroPi(QubitBaseClass):
         -------
         Figure, Axes
         """
-        theta_grid = self._try_defaults(theta_grid)
+        theta_grid = theta_grid or self._default_grid
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)

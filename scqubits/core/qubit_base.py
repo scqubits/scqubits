@@ -21,7 +21,6 @@ import scipy as sp
 
 import scqubits.core.constants as constants
 import scqubits.settings as settings
-import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
@@ -95,21 +94,6 @@ class QubitBaseClass(QuantumSystem):
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals_only=False, eigvals=(0, evals_count - 1))
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
-
-    def _try_defaults(self, var_grid):
-        """
-        Parameters
-        ----------
-        var_grid: Grid1d, optional
-            used for setting a custom grid for a variable treated in charge basis; if None use self._default_grid
-
-        Returns
-        -------
-        If any of the arguments is None, return default values.
-        """
-        if var_grid is None:
-            var_grid = self._default_grid
-        return var_grid
 
     @classmethod
     def create_from_dict(cls, meta_dict):
@@ -410,6 +394,7 @@ class QubitBaseClass1d(QubitBaseClass):
     __metaclass__ = abc.ABCMeta
 
     _evec_dtype = np.float_
+    _default_grid: Grid1d
 
     @abc.abstractmethod
     def potential(self, phi):
@@ -417,6 +402,9 @@ class QubitBaseClass1d(QubitBaseClass):
 
     @abc.abstractmethod
     def wavefunction(self, esys, which=0, phi_grid=None):
+        raise NotImplementedError
+
+    def wavefunction1d_defaults(self, mode, evals, wavefunc_count):
         raise NotImplementedError
 
     def plot_wavefunction(self, which=0,  mode='real', esys=None, phi_grid=None, scaling=None, **kwargs):
@@ -447,12 +435,22 @@ class QubitBaseClass1d(QubitBaseClass):
         kwargs['fig_ax'] = fig_ax
 
         index_list = process_which(which, self.truncated_dim)
-        phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_grid=phi_grid)
-        potential_vals = self.potential(phi_wavefunc.basis_labels)
-        scale = set_scaling(self, scaling, potential_vals)
+        if esys is None:
+            evals_count = max(index_list) + 2
+            esys = self.eigensys(evals_count)
+        evals, _ = esys
+
+        phi_grid = phi_grid or self._default_grid
+        potential_vals = self.potential(phi_grid.make_linspace())
+
+        evals_count = len(index_list)
+        if evals_count == 1:
+            scale = set_scaling(self, scaling, potential_vals)
+        else:
+            scale = 0.75 * (evals[-1] - evals[0]) / evals_count
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
+        kwargs = {**self.wavefunction1d_defaults(mode, evals, wavefunc_count=len(index_list)), **kwargs}  # if any duplicates, later ones survive
         for wavefunc_index in index_list:
             phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_grid=phi_grid)
             phi_wavefunc.amplitudes = standardize_sign(phi_wavefunc.amplitudes)

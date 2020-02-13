@@ -232,7 +232,7 @@ class FluxQubit(QubitBaseClass):
         **kwargs:
             plot options
         """
-        phi_grid = self._try_defaults(phi_grid)
+        phi_grid = phi_grid or self._default_grid
         x_vals = y_vals = phi_grid.make_linspace()
         if 'figsize' not in kwargs:
             kwargs['figsize'] = (5, 5)
@@ -260,7 +260,7 @@ class FluxQubit(QubitBaseClass):
             _, evecs = self.eigensys(evals_count)
         else:
             _, evecs = esys
-        phi_grid = self._try_defaults(phi_grid)
+        phi_grid = phi_grid or self._default_grid
 
         dim = 2 * self.ncut + 1
         state_amplitudes = np.reshape(evecs[:, which], (dim, dim))

@@ -10,10 +10,10 @@
 ############################################################################
 
 import ast
+import functools
 
 import numpy as np
 import qutip as qt
-import functools
 
 from scqubits.settings import IN_IPYTHON
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray

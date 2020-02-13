@@ -12,6 +12,7 @@
 
 import numpy as np
 import pytest
+
 from scqubits import Transmon
 from scqubits.tests.conftest import StandardTests
 

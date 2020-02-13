@@ -16,6 +16,7 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.operators as op
+from scqubits.core.constants import MODE_STR_DICT
 from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import Grid1d
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
@@ -199,7 +200,7 @@ class Fluxonium(QubitBaseClass1d):
             evals, evecs = esys
         dim = self.hilbertdim()
 
-        phi_grid = self._try_defaults(phi_grid)
+        phi_grid = phi_grid or self._default_grid
 
         phi_basis_labels = phi_grid.make_linspace()
         wavefunc_osc_basis_amplitudes = evecs[:, which]
@@ -209,3 +210,25 @@ class Fluxonium(QubitBaseClass1d):
             phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[n] * harm_osc_wavefunction(n, phi_basis_labels,
                                                                                                 phi_osc)
         return WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes, energy=evals[which])
+
+    def wavefunction1d_defaults(self, mode, evals, wavefunc_count):
+        """Plot defaults for plotting.wavefunction1d.
+
+        Parameters
+        ----------
+        mode: str
+            amplitude modifier, needed to give the correct default y label
+        evals: ndarray
+            eigenvalues to include in plot
+        """
+        ylabel = r'$\psi_j(\varphi)$'
+        ylabel = MODE_STR_DICT[mode](ylabel)
+        options = {
+            'xlabel': r'$\varphi$',
+            'ylabel': ylabel
+        }
+        if wavefunc_count > 1:
+            ymin = - 1.025   * self.EJ
+            ymax = max(1.8 * self.EJ, evals[-1] + 0.1 * (evals[-1] - evals[0]))
+            options['ylim'] = (ymin, ymax)
+        return options

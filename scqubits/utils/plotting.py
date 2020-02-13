@@ -115,7 +115,7 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs)
 
     axes.plot(x_vals, y_vals)
     axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
-    _process_options(fig, axes, opts=defaults.wavefunction1d(), **kwargs)
+    _process_options(fig, axes, **kwargs)
     return fig, axes
 
 

@@ -12,11 +12,12 @@
 Helper routines for writing data to CSV and h5 files.
 """
 
+import ast
 import csv
 import os
-import numpy as np
 import re
-import ast
+
+import numpy as np
 
 import scqubits.core.constants as const
 
