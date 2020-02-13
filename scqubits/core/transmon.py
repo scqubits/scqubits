@@ -16,6 +16,7 @@ import numpy as np
 import scqubits.core.constants as constants
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+from scqubits.core.constants import MODE_STR_DICT
 from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass1d
@@ -43,8 +44,6 @@ class Transmon(QubitBaseClass1d):
         charge basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
-    pool: pathos.pools.ProcessPool, optional
-        if provided, speed up certain calculations by pathos multiprocessing
     """
 
     EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -52,7 +51,7 @@ class Transmon(QubitBaseClass1d):
     ng = WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EC, ng, ncut, truncated_dim=None, pool=None):
+    def __init__(self, EJ, EC, ng, ncut, truncated_dim=None):
         self.EJ = EJ
         self.EC = EC
         self.ng = ng
@@ -62,7 +61,6 @@ class Transmon(QubitBaseClass1d):
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
-        self.pool = pool
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
@@ -143,6 +141,29 @@ class Transmon(QubitBaseClass1d):
         kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}    # if any duplicates, later ones survive
         return plot.wavefunction1d_discrete(n_wavefunc, xlim=nrange, **kwargs)
 
+    def wavefunction1d_defaults(self, mode, evals, wavefunc_count):
+        """Plot defaults for plotting.wavefunction1d.
+
+        Parameters
+        ----------
+        mode: str
+            amplitude modifier, needed to give the correct default y label
+        evals: ndarray
+            eigenvalues to include in plot
+        wavefunc_count: int
+        """
+        ylabel = r'$\psi_j(\varphi)$'
+        ylabel = MODE_STR_DICT[mode](ylabel)
+        options = {
+            'xlabel': r'$\varphi$',
+            'ylabel': ylabel
+        }
+        if wavefunc_count > 1:
+            ymin = -1.05 * self.EJ
+            ymax = max(1.1 * self.EJ, evals[-1] + 0.05 * (evals[-1] - evals[0]))
+            options['ylim'] = (ymin, ymax)
+        return options
+
     def plot_phi_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs_sqr', scaling=None, **kwargs):
         """Alias for plot_wavefunction"""
         return self.plot_wavefunction(esys=esys, which=which, phi_grid=phi_grid, mode=mode, scaling=scaling, **kwargs)
@@ -195,7 +216,7 @@ class Transmon(QubitBaseClass1d):
         evals, _ = esys
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
 
-        phi_grid = self._try_defaults(phi_grid)
+        phi_grid = phi_grid or self._default_grid
 
         phi_basis_labels = phi_grid.make_linspace()
         phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)

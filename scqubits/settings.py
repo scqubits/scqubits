@@ -25,10 +25,6 @@ Matplotlib.
 import matplotlib as mpl
 from cycler import cycler
 
-from scqubits.core.constants import FileType
-
-# default file format setting
-FILE_FORMAT = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
 
 # a switch for displaying of progress bar; default: show only in ipython
 PROGRESSBAR_DISABLED = False

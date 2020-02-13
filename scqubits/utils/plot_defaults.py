@@ -40,22 +40,6 @@ def set_scaling(qubit, scaling, potential_vals=None):
     return scaling
 
 
-def wavefunction1d(mode=None):
-    """Plot defaults for plotting.wavefunction1d.
-
-    Parameters
-    ----------
-    mode: str
-        amplitude modifier, needed to give the correct default y label"""
-    ylabel = r'$\psi_j(\varphi)$'
-    if mode:
-        ylabel = MODE_STR_DICT[mode](ylabel)
-    return {
-        'xlabel': r'$\varphi$',
-        'ylabel': ylabel
-    }
-
-
 def wavefunction1d_discrete(mode=None):
     """Plot defaults for plotting.wavefunction1d_discrete.
 

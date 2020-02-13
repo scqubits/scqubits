@@ -10,10 +10,9 @@
 ############################################################################
 
 
-import scqubits.settings as config
 import scqubits.utils.file_io as io
 import scqubits.utils.plotting as plot
-from scqubits.utils.misc import process_metadata, value_not_none, convert_to_ndarray
+from scqubits.utils.misc import process_metadata, convert_to_ndarray
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -76,40 +75,53 @@ class DataStore:
     **kwargs:
         keyword arguments for data to be stored
     """
-    def __init__(self, system_params, param_name=None, param_vals=None, **kwargs):
-        self.param_name = param_name or 'no parameter sweep'
+    def __init__(self, system_params, param_name='', param_vals=None, **kwargs):
+        self.dataname_list = []
+        for dataname, data in kwargs.items():
+            setattr(self, dataname, data)
+            self.dataname_list.append(dataname)
+
+        self.param_name = param_name
         self.param_vals = param_vals
         if param_vals is not None:
             self.param_count = len(self.param_vals)
+            self.dataname_list.append('param_vals')
         else:
             self.param_count = 1   # just one value if there is no parameter sweep
+
         self.system_params = system_params
-        self.data_names = list(kwargs.keys())
-        for key, value in kwargs.items():
-            setattr(self, key, value)
 
     def add_data(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+        for dataname, data in kwargs.items():
+            setattr(self, dataname, data)
+            self.dataname_list.append(dataname)
 
     def _get_metadata_dict(self):
-        meta_dict = {'param_name': self.param_name, 'param_vals': self.param_vals}
+        meta_dict = {'param_name': self.param_name,
+                     'param_vals': self.param_vals}
         meta_dict.update(process_metadata(self.system_params))
         return meta_dict
 
     def _get_data_dict(self):
-        return {key: value for key, value in self.__dict__.items() if key in self.data_names}
+        return {dataname: data for dataname, data in self.__dict__.items() if dataname in self.dataname_list}
 
-    def _serialize(self, writer):
+    def _serialize(self, file_output):
         """
         Parameters
         ----------
-        writer: BaseWriter
+        file_output: FileOutput
         """
-        metadata_dict = self._get_metadata_dict()
-        writer.create_meta(metadata_dict)
-        for data_name, data in filter(value_not_none, self._get_data_dict().items()):
-            writer.add_dataset(data_name, convert_to_ndarray(data))
+        metadata_dict = {
+            'param_name': self.param_name,
+            # param_vals is serialized below as a data set
+        }
+        metadata_dict.update(process_metadata(self.system_params))
+        file_output.write_metadata(metadata_dict)
+
+        for dataname in self.dataname_list:
+            data = getattr(self, dataname)
+            if data is not None:
+                file_output.write_dataset(dataname, convert_to_ndarray(data))
 
     def set_from_data(self, *data_from_file):
         """
@@ -120,11 +132,10 @@ class DataStore:
         data_from_file: (dict, list(str), list(ndarray))
             metadata dictionary, list of dataset names, list of datasets (ndarray)
         """
-        metadata_dict, name_list, data_list = data_from_file
+        metadata_dict, dataname_list, data_list = data_from_file
         self.param_name = metadata_dict.pop('param_name')
-        self.param_vals = metadata_dict.pop('param_vals')
         self.system_params = metadata_dict
-        for index, attribute in enumerate(name_list):
+        for index, attribute in enumerate(dataname_list):
             setattr(self, attribute, data_list[index])
 
     @classmethod
@@ -143,10 +154,9 @@ class DataStore:
         """
         metadata_dict, name_list, data_list = data_from_file
         param_name = metadata_dict.pop('param_name')
-        param_vals = metadata_dict.pop('param_vals')
         system_params = metadata_dict
         data_dict = {name: data_list[i] for i, name in enumerate(name_list)}
-        return cls(param_name=param_name, param_vals=param_vals, system_params=system_params, **data_dict)
+        return cls(param_name=param_name, system_params=system_params, **data_dict)
 
     def filewrite(self, filename):
         """Write metadata and spectral data to file
@@ -155,9 +165,8 @@ class DataStore:
         ----------
         filename: str
         """
-        file_format = config.FILE_FORMAT
         writer = io.ObjectWriter()
-        writer.filewrite(self, file_format, filename)
+        writer.filewrite(self, filename)
 
     def set_from_fileread(self, filename):
         """Read metadata and spectral data from file, and use those to set parameters of the SpectrumData object (self).
@@ -166,9 +175,8 @@ class DataStore:
         ----------
         filename: str
         """
-        file_format = config.FILE_FORMAT
         reader = io.ObjectReader()
-        reader.set_params_from_file(self, file_format, filename)
+        reader.set_params_from_file(self, filename)
 
     @classmethod
     def create_from_file(cls, filename):
@@ -183,9 +191,8 @@ class DataStore:
         SpectrumData
             new SpectrumData object, initialized with data read from file
         """
-        file_format = config.FILE_FORMAT
         reader = io.ObjectReader()
-        return reader.create_from_file(cls, file_format, filename)
+        return reader.create_from_file(cls, filename)
 
 
 # —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -213,10 +220,8 @@ class SpectrumData(DataStore):
     """
     def __init__(self, energy_table, system_params, param_name=None, param_vals=None, state_table=None,
                  matrixelem_table=None):
-        super().__init__(system_params=system_params, param_name=param_name, param_vals=param_vals)
-        self.energy_table = energy_table
-        self.state_table = state_table
-        self.matrixelem_table = matrixelem_table
+        super().__init__(system_params=system_params, param_name=param_name, param_vals=param_vals,
+                         energy_table=energy_table, state_table=state_table, matrixelem_table=matrixelem_table)
 
     def subtract_ground(self):
         """Subtract ground state energies from spectrum"""

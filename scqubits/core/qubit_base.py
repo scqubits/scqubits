@@ -21,7 +21,6 @@ import scipy as sp
 
 import scqubits.core.constants as constants
 import scqubits.settings as settings
-import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
@@ -80,7 +79,6 @@ class QubitBaseClass(QuantumSystem):
     _default_grid: Grid1d
     _evec_dtype: type
     _sys_type: str
-    pool: None
 
     @abc.abstractmethod
     def hamiltonian(self):
@@ -96,21 +94,6 @@ class QubitBaseClass(QuantumSystem):
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals_only=False, eigvals=(0, evals_count - 1))
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
-
-    def _try_defaults(self, var_grid):
-        """
-        Parameters
-        ----------
-        var_grid: Grid1d, optional
-            used for setting a custom grid for a variable treated in charge basis; if None use self._default_grid
-
-        Returns
-        -------
-        If any of the arguments is None, return default values.
-        """
-        if var_grid is None:
-            var_grid = self._default_grid
-        return var_grid
 
     @classmethod
     def create_from_dict(cls, meta_dict):
@@ -154,8 +137,7 @@ class QubitBaseClass(QuantumSystem):
         """
         evals = self._evals_calc(evals_count)
         if filename:
-            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict(),
-                                    param_name='const_parameters', param_vals=np.empty(0))
+            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict())
             specdata.filewrite(filename)
         return evals
 
@@ -177,8 +159,7 @@ class QubitBaseClass(QuantumSystem):
         """
         evals, evecs = self._esys_calc(evals_count)
         if filename:
-            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict(),
-                                    param_name='const_parameters', param_vals=np.empty(0), state_table=evecs)
+            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict(), state_table=evecs)
             specdata.filewrite(filename)
         return evals, evecs
 
@@ -223,7 +204,7 @@ class QubitBaseClass(QuantumSystem):
         return self.eigenvals(evals_count)
 
     def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                  get_eigenstates=False, num_cpus=settings.NUM_CPUS):
+                                  get_eigenstates=False, filename=None, num_cpus=settings.NUM_CPUS):
         """Calculates eigenvalues/eigenstates for a varying system parameter, given an array of parameter values.
         Returns a `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for
         parameter value `param_vals[n]`.
@@ -240,6 +221,8 @@ class QubitBaseClass(QuantumSystem):
             if True, eigenvalues are returned relative to the ground state eigenvalue (default value = False)
         get_eigenstates: bool, optional
             return eigenstates along with eigenvalues (default value = False)
+        filename: str, optional
+            file name if direct output to disk is wanted
         num_cpus: int, optional
             number of cores to be used for computation (default value: settings.NUM_CPUS)
 
@@ -269,6 +252,11 @@ class QubitBaseClass(QuantumSystem):
                 eigenvalue_table[param_index] -= eigenvalue_table[param_index, 0]
 
         setattr(self, param_name, previous_paramval)
+        specdata = SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
+                                state_table=eigenstate_table)
+        if filename:
+            specdata.filewrite(filename)
+
         return SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
                             state_table=eigenstate_table)
 
@@ -406,6 +394,7 @@ class QubitBaseClass1d(QubitBaseClass):
     __metaclass__ = abc.ABCMeta
 
     _evec_dtype = np.float_
+    _default_grid: Grid1d
 
     @abc.abstractmethod
     def potential(self, phi):
@@ -413,6 +402,9 @@ class QubitBaseClass1d(QubitBaseClass):
 
     @abc.abstractmethod
     def wavefunction(self, esys, which=0, phi_grid=None):
+        raise NotImplementedError
+
+    def wavefunction1d_defaults(self, mode, evals, wavefunc_count):
         raise NotImplementedError
 
     def plot_wavefunction(self, which=0,  mode='real', esys=None, phi_grid=None, scaling=None, **kwargs):
@@ -443,12 +435,22 @@ class QubitBaseClass1d(QubitBaseClass):
         kwargs['fig_ax'] = fig_ax
 
         index_list = process_which(which, self.truncated_dim)
-        phi_wavefunc = self.wavefunction(esys, which=index_list[-1], phi_grid=phi_grid)
-        potential_vals = self.potential(phi_wavefunc.basis_labels)
-        scale = set_scaling(self, scaling, potential_vals)
+        if esys is None:
+            evals_count = max(index_list) + 2
+            esys = self.eigensys(evals_count)
+        evals, _ = esys
+
+        phi_grid = phi_grid or self._default_grid
+        potential_vals = self.potential(phi_grid.make_linspace())
+
+        evals_count = len(index_list)
+        if evals_count == 1:
+            scale = set_scaling(self, scaling, potential_vals)
+        else:
+            scale = 0.75 * (evals[-1] - evals[0]) / evals_count
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
+        kwargs = {**self.wavefunction1d_defaults(mode, evals, wavefunc_count=len(index_list)), **kwargs}  # if any duplicates, later ones survive
         for wavefunc_index in index_list:
             phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_grid=phi_grid)
             phi_wavefunc.amplitudes = standardize_sign(phi_wavefunc.amplitudes)
