@@ -16,4 +16,4 @@ formats: []
 python:
   version: 3.7
   install:
-    - requirementxxs: docs/requirements.txt
+    - requirements: docs/requirements.txt
