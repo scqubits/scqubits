@@ -6,7 +6,8 @@
 trigger:
   branches:
     include:
-    - jk-devel
+      - master
+      - jk-devel
 
 jobs:
 - job: Linux
@@ -35,7 +36,7 @@ jobs:
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
       pip install -r requirements.txt
-      pip install ipywidgets
+      pip install -r optional-requirements.txt
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
@@ -75,7 +76,7 @@ jobs:
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
       pip install -r requirements.txt
-      pip install ipywidgets
+      pip install -r optional-requirements.txt
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
@@ -115,7 +116,7 @@ jobs:
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
       pip install -r requirements.txt
-      pip install ipywidgets
+      pip install -r optional-requirements.txt
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
