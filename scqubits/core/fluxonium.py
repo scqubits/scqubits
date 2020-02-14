@@ -220,6 +220,8 @@ class Fluxonium(QubitBaseClass1d):
             amplitude modifier, needed to give the correct default y label
         evals: ndarray
             eigenvalues to include in plot
+        wavefunc_count: int
+            number of wave functions to be plotted
         """
         ylabel = r'$\psi_j(\varphi)$'
         ylabel = MODE_STR_DICT[mode](ylabel)
@@ -228,7 +230,7 @@ class Fluxonium(QubitBaseClass1d):
             'ylabel': ylabel
         }
         if wavefunc_count > 1:
-            ymin = - 1.025   * self.EJ
+            ymin = - 1.025 * self.EJ
             ymax = max(1.8 * self.EJ, evals[-1] + 0.1 * (evals[-1] - evals[0]))
             options['ylim'] = (ymin, ymax)
         return options

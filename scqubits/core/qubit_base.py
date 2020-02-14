@@ -450,7 +450,8 @@ class QubitBaseClass1d(QubitBaseClass):
             scale = 0.75 * (evals[-1] - evals[0]) / evals_count
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        kwargs = {**self.wavefunction1d_defaults(mode, evals, wavefunc_count=len(index_list)), **kwargs}  # if any duplicates, later ones survive
+        kwargs = {**self.wavefunction1d_defaults(mode, evals, wavefunc_count=len(index_list)), **kwargs}
+        # in merging the dictionaries in the previous line: if any duplicates, later ones survive
         for wavefunc_index in index_list:
             phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_grid=phi_grid)
             phi_wavefunc.amplitudes = standardize_sign(phi_wavefunc.amplitudes)

@@ -68,7 +68,7 @@ class SpectrumLookup:
 
         self._canonical_bare_labels = self._generate_bare_labels()
         self._dressed_indices = self._generate_mappings()  # lists of as many elements as there are parameter values.
-                                                            # For HilbertSpace objects this is a single-element list.
+        # For HilbertSpace objects the above is a single-element list.
         self._out_of_sync = False
 
     def _generate_bare_labels(self):
