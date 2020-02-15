@@ -24,6 +24,7 @@ jobs:
         pip install numpy
         pip install scipy
         pip install -r requirements.txt
+        pip install -r optional-requirements.txt
         pip install scqubits
     - name: Test with pytest
       run: |
