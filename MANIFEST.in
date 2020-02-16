@@ -2,4 +2,5 @@ include README.md
 include LICENSE
 include requirements.txt
 include optional-requirements.txt
+recursive-include scqubits/tests/data *.hdf5
 graft scqubits/tests/data
