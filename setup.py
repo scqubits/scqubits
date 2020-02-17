@@ -45,7 +45,7 @@ EXTRA_KWARGS = {}
 # all information about scqubits goes here
 MAJOR = 1
 MINOR = 2
-MICRO = 0
+MICRO = 1
 ISRELEASED = True
 
 
@@ -154,6 +154,7 @@ setuptools.setup(name=NAME,
                  extras_require=EXTRAS_REQUIRE,
                  tests_require=TESTS_REQUIRE,
                  zip_safe=False,
+                 include_package_data=True,
                  install_requires=INSTALL_REQUIRES,
                  python_requires=PYTHON_VERSION,
                  **EXTRA_KWARGS
