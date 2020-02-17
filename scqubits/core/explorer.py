@@ -17,16 +17,16 @@ import scqubits.core.constants as const
 try:
     import ipywidgets
 except ImportError:
-    const._HAS_IPYWIDGETS = False
+    _HAS_IPYWIDGETS = False
 else:
-    const._HAS_IPYWIDGETS = True
+    _HAS_IPYWIDGETS = True
 
 try:
     from IPython.display import display
 except ImportError:
-    const._HAS_IPYTHON = False
+    _HAS_IPYTHON = False
 else:
-    const._HAS_IPYTHON = True
+    _HAS_IPYTHON = True
 
 import scqubits.core.sweep_generators as swp
 import scqubits.utils.explorer_panels as panels
@@ -119,7 +119,7 @@ class Explorer:
         fig.tight_layout()
         return fig, axs
 
-    @Required(ipywidgets=const._HAS_IPYWIDGETS, IPython=const._HAS_IPYTHON)
+    @Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
     def interact(self):
         """Drives the interactive display of the plot explorer panels"""
         param_min = self.param_vals[0]

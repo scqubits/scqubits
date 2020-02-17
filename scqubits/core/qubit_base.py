@@ -12,7 +12,7 @@
 Provides the base classes for qubits
 """
 
-import abc
+from abc import ABC, abstractmethod
 import functools
 
 import matplotlib.pyplot as plt
@@ -40,14 +40,13 @@ else:
 
 # —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
 
-class QuantumSystem(DispatchClient):
+class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
-    __metaclass__ = abc.ABCMeta
-
-    # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
-    truncated_dim: int
-    _evec_dtype: type
-    _sys_type: str
+    # # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
+    # # cannot use in Python 3.5!
+    # truncated_dim: int
+    # _evec_dtype: type
+    # _sys_type: str
 
     def __str__(self):
         output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
@@ -60,29 +59,29 @@ class QuantumSystem(DispatchClient):
     def _get_metadata_dict(self):
         return process_metadata(self.__dict__)
 
-    @abc.abstractmethod
+    @abstractmethod
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
-        raise NotImplementedError
+        pass
 
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
 
-class QubitBaseClass(QuantumSystem):
+class QubitBaseClass(QuantumSystem, ABC):
     """Base class for superconducting qubit objects. Provide general mechanisms and routines
     for plotting spectra, matrix elements, and writing data to files
     """
-    __metaclass__ = abc.ABCMeta
+    # # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
+    # # cannot use in Python 3.5!
+    # truncated_dim: int
+    # _default_grid: Grid1d
+    # _evec_dtype: type
+    # _sys_type: str
 
-    # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
-    truncated_dim: int
-    _default_grid: Grid1d
-    _evec_dtype: type
-    _sys_type: str
-
-    @abc.abstractmethod
+    @abstractmethod
     def hamiltonian(self):
         """Returns the Hamiltonian"""
+        pass
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -391,21 +390,22 @@ class QubitBaseClass1d(QubitBaseClass):
     """Base class for superconducting qubit objects with one degree of freedom. Provide general mechanisms and routines
     for plotting spectra, matrix elements, and writing data to files.
     """
-    __metaclass__ = abc.ABCMeta
+    # # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
+    # # cannot use in Python 3.5!
+    # _evec_dtype = np.float_
+    # _default_grid: Grid1d
 
-    _evec_dtype = np.float_
-    _default_grid: Grid1d
-
-    @abc.abstractmethod
+    @abstractmethod
     def potential(self, phi):
-        raise NotImplementedError
+        pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def wavefunction(self, esys, which=0, phi_grid=None):
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def wavefunction1d_defaults(self, mode, evals, wavefunc_count):
-        raise NotImplementedError
+        pass
 
     def plot_wavefunction(self, which=0,  mode='real', esys=None, phi_grid=None, scaling=None, **kwargs):
         """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional qubits like FluxQubits and
