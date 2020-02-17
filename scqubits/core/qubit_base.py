@@ -62,7 +62,6 @@ class QuantumSystem(DispatchClient, ABC):
     @abstractmethod
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
-        pass
 
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -81,7 +80,6 @@ class QubitBaseClass(QuantumSystem, ABC):
     @abstractmethod
     def hamiltonian(self):
         """Returns the Hamiltonian"""
-        pass
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
