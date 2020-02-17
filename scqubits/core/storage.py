@@ -10,7 +10,7 @@
 ############################################################################
 
 
-import scqubits.utils.file_io as io
+import scqubits.utils.file_io as file_io
 import scqubits.utils.plotting as plot
 from scqubits.utils.misc import process_metadata, convert_to_ndarray
 
@@ -73,7 +73,7 @@ class DataStore:
         info about system parameters
 
     **kwargs:
-        keyword arguments for data to be stored
+        keyword arguments for data to be stored: ``dataname=data``, where data should be an array-like object
     """
     def __init__(self, system_params, param_name='', param_vals=None, **kwargs):
         self.dataname_list = []
@@ -92,18 +92,26 @@ class DataStore:
         self.system_params = system_params
 
     def add_data(self, **kwargs):
+        """
+        Adds one or several data sets to the DataStorage object.
+
+        Parameters
+        ----------
+        **kwargs:
+            ``dataname=data`` with ``data`` an array-like object. The data set will be accessible through
+            ``<DataStorage>.dataname``.
+        """
         for dataname, data in kwargs.items():
             setattr(self, dataname, data)
             self.dataname_list.append(dataname)
 
     def _get_metadata_dict(self):
-        meta_dict = {'param_name': self.param_name,
-                     'param_vals': self.param_vals}
+        meta_dict = {'param_name': self.param_name}  # param_vals is serialized as a data set
         meta_dict.update(process_metadata(self.system_params))
         return meta_dict
 
     def _get_data_dict(self):
-        return {dataname: data for dataname, data in self.__dict__.items() if dataname in self.dataname_list}
+        return {dataname: getattr(self, dataname) for dataname in self.dataname_list}
 
     def _serialize(self, file_output):
         """
@@ -111,11 +119,7 @@ class DataStore:
         ----------
         file_output: FileOutput
         """
-        metadata_dict = {
-            'param_name': self.param_name,
-            # param_vals is serialized below as a data set
-        }
-        metadata_dict.update(process_metadata(self.system_params))
+        metadata_dict = self._get_metadata_dict()
         file_output.write_metadata(metadata_dict)
 
         for dataname in self.dataname_list:
@@ -159,13 +163,13 @@ class DataStore:
         return cls(param_name=param_name, system_params=system_params, **data_dict)
 
     def filewrite(self, filename):
-        """Write metadata and spectral data to file
+        """Write metadata and spectral data to file(s)
 
         Parameters
         ----------
         filename: str
         """
-        writer = io.ObjectWriter()
+        writer = file_io.ObjectWriter()
         writer.filewrite(self, filename)
 
     def set_from_fileread(self, filename):
@@ -175,7 +179,7 @@ class DataStore:
         ----------
         filename: str
         """
-        reader = io.ObjectReader()
+        reader = file_io.ObjectReader()
         reader.set_params_from_file(self, filename)
 
     @classmethod
@@ -191,7 +195,7 @@ class DataStore:
         SpectrumData
             new SpectrumData object, initialized with data read from file
         """
-        reader = io.ObjectReader()
+        reader = file_io.ObjectReader()
         return reader.create_from_file(cls, filename)
 
 

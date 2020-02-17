@@ -95,7 +95,7 @@ class FluxQubit(QubitBaseClass):
         self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = '3-jct. flux qubit'
+        self._sys_type = 'flux qubit'
         self._evec_dtype = np.complex_
         self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)    # for plotting in phi_j basis
 

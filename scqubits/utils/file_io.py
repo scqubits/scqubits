@@ -16,7 +16,7 @@ import ast
 import csv
 import os
 import re
-
+from abc import ABC, abstractmethod
 import numpy as np
 
 import scqubits.core.constants as const
@@ -24,10 +24,9 @@ import scqubits.core.constants as const
 try:
     import h5py
 except ImportError:
-    const._HAS_H5PY = False
+    _HAS_H5PY = False
 else:
-    const._HAS_H5PY = True
-
+    _HAS_H5PY = True
 
 from scqubits.utils.misc import Required, to_expression_or_string, remove_nones
 
@@ -53,12 +52,12 @@ class FileIOFactory:
                         "file type: {}".format(suffix, file_name, const.FILE_TYPES))
 
 
-factory = FileIOFactory()
+IO = FileIOFactory()
 
 
 class ObjectWriter:
     """Sets up the appropriate writer, calls the object's serializer to obtain data, then writes to file."""
-    def filewrite(self, the_object, filename):
+    def filewrite(self, the_object, filename, group='root'):
         """
         Parameters
         ----------
@@ -69,9 +68,9 @@ class ObjectWriter:
         -------
         exit_info
         """
-        writer = factory.get_writer(filename)
+        writer = IO.get_writer(filename)
         the_object._serialize(writer)
-        return writer.do_writing(filename)
+        return writer.do_writing(filename, group=group)
 
 
 class ObjectReader:
@@ -84,7 +83,7 @@ class ObjectReader:
         the_object: object
         filename: str
         """
-        reader = factory.get_reader(filename)
+        reader = IO.get_reader(filename)
         extracted_data = reader.do_reading(filename)
         the_object.set_from_data(*extracted_data)
 
@@ -95,14 +94,15 @@ class ObjectReader:
         class_object: class
         filename: str
         """
-        reader = factory.get_reader(filename)
+        reader = IO.get_reader(filename)
         extracted_data = reader.do_reading(filename)
         return class_object._init_from_data(*extracted_data)
 
 
-class FileOutput:
+class FileOutput(ABC):
     def __init__(self):
         self.metadata = None
+        self.traverse = {}
         self.datasets = {}
 
     def write_metadata(self, meta_data):
@@ -113,11 +113,15 @@ class FileOutput:
         """
         self.metadata = meta_data
 
+    # def write_object(self, obj, group):
+    #     self.traverse[group] = obj._serialize(self)
+
     def write_dataset(self, name, data):
         self.datasets[name] = data
 
-    def do_writing(self, filename):
-        raise NotImplementedError
+    @abstractmethod
+    def do_writing(self, filename, **kwargs):
+        pass
 
 
 class CSVFileOutput(FileOutput):
@@ -126,7 +130,7 @@ class CSVFileOutput(FileOutput):
     Then, additional csv files are written for each dataset, with filenames: 'somename_' + dataname0 + '.csv' etc.
     """
     def append_dataset_info(self, metadata):
-        """Add data set information to metadata, so that data set names and dimensions are available
+        """Add data set information to metadata, so that dataset names and dimensions are available
         in metadata CSV file."""
         for index, dataname in enumerate(self.datasets.keys()):
             data = self.datasets[dataname]
@@ -155,7 +159,7 @@ class CSVFileOutput(FileOutput):
         else:
             raise Exception("Dataset has dimensions > 3. Cannot write to CSV file.")
 
-    def do_writing(self, filename):
+    def do_writing(self, filename, **kwargs):
         self.write_metadata_file(filename)
 
         filename_stub, _ = os.path.splitext(filename)
@@ -165,19 +169,19 @@ class CSVFileOutput(FileOutput):
 
 
 class H5FileOutput(FileOutput):
-    @Required(h5py=const._HAS_H5PY)
-    def do_writing(self, filename):
+    @Required(h5py=_HAS_H5PY)
+    def do_writing(self, filename, group='root'):
         """
         Parameters
         ----------
         filename: str
         """
         h5file = h5py.File(filename, 'w')
-        h5file_root = h5file.create_group('root')
-        h5file_root.attrs.update(remove_nones(self.metadata))
+        h5file_group = h5file.create_group(group)
+        h5file_group.attrs.update(remove_nones(self.metadata))
 
         for dataname, dataset in self.datasets.items():
-            h5file_root.create_dataset(dataname, data=dataset, dtype=dataset.dtype, compression="gzip")
+            h5file_group.create_dataset(dataname, data=dataset, dtype=dataset.dtype, compression="gzip")
 
 
 class CSVFileInput:
@@ -224,8 +228,8 @@ class CSVFileInput:
 
 
 class H5FileInput:
-    @Required(h5py=const._HAS_H5PY)
-    def do_reading(self, filename):
+    @Required(h5py=_HAS_H5PY)
+    def do_reading(self, filename, group='root'):
         """
         Parameters
         ----------
@@ -242,10 +246,10 @@ class H5FileInput:
 
         filename_stub = os.path.splitext(filename)[0]
         with h5py.File(filename_stub + '.hdf5', 'r') as h5file:
-            for dataname, dataset in h5file['root'].items():
+            for dataname, dataset in h5file[group].items():
                 dataname_list.append(dataname)
                 data_list.append(dataset[:])
-            for key, value in h5file['root'].attrs.items():
+            for key, value in h5file[group].attrs.items():
                 metadata[key] = value
         return metadata, dataname_list, data_list
 
