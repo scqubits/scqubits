@@ -28,6 +28,46 @@ except ImportError:
     _LABELLINES_ENABLED = False
 
 
+#dictionary of plot options that are meant to go to specific 
+#plot commands. 
+#We could automate this and support all the potential options for each plotting
+#command, for now, let's start with some specific set that are unlikely to break anything.
+#some specific set of options that 
+#TODO: add more options we want to support
+_direct_plot_options={
+        'plot':('linestyle', 'linewidth', 'marker', 'markeredgecolor', 
+            'markeredgewidth', 'markerfacecolor', 'markerfacecoloralt',
+            'markersize', 'alpha'),
+        'imshow':('interpolation',),
+        'countourf':('linewidths', 'linestyles')
+    }
+
+def extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_options):
+    """
+    For a given plot_type, extract (remove) and return all key/value pairs  
+    that are specified in direct_plot_options.
+    
+    Parameters
+    ----------
+    kwargs: dict
+        dictionary with various options that can be passed to different plotting commands
+    plot_type: str
+        a type of plot for which the options should be extracted
+        
+    Returns
+    ----------
+    dict
+        dictionary with key/value pairs corresponding to the removed options
+
+    """
+    d={}
+    if plot_type in direct_plot_options:
+        for key in kwargs.copy():  
+            if key in direct_plot_options[plot_type]:
+                d[key]=kwargs.pop(key)
+    return d
+    
+
 def _process_options(figure, axes, opts=None, **kwargs):
     """
     Processes plotting options.
@@ -111,9 +151,9 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs)
     offset_vals = [offset] * len(x_vals)
 
     if potential_vals is not None:
-        axes.plot(x_vals, potential_vals, color='gray')
+        axes.plot(x_vals, potential_vals, color='gray', **extract_kwargs_options(kwargs, 'plot'))
 
-    axes.plot(x_vals, y_vals)
+    axes.plot(x_vals, y_vals, **extract_kwargs_options(kwargs, 'plot'))
     axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
     _process_options(fig, axes, **kwargs)
     return fig, axes
@@ -182,7 +222,8 @@ def wavefunction2d(wavefunc, zero_calibrate=False, **kwargs):
         cmap = plt.cm.viridis
 
     im = axes.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
-                     cmap=cmap, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
+                     cmap=cmap, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto',
+                     **extract_kwargs_options(kwargs, 'imshow'))
     divider = make_axes_locatable(axes)
     cax = divider.append_axes("right", size="2%", pad=0.05)
     fig.colorbar(im, cax=cax)
@@ -218,7 +259,8 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
     x_grid, y_grid = np.meshgrid(x_vals, y_vals)
     z_array = func(x_grid, y_grid)
 
-    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower")
+    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower", 
+            **extract_kwargs_options(kwargs, 'contourf'))
 
     if show_colorbar:
         divider = make_axes_locatable(axes)
@@ -306,11 +348,13 @@ def data_vs_paramvals(xdata, ydata, label_list=None, **kwargs):
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
 
+      
     if label_list is None:
-        axes.plot(xdata, ydata)
+        axes.plot(xdata, ydata, **extract_kwargs_options(kwargs, 'plot'))
     else:
         for idx, ydataset in enumerate(ydata.T):
-            axes.plot(xdata, ydataset, label=label_list[idx])
+            axes.plot(xdata, ydataset, label=label_list[idx],
+                        **extract_kwargs_options(kwargs, 'plot'))
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, **kwargs)
     return fig, axes
@@ -384,7 +428,8 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
 
     for (row, col) in index_pairs:
         y = modefunction(specdata.matrixelem_table[:, row, col])
-        axes.plot(x, y, label=str(row) + ',' + str(col))
+        axes.plot(x, y, label=str(row) + ',' + str(col), 
+                **extract_kwargs_options(kwargs, 'plot'))
 
     if _LABELLINES_ENABLED:
         labelLines(axes.get_lines(), zorder=1.5)
