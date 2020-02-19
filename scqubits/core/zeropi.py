@@ -524,3 +524,13 @@ class ZeroPi(QubitBaseClass):
         grid = Grid1d(**grid_dict)
         filtered_dict['grid'] = grid
         return cls(**filtered_dict)
+
+    # def _serialize(self, file_output):
+    #     """
+    #      Parameters
+    #      ----------
+    #      file_output: FileOutput
+    #      """
+    #     metadata_dict = self._get_metadata_dict()
+    #     file_output.write_metadata(metadata_dict)
+    #     file_output.write_object(self.grid, 'grid')

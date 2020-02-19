@@ -100,9 +100,10 @@ class ObjectReader:
 
 
 class FileOutput(ABC):
-    def __init__(self):
+    def __init__(self, group='root'):
+        self.group = group
         self.metadata = None
-        self.traverse = {}
+        self.inner_classes = {}
         self.datasets = {}
 
     def write_metadata(self, meta_data):
@@ -113,8 +114,9 @@ class FileOutput(ABC):
         """
         self.metadata = meta_data
 
-    # def write_object(self, obj, group):
-    #     self.traverse[group] = obj._serialize(self)
+    # def write_inner(self, obj, group):
+    #     writer = ObjectWriter()
+    #     self.objects[group] = obj
 
     def write_dataset(self, name, data):
         self.datasets[name] = data
@@ -182,6 +184,9 @@ class H5FileOutput(FileOutput):
 
         for dataname, dataset in self.datasets.items():
             h5file_group.create_dataset(dataname, data=dataset, dtype=dataset.dtype, compression="gzip")
+
+        # if self.inner_classes != {}:
+        #     for group, class_instance in self.inner_classes.items():
 
 
 class CSVFileInput:
