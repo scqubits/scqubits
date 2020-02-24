@@ -16,6 +16,7 @@ import numpy as np
 import qutip as qt
 
 import scqubits.settings as settings
+import scqubits.utils.file_io_serializers as io
 from scqubits.core.central_dispatch import (DispatchClient,
                                             CENTRAL_DISPATCH)
 from scqubits.core.descriptors import ReadOnlyProperty, WatchedProperty
@@ -23,6 +24,7 @@ from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON
+from scqubits.utils.file_io_serializers import Serializable
 from scqubits.utils.misc import InfoBar
 from scqubits.utils.processing_switch import get_map_method
 from scqubits.utils.spectrum_utils import convert_operator_to_qobj, recast_esys_mapdata
@@ -33,7 +35,7 @@ else:
     from tqdm import tqdm
 
 
-class InteractionTerm(DispatchClient):
+class InteractionTerm(DispatchClient, Serializable):
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
     the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
@@ -70,8 +72,10 @@ class InteractionTerm(DispatchClient):
         self.op2 = op2
         self.add_hc = add_hc
 
+        self._init_params.remove('hilbertspace')
 
-class HilbertSpace(DispatchClient):
+
+class HilbertSpace(DispatchClient, Serializable):
     """Class holding information about the full Hilbert space, usually composed of multiple subsystems.
     The class provides methods to turn subsystem operators into operators acting on the full Hilbert space, and
     establishes the interface to qutip. Returned operators are of the `qutip.Qobj` type. The class also provides methods
@@ -111,15 +115,8 @@ class HilbertSpace(DispatchClient):
     def index(self, item):
         return self._subsystems.index(item)
 
-    def _get_metadata_dict(self):
-        meta_dict = {}
-        for index, subsystem in enumerate(self):
-            subsys_meta = subsystem._get_metadata_dict()
-            renamed_subsys_meta = {}
-            for key in subsys_meta.keys():
-                renamed_subsys_meta[type(subsystem).__name__ + str(index) + '_' + key] = subsys_meta[key]
-            meta_dict.update(renamed_subsys_meta)
-        return meta_dict
+    def get_initdata(self):  # used for Serializable serialization
+        return {'subsystem_list': self._subsystems, 'interaction_list': self.interaction_list}
 
     def receive(self, event, sender, **kwargs):
         if self.lookup is not None:
@@ -135,6 +132,10 @@ class HilbertSpace(DispatchClient):
                 self.broadcast('HILBERTSPACE_UPDATE')
                 self._lookup._out_of_sync = True
                 # print('Lookup table now out of sync')
+
+    @property
+    def subsystem_list(self):
+        return self._subsystems
 
     @property
     def subsystem_dims(self):
@@ -168,11 +169,11 @@ class HilbertSpace(DispatchClient):
         for index, subsys in enumerate(self):
             evals, evecs = subsys.eigensys(evals_count=subsys.truncated_dim)
             bare_specdata_list.append(SpectrumData(energy_table=[evals], state_table=[evecs],
-                                                   system_params=subsys.__dict__))
+                                                   system_params=subsys.get_initdata()))
 
         evals, evecs = self.eigensys(evals_count=self.dimension)
         dressed_specdata = SpectrumData(energy_table=[evals], state_table=[evecs],
-                                        system_params=self._get_metadata_dict())
+                                        system_params=self.get_initdata())
         self._lookup = SpectrumLookup(self, bare_specdata_list=bare_specdata_list, dressed_specdata=dressed_specdata)
 
     def eigenvals(self, evals_count=6):
@@ -205,6 +206,7 @@ class HilbertSpace(DispatchClient):
         """
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
+        evecs = evecs.view(io.QutipEigenstates)
         return evals, evecs
 
     def diag_operator(self, diag_elements, subsystem):
@@ -428,5 +430,5 @@ class HilbertSpace(DispatchClient):
             eigenvalue_table = np.asarray(eigenvalue_table)
             eigenstate_table = None
 
-        return SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
+        return SpectrumData(eigenvalue_table, self.get_initdata(), param_name, param_vals,
                             state_table=eigenstate_table)

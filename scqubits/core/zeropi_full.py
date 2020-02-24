@@ -15,14 +15,13 @@ from scipy import sparse
 import scqubits.core.operators as op
 from scqubits.core.central_dispatch import CENTRAL_DISPATCH
 from scqubits.core.descriptors import WatchedProperty
-from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.zeropi import ZeroPi
-from scqubits.utils.misc import is_numerical, key_in_grid1d
+from scqubits.utils.file_io_serializers import Serializable
 from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
 
-class FullZeroPi(QubitBaseClass):
+class FullZeroPi(QubitBaseClass, Serializable):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
     Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
 
@@ -114,9 +113,10 @@ class FullZeroPi(QubitBaseClass):
         self.dC = dC
         self.dEL = dEL
         self.zeta_cutoff = zeta_cutoff
-        self._sys_type = 'full 0-pi'
+        self._sys_type = type(self).__name__
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
+        self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
 
         CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
@@ -291,50 +291,3 @@ class FullZeroPi(QubitBaseClass):
         if zeropi_states is None:
             _, zeropi_states = self._zeropi.eigensys(evals_count=evals_count)
         return self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(zeropi_states)
-
-    def set_params_from_dict(self, meta_dict):
-        """Set object parameters by given metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-        """
-        for param_name, param_value in meta_dict.items():
-            if key_in_grid1d(param_name):
-                setattr(self.grid, param_name, param_value)
-            elif is_numerical(param_value):
-                setattr(self, param_name, param_value)
-
-        self._zeropi = ZeroPi(
-            EJ=self.EJ,
-            EL=self.EL,
-            ECJ=self.ECJ,
-            EC=self.EC,
-            dEJ=self.dEJ,
-            dCJ=self.dCJ,
-            flux=self.flux,
-            ng=self.ng,
-            grid=self.grid,
-            ncut=self.ncut,
-            truncated_dim=self.zeropi_cutoff
-        )
-
-    @classmethod
-    def create_from_dict(cls, meta_dict):
-        """Set object parameters by given metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-        """
-        filtered_dict = {}
-        grid_dict = {}
-        for param_name, param_value in meta_dict.items():
-            if key_in_grid1d(param_name):
-                grid_dict[param_name] = param_value
-            elif is_numerical(param_value):
-                filtered_dict[param_name] = param_value
-
-        grid = Grid1d(**grid_dict)
-        filtered_dict['grid'] = grid
-        return cls(**filtered_dict)

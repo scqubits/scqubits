@@ -18,6 +18,7 @@ import numpy as np
 import qutip as qt
 
 import scqubits
+from scqubits.utils.file_io_serializers import Serializable
 from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
 
 
@@ -32,7 +33,7 @@ def check_sync_status(func):
     return wrapper
 
 
-class SpectrumLookup:
+class SpectrumLookup(Serializable):
     """
     The `SpectrumLookup` is an integral building block of the `HilbertSpace` and `ParameterSweep` classes. In both cases
     it provides a convenient way to translate back and forth between labelling of eigenstates and eigenenergies via the
@@ -49,9 +50,7 @@ class SpectrumLookup:
         dressed spectral data needed for generating the lookup mapping
     bare_specdata_list: SpectrumData
         bare spectral data needed for generating the lookup mapping
-
     """
-
     def __init__(self, framework, dressed_specdata, bare_specdata_list):
         self._dressed_specdata = dressed_specdata
         self._bare_specdata_list = bare_specdata_list
@@ -70,6 +69,8 @@ class SpectrumLookup:
         self._dressed_indices = self._generate_mappings()  # lists of as many elements as there are parameter values.
         # For HilbertSpace objects the above is a single-element list.
         self._out_of_sync = False
+        # Setup for Serializable operations
+        self._init_params = ['_dressed_specdata', '_bare_specdata_list']
 
     def _generate_bare_labels(self):
         """

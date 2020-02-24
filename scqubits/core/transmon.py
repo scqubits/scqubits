@@ -21,11 +21,12 @@ from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import Grid1d
 from scqubits.core.qubit_base import QubitBaseClass1d
 from scqubits.core.storage import WaveFunction
+from scqubits.utils.file_io_serializers import Serializable
 
 
 # —Cooper pair box / transmon———————————————————————————————————————————————————————————————————————————————————————————
 
-class Transmon(QubitBaseClass1d):
+class Transmon(QubitBaseClass1d, Serializable):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is represented in dense form in the number
     basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
@@ -45,7 +46,6 @@ class Transmon(QubitBaseClass1d):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
-
     EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EC = WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ng = WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -57,7 +57,7 @@ class Transmon(QubitBaseClass1d):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = 'transmon'
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)

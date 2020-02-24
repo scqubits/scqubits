@@ -18,12 +18,13 @@ from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import WaveFunctionOnGrid
+from scqubits.utils.file_io_serializers import Serializable
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
 
-class FluxQubit(QubitBaseClass):
+class FluxQubit(QubitBaseClass, Serializable):
     r"""Flux Qubit
 
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
@@ -95,7 +96,7 @@ class FluxQubit(QubitBaseClass):
         self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = 'flux qubit'
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)    # for plotting in phi_j basis
 

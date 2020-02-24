@@ -21,13 +21,13 @@ from scqubits.core.descriptors import WatchedProperty
 from scqubits.core.discretization import Grid1d, GridSpec
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import WaveFunctionOnGrid
-from scqubits.utils.misc import is_numerical, key_in_grid1d
+from scqubits.utils.file_io_serializers import Serializable
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
 
-class ZeroPi(QubitBaseClass):
+class ZeroPi(QubitBaseClass, Serializable):
     r"""Zero-Pi Qubit
 
     | [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
@@ -97,7 +97,6 @@ class ZeroPi(QubitBaseClass):
             self.EC = EC
         else:
             self.EC = 1 / (1 / ECS - 1 / self.ECJ)
-
         self.dEJ = dEJ
         self.dCJ = dCJ
         self.ng = ng
@@ -105,10 +104,10 @@ class ZeroPi(QubitBaseClass):
         self.grid = grid
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = '0-pi'
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)  # for theta, needed for plotting wavefunction
-
+        self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
         CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
     def receive(self, event, sender, **kwargs):
@@ -491,46 +490,3 @@ class ZeroPi(QubitBaseClass):
         wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
         wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
-
-    def set_params_from_dict(self, meta_dict):
-        """Set object parameters by given metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-        """
-        for param_name, param_value in meta_dict.items():
-            if key_in_grid1d(param_name):
-                setattr(self.grid, param_name, param_value)
-            elif is_numerical(param_value):
-                setattr(self, param_name, param_value)
-
-    @classmethod
-    def create_from_dict(cls, meta_dict):
-        """Set object parameters by given metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-        """
-        filtered_dict = {}
-        grid_dict = {}
-        for param_name, param_value in meta_dict.items():
-            if key_in_grid1d(param_name):
-                grid_dict[param_name] = param_value
-            elif is_numerical(param_value):
-                filtered_dict[param_name] = param_value
-
-        grid = Grid1d(**grid_dict)
-        filtered_dict['grid'] = grid
-        return cls(**filtered_dict)
-
-    # def _serialize(self, file_output):
-    #     """
-    #      Parameters
-    #      ----------
-    #      file_output: FileOutput
-    #      """
-    #     metadata_dict = self._get_metadata_dict()
-    #     file_output.write_metadata(metadata_dict)
-    #     file_output.write_object(self.grid, 'grid')

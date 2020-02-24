@@ -12,8 +12,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import scqubits.core.constants as const
-
 try:
     import ipywidgets
 except ImportError:

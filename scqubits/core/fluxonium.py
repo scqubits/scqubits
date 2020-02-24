@@ -22,11 +22,12 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.harmonic_osc import harm_osc_wavefunction
 from scqubits.core.qubit_base import QubitBaseClass1d
 from scqubits.core.storage import WaveFunction
+from scqubits.utils.file_io_serializers import Serializable
 
 
 # —Fluxonium qubit ————————————————————————
 
-class Fluxonium(QubitBaseClass1d):
+class Fluxonium(QubitBaseClass1d, Serializable):
     r"""Class for the fluxonium qubit. Hamiltonian
     :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi-\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
     is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
@@ -49,7 +50,6 @@ class Fluxonium(QubitBaseClass1d):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
-
     EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EC = WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -63,7 +63,7 @@ class Fluxonium(QubitBaseClass1d):
         self.flux = flux
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
-        self._sys_type = 'fluxonium'
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
 
