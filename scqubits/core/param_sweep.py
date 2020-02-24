@@ -35,28 +35,7 @@ else:
 
 class ParameterSweepBase(ABC):
     """
-    The ParameterSweep class helps generate spectral and associated data for a composite quantum system, as an externa,
-    parameter, such as flux, is swept over some given interval of values. Upon initialization, these data are calculated
-    and stored internally, so that plots can be generated efficiently. This is of particular use for interactive
-    displays used in the Explorer class.
-
-    Parameters
-    ----------
-    param_name: str
-        name of external parameter to be varied
-    param_vals: ndarray
-        array of parameter values
-    evals_count: int
-        number of eigenvalues and eigenstates to be calculated for the composite Hilbert space
-    hilbertspace: HilbertSpace
-        collects all data specifying the Hilbert space of interest
-    subsys_update_list: list or iterable
-        list of subsystems in the Hilbert space which get modified when the external parameter changes
-    update_hilbertspace: function
-        update_hilbertspace(param_val) specifies how a change in the external parameter affects
-        the Hilbert space components
-    num_cpus: int, optional
-        number of CPUS requested for computing the sweep (default value settings.NUM_CPUS)
+    The ParameterSweepBase class is an abstract base class for ParameterSweep and StoredSweep
     """
     param_name: str
     param_vals: np.ndarray

@@ -9,8 +9,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import scqubits.utils.file_io_serializers as io
 import scqubits.utils.plotting as plot
-from scqubits.utils.file_io_serializers import Serializable
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -58,7 +58,7 @@ class WaveFunctionOnGrid:
 # —BaseData class———————————————————————————————————————————————————————————————————————————————————————————————————
 
 
-class DataStore(Serializable):
+class DataStore(io.Serializable):
     """Base class for storing and processing spectral data and custom data from parameter sweeps.
 
     Parameters

@@ -141,7 +141,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         operator: str
             name of class method in string form, returning operator matrix in qubit-internal basis.
         evecs: ndarray, optional
-            if not provided, then the necesssary eigenstates are calculated on the fly
+            if not provided, then the necessary eigenstates are calculated on the fly
         evals_count: int, optional
             number of desired matrix elements, starting with ground state (default value = 6)
         filename: str, optional

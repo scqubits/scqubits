@@ -16,8 +16,6 @@ import os
 
 import scqubits
 import scqubits.core.constants as const
-import scqubits.utils.file_io_csv as io_csv
-import scqubits.utils.file_io_h5 as io_h5
 import scqubits.utils.file_io_serializers as io_serializers
 
 
@@ -90,20 +88,22 @@ def read(filename, file_handle=None):
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format"""
     def get_writer(self, file_name, file_handle=None):
+        import scqubits.utils.file_io_backends as io_backends
         _, suffix = os.path.splitext(file_name)
         if suffix == '.csv':
-            return io_csv.CSVWriter(file_name)
+            return io_backends.CSVWriter(file_name)
         if suffix in ('.h5', '.hdf5'):
-            return io_h5.H5Writer(file_name, file_handle=file_handle)
+            return io_backends.H5Writer(file_name, file_handle=file_handle)
         raise Exception("Extension '{}' of given file name '{}' does not match any supported "
                         "file type: {}".format(suffix, file_name, const.FILE_TYPES))
 
     def get_reader(self, file_name, file_handle=None):
+        import scqubits.utils.file_io_backends as io_backends
         _, suffix = os.path.splitext(file_name)
         if suffix == '.csv':
-            return io_csv.CSVReader()
+            return io_backends.CSVReader()
         if suffix in ('.h5', '.hdf5'):
-            return io_h5.H5Reader(file_name, file_handle=file_handle)
+            return io_backends.H5Reader(file_name, file_handle=file_handle)
         raise Exception("Extension '{}' of given file name '{}' does not match any supported "
                         "file type: {}".format(suffix, file_name, const.FILE_TYPES))
 

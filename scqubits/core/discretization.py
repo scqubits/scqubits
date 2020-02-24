@@ -12,13 +12,13 @@
 import numpy as np
 from scipy import sparse
 
+import scqubits.utils.file_io_serializers as io
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.descriptors import WatchedProperty
-from scqubits.utils.file_io_serializers import Serializable
 from scqubits.utils.misc import drop_private_keys
 
 
-class Grid1d(DispatchClient, Serializable):
+class Grid1d(DispatchClient, io.Serializable):
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
 
@@ -124,7 +124,7 @@ class Grid1d(DispatchClient, Serializable):
         return derivative_matrix
 
 
-class GridSpec(DispatchClient, Serializable):
+class GridSpec(DispatchClient, io.Serializable):
     """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
 
     Parameters

@@ -19,7 +19,6 @@ from numbers import Number
 import numpy as np
 import qutip as qt
 
-import scqubits.utils.file_io as io
 from scqubits.utils.misc import qt_ket_to_ndarray, remove_nones
 
 
@@ -70,6 +69,7 @@ class Serializable(ABC):
         ----------
         filename: str
         """
+        import scqubits.utils.file_io as io
         io.write(self, filename)
 
     @classmethod
@@ -85,6 +85,7 @@ class Serializable(ABC):
         SpectrumData
             new SpectrumData object, initialized with data read from file
         """
+        import scqubits.utils.file_io as io
         return io.read(filename)
 
 
@@ -119,6 +120,7 @@ class QutipEigenstates(np.ndarray, Serializable):
         -------
         IOData
         """
+        import scqubits.utils.file_io as io
         typename = type(self).__name__
         evec_count = len(self)
         qobj_dims = np.asarray(self[0].dims)
@@ -136,6 +138,7 @@ class QutipEigenstates(np.ndarray, Serializable):
         ----------
         filename: str
         """
+        import scqubits.utils.file_io as io
         io.write(self, filename)
 
 
@@ -182,6 +185,7 @@ def dict_serialize(dict_instance):
     -------
     IOData
     """
+    import scqubits.utils.file_io as io
     dict_instance = remove_nones(dict_instance)
     attributes = {}
     ndarrays = {}
@@ -206,6 +210,7 @@ def list_serialize(list_instance):
     -------
     IOData
     """
+    import scqubits.utils.file_io as io
     attributes = {}
     ndarrays = {}
     objects = {}
@@ -249,3 +254,5 @@ def get_init_params(obj):
     if 'kwargs' in init_params:
         init_params.remove('kwargs')
     return init_params
+
+
