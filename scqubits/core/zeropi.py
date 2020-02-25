@@ -14,20 +14,20 @@ import warnings
 import numpy as np
 from scipy import sparse
 
+import scqubits.core.central_dispatch as dispatch
 import scqubits.core.constants as constants
+import scqubits.core.descriptors as descriptors
+import scqubits.core.discretization as discretization
+import scqubits.core.qubit_base as base
+import scqubits.core.storage as storage
+import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plotting as plot
-from scqubits.core.central_dispatch import CENTRAL_DISPATCH
-from scqubits.core.descriptors import WatchedProperty
-from scqubits.core.discretization import Grid1d, GridSpec
-from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.core.storage import WaveFunctionOnGrid
-from scqubits.utils.file_io_serializers import Serializable
-from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
+import scqubits.utils.spectrum_utils as spec_utils
 
 
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
 
-class ZeroPi(QubitBaseClass, Serializable):
+class ZeroPi(base.QubitBaseClass, serializers.Serializable):
     r"""Zero-Pi Qubit
 
     | [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
@@ -75,14 +75,14 @@ class ZeroPi(QubitBaseClass, Serializable):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
    """
-    EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EC = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    dEJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    dCJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dEJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dCJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EL, ECJ, EC, ng, flux, grid, ncut, dEJ=0, dCJ=0, ECS=None, truncated_dim=None):
         self.EJ = EJ
@@ -106,9 +106,9 @@ class ZeroPi(QubitBaseClass, Serializable):
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
-        self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)  # for theta, needed for plotting wavefunction
+        self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)  # for theta, needed for plotting wavefunction
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
-        CENTRAL_DISPATCH.register('GRID_UPDATE', self)
+        dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
     def receive(self, event, sender, **kwargs):
         if sender is self.grid:
@@ -124,7 +124,7 @@ class ZeroPi(QubitBaseClass, Serializable):
         evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
         # TODO consider normalization of zeropi wavefunctions
         # evecs /= np.sqrt(self.grid.grid_spacing())
-        evals, evecs = order_eigensystem(evals, evecs)
+        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
     def get_ECS(self):
@@ -456,11 +456,11 @@ class ZeroPi(QubitBaseClass, Serializable):
         theta_vec = theta_grid.make_linspace()
         a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi) ** 0.5
         wavefunc_amplitudes = np.matmul(state_amplitudes, a_n_theta).T
-        wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
+        wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
 
-        grid2d = GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, self.grid.pt_count],
+        grid2d = discretization.GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, self.grid.pt_count],
                                       [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count]]))
-        return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
+        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
     def plot_wavefunction(self, esys=None, which=0, theta_grid=None, mode='abs', zero_calibrate=True, **kwargs):
         """Plots 2d phase-basis wave function.

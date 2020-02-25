@@ -12,9 +12,9 @@
 
 import numpy as np
 
+import scqubits.core.sweep_generators as sweep_gen
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-from scqubits.core.sweep_generators import generate_qubit_transitions_sweep, generate_diffspec_sweep
 
 
 def bare_spectrum(sweep, subsys, which=-1, **kwargs):
@@ -76,7 +76,7 @@ def difference_spectrum(sweep, initial_state_ind=0, **kwargs):
     -------
     Figure, Axes
     """
-    return generate_diffspec_sweep(sweep, initial_state_ind).plot_evals_vs_paramvals(**kwargs)
+    return sweep_gen.generate_diffspec_sweep(sweep, initial_state_ind).plot_evals_vs_paramvals(**kwargs)
 
 
 def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, **kwargs):
@@ -97,7 +97,7 @@ def n_photon_qubit_spectrum(sweep, photonnumber, initial_state_labels, **kwargs)
     -------
     Figure, Axes
     """
-    label_list, specdata = generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels)
+    label_list, specdata = sweep_gen.generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels)
     return specdata.plot_evals_vs_paramvals(label_list=label_list, **kwargs)
 
 

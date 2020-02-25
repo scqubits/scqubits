@@ -18,8 +18,8 @@ import numpy as np
 import qutip as qt
 
 import scqubits
-from scqubits.utils.file_io_serializers import Serializable
-from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
+import scqubits.utils.file_io_serializers as serializers
+import scqubits.utils.spectrum_utils as spec_utils
 
 
 def check_sync_status(func):
@@ -33,7 +33,7 @@ def check_sync_status(func):
     return wrapper
 
 
-class SpectrumLookup(Serializable):
+class SpectrumLookup(serializers.Serializable):
     """
     The `SpectrumLookup` is an integral building block of the `HilbertSpace` and `ParameterSweep` classes. In both cases
     it provides a convenient way to translate back and forth between labelling of eigenstates and eigenenergies via the
@@ -128,7 +128,7 @@ class SpectrumLookup(Serializable):
         list of int
             dressed-state indices
         """
-        overlap_matrix = convert_esys_to_ndarray(self._dressed_specdata.state_table[param_index])  # overlap amplitudes
+        overlap_matrix = spec_utils.convert_esys_to_ndarray(self._dressed_specdata.state_table[param_index])
 
         dressed_indices = []
         for bare_basis_index in range(self._hilbertspace.dimension):   # for given bare basis index, find dressed index

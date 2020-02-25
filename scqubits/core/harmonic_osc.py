@@ -15,8 +15,8 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.operators as op
-from scqubits.core.qubit_base import QuantumSystem
-from scqubits.utils.file_io_serializers import Serializable
+import scqubits.core.qubit_base as base
+import scqubits.utils.file_io_serializers as serializers
 
 
 def harm_osc_wavefunction(n, x, losc):
@@ -43,7 +43,7 @@ def harm_osc_wavefunction(n, x, losc):
 
 # —Oscillator class—————————————————————————————————————————————————————————————————————————————————————————————————————
 
-class Oscillator(QuantumSystem, Serializable):
+class Oscillator(base.QuantumSystem, serializers.Serializable):
     """General class for mode of an oscillator/resonator."""
     def __init__(self, E_osc=None, omega=None, truncated_dim=None):
         self._sys_type = type(self).__name__

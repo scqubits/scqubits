@@ -19,7 +19,7 @@ from numbers import Number
 import numpy as np
 import qutip as qt
 
-from scqubits.utils.misc import qt_ket_to_ndarray, remove_nones
+import scqubits.utils.misc as utils
 
 
 class Serializable(ABC):
@@ -126,7 +126,7 @@ class QutipEigenstates(np.ndarray, Serializable):
         qobj_dims = np.asarray(self[0].dims)
         qobj_shape = np.asarray(self[0].shape)
         io_attributes = {'evec_count': evec_count}
-        io_ndarrays = {'evecs': np.asarray([qt_ket_to_ndarray(qobj_ket) for qobj_ket in self]),
+        io_ndarrays = {'evecs': np.asarray([utils.qt_ket_to_ndarray(qobj_ket) for qobj_ket in self]),
                        'qobj_dims': qobj_dims,
                        'qobj_shape': qobj_shape}
         return io.IOData(typename, io_attributes, io_ndarrays, objects=None)
@@ -186,7 +186,7 @@ def dict_serialize(dict_instance):
     IOData
     """
     import scqubits.utils.file_io as io
-    dict_instance = remove_nones(dict_instance)
+    dict_instance = utils.remove_nones(dict_instance)
     attributes = {}
     ndarrays = {}
     objects = {}
@@ -254,5 +254,3 @@ def get_init_params(obj):
     if 'kwargs' in init_params:
         init_params.remove('kwargs')
     return init_params
-
-

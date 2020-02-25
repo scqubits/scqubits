@@ -9,7 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import scqubits.utils.file_io_serializers as io
+import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plotting as plot
 
 
@@ -58,7 +58,7 @@ class WaveFunctionOnGrid:
 # —BaseData class———————————————————————————————————————————————————————————————————————————————————————————————————
 
 
-class DataStore(io.Serializable):
+class DataStore(serializers.Serializable):
     """Base class for storing and processing spectral data and custom data from parameter sweeps.
 
     Parameters
@@ -124,7 +124,7 @@ class SpectrumData(DataStore):
     matrixelem_table: ndarray, optional
         matrix element data stored for each `param_vals` point
     """
-    # mark for file io purposes:
+    # mark for file serializers purposes:
     def __init__(self, energy_table, system_params, param_name=None, param_vals=None, state_table=None,
                  matrixelem_table=None):
         super().__init__(system_params=system_params, param_name=param_name, param_vals=param_vals,

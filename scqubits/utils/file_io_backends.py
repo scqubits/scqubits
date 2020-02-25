@@ -27,7 +27,7 @@ else:
     _HAS_H5PY = True
 
 import scqubits.utils.file_io as io
-from scqubits.utils.misc import Required, to_expression_or_string
+import scqubits.utils.misc as utils
 
 
 class IOWriter(ABC):
@@ -95,7 +95,7 @@ class H5Writer(IOWriter):
             new_h5group = h5file_group.create_group(obj_name)
             io.write(self.io_data.objects[obj_name], self.filename, file_handle=new_h5group)
 
-    @Required(h5py=_HAS_H5PY)
+    @utils.Required(h5py=_HAS_H5PY)
     def to_file(self, io_data, file_handle=None):
         """
         Takes the serialized IOData and writes it to the given h5py.Group
@@ -147,7 +147,7 @@ class H5Reader:
             inner_objects[obj_name] = io.read(self.filename, h5file_group[obj_name])
         return inner_objects
 
-    @Required(h5py=_HAS_H5PY)
+    @utils.Required(h5py=_HAS_H5PY)
     def from_file(self, filename, file_handle=None):
         """
         Parameters
@@ -234,8 +234,10 @@ class CSVReader:
         return dict(zip(meta_keys, meta_values))
 
     def process_metadict(self, meta_dict):
-        attributes = {attr_name: to_expression_or_string(attr_value) for attr_name, attr_value in meta_dict.items()
-                      if not re.match(r'dataset\d+', attr_name)}
+        attributes = {
+            attr_name: utils.to_expression_or_string(attr_value) for attr_name, attr_value in meta_dict.items()
+            if not re.match(r'dataset\d+', attr_name)
+        }
         data_names = [dataname for datalabel, dataname in meta_dict.items() if re.match(r'dataset\d+$', datalabel)]
         data_slices = [ast.literal_eval(value) for key, value in meta_dict.items()
                        if re.match(r'dataset\d+.slices', key)]

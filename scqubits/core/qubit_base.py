@@ -26,9 +26,9 @@ from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
+from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import process_which, InfoBar, drop_private_keys
 from scqubits.utils.plot_defaults import set_scaling
-from scqubits.utils.processing_switch import get_map_method
 from scqubits.utils.spectrum_utils import (order_eigensystem, get_matrixelement_table, standardize_sign,
                                            recast_esys_mapdata)
 

@@ -12,13 +12,13 @@
 import numpy as np
 from scipy import sparse
 
-import scqubits.utils.file_io_serializers as io
-from scqubits.core.central_dispatch import DispatchClient
-from scqubits.core.descriptors import WatchedProperty
-from scqubits.utils.misc import drop_private_keys
+import scqubits.core.central_dispatch as dispatch
+import scqubits.core.descriptors as descriptors
+import scqubits.utils.file_io_serializers as serializers
+import scqubits.utils.misc as utils
 
 
-class Grid1d(DispatchClient, io.Serializable):
+class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
 
@@ -31,9 +31,9 @@ class Grid1d(DispatchClient, io.Serializable):
     pt_count: int
         number of grid points
     """
-    min_val = WatchedProperty('GRID_UPDATE')
-    max_val = WatchedProperty('GRID_UPDATE')
-    pt_count = WatchedProperty('GRID_UPDATE')
+    min_val = descriptors.WatchedProperty('GRID_UPDATE')
+    max_val = descriptors.WatchedProperty('GRID_UPDATE')
+    pt_count = descriptors.WatchedProperty('GRID_UPDATE')
 
     def __init__(self, min_val, max_val, pt_count):
         self.min_val = min_val
@@ -42,7 +42,7 @@ class Grid1d(DispatchClient, io.Serializable):
 
     def __str__(self):
         output = '    Grid1d ......'
-        for param_name, param_val in sorted(drop_private_keys(self.__dict__).items()):
+        for param_name, param_val in sorted(utils.drop_private_keys(self.__dict__).items()):
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
 
@@ -124,7 +124,7 @@ class Grid1d(DispatchClient, io.Serializable):
         return derivative_matrix
 
 
-class GridSpec(DispatchClient, io.Serializable):
+class GridSpec(dispatch.DispatchClient, serializers.Serializable):
     """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
 
     Parameters
@@ -132,10 +132,10 @@ class GridSpec(DispatchClient, io.Serializable):
     minmaxpts_array: ndarray
         array of with entries [minvalue, maxvalue, number of points]
     """
-    min_vals = WatchedProperty('GRID_UPDATE')
-    max_vals = WatchedProperty('GRID_UPDATE')
-    var_count = WatchedProperty('GRID_UPDATE')
-    pt_counts = WatchedProperty('GRID_UPDATE')
+    min_vals = descriptors.WatchedProperty('GRID_UPDATE')
+    max_vals = descriptors.WatchedProperty('GRID_UPDATE')
+    var_count = descriptors.WatchedProperty('GRID_UPDATE')
+    pt_counts = descriptors.WatchedProperty('GRID_UPDATE')
 
     def __init__(self, minmaxpts_array):
         self.min_vals = minmaxpts_array[:, 0]
