@@ -482,8 +482,8 @@ class FluxQubitVCHOS(QubitBaseClass):
         grid2d = GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
                                       [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
     
-#        wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
-        wavefunc_amplitudes = -1.0*wavefunc_amplitudes
+        wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
+
         return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
     
    
@@ -587,8 +587,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         return ((2.0 ** n * sp.special.gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) 
                 * sp.special.eval_hermite(n, x) 
                 * np.exp(-x**2/2.))
-    
-    
+        
     
     def _kinetic_mat_test_integral_helper(self, i, j, sone, stwo, soneprime, stwoprime, minima_m, minima_p, phik):
         lim = 20.0
