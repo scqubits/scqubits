@@ -12,8 +12,8 @@
 Provides the base classes for qubits
 """
 
-from abc import ABC, abstractmethod
 import functools
+from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,9 +26,9 @@ from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
-from scqubits.utils.misc import process_which, process_metadata, filter_metadata, InfoBar
+from scqubits.utils.cpu_switch import get_map_method
+from scqubits.utils.misc import process_which, InfoBar, drop_private_keys
 from scqubits.utils.plot_defaults import set_scaling
-from scqubits.utils.processing_switch import get_map_method
 from scqubits.utils.spectrum_utils import (order_eigensystem, get_matrixelement_table, standardize_sign,
                                            recast_esys_mapdata)
 
@@ -40,7 +40,7 @@ else:
 
 # —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
 
-class QuantumSystem(DispatchClient, ABC):
+class QuantumSystem(DispatchClient):
     """Generic quantum system class"""
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     truncated_dim: int
@@ -49,14 +49,10 @@ class QuantumSystem(DispatchClient, ABC):
 
     def __str__(self):
         output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
-        for param_name, param_val in self.__dict__.items():
-            if param_name[0] != '_':
-                output += '\n' + str(param_name) + '\t: ' + str(param_val)
+        for param_name, param_val in drop_private_keys(self.__dict__).items():
+            output += '\n' + str(param_name) + '\t: ' + str(param_val)
         output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())
         return output
-
-    def _get_metadata_dict(self):
-        return process_metadata(self.__dict__)
 
     @abstractmethod
     def hilbertdim(self):
@@ -74,6 +70,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     _default_grid: Grid1d
     _evec_dtype: type
     _sys_type: str
+    _init_params: list
 
     @abstractmethod
     def hamiltonian(self):
@@ -89,32 +86,6 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals_only=False, eigvals=(0, evals_count - 1))
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
-
-    @classmethod
-    def create_from_dict(cls, meta_dict):
-        """Return a qubit object initialized by data from metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-
-        Returns
-        -------
-        object
-        """
-        filtered_dict = filter_metadata(meta_dict)
-        return cls(**filtered_dict)
-
-    def set_params_from_dict(self, meta_dict):
-        """Set object parameters by given metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-        """
-        filtered_dict = filter_metadata(meta_dict)
-        for param_name, param_value in filtered_dict.items():
-            setattr(self, param_name, param_value)
 
     def eigenvals(self, evals_count=6, filename=None):
         """Calculates eigenvalues using `scipy.linalg.eigh`, returns numpy array of eigenvalues.
@@ -132,7 +103,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         """
         evals = self._evals_calc(evals_count)
         if filename:
-            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict())
+            specdata = SpectrumData(energy_table=evals, system_params=self.get_initdata())
             specdata.filewrite(filename)
         return evals
 
@@ -154,7 +125,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         """
         evals, evecs = self._esys_calc(evals_count)
         if filename:
-            specdata = SpectrumData(energy_table=evals, system_params=self._get_metadata_dict(), state_table=evecs)
+            specdata = SpectrumData(energy_table=evals, system_params=self.get_initdata(), state_table=evecs)
             specdata.filewrite(filename)
         return evals, evecs
 
@@ -170,7 +141,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         operator: str
             name of class method in string form, returning operator matrix in qubit-internal basis.
         evecs: ndarray, optional
-            if not provided, then the necesssary eigenstates are calculated on the fly
+            if not provided, then the necessary eigenstates are calculated on the fly
         evals_count: int, optional
             number of desired matrix elements, starting with ground state (default value = 6)
         filename: str, optional
@@ -185,8 +156,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         operator_matrix = getattr(self, operator)()
         table = get_matrixelement_table(operator_matrix, evecs)
         if filename:
-            specdata = SpectrumData(energy_table=np.empty(0), system_params=self._get_metadata_dict(),
-                                    param_name='const_parameters', param_vals=np.empty(0), matrixelem_table=table)
+            specdata = SpectrumData(energy_table=None, system_params=self.get_initdata(), matrixelem_table=table)
             specdata.filewrite(filename)
         return table
 
@@ -247,13 +217,12 @@ class QubitBaseClass(QuantumSystem, ABC):
                 eigenvalue_table[param_index] -= eigenvalue_table[param_index, 0]
 
         setattr(self, param_name, previous_paramval)
-        specdata = SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
+        specdata = SpectrumData(eigenvalue_table, self.get_initdata(), param_name, param_vals,
                                 state_table=eigenstate_table)
         if filename:
             specdata.filewrite(filename)
 
-        return SpectrumData(eigenvalue_table, self._get_metadata_dict(), param_name, param_vals,
-                            state_table=eigenstate_table)
+        return SpectrumData(eigenvalue_table, self.get_initdata(), param_name, param_vals, state_table=eigenstate_table)
 
     def get_matelements_vs_paramvals(self, operator, param_name, param_vals, evals_count=6, num_cpus=settings.NUM_CPUS):
         """Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a

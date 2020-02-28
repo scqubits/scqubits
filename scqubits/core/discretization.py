@@ -12,21 +12,13 @@
 import numpy as np
 from scipy import sparse
 
-from scqubits.core.central_dispatch import DispatchClient
-from scqubits.core.descriptors import WatchedProperty
-from scqubits.utils.misc import is_numerical
+import scqubits.core.central_dispatch as dispatch
+import scqubits.core.descriptors as descriptors
+import scqubits.utils.file_io_serializers as serializers
+import scqubits.utils.misc as utils
 
 
-class MetaDataMixin:
-    """
-    Mix-in for both grid classes
-    """
-    def _get_metadata_dict(self):
-        meta_dict = {key: value for key, value in self.__dict__.items() if is_numerical(value)}
-        return meta_dict
-
-
-class Grid1d(DispatchClient, MetaDataMixin):
+class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
 
@@ -39,10 +31,9 @@ class Grid1d(DispatchClient, MetaDataMixin):
     pt_count: int
         number of grid points
     """
-
-    min_val = WatchedProperty('GRID_UPDATE')
-    max_val = WatchedProperty('GRID_UPDATE')
-    pt_count = WatchedProperty('GRID_UPDATE')
+    min_val = descriptors.WatchedProperty('GRID_UPDATE')
+    max_val = descriptors.WatchedProperty('GRID_UPDATE')
+    pt_count = descriptors.WatchedProperty('GRID_UPDATE')
 
     def __init__(self, min_val, max_val, pt_count):
         self.min_val = min_val
@@ -51,9 +42,18 @@ class Grid1d(DispatchClient, MetaDataMixin):
 
     def __str__(self):
         output = '    Grid1d ......'
-        for param_name, param_val in sorted(self.__dict__.items()):
+        for param_name, param_val in sorted(utils.drop_private_keys(self.__dict__).items()):
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
+
+    def get_initdata(self):
+        """Returns dict appropriate for creating/initializing a new Grid1d object.
+
+        Returns
+        -------
+        dict
+        """
+        return self.__dict__
 
     def grid_spacing(self):
         """
@@ -65,6 +65,12 @@ class Grid1d(DispatchClient, MetaDataMixin):
         return (self.max_val - self.min_val) / self.pt_count
 
     def make_linspace(self):
+        """Returns a numpy array of the grid points
+
+        Returns
+        -------
+        ndarray
+        """
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
     def first_derivative_matrix(self, prefactor=1.0, periodic=False):
@@ -129,22 +135,8 @@ class Grid1d(DispatchClient, MetaDataMixin):
 
         return derivative_matrix
 
-    @classmethod
-    def create_from_dict(cls, meta_dict):
-        """
-        Create and initialize a new grid object from metadata dictionary
-        Parameters
-        ----------
-        meta_dict: dict
 
-        Returns
-        -------
-        Grid1d
-        """
-        return cls(min_val=meta_dict['min_val'], max_val=meta_dict['max_val'], pt_count=meta_dict['pt_count'])
-
-
-class GridSpec(DispatchClient, MetaDataMixin):
+class GridSpec(dispatch.DispatchClient, serializers.Serializable):
     """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
 
     Parameters
@@ -152,11 +144,10 @@ class GridSpec(DispatchClient, MetaDataMixin):
     minmaxpts_array: ndarray
         array of with entries [minvalue, maxvalue, number of points]
     """
-
-    min_vals = WatchedProperty('GRID_UPDATE')
-    max_vals = WatchedProperty('GRID_UPDATE')
-    var_count = WatchedProperty('GRID_UPDATE')
-    pt_counts = WatchedProperty('GRID_UPDATE')
+    min_vals = descriptors.WatchedProperty('GRID_UPDATE')
+    max_vals = descriptors.WatchedProperty('GRID_UPDATE')
+    var_count = descriptors.WatchedProperty('GRID_UPDATE')
+    pt_counts = descriptors.WatchedProperty('GRID_UPDATE')
 
     def __init__(self, minmaxpts_array):
         self.min_vals = minmaxpts_array[:, 0]

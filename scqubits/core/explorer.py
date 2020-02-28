@@ -12,8 +12,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import scqubits.core.constants as const
-
 try:
     import ipywidgets
 except ImportError:
@@ -30,7 +28,7 @@ else:
 
 import scqubits.core.sweep_generators as swp
 import scqubits.utils.explorer_panels as panels
-from scqubits.utils.misc import Required
+import scqubits.utils.misc as utils
 
 
 class Explorer:
@@ -119,7 +117,7 @@ class Explorer:
         fig.tight_layout()
         return fig, axs
 
-    @Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
+    @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
     def interact(self):
         """Drives the interactive display of the plot explorer panels"""
         param_min = self.param_vals[0]

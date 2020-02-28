@@ -33,7 +33,7 @@ DATADIR = os.path.join(TESTDIR, 'data', '')
 
 def pytest_addoption(parser):
     parser.addoption("--num_cpus", action="store", default=1, help="number of cores to be used")
-    parser.addoption("--io_type", action="store", default='hdf5', help="IO file type to be used")
+    parser.addoption("--io_type", action="store", default='hdf5', help="Serializable file type to be used")
 
 
 @pytest.fixture(scope='session')
@@ -117,34 +117,34 @@ class StandardTests(BaseTest):
     def test_eigenvals(self, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         evals_reference = specdata.energy_table
         return self.eigenvals(io_type, evals_reference)
 
     def test_eigenvecs(self, io_type):
         testname = self.file_str + '_2.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         evecs_reference = specdata.state_table
         return self.eigenvecs(io_type, evecs_reference)
 
     def test_plot_wavefunction(self, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         self.qbt.plot_wavefunction(esys=None, which=5, mode='real')
         self.qbt.plot_wavefunction(esys=None, which=9, mode='abs_sqr')
 
     def test_plot_evals_vs_paramvals(self, num_cpus, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         return self.plot_evals_vs_paramvals(num_cpus, self.param_name, self.param_list)
 
     def test_get_spectrum_vs_paramvals(self, num_cpus, io_type):
         testname = self.file_str + '_4.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         self.param_list = specdata.param_vals
         evecs_reference = specdata.state_table
         evals_reference = specdata.energy_table
@@ -154,33 +154,33 @@ class StandardTests(BaseTest):
     def test_matrixelement_table(self, io_type):
         testname = self.file_str + '_5.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         matelem_reference = specdata.matrixelem_table
         return self.matrixelement_table(io_type, self.op1_str, matelem_reference)
 
     def test_plot_matrixelements(self, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         self.plot_matrixelements(self.op1_str, evals_count=10)
 
     def test_print_matrixelements(self, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         self.print_matrixelements(self.op2_str)
 
     def test_plot_matelem_vs_paramvals(self, num_cpus, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         self.plot_matelem_vs_paramvals(num_cpus, self.op1_str, self.param_name, self.param_list,
                                        select_elems=[(0, 0), (1, 4), (1, 0)])
 
     def test_plot_potential(self, io_type):
         testname = self.file_str + '_1.hdf5'
         specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type.create_from_dict(specdata._get_metadata_dict())
+        self.qbt = self.qbt_type(**specdata.system_params)
         if 'plot_potential' not in dir(self.qbt):
             pytest.skip('This is expected, no reason for concern.')
         self.qbt.plot_potential()
