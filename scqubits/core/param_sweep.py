@@ -445,3 +445,14 @@ class StoredSweep(ParameterSweepBase, serializers.Serializable):
 
     def get_hilbertspace(self):
         return self._hilbertspace
+
+    def new_sweep(self, subsys_update_list, update_hilbertspace, num_cpus=settings.NUM_CPUS):
+        return ParameterSweep(
+            self.param_name,
+            self.param_vals,
+            self.evals_count,
+            self._hilbertspace,
+            subsys_update_list,
+            update_hilbertspace,
+            num_cpus
+        )

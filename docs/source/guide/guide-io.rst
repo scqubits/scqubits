@@ -51,6 +51,39 @@ When using h5 files, data can also be read back from disk into a ``SpectrumData`
 
    newspecdata = SpectrumData.create_from_file('output.h5')
 
+The following table lists the classes that can be saved to disk and read back from disk via
+``<class>.filewrite(<filename>)`` and ``scqubits.read(<filename>)`` when using the `.h5` file format.
+
++-------------------------+
+| SpectrumData            |
++-------------------------+
+| DataStore               |
++-------------------------+
+| HilbertSpace            |
++-------------------------+
+| ParameterSweep          |
++-------------------------+
+| Transmon                |
++-------------------------+
+| Fluxonium               |
++-------------------------+
+| FluxQubit               |
++-------------------------+
+| ZeroPi                  |
++-------------------------+
+| ZeroPiFull              |
++-------------------------+
+
+Data stored to `.h5` files includes information about the type of object stored. Upon reading, the same type of object
+is created and returned by the ``read(...)`` function.
+
+``ParameterSweep`` forms an exception: the returned object
+is of type ``StoredSweep`` rather than ``ParameterSweep``. It can be called to perform spectrum lookups, produce plots
+from sweep spectral data etc., but it does not support updates with new parameters. For that, a new ``ParameterSweep``
+object can be created by using ::
+
+   <StoredSweep>.new_sweep(subsys_update_list, update_hilbertspace)
+
 
 .. _guide-io-figures:
 

@@ -20,6 +20,17 @@ import scqubits.utils.file_io_serializers as io_serializers
 
 
 def serialize(the_object):
+    """
+    Turn the given Python object in an IOData object, needed for writing data to file.
+
+    Parameters
+    ----------
+    the_object: serializable class instance
+
+    Returns
+    -------
+    IOData
+    """
     if hasattr(the_object, 'serialize'):
         return the_object.serialize()
 
@@ -32,6 +43,17 @@ def serialize(the_object):
 
 
 def deserialize(iodata):
+    """
+    Turn IOData back into a Python object of the appropriate kind.
+
+    Parameters
+    ----------
+    iodata: IOData
+
+    Returns
+    -------
+    class instance
+    """
     typename = iodata.typename
     if hasattr(scqubits, iodata.typename):
         cls = getattr(scqubits, iodata.typename)
@@ -88,6 +110,18 @@ def read(filename, file_handle=None):
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format"""
     def get_writer(self, file_name, file_handle=None):
+        """
+        Based on the extension of the provided file name, return the appropriate writer engine.
+
+        Parameters
+        ----------
+        file_name: str
+        file_handle: h5py.Group, optional
+
+        Returns
+        -------
+        IOWriter
+        """
         import scqubits.utils.file_io_backends as io_backends
         _, suffix = os.path.splitext(file_name)
         if suffix == '.csv':
@@ -98,6 +132,18 @@ class FileIOFactory:
                         "file type: {}".format(suffix, file_name, const.FILE_TYPES))
 
     def get_reader(self, file_name, file_handle=None):
+        """
+        Based on the extension of the provided file name, return the appropriate reader engine.
+
+        Parameters
+        ----------
+        file_name: str
+        file_handle: h5py.Group, optional
+
+        Returns
+        -------
+        H5Reader or CSVReader
+        """
         import scqubits.utils.file_io_backends as io_backends
         _, suffix = os.path.splitext(file_name)
         if suffix == '.csv':

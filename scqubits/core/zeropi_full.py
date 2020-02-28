@@ -89,7 +89,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     grid = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    zeropi_cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi', attr_name='truncated_dim')
+    zeropi_cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi',
+                                                attr_name='truncated_dim')
     dC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     dEL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 

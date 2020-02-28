@@ -30,7 +30,13 @@ class Serializable(ABC):
         cls._init_params = get_init_params(cls)
         return super().__new__(cls)
 
-    def get_initdata(self):  # used for Serializable serialization
+    def get_initdata(self):
+        """Returns dict appropriate for creating/initializing a new Serializable object.
+
+        Returns
+        -------
+        dict
+        """
         return {name: getattr(self, name) for name in self._init_params}
 
     @classmethod
@@ -90,6 +96,7 @@ class Serializable(ABC):
 
 
 class QutipEigenstates(np.ndarray, Serializable):
+    """Wrapper class that adds serialization functionality to the numpy ndarray class."""
     # https://docs.scipy.org/doc/numpy/user/basics.subclassing.html#extra-gotchas-custom-del-methods-and-ndarray-base
     @classmethod
     def deserialize(cls, io_data):
@@ -163,6 +170,18 @@ TO_OBJECT = (Serializable, QutipEigenstates)
 
 
 def type_dispatch(entity):
+    """
+    Based on the type of the object ``entity``, return the appropriate function that converts the entity into the
+    appropriate category of IOData
+
+    Parameters
+    ----------
+    entity: instance of serializable class
+
+    Returns
+    -------
+    function
+    """
     if isinstance(entity, TO_ATTRIBUTE):
         return _add_attribute
     if isinstance(entity, TO_OBJECT):
@@ -225,14 +244,17 @@ tuple_serialize = list_serialize
 
 
 def dict_deserialize(iodata):
+    """Turn IOData instance back into a dict"""
     return dict(**iodata.as_kwargs())
 
 
 def list_deserialize(iodata):
+    """Turn IOData instance back into a list"""
     return list(iodata.as_kwargs().values())
 
 
 def tuple_deserialize(iodata):
+    """Turn IOData instance back into a tuple"""
     return tuple(iodata.as_kwargs().values())
 
 

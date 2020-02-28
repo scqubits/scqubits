@@ -73,6 +73,15 @@ def drop_private_keys(full_dict):
 
 
 class InfoBar:
+    """Static "progress" bar used whenever multiprocessing is involved.
+
+    Parameters
+    ----------
+    desc: str
+        Description text to be displayed on the static information bar.
+    num_cpus: int
+        Number of CPUS/cores employed in underlying calculation.
+    """
     def __init__(self, desc, num_cpus):
         self.desc = desc
         self.num_cpus = num_cpus
@@ -86,6 +95,14 @@ class InfoBar:
 
 
 class Required:
+    """Decorator class, ensuring that a given requirement or set of requirements is fulfilled.
+
+    Parameters
+    ----------
+    dict {str: bool}
+        All bool conditions have to be True to pass. The provided str keys are used to display information on what
+        condition is failing.
+    """
     def __init__(self, **requirements):
         self.requirements_bools = list(requirements.values())
         self.requirements_names = list(requirements.keys())

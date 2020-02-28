@@ -106,7 +106,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
-        self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)  # for theta, needed for plotting wavefunction
+        # for theta, needed for plotting wavefunction
+        self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
@@ -459,7 +460,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
 
         grid2d = discretization.GridSpec(np.asarray([[self.grid.min_val, self.grid.max_val, self.grid.pt_count],
-                                      [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count]]))
+                                                     [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count]]))
         return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
     def plot_wavefunction(self, esys=None, which=0, theta_grid=None, mode='abs', zero_calibrate=True, **kwargs):

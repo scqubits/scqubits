@@ -112,7 +112,13 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     def index(self, item):
         return self._subsystems.index(item)
 
-    def get_initdata(self):  # used for Serializable serialization
+    def get_initdata(self):
+        """Returns dict appropriate for creating/initializing a new HilbertSpace object.
+
+        Returns
+        -------
+        dict
+        """
         return {'subsystem_list': self._subsystems, 'interaction_list': self.interaction_list}
 
     def receive(self, event, sender, **kwargs):

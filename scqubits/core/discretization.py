@@ -47,6 +47,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return output
 
     def get_initdata(self):
+        """Returns dict appropriate for creating/initializing a new Grid1d object.
+
+        Returns
+        -------
+        dict
+        """
         return self.__dict__
 
     def grid_spacing(self):
@@ -59,6 +65,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return (self.max_val - self.min_val) / self.pt_count
 
     def make_linspace(self):
+        """Returns a numpy array of the grid points
+
+        Returns
+        -------
+        ndarray
+        """
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
     def first_derivative_matrix(self, prefactor=1.0, periodic=False):
