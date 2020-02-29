@@ -9,10 +9,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-
-import scqubits.utils.file_io as io
+import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plotting as plot
-from scqubits.utils.misc import process_metadata, convert_to_ndarray
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -60,7 +58,7 @@ class WaveFunctionOnGrid:
 # —BaseData class———————————————————————————————————————————————————————————————————————————————————————————————————
 
 
-class DataStore:
+class DataStore(serializers.Serializable):
     """Base class for storing and processing spectral data and custom data from parameter sweeps.
 
     Parameters
@@ -73,130 +71,38 @@ class DataStore:
         info about system parameters
 
     **kwargs:
-        keyword arguments for data to be stored
+        keyword arguments for data to be stored: ``dataname=data``, where data should be an array-like object
     """
     def __init__(self, system_params, param_name='', param_vals=None, **kwargs):
-        self.dataname_list = []
-        for dataname, data in kwargs.items():
-            setattr(self, dataname, data)
-            self.dataname_list.append(dataname)
-
+        self.system_params = system_params
         self.param_name = param_name
         self.param_vals = param_vals
         if param_vals is not None:
             self.param_count = len(self.param_vals)
-            self.dataname_list.append('param_vals')
         else:
             self.param_count = 1   # just one value if there is no parameter sweep
 
-        self.system_params = system_params
-
-    def add_data(self, **kwargs):
+        self._datanames = []
         for dataname, data in kwargs.items():
             setattr(self, dataname, data)
-            self.dataname_list.append(dataname)
+            self._datanames.append(dataname)
 
-    def _get_metadata_dict(self):
-        meta_dict = {'param_name': self.param_name,
-                     'param_vals': self.param_vals}
-        meta_dict.update(process_metadata(self.system_params))
-        return meta_dict
-
-    def _get_data_dict(self):
-        return {dataname: data for dataname, data in self.__dict__.items() if dataname in self.dataname_list}
-
-    def _serialize(self, file_output):
+    def add_data(self, **kwargs):
         """
-        Parameters
-        ----------
-        file_output: FileOutput
-        """
-        metadata_dict = {
-            'param_name': self.param_name,
-            # param_vals is serialized below as a data set
-        }
-        metadata_dict.update(process_metadata(self.system_params))
-        file_output.write_metadata(metadata_dict)
-
-        for dataname in self.dataname_list:
-            data = getattr(self, dataname)
-            if data is not None:
-                file_output.write_dataset(dataname, convert_to_ndarray(data))
-
-    def set_from_data(self, *data_from_file):
-        """
-        Uses data extracted from file to set parameters and data entries of self
+        Adds one or several data sets to the DataStorage object.
 
         Parameters
         ----------
-        data_from_file: (dict, list(str), list(ndarray))
-            metadata dictionary, list of dataset names, list of datasets (ndarray)
+        **kwargs:
+            ``dataname=data`` with ``data`` an array-like object. The data set will be accessible through
+            ``<DataStorage>.dataname``.
         """
-        metadata_dict, dataname_list, data_list = data_from_file
-        self.param_name = metadata_dict.pop('param_name')
-        self.system_params = metadata_dict
-        for index, attribute in enumerate(dataname_list):
-            setattr(self, attribute, data_list[index])
-
-    @classmethod
-    def _init_from_data(cls, *data_from_file):
-        """
-        Uses data extracted from file to create and initialize a new SpectrumData object
-
-        Parameters
-        ----------
-        data_from_file: (dict, list(str), list(ndarray))
-            metadata dictionary, list of dataset names, list of datasets (ndarray)
-
-        Returns
-        -------
-        SpectrumData
-        """
-        metadata_dict, name_list, data_list = data_from_file
-        param_name = metadata_dict.pop('param_name')
-        system_params = metadata_dict
-        data_dict = {name: data_list[i] for i, name in enumerate(name_list)}
-        return cls(param_name=param_name, system_params=system_params, **data_dict)
-
-    def filewrite(self, filename):
-        """Write metadata and spectral data to file
-
-        Parameters
-        ----------
-        filename: str
-        """
-        writer = io.ObjectWriter()
-        writer.filewrite(self, filename)
-
-    def set_from_fileread(self, filename):
-        """Read metadata and spectral data from file, and use those to set parameters of the SpectrumData object (self).
-
-        Parameters
-        ----------
-        filename: str
-        """
-        reader = io.ObjectReader()
-        reader.set_params_from_file(self, filename)
-
-    @classmethod
-    def create_from_file(cls, filename):
-        """Read metadata and spectral data from file, and use those to create a new SpectrumData object.
-
-        Parameters
-        ----------
-        filename: str
-
-        Returns
-        -------
-        SpectrumData
-            new SpectrumData object, initialized with data read from file
-        """
-        reader = io.ObjectReader()
-        return reader.create_from_file(cls, filename)
+        for dataname, data in kwargs.items():
+            setattr(self, dataname, data)
+            self._datanames.append(dataname)
 
 
 # —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
-
 
 class SpectrumData(DataStore):
     """Container holding energy and state data as a function of a particular parameter that is varied.
@@ -218,6 +124,7 @@ class SpectrumData(DataStore):
     matrixelem_table: ndarray, optional
         matrix element data stored for each `param_vals` point
     """
+    # mark for file serializers purposes:
     def __init__(self, energy_table, system_params, param_name=None, param_vals=None, state_table=None,
                  matrixelem_table=None):
         super().__init__(system_params=system_params, param_name=param_name, param_vals=param_vals,

@@ -1,4 +1,4 @@
-# processing_switch.py
+# cpu_switch.py
 #
 # This file is part of scqubits.
 #

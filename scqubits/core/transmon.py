@@ -14,18 +14,18 @@ import math
 import numpy as np
 
 import scqubits.core.constants as constants
+import scqubits.core.descriptors as descriptors
+import scqubits.core.discretization as discretization
+import scqubits.core.qubit_base as base
+import scqubits.core.storage as storage
+import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-from scqubits.core.constants import MODE_STR_DICT
-from scqubits.core.descriptors import WatchedProperty
-from scqubits.core.discretization import Grid1d
-from scqubits.core.qubit_base import QubitBaseClass1d
-from scqubits.core.storage import WaveFunction
 
 
 # —Cooper pair box / transmon———————————————————————————————————————————————————————————————————————————————————————————
 
-class Transmon(QubitBaseClass1d):
+class Transmon(base.QubitBaseClass1d, serializers.Serializable):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is represented in dense form in the number
     basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
@@ -45,11 +45,10 @@ class Transmon(QubitBaseClass1d):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
-
-    EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EC = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EC, ng, ncut, truncated_dim=None):
         self.EJ = EJ
@@ -57,9 +56,9 @@ class Transmon(QubitBaseClass1d):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = 'transmon'
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
-        self._default_grid = Grid1d(-np.pi, np.pi, 151)
+        self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
 
     def n_operator(self):
@@ -153,7 +152,7 @@ class Transmon(QubitBaseClass1d):
         wavefunc_count: int
         """
         ylabel = r'$\psi_j(\varphi)$'
-        ylabel = MODE_STR_DICT[mode](ylabel)
+        ylabel = constants.MODE_STR_DICT[mode](ylabel)
         options = {
             'xlabel': r'$\varphi$',
             'ylabel': ylabel
@@ -190,7 +189,7 @@ class Transmon(QubitBaseClass1d):
         evals, evecs = esys
 
         n_vals = np.arange(-self.ncut, self.ncut + 1)
-        return WaveFunction(n_vals, evecs[:, which], evals[which])
+        return storage.WaveFunction(n_vals, evecs[:, which], evals[which])
 
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """Return the transmon wave function in phase basis. The specific index of the wavefunction is `which`.
@@ -224,4 +223,5 @@ class Transmon(QubitBaseClass1d):
             phi_wavefunc_amplitudes[k] = ((1j**which / math.sqrt(2 * np.pi)) *
                                           np.sum(n_wavefunc.amplitudes *
                                                  np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)))
-        return WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes, energy=evals[which])
+        return storage.WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes,
+                                    energy=evals[which])

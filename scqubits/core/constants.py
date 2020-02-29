@@ -16,12 +16,6 @@ import numpy as np
 FILE_TYPES = ['.h5 | .hdf5',
               '.csv']
 
-# information on availability of extra packages
-_HAS_H5PY: bool
-_HAS_JSON: bool
-_HAS_IPYTHON: bool
-_HAS_IPYWIDGETS: bool
-
 # helper functions for plotting wave functions
 MODE_FUNC_DICT = {'abs_sqr': (lambda x: np.abs(x)**2),
                   'abs': np.abs,

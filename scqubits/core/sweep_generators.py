@@ -12,12 +12,12 @@
 
 import numpy as np
 
+import scqubits.core.storage as storage
 import scqubits.core.sweep_observables as observable
-from scqubits.core.storage import SpectrumData
-from scqubits.settings import TQDM_KWARGS, IN_IPYTHON
-from scqubits.utils.spectrum_utils import generate_target_states_list
+import scqubits.settings as settings
+import scqubits.utils.spectrum_utils as spec_utils
 
-if IN_IPYTHON:
+if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
@@ -38,8 +38,8 @@ def compute_custom_data_sweep(sweep, func, **kwargs):
     -------
     ndarray
     """
-    return np.asarray([func(sweep, param_index, **kwargs) for param_index in tqdm(range(sweep.param_count),
-                                                                                  desc='data sweep', **TQDM_KWARGS)])
+    return np.asarray([func(sweep, param_index, **kwargs)
+                       for param_index in tqdm(range(sweep.param_count), desc='data sweep', **settings.TQDM_KWARGS)])
 
 
 def generate_chi_sweep(sweep):
@@ -108,7 +108,7 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
     evals_count = sweep.evals_count
     diff_eigenenergy_table = np.empty(shape=(param_count, evals_count))
 
-    for param_index in tqdm(range(param_count), desc="difference spectrum", **TQDM_KWARGS):
+    for param_index in tqdm(range(param_count), desc="difference spectrum", **settings.TQDM_KWARGS):
         eigenenergies = sweep.dressed_specdata.energy_table[param_index]
         if isinstance(initial_state_ind, int):
             eigenenergy_index = initial_state_ind
@@ -116,7 +116,7 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
             eigenenergy_index = lookup.dressed_index(initial_state_ind, param_index)
         diff_eigenenergies = eigenenergies - eigenenergies[eigenenergy_index]
         diff_eigenenergy_table[param_index] = diff_eigenenergies
-    return SpectrumData(diff_eigenenergy_table, sweep.system_params, sweep.param_name, sweep.param_vals)
+    return storage.SpectrumData(diff_eigenenergy_table, sweep.system_params, sweep.param_name, sweep.param_vals)
 
 
 def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
@@ -139,7 +139,7 @@ def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     """
     lookup = sweep.lookup
 
-    target_states_list = generate_target_states_list(sweep, initial_state_labels)
+    target_states_list = spec_utils.generate_target_states_list(sweep, initial_state_labels)
     difference_energies_table = []
 
     for param_index in range(sweep.param_count):
@@ -154,5 +154,5 @@ def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
         difference_energies_table.append(difference_energies)
 
     data = np.asarray(difference_energies_table)
-    specdata = SpectrumData(data, sweep.system_params, sweep.param_name, sweep.param_vals)
+    specdata = storage.SpectrumData(data, sweep.system_params, sweep.param_name, sweep.param_vals)
     return target_states_list, specdata

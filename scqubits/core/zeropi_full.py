@@ -12,17 +12,16 @@
 import numpy as np
 from scipy import sparse
 
+import scqubits
+import scqubits.core.central_dispatch as dispatch
+import scqubits.core.descriptors as descriptors
 import scqubits.core.operators as op
-from scqubits.core.central_dispatch import CENTRAL_DISPATCH
-from scqubits.core.descriptors import WatchedProperty
-from scqubits.core.discretization import Grid1d
-from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.core.zeropi import ZeroPi
-from scqubits.utils.misc import is_numerical, key_in_grid1d
-from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
+import scqubits.core.qubit_base as base
+import scqubits.utils.file_io_serializers as serializers
+import scqubits.utils.spectrum_utils as spec_utils
 
 
-class FullZeroPi(QubitBaseClass):
+class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
     Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
 
@@ -79,24 +78,25 @@ class FullZeroPi(QubitBaseClass):
         desired dimension of the truncated quantum system
     """
 
-    EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    EL = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    ECJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    EC = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    ECS = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    dEJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    dCJ = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    ng = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    flux = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    grid = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
-    zeropi_cutoff = WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi', attr_name='truncated_dim')
-    dC = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    dEL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    EL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    ECS = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    dEJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    dCJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    grid = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    zeropi_cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi',
+                                                attr_name='truncated_dim')
+    dC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dEL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
                  ECS=None, truncated_dim=None):
-        self._zeropi = ZeroPi(
+        self._zeropi = scqubits.ZeroPi(
             EJ=EJ,
             EL=EL,
             ECJ=ECJ,
@@ -114,11 +114,12 @@ class FullZeroPi(QubitBaseClass):
         self.dC = dC
         self.dEL = dEL
         self.zeta_cutoff = zeta_cutoff
-        self._sys_type = 'full 0-pi'
+        self._sys_type = type(self).__name__
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
+        self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
 
-        CENTRAL_DISPATCH.register('GRID_UPDATE', self)
+        dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
     def receive(self, event, sender, **kwargs):
         if sender is self._zeropi.grid:
@@ -211,7 +212,7 @@ class FullZeroPi(QubitBaseClass):
         op_eigen_basis = sparse.dia_matrix((zeropi_dim, zeropi_dim),
                                            dtype=np.complex_)  # is this guaranteed to be zero?
 
-        op_zeropi = get_matrixelement_table(zeropi_operator, zeropi_evecs)
+        op_zeropi = spec_utils.get_matrixelement_table(zeropi_operator, zeropi_evecs)
         for n in range(zeropi_dim):
             for m in range(zeropi_dim):
                 op_eigen_basis += op_zeropi[n, m] * op.hubbard_sparse(n, m, zeropi_dim)
@@ -262,7 +263,7 @@ class FullZeroPi(QubitBaseClass):
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
         evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
-        evals, evecs = order_eigensystem(evals, evecs)
+        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
     def g_phi_coupling_matrix(self, zeropi_states):
@@ -272,14 +273,14 @@ class FullZeroPi(QubitBaseClass):
         """
         # prefactor = self.EL * self.dEL * (8.0 * self.EC / self.EL)**0.25
         prefactor = self.EL * (self.dEL / 2.0) * (8.0 * self.EC / self.EL) ** 0.25
-        return prefactor * get_matrixelement_table(self._zeropi.phi_operator(), zeropi_states)
+        return prefactor * spec_utils.get_matrixelement_table(self._zeropi.phi_operator(), zeropi_states)
 
     def g_theta_coupling_matrix(self, zeropi_states):
         """Returns a matrix of coupling strengths i*g^\\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
         from the list 'zeropi_states'.
         """
         prefactor = 1j * self.ECS * (self.dC / 2.0) * (32.0 * self.EL / self.EC) ** 0.25
-        return prefactor * get_matrixelement_table(self._zeropi.n_theta_operator(), zeropi_states)
+        return prefactor * spec_utils.get_matrixelement_table(self._zeropi.n_theta_operator(), zeropi_states)
 
     def g_coupling_matrix(self, zeropi_states=None, evals_count=None):
         """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
@@ -291,50 +292,3 @@ class FullZeroPi(QubitBaseClass):
         if zeropi_states is None:
             _, zeropi_states = self._zeropi.eigensys(evals_count=evals_count)
         return self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(zeropi_states)
-
-    def set_params_from_dict(self, meta_dict):
-        """Set object parameters by given metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-        """
-        for param_name, param_value in meta_dict.items():
-            if key_in_grid1d(param_name):
-                setattr(self.grid, param_name, param_value)
-            elif is_numerical(param_value):
-                setattr(self, param_name, param_value)
-
-        self._zeropi = ZeroPi(
-            EJ=self.EJ,
-            EL=self.EL,
-            ECJ=self.ECJ,
-            EC=self.EC,
-            dEJ=self.dEJ,
-            dCJ=self.dCJ,
-            flux=self.flux,
-            ng=self.ng,
-            grid=self.grid,
-            ncut=self.ncut,
-            truncated_dim=self.zeropi_cutoff
-        )
-
-    @classmethod
-    def create_from_dict(cls, meta_dict):
-        """Set object parameters by given metadata dictionary
-
-        Parameters
-        ----------
-        meta_dict: dict
-        """
-        filtered_dict = {}
-        grid_dict = {}
-        for param_name, param_value in meta_dict.items():
-            if key_in_grid1d(param_name):
-                grid_dict[param_name] = param_value
-            elif is_numerical(param_value):
-                filtered_dict[param_name] = param_value
-
-        grid = Grid1d(**grid_dict)
-        filtered_dict['grid'] = grid
-        return cls(**filtered_dict)
