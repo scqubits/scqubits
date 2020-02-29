@@ -8,6 +8,7 @@ from scipy.special import factorial
 from scipy.special import comb
 import scipy.integrate as integrate
 import math
+from scipy.linalg import LinAlgError
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
@@ -90,7 +91,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         phi1 = phiarray[0]
         phi2 = phiarray[1]
         return (-self.EJ*np.cos(phi1) -self.EJ*np.cos(phi2)
-                -self.EJ*self.alpha*np.cos(phi2-phi1-2.0*np.pi*self.flux))
+                -self.EJ*self.alpha*np.cos(phi1-phi2+2.0*np.pi*self.flux))
     
     def build_capacitance_matrix(self):
         """Return the capacitance matrix"""
@@ -234,7 +235,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                    delta_phi_kpm = -phik-(minima_m-minima_p) #XXXXXXXXXX
+                    delta_phi_kpm = phik-(minima_m-minima_p) #XXXXXXXXXX
                        
                     V_op = self.V_operator(-delta_phi_kpm)
                     V_op_dag = self.V_operator(delta_phi_kpm).T
@@ -243,31 +244,33 @@ class FluxQubitVCHOS(QubitBaseClass):
                     
                     kinetic_temp = 0.
                     
-                    for mu in range(2):
-                        for nu in range(2):
-                            a_mu = self.a_operator(mu)
-                            a_nu = self.a_operator(nu)
-                            kinetic_temp += (- 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu, a_nu)
-                                             + 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu.T, a_nu)
-                                             + 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_nu.T, a_mu)
-                                             - 0.5*4*EC_mat_t[mu, nu]*np.matmul(a_mu.T, a_nu.T)
-                                             +((2.*np.sqrt(2))**(-1) * (a_mu - a_mu.T)
-                                               *4*EC_mat_t[mu, nu] * np.dot(Xi_inv[nu,:], delta_phi_kpm))
-                                             +((2.*np.sqrt(2))**(-1) * np.dot(delta_phi_kpm, np.transpose(Xi_inv)[:,mu])
-                                               *4*EC_mat_t[mu, nu]*(a_nu - a_nu.T))
-                                             -(0.25*np.dot(delta_phi_kpm, np.transpose(Xi_inv)[:,mu])
-                                               *EC_mat_t[mu, nu]*np.dot(Xi_inv[nu,:], delta_phi_kpm)*self._identity()))
-                            if (mu == nu):
-                                kinetic_temp += 0.5*4*EC_mat_t[mu, nu]*self._identity()
-                                                
+                    a_0 = self.a_operator(0)
+                    a_1 = self.a_operator(1)
+                    
+                    left_mult = np.matmul(np.transpose(Xi_inv), EC_mat_t)
+                    delta_left = np.matmul(delta_phi_kpm, left_mult)
+                    
+                    right_mult = np.matmul(EC_mat_t, Xi_inv)
+                    delta_right = np.matmul(right_mult, delta_phi_kpm)
+                    
+                    delta_left_right = np.matmul(np.matmul(delta_left, Xi_inv), delta_phi_kpm)
+                    
+                    kinetic_temp += -0.5*4*EC_mat_t[0, 0]*(np.matmul(a_0, a_0) - 2.0*np.matmul(a_0.T, a_0)
+                                                           + np.matmul(a_0.T, a_0.T) - self._identity())
+                    kinetic_temp += -(1./(2*np.sqrt(2)))*4*(a_0 - a_0.T)*(delta_right[0] + delta_left[0])
+                                                         
+                    kinetic_temp += -0.5*4*EC_mat_t[1, 1]*(np.matmul(a_1, a_1) - 2.0*np.matmul(a_1.T, a_1)
+                                                           + np.matmul(a_1.T, a_1.T) - self._identity())
+                    kinetic_temp += -(1./(2*np.sqrt(2)))*4*(a_1 - a_1.T)*(delta_right[1] + delta_left[1])
+                                     
+                    kinetic_temp += -self._identity()*(delta_left_right)
+                                             
                     kinetic_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                     *np.matmul(V_op_dag, kinetic_temp))
                     kinetic_temp = np.matmul(kinetic_temp, V_op)
-#                    if (m != p):
-#                        print(kinetic_temp[-1, 0], jkvals)
                     
-                    kinetic_mat[m*num_exc_tot:m*num_exc_tot+num_exc_tot, 
-                                p*num_exc_tot:p*num_exc_tot+num_exc_tot] += kinetic_temp
+                    kinetic_mat[m*num_exc_tot : m*num_exc_tot + num_exc_tot, 
+                                p*num_exc_tot : p*num_exc_tot + num_exc_tot] += kinetic_temp
                     
                     jkvals = next(klist,-1)
                                            
@@ -298,11 +301,11 @@ class FluxQubitVCHOS(QubitBaseClass):
                     potential_temp = -0.5*self.EJ*(exp_i_phi_0_op+exp_i_phi_0_op.conjugate().T)
                     potential_temp += -0.5*self.EJ*(exp_i_phi_1_op+exp_i_phi_1_op.conjugate().T)
                     potential_temp += -0.5*self.alpha*self.EJ*((self.normal_ordered_exp_i_phix_mi_phiy(0, 1)
-                                                                *np.exp(-1j*2.0*np.pi*self.flux)
+                                                                *np.exp(1j*2.0*np.pi*self.flux)
                                                                 *np.exp(1j*phibar_kpm[0])
                                                                 *np.exp(-1j*phibar_kpm[1]))
                                                                +(self.normal_ordered_exp_i_phix_mi_phiy(0, 1).conjugate().T
-                                                                 *np.exp(1j*2.0*np.pi*self.flux)
+                                                                 *np.exp(-1j*2.0*np.pi*self.flux)
                                                                  *np.exp(-1j*phibar_kpm[0])
                                                                  *np.exp(1j*phibar_kpm[1])))
 
@@ -332,7 +335,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                    delta_phi_kpm = -phik-(minima_m-minima_p) #XXXXXXXXX
+                    delta_phi_kpm = phik-(minima_m-minima_p) #XXXXXXXXX
                         
                     V_op = self.V_operator(-delta_phi_kpm)
                     V_op_dag = self.V_operator(delta_phi_kpm).T
@@ -519,36 +522,49 @@ class FluxQubitVCHOS(QubitBaseClass):
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         inner_product_mat = self.inner_product()
-        evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat, 
-                               eigvals_only=True, eigvals=(0, evals_count - 1))
+        try:
+            evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat, 
+                                   eigvals_only=True, eigvals=(0, evals_count - 1))
+        except LinAlgError:
+            global_min = self.sorted_minima()[0]
+            global_min_value = self.potential(global_min)
+            evals = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, M=inner_product_mat, 
+                                           sigma=global_min_value, return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         inner_product_mat = self.inner_product()
-        evals, evecs = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
-                                      eigvals_only=False, eigvals=(0, evals_count - 1))
-        evals, evecs = order_eigensystem(evals, evecs)
+        try:
+            evals, evecs = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
+                                          eigvals_only=False, eigvals=(0, evals_count - 1))
+            evals, evecs = order_eigensystem(evals, evecs)
+        except LinAlgError:
+            global_min = self.sorted_minima()[0]
+            global_min_value = self.potential(global_min)
+            evals, evecs = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, M=inner_product_mat, 
+                                                  sigma=global_min_value, return_eigenvectors=True)
+            evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
     
-    def plot_potential(self, phi_pts=100, contour_vals=None, aspect_ratio=None, filename=None):
+    def plot_potential(self, phi_grid=None, contour_vals=None, **kwargs):
         """
         Draw contour plot of the potential energy.
 
         Parameters
         ----------
-        phi_pts: int, optional
-            (Default value = 100)
-        contour_vals: list, optional
-            (Default value = None)
-        aspect_ratio: float, optional
-            (Default value = None)
-        filename: str, optional
-            (Default value = None)
+        phi_grid: Grid1d, optional
+            used for setting a custom grid for phi; if None use self._default_grid
+        contour_vals: list of float, optional
+            specific contours to draw
+        **kwargs:
+            plot options
         """
-        x_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
-        y_vals = np.linspace(-np.pi / 2, 3 * np.pi / 2, phi_pts)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals, aspect_ratio, filename)
+        phi_grid = self._try_defaults(phi_grid)
+        x_vals = y_vals = phi_grid.make_linspace()
+        if 'figsize' not in kwargs:
+            kwargs['figsize'] = (5, 5)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
     
     def _full_o(self, operators, indices):
         i_o = np.eye(self.num_exc + 1)
@@ -724,7 +740,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                                               soneprime, stwoprime, 
                                                                                               minima_m, minima_p,
                                                                                               phik)))
-                                    print(sone, stwo, soneprime, stwoprime, kinetic_temp, jkvals)
+ #                                   print(sone, stwo, soneprime, stwoprime, kinetic_temp, jkvals)
                                     i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
                                     j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
                                     kinetic_test_mat[i, j] += kinetic_temp
@@ -757,6 +773,18 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                           + Xi_inv[0,1]*(phik[1]+minima_p[1]))
                                     zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
                                                           + Xi_inv[1,1]*(phik[1]+minima_p[1]))
+#                                    print(zetatwooffset**2 + zetatwoprimeoffset**2, 
+#                                         zetaoneoffset**2 + zetaoneprimeoffset**2, 
+#                                         zetatwooffset+zetatwoprimeoffset,
+#                                         zetaoneoffset+zetaoneprimeoffset)
+#                                    print("1", np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2)),
+#                                          "2", pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
+#                                                       c=2, d=-2*zetatwoprimeoffset, f=1, 
+#                                                       alpha=zetatwooffset+zetatwoprimeoffset),
+#                                          "3", pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, a=2, 
+#                                                      b=-2*zetaoneoffset, c=2, d=-2*zetaoneprimeoffset, f=1, 
+#                                                      alpha=zetaoneoffset+zetaoneprimeoffset),
+#                                          "4", np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     matelem += (np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
                                                 * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
                                                        c=2, d=-2*zetatwoprimeoffset, f=1, 
@@ -847,7 +875,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                                - 1j*Xi[1, 0]))
                                                                   * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     
-                                    potential3pos = -(0.5*self.alpha*self.EJ*np.exp(1j*2.0*np.pi*self.flux)
+                                    potential3pos = -(0.5*self.alpha*self.EJ*np.exp(-1j*2.0*np.pi*self.flux)
                                                       * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
                                                       * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
                                                              a=2, b=-2*zetatwooffset,c=2, 
@@ -861,7 +889,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                     + 1j*(Xi[1, 0] - Xi[0, 0])))
                                                       * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     
-                                    potential3neg = -(0.5*self.alpha*self.EJ*np.exp(-1j*2.0*np.pi*self.flux)
+                                    potential3neg = -(0.5*self.alpha*self.EJ*np.exp(1j*2.0*np.pi*self.flux)
                                                       * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
                                                       * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
                                                              a=2, b=-2*zetatwooffset,c=2, 
@@ -877,6 +905,13 @@ class FluxQubitVCHOS(QubitBaseClass):
                                     
                                     matelem += (potential1pos + potential1neg + potential2pos
                                                + potential2neg + potential3pos + potential3neg)
+                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
+                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
+#                                    if ((i==6) and (j==0)):
+#                                        print(potential1pos, potential1neg, potential2pos, 
+#                                              potential2neg, potential3pos, potential3neg)
+#                                        print(matelem, "jkvals = ", jkvals)
+
                                     
                                     jkvals = next(klist, -1)
                                 i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
@@ -1030,10 +1065,10 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                 + elem21 + elem22 + elem23 + elem24 + elem25)
                                     i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
                                     j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-                                    if ((i==17) and (j==0)):
-                                        print(elem11, elem12, elem13, elem14, elem15,
-                                              elem21, elem22, elem23, elem24, elem25)
-                                        print(matelem, "jkvals = ", jkvals)
+#                                    if ((i==0) and (j==4)):
+#                                        print(elem11, elem12, elem13, elem14, elem15,
+#                                              elem21, elem22, elem23, elem24, elem25)
+#                                        print(matelem, "jkvals = ", jkvals, "babusci")
                                     jkvals = next(klist, -1)
                                 i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
                                 j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
@@ -1127,7 +1162,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                    - Hstwoprime(zetatwo - zetatwoprimeoffset))), 
                                                                 -np.inf, np.inf, lambda zetaone : -np.inf, 
                                                                 lambda zetaone : np.inf)
-                                    print(sone, stwo, soneprime, stwoprime, kinetic_temp[0], jkvals)
+#                                    print(sone, stwo, soneprime, stwoprime, kinetic_temp[0], jkvals)
                                     i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
                                     j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
                                     kinetic_test_mat[i, j] += kinetic_temp[0]
@@ -1190,7 +1225,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                 lambda zetaone : -np.inf, 
                                                                 lambda zetaone : np.inf
                                                                )
-                                    print(sone, stwo, soneprime, stwoprime, matelem[0], jkvals)
+#                                    print(sone, stwo, soneprime, stwoprime, matelem[0], jkvals)
                                     i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
                                     j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
                                     potential_test_mat[i, j] += matelem[0]
@@ -1236,7 +1271,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                 -np.inf, np.inf, 
                                                                 lambda zetaone : -np.inf, 
                                                                 lambda zetaone : np.inf)
-                                    print(sone, stwo, soneprime, stwoprime, matelem[0], jkvals)
+#                                    print(sone, stwo, soneprime, stwoprime, matelem[0], jkvals)
                                     i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
                                     j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
                                     inner_product_test_mat[i, j] += matelem[0]
