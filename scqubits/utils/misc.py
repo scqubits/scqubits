@@ -9,18 +9,24 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import ast
+import functools
 
 import numpy as np
-import qutip as qt
 
-from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
+from scqubits.settings import IN_IPYTHON
+
+if IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 def process_which(which, max_index):
     """
     Parameters
     ----------
-    which: int or tuple or list, optional
+    which: int or tuple or list
         single index or tuple/list of integers indexing the eigenobjects.
         If which is -1, all indices up to the max_index limit are included.
     max_index: int
@@ -61,79 +67,67 @@ def make_bare_labels(subsystem_count, *args):
     return tuple(bare_labels)
 
 
-def process_metadata(full_dict):
-    """Convert an extended system dictionary, as obtained through __dict__, to a reduced one that can be written to
-    a file
-
-    Parameters
-    ----------
-    full_dict: dict
-    """
-    reduced_dict = {}
-    for key, param_obj in full_dict.items():
-        if key[0] == '_':
-            continue
-        if is_numerical(param_obj):
-            reduced_dict[key] = param_obj
-        elif key == 'grid':
-            grid_dict = param_obj._get_metadata_dict()
-            reduced_dict.update(grid_dict)
-        else:
-            reduced_dict[key] = str(param_obj)
-    return reduced_dict
-
-
-def filter_metadata(full_dict):
+def drop_private_keys(full_dict):
     """Filter for entries in the full dictionary that have numerical values"""
-    reduced_dict = {}
-    for param_name, param_value in full_dict.items():
-        if is_numerical(param_value):
-            reduced_dict[param_name] = param_value
-    return reduced_dict
+    return {key: value for key, value in full_dict.items() if key[0] != '_'}
 
 
-def is_numerical(entity):
-    return isinstance(entity, (int, float, complex, np.number))
-
-
-def is_array_like(entity):
-    return isinstance(entity, (list, np.ndarray))
-
-
-def key_in_grid1d(key):
-    return key in ['min_val', 'max_val', 'pt_count']
-
-
-def value_not_none(key_value):
-    _, value = key_value
-    return value is not None
-
-
-def is_numerical_ndarray(entity):
-    return isinstance(entity, np.ndarray) and entity.dtype.kind in set('biufc')
-
-
-def is_ndarray_of_qobj(entity):
-    return isinstance(entity, np.ndarray) and isinstance(entity.flat[0], qt.Qobj)
-
-
-def convert_to_ndarray(entity):
-    """Convert the object `entity` to a numpy ndarray of numerical dtype. This is needed in the routines for writing
-    content of DataStores and SpectrumData to disk.
+class InfoBar:
+    """Static "progress" bar used whenever multiprocessing is involved.
 
     Parameters
     ----------
-    entity: array_like
+    desc: str
+        Description text to be displayed on the static information bar.
+    num_cpus: int
+        Number of CPUS/cores employed in underlying calculation.
     """
-    if is_numerical_ndarray(entity):
-        return entity
-    if is_ndarray_of_qobj(entity):  # entity is output from qt.eigenstates
-        return convert_esys_to_ndarray(entity)
-    if isinstance(entity, list) and is_ndarray_of_qobj(entity[0]):
-        # entity is a list of qt.eigenstates
-        return np.asarray([convert_esys_to_ndarray(entry) for entry in entity])
-    # possibly we have a list of numerical values or a list of ndarrays
-    converted_entity = np.asarray(entity)
-    if converted_entity.dtype.kind not in set('biufc'):
-        raise TypeError('Unable to convert data to numerical numpy array: ', entity)
-    return converted_entity
+    def __init__(self, desc, num_cpus):
+        self.desc = desc
+        self.num_cpus = num_cpus
+        self.infobar = None
+
+    def __enter__(self):
+        self.infobar = tqdm(total=0, disable=(self.num_cpus == 1), leave=False, desc=self.desc, bar_format="{desc}")
+
+    def __exit__(self, *args):
+        self.infobar.close()
+
+
+class Required:
+    """Decorator class, ensuring that a given requirement or set of requirements is fulfilled.
+
+    Parameters
+    ----------
+    dict {str: bool}
+        All bool conditions have to be True to pass. The provided str keys are used to display information on what
+        condition is failing.
+    """
+    def __init__(self, **requirements):
+        self.requirements_bools = list(requirements.values())
+        self.requirements_names = list(requirements.keys())
+
+    def __call__(self, func, *args, **kwargs):
+        @functools.wraps(func)
+        def decorated_func(*args, **kwargs):
+            if all(self.requirements_bools):
+                return func(*args, **kwargs)
+            else:
+                raise Exception("ImportError: need extra package(s) {}".format(self.requirements_names))
+        return decorated_func
+
+
+def to_expression_or_string(string_expr):
+    try:
+        return ast.literal_eval(string_expr)
+    except ValueError:
+        return string_expr
+
+
+def remove_nones(dict_data):
+    return {key: value for key, value in dict_data.items() if value is not None}
+
+
+def qt_ket_to_ndarray(qobj_ket):
+    # Qutip's `.eigenstates()` returns an object-valued ndarray, each entry of which is a Qobj ket.
+    return np.asarray(qobj_ket.data.todense())

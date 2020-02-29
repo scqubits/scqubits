@@ -11,13 +11,10 @@
 ############################################################################
 
 import numpy as np
-import pytest
 
 import scqubits as qubit
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
-from scqubits.core.sweep_generators import generate_diffspec_sweep
-from scqubits.utils.spectrum_utils import get_matrixelement_table, absorption_spectrum
 
 
 class TestSpectrumLookup:
@@ -94,7 +91,7 @@ class TestSpectrumLookup:
         reference = 21
         assert hilbertspace.lookup.dressed_index((1, 2, 1)) == reference
 
-    def test_hilbertspace_lookup_dressed_index(self):
+    def test_hilbertspace_lookup_bare_eigenstates(self):
         hilbertspace = self.initialize_hilbertspace()
         hilbertspace.generate_lookup()
         CPB = hilbertspace[0]

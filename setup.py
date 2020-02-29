@@ -44,7 +44,7 @@ EXTRA_KWARGS = {}
 
 # all information about scqubits goes here
 MAJOR = 1
-MINOR = 1
+MINOR = 2
 MICRO = 1
 ISRELEASED = True
 
@@ -55,18 +55,29 @@ REQUIRES = ['cython (>=0.28.5)',
             'scipy (>=1.1.0)',
             'matplotlib (>=3.0.0)',
             'qutip (>=4.3.1)',
-            'h5py (>=2.7.1)',
             'tqdm']
 
 EXTRAS_REQUIRE = {'graphics': ['matplotlib-label-lines (>=0.3.6)'],
-                  'explorer': ['ipywidgets (>=7.5)']}
+                  'explorer': ['ipywidgets (>=7.5)'],
+                  'h5-support': ['h5py (>=2.7.1)'],
+                  'pathos': ['pathos', 'dill']}
 INSTALL_REQUIRES = ['cython (>=0.28.5)',
                     'numpy (>=1.14.2)',
                     'scipy (>=1.1.0)',
                     'matplotlib (>=3.0.0)',
                     'qutip (>=4.3.1)',
-                    'h5py (>=2.7.1)',
                     'tqdm']
+TESTS_REQUIRE = ['cython (>=0.28.5)',
+                 'numpy (>=1.14.2)',
+                 'scipy (>=1.1.0)',
+                 'matplotlib (>=3.0.0)',
+                 'qutip (>=4.3.1)',
+                 'h5py (>=2.7.1)',
+                 'pathos',
+                 'dill',
+                 'ipywidgets',
+                 'tqdm',
+                 'pytest']
 PACKAGES = ['scqubits', 'scqubits/core', 'scqubits/tests', 'scqubits/utils']
 PYTHON_VERSION = '>=3.5'
 
@@ -141,7 +152,9 @@ setuptools.setup(name=NAME,
                  platforms=PLATFORMS,
                  requires=REQUIRES,
                  extras_require=EXTRAS_REQUIRE,
+                 tests_require=TESTS_REQUIRE,
                  zip_safe=False,
+                 include_package_data=True,
                  install_requires=INSTALL_REQUIRES,
                  python_requires=PYTHON_VERSION,
                  **EXTRA_KWARGS

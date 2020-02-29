@@ -18,8 +18,8 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import scqubits.core.constants as constants
+import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
-from scqubits.utils.misc import process_which
 
 try:
     from labellines import labelLines
@@ -115,7 +115,7 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs)
 
     axes.plot(x_vals, y_vals)
     axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
-    _process_options(fig, axes, opts=defaults.wavefunction1d(), **kwargs)
+    _process_options(fig, axes, **kwargs)
     return fig, axes
 
 
@@ -339,7 +339,7 @@ def evals_vs_paramvals(specdata, which=-1, subtract_ground=False, label_list=Non
     tuple(Figure, Axes)
         matplotlib objects for further editing
     """
-    index_list = process_which(which, specdata.energy_table[0].size)
+    index_list = utils.process_which(which, specdata.energy_table[0].size)
 
     xdata = specdata.param_vals
     ydata = specdata.energy_table[:, index_list]

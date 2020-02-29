@@ -18,7 +18,8 @@ import numpy as np
 import qutip as qt
 
 import scqubits
-from scqubits.utils.spectrum_utils import convert_esys_to_ndarray
+import scqubits.utils.file_io_serializers as serializers
+import scqubits.utils.spectrum_utils as spec_utils
 
 
 def check_sync_status(func):
@@ -32,7 +33,7 @@ def check_sync_status(func):
     return wrapper
 
 
-class SpectrumLookup:
+class SpectrumLookup(serializers.Serializable):
     """
     The `SpectrumLookup` is an integral building block of the `HilbertSpace` and `ParameterSweep` classes. In both cases
     it provides a convenient way to translate back and forth between labelling of eigenstates and eigenenergies via the
@@ -49,9 +50,7 @@ class SpectrumLookup:
         dressed spectral data needed for generating the lookup mapping
     bare_specdata_list: SpectrumData
         bare spectral data needed for generating the lookup mapping
-
     """
-
     def __init__(self, framework, dressed_specdata, bare_specdata_list):
         self._dressed_specdata = dressed_specdata
         self._bare_specdata_list = bare_specdata_list
@@ -68,8 +67,10 @@ class SpectrumLookup:
 
         self._canonical_bare_labels = self._generate_bare_labels()
         self._dressed_indices = self._generate_mappings()  # lists of as many elements as there are parameter values.
-                                                            # For HilbertSpace objects this is a single-element list.
+        # For HilbertSpace objects the above is a single-element list.
         self._out_of_sync = False
+        # Setup for Serializable operations
+        self._init_params = ['_dressed_specdata', '_bare_specdata_list']
 
     def _generate_bare_labels(self):
         """
@@ -127,7 +128,7 @@ class SpectrumLookup:
         list of int
             dressed-state indices
         """
-        overlap_matrix = convert_esys_to_ndarray(self._dressed_specdata.state_table[param_index])  # overlap amplitudes
+        overlap_matrix = spec_utils.convert_esys_to_ndarray(self._dressed_specdata.state_table[param_index])
 
         dressed_indices = []
         for bare_basis_index in range(self._hilbertspace.dimension):   # for given bare basis index, find dressed index

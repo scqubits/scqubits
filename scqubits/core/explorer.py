@@ -15,17 +15,20 @@ import numpy as np
 try:
     import ipywidgets
 except ImportError:
-    raise Exception("ImportError: failed to import ipywidgets. For use of scqubits.explorer,"
-                    "ipywidgets must be installed")
+    _HAS_IPYWIDGETS = False
+else:
+    _HAS_IPYWIDGETS = True
 
 try:
     from IPython.display import display
 except ImportError:
-    raise Exception("ImportError: failed to import IPython. For use of scqubits.explorer,"
-                    "IPython must be installed")
+    _HAS_IPYTHON = False
+else:
+    _HAS_IPYTHON = True
 
 import scqubits.core.sweep_generators as swp
 import scqubits.utils.explorer_panels as panels
+import scqubits.utils.misc as utils
 
 
 class Explorer:
@@ -114,6 +117,7 @@ class Explorer:
         fig.tight_layout()
         return fig, axs
 
+    @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
     def interact(self):
         """Drives the interactive display of the plot explorer panels"""
         param_min = self.param_vals[0]

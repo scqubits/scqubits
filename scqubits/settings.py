@@ -25,10 +25,6 @@ Matplotlib.
 import matplotlib as mpl
 from cycler import cycler
 
-from scqubits.core.constants import FileType
-
-# default file format setting
-FILE_FORMAT = FileType.h5   # choose FileType.csv instead for generation of comma-separated values files
 
 # a switch for displaying of progress bar; default: show only in ipython
 PROGRESSBAR_DISABLED = False
@@ -52,6 +48,18 @@ AUTORUN_SWEEP = True
 # enable/disable the CENTRAL_DISPATCH system
 DISPATCH_ENABLED = True
 
+# For parallel processing ----------------------------------------------------------------------------------------------
+# store processing pool once generated
+POOL = None
+# number of cores to be used by default in methods that enable parallel processing
+NUM_CPUS = 1
+
+# Select multiprocessing library
+# Options:  'multiprocessing'
+#           'pathos'
+MULTIPROC = 'multiprocessing'
+
+# Matplotlib options ---------------------------------------------------------------------------------------------------
 # set custom matplotlib color cycle
 mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
                                                 "#333795",
@@ -67,7 +75,7 @@ mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
                                                 "#F9E6BE"])
 
 # set matplotlib defaults
-mpl.rcParams['font.sans-serif'] = "Arial"
 mpl.rcParams['font.family'] = "sans-serif"
+mpl.rcParams['font.sans-serif'] = "Arial"
 mpl.rcParams['figure.dpi'] = 150
 mpl.rcParams['font.size'] = 11

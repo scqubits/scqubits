@@ -12,12 +12,8 @@
 
 import numpy as np
 
-import scqubits.settings
 from scqubits import Fluxonium
-from scqubits.core.constants import FileType
 from scqubits.tests.conftest import StandardTests
-
-scqubits.settings.FILE_FORMAT = FileType.h5
 
 
 class TestFluxonium(StandardTests):
