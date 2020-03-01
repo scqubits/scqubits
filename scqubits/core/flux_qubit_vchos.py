@@ -81,6 +81,13 @@ class FluxQubitVCHOS(QubitBaseClass):
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2*self.e)**2
         self.Phi0 = 1. / (2*self.e)
+        
+        exp_a_00, exp_a_10, exp_a_01, exp_a_11 = self._exp_a_operators()
+        self.exp_a_00 = exp_a_00
+        self.exp_a_10 = exp_a_10
+        self.exp_a_01 = exp_a_01
+        self.exp_a_11 = exp_a_11
+        
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
         
@@ -160,6 +167,22 @@ class FluxQubitVCHOS(QubitBaseClass):
         a_mat = np.diag(a,k=1)
         return self._full_o([a_mat], [mu])
             
+    def _exp_a_operators(self):
+        """Return the exponential of the a operators with appropriate coefficients for efficiency purposes """
+        Xi = self.Xi_matrix()
+        Xi_inv_T = sp.linalg.inv(Xi).T
+        exp_a_00 = self.matrix_exp(2.0*np.pi*Xi_inv_T[0, 0]*self.a_operator(0)/np.sqrt(2.0))
+        exp_a_10 = self.matrix_exp(2.0*np.pi*Xi_inv_T[1, 0]*self.a_operator(0)/np.sqrt(2.0))
+        exp_a_01 = self.matrix_exp(2.0*np.pi*Xi_inv_T[0, 1]*self.a_operator(1)/np.sqrt(2.0))
+        exp_a_11 = self.matrix_exp(2.0*np.pi*Xi_inv_T[1, 1]*self.a_operator(1)/np.sqrt(2.0))
+        return(exp_a_00, exp_a_10, exp_a_01, exp_a_11)
+        
+    def _exp_a_operators_minima_diff(self, minima_diff):
+        Xi_inv_T = sp.linalg.inv(self.Xi_matrix()).T
+        exp_min_diff = self.matrix_exp(np.sum([minima_diff[x]*Xi_inv_T[x, mu]*self.a_operator(mu)
+                                               for x in range(2) for mu in range(2)], axis=0)/np.sqrt(2))
+        return(exp_min_diff)
+        
     def normal_ordered_exp_i_phi_operator(self, x):
         """Return the normal ordered e^{i\phi_x} operator, expressed using ladder ops"""
         Xi_mat = self.Xi_matrix()
@@ -212,6 +235,21 @@ class FluxQubitVCHOS(QubitBaseClass):
     def matrix_exp(self, matrix):
         return (sp.linalg.expm(matrix))
     
+    def V_operator_using_exp_a_operators(self, phi):
+        """Return the V operator without additional calls to matrix_exp and without the prefactor """
+        jkvals = phi/(2.0*np.pi)
+        j0 = int(jkvals[0])
+        j1 = int(jkvals[1])
+        V00_op = np.linalg.matrix_power(self.exp_a_00, j0)
+        V01_op = np.linalg.matrix_power(self.exp_a_01, j0)
+        V0_op = np.matmul(V00_op, V01_op)
+        
+        V10_op = np.linalg.matrix_power(self.exp_a_10, j1)
+        V11_op = np.linalg.matrix_power(self.exp_a_11, j1)
+        V1_op = np.matmul(V10_op, V11_op)
+        
+        return(np.matmul(V0_op, V1_op))
+            
     def V_operator(self, phi):
         """Return the V operator """
         phi_delta_phi = np.matmul(phi,np.matmul(self.delta_inv_matrix(),phi))
@@ -231,14 +269,24 @@ class FluxQubitVCHOS(QubitBaseClass):
         kinetic_mat = np.zeros((dim,dim), dtype=np.complex128)
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
+                exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
+                exp_min_diff_inv = sp.linalg.inv(exp_min_diff)
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
                     delta_phi_kpm = phik-(minima_m-minima_p) #XXXXXXXXXX
                        
-                    V_op = self.V_operator(-delta_phi_kpm)
-                    V_op_dag = self.V_operator(delta_phi_kpm).T
+#                    V_op = self.V_operator(-delta_phi_kpm)
+#                    V_op_dag = self.V_operator(delta_phi_kpm).T
+                    V_op_phi = self.V_operator_using_exp_a_operators(-phik)
+                    V_op_dag_phi = self.V_operator_using_exp_a_operators(phik).T
+        
+                    phi_delta_phi = np.matmul(delta_phi_kpm,np.matmul(self.delta_inv_matrix(),delta_phi_kpm))
+                    prefactor = np.exp(-.125 * phi_delta_phi)
+                    V_op = prefactor * np.matmul(exp_min_diff_inv, V_op_phi)
+                    V_op_dag = prefactor * np.matmul(exp_min_diff.T, V_op_dag_phi)
+
                     
                     num_exc_tot = (self.num_exc+1)**2
                     
@@ -283,8 +331,13 @@ class FluxQubitVCHOS(QubitBaseClass):
         dim = self.hilbertdim()
         potential_mat = np.zeros((dim,dim), dtype=np.complex128)
         minima_list = self.sorted_minima()
+        exp_i_phi_0 = self.normal_ordered_exp_i_phi_operator(0)
+        exp_i_phi_1 = self.normal_ordered_exp_i_phi_operator(1)
+        exp_i_phi_0_m1 = self.normal_ordered_exp_i_phix_mi_phiy(0, 1)
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
+                exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
+                exp_min_diff_inv = sp.linalg.inv(exp_min_diff)
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
@@ -292,19 +345,26 @@ class FluxQubitVCHOS(QubitBaseClass):
                     delta_phi_kpm = phik-(minima_m-minima_p) #XXXXXXXXXXXXX
                     phibar_kpm = 0.5*(phik+(minima_m+minima_p)) #XXXXXXXXX
                         
-                    exp_i_phi_0_op = np.exp(1j*phibar_kpm[0])*self.normal_ordered_exp_i_phi_operator(0)
-                    exp_i_phi_1_op = np.exp(1j*phibar_kpm[1])*self.normal_ordered_exp_i_phi_operator(1)
+                    exp_i_phi_0_op = np.exp(1j*phibar_kpm[0])*exp_i_phi_0
+                    exp_i_phi_1_op = np.exp(1j*phibar_kpm[1])*exp_i_phi_1
                         
-                    V_op = self.V_operator(-delta_phi_kpm)
-                    V_op_dag = self.V_operator(delta_phi_kpm).T
+#                    V_op = self.V_operator(-delta_phi_kpm)
+#                    V_op_dag = self.V_operator(delta_phi_kpm).T
+                    V_op_phi = self.V_operator_using_exp_a_operators(-phik)
+                    V_op_dag_phi = self.V_operator_using_exp_a_operators(phik).T
+        
+                    phi_delta_phi = np.matmul(delta_phi_kpm,np.matmul(self.delta_inv_matrix(),delta_phi_kpm))
+                    prefactor = np.exp(-.125 * phi_delta_phi)
+                    V_op = prefactor * np.matmul(exp_min_diff_inv, V_op_phi)
+                    V_op_dag = prefactor * np.matmul(exp_min_diff.T, V_op_dag_phi)
                         
                     potential_temp = -0.5*self.EJ*(exp_i_phi_0_op+exp_i_phi_0_op.conjugate().T)
                     potential_temp += -0.5*self.EJ*(exp_i_phi_1_op+exp_i_phi_1_op.conjugate().T)
-                    potential_temp += -0.5*self.alpha*self.EJ*((self.normal_ordered_exp_i_phix_mi_phiy(0, 1)
+                    potential_temp += -0.5*self.alpha*self.EJ*((exp_i_phi_0_m1
                                                                 *np.exp(1j*2.0*np.pi*self.flux)
                                                                 *np.exp(1j*phibar_kpm[0])
                                                                 *np.exp(-1j*phibar_kpm[1]))
-                                                               +(self.normal_ordered_exp_i_phix_mi_phiy(0, 1).conjugate().T
+                                                               +(exp_i_phi_0_m1.conjugate().T
                                                                  *np.exp(-1j*2.0*np.pi*self.flux)
                                                                  *np.exp(-1j*phibar_kpm[0])
                                                                  *np.exp(1j*phibar_kpm[1])))
@@ -331,14 +391,24 @@ class FluxQubitVCHOS(QubitBaseClass):
         minima_list = self.sorted_minima()
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
+                exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
+                exp_min_diff_inv = sp.linalg.inv(exp_min_diff)
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
                     delta_phi_kpm = phik-(minima_m-minima_p) #XXXXXXXXX
                         
-                    V_op = self.V_operator(-delta_phi_kpm)
-                    V_op_dag = self.V_operator(delta_phi_kpm).T
+#                    V_op = self.V_operator(-delta_phi_kpm)
+#                    V_op_dag = self.V_operator(delta_phi_kpm).T
+                    
+                    V_op_phi = self.V_operator_using_exp_a_operators(-phik)
+                    V_op_dag_phi = self.V_operator_using_exp_a_operators(phik).T
+        
+                    phi_delta_phi = np.matmul(delta_phi_kpm,np.matmul(self.delta_inv_matrix(),delta_phi_kpm))
+                    prefactor = np.exp(-.125 * phi_delta_phi)
+                    V_op = prefactor * np.matmul(exp_min_diff_inv, V_op_phi)
+                    V_op_dag = prefactor * np.matmul(exp_min_diff.T, V_op_dag_phi)
                     
                     inner_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                   *np.matmul(V_op_dag, V_op))
