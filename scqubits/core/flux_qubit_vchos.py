@@ -82,12 +82,6 @@ class FluxQubitVCHOS(QubitBaseClass):
         self.Z0 = 1. / (2*self.e)**2
         self.Phi0 = 1. / (2*self.e)
         
-        exp_a_00, exp_a_10, exp_a_01, exp_a_11 = self._exp_a_operators()
-        self.exp_a_00 = exp_a_00
-        self.exp_a_10 = exp_a_10
-        self.exp_a_01 = exp_a_01
-        self.exp_a_11 = exp_a_11
-        
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
         
@@ -166,23 +160,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)])
         a_mat = np.diag(a,k=1)
         return self._full_o([a_mat], [mu])
-            
-    def _exp_a_operators(self):
-        """Return the exponential of the a operators with appropriate coefficients for efficiency purposes """
-        Xi = self.Xi_matrix()
-        Xi_inv_T = sp.linalg.inv(Xi).T
-        exp_a_00 = self.matrix_exp(2.0*np.pi*Xi_inv_T[0, 0]*self.a_operator(0)/np.sqrt(2.0))
-        exp_a_10 = self.matrix_exp(2.0*np.pi*Xi_inv_T[1, 0]*self.a_operator(0)/np.sqrt(2.0))
-        exp_a_01 = self.matrix_exp(2.0*np.pi*Xi_inv_T[0, 1]*self.a_operator(1)/np.sqrt(2.0))
-        exp_a_11 = self.matrix_exp(2.0*np.pi*Xi_inv_T[1, 1]*self.a_operator(1)/np.sqrt(2.0))
-        return(exp_a_00, exp_a_10, exp_a_01, exp_a_11)
-        
-    def _exp_a_operators_minima_diff(self, minima_diff):
-        Xi_inv_T = sp.linalg.inv(self.Xi_matrix()).T
-        exp_min_diff = self.matrix_exp(np.sum([minima_diff[x]*Xi_inv_T[x, mu]*self.a_operator(mu)
-                                               for x in range(2) for mu in range(2)], axis=0)/np.sqrt(2))
-        return(exp_min_diff)
-        
+                    
     def normal_ordered_exp_i_phi_operator(self, x):
         """Return the normal ordered e^{i\phi_x} operator, expressed using ladder ops"""
         Xi_mat = self.Xi_matrix()
@@ -216,36 +194,41 @@ class FluxQubitVCHOS(QubitBaseClass):
         Xi_T_inv = np.transpose(sp.linalg.inv(self.Xi_matrix()))
         Xi_inv = sp.linalg.inv(self.Xi_matrix())
         return np.matmul(Xi_T_inv,Xi_inv)
-    
-    def matrix_exp_old(self, matrix):
-        """Perform the matrix exponentiation"""
-        dim = matrix.shape[0]
-        expm = np.identity(dim,dtype=np.complex128)
-        prod = matrix
-        num = 1
-        while not np.array_equal(prod, np.zeros((dim, dim))):
-            prod = matrix
-            prefact = sp.special.factorial(num)**(-1)
-            for m in range(1,num):
-                prod = np.matmul(prod,matrix)
-            expm += prefact * prod
-            num += 1
-        return(expm)
-    
+        
     def matrix_exp(self, matrix):
         return (sp.linalg.expm(matrix))
     
-    def V_operator_using_exp_a_operators(self, phi):
-        """Return the V operator without additional calls to matrix_exp and without the prefactor """
+    def _exp_a_operators(self):
+        """Return the exponential of the a operators with appropriate coefficients for efficiency purposes """
+        Xi = self.Xi_matrix()
+        Xi_inv_T = sp.linalg.inv(Xi).T
+        exp_a_00 = self.matrix_exp(2.0*np.pi*Xi_inv_T[0, 0]*self.a_operator(0)/np.sqrt(2.0))
+        exp_a_10 = self.matrix_exp(2.0*np.pi*Xi_inv_T[1, 0]*self.a_operator(0)/np.sqrt(2.0))
+        exp_a_01 = self.matrix_exp(2.0*np.pi*Xi_inv_T[0, 1]*self.a_operator(1)/np.sqrt(2.0))
+        exp_a_11 = self.matrix_exp(2.0*np.pi*Xi_inv_T[1, 1]*self.a_operator(1)/np.sqrt(2.0))
+        return(exp_a_00, exp_a_10, exp_a_01, exp_a_11)
+    
+    def _exp_a_operators_minima_diff(self, minima_diff):
+        Xi_inv_T = sp.linalg.inv(self.Xi_matrix()).T
+        exp_min_diff = self.matrix_exp(np.sum([minima_diff[x]*Xi_inv_T[x, mu]*self.a_operator(mu)
+                                               for x in range(2) for mu in range(2)], axis=0)/np.sqrt(2.0))
+        return(exp_min_diff)
+    
+    def _V_operator_helper_using_exp_a_operators(self, phi, exp_a_list):
+        """Return the periodic continuation part of the V operator without 
+        additional calls to matrix_exp and without the prefactor """
         jkvals = phi/(2.0*np.pi)
         j0 = int(jkvals[0])
         j1 = int(jkvals[1])
-        V00_op = np.linalg.matrix_power(self.exp_a_00, j0)
-        V01_op = np.linalg.matrix_power(self.exp_a_01, j0)
+        
+        exp_a_00, exp_a_10, exp_a_01, exp_a_11 = self._exp_a_operators()
+        
+        V00_op = np.linalg.matrix_power(exp_a_list[0], j0)
+        V01_op = np.linalg.matrix_power(exp_a_list[2], j0)
         V0_op = np.matmul(V00_op, V01_op)
         
-        V10_op = np.linalg.matrix_power(self.exp_a_10, j1)
-        V11_op = np.linalg.matrix_power(self.exp_a_11, j1)
+        V10_op = np.linalg.matrix_power(exp_a_list[1], j1)
+        V11_op = np.linalg.matrix_power(exp_a_list[3], j1)
         V1_op = np.matmul(V10_op, V11_op)
         
         return(np.matmul(V0_op, V1_op))
@@ -259,6 +242,15 @@ class FluxQubitVCHOS(QubitBaseClass):
         op = self.matrix_exp((1./np.sqrt(2.))*phi_Xi_inv_a)
         return prefactor * op
     
+    def V_operator_full(self, minima_diff, phik, exp_min_diff, exp_a_list):
+        """Return the V operator using the more efficient methods """
+        delta_phi_kpm = phik+minima_diff
+        phi_delta_phi = np.matmul(delta_phi_kpm,np.matmul(self.delta_inv_matrix(),delta_phi_kpm))
+        prefactor = np.exp(-.125 * phi_delta_phi)
+        V_op_phik = self._V_operator_helper_using_exp_a_operators(phik, exp_a_list)
+        V_op = prefactor * np.matmul(exp_min_diff, V_op_phik)
+        return V_op
+        
     def kineticmat(self):
         """Return the kinetic part of the hamiltonian"""
         Xi_inv = sp.linalg.inv(self.Xi_matrix())
@@ -267,6 +259,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         dim = self.hilbertdim()
         minima_list = self.sorted_minima()
         kinetic_mat = np.zeros((dim,dim), dtype=np.complex128)
+        exp_a_list = self._exp_a_operators()
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
@@ -276,21 +269,10 @@ class FluxQubitVCHOS(QubitBaseClass):
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
                     delta_phi_kpm = phik-(minima_m-minima_p) #XXXXXXXXXX
+                    minima_diff = minima_p-minima_m
                        
-#                    V_op = self.V_operator(-delta_phi_kpm)
-#                    V_op_dag = self.V_operator(delta_phi_kpm).T
-                    V_op_phi = self.V_operator_using_exp_a_operators(-phik)
-                    V_op_dag_phi = self.V_operator_using_exp_a_operators(phik).T
-        
-                    phi_delta_phi = np.matmul(delta_phi_kpm,np.matmul(self.delta_inv_matrix(),delta_phi_kpm))
-                    prefactor = np.exp(-.125 * phi_delta_phi)
-                    V_op = prefactor * np.matmul(exp_min_diff_inv, V_op_phi)
-                    V_op_dag = prefactor * np.matmul(exp_min_diff.T, V_op_dag_phi)
-
-                    
-                    num_exc_tot = (self.num_exc+1)**2
-                    
-                    kinetic_temp = 0.
+                    V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list)
+                    V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list).T
                     
                     a_0 = self.a_operator(0)
                     a_1 = self.a_operator(1)
@@ -303,7 +285,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                     
                     delta_left_right = np.matmul(np.matmul(delta_left, Xi_inv), delta_phi_kpm)
                     
-                    kinetic_temp += -0.5*4*EC_mat_t[0, 0]*(np.matmul(a_0, a_0) - 2.0*np.matmul(a_0.T, a_0)
+                    kinetic_temp = -0.5*4*EC_mat_t[0, 0]*(np.matmul(a_0, a_0) - 2.0*np.matmul(a_0.T, a_0)
                                                            + np.matmul(a_0.T, a_0.T) - self._identity())
                     kinetic_temp += -(1./(2*np.sqrt(2)))*4*(a_0 - a_0.T)*(delta_right[0] + delta_left[0])
                                                          
@@ -311,18 +293,20 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                            + np.matmul(a_1.T, a_1.T) - self._identity())
                     kinetic_temp += -(1./(2*np.sqrt(2)))*4*(a_1 - a_1.T)*(delta_right[1] + delta_left[1])
                                      
-                    kinetic_temp += -self._identity()*(delta_left_right)
+                    kinetic_temp += -self._identity()*delta_left_right
                                              
                     kinetic_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                     *np.matmul(V_op_dag, kinetic_temp))
                     kinetic_temp = np.matmul(kinetic_temp, V_op)
                     
+                    num_exc_tot = (self.num_exc+1)**2
                     kinetic_mat[m*num_exc_tot : m*num_exc_tot + num_exc_tot, 
                                 p*num_exc_tot : p*num_exc_tot + num_exc_tot] += kinetic_temp
                     
                     jkvals = next(klist,-1)
                                            
         return kinetic_mat
+    
         
     def potentialmat(self):
         """Return the potential part of the hamiltonian"""
@@ -334,6 +318,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         exp_i_phi_0 = self.normal_ordered_exp_i_phi_operator(0)
         exp_i_phi_1 = self.normal_ordered_exp_i_phi_operator(1)
         exp_i_phi_0_m1 = self.normal_ordered_exp_i_phix_mi_phiy(0, 1)
+        exp_a_list = self._exp_a_operators()
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
@@ -342,22 +327,16 @@ class FluxQubitVCHOS(QubitBaseClass):
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                    delta_phi_kpm = phik-(minima_m-minima_p) #XXXXXXXXXXXXX
-                    phibar_kpm = 0.5*(phik+(minima_m+minima_p)) #XXXXXXXXX
+                    delta_phi_kpm = phik-(minima_m-minima_p) 
+                    phibar_kpm = 0.5*(phik+(minima_m+minima_p)) 
+                    minima_diff = minima_p-minima_m
                         
                     exp_i_phi_0_op = np.exp(1j*phibar_kpm[0])*exp_i_phi_0
                     exp_i_phi_1_op = np.exp(1j*phibar_kpm[1])*exp_i_phi_1
                         
-#                    V_op = self.V_operator(-delta_phi_kpm)
-#                    V_op_dag = self.V_operator(delta_phi_kpm).T
-                    V_op_phi = self.V_operator_using_exp_a_operators(-phik)
-                    V_op_dag_phi = self.V_operator_using_exp_a_operators(phik).T
-        
-                    phi_delta_phi = np.matmul(delta_phi_kpm,np.matmul(self.delta_inv_matrix(),delta_phi_kpm))
-                    prefactor = np.exp(-.125 * phi_delta_phi)
-                    V_op = prefactor * np.matmul(exp_min_diff_inv, V_op_phi)
-                    V_op_dag = prefactor * np.matmul(exp_min_diff.T, V_op_dag_phi)
-                        
+                    V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list)
+                    V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list).T
+                                
                     potential_temp = -0.5*self.EJ*(exp_i_phi_0_op+exp_i_phi_0_op.conjugate().T)
                     potential_temp += -0.5*self.EJ*(exp_i_phi_1_op+exp_i_phi_1_op.conjugate().T)
                     potential_temp += -0.5*self.alpha*self.EJ*((exp_i_phi_0_m1
@@ -383,12 +362,13 @@ class FluxQubitVCHOS(QubitBaseClass):
     def hamiltonian(self):
         """Construct the Hamiltonian"""
         return (self.kineticmat() + self.potentialmat())
-    
+        
     def inner_product(self):
         """Return the inner product matrix, which is nontrivial with VCHOS states"""
         dim = self.hilbertdim()
         inner_product_mat = np.zeros((dim,dim), dtype=np.complex128)
         minima_list = self.sorted_minima()
+        exp_a_list = self._exp_a_operators()
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
@@ -397,23 +377,15 @@ class FluxQubitVCHOS(QubitBaseClass):
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                    delta_phi_kpm = phik-(minima_m-minima_p) #XXXXXXXXX
-                        
-#                    V_op = self.V_operator(-delta_phi_kpm)
-#                    V_op_dag = self.V_operator(delta_phi_kpm).T
+                    delta_phi_kpm = phik-(minima_m-minima_p)
+                    minima_diff = minima_p-minima_m
                     
-                    V_op_phi = self.V_operator_using_exp_a_operators(-phik)
-                    V_op_dag_phi = self.V_operator_using_exp_a_operators(phik).T
-        
-                    phi_delta_phi = np.matmul(delta_phi_kpm,np.matmul(self.delta_inv_matrix(),delta_phi_kpm))
-                    prefactor = np.exp(-.125 * phi_delta_phi)
-                    V_op = prefactor * np.matmul(exp_min_diff_inv, V_op_phi)
-                    V_op_dag = prefactor * np.matmul(exp_min_diff.T, V_op_dag_phi)
+                    V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list)
+                    V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list).T
                     
                     inner_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                   *np.matmul(V_op_dag, V_op))
-#                    print(m, p, jkvals, inner_temp)
-                        
+                    
                     num_exc_tot = (self.num_exc+1)**2
                     inner_product_mat[m*num_exc_tot:m*num_exc_tot+num_exc_tot, 
                                       p*num_exc_tot:p*num_exc_tot+num_exc_tot] += inner_temp
@@ -592,24 +564,31 @@ class FluxQubitVCHOS(QubitBaseClass):
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         inner_product_mat = self.inner_product()
+        print("a")
         try:
             evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat, 
                                    eigvals_only=True, eigvals=(0, evals_count - 1))
         except LinAlgError:
+            print("exception evals", self.flux)
             global_min = self.sorted_minima()[0]
             global_min_value = self.potential(global_min)
+            print(global_min_value)
             evals = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, M=inner_product_mat, 
-                                           sigma=global_min_value, return_eigenvectors=False)
+                                           sigma=global_min_value, which='LM', return_eigenvectors=False)
+#            evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat, 
+#                                   eigvals_only=True, eigvals=(0, evals_count - 1))
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         inner_product_mat = self.inner_product()
+        print("b")
         try:
             evals, evecs = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
                                           eigvals_only=False, eigvals=(0, evals_count - 1))
             evals, evecs = order_eigensystem(evals, evecs)
         except LinAlgError:
+            print("exception esys")
             global_min = self.sorted_minima()[0]
             global_min_value = self.potential(global_min)
             evals, evecs = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, M=inner_product_mat, 
@@ -674,150 +653,6 @@ class FluxQubitVCHOS(QubitBaseClass):
                 * sp.special.eval_hermite(n, x) 
                 * np.exp(-x**2/2.))
         
-    
-    def _kinetic_mat_test_integral_helper(self, i, j, sone, stwo, soneprime, stwoprime, minima_m, minima_p, phik):
-        lim = 20.0
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        detXi_inv = sp.linalg.det(Xi_inv)
-        iindex = i-1
-        jindex = j-1
-        Hsone = hermite(sone)/np.sqrt(np.sqrt(np.pi)*factorial(sone)*2**sone)
-        Hstwo = hermite(stwo)/np.sqrt(np.sqrt(np.pi)*factorial(stwo)*2**stwo)
-        Hsoneprime = hermite(soneprime)/np.sqrt(np.sqrt(np.pi)*factorial(soneprime)*2**soneprime)
-        Hstwoprime = hermite(stwoprime)/np.sqrt(np.sqrt(np.pi)*factorial(stwoprime)*2**stwoprime)
-        Hsonem1prime = lambda x : 0.0
-        Hstwom1prime = lambda x : 0.0
-        Hsonem2prime = lambda x : 0.0
-        Hstwom2prime = lambda x : 0.0
-        zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-        zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-        zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                              + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-        zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                              + Xi_inv[1,1]*(phik[1]+minima_p[1]))
-        if soneprime >= 1:
-            Hsonem1prime = (hermite(soneprime-1)/np.sqrt(np.sqrt(np.pi)*factorial(soneprime-1)
-                                                         *2**(soneprime-1)))
-            if soneprime >= 2:
-                Hsonem2prime = (hermite(soneprime-2)/np.sqrt(np.sqrt(np.pi)*factorial(soneprime-2)
-                                                             *2**(soneprime-2)))
-        if stwoprime >= 1:
-            Hstwom1prime = (hermite(stwoprime-1)/np.sqrt(np.sqrt(np.pi)*factorial(stwoprime-1)
-                                                         *2**(stwoprime-1)))
-            if stwoprime >= 2:
-                Hstwom2prime = (hermite(stwoprime-2)/np.sqrt(np.sqrt(np.pi)*factorial(stwoprime-2)
-                                                             *2**(stwoprime-2)))
-        result = integrate.dblquad(lambda phi1, phi2: 
-                                    ((4.0 * soneprime * (soneprime - 1) 
-                                     * Xi_inv[0, iindex] * Xi_inv[0, jindex] 
-                                     * Hsonem2prime(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)
-                                     * Hstwoprime(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset))
-                                     + (8.0 * soneprime * stwoprime * Xi_inv[0, iindex] * Xi_inv[1, jindex]
-                                        * Hsonem1prime(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)
-                                        * Hstwom1prime(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset))
-                                     + (4.0 * stwoprime * (stwoprime - 1) * Xi_inv[1, iindex] * Xi_inv[1, jindex] 
-                                        * Hsoneprime(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)
-                                        * Hstwom2prime(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset)))
-                                    * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)**2)
-                                    * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset)**2)
-                                    * Hsone(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneoffset) 
-                                    * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneoffset)**2)
-                                    * Hstwo(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwooffset) 
-                                    * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwooffset)**2)
-                                    
-                                    +
-                                    
-                                    (2.0 * soneprime * Xi_inv[0, iindex]
-                                     * Hsonem1prime(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)
-                                     * Hstwoprime(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset)
-                                     + 2.0 * stwoprime * Xi_inv[1, iindex]
-                                     * Hsoneprime(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)
-                                     * Hstwom1prime(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset))
-                                    * ((- Xi_inv[0, 0]*phi1 - Xi_inv[0, 1]*phi2 + zetaoneprimeoffset)*Xi_inv[0, jindex]
-                                       + (- Xi_inv[1, 0]*phi1 - Xi_inv[1, 1]*phi2 + zetatwoprimeoffset)*Xi_inv[1, jindex])
-                                    * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)**2)
-                                    * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset)**2)
-                                    * Hsone(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneoffset) 
-                                    * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneoffset)**2)
-                                    * Hstwo(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwooffset) 
-                                    * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwooffset)**2)
-                                    
-                                    +
-                                    
-                                    (2.0 * soneprime * Xi_inv[0, jindex]
-                                     * Hsonem1prime(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)
-                                     * Hstwoprime(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset)
-                                     + 2.0 * stwoprime * Xi_inv[1, jindex]
-                                     * Hsoneprime(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)
-                                     * Hstwom1prime(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset))
-                                    * ((- Xi_inv[0, 0]*phi1 - Xi_inv[0, 1]*phi2 + zetaoneprimeoffset)*Xi_inv[0, iindex]
-                                       + (- Xi_inv[1, 0]*phi1 - Xi_inv[1, 1]*phi2 + zetatwoprimeoffset)*Xi_inv[1, iindex])
-                                    * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)**2)
-                                    * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset)**2)
-                                    * Hsone(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneoffset) 
-                                    * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneoffset)**2)
-                                    * Hstwo(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwooffset) 
-                                    * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwooffset)**2)
-                                    
-                                    +
-                                    
-                                    Hsoneprime(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)
-                                    * Hstwoprime(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset)
-                                    * (- Xi_inv[0, iindex]*Xi_inv[0, jindex] - Xi_inv[1, iindex]*Xi_inv[1, jindex] 
-                                       + ((- Xi_inv[0, 0]*phi1 - Xi_inv[0, 1]*phi2 + zetaoneprimeoffset)*Xi_inv[0, iindex]
-                                          + (- Xi_inv[1, 0]*phi1 - Xi_inv[1, 1]*phi2 + zetatwoprimeoffset)*Xi_inv[1, iindex])
-                                       * ((- Xi_inv[0, 0]*phi1 - Xi_inv[0, 1]*phi2 + zetaoneprimeoffset)*Xi_inv[0, jindex]
-                                          + (- Xi_inv[1, 0]*phi1 - Xi_inv[1, 1]*phi2 + zetatwoprimeoffset)*Xi_inv[1, jindex]))
-                                    * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneprimeoffset)**2)
-                                    * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwoprimeoffset)**2)
-                                    * Hsone(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneoffset) 
-                                    * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 - zetaoneoffset)**2)
-                                    * Hstwo(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwooffset) 
-                                    * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 - zetatwooffset)**2),
-                                    -lim, lim, lambda phi1 : -lim, lambda phi2 : lim)
-        return (result[0]/detXi_inv)
-    
-    
-    
-    def _kinetic_mat_test(self):
-        dim = self.hilbertdim()
-        kinetic_test_mat = np.zeros((dim,dim))
-        minima_list = self.sorted_minima()
-        EC_mat = self.build_EC_matrix()
-        for m, minima_m in enumerate(minima_list):
-            for p, minima_p in enumerate(minima_list):
-                for sone in range(self.num_exc+1):
-                    for stwo in range(self.num_exc+1):
-                        for soneprime in range(self.num_exc+1):
-                            for stwoprime in range(self.num_exc+1):
-                                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
-                                while jkvals != -1:
-                                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    kinetic_temp = ((- 4.0*EC_mat[0, 1] - 4.0*EC_mat[1, 0])
-                                                     * self._kinetic_mat_test_integral_helper(1, 2, sone, stwo, 
-                                                                                              soneprime, stwoprime, 
-                                                                                              minima_m, minima_p,
-                                                                                              phik)
-                                                    - (4.0*EC_mat[0, 0] 
-                                                       * self._kinetic_mat_test_integral_helper(1, 1, sone, stwo, 
-                                                                                              soneprime, stwoprime, 
-                                                                                              minima_m, minima_p,
-                                                                                              phik))
-                                                    - (4.0*EC_mat[1, 1] 
-                                                       * self._kinetic_mat_test_integral_helper(2, 2, sone, stwo, 
-                                                                                              soneprime, stwoprime, 
-                                                                                              minima_m, minima_p,
-                                                                                              phik)))
- #                                   print(sone, stwo, soneprime, stwoprime, kinetic_temp, jkvals)
-                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-                                    kinetic_test_mat[i, j] += kinetic_temp
-                                    jkvals = next(klist,-1)
-        return(kinetic_test_mat)       
-    
-        
     def _identity_mat_test_babusci(self):
         dim = self.hilbertdim()
         identity_test_mat = np.zeros((dim,dim))
@@ -843,18 +678,6 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                           + Xi_inv[0,1]*(phik[1]+minima_p[1]))
                                     zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
                                                           + Xi_inv[1,1]*(phik[1]+minima_p[1]))
-#                                    print(zetatwooffset**2 + zetatwoprimeoffset**2, 
-#                                         zetaoneoffset**2 + zetaoneprimeoffset**2, 
-#                                         zetatwooffset+zetatwoprimeoffset,
-#                                         zetaoneoffset+zetaoneprimeoffset)
-#                                    print("1", np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2)),
-#                                          "2", pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
-#                                                       c=2, d=-2*zetatwoprimeoffset, f=1, 
-#                                                       alpha=zetatwooffset+zetatwoprimeoffset),
-#                                          "3", pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, a=2, 
-#                                                      b=-2*zetaoneoffset, c=2, d=-2*zetaoneprimeoffset, f=1, 
-#                                                      alpha=zetaoneoffset+zetaoneprimeoffset),
-#                                          "4", np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     matelem += (np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
                                                 * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
                                                        c=2, d=-2*zetatwoprimeoffset, f=1, 
@@ -1143,216 +966,6 @@ class FluxQubitVCHOS(QubitBaseClass):
                                 i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
                                 j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
                                 kinetic_test_mat[i, j] += matelem
-        return(kinetic_test_mat)
-                                
-        
-    def _kinetic_mat_test_zeta_coords(self):
-        dim = self.hilbertdim()
-        kinetic_test_mat = np.zeros((dim,dim))
-        minima_list = self.sorted_minima()
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        EC_mat = self.build_EC_matrix()
-        EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
-        for m, minima_m in enumerate(minima_list):
-            for p, minima_p in enumerate(minima_list):
-                for sone in range(self.num_exc+1):
-                    for stwo in range(self.num_exc+1):
-                        for soneprime in range(self.num_exc+1):
-                            for stwoprime in range(self.num_exc+1):
-                                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
-                                while jkvals != -1:
-                                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    Hsone = hermite(sone)/np.sqrt(np.sqrt(np.pi)
-                                                                  *factorial(sone)*2**sone)
-                                    Hstwo = hermite(stwo)/np.sqrt(np.sqrt(np.pi)
-                                                                  *factorial(stwo)*2**stwo)
-                                    Hsoneprime = hermite(soneprime)/np.sqrt(np.sqrt(np.pi)
-                                                                            *factorial(soneprime)*2**soneprime)
-                                    Hstwoprime = hermite(stwoprime)/np.sqrt(np.sqrt(np.pi)
-                                                                            *factorial(stwoprime)*2**stwoprime)
-                                    Hsonem1prime = lambda x : 0.0
-                                    Hstwom1prime = lambda x : 0.0
-                                    Hsonem2prime = lambda x : 0.0
-                                    Hstwom2prime = lambda x : 0.0
-                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
-                                    if soneprime >= 1:
-                                        Hsonem1prime = (hermite(soneprime-1)/np.sqrt(np.sqrt(np.pi)*factorial(soneprime-1)
-                                                                                     *2**(soneprime-1)))
-                                        if soneprime >= 2:
-                                            Hsonem2prime = (hermite(soneprime-2)/np.sqrt(np.sqrt(np.pi)*factorial(soneprime-2)
-                                                                                         *2**(soneprime-2)))
-                                    if stwoprime >= 1:
-                                        Hstwom1prime = (hermite(stwoprime-1)/np.sqrt(np.sqrt(np.pi)*factorial(stwoprime-1)
-                                                                                     *2**(stwoprime-1)))
-                                        if stwoprime >= 2:
-                                            Hstwom2prime = (hermite(stwoprime-2)/np.sqrt(np.sqrt(np.pi)*factorial(stwoprime-2)
-                                                                                         *2**(stwoprime-2)))
-                                    kinetic_temp = integrate.dblquad(lambda zetaone, zetatwo: 
-                                                                (Hsone(zetaone-zetaoneoffset) 
-                                                                 * np.exp(-0.5*(zetaone - zetaoneoffset)**2)
-                                                                 * Hstwo(zetatwo-zetatwooffset) 
-                                                                 * np.exp(-0.5*(zetatwo - zetatwooffset)**2)
-                                                                 * (-4.0 * EC_mat_t[0, 0]
-                                                                   * Hstwoprime(zetatwo - zetatwoprimeoffset)
-                                                                   * np.exp(-0.5*(zetatwo - zetatwoprimeoffset)**2)
-                                                                   * np.exp(-0.5*(zetaone - zetaoneprimeoffset)**2))
-                                                                * ((4.0 * soneprime * (soneprime - 1)
-                                                                    * Hsonem2prime(zetaone - zetaoneprimeoffset))
-                                                                   - (4.0 * soneprime 
-                                                                      * Hsonem1prime(zetaone - zetaoneprimeoffset)
-                                                                      * (zetaone - zetaoneprimeoffset))
-                                                                   + ((zetaone - zetaoneprimeoffset)**2
-                                                                      * Hsoneprime(zetaone - zetaoneprimeoffset))
-                                                                   - Hsoneprime(zetaone - zetaoneprimeoffset)))
-                                                                
-                                                                +
-                                                                
-                                                                (Hsone(zetaone-zetaoneoffset) 
-                                                                 * np.exp(-0.5*(zetaone - zetaoneoffset)**2)
-                                                                 * Hstwo(zetatwo-zetatwooffset) 
-                                                                 * np.exp(-0.5*(zetatwo - zetatwooffset)**2)
-                                                                 * (-4.0 * EC_mat_t[1, 1]
-                                                                   * Hsoneprime(zetaone - zetaoneprimeoffset)
-                                                                   * np.exp(-0.5*(zetaone - zetaoneprimeoffset)**2)
-                                                                   * np.exp(-0.5*(zetatwo - zetatwoprimeoffset)**2))
-                                                                * ((4.0 * stwoprime * (stwoprime - 1)
-                                                                    * Hstwom2prime(zetatwo - zetatwoprimeoffset))
-                                                                   - (4.0 * stwoprime 
-                                                                      * Hstwom1prime(zetatwo - zetatwoprimeoffset)
-                                                                      * (zetatwo - zetatwoprimeoffset))
-                                                                   + ((zetatwo - zetatwoprimeoffset)**2
-                                                                      * Hstwoprime(zetatwo - zetatwoprimeoffset))
-                                                                   - Hstwoprime(zetatwo - zetatwoprimeoffset))), 
-                                                                -np.inf, np.inf, lambda zetaone : -np.inf, 
-                                                                lambda zetaone : np.inf)
-#                                    print(sone, stwo, soneprime, stwoprime, kinetic_temp[0], jkvals)
-                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-                                    kinetic_test_mat[i, j] += kinetic_temp[0]
-                                    jkvals = next(klist,-1)
-        return(kinetic_test_mat)
-    
-    def _potential_mat_test_phi_coords(self):
-        dim = self.hilbertdim()
-        potential_test_mat = np.zeros((dim,dim))
-        minima_list = self.sorted_minima()
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        EC_mat = self.build_EC_matrix()
-        EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
-        for m, minima_m in enumerate(minima_list):
-            for p, minima_p in enumerate(minima_list):
-                for sone in range(self.num_exc+1):
-                    for stwo in range(self.num_exc+1):
-                        for soneprime in range(self.num_exc+1):
-                            for stwoprime in range(self.num_exc+1):
-                                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
-                                while jkvals != -1:
-                                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    Hsone = hermite(sone)/np.sqrt(np.sqrt(np.pi)
-                                                                  *factorial(sone)*2**sone)
-                                    Hstwo = hermite(stwo)/np.sqrt(np.sqrt(np.pi)
-                                                                  *factorial(stwo)*2**stwo)
-                                    Hsoneprime = hermite(soneprime)/np.sqrt(np.sqrt(np.pi)
-                                                                            *factorial(soneprime)*2**soneprime)
-                                    Hstwoprime = hermite(stwoprime)/np.sqrt(np.sqrt(np.pi)
-                                                                            *factorial(stwoprime)*2**stwoprime)
-                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
-                                    
-                                    matelem = integrate.dblquad(lambda phi1, phi2 :
-                                                                Hsone(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 
-                                                                      - zetaoneoffset) 
-                                                                * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 
-                                                                               - zetaoneoffset)**2)
-                                                                * Hstwo(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 
-                                                                        - zetatwooffset) 
-                                                                * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 
-                                                                               - zetatwooffset)**2)
-                                                                * (-self.EJ*np.cos(phi1) -self.EJ*np.cos(phi2)
-                                                                   -self.EJ*self.alpha*np.cos(phi2-phi1-2.0*np.pi*self.flux))
-                                                                * Hsoneprime(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 
-                                                                             - zetaoneprimeoffset) 
-                                                                * np.exp(-0.5*(Xi_inv[0, 0]*phi1 + Xi_inv[0, 1]*phi2 
-                                                                               - zetaoneprimeoffset)**2)
-                                                                * Hstwoprime(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 
-                                                                        - zetatwoprimeoffset) 
-                                                                * np.exp(-0.5*(Xi_inv[1, 0]*phi1 + Xi_inv[1, 1]*phi2 
-                                                                               - zetatwoprimeoffset)**2)
-                                                                * np.abs(1./sp.linalg.det(Xi)), -np.inf, np.inf, 
-                                                                lambda zetaone : -np.inf, 
-                                                                lambda zetaone : np.inf
-                                                               )
-#                                    print(sone, stwo, soneprime, stwoprime, matelem[0], jkvals)
-                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-                                    potential_test_mat[i, j] += matelem[0]
-                                    
-                                    jkvals = next(klist,-1)
-        return(potential_test_mat)
-    
-    def _inner_product_test(self):
-        dim = self.hilbertdim()
-        inner_product_test_mat = np.zeros((dim,dim))
-        minima_list = self.sorted_minima()
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        for m, minima_m in enumerate(minima_list):
-            for p, minima_p in enumerate(minima_list):
-                for sone in range(self.num_exc+1):
-                    for stwo in range(self.num_exc+1):
-                        for soneprime in range(self.num_exc+1):
-                            for stwoprime in range(self.num_exc+1):
-                                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
-                                while jkvals != -1:
-                                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    Hsone = hermite(sone)/np.sqrt(np.sqrt(np.pi)*factorial(sone)*2**sone)
-                                    Hstwo = hermite(stwo)/np.sqrt(np.sqrt(np.pi)*factorial(stwo)*2**stwo)
-                                    Hsoneprime = hermite(soneprime)/np.sqrt(np.sqrt(np.pi)*factorial(soneprime)*2**soneprime)
-                                    Hstwoprime = hermite(stwoprime)/np.sqrt(np.sqrt(np.pi)*factorial(stwoprime)*2**stwoprime)
-                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
-                                    
-                                    matelem = integrate.dblquad(lambda zetaone, zetatwo: Hsone(zetaone-zetaoneoffset) 
-                                                                * np.exp(-0.5*(zetaone-zetaoneoffset)**2)
-                                                                * Hsoneprime(zetaone-zetaoneprimeoffset) 
-                                                                * np.exp(-0.5*(zetaone-zetaoneprimeoffset)**2)
-                                                                * Hstwo(zetatwo-zetatwooffset) 
-                                                                * np.exp(-0.5*(zetatwo-zetatwooffset)**2)
-                                                                * Hstwoprime(zetatwo-zetatwoprimeoffset)
-                                                                * np.exp(-0.5*(zetatwo-zetatwoprimeoffset)**2), 
-                                                                -np.inf, np.inf, 
-                                                                lambda zetaone : -np.inf, 
-                                                                lambda zetaone : np.inf)
-#                                    print(sone, stwo, soneprime, stwoprime, matelem[0], jkvals)
-                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-                                    inner_product_test_mat[i, j] += matelem[0]
-                                    jkvals = next(klist,-1)
-        return(inner_product_test_mat)
-                            
-        
-        
-        
-        
-        
-        
+        return(kinetic_test_mat)        
 
  
