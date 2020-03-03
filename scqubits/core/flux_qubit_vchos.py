@@ -242,10 +242,10 @@ class FluxQubitVCHOS(QubitBaseClass):
         op = self.matrix_exp((1./np.sqrt(2.))*phi_Xi_inv_a)
         return prefactor * op
     
-    def V_operator_full(self, minima_diff, phik, exp_min_diff, exp_a_list):
+    def V_operator_full(self, minima_diff, phik, exp_min_diff, exp_a_list, delta_inv):
         """Return the V operator using the more efficient methods """
         delta_phi_kpm = phik+minima_diff
-        phi_delta_phi = np.matmul(delta_phi_kpm,np.matmul(self.delta_inv_matrix(),delta_phi_kpm))
+        phi_delta_phi = np.matmul(delta_phi_kpm,np.matmul(delta_inv,delta_phi_kpm))
         prefactor = np.exp(-.125 * phi_delta_phi)
         V_op_phik = self._V_operator_helper_using_exp_a_operators(phik, exp_a_list)
         V_op = prefactor * np.matmul(exp_min_diff, V_op_phik)
@@ -253,7 +253,9 @@ class FluxQubitVCHOS(QubitBaseClass):
         
     def kineticmat(self):
         """Return the kinetic part of the hamiltonian"""
-        Xi_inv = sp.linalg.inv(self.Xi_matrix())
+        Xi = self.Xi_matrix()
+        Xi_inv = sp.linalg.inv(Xi)
+        delta_inv = np.matmul(np.transpose(Xi_inv), Xi_inv)
         EC_mat = self.build_EC_matrix()
         EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
         dim = self.hilbertdim()
@@ -271,8 +273,8 @@ class FluxQubitVCHOS(QubitBaseClass):
                     delta_phi_kpm = phik-(minima_m-minima_p) #XXXXXXXXXX
                     minima_diff = minima_p-minima_m
                        
-                    V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list)
-                    V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list).T
+                    V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list, delta_inv)
+                    V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list, delta_inv).T
                     
                     a_0 = self.a_operator(0)
                     a_1 = self.a_operator(1)
@@ -312,6 +314,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         """Return the potential part of the hamiltonian"""
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
+        delta_inv = np.matmul(np.transpose(Xi_inv), Xi_inv)
         dim = self.hilbertdim()
         potential_mat = np.zeros((dim,dim), dtype=np.complex128)
         minima_list = self.sorted_minima()
@@ -334,8 +337,8 @@ class FluxQubitVCHOS(QubitBaseClass):
                     exp_i_phi_0_op = np.exp(1j*phibar_kpm[0])*exp_i_phi_0
                     exp_i_phi_1_op = np.exp(1j*phibar_kpm[1])*exp_i_phi_1
                         
-                    V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list)
-                    V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list).T
+                    V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list, delta_inv)
+                    V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list, delta_inv).T
                                 
                     potential_temp = -0.5*self.EJ*(exp_i_phi_0_op+exp_i_phi_0_op.conjugate().T)
                     potential_temp += -0.5*self.EJ*(exp_i_phi_1_op+exp_i_phi_1_op.conjugate().T)
@@ -365,6 +368,9 @@ class FluxQubitVCHOS(QubitBaseClass):
         
     def inner_product(self):
         """Return the inner product matrix, which is nontrivial with VCHOS states"""
+        Xi = self.Xi_matrix()
+        Xi_inv = sp.linalg.inv(Xi)
+        delta_inv = np.matmul(np.transpose(Xi_inv), Xi_inv)
         dim = self.hilbertdim()
         inner_product_mat = np.zeros((dim,dim), dtype=np.complex128)
         minima_list = self.sorted_minima()
@@ -380,8 +386,8 @@ class FluxQubitVCHOS(QubitBaseClass):
                     delta_phi_kpm = phik-(minima_m-minima_p)
                     minima_diff = minima_p-minima_m
                     
-                    V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list)
-                    V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list).T
+                    V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list, delta_inv)
+                    V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list, delta_inv).T
                     
                     inner_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
                                   *np.matmul(V_op_dag, V_op))
