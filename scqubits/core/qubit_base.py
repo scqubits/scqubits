@@ -247,7 +247,6 @@ class QubitBaseClass(QuantumSystem):
                 eigenstate_table[index] = evecs
             else:
                 evals = self.eigenvals(evals_count)
-                print(evals)
             eigenvalue_table[index] = np.real(evals)   # for complex-hermitean H, eigenvalues have type np.complex_
 
             if subtract_ground:

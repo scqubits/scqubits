@@ -4,10 +4,6 @@ import itertools
 from scipy.optimize import minimize
 import scipy.constants as const
 from scipy.special import hermite
-from scipy.special import factorial
-from scipy.special import comb
-import scipy.integrate as integrate
-import math
 from scipy.linalg import LinAlgError
 
 import scqubits.core.constants as constants
@@ -20,51 +16,6 @@ from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 #-Flux Qubit using VCHOS 
 
-def heat(x, y, n):
-    heatsum = 0.0
-    for k in range(math.floor(float(n)/2.0)+1):
-        heatsum += x**(n-2*k)*y**(k)/(factorial(n-2*k)*factorial(k))
-    return(heatsum*factorial(n))
-
-def Hmn(m, n, x, y, w, z, tau):
-    Hmnsum = 0.0
-    for i in range(min(m,n)+1):
-        Hmnsum += (factorial(m)*factorial(n)/(factorial(m-i)*factorial(n-i)*factorial(i))
-                   *heat(x,y,m-i)*heat(w,z,n-i)*tau**i)
-    return(Hmnsum)
-
-def Imn(m,n,y,z,a,b,c,d,f,alpha):
-    xbar = b+(a*alpha/(2.0*f))
-    ybar = y+(a**2)/(4.0*f)
-    wbar = d+(c*alpha)/(2.0*f)
-    zbar = z+(c**2)/(4.0*f)
-    tau  = a*c/(2.0*f)
-    return(np.sqrt(np.pi/f)*np.exp(alpha**2/(4.0*f))*Hmn(m,n,xbar,ybar,wbar,zbar,tau)/
-           (np.sqrt(np.sqrt(np.pi)*2**n*factorial(n))*np.sqrt(np.sqrt(np.pi)*2**m*factorial(m))))
-
-def Rmnk(m,n,y,z,a,b,c,d,f,alpha,k):
-    xbar = b+(a*alpha/(2.0*f))
-    ybar = y+(a**2)/(4.0*f)
-    wbar = d+(c*alpha)/(2.0*f)
-    zbar = z+(c**2)/(4.0*f)
-    tau  = a*c/(2.0*f)
-    Rmnksum = 0.0
-    for l in range(k+1):
-        if(m-l>=0 and n-k+l>=0):
-            Rmnksum+=(comb(k,l)*((a/c)**l)*factorial(m)*factorial(n)/
-                      (factorial(m-l)*factorial(n-k+l)))*Hmn(m-l,n-k+l,xbar,ybar,wbar,zbar,tau)
-    return(Rmnksum*(c/(2.0*f))**k)
-
-def pImn(p,m,n,y,z,a,b,c,d,f,alpha):
-    pImnsum=0.0
-    if (m<0 or n<0):
-        return (0.0)                                       
-    for k in range(p+1):
-        pImnsum+=comb(p,k)*heat(alpha/(2.0*f),1.0/(4.0*f),p-k)*Rmnk(m,n,y,z,a,b,c,d,f,alpha,k)
-    return(np.sqrt(np.pi/f)*np.exp(alpha**2/(4.0*f))*pImnsum/
-           (np.sqrt(np.sqrt(np.pi)*(2**n)*factorial(n))
-            *np.sqrt(np.sqrt(np.pi)*(2**m)*factorial(m))))
-
 class FluxQubitVCHOS(QubitBaseClass):
     def __init__(self, ECJ, ECg, EJ, ng1, ng2, alpha, flux, kmax, num_exc):
         self.ECJ = ECJ
@@ -72,7 +23,6 @@ class FluxQubitVCHOS(QubitBaseClass):
         self.ECg = ECg
         self.ng1 = ng1
         self.ng2 = ng2
-        self.nglist = np.array([ng1, ng2])
         self.alpha = alpha
         self.flux = flux
         self.kmax = kmax
@@ -220,9 +170,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         jkvals = phi/(2.0*np.pi)
         j0 = int(jkvals[0])
         j1 = int(jkvals[1])
-        
-        exp_a_00, exp_a_10, exp_a_01, exp_a_11 = self._exp_a_operators()
-        
+                
         V00_op = np.linalg.matrix_power(exp_a_list[0], j0)
         V01_op = np.linalg.matrix_power(exp_a_list[2], j0)
         V0_op = np.matmul(V00_op, V01_op)
@@ -262,6 +210,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         minima_list = self.sorted_minima()
         kinetic_mat = np.zeros((dim,dim), dtype=np.complex128)
         exp_a_list = self._exp_a_operators()
+        nglist = np.array([self.ng1, self.ng2])
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
@@ -297,7 +246,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                      
                     kinetic_temp += -self._identity()*delta_left_right
                                              
-                    kinetic_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
+                    kinetic_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm))
                                     *np.matmul(V_op_dag, kinetic_temp))
                     kinetic_temp = np.matmul(kinetic_temp, V_op)
                     
@@ -322,6 +271,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         exp_i_phi_1 = self.normal_ordered_exp_i_phi_operator(1)
         exp_i_phi_0_m1 = self.normal_ordered_exp_i_phix_mi_phiy(0, 1)
         exp_a_list = self._exp_a_operators()
+        nglist = np.array([self.ng1, self.ng2])
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
@@ -351,7 +301,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                  *np.exp(-1j*phibar_kpm[0])
                                                                  *np.exp(1j*phibar_kpm[1])))
 
-                    potential_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
+                    potential_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm))
                                       *np.matmul(V_op_dag, potential_temp))
                     potential_temp = np.matmul(potential_temp, V_op)
                     
@@ -375,6 +325,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         inner_product_mat = np.zeros((dim,dim), dtype=np.complex128)
         minima_list = self.sorted_minima()
         exp_a_list = self._exp_a_operators()
+        nglist = np.array([self.ng1, self.ng2])
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
@@ -389,7 +340,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                     V_op = self.V_operator_full(-minima_diff, -phik, exp_min_diff_inv, exp_a_list, delta_inv)
                     V_op_dag = self.V_operator_full(minima_diff, phik, exp_min_diff, exp_a_list, delta_inv).T
                     
-                    inner_temp = (np.exp(1j*np.dot(self.nglist, delta_phi_kpm))
+                    inner_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm))
                                   *np.matmul(V_op_dag, V_op))
                     
                     num_exc_tot = (self.num_exc+1)**2
@@ -501,6 +452,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
+        norm = np.sqrt(np.abs(np.linalg.det(Xi)))**(-1)
         
         state_amplitudes_list = []
         
@@ -521,7 +473,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                       (self.num_exc+1, self.num_exc+1)))
 #                state_amplitudes = np.zeros_like(state_amplitudes)
 #                state_amplitudes[2,0] = 1.0
-                wavefunc_amplitudes += np.sum([state_amplitudes[s1, s2] * np.sqrt(np.abs(np.linalg.det(Xi)))**(-1)
+                wavefunc_amplitudes += np.sum([state_amplitudes[s1, s2] * norm
                 * np.multiply(self.harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0,0]*phi_vec+phi1_s1_arg, 
                                                                           Xi_inv[0,1]*phi_vec+phi2_s1_arg)), 
                               self.harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1,0]*phi_vec+phi1_s2_arg,
@@ -570,31 +522,26 @@ class FluxQubitVCHOS(QubitBaseClass):
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         inner_product_mat = self.inner_product()
-        print("a")
         try:
             evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat, 
                                    eigvals_only=True, eigvals=(0, evals_count - 1))
         except LinAlgError:
-            print("exception evals", self.flux)
+            print("exception")
             global_min = self.sorted_minima()[0]
             global_min_value = self.potential(global_min)
-            print(global_min_value)
             evals = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, M=inner_product_mat, 
                                            sigma=global_min_value, which='LM', return_eigenvectors=False)
-#            evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat, 
-#                                   eigvals_only=True, eigvals=(0, evals_count - 1))
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         inner_product_mat = self.inner_product()
-        print("b")
         try:
             evals, evecs = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
                                           eigvals_only=False, eigvals=(0, evals_count - 1))
             evals, evecs = order_eigensystem(evals, evecs)
         except LinAlgError:
-            print("exception esys")
+            print("exception")
             global_min = self.sorted_minima()[0]
             global_min_value = self.potential(global_min)
             evals, evecs = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, M=inner_product_mat, 
@@ -658,320 +605,4 @@ class FluxQubitVCHOS(QubitBaseClass):
         return ((2.0 ** n * sp.special.gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) 
                 * sp.special.eval_hermite(n, x) 
                 * np.exp(-x**2/2.))
-        
-    def _identity_mat_test_babusci(self):
-        dim = self.hilbertdim()
-        identity_test_mat = np.zeros((dim,dim))
-        minima_list = self.sorted_minima()
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        EC_mat = self.build_EC_matrix()
-        EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
-        for m, minima_m in enumerate(minima_list):
-            for p, minima_p in enumerate(minima_list):
-                for sone in range(self.num_exc+1):
-                    for stwo in range(self.num_exc+1):
-                        for soneprime in range(self.num_exc+1):
-                            for stwoprime in range(self.num_exc+1):
-                                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
-                                matelem = 0.
-                                while jkvals != -1:
-                                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
-                                    matelem += (np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
-                                                       c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                       alpha=zetatwooffset+zetatwoprimeoffset)
-                                                * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, a=2, 
-                                                      b=-2*zetaoneoffset, c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                      alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                    jkvals = next(klist, -1)
-                                i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-                                identity_test_mat[i, j] += matelem
-        return(identity_test_mat)
-    
-    def _potential_mat_test_babusci(self):
-        dim = self.hilbertdim()
-        potential_test_mat = np.zeros((dim,dim), dtype=np.complex_)
-        minima_list = self.sorted_minima()
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        for m, minima_m in enumerate(minima_list):
-            for p, minima_p in enumerate(minima_list):
-                for sone in range(self.num_exc+1):
-                    for stwo in range(self.num_exc+1):
-                        for soneprime in range(self.num_exc+1):
-                            for stwoprime in range(self.num_exc+1):
-                                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
-                                matelem = 0.0
-                                while jkvals != -1:
-                                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
-                                    
-                                    potential1pos = -0.5*self.EJ*(np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                                  * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
-                                                                         a=2, b=-2*zetatwooffset,c=2, 
-                                                                         d=-2*zetatwoprimeoffset, f=1, 
-                                                                         alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                                + 1j*Xi[0, 1]))
-                                                                  * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
-                                                                         a=2, b=-2*zetaoneoffset, c=2, 
-                                                                         d=-2*zetaoneprimeoffset, f=1, 
-                                                                         alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                               + 1j*Xi[0, 0]))
-                                                                  * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                    
-                                    potential1neg = -0.5*self.EJ*(np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                                  * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
-                                                                         a=2, b=-2*zetatwooffset,c=2, 
-                                                                         d=-2*zetatwoprimeoffset, f=1, 
-                                                                         alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                               - 1j*Xi[0, 1]))
-                                                                  * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
-                                                                         a=2, b=-2*zetaoneoffset, c=2, 
-                                                                         d=-2*zetaoneprimeoffset, f=1, 
-                                                                         alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                               - 1j*Xi[0, 0]))
-                                                                  * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                    
-                                    potential2pos = -0.5*self.EJ*(np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                                  * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
-                                                                         a=2, b=-2*zetatwooffset,c=2, 
-                                                                         d=-2*zetatwoprimeoffset, f=1, 
-                                                                         alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                               + 1j*Xi[1, 1]))
-                                                                  * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
-                                                                         a=2, b=-2*zetaoneoffset, c=2, 
-                                                                         d=-2*zetaoneprimeoffset, f=1, 
-                                                                         alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                               + 1j*Xi[1, 0]))
-                                                                  * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                    
-                                    potential2neg = -0.5*self.EJ*(np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                                  * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
-                                                                         a=2, b=-2*zetatwooffset,c=2, 
-                                                                         d=-2*zetatwoprimeoffset, f=1, 
-                                                                         alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                               - 1j*Xi[1, 1]))
-                                                                  * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
-                                                                         a=2, b=-2*zetaoneoffset, c=2, 
-                                                                         d=-2*zetaoneprimeoffset, f=1, 
-                                                                         alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                               - 1j*Xi[1, 0]))
-                                                                  * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                    
-                                    potential3pos = -(0.5*self.alpha*self.EJ*np.exp(-1j*2.0*np.pi*self.flux)
-                                                      * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                      * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
-                                                             a=2, b=-2*zetatwooffset,c=2, 
-                                                             d=-2*zetatwoprimeoffset, f=1, 
-                                                             alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                    + 1j*(Xi[1, 1] - Xi[0, 1])))
-                                                      * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
-                                                             a=2, b=-2*zetaoneoffset, c=2, 
-                                                             d=-2*zetaoneprimeoffset, f=1, 
-                                                             alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                    + 1j*(Xi[1, 0] - Xi[0, 0])))
-                                                      * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                    
-                                    potential3neg = -(0.5*self.alpha*self.EJ*np.exp(1j*2.0*np.pi*self.flux)
-                                                      * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                      * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
-                                                             a=2, b=-2*zetatwooffset,c=2, 
-                                                             d=-2*zetatwoprimeoffset, f=1, 
-                                                             alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                    - 1j*(Xi[1, 1] - Xi[0, 1])))
-                                                      * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
-                                                             a=2, b=-2*zetaoneoffset, c=2, 
-                                                             d=-2*zetaoneprimeoffset, f=1, 
-                                                             alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                    - 1j*(Xi[1, 0] - Xi[0, 0])))
-                                                      * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                    
-                                    matelem += (potential1pos + potential1neg + potential2pos
-                                               + potential2neg + potential3pos + potential3neg)
-                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-#                                    if ((i==6) and (j==0)):
-#                                        print(potential1pos, potential1neg, potential2pos, 
-#                                              potential2neg, potential3pos, potential3neg)
-#                                        print(matelem, "jkvals = ", jkvals)
-
-                                    
-                                    jkvals = next(klist, -1)
-                                i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-                                potential_test_mat[i, j] += matelem
-        return(potential_test_mat)
-        
-    def _kinetic_mat_test_babusci(self):
-        dim = self.hilbertdim()
-        kinetic_test_mat = np.zeros((dim,dim))
-        minima_list = self.sorted_minima()
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        EC_mat = self.build_EC_matrix()
-        EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
-        for m, minima_m in enumerate(minima_list):
-            for p, minima_p in enumerate(minima_list):
-                for sone in range(self.num_exc+1):
-                    for stwo in range(self.num_exc+1):
-                        for soneprime in range(self.num_exc+1):
-                            for stwoprime in range(self.num_exc+1):
-                                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
-                                matelem = 0.0
-                                while jkvals != -1:
-                                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
-                                    
-                                    elem11 = (4.0*EC_mat_t[0, 0]
-                                                * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
-                                                       c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                       alpha=zetatwooffset+zetatwoprimeoffset)
-                                                * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, a=2, 
-                                                      b=-2*zetaoneoffset, c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                      alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                                                        
-                                    elem12 = -(4.0*EC_mat_t[0, 0]
-                                                 * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                 * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
-                                                        c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                        alpha=zetatwooffset+zetatwoprimeoffset)
-                                                 * pImn(p=2, m=sone, n=soneprime, y=-1, z=-1, a=2, 
-                                                        b=-2*(zetaoneoffset-zetaoneprimeoffset), c=2, 
-                                                        d=0, f=1, alpha=zetaoneoffset-zetaoneprimeoffset)
-                                                 * np.exp(-0.5*(zetaoneprimeoffset-zetaoneoffset)**2))
-                                                                        
-                                    elem13 = elem14 = 0.
-                                    if soneprime >= 1:
-                                        elem13 += -((4.0*EC_mat_t[0, 0]/(np.sqrt(soneprime*2)))
-                                                     * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                     * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
-                                                           c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                           alpha=zetatwooffset+zetatwoprimeoffset)
-                                                     * 4*zetaoneprimeoffset*soneprime
-                                                     * pImn(p=0, m=sone, n=soneprime-1, y=-1, z=-1, a=2, 
-                                                           b=-2*zetaoneoffset, c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                           alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                     * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                        
-                                        elem14 += ((4.0*EC_mat_t[0, 0]/(np.sqrt(soneprime*2)))
-                                                    * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                    * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
-                                                           c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                           alpha=zetatwooffset+zetatwoprimeoffset)
-                                                    * 4*soneprime
-                                                    * pImn(p=1, m=sone, n=soneprime-1, y=-1, z=-1, a=2, 
-                                                          b=-2*zetaoneoffset, c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                          alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                    * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                    
-                                    elem15 = 0.
-                                    if soneprime >= 2:
-                                        elem15 += (-(4.0*EC_mat_t[0, 0]/(np.sqrt(soneprime*(soneprime-1)*2*2)))
-                                                   * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
-                                                   * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
-                                                       c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                        alpha=zetatwooffset+zetatwoprimeoffset)
-                                                   * 4*soneprime*(soneprime - 1)
-                                                   * pImn(p=0, m=sone, n=soneprime-2, y=-1, z=-1, a=2, 
-                                                          b=-2*zetaoneoffset, c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                          alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                   * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
-                                        
-                                    #########
-                                    
-                                    elem21 = (4.0*EC_mat_t[1, 1]
-                                                * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2))
-                                                * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, a=2, b=-2*zetaoneoffset,
-                                                       c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                       alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, 
-                                                      b=-2*zetatwooffset, c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                      alpha=zetatwooffset+zetatwoprimeoffset)
-                                                * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2)))
-                                    
-                                    elem22 = -(4.0*EC_mat_t[1, 1]
-                                                 * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2))
-                                                 * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, a=2, b=-2*zetaoneoffset,
-                                                        c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                        alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                 * pImn(p=2, m=stwo, n=stwoprime, y=-1, z=-1, a=2, 
-                                                        b=-2*(zetatwooffset-zetatwoprimeoffset), c=2, 
-                                                        d=0, f=1, alpha=zetatwooffset-zetatwoprimeoffset)
-                                                 * np.exp(-0.5*(zetatwoprimeoffset-zetatwooffset)**2))
-                                    
-                                    elem23 = elem24 = 0.
-                                    if stwoprime >= 1:
-                                        elem23 += -((4.0*EC_mat_t[1, 1]/(np.sqrt(stwoprime*2)))
-                                                     * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2))
-                                                     * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, a=2, b=-2*zetaoneoffset,
-                                                            c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                            alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                     * 4*zetatwoprimeoffset*stwoprime
-                                                     * pImn(p=0, m=stwo, n=stwoprime-1, y=-1, z=-1, a=2, 
-                                                           b=-2*zetatwooffset, c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                           alpha=zetatwooffset+zetatwoprimeoffset)
-                                                     * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2)))
-                                        
-                                        elem24 += ((4.0*EC_mat_t[1, 1]/(np.sqrt(stwoprime*2)))
-                                                    * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2))
-                                                    * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, a=2, b=-2*zetaoneoffset,
-                                                           c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                           alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                    * 4*stwoprime
-                                                    * pImn(p=1, m=stwo, n=stwoprime-1, y=-1, z=-1, a=2, 
-                                                          b=-2*zetatwooffset, c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                          alpha=zetatwooffset+zetatwoprimeoffset)
-                                                    * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2)))
-                                    
-                                    elem25 = 0.
-                                    if stwoprime >= 2:
-                                        elem25 += (-(4.0*EC_mat_t[1, 1]/(np.sqrt(stwoprime*(stwoprime-1)*2*2)))
-                                                   * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2))
-                                                   * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, a=2, b=-2*zetaoneoffset,
-                                                          c=2, d=-2*zetaoneprimeoffset, f=1, 
-                                                          alpha=zetaoneoffset+zetaoneprimeoffset)
-                                                   * 4*stwoprime*(stwoprime - 1)
-                                                   * pImn(p=0, m=stwo, n=stwoprime-2, y=-1, z=-1, a=2, 
-                                                          b=-2*zetatwooffset, c=2, d=-2*zetatwoprimeoffset, f=1, 
-                                                          alpha=zetatwooffset+zetatwoprimeoffset)
-                                                   * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2)))
-                                        
-                                    matelem += (elem11 + elem12 + elem13 + elem14 + elem15
-                                                + elem21 + elem22 + elem23 + elem24 + elem25)
-                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-#                                    if ((i==0) and (j==4)):
-#                                        print(elem11, elem12, elem13, elem14, elem15,
-#                                              elem21, elem22, elem23, elem24, elem25)
-#                                        print(matelem, "jkvals = ", jkvals, "babusci")
-                                    jkvals = next(klist, -1)
-                                i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-                                kinetic_test_mat[i, j] += matelem
-        return(kinetic_test_mat)        
-
  
