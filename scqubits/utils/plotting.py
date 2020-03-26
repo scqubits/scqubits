@@ -325,8 +325,8 @@ def matrix(data_matrix, mode='abs', **kwargs):
     # skyscraper plot
     ax1.view_init(azim=210, elev=23)
     ax1.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
-    ax1.axes.w_xaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set x-ticks to integers
-    ax1.axes.w_yaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set y-ticks to integers
+    ax1.axes.xaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set x-ticks to integers
+    ax1.axes.yaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set y-ticks to integers
     ax1.set_zlim3d([0, max(zheight)])
 
     # 2d plot
