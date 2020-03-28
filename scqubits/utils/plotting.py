@@ -42,7 +42,7 @@ _direct_plot_options={
                 'markeredgewidth', 'markerfacecolor', 'markerfacecoloralt',
                 'markersize', 'alpha'),
         'imshow':('interpolation',),
-        'countourf':('linewidths', 'linestyles')
+        'contourf':('linewidths', 'linestyles')
     }
 
 def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_options):
