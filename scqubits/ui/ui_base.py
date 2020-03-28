@@ -43,7 +43,6 @@ def create_widget(callback_func, init_params, image_filename=None):
     -------
 
     """
-    """Drives the interactive display of the plot explorer panels"""
     widgets = {}
     for name, value in init_params.items():
         if isinstance(value, float):
