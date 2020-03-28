@@ -43,8 +43,7 @@ An instance of the full Zero-Pi qubit is created as follows::
                                 zeta_cutoff = 30)
                                 
 
-Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`. In the above example,
-the disorder parameters ``dEJ`` and ``dCJ`` are not specified, and hence take on the default value zero (no disorder).
+Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`.
 
 
 Calculational methods related to Hamiltonian and energy spectra
