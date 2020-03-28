@@ -103,6 +103,10 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     def __getitem__(self, index):
         return self._subsystems[index]
 
+    def __repr__(self):
+        init_dict = self.get_initdata()
+        return type(self).__name__ + f'(**{init_dict!r})'
+
     def __str__(self):
         output = '====== HilbertSpace object ======\n'
         for subsystem in self:

@@ -45,6 +45,9 @@ def serialize(the_object):
 def deserialize(iodata):
     """
     Turn IOData back into a Python object of the appropriate kind.
+    An object is deemed deserializable if
+    1) it is accessible through `scqubits.<classname>` and has a `.deserialize` method
+    2) there exists a function `file_io_serializers.<typename>_deserialize`
 
     Parameters
     ----------
@@ -131,7 +134,7 @@ class FileIOFactory:
         raise Exception("Extension '{}' of given file name '{}' does not match any supported "
                         "file type: {}".format(suffix, file_name, const.FILE_TYPES))
 
-    def get_reader(self, file_name, file_handle=None):
+    def get_reader(self, file_name, file_handle=None, get_external_reader=False):
         """
         Based on the extension of the provided file name, return the appropriate reader engine.
 
@@ -139,11 +142,15 @@ class FileIOFactory:
         ----------
         file_name: str
         file_handle: h5py.Group, optional
+        get_external_reader: book, optional
 
         Returns
         -------
         H5Reader or CSVReader
         """
+        if get_external_reader:
+            return get_external_reader(file_name, file_handle=file_handle)
+
         import scqubits.utils.file_io_backends as io_backends
         _, suffix = os.path.splitext(file_name)
         if suffix == '.csv':

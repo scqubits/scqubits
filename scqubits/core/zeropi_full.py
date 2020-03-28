@@ -9,6 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import os
 import numpy as np
 from scipy import sparse
 
@@ -17,8 +18,11 @@ import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
+import scqubits.core.discretization as discretization
 import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.spectrum_utils as spec_utils
+import scqubits.ui.ui_base as ui
+
 
 
 class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
@@ -120,6 +124,40 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
 
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
+
+    @classmethod
+    def create(cls):
+        init_params = {
+            'EJ': 0.25,
+            'EL': 0.01,
+            'ECJ': 0.49,
+            'EC': 0.001,
+            'dEJ': 0.05,
+            'dCJ': 0.05,
+            'dC': 0.08,
+            'dEL': 0.05,
+            'ng': 0.1,
+            'flux': 0.23,
+            'ncut': 30,
+            'zeropi_cutoff': 10,
+            'zeta_cutoff': 40
+        }
+        phi_grid = discretization.Grid1d(-25.0, 25.0, 360)
+        image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropifull.png')
+        zeropi = FullZeroPi(**init_params, grid=phi_grid)
+        init_params['grid_max_val'] = 25.0
+        init_params['grid_min_val'] = -25.0
+        init_params['grid_pt_count'] = 360
+        ui.create_widget(zeropi.set_parameters, init_params, image_filename=image_filename)
+        return zeropi
+
+    def set_parameters(self, **kwargs):
+        phi_grid = discretization.Grid1d(kwargs.pop('grid_min_val'),
+                                         kwargs.pop('grid_max_val'),
+                                         kwargs.pop('grid_pt_count'))
+        self.grid = phi_grid
+        for param_name, param_val in kwargs.items():
+            setattr(self, param_name, param_val)
 
     def receive(self, event, sender, **kwargs):
         if sender is self._zeropi.grid:

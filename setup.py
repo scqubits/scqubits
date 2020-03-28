@@ -79,7 +79,7 @@ TESTS_REQUIRE = ['cython (>=0.28.5)',
                  'tqdm',
                  'pytest']
 PACKAGES = ['scqubits', 'scqubits/core', 'scqubits/tests', 'scqubits/utils']
-PYTHON_VERSION = '>=3.5'
+PYTHON_VERSION = '>=3.6'
 
 
 NAME = "scqubits"

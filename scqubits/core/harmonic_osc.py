@@ -17,6 +17,7 @@ import scipy as sp
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.utils.file_io_serializers as serializers
+import scqubits.ui.ui_base as ui
 
 
 def harm_osc_wavefunction(n, x, losc):
@@ -62,6 +63,13 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
             self.E_osc = E_osc
 
         self._init_params.remove('omega')
+
+    @classmethod
+    def create(cls):
+        init_params = {'E_osc': 5.0}
+        oscillator = Oscillator(**init_params)
+        ui.create_widget(oscillator.set_parameters, init_params)
+        return oscillator
 
     def get_omega(self):
         # Support for omega will be rolled back eventually. For now allow with deprecation warnings.

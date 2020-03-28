@@ -13,6 +13,7 @@ Provides the base classes for qubits
 """
 
 import functools
+import inspect
 from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
@@ -40,12 +41,20 @@ else:
 
 # —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
 
-class QuantumSystem(DispatchClient):
+class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     truncated_dim: int
     _evec_dtype: type
     _sys_type: str
+
+    def __repr__(self):
+        if hasattr(self, '_init_params'):
+            init_names = self._init_params
+        else:
+            init_names = list(inspect.signature(self.__init__).parameters.keys())[1:]
+        init_dict = {name: getattr(self, name) for name in init_names}
+        return type(self).__name__ + f'(**{init_dict!r})'
 
     def __str__(self):
         output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
@@ -58,6 +67,20 @@ class QuantumSystem(DispatchClient):
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
 
+    @abstractmethod
+    def create(cls):
+        """Use ipywidgets to create a new class instance"""
+
+    def set_parameters(self, **kwargs):
+        """
+        Set new parameters through the provided dictionary.
+
+        Parameters
+        ----------
+        kwargs: dict (str: Number)
+        """
+        for param_name, param_val in kwargs.items():
+            setattr(self, param_name, param_val)
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
 

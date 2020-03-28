@@ -11,6 +11,7 @@
 
 import math
 
+import os
 import numpy as np
 
 import scqubits.core.constants as constants
@@ -21,6 +22,7 @@ import scqubits.core.storage as storage
 import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+import scqubits.ui.ui_base as ui
 
 
 # —Cooper pair box / transmon———————————————————————————————————————————————————————————————————————————————————————————
@@ -60,6 +62,25 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
+        self._params_types = {
+            'EJ': float,
+            'EC': float,
+            'ng': float,
+            'ncut': int
+        }
+
+    @classmethod
+    def create(cls):
+        init_params = {
+            'EJ': 30.0,
+            'EC': 1.2,
+            'ng': 0.0,
+            'ncut': 30
+        }
+        image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/transmon.png')
+        transmon = Transmon(**init_params)
+        ui.create_widget(transmon.set_parameters, init_params, image_filename=image_filename)
+        return transmon
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""

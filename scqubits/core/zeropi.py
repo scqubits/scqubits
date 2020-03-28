@@ -9,6 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import os
 import warnings
 
 import numpy as np
@@ -23,6 +24,7 @@ import scqubits.core.storage as storage
 import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
+import scqubits.ui.ui_base as ui
 
 
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
@@ -110,6 +112,37 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
+
+    @classmethod
+    def create(cls):
+        phi_grid = discretization.Grid1d(-19.0, 19.0, 200)
+        init_params = {
+            'EJ': 0.25,
+            'EL': 0.01,
+            'ECJ': 0.49,
+            'EC': 0.001,
+            'dEJ': 0.0,
+            'dCJ': 0.0,
+            'ng': 0.1,
+            'flux': 0.23,
+            'ncut': 30
+        }
+        image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropi.png')
+        zeropi = ZeroPi(**init_params, grid=phi_grid)
+        init_params['grid_max_val'] = 19.0
+        init_params['grid_min_val'] = -19.0
+        init_params['grid_pt_count'] = 200
+        ui.create_widget(zeropi.set_parameters, init_params, image_filename=image_filename)
+        return zeropi
+
+    def set_parameters(self, **kwargs):
+        phi_grid = discretization.Grid1d(kwargs.pop('grid_min_val'),
+                                         kwargs.pop('grid_max_val'),
+                                         kwargs.pop('grid_pt_count'))
+        self.grid = phi_grid
+        for param_name, param_val in kwargs.items():
+            setattr(self, param_name, param_val)
+
 
     def receive(self, event, sender, **kwargs):
         if sender is self.grid:

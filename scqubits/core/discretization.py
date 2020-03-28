@@ -40,6 +40,10 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         self.max_val = max_val
         self.pt_count = pt_count
 
+    def __repr__(self):
+        init_dict = self.get_initdata()
+        return type(self).__name__ + f'({init_dict!r})'
+
     def __str__(self):
         output = '    Grid1d ......'
         for param_name, param_val in sorted(utils.drop_private_keys(self.__dict__).items()):
