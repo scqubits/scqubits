@@ -27,15 +27,21 @@ An instance of the full Zero-Pi qubit is created as follows::
 
    phi_grid = scqubits.Grid1d(-6*np.pi, 6*np.pi, 200)
 
-   zero_pi = scqubits.FullZeroPi(grid = phi_grid,
-                                 EJ   = 0.25,
-                                 EL   = 10.0**(-2),
-                                 ECJ  = 0.5,
-                                 EC   = None,
-                                 ECS  = 10.0**(-3),
-                                 ng   = 0.1,
-                                 flux = 0.23,
-                                 ncut = 30)
+   zero_pi = scqubits.ZeroPiFull(grid = phi_grid,
+                                EJ   = 0.25,
+                                EL   = 10.0**(-2),
+                                ECJ  = 0.5,
+                                EC   = 0.001,
+                                dEJ  = 0.05,
+                                dCJ  = 0.05,
+                                dEL  = 0.01,
+                                dC   = 0.08,
+                                ng   = 0.1,
+                                flux = 0.23,
+                                ncut = 30,
+                                zeropi_cutoff = 10,
+                                zeta_cutoff = 30)
+                                
 
 Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`. In the above example,
 the disorder parameters ``dEJ`` and ``dCJ`` are not specified, and hence take on the default value zero (no disorder).
