@@ -71,7 +71,11 @@ class QuantumSystem(DispatchClient, ABC):
     def create(cls):
         """Use ipywidgets to create a new class instance"""
 
-    def set_parameters(self, **kwargs):
+    @abstractmethod
+    def default_params(self):
+        """Return dictionary with default parameter values for initialization of class instance"""
+
+    def set_params(self, **kwargs):
         """
         Set new parameters through the provided dictionary.
 
@@ -81,6 +85,17 @@ class QuantumSystem(DispatchClient, ABC):
         """
         for param_name, param_val in kwargs.items():
             setattr(self, param_name, param_val)
+
+    @abstractmethod
+    def nonfit_params():
+        """Return list of initialization parameter names that are not treated as fit parameters"""
+
+    def fit_params(self):
+        """Return list of initialization parameter names that are possible fit parameters"""
+        all_params = self.default_params().keys()
+        nonfit = self.nonfit_params()
+        return [param for param in all_params if param not in nonfit]
+
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
 

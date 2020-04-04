@@ -69,18 +69,27 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
 
-    @classmethod
-    def create(cls):
-        init_params = {
+    @staticmethod
+    def default_params():
+        return {
             'EJ': 8.9,
             'EC': 2.5,
             'EL': 0.5,
             'flux': 0.0,
-            'cutoff': 110
+            'cutoff': 110,
+            'truncated_dim': 10
         }
+
+    @staticmethod
+    def nonfit_params():
+        return ['flux', 'cutoff', 'truncated_dim']
+
+    @classmethod
+    def create(cls):
+        init_params = cls.default_params()
         image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxonium.png')
-        fluxonium = Fluxonium(**init_params)
-        ui.create_widget(fluxonium.set_parameters, init_params, image_filename=image_filename)
+        fluxonium = cls(**init_params)
+        ui.create_widget(fluxonium.set_params, init_params, image_filename=image_filename)
         return fluxonium
 
     def phi_osc(self):

@@ -147,6 +147,8 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         self.update_hilbertspace = update_hilbertspace
         self.num_cpus = num_cpus
 
+        self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
+
         self._lookup = None
         self._bare_hamiltonian_constant = None
 
@@ -201,7 +203,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         with utils.InfoBar("Parallel compute bare eigensys [num_cpus={}]".format(self.num_cpus), self.num_cpus):
             bare_eigendata_varying = list(
                 target_map(self._compute_bare_spectrum_varying,
-                           tqdm(self.param_vals, desc='Bare spectra', leave=False, disable=(self.num_cpus > 1)))
+                           tqdm(self.param_vals, desc='Bare spectra', leave=False, disable=self.tqdm_disabled))
             )
         bare_specdata_list = self._recast_bare_eigendata(bare_eigendata_constant, bare_eigendata_varying)
         del bare_eigendata_constant
@@ -223,7 +225,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
 
         with utils.InfoBar("Parallel compute dressed eigensys [num_cpus={}]".format(self.num_cpus), self.num_cpus):
             dressed_eigendata = list(target_map(func, tqdm(param_indices, desc='Dressed spectrum', leave=False,
-                                                           disable=(self.num_cpus > 1))))
+                                                           disable=self.tqdm_disabled)))
         dressed_specdata = self._recast_dressed_eigendata(dressed_eigendata)
         del dressed_eigendata
         return dressed_specdata

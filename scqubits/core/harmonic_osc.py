@@ -64,11 +64,21 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
         self._init_params.remove('omega')
 
+
+    @staticmethod
+    def default_params():
+        return {'E_osc': 5.0,
+                'truncated_dim': 10}
+
+    @staticmethod
+    def nonfit_params():
+        return ['truncated_dim']
+
     @classmethod
     def create(cls):
-        init_params = {'E_osc': 5.0}
-        oscillator = Oscillator(**init_params)
-        ui.create_widget(oscillator.set_parameters, init_params)
+        init_params = cls.default_params()
+        oscillator = cls(**init_params)
+        ui.create_widget(oscillator.set_params, init_params)
         return oscillator
 
     def get_omega(self):

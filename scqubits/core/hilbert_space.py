@@ -25,6 +25,7 @@ import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
+import scqubits.ui.ui_base as ui
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -71,6 +72,16 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
         self._init_params.remove('hilbertspace')
 
+    def __repr__(self):
+        init_dict = {name: getattr(self, name) for name in self._init_params}
+        return type(self).__name__ + f'(**{init_dict!r})'
+
+    def __str__(self):
+        output = type(self).__name__.upper() + '\n ———— PARAMETERS ————'
+        for param_name in self._init_params:
+            output += '\n' + str(param_name) + '\t: ' + str(getattr(self, param_name))
+        return output + '\n'
+
 
 class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     """Class holding information about the full Hilbert space, usually composed of multiple subsystems.
@@ -100,6 +111,12 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         dispatch.CENTRAL_DISPATCH.register('INTERACTIONTERM_UPDATE', self)
         dispatch.CENTRAL_DISPATCH.register('INTERACTIONLIST_UPDATE', self)
 
+    @classmethod
+    def create(cls):
+        hilbertspace = cls([])
+        ui.create_hilbertspace_widget(hilbertspace.__init__)
+        return hilbertspace
+
     def __getitem__(self, index):
         return self._subsystems[index]
 
@@ -111,6 +128,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         output = '====== HilbertSpace object ======\n'
         for subsystem in self:
             output += '\n' + str(subsystem) + '\n'
+        if self.interaction_list is not None:
+            for interaction_term in self.interaction_list:
+                output += '\n' + str(interaction_term) + '\n'
         return output
 
     def index(self, item):
@@ -130,15 +150,12 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             if event == 'QUANTUMSYSTEM_UPDATE' and sender in self:
                 self.broadcast('HILBERTSPACE_UPDATE')
                 self._lookup._out_of_sync = True
-                # print('Lookup table now out of sync')
             elif event == 'INTERACTIONTERM_UPDATE' and sender in self.interaction_list:
                 self.broadcast('HILBERTSPACE_UPDATE')
                 self._lookup._out_of_sync = True
-                # print('Lookup table now out of sync')
             elif event == 'INTERACTIONLIST_UPDATE' and sender is self:
                 self.broadcast('HILBERTSPACE_UPDATE')
                 self._lookup._out_of_sync = True
-                # print('Lookup table now out of sync')
 
     @property
     def subsystem_list(self):

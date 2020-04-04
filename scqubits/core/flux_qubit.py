@@ -103,9 +103,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
         self._evec_dtype = np.complex_
         self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)    # for plotting in phi_j basis
 
-    @classmethod
-    def create(cls):
-        init_params = {
+    @staticmethod
+    def default_params():
+        return {
             'EJ1': 1.0,
             'EJ2': 1.0,
             'EJ3': 0.8,
@@ -117,11 +117,20 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
             'ng1': 0.0,
             'ng2': 0.0,
             'flux': 0.4,
-            'ncut': 10
+            'ncut': 10,
+            'truncated_dim': 10
         }
+
+    @staticmethod
+    def nonfit_params():
+        return ['ng1', 'ng2', 'flux', 'ncut', 'truncated_dim']
+
+    @classmethod
+    def create(cls):
+        init_params = cls.default_params()
         image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxqubit.png')
-        flux_qubit = FluxQubit(**init_params)
-        ui.create_widget(flux_qubit.set_parameters, init_params, image_filename=image_filename)
+        flux_qubit = cls(**init_params)
+        ui.create_widget(flux_qubit.set_params, init_params, image_filename=image_filename)
         return flux_qubit
 
 

@@ -125,9 +125,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
 
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
-    @classmethod
-    def create(cls):
-        init_params = {
+    @staticmethod
+    def default_params():
+        return {
             'EJ': 0.25,
             'EL': 0.01,
             'ECJ': 0.49,
@@ -140,18 +140,27 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
             'flux': 0.23,
             'ncut': 30,
             'zeropi_cutoff': 10,
-            'zeta_cutoff': 40
+            'zeta_cutoff': 40,
+            'truncated_dim': 10
         }
+
+    @staticmethod
+    def nonfit_params():
+        return ['ng', 'flux', 'ncut', 'zeropi_cutoff', 'zeta_cutoff', 'truncated_dim']
+
+    @classmethod
+    def create(cls):
+        init_params = cls.default_params()
         phi_grid = discretization.Grid1d(-25.0, 25.0, 360)
         image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropifull.png')
-        zeropi = FullZeroPi(**init_params, grid=phi_grid)
+        zeropi = cls(**init_params, grid=phi_grid)
         init_params['grid_max_val'] = 25.0
         init_params['grid_min_val'] = -25.0
         init_params['grid_pt_count'] = 360
-        ui.create_widget(zeropi.set_parameters, init_params, image_filename=image_filename)
+        ui.create_widget(zeropi.set_params, init_params, image_filename=image_filename)
         return zeropi
 
-    def set_parameters(self, **kwargs):
+    def set_params(self, **kwargs):
         phi_grid = discretization.Grid1d(kwargs.pop('grid_min_val'),
                                          kwargs.pop('grid_max_val'),
                                          kwargs.pop('grid_pt_count'))

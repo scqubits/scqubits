@@ -62,24 +62,27 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
-        self._params_types = {
-            'EJ': float,
-            'EC': float,
-            'ng': float,
-            'ncut': int
-        }
 
-    @classmethod
-    def create(cls):
-        init_params = {
+    @staticmethod
+    def default_params():
+        return {
             'EJ': 30.0,
             'EC': 1.2,
             'ng': 0.0,
-            'ncut': 30
+            'ncut': 30,
+            'truncated_dim': 10
         }
+
+    @staticmethod
+    def nonfit_params():
+        return ['ng', 'ncut', 'truncated_dim']
+
+    @classmethod
+    def create(cls):
+        init_params = cls.default_params()
         image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/transmon.png')
-        transmon = Transmon(**init_params)
-        ui.create_widget(transmon.set_parameters, init_params, image_filename=image_filename)
+        transmon = cls(**init_params)
+        ui.create_widget(transmon.set_params, init_params, image_filename=image_filename)
         return transmon
 
     def n_operator(self):
