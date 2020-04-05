@@ -30,19 +30,12 @@ try:
 except ImportError:
     _LABELLINES_ENABLED = False
 
-
-#dictionary of plot options that are meant to go to specific 
+#A dictionary of plotting options that are directly passed to specific matplotlib's
 #plot commands. 
-#We could automate this and support all the potential options for each plotting
-#command, for now, let's start with some specific set that are unlikely to break anything.
-#some specific set of options that 
-#TODO: add more options we want to support
 _direct_plot_options={
-        'plot':('linestyle', 'linewidth', 'marker', 'markeredgecolor', 
-                'markeredgewidth', 'markerfacecolor', 'markerfacecoloralt',
-                'markersize', 'alpha'),
+        'plot':('alpha', 'linestyle', 'linewidth', 'marker', 'markersize'),
         'imshow':('interpolation',),
-        'contourf':('linewidths', 'linestyles')
+        'contourf':tuple()  #empty for now
     }
 
 def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_options):
