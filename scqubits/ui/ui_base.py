@@ -75,6 +75,7 @@ def create_widget(callback_func, init_params, image_filename=None):
 
 class HilbertSpaceUi:
     def __init__(self):
+        self.error_output = None
         self.interact_current_index = 0
         self.interact_max_index = 0
         self.subsys_list = []
@@ -122,6 +123,31 @@ class HilbertSpaceUi:
 
         self.ui = ipywidgets.VBox([self.tab_nest, self.run_button])
 
+    def finish(self, callback_func, *args, **kwargs):
+        subsystem_list = self.validated_subsys_list()
+        if subsystem_list is False:
+            return None
+        interaction_list = self.validated_interact_list()
+        if interaction_list is False:
+            return None
+
+        callback_func(subsystem_list, interaction_list)
+
+    def set_err_output(self, out):
+        self.error_output = out
+
+    def set_data(self, **kwargs):
+        self.set_subsys_list(kwargs.pop('subsys_list'))
+        self.set_interact_term(**kwargs)
+
+    def set_subsys_list(self, str_list):
+        self.subsys_list = str_list.split('\n')
+        while '' in self.subsys_list:
+            self.subsys_list.remove('')
+
+    def set_interact_term(self, **kwargs):
+        self.interact_list[self.interact_current_index] = kwargs
+
     def new_interaction_term(self, *args):
         self.interact_max_index += 1
         self.interact_current_index = self.interact_max_index
@@ -157,8 +183,6 @@ class HilbertSpaceUi:
         self.op2subsys_widget.value = interact_params['subsys2']
         self.g_widget.value = interact_params['g_strength']
         self.addhc_widget.value = interact_params['add_hc']
-        print(self.interact_current_index, self.interact_max_index)
-        print(self.interact_list)
 
     @staticmethod
     def empty_interaction_term():
@@ -171,18 +195,6 @@ class HilbertSpaceUi:
             'add_hc': 'False'
         }
 
-    def set_subsys_list(self, str_list):
-        self.subsys_list = str_list.split('\n')
-        while '' in self.subsys_list:
-            self.subsys_list.remove('')
-
-    def set_data(self, **kwargs):
-        self.set_subsys_list(kwargs.pop('subsys_list'))
-        self.set_interact_term(**kwargs)
-
-    def set_interact_term(self, **kwargs):
-        # interact_params = {key: kwargs[key] for key in ['op1', 'subsys1', 'op2', 'subsys2', 'g_strength', 'add_hc']}
-        self.interact_list[self.interact_current_index] = kwargs
 
     def widgets_dict(self):
         return {
@@ -195,16 +207,7 @@ class HilbertSpaceUi:
             'add_hc': self.addhc_widget
         }
 
-    def finish(self, callback_func, *args, **kwargs):
-        hilbertspace_data = self.validated_data()
-        if hilbertspace_data:
-            subsystem_list, interaction_list = hilbertspace_data
-            callback_func(subsystem_list, interaction_list)
-
-    def set_err_output(self, out):
-        self.error_output = out
-
-    def validated_data(self):
+    def validated_subsys_list(self):
         import importlib
         main = importlib.import_module('__main__')
         import scqubits.core.qubit_base as base
@@ -224,6 +227,13 @@ class HilbertSpaceUi:
                 with self.error_output:
                     print("Type mismatch: object '{}' is not a qubit or oscillator.".format(subsys_name))
                 return False
+        return subsys_list
+
+    def validated_interact_list(self):
+        import importlib
+        main = importlib.import_module('__main__')
+
+        self.error_output.clear_output()
 
         interaction_list = []
         for interaction_term in self.interact_list:
@@ -253,7 +263,7 @@ class HilbertSpaceUi:
                                                              op2=interaction_term['op2'],
                                                              subsys2=interaction_term['subsys2'],
                                                              add_hc=(interaction_term['add_hc'] == 'True')))
-        return subsys_list, interaction_list
+        return interaction_list
 
 
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
