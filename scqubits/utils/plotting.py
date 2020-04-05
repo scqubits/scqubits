@@ -30,13 +30,15 @@ try:
 except ImportError:
     _LABELLINES_ENABLED = False
 
-#A dictionary of plotting options that are directly passed to specific matplotlib's
-#plot commands. 
-_direct_plot_options={
-        'plot':('alpha', 'linestyle', 'linewidth', 'marker', 'markersize'),
-        'imshow':('interpolation',),
-        'contourf':tuple()  #empty for now
+
+# A dictionary of plotting options that are directly passed to specific matplotlib's
+# plot commands.
+_direct_plot_options = {
+        'plot': ('alpha', 'linestyle', 'linewidth', 'marker', 'markersize'),
+        'imshow': ('interpolation',),
+        'contourf': tuple()  # empty for now
     }
+
 
 def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_options):
     """
@@ -56,11 +58,11 @@ def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_
         dictionary with key/value pairs corresponding to the removed options
 
     """
-    d={}
+    d = {}
     if plot_type in direct_plot_options:
         for key in kwargs:  
             if key in direct_plot_options[plot_type]:
-                d[key]=kwargs[key]
+                d[key] = kwargs[key]
     return d
     
 
@@ -79,11 +81,10 @@ def _process_options(figure, axes, opts=None, **kwargs):
     """
     opts = opts or {}
 
-    #We only want to process items in kwargs that would not have been
-    #processed through _extract_kwargs_options()
-    filtered_kwargs={key:kwargs[key] for key in kwargs \
-            if key not in functools.reduce(operator.concat, 
-                                           _direct_plot_options.values())}
+    # Only process items in kwargs that would not have been
+    # processed through _extract_kwargs_options()
+    filtered_kwargs = {key: value for key, value in kwargs.items()
+                       if key not in functools.reduce(operator.concat, _direct_plot_options.values())}
 
     option_dict = {**opts, **filtered_kwargs}
 
