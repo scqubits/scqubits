@@ -42,7 +42,7 @@ _direct_plot_options = {
 
 def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_options):
     """
-    Select options from kwargs for a given plot_type
+    Select options from kwargs for a given plot_type and return them in a dictionary.
     
     Parameters
     ----------
@@ -51,7 +51,7 @@ def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_
     plot_type: str
         a type of plot for which the options should be selected
     direct_plot_options: dict
-        a lookup dictionary that plot_types to supported options
+        a lookup dictionary with supported options for a given plot_type
         
     Returns
     ----------
