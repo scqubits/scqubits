@@ -10,6 +10,7 @@
 ############################################################################
 
 import warnings
+import os
 
 import numpy as np
 import scipy as sp
@@ -63,6 +64,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
             self.E_osc = E_osc
 
         self._init_params.remove('omega')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/oscillator.png')
 
 
     @staticmethod
@@ -73,13 +75,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     @staticmethod
     def nonfit_params():
         return ['truncated_dim']
-
-    @classmethod
-    def create(cls):
-        init_params = cls.default_params()
-        oscillator = cls(**init_params)
-        ui.create_widget(oscillator.set_params, init_params)
-        return oscillator
 
     def get_omega(self):
         # Support for omega will be rolled back eventually. For now allow with deprecation warnings.

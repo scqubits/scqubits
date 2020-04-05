@@ -22,7 +22,6 @@ import scqubits.core.storage as storage
 import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
-import scqubits.ui.ui_base as ui
 
 
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
@@ -102,6 +101,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)    # for plotting in phi_j basis
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxqubit.png')
 
     @staticmethod
     def default_params():
@@ -124,15 +124,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
     @staticmethod
     def nonfit_params():
         return ['ng1', 'ng2', 'flux', 'ncut', 'truncated_dim']
-
-    @classmethod
-    def create(cls):
-        init_params = cls.default_params()
-        image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxqubit.png')
-        flux_qubit = cls(**init_params)
-        ui.create_widget(flux_qubit.set_params, init_params, image_filename=image_filename)
-        return flux_qubit
-
 
     def EC_matrix(self):
         """Return the charging energy matrix"""

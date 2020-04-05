@@ -111,6 +111,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         # for theta, needed for plotting wavefunction
         self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropi.png')
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
     @staticmethod
@@ -136,13 +137,17 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
     def create(cls):
         phi_grid = discretization.Grid1d(-19.0, 19.0, 200)
         init_params = cls.default_params()
-        image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropi.png')
         zeropi = cls(**init_params, grid=phi_grid)
-        init_params['grid_max_val'] = 19.0
-        init_params['grid_min_val'] = -19.0
-        init_params['grid_pt_count'] = 200
-        ui.create_widget(zeropi.set_params, init_params, image_filename=image_filename)
+        zeropi.widget()
         return zeropi
+
+    def widget(self, params=None):
+        init_params = params or self.get_initdata()
+        del init_params['grid']
+        init_params['grid_max_val'] = self.grid.max_val
+        init_params['grid_min_val'] = self.grid.min_val
+        init_params['grid_pt_count'] = self.grid.pt_count
+        ui.create_widget(self.set_params, init_params, image_filename=self._image_filename)
 
     def set_params(self, **kwargs):
         phi_grid = discretization.Grid1d(kwargs.pop('grid_min_val'),

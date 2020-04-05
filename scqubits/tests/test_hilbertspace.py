@@ -241,7 +241,7 @@ class TestParameterSweep:
         param_name = 'flux'  # name of varying external parameter
         param_vals = np.linspace(-0.1, 0.6, 100)  # parameter values
 
-        subsys_update_list = [CPB1]  # list of HilbertSpace subsystems which are affected by parameter changes
+        subsys_update_list = [CPB1]  # list of HilbertSpace subsys_list which are affected by parameter changes
 
         def update_hilbertspace(param_val):  # function that shows how Hilbert space
             # components are updated

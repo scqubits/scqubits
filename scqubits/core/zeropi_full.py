@@ -122,6 +122,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropifull.png')
 
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
@@ -150,15 +151,27 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
 
     @classmethod
     def create(cls):
-        init_params = cls.default_params()
         phi_grid = discretization.Grid1d(-25.0, 25.0, 360)
-        image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropifull.png')
+        init_params = cls.default_params()
         zeropi = cls(**init_params, grid=phi_grid)
-        init_params['grid_max_val'] = 25.0
-        init_params['grid_min_val'] = -25.0
-        init_params['grid_pt_count'] = 360
-        ui.create_widget(zeropi.set_params, init_params, image_filename=image_filename)
+        zeropi.widget()
         return zeropi
+
+    def widget(self, params=None):
+        init_params = params or self.get_initdata()
+        del init_params['grid']
+        init_params['grid_max_val'] = self.grid.max_val
+        init_params['grid_min_val'] = self.grid.min_val
+        init_params['grid_pt_count'] = self.grid.pt_count
+        ui.create_widget(self.set_params, init_params, image_filename=self._image_filename)
+
+    def set_params(self, **kwargs):
+        phi_grid = discretization.Grid1d(kwargs.pop('grid_min_val'),
+                                         kwargs.pop('grid_max_val'),
+                                         kwargs.pop('grid_pt_count'))
+        self.grid = phi_grid
+        for param_name, param_val in kwargs.items():
+            setattr(self, param_name, param_val)
 
     def set_params(self, **kwargs):
         phi_grid = discretization.Grid1d(kwargs.pop('grid_min_val'),

@@ -23,6 +23,7 @@ import scipy as sp
 import scqubits.core.constants as constants
 import scqubits.settings as settings
 import scqubits.utils.plotting as plot
+import scqubits.ui.ui_base as ui
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
@@ -45,8 +46,17 @@ class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     truncated_dim: int
+    _image_filename: str
     _evec_dtype: type
     _sys_type: str
+
+    subclasses = []
+
+    def __init_subclass__(cls, **kwargs):
+        """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
+        super().__init_subclass__(**kwargs)
+        if not inspect.isabstract(cls):
+            cls.subclasses.append(cls)
 
     def __repr__(self):
         if hasattr(self, '_init_params'):
@@ -67,9 +77,18 @@ class QuantumSystem(DispatchClient, ABC):
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
 
-    @abstractmethod
+    @classmethod
     def create(cls):
         """Use ipywidgets to create a new class instance"""
+        init_params = cls.default_params()
+        instance = cls(**init_params)
+        instance.widget()
+        return instance
+
+    def widget(self, params=None):
+        """Use ipywidgets to modify parameters of class instance"""
+        init_params = params or self.get_initdata()
+        ui.create_widget(self.set_params, init_params, image_filename=self._image_filename)
 
     @abstractmethod
     def default_params(self):

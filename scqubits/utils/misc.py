@@ -46,19 +46,19 @@ def process_which(which, max_index):
 def make_bare_labels(subsystem_count, *args):
     """
     For two given subsystem states, return the full-system bare state label obtained by placing all remaining
-    subsystems in their ground states.
+    subsys_list in their ground states.
 
     Parameters
     ----------
     subsystem_count: int
-        number of subsystems inside Hilbert space
+        number of subsys_list inside Hilbert space
     *args: tuple(int, int)
         each argument is a tuple of the form (subsys_index, label)
 
     Returns
     -------
     tuple
-        Suppose there are 5 subsystems in total. Let (subsys_index1=0, label1=3), (subsys_index2=2, label2=1). Then the
+        Suppose there are 5 subsys_list in total. Let (subsys_index1=0, label1=3), (subsys_index2=2, label2=1). Then the
         returned bare-state tuple is: (3,0,1,0,0)
     """
     bare_labels = [0] * subsystem_count

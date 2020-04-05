@@ -121,7 +121,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
     hilbertspace: HilbertSpace
         collects all data specifying the Hilbert space of interest
     subsys_update_list: list or iterable
-        list of subsystems in the Hilbert space which get modified when the external parameter changes
+        list of subsys_list in the Hilbert space which get modified when the external parameter changes
     update_hilbertspace: function
         update_hilbertspace(param_val) specifies how a change in the external parameter affects
         the Hilbert space components
@@ -285,7 +285,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         Returns
         -------
         qutip.Qobj operator
-            composite Hamiltonian composed of bare Hamiltonians of subsystems independent of the external parameter
+            composite Hamiltonian composed of bare Hamiltonians of subsys_list independent of the external parameter
         """
         static_hamiltonian = 0
         for index, subsys in enumerate(self._hilbertspace):

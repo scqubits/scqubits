@@ -37,7 +37,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
     the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
-    1. V = g A B, where A, B are Hermitean operators in two specified subsystems,
+    1. V = g A B, where A, B are Hermitean operators in two specified subsys_list,
     2. V = g A B + h.c., where A, B may be non-Hermitean
     
     Parameters
@@ -47,9 +47,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     hilbertspace: HilbertSpace
         specifies the Hilbert space components
     subsys1, subsys2: QuantumSystem
-        the two subsystems involved in the interaction
+        the two subsys_list involved in the interaction
     op1, op2: str or ndarray
-        names of operators in the two subsystems
+        names of operators in the two subsys_list
     add_hc: bool, optional (default=False)
         If set to True, the interaction Hamiltonian is of type 2, and the Hermitean conjugate is added.
     """
@@ -84,7 +84,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
 
 class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
-    """Class holding information about the full Hilbert space, usually composed of multiple subsystems.
+    """Class holding information about the full Hilbert space, usually composed of multiple subsys_list.
     The class provides methods to turn subsystem operators into operators acting on the full Hilbert space, and
     establishes the interface to qutip. Returned operators are of the `qutip.Qobj` type. The class also provides methods
     for obtaining eigenvalues, absorption and emission spectra as a function of an external parameter.
@@ -181,7 +181,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     @property
     def subsystem_count(self):
-        """Returns number of subsystems composing the joint Hilbert space
+        """Returns number of subsys_list composing the joint Hilbert space
 
         Returns
         -------
@@ -236,7 +236,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     def diag_operator(self, diag_elements, subsystem):
         """For given diagonal elements of a diagonal operator in `subsystem`, return the `Qobj` operator for the
-        full Hilbert space (perform wrapping in identities for other subsystems).
+        full Hilbert space (perform wrapping in identities for other subsys_list).
 
         Parameters
         ----------
@@ -355,7 +355,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         Returns
         -------
         qutip.Qobj operator
-            composite Hamiltonian composed of bare Hamiltonians of subsystems independent of the external parameter
+            composite Hamiltonian composed of bare Hamiltonians of subsys_list independent of the external parameter
         """
         bare_hamiltonian = 0
         for subsys in self:
