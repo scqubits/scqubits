@@ -40,20 +40,21 @@ _direct_plot_options={
 
 def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_options):
     """
-    For a given plot_type, extract (remove) and return all key/value pairs  
-    that are specified in direct_plot_options.
+    Select options from kwargs for a given plot_type
     
     Parameters
     ----------
     kwargs: dict
-        dictionary with various options that can be passed to different plotting commands
+        dictionary with options that can be passed to different plotting commands
     plot_type: str
-        a type of plot for which the options should be extracted
+        a type of plot for which the options should be selected
+    direct_plot_options: dict
+        a lookup dictionary that plot_types to supported options
         
     Returns
     ----------
     dict
-        dictionary with key/value pairs corresponding to the removed options
+        dictionary with key/value pairs corresponding to selected options from kwargs
 
     """
     d={}
