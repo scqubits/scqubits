@@ -10,6 +10,7 @@
 ############################################################################
 
 import functools
+
 import numpy as np
 
 try:
@@ -27,9 +28,18 @@ import scqubits.core.param_sweep as param_sweep
 import scqubits.settings as settings
 import scqubits.utils.sweep_plotting as splot
 
+try:
+    from datapyc.core.calibration_model import CalibrationModel
+except ImportError:
+    _HAS_DATAPYC = False
+else:
+    _HAS_DATAPYC = True
+    scqubits.utils.file_io_serializers.SERIALIZABLE_REGISTRY['CalibrationModel'] = CalibrationModel
+
 
 class FitData(serializers.Serializable):
-    def __init__(self, datanames, datalist, z_data=None, x_data=None, y_data=None):
+    def __init__(self, datanames, datalist,
+                 z_data=None, x_data=None, y_data=None, image_data=None, calibration_data=None, fit_results=None):
         """
         Class for fitting experimental spectroscopy data to the Hamiltonian model of the qubit / coupled quantum system.
 
@@ -40,17 +50,27 @@ class FitData(serializers.Serializable):
             Each ndarray has float entries and is of the form array([[x1,y1], [x2,y2], ...]). Each such set corresponds
             to data extracted from experimental spectroscopy data. Each corresponds to one particular transition among
             dressed-level eigenstates.
+        z_data: ndarray
+        x_data: ndarray
+        y_data: ndarray
+        image_data: ndarray
+            as obtained with matplotlib.image.imread
+        calibration_data
         """
         self.datanames = datanames
         self.datalist = datalist
         self.x_data = x_data
         self.y_data = y_data
         self.z_data = z_data
-        self.fit_results = None
+        self.image_data = image_data
+        self.calibration_data = calibration_data
+        self.fit_results = fit_results
+
         self.system = None
         self.subsys_names = None
         self.sweep_name = None
         self.sweep_vals = None
+        self.update_func = None
         self.sweep_update_func = None
         self.subsys_update_list = None
         self.params = lmfit.Parameters()
@@ -92,8 +112,8 @@ class FitData(serializers.Serializable):
         self._setup_sweepvals()
 
     def _set_system(self, sys_object):
-        """Set the `.system` attribute to record the given `sys_object`. If not provided as a HilbertSpace object, then it is
-        wrapped into a HilbertSpace instance
+        """Set the `.system` attribute to record the given `sys_object`. If not provided as a HilbertSpace object, then
+        it is wraped into a HilbertSpace instance
 
         Parameters
         -----------
@@ -108,7 +128,7 @@ class FitData(serializers.Serializable):
             self.subsys_update_list = [sys_object]
 
     def _register_subsys_names(self):
-        """Record the """
+        """Record the type names of the individual subsystems."""
         name_list = [type(subsys).__name__ for subsys in self.system]
         self.subsys_names = []
         for index, name in enumerate(name_list):
@@ -175,9 +195,6 @@ class FitData(serializers.Serializable):
         return self.fit_results
 
     def plot(self):
-        # for long_name, value in self.fit_results.params.valuesdict.items():
-        #     index, name = self.fit_params[long_name]
-        #     setattr(self.system[index], name, value)
         self.change_param_values(self.fit_results.params.valuesdict())
 
         fig, axes = splot.difference_spectrum(self.sweep)

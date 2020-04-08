@@ -21,10 +21,10 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
+import scqubits.ui.qubit_widget as ui
 import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
-import scqubits.ui.ui_base as ui
 
 
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
@@ -156,7 +156,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         self.grid = phi_grid
         for param_name, param_val in kwargs.items():
             setattr(self, param_name, param_val)
-
 
     def receive(self, event, sender, **kwargs):
         if sender is self.grid:

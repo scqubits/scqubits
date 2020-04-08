@@ -10,19 +10,19 @@
 ############################################################################
 
 import os
+
 import numpy as np
 from scipy import sparse
 
 import scqubits
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
+import scqubits.core.discretization as discretization
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
-import scqubits.core.discretization as discretization
+import scqubits.ui.qubit_widget as ui
 import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.spectrum_utils as spec_utils
-import scqubits.ui.ui_base as ui
-
 
 
 class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
@@ -164,14 +164,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         init_params['grid_min_val'] = self.grid.min_val
         init_params['grid_pt_count'] = self.grid.pt_count
         ui.create_widget(self.set_params, init_params, image_filename=self._image_filename)
-
-    def set_params(self, **kwargs):
-        phi_grid = discretization.Grid1d(kwargs.pop('grid_min_val'),
-                                         kwargs.pop('grid_max_val'),
-                                         kwargs.pop('grid_pt_count'))
-        self.grid = phi_grid
-        for param_name, param_val in kwargs.items():
-            setattr(self, param_name, param_val)
 
     def set_params(self, **kwargs):
         phi_grid = discretization.Grid1d(kwargs.pop('grid_min_val'),

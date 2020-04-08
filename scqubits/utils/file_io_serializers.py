@@ -21,14 +21,25 @@ import qutip as qt
 
 import scqubits.utils.misc as utils
 
+SERIALIZABLE_REGISTRY = {}
+
 
 class Serializable(ABC):
     """Mix-in class that makes descendant classes serializable."""
+    _subclasses = []
+
     def __new__(cls, *args, **kwargs):
         """Used to set up class attributes that record which __init__ parameters will be stored as attributes, ndarrays,
         and objects."""
         cls._init_params = get_init_params(cls)
         return super().__new__(cls)
+
+    def __init_subclass__(cls, **kwargs):
+        """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
+        super().__init_subclass__(**kwargs)
+        if not inspect.isabstract(cls):
+            cls._subclasses.append(cls)
+            SERIALIZABLE_REGISTRY[cls.__name__] = cls
 
     def get_initdata(self):
         """Returns dict appropriate for creating/initializing a new Serializable object.

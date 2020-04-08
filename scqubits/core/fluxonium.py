@@ -9,9 +9,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import os
 import cmath
 import math
+import os
 
 import numpy as np
 import scipy as sp
@@ -24,7 +24,6 @@ import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.utils.file_io_serializers as serializers
-import scqubits.ui.ui_base as ui
 
 
 # —Fluxonium qubit ————————————————————————

@@ -31,10 +31,11 @@ from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.core.transmon import Transmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-from scqubits.utils.fitting import FitData
 # file IO
 from scqubits.utils.file_io import read, write
-from scqubits.utils.file_io_serializers import QutipEigenstates
+from scqubits.utils.fitting import FitData
+
+# from scqubits.utils.file_io_serializers import QutipEigenstates
 
 # version
 try:

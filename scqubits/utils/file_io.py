@@ -14,7 +14,6 @@ Helper routines for writing data to files.
 
 import os
 
-import scqubits
 import scqubits.core.constants as const
 import scqubits.utils.file_io_serializers as io_serializers
 
@@ -58,10 +57,9 @@ def deserialize(iodata):
     class instance
     """
     typename = iodata.typename
-    if hasattr(scqubits, iodata.typename):
-        cls = getattr(scqubits, iodata.typename)
-        if hasattr(cls, 'deserialize'):
-            return cls.deserialize(iodata)
+    if typename in io_serializers.SERIALIZABLE_REGISTRY:
+        cls = io_serializers.SERIALIZABLE_REGISTRY[typename]
+        return cls.deserialize(iodata)
 
     if hasattr(io_serializers, typename + '_deserialize'):
         deserialize_method = getattr(io_serializers, typename + '_deserialize')

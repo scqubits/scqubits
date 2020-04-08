@@ -9,8 +9,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import warnings
 import os
+import warnings
 
 import numpy as np
 import scipy as sp
@@ -18,7 +18,6 @@ import scipy as sp
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.utils.file_io_serializers as serializers
-import scqubits.ui.ui_base as ui
 
 
 def harm_osc_wavefunction(n, x, losc):
@@ -65,7 +64,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
         self._init_params.remove('omega')
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/oscillator.png')
-
 
     @staticmethod
     def default_params():

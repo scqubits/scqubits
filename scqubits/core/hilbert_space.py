@@ -21,11 +21,11 @@ import scqubits.core.harmonic_osc as osc
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
 import scqubits.settings as settings
+import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
-import scqubits.ui.ui_base as ui
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -114,7 +114,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     @classmethod
     def create(cls):
         hilbertspace = cls([])
-        ui.create_hilbertspace_widget(hilbertspace.__init__)
+        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)
         return hilbertspace
 
     def __getitem__(self, index):

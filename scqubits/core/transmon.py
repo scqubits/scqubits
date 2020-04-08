@@ -10,8 +10,8 @@
 ############################################################################
 
 import math
-
 import os
+
 import numpy as np
 
 import scqubits.core.constants as constants
@@ -22,7 +22,6 @@ import scqubits.core.storage as storage
 import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-import scqubits.ui.ui_base as ui
 
 
 # —Cooper pair box / transmon———————————————————————————————————————————————————————————————————————————————————————————

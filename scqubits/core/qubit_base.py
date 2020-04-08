@@ -22,8 +22,8 @@ import scipy as sp
 
 import scqubits.core.constants as constants
 import scqubits.settings as settings
+import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
-import scqubits.ui.ui_base as ui
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
