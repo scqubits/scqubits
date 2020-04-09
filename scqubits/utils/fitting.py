@@ -13,6 +13,8 @@ import functools
 
 import numpy as np
 
+import scqubits.utils.misc as utils
+
 try:
     import lmfit
 except ImportError:
@@ -73,7 +75,7 @@ class FitData(serializers.Serializable):
         self.update_func = None
         self.sweep_update_func = None
         self.subsys_update_list = None
-        self.params = lmfit.Parameters()
+        self.params = None if not _HAS_LMFIT else lmfit.Parameters()
         self.fit_params = {}
         self.evals_count = None
         self.sweep = None
@@ -189,6 +191,7 @@ class FitData(serializers.Serializable):
         )
         settings.PROGRESSBAR_DISABLED = False
 
+    @utils.Required(lmfit=_HAS_LMFIT)
     def fit(self, num_cpus=settings.NUM_CPUS, **kwargs):
         minim = lmfit.Minimizer(residuals, self.params, fcn_args=(self, num_cpus))
         self.fit_results = minim.minimize(**kwargs)
