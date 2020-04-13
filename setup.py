@@ -20,8 +20,8 @@ Matplotlib.
 
 import os
 import sys
-
 import setuptools
+
 
 DOCLINES = __doc__.split('\n')
 
@@ -41,44 +41,39 @@ Operating System :: Microsoft :: Windows
 
 EXTRA_KWARGS = {}
 
-
-# all information about scqubits goes here
+# version information about scqubits goes here
 MAJOR = 1
 MINOR = 2
 MICRO = 1
 ISRELEASED = True
 
-
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
-REQUIRES = ['cython (>=0.28.5)',
-            'numpy (>=1.14.2)',
-            'scipy (>=1.1.0)',
-            'matplotlib (>=3.0.0)',
-            'qutip (>=4.3.1)',
-            'tqdm']
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(CURRENT_DIR, "requirements.txt")) as requirements:
+    INSTALL_REQUIRES = requirements.read().splitlines()
+
 
 EXTRAS_REQUIRE = {'graphics': ['matplotlib-label-lines (>=0.3.6)'],
                   'explorer': ['ipywidgets (>=7.5)'],
                   'h5-support': ['h5py (>=2.7.1)'],
-                  'pathos': ['pathos', 'dill']}
-INSTALL_REQUIRES = ['cython (>=0.28.5)',
-                    'numpy (>=1.14.2)',
-                    'scipy (>=1.1.0)',
-                    'matplotlib (>=3.0.0)',
-                    'qutip (>=4.3.1)',
-                    'tqdm']
-TESTS_REQUIRE = ['cython (>=0.28.5)',
-                 'numpy (>=1.14.2)',
-                 'scipy (>=1.1.0)',
-                 'matplotlib (>=3.0.0)',
-                 'qutip (>=4.3.1)',
-                 'h5py (>=2.7.1)',
+                  'pathos': ['pathos', 'dill'],
+                  'fitting': ['lmfit']}
+
+TESTS_REQUIRE = ['h5py (>=2.7.1)',
                  'pathos',
                  'dill',
                  'ipywidgets',
-                 'tqdm',
-                 'pytest']
-PACKAGES = ['scqubits', 'scqubits/core', 'scqubits/tests', 'scqubits/utils']
+                 'pytest',
+                 'lmfit']
+
+PACKAGES = ['scqubits',
+            'scqubits/core',
+            'scqubits/tests',
+            'scqubits/utils',
+            'scqubits/ui',
+            'scqubits/io']
+
 PYTHON_VERSION = '>=3.6'
 
 
@@ -89,9 +84,7 @@ LICENSE = "BSD"
 DESCRIPTION = DOCLINES[0]
 LONG_DESCRIPTION = "\n".join(DOCLINES[2:])
 KEYWORDS = "superconducting qubits"
-
 URL = "https://scqubits.readthedocs.io"
-
 CLASSIFIERS = [_f for _f in CLASSIFIERS.split('\n') if _f]
 PLATFORMS = ["Linux", "Mac OSX", "Unix", "Windows"]
 
@@ -129,15 +122,13 @@ release = %(isrelease)s
 local_path = os.path.dirname(os.path.abspath(sys.argv[0]))
 os.chdir(local_path)
 sys.path.insert(0, local_path)
-sys.path.insert(0, os.path.join(local_path, 'scqubits'))  # to retrive _version
+sys.path.insert(0, os.path.join(local_path, 'scqubits'))  # to retrieve _version
 
 # always rewrite _version
 if os.path.exists('scqubits/version.py'):
     os.remove('scqubits/version.py')
-
 write_version_py()
 
-# Setup commands go here
 setuptools.setup(name=NAME,
                  version=FULLVERSION,
                  packages=PACKAGES,
@@ -150,12 +141,11 @@ setuptools.setup(name=NAME,
                  url=URL,
                  classifiers=CLASSIFIERS,
                  platforms=PLATFORMS,
-                 requires=REQUIRES,
+                 install_requires=INSTALL_REQUIRES,
                  extras_require=EXTRAS_REQUIRE,
                  tests_require=TESTS_REQUIRE,
                  zip_safe=False,
                  include_package_data=True,
-                 install_requires=INSTALL_REQUIRES,
                  python_requires=PYTHON_VERSION,
                  **EXTRA_KWARGS
                  )

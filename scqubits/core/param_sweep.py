@@ -20,10 +20,11 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.hilbert_space as hspace
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
+import scqubits.io.file_io_qutip
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
-import scqubits.utils.file_io as io
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io.file_io as io
+import scqubits.io.file_io_serializers as serializers
 import scqubits.utils.misc as utils
 
 if settings.IN_IPYTHON:
@@ -364,7 +365,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
             hamiltonian += self._hilbertspace.interactionterm_hamiltonian(interaction_term,
                                                                           evecs1=evecs1, evecs2=evecs2)
         evals, evecs = hamiltonian.eigenstates(eigvals=self.evals_count)
-        evecs = evecs.view(serializers.QutipEigenstates)
+        evecs = evecs.view(scqubits.io.file_io_qutip.QutipEigenstates)
         return evals, evecs
 
     def _lookup_bare_eigenstates(self, param_index, subsys, bare_specdata_list):

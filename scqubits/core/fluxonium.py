@@ -23,7 +23,7 @@ import scqubits.core.harmonic_osc as osc
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io.file_io_serializers as serializers
 
 
 # —Fluxonium qubit ————————————————————————

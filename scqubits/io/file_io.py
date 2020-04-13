@@ -15,7 +15,7 @@ Helper routines for writing data to files.
 import os
 
 import scqubits.core.constants as const
-import scqubits.utils.file_io_serializers as io_serializers
+import scqubits.io.file_io_serializers as io_serializers
 
 
 def serialize(the_object):
@@ -24,7 +24,7 @@ def serialize(the_object):
 
     Parameters
     ----------
-    the_object: serializable class instance
+    the_object: Serializable
 
     Returns
     -------
@@ -45,7 +45,7 @@ def deserialize(iodata):
     """
     Turn IOData back into a Python object of the appropriate kind.
     An object is deemed deserializable if
-    1) it is accessible through `scqubits.<classname>` and has a `.deserialize` method
+    1) it is recorded in SERIALIZABLE_REGISTRY and has a `.deserialize` method
     2) there exists a function `file_io_serializers.<typename>_deserialize`
 
     Parameters
@@ -123,7 +123,7 @@ class FileIOFactory:
         -------
         IOWriter
         """
-        import scqubits.utils.file_io_backends as io_backends
+        import scqubits.io.file_io_backends as io_backends
         _, suffix = os.path.splitext(file_name)
         if suffix == '.csv':
             return io_backends.CSVWriter(file_name)
@@ -149,7 +149,7 @@ class FileIOFactory:
         if get_external_reader:
             return get_external_reader(file_name, file_handle=file_handle)
 
-        import scqubits.utils.file_io_backends as io_backends
+        import scqubits.io.file_io_backends as io_backends
         _, suffix = os.path.splitext(file_name)
         if suffix == '.csv':
             return io_backends.CSVReader()

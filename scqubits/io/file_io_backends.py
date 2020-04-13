@@ -26,7 +26,7 @@ except ImportError:
 else:
     _HAS_H5PY = True
 
-import scqubits.utils.file_io as io
+import scqubits.io.file_io as io
 import scqubits.utils.misc as utils
 
 
@@ -62,14 +62,7 @@ class IOWriter(ABC):
 
 
 class H5Writer(IOWriter):
-    """
-    Writes IOData to a custom-format h5 file
-
-    Parameters
-    ----------
-    filename: str
-    file_handle: h5py.Group, optional
-    """
+    """Writes IOData to a custom-format h5 file"""
     def write_attributes(self, h5file_group):
         """
         Attribute data consists of

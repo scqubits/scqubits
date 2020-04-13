@@ -11,7 +11,6 @@
 
 import ast
 import functools
-
 import numpy as np
 
 from scqubits.settings import IN_IPYTHON

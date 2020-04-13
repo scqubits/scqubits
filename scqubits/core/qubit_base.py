@@ -105,6 +105,7 @@ class QuantumSystem(DispatchClient, ABC):
         for param_name, param_val in kwargs.items():
             setattr(self, param_name, param_val)
 
+    @staticmethod
     @abstractmethod
     def nonfit_params():
         """Return list of initialization parameter names that are not treated as fit parameters"""

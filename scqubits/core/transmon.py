@@ -19,7 +19,7 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io.file_io_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 

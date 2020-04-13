@@ -21,7 +21,7 @@ import scqubits.core.discretization as discretization
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.ui.qubit_widget as ui
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io.file_io_serializers as serializers
 import scqubits.utils.spectrum_utils as spec_utils
 
 
