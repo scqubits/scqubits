@@ -158,6 +158,8 @@ class FluxQubit(QubitBaseClass):
                                             * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T))
         potential_mat += -0.5 * self.EJ3 * (np.exp(-1j * 2 * np.pi * self.flux)
                                             * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator()))
+        potential_mat += (self.EJ1+self.EJ2+self.EJ3)*np.kron(self._identity(), self._identity())
+        
         return potential_mat
 
     def hamiltonian(self):

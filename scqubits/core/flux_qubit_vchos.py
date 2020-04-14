@@ -35,6 +35,102 @@ class FluxQubitVCHOS(QubitBaseClass):
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
         
+    def build_U_squeezing_operator(self, i):
+        a_0 = self.a_operator(0)
+        a_1 = self.a_operator(1)
+        freq, uvmat = self.squeezing_M_builder(i)
+        dim = uvmat.shape[0]
+        u = uvmat[0 : int(dim/2), 0 : int(dim/2)]
+#        print("u = ", u)
+        v = uvmat[int(dim/2) : dim, 0 : int(dim/2)]
+#        print("v = ", v)
+        u_inv = sp.linalg.inv(u)
+        rho = np.matmul(u_inv, v)
+        sigma = sp.linalg.logm(u)
+        tau = np.matmul(v, u_inv)
+#        R = sp.linalg.expm(-0.5*np.sum([rho[mu, nu]*np.matmul(self.a_operator(mu).T,self.a_operator(nu).T)
+#                                        for mu in range(2) for nu in range(2)], axis=0))
+#        S = sp.linalg.expm(-1.0*np.sum([sigma[mu, nu]*np.matmul(self.a_operator(mu).T, self.a_operator(nu))
+#                                        for mu in range(2) for nu in range(2)], axis=0))
+#        T = sp.linalg.expm(0.5*np.sum([tau[mu, nu]*np.matmul(self.a_operator(mu), self.a_operator(nu))
+#                                       for mu in range(2) for nu in range(2)], axis=0))
+        return rho, sigma, tau
+
+    def _define_squeezing_variables(self, rho, rhoprime):
+        Xi = self.Xi_matrix()
+        Xi_inv = sp.linalg.inv(Xi)
+        deltarhoprime = np.matmul(sp.linalg.inv(np.eye(2)-np.matmul(rhoprime, rho)), rhoprime)
+        deltarho = np.matmul(sp.linalg.inv(np.eye(2)-np.matmul(rho, rhoprime)), rho)
+        deltarhobar = sp.linalg.logm(sp.linalg.inv(np.eye(2)-np.matmul(rhoprime, rho)))
+        z = 1j*np.transpose(Xi_inv)/np.sqrt(2.)
+        zp = (z+0.5*np.matmul(np.matmul(z, rhoprime), deltarho+deltarho.T)
+              +0.5*np.matmul(z, deltarho+deltarho.T))
+        zpp = np.matmul(z, rhoprime) + z
+        return deltarho, deltarhoprime, deltarhobar, zp, zpp
+    
+    def squeezing_M_builder(self, i):
+        Xi = self.Xi_matrix()
+        dim = Xi.shape[0]
+        gamma = self.build_gamma_matrix(i)
+        gamma_prime = np.matmul(np.transpose(Xi), np.matmul(gamma, Xi))
+        zeta = 0.25*(self.Phi0**2 * gamma_prime + self.omegamat())
+        eta = 0.25*(self.Phi0**2 * gamma_prime - self.omegamat())
+        hmat = np.block([[eta, zeta],
+                         [zeta, eta]])
+        J = np.block([[np.zeros((dim, dim)), np.eye(dim)], 
+                      [-np.eye(dim), np.zeros((dim, dim))]])
+        eigvals, eigvec = sp.linalg.eig(np.matmul(hmat, J))
+        eigvals, eigvec = self.order_eigensystem_squeezing(np.real(eigvals), eigvec)
+        eigvals, eigvec = self.normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
+        if eigvec[0, 0] < 0.0:
+            eigvec *= -1.0
+        assert(np.allclose(np.matmul(np.transpose(eigvec),np.matmul(J, eigvec)), J))
+        return (eigvals, eigvec)
+    
+    def normalize_symplectic_eigensystem_squeezing(self, eigvals, eigvec):
+        dim = eigvec.shape[0]
+        A = eigvec[0 : int(dim/2), 0 : int(dim/2)]
+        B = eigvec[int(dim/2) : dim, 0 : int(dim/2)]
+        C = eigvec[0 : int(dim/2), int(dim/2) : dim]
+        D = eigvec[int(dim/2) : dim, int(dim/2) : dim]
+        for vec in range(int(dim/2)):
+            a = 1./(np.sum([A[num, vec]*D[num, vec] - B[num, vec]*C[num, vec] 
+                            for num in range(int(dim/2))]))
+            eigvec[:, int(dim/2)+vec] *= a
+        return (eigvals, eigvec)
+    
+    def _normal_ordered_adag_a_exponential(self, x):
+        """Expectation is that exp(a_{i}^{\dagger}x_{ij}a_{j}) needs to be normal ordered"""
+        expx = sp.linalg.expm(x)
+        result = self._identity()
+        dim = result.shape[0]
+        additionalterm = np.eye(dim)
+        k = 1
+        while not np.allclose(additionalterm, np.zeros((dim, dim))):
+            additionalterm = np.sum([((expx-np.eye(2))[i, j])**(k)
+                                     *(sp.special.factorial(k))**(-1)
+                                     *np.matmul(np.linalg.matrix_power(self.a_operator(i).T, k), 
+                                                np.linalg.matrix_power(self.a_operator(j), k))
+                                    for i in range(2) for j in range(2)], axis=0)
+            result += additionalterm
+            k += 1
+        return result
+        
+    def order_eigensystem_squeezing(self, eigvals, eigvec):
+        eigval_holder = []
+        eigvec_holder = []
+        for k, eigval in enumerate(eigvals):
+            if eigval < 0:
+                eigval_holder.append(eigval)
+                eigvec_holder.append(eigvec[:, k])
+        eigval_result = np.copy(eigval_holder).tolist()
+        eigvec_result = np.copy(eigvec_holder).tolist()
+        for k, eigval in enumerate(eigval_holder):
+            index = np.argwhere(np.isclose(eigvals, -1.0*eigval))[0, 0]
+            eigval_result.append(eigvals[index])
+            eigvec_result.append((eigvec[:, index]).tolist())
+        return(eigval_result, np.array(eigvec_result))
+        
     def potential(self, phiarray):
         """
         Flux qubit potential evaluated at `phi1` and `phi2` 
@@ -63,7 +159,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         Cmat = self.build_capacitance_matrix()
         return  0.5 * self.e**2 * sp.linalg.inv(Cmat)
     
-    def build_gamma_matrix(self):
+    def build_gamma_matrix(self, i):
         """
         Return linearized potential matrix
         
@@ -73,9 +169,9 @@ class FluxQubitVCHOS(QubitBaseClass):
         """
         gmat = np.zeros((2,2))
         
-        global_min = self.sorted_minima()[0]
-        phi1_min = global_min[0]
-        phi2_min = global_min[1]
+        local_or_global_min = self.sorted_minima()[i]
+        phi1_min = local_or_global_min[0]
+        phi2_min = local_or_global_min[1]
         
         gamma = self.EJ / self.Phi0**2
         
@@ -86,11 +182,19 @@ class FluxQubitVCHOS(QubitBaseClass):
         gmat[0, 1] = gmat[1, 0] = -self.alpha*gamma*np.cos(2*np.pi*self.flux + phi1_min - phi2_min)
         
         return gmat
+    
+    def omegamat(self):
+        """Return a diagonal matrix of the normal mode frequencies of the global min """
+        Cmat = self.build_capacitance_matrix()
+        gmat = self.build_gamma_matrix(0)
         
+        omegasq, eigvec = sp.linalg.eigh(gmat, b=Cmat)
+        return np.diag(np.sqrt(omegasq))
+            
     def Xi_matrix(self):
         """Construct the Xi matrix, encoding the oscillator lengths of each dimension"""
         Cmat = self.build_capacitance_matrix()
-        gmat = self.build_gamma_matrix()
+        gmat = self.build_gamma_matrix(0)
         
         omegasq, eigvec = sp.linalg.eigh(gmat, b=Cmat)
         
@@ -199,6 +303,73 @@ class FluxQubitVCHOS(QubitBaseClass):
         V_op = prefactor * np.matmul(exp_min_diff, V_op_phik)
         return V_op
         
+    def _unordered_kineticmat(self):
+        Xi = self.Xi_matrix()
+        Xi_inv = sp.linalg.inv(Xi)
+        EC_mat = self.build_EC_matrix()
+        EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
+        dim = self.hilbertdim()
+        minima_list = self.sorted_minima()
+        kinetic_mat = np.zeros((dim,dim), dtype=np.complex128)
+        nglist = np.array([self.ng1, self.ng2])
+        for m, minima_m in enumerate(minima_list):
+            if m == 0: #At the global minimum, no squeezing required
+                rho = np.zeros((2, 2)) # 2 d.o.f.
+                sigma = np.zeros((2, 2))
+                tau = np.zeros((2, 2)) 
+            else:
+                rho, sigma, tau = self.build_U_squeezing_operator(m)
+            R = sp.linalg.expm(np.sum([-0.5*rho[i, j]*np.matmul(self.a_operator(i).T, self.a_operator(j).T)
+                                       for i in range(2) for j in range(2)], axis=0))
+            S = sp.linalg.expm(np.sum([-sigma[i, j]*np.matmul(self.a_operator(i).T, self.a_operator(j))
+                                       for i in range(2) for j in range(2)], axis=0))
+            T = sp.linalg.expm(np.sum([0.5*tau[i, j]*np.matmul(self.a_operator(i), self.a_operator(j))
+                                       for i in range(2) for j in range(2)], axis=0))
+            
+            Udag = np.exp(-0.5*np.trace(sigma))*np.matmul(R, np.matmul(S, T)).T
+            for p, minima_p in enumerate(minima_list):
+                if p == 0: #At the global minimum, no squeezing required
+                    rhop = np.zeros((2, 2)) # 2 d.o.f.
+                    sigmap = np.zeros((2, 2))
+                    taup = np.zeros((2, 2)) 
+                else:
+                    rhop, sigmap, taup = self.build_U_squeezing_operator(p)
+                Rp = sp.linalg.expm(np.sum([-0.5*rhop[i, j]*np.matmul(self.a_operator(i).T, self.a_operator(j).T)
+                                           for i in range(2) for j in range(2)], axis=0))
+                Sp = sp.linalg.expm(np.sum([-sigmap[i, j]*np.matmul(self.a_operator(i).T, self.a_operator(j))
+                                           for i in range(2) for j in range(2)], axis=0))
+                Tp = sp.linalg.expm(np.sum([0.5*taup[i, j]*np.matmul(self.a_operator(i),  self.a_operator(j))
+                                           for i in range(2) for j in range(2)], axis=0))
+            
+                Uprime = np.exp(-0.5*np.trace(sigmap))*np.matmul(Rp, np.matmul(Sp, Tp))
+                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
+                jkvals = next(klist,-1)
+                while jkvals != -1:
+                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
+                    delta_phi_kpm = phik-(minima_m-minima_p)
+                    minima_diff = minima_p-minima_m
+                    
+                    right_op = sp.linalg.expm(np.sum([-(1/np.sqrt(2.))*(phik+minima_p)[x]*np.transpose(Xi_inv)[x, mu]
+                                                     *(self.a_operator(mu)-self.a_operator(mu).T)
+                                                     for x in range(2) for mu in range(2)], axis=0))
+                    left_op = sp.linalg.expm(np.sum([(1/np.sqrt(2.))*(minima_m)[x]*np.transpose(Xi_inv)[x, mu]
+                                                     *(self.a_operator(mu)-self.a_operator(mu).T)
+                                                     for x in range(2) for mu in range(2)], axis=0))
+                    kinetic_temp = 0.0
+                    for mu in range(2):
+                        for nu in range(2):
+                            kinetic_temp += -2.0*EC_mat_t[mu, nu]*(np.matmul(self.a_operator(mu)-self.a_operator(mu).T,
+                                                                             self.a_operator(nu)-self.a_operator(nu).T))
+                    kinetic_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm))*
+                                    np.matmul(np.matmul(Udag, left_op), 
+                                              np.matmul(kinetic_temp, np.matmul(right_op, Uprime))))
+                    num_exc_tot = (self.num_exc+1)**2
+                    kinetic_mat[m*num_exc_tot : m*num_exc_tot + num_exc_tot, 
+                                p*num_exc_tot : p*num_exc_tot + num_exc_tot] += kinetic_temp
+                    jkvals = next(klist,-1)
+                    
+        return kinetic_mat
+        
     def kineticmat(self):
         """Return the kinetic part of the hamiltonian"""
         Xi = self.Xi_matrix()
@@ -257,7 +428,6 @@ class FluxQubitVCHOS(QubitBaseClass):
                     jkvals = next(klist,-1)
                                            
         return kinetic_mat
-    
         
     def potentialmat(self):
         """Return the potential part of the hamiltonian"""
@@ -300,10 +470,11 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                  *np.exp(-1j*2.0*np.pi*self.flux)
                                                                  *np.exp(-1j*phibar_kpm[0])
                                                                  *np.exp(1j*phibar_kpm[1])))
+#                    potential_temp += self.EJ*(self.alpha+2.0)*self._identity()
 
                     potential_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm))
-                                      *np.matmul(V_op_dag, potential_temp))
-                    potential_temp = np.matmul(potential_temp, V_op)
+                                    *np.matmul(V_op_dag, potential_temp))
+                    potential_temp = np.matmul(potential_temp,V_op)
                     
                     num_exc_tot = (self.num_exc+1)**2
                     potential_mat[m*num_exc_tot:m*num_exc_tot+num_exc_tot, 
@@ -527,10 +698,11 @@ class FluxQubitVCHOS(QubitBaseClass):
                                    eigvals_only=True, eigvals=(0, evals_count - 1))
         except LinAlgError:
             print("exception")
-            global_min = self.sorted_minima()[0]
-            global_min_value = self.potential(global_min)
+#            global_min = self.sorted_minima()[0]
+#            global_min_value = self.potential(global_min)
+#            hamiltonian_mat += -global_min_value*inner_product_mat
             evals = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, M=inner_product_mat, 
-                                           sigma=global_min_value, which='LM', return_eigenvectors=False)
+                                           sigma=0.00001, return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
@@ -542,10 +714,11 @@ class FluxQubitVCHOS(QubitBaseClass):
             evals, evecs = order_eigensystem(evals, evecs)
         except LinAlgError:
             print("exception")
-            global_min = self.sorted_minima()[0]
-            global_min_value = self.potential(global_min)
+#            global_min = self.sorted_minima()[0]
+#            global_min_value = self.potential(global_min)
+#            hamiltonian_mat += -global_min_value*inner_product_mat
             evals, evecs = sp.sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, M=inner_product_mat, 
-                                                  sigma=global_min_value, return_eigenvectors=True)
+                                                  sigma=0.00001, return_eigenvectors=True)
             evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
     
