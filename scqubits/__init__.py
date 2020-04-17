@@ -24,6 +24,7 @@ from scqubits.core.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
 from scqubits.core.flux_qubit_vchos_squeezing import FluxQubitVCHOSSqueezing
+from scqubits.core.flux_qubit_vchos_testing_babusci import FluxQubitVCHOSTestingBabusci
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm

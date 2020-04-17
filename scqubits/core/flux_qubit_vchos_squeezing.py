@@ -106,7 +106,6 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
         u = eigvec[0 : int(dim/2), 0 : int(dim/2)]
         v = eigvec[int(dim/2) : dim, 0 : int(dim/2)]
         eigvals, eigvec = self.normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
-        print(np.matmul(eigvec.T, np.matmul(K, eigvec)))
         assert(np.allclose(np.matmul(eigvec.T, np.matmul(K, eigvec)), K))
         return (eigvals, eigvec)
     
@@ -139,33 +138,6 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
             a = 1./np.sqrt(np.sum([A[num, vec]*A[num, vec] - B[num, vec]*B[num, vec] 
                                    for num in range(dim2)]))
             eigvec[:, vec] *= a
-        A = eigvec[0 : dim2, 0 : dim2]
-        B = eigvec[dim2 : dim, 0 : dim2]
-        eigvec[dim2 : dim, dim2 : dim] = A
-        eigvec[0 : dim2, dim2 : dim] = B
-        return (eigvals, eigvec)
-    
-    def normalize_symplectic_eigensystem_squeezing_old(self, eigvals, eigvec):
-        dim = eigvec.shape[0]
-        dim2 = int(dim/2)
-        for col in range(dim2):
-            a = np.sum([eigvec[row, col] for row in range(dim)])
-            if a < 0.0:
-                eigvec[:, col] *= -1
-        A = eigvec[0 : dim2, 0 : dim2]
-        B = eigvec[dim2 : dim, 0 : dim2]
-#        C = eigvec[0 : dim2, dim2 : dim]
-#        D = eigvec[dim2 : dim, dim2 : dim]
-        C = np.copy(B)
-        D = np.copy(A)
-        for vec in range(dim2):
-            alpha = (np.sum([A[num, vec]*B[num, vec] for num in range(dim2)])
-                     /np.sum([C[num, vec]*D[num, vec] for num in range(dim2)]))
-            a = 1./np.sqrt(np.sum([A[num, vec]*A[num, vec] - alpha*C[num, vec]*C[num, vec] 
-                                   for num in range(dim2)]))
-#            ap = np.sqrt(alpha*a**2)
-            eigvec[:, vec] *= a
-#            eigvec[:, dim2+vec] *= ap
         A = eigvec[0 : dim2, 0 : dim2]
         B = eigvec[dim2 : dim, 0 : dim2]
         eigvec[dim2 : dim, dim2 : dim] = A
@@ -362,6 +334,11 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
         return V_op
         
     def _unordered_kineticmat(self):
+        """
+        Generally have not found this to be helpful, as it 
+        requires an extraordinary number of excitations to converge 
+        even for the 0, 0 element
+        """
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         EC_mat = self.build_EC_matrix()
@@ -426,13 +403,14 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                                 p*num_exc_tot : p*num_exc_tot + num_exc_tot] += kinetic_temp
                     jkvals = next(klist,-1)
                     
-        return kinetic_mat
+        return kinetic_mat        
     
     def kineticmat(self):
         """Return the kinetic part of the hamiltonian"""
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         delta_inv = np.matmul(np.transpose(Xi_inv), Xi_inv)
+        num_exc_tot = (self.num_exc+1)**2
         EC_mat = self.build_EC_matrix()
         EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
         dim = self.hilbertdim()
@@ -447,7 +425,6 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                 tau = np.zeros((2, 2)) 
             else:
                 rho, sigma, tau = self.build_U_squeezing_operator(m)
-                print("rho, sigma, tau = ", rho, sigma, tau)
             for p, minima_p in enumerate(minima_list):
                 if p == 0:
                     rhoprime = np.zeros((2, 2)) # 2 d.o.f.
@@ -464,15 +441,20 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                 expdeltarhobar = sp.linalg.expm(deltarhobar)
                 expsdrb = np.matmul(expsigma, expdeltarhobar)
                 
-                prefactor_adag_adag = 0.5*(tau.T-np.matmul(expsigma, np.matmul(deltarhoprime, expsigma.T)))
-                prefactor_a_a = 0.5*(tauprime-np.matmul(expsigmaprime, np.matmul(deltarho, expsigmaprime.T)))
-                prefactor_adag_a = sp.linalg.logm(np.matmul(expsigma.T, np.matmul(expdeltarhobar, expsigmaprime)))
+                prefactor_adag_adag = 0.5*(tau.T-np.matmul(expsigma, np.matmul(deltarhoprime,
+                                                                               expsigma.T)))
+                prefactor_a_a = 0.5*(tauprime-np.matmul(expsigmaprime, np.matmul(deltarho, 
+                                                                                 expsigmaprime.T)))
+                prefactor_adag_a = sp.linalg.logm(np.matmul(expsigma.T, np.matmul(expdeltarhobar, 
+                                                                                  expsigmaprime)))
 
                 exp_adag_adag = sp.linalg.expm(np.sum([prefactor_adag_adag[i, j]
-                                                       *np.matmul(self.a_operator(i).T, self.a_operator(j).T)
+                                                       *np.matmul(self.a_operator(i).T, 
+                                                                  self.a_operator(j).T)
                                                        for i in range(2) for j in range(2)], axis=0))
                 exp_a_a = sp.linalg.expm(np.sum([prefactor_a_a[i, j]
-                                                 *np.matmul(self.a_operator(i), self.a_operator(j))
+                                                 *np.matmul(self.a_operator(i), 
+                                                            self.a_operator(j))
                                                  for i in range(2) for j in range(2)], axis=0))
                 exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
                 
@@ -488,14 +470,14 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                     z = 1j*Xi_inv.T/np.sqrt(2.)
                     scale = 1./np.sqrt(sp.linalg.det(np.eye(2)-np.matmul(rho, rhoprime)))
                     yrhop = np.matmul(y, rhoprime)
-                    alpha = scale * np.exp(-0.5*(np.matmul(y, np.matmul(rhoprime, y))
-                                                 + np.matmul(x-yrhop, np.matmul(deltarho, x-yrhop))))
-                    deltarhopp = 0.5*np.matmul(x-np.matmul(rhoprime, y), deltarho+deltarho.T)
+                    alpha = scale * np.exp(-0.5*(np.matmul(y, yrhop) + np.matmul(x-yrhop, np.matmul(deltarho, x-yrhop))))
+                    deltarhopp = 0.5*np.matmul(x-yrhop, deltarho+deltarho.T)
                     
-                    epsilon = (-np.matmul(z, np.matmul(rhoprime, deltarhopp)-np.matmul(rhoprime, y) + deltarhopp)
+                    epsilon = (-np.matmul(z, np.matmul(rhoprime, deltarhopp) - yrhop + deltarhopp)
                                - (1j/2.)*np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)))
                                         
-                    prefactor_adag = np.matmul(x-np.matmul(y, rho), np.matmul(expdeltarhobar.T, expsigma))
+                    prefactor_adag = np.matmul(x-np.matmul(y, rho), 
+                                               np.matmul(expdeltarhobar.T, expsigma))
                     prefactor_a = np.matmul(y-deltarhopp, expsigmaprime)
                     
                     exp_adag = sp.linalg.expm(np.sum([prefactor_adag[i]*self.a_operator(i).T
@@ -503,7 +485,8 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                     exp_a = sp.linalg.expm(np.sum([prefactor_a[i]*self.a_operator(i)
                                                    for i in range(2)], axis=0))
 
-                    kinetic_temp = np.sum([+4*np.matmul(exp_adag_a, np.matmul(self.a_operator(mu), self.a_operator(nu)))
+                    kinetic_temp = np.sum([+4*np.matmul(exp_adag_a, np.matmul(self.a_operator(mu),
+                                                                              self.a_operator(nu)))
                                            *np.matmul(np.matmul(expsigmaprime.T, zp.T), 
                                                       np.matmul(EC_mat , np.matmul(zp, expsigmaprime)))[mu, nu]
                                            -8*np.matmul(self.a_operator(mu).T, np.matmul(exp_adag_a, self.a_operator(nu)))
@@ -521,6 +504,12 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                                            for mu in range(2) for nu in range(2)], axis = 0)
                     
                     kinetic_temp += 4*exp_adag_a*np.matmul(epsilon, np.matmul(EC_mat, epsilon))
+                    
+                    if m == 1 or p == 1: 
+                        print("exp_adag_adag", exp_adag_adag)
+                        print("exp_a_a", exp_a_a)
+                        print("exp_adag_a", exp_adag_a)
+                        print("epsilon", - (1j/2.)*np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)), epsilon)
                                         
                     kinetic_temp = (alpha * np.exp(-1j*np.dot(nglist, delta_phi_kpm)) 
                                     * np.exp(-0.5*np.trace(sigma)-0.5*np.trace(sigmaprime)) #from U, U'
@@ -528,20 +517,7 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                                                              np.matmul(Xi_inv, delta_phi_kpm))) #from V ops
                                     * np.matmul(np.matmul(exp_adag_adag, exp_adag), 
                                                 np.matmul(kinetic_temp, np.matmul(exp_a, exp_a_a))))
-                    """
-                    if (m==1 and p==1): print("kinetic_temp", jkvals, kinetic_temp)
-                    if (m==1 and p==1): print("exp_adag_adag", jkvals, exp_adag_adag)
-                    if (m==1 and p==1): print("exp_adag", jkvals, exp_adag)
-                    if (m==1 and p==1): print("exp_a", jkvals, exp_a)
-                    if (m==1 and p==1): print("exp_a_a", jkvals, exp_a_a)
-                    if (m==1 and p==1): print("alpha", jkvals, alpha)
-                    if (m==1 and p==1): print("otherfactors", jkvals, np.exp(-0.5*np.trace(sigma)-0.5*np.trace(sigmaprime)))
-                    if (m==1 and p==1): print("otherfactors", jkvals, -0.5*np.trace(sigma), -0.5*np.trace(sigmaprime))
-                    if (m==1 and p==1): print("otherfactors2", jkvals, np.exp(-0.25*np.matmul(np.matmul(delta_phi_kpm, Xi_inv.T), 
-                                                                             np.matmul(Xi_inv, delta_phi_kpm)))) 
-                    """
                     
-                    num_exc_tot = (self.num_exc+1)**2
                     kinetic_mat[m*num_exc_tot : m*num_exc_tot + num_exc_tot, 
                                 p*num_exc_tot : p*num_exc_tot + num_exc_tot] += kinetic_temp
                     
@@ -578,8 +554,8 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                 else:
                     rhoprime, sigmaprime, tauprime = self.build_U_squeezing_operator(p)
                 deltarho, deltarhoprime, deltarhobar, zp, zpp = self._define_squeezing_variables(rho, rhoprime)
-                exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
-                exp_min_diff_inv = sp.linalg.inv(exp_min_diff)
+#                exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
+#                exp_min_diff_inv = sp.linalg.inv(exp_min_diff)
                 
                 expsigma = sp.linalg.expm(-sigma)
                 expsigmaprime = sp.linalg.expm(-sigmaprime)
@@ -591,10 +567,12 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                 prefactor_adag_a = sp.linalg.logm(np.matmul(expsigma.T, np.matmul(expdeltarhobar, expsigmaprime)))
 
                 exp_adag_adag = sp.linalg.expm(np.sum([prefactor_adag_adag[i, j]
-                                                       *np.matmul(self.a_operator(i).T, self.a_operator(j).T)
+                                                       *np.matmul(self.a_operator(i).T, 
+                                                                  self.a_operator(j).T)
                                                        for i in range(2) for j in range(2)], axis=0))
                 exp_a_a = sp.linalg.expm(np.sum([prefactor_a_a[i, j]
-                                                 *np.matmul(self.a_operator(i), self.a_operator(j))
+                                                 *np.matmul(self.a_operator(i), 
+                                                            self.a_operator(j))
                                                  for i in range(2) for j in range(2)], axis=0))
                 exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
                 
@@ -610,17 +588,27 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                         x = (np.matmul(delta_phi_kpm, Xi_inv.T) + 1j*Xi[num, :])/np.sqrt(2.)
                         y = (-np.matmul(delta_phi_kpm, Xi_inv.T) + 1j*Xi[num, :])/np.sqrt(2.)
                     
-                        potential_temp = (self._potential_squeezing_helper(x, y, exp_adag_a, rho, rhoprime, 
+                        potential_temp = (-0.5*self.EJ
+                                          *self._potential_squeezing_helper(x, y, exp_adag_a, rho, rhoprime, 
                                                                             deltarho, deltarhobar, 
-                                                                            sigma, sigmaprime, self.EJ)
+                                                                            sigma, sigmaprime)
                                           *np.exp(1j*phibar_kpm[num])
                                           *np.exp(-.25*np.dot(Xi[num, :], np.transpose(Xi)[:, num]))
-                                          + self._potential_squeezing_helper(x.conjugate(), y.conjugate(), 
+                                          -0.5*self.EJ
+                                          *self._potential_squeezing_helper(x.conjugate(), y.conjugate(), 
                                                                             exp_adag_a, rho, rhoprime, deltarho, 
                                                                             deltarhobar, sigma, 
-                                                                            sigmaprime, self.EJ)
+                                                                            sigmaprime)
                                           *np.exp(-1j*phibar_kpm[num])
                                           *np.exp(-.25*np.dot(Xi[num, :], np.transpose(Xi)[:, num])))
+                        
+                        just_trans_x = (x + x.conjugate())/2
+                        just_trans_y = (y + y.conjugate())/2
+                        # This is adding the identity term for each of \cos(\phi_x)
+                        potential_temp += self.EJ*self._potential_squeezing_helper(just_trans_x, just_trans_y, 
+                                                                           exp_adag_a, rho, rhoprime, 
+                                                                           deltarho, deltarhobar, 
+                                                                           sigma, sigmaprime)
                         
                         potential_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm)) 
                                           * np.exp(-0.5*np.trace(sigma)-0.5*np.trace(sigmaprime))
@@ -634,17 +622,17 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                     x = (np.matmul(delta_phi_kpm, Xi_inv.T) + 1j*(Xi[0, :]-Xi[1,:]))/np.sqrt(2.)
                     y = (-np.matmul(delta_phi_kpm, Xi_inv.T) + 1j*(Xi[0, :]-Xi[1,:]))/np.sqrt(2.)
                     
-                    potential_temp = (self._potential_squeezing_helper(x, y, exp_adag_a, rho, rhoprime, 
+                    potential_temp = (-0.5*self.alpha*self.EJ
+                                      *self._potential_squeezing_helper(x, y, exp_adag_a, rho, rhoprime, 
                                                                         deltarho, deltarhobar, 
-                                                                        sigma, sigmaprime,
-                                                                        self.alpha*self.EJ)
+                                                                        sigma, sigmaprime)
                                       *np.exp(1j*2.0*np.pi*self.flux)
                                       *np.exp(1j*phibar_kpm[0])
                                       *np.exp(-1j*phibar_kpm[1])
-                                      + self._potential_squeezing_helper(x.conjugate(), y.conjugate(), 
+                                      -0.5*self.alpha*self.EJ
+                                      *self._potential_squeezing_helper(x.conjugate(), y.conjugate(), 
                                                                         exp_adag_a, rho, rhoprime, deltarho, 
-                                                                        deltarhobar, sigma, sigmaprime,
-                                                                        self.alpha*self.EJ)
+                                                                        deltarhobar, sigma, sigmaprime)
                                       *np.exp(-1j*2.0*np.pi*self.flux)
                                       *np.exp(-1j*phibar_kpm[0])
                                       *np.exp(1j*phibar_kpm[1])
@@ -652,9 +640,14 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                     potential_temp *= (np.exp(-.25*np.dot(Xi[0, :], np.transpose(Xi)[:, 0]))
                                        *np.exp(-.25*np.dot(Xi[1, :], np.transpose(Xi)[:, 1]))
                                        *np.exp(0.5*np.dot(Xi[1, :], np.transpose(Xi)[:, 0])))
-
-                    # TODO figure out how to add this identity term in
-#                    potential_temp += self.EJ*(self.alpha+2.0)*self._identity()
+                    
+                    just_trans_x = (x + x.conjugate())/2
+                    just_trans_y = (y + y.conjugate())/2
+                    # This is adding the identity term for \cos(\phi_1-\phi2-2*pi*f)
+                    potential_temp += self.alpha*self.EJ*self._potential_squeezing_helper(just_trans_x, just_trans_y, 
+                                                                       exp_adag_a, rho, rhoprime, 
+                                                                       deltarho, deltarhobar, 
+                                                                       sigma, sigmaprime)
 
                     potential_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm)) 
                                       * np.exp(-0.5*np.trace(sigma)-0.5*np.trace(sigmaprime))
@@ -670,14 +663,13 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
         return potential_mat       
     
     def _potential_squeezing_helper(self, x, y, exp_adag_a, rho, rhoprime, 
-                                    deltarho, deltarhobar, sigma, sigmaprime, EJ):
+                                    deltarho, deltarhobar, sigma, sigmaprime):
         expdeltarhobar = sp.linalg.expm(deltarhobar)
         expsigma = sp.linalg.expm(-sigma)
         expsigmaprime = sp.linalg.expm(-sigmaprime)
         scale = 1./np.sqrt(sp.linalg.det(np.eye(2)-np.matmul(rho, rhoprime)))
-        alpha = scale * np.exp(-0.5*(np.matmul(y, np.matmul(rhoprime, y))
-                                     + np.matmul(x-np.matmul(y, rhoprime), 
-                                                 np.matmul(deltarho, x-np.matmul(y, rhoprime)))))
+        yrhop = np.matmul(y, rhoprime)
+        alpha = scale * np.exp(-0.5*(np.matmul(y, yrhop) + np.matmul(x-yrhop, np.matmul(deltarho, x-yrhop))))
         deltarhopp = 0.5*np.matmul(x-np.matmul(rhoprime, y), deltarho+deltarho.T)
                     
         prefactor_adag = np.matmul(x-np.matmul(y, rho), np.matmul(expdeltarhobar.T, expsigma))
@@ -687,7 +679,7 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                                           for i in range(2)], axis=0))
         exp_a = sp.linalg.expm(np.sum([prefactor_a[i]*self.a_operator(i)
                                        for i in range(2)], axis=0))
-        return -0.5*EJ*(np.matmul(exp_adag, np.matmul(exp_adag_a, exp_a)))
+        return np.matmul(exp_adag, np.matmul(exp_adag_a, exp_a))
                                                                           
     def hamiltonian(self):
         """Construct the Hamiltonian"""
@@ -747,16 +739,14 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
                     delta_phi_kpm = phik-(minima_m-minima_p) 
-                    phibar_kpm = 0.5*(phik+(minima_m+minima_p)) 
                     minima_diff = minima_p-minima_m
                             
                     x = np.matmul(delta_phi_kpm, Xi_inv.T)/np.sqrt(2.)
                     y = -np.matmul(delta_phi_kpm, Xi_inv.T)/np.sqrt(2.)
                     
                     scale = 1./np.sqrt(sp.linalg.det(np.eye(2)-np.matmul(rho, rhoprime)))
-                    alpha = scale * np.exp(-0.5*(np.matmul(y, np.matmul(rhoprime, y))
-                                                 + np.matmul(x-np.matmul(y, rhoprime), 
-                                                             np.matmul(deltarho, x-np.matmul(y, rhoprime)))))
+                    yrhop = np.matmul(y, rhoprime)
+                    alpha = scale * np.exp(-0.5*(np.matmul(y, yrhop) + np.matmul(x-yrhop, np.matmul(deltarho, x-yrhop))))
                     deltarhopp = 0.5*np.matmul(x-np.matmul(rhoprime, y), deltarho+deltarho.T)
                 
                     prefactor_adag = np.matmul(x-np.matmul(y, rho), np.matmul(expdeltarhobar.T, expsigma))

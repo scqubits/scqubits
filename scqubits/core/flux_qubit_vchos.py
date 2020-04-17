@@ -402,7 +402,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                                                                  *np.exp(-1j*2.0*np.pi*self.flux)
                                                                  *np.exp(-1j*phibar_kpm[0])
                                                                  *np.exp(1j*phibar_kpm[1])))
-                    potential_temp += self.EJ*(self.alpha+2.0)*self._identity()
+#                    potential_temp += self.EJ*(self.alpha+2.0)*self._identity()
 
                     potential_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm))
                                      *np.matmul(V_op_dag, potential_temp))

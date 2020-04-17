@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
 import itertools
+from scipy.optimize import minimize
 import scipy.constants as const
 from scipy.special import hermite
 from scipy.special import factorial
@@ -83,7 +84,7 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
         
-        def potential(self, phiarray):
+    def potential(self, phiarray):
         """
         Flux qubit potential evaluated at `phi1` and `phi2` 
         """
@@ -111,7 +112,7 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         Cmat = self.build_capacitance_matrix()
         return  0.5 * self.e**2 * sp.linalg.inv(Cmat)
     
-    def build_gamma_matrix(self):
+    def build_gamma_matrix(self, i):
         """
         Return linearized potential matrix
         
@@ -121,9 +122,9 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         """
         gmat = np.zeros((2,2))
         
-        global_min = self.sorted_minima()[0]
-        phi1_min = global_min[0]
-        phi2_min = global_min[1]
+        local_or_global_min = self.sorted_minima()[i]
+        phi1_min = local_or_global_min[0]
+        phi2_min = local_or_global_min[1]
         
         gamma = self.EJ / self.Phi0**2
         
@@ -134,11 +135,25 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         gmat[0, 1] = gmat[1, 0] = -self.alpha*gamma*np.cos(2*np.pi*self.flux + phi1_min - phi2_min)
         
         return gmat
+    
+    def Xi_matrix_list(self):
+        Cmat = self.build_capacitance_matrix()
+        Xi_mat_list = []
+        for modes in range(2):
+            gmat = self.build_gamma_matrix(modes)
+        
+            omegasq, eigvec = sp.linalg.eigh(gmat, b=Cmat)
+        
+            Ximat = np.array([eigvec[:,i]*np.sqrt(np.sqrt(1./omegasq[i]))
+                              * np.sqrt(1./self.Z0) for i in range(Cmat.shape[0])])
+            Xi_mat_list.append(Ximat.T)
+
+        return Xi_mat_list
         
     def Xi_matrix(self):
         """Construct the Xi matrix, encoding the oscillator lengths of each dimension"""
         Cmat = self.build_capacitance_matrix()
-        gmat = self.build_gamma_matrix()
+        gmat = self.build_gamma_matrix(0)
         
         omegasq, eigvec = sp.linalg.eigh(gmat, b=Cmat)
         
@@ -206,6 +221,10 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                 break
         return(minima_holder)
     
+    def hilbertdim(self):
+        """Return Hilbert space dimension."""
+        return len(self.sorted_minima())*(self.num_exc+1)**2
+    
     def sorted_minima(self):
         """Sort the minima based on the value of the potential at the minima """
         minima_holder = self.find_minima()
@@ -255,8 +274,6 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         minima_list = self.sorted_minima()
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
-        EC_mat = self.build_EC_matrix()
-        EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 for sone in range(self.num_exc+1):
@@ -287,6 +304,73 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                 j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
                                 identity_test_mat[i, j] += matelem
         return(identity_test_mat)
+    
+    def _potential_mat_test_phi_coords(self):
+        dim = self.hilbertdim()
+        potential_test_mat = np.zeros((dim,dim))
+        minima_list = self.sorted_minima()
+        Xi_list = self.Xi_matrix_list()
+        Xi_inv = np.array([sp.linalg.inv(Xi_list[i]) for i in range(2)])
+        print(Xi_inv)
+        for m, minima_m in enumerate(minima_list):
+            for p, minima_p in enumerate(minima_list):
+                for sone in range(self.num_exc+1):
+                    for stwo in range(self.num_exc+1):
+                        for soneprime in range(self.num_exc+1):
+                            for stwoprime in range(self.num_exc+1):
+                                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
+                                jkvals = next(klist,-1)
+                                while jkvals != -1:
+                                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
+                                    Hsone = hermite(sone)/np.sqrt(np.sqrt(np.pi)
+                                                                  *factorial(sone)*2**sone)
+                                    Hstwo = hermite(stwo)/np.sqrt(np.sqrt(np.pi)
+                                                                  *factorial(stwo)*2**stwo)
+                                    Hsoneprime = hermite(soneprime)/np.sqrt(np.sqrt(np.pi)
+                                                                            *factorial(soneprime)*2**soneprime)
+                                    Hstwoprime = hermite(stwoprime)/np.sqrt(np.sqrt(np.pi)
+                                                                            *factorial(stwoprime)*2**stwoprime)
+                                    zetaoneoffset = Xi_inv[m][0,0]*minima_m[0]+Xi_inv[m][0,1]*minima_m[1]
+                                    zetatwooffset = Xi_inv[m][1,0]*minima_m[0]+Xi_inv[m][1,1]*minima_m[1]
+                                    zetaoneprimeoffset = (Xi_inv[p][0,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[p][0,1]*(phik[1]+minima_p[1]))
+                                    zetatwoprimeoffset = (Xi_inv[p][1,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[p][1,1]*(phik[1]+minima_p[1]))
+                                    
+                                    matelem = integrate.dblquad(lambda phi1, phi2 :
+                                                                Hsone(Xi_inv[m][0, 0]*phi1 + Xi_inv[m][0, 1]*phi2 
+                                                                      - zetaoneoffset) 
+                                                                * np.exp(-0.5*(Xi_inv[m][0, 0]*phi1 + Xi_inv[m][0, 1]*phi2 
+                                                                               - zetaoneoffset)**2)
+                                                                * Hstwo(Xi_inv[m][1, 0]*phi1 + Xi_inv[m][1, 1]*phi2 
+                                                                        - zetatwooffset) 
+                                                                * np.exp(-0.5*(Xi_inv[m][1, 0]*phi1 + Xi_inv[m][1, 1]*phi2 
+                                                                               - zetatwooffset)**2)
+                                                                * (-self.EJ*np.cos(phi1) -self.EJ*np.cos(phi2)
+                                                                   -self.EJ*self.alpha*np.cos(phi1-phi2-2.0*np.pi*self.flux)
+                                                                   +2.0*self.EJ + self.alpha*self.EJ)
+                                                                * Hsoneprime(Xi_inv[p][0, 0]*phi1 + Xi_inv[p][0, 1]*phi2 
+                                                                             - zetaoneprimeoffset) 
+                                                                * np.exp(-0.5*(Xi_inv[p][0, 0]*phi1 + Xi_inv[p][0, 1]*phi2 
+                                                                               - zetaoneprimeoffset)**2)
+                                                                * Hstwoprime(Xi_inv[p][1, 0]*phi1 + Xi_inv[p][1, 1]*phi2 
+                                                                        - zetatwoprimeoffset) 
+                                                                * np.exp(-0.5*(Xi_inv[p][1, 0]*phi1 + Xi_inv[p][1, 1]*phi2 
+                                                                               - zetatwoprimeoffset)**2)
+                                                                * np.sqrt(np.abs(1./sp.linalg.det(Xi_list[m])))
+                                                                * np.sqrt(np.abs(1./sp.linalg.det(Xi_list[p])))
+                                                                , -np.inf, np.inf, 
+                                                                lambda zetaone : -np.inf, 
+                                                                lambda zetaone : np.inf
+                                                               )
+                                    print("sone, stwo, soneprime, stwoprime = ", sone, stwo, soneprime, stwoprime)
+                                    print("m, p, matelem[0], jkvals", m, p, matelem[0], jkvals)
+                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
+                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
+                                    potential_test_mat[i, j] += matelem[0]
+                                    
+                                    jkvals = next(klist,-1)
+        return(potential_test_mat)
     
     def potentialmat(self):
         dim = self.hilbertdim()
