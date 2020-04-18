@@ -14,7 +14,7 @@ from scipy import sparse
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
-import scqubits.io.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.misc as utils
 
 

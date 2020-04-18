@@ -1,4 +1,4 @@
-# file_io_serializers.py
+# fileio_serializers.py
 #
 # This file is part of scqubits.
 #
@@ -58,7 +58,7 @@ class Serializable(ABC):
 
         Parameters
         ----------
-        io_data: scqubits.io.file_io_base.IOData
+        io_data: scqubits.io_utils.file_io_base.IOData
 
         Returns
         -------
@@ -72,7 +72,7 @@ class Serializable(ABC):
 
         Returns
         -------
-        scqubits.io.file_io_base.IOData
+        scqubits.io_utils.file_io_base.IOData
         """
         initdata = {name: getattr(self, name) for name in self._init_params}
         iodata = dict_serialize(initdata)
@@ -86,7 +86,7 @@ class Serializable(ABC):
         ----------
         filename: str
         """
-        import scqubits.io.file_io as io
+        import scqubits.io_utils.fileio as io
         io.write(self, filename)
 
     @classmethod
@@ -102,7 +102,7 @@ class Serializable(ABC):
         SpectrumData
             new SpectrumData object, initialized with data read from file
         """
-        import scqubits.io.file_io as io
+        import scqubits.io_utils.fileio as io
         return io.read(filename)
 
 
@@ -161,7 +161,7 @@ def dict_serialize(dict_instance):
     -------
     IOData
     """
-    import scqubits.io.file_io as io
+    import scqubits.io_utils.fileio as io
     dict_instance = utils.remove_nones(dict_instance)
     attributes = {}
     ndarrays = {}
@@ -186,7 +186,7 @@ def list_serialize(list_instance):
     -------
     IOData
     """
-    import scqubits.io.file_io as io
+    import scqubits.io_utils.fileio as io
     attributes = {}
     ndarrays = {}
     objects = {}

@@ -20,11 +20,11 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.harmonic_osc as osc
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
-import scqubits.io.file_io_qutip
+import scqubits.io_utils.fileio_qutip
 import scqubits.settings as settings
 import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
-import scqubits.io.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
@@ -232,7 +232,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
-        evecs = evecs.view(scqubits.io.file_io_qutip.QutipEigenstates)
+        evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
         return evals, evecs
 
     def diag_operator(self, diag_elements, subsystem):

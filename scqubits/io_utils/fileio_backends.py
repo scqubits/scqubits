@@ -1,4 +1,4 @@
-# file_io_backends.py
+# fileio_backends.py
 #
 # This file is part of scqubits.
 #
@@ -26,7 +26,7 @@ except ImportError:
 else:
     _HAS_H5PY = True
 
-import scqubits.io.file_io as io
+import scqubits.io_utils.fileio as io
 import scqubits.utils.misc as utils
 
 

@@ -22,7 +22,7 @@ import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.ui.qubit_widget as ui
-import scqubits.io.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 

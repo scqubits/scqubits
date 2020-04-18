@@ -32,10 +32,10 @@ from scqubits.core.transmon import Transmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
 # file IO
-from scqubits.io.file_io import read, write
+from scqubits.io_utils.fileio import read, write
 from scqubits.utils.fitting import FitData
 
-# from scqubits.io.file_io_serializers import QutipEigenstates
+# from scqubits.io_utils.file_io_serializers import QutipEigenstates
 
 # version
 try:

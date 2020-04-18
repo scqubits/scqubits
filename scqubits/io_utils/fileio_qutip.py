@@ -1,4 +1,4 @@
-# file_io_qutip.py
+# fileio_qutip.py
 #
 # This file is part of scqubits.
 #
@@ -11,7 +11,7 @@
 import numpy as np
 import qutip as qt
 
-from scqubits.io.file_io_serializers import Serializable
+from scqubits.io_utils.fileio_serializers import Serializable
 from scqubits.utils import misc as utils
 
 
@@ -47,7 +47,7 @@ class QutipEigenstates(np.ndarray, Serializable):
         -------
         IOData
         """
-        import scqubits.io.file_io as io
+        import scqubits.io_utils.fileio as io
         typename = type(self).__name__
         evec_count = len(self)
         qobj_dims = np.asarray(self[0].dims)
@@ -65,5 +65,5 @@ class QutipEigenstates(np.ndarray, Serializable):
         ----------
         filename: str
         """
-        import scqubits.io.file_io as io
+        import scqubits.io_utils.fileio as io
         io.write(self, filename)

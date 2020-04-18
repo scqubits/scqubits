@@ -17,7 +17,7 @@ import scipy as sp
 
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
-import scqubits.io.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 
 
 def harm_osc_wavefunction(n, x, losc):

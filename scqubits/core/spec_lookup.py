@@ -18,7 +18,7 @@ import numpy as np
 import qutip as qt
 
 import scqubits
-import scqubits.io.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.spectrum_utils as spec_utils
 
 

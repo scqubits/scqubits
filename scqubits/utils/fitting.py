@@ -26,7 +26,7 @@ else:
 
 import scqubits
 import scqubits.core.qubit_base as qubit_base
-import scqubits.io.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.core.param_sweep as param_sweep
 import scqubits.settings as settings
 import scqubits.utils.sweep_plotting as splot
@@ -71,8 +71,9 @@ class CalibrationModel(serializers.Serializable):
         self.alpha_mat = np.asarray([[alphaX, 0.], [0., alphaY]])
         self.raw_vec1, self.raw_vec2, self.map_vec1, self.map_vec2 = rvec1, rvec2, mvec1, mvec2
 
-    def calibrate_dataset(self, array):
-        return np.apply_along_axis(self.calibrate_datapoint, axis=0, arr=array)
+    def calibrate_fitdataset(self, array):
+        array = array.transpose()
+        return np.apply_along_axis(self.calibrate_datapoint, axis=0, arr=array).transpose()
 
     def calibrate_datapoint(self, rawvec):
         if isinstance(rawvec, list):
@@ -81,7 +82,7 @@ class CalibrationModel(serializers.Serializable):
         return mvec
 
 
-scqubits.io.file_io_serializers.SERIALIZABLE_REGISTRY['CalibrationModel'] = CalibrationModel
+scqubits.io_utils.fileio_serializers.SERIALIZABLE_REGISTRY['CalibrationModel'] = CalibrationModel
 
 
 class FitData(serializers.Serializable):
@@ -112,6 +113,8 @@ class FitData(serializers.Serializable):
         self.image_data = image_data
         self.calibration_data = calibration_data
         self.fit_results = fit_results
+
+        self.calibrated_datalist = [self.calibration_data.calibrate_fitdataset(dataset) for dataset in self.datalist]
 
         self.system = None
         self.subsys_names = None
@@ -208,7 +211,7 @@ class FitData(serializers.Serializable):
 
     def _setup_sweepvals(self):
         """Compose the array of sweep values from the union of all x values of extracted data points."""
-        sweep_values = [dataset.transpose()[0] for dataset in self.datalist]
+        sweep_values = [dataset.transpose()[0] for dataset in self.calibrated_datalist]
         sweep_values = functools.reduce(np.union1d, sweep_values)
         self.sweep_vals = sweep_values
 
@@ -260,7 +263,7 @@ class FitData(serializers.Serializable):
         axes2.bar(res_xvals, self.fit_results.residual, width=width)
         axes2.set_ylabel('residuals')
 
-        for dataset in self.datalist:
+        for dataset in self.calibrated_datalist:
             xvals, yvals = dataset.transpose()
             axes1.scatter(xvals, yvals, c='k', marker='x')
 
@@ -294,7 +297,7 @@ def residuals(params, fitdata, num_cpus=settings.NUM_CPUS):
     fitdata.change_param_values(params)
     fitdata.new_sweep(num_cpus=num_cpus)
     resids = []
-    for data, transition in zip(fitdata.datalist, fitdata.transitions):
+    for data, transition in zip(fitdata.calibrated_datalist, fitdata.transitions):
         for point in data:
             initial = transition[0]
             final = transition[1]
