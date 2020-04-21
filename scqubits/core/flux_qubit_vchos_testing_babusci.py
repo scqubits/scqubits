@@ -273,7 +273,12 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         identity_test_mat = np.zeros((dim,dim))
         minima_list = self.sorted_minima()
         Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
+        #Modifying this to include squeezing. Note this will only be correct for diagonal blocks.
+        #Off diagonal blocks will need to be calculated numerically (Since Xi matrices differ, 
+        #No longer get hermite polynomials of one variable for both sides)
+        Xi_list = self.Xi_matrix_list()
+        Xi_inv = np.array([sp.linalg.inv(Xi_list[i]) for i in range(2)])
+#        Xi_inv = sp.linalg.inv(Xi)
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 for sone in range(self.num_exc+1):
@@ -285,12 +290,12 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                 matelem = 0.
                                 while jkvals != -1:
                                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
+                                    zetaoneoffset = Xi_inv[m][0,0]*minima_m[0]+Xi_inv[m][0,1]*minima_m[1]
+                                    zetatwooffset = Xi_inv[m][1,0]*minima_m[0]+Xi_inv[m][1,1]*minima_m[1]
+                                    zetaoneprimeoffset = (Xi_inv[p][0,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[p][0,1]*(phik[1]+minima_p[1]))
+                                    zetatwoprimeoffset = (Xi_inv[p][1,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[p][1,1]*(phik[1]+minima_p[1]))
                                     matelem += (np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
                                                 * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, a=2, b=-2*zetatwooffset,
                                                        c=2, d=-2*zetatwoprimeoffset, f=1, 
@@ -373,11 +378,14 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         return(potential_test_mat)
     
     def potentialmat(self):
+        #Note: see above in inner product, only correct for diagonal blocks
         dim = self.hilbertdim()
         potential_test_mat = np.zeros((dim,dim), dtype=np.complex_)
         minima_list = self.sorted_minima()
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
+#        Xi = self.Xi_matrix()
+#        Xi_inv = sp.linalg.inv(Xi)
+        Xi = self.Xi_matrix_list()
+        Xi_inv = np.array([sp.linalg.inv(Xi[i]) for i in range(2)])
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 for sone in range(self.num_exc+1):
@@ -389,24 +397,24 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                 matelem = 0.0
                                 while jkvals != -1:
                                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
+                                    zetaoneoffset = Xi_inv[m][0,0]*minima_m[0]+Xi_inv[m][0,1]*minima_m[1]
+                                    zetatwooffset = Xi_inv[m][1,0]*minima_m[0]+Xi_inv[m][1,1]*minima_m[1]
+                                    zetaoneprimeoffset = (Xi_inv[p][0,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[p][0,1]*(phik[1]+minima_p[1]))
+                                    zetatwoprimeoffset = (Xi_inv[p][1,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[p][1,1]*(phik[1]+minima_p[1]))
                                     
                                     potential1pos = -0.5*self.EJ*(np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
                                                                   * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
                                                                          a=2, b=-2*zetatwooffset,c=2, 
                                                                          d=-2*zetatwoprimeoffset, f=1, 
                                                                          alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                                + 1j*Xi[0, 1]))
+                                                                                + 1j*Xi[m][0, 1]))
                                                                   * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
                                                                          a=2, b=-2*zetaoneoffset, c=2, 
                                                                          d=-2*zetaoneprimeoffset, f=1, 
                                                                          alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                               + 1j*Xi[0, 0]))
+                                                                               + 1j*Xi[m][0, 0]))
                                                                   * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     
                                     potential1neg = -0.5*self.EJ*(np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
@@ -414,12 +422,12 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                                                          a=2, b=-2*zetatwooffset,c=2, 
                                                                          d=-2*zetatwoprimeoffset, f=1, 
                                                                          alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                               - 1j*Xi[0, 1]))
+                                                                               - 1j*Xi[m][0, 1]))
                                                                   * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
                                                                          a=2, b=-2*zetaoneoffset, c=2, 
                                                                          d=-2*zetaoneprimeoffset, f=1, 
                                                                          alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                               - 1j*Xi[0, 0]))
+                                                                               - 1j*Xi[m][0, 0]))
                                                                   * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     
                                     potential2pos = -0.5*self.EJ*(np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
@@ -427,12 +435,12 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                                                          a=2, b=-2*zetatwooffset,c=2, 
                                                                          d=-2*zetatwoprimeoffset, f=1, 
                                                                          alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                               + 1j*Xi[1, 1]))
+                                                                               + 1j*Xi[m][1, 1]))
                                                                   * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
                                                                          a=2, b=-2*zetaoneoffset, c=2, 
                                                                          d=-2*zetaoneprimeoffset, f=1, 
                                                                          alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                               + 1j*Xi[1, 0]))
+                                                                               + 1j*Xi[m][1, 0]))
                                                                   * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     
                                     potential2neg = -0.5*self.EJ*(np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
@@ -440,12 +448,12 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                                                          a=2, b=-2*zetatwooffset,c=2, 
                                                                          d=-2*zetatwoprimeoffset, f=1, 
                                                                          alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                               - 1j*Xi[1, 1]))
+                                                                               - 1j*Xi[m][1, 1]))
                                                                   * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
                                                                          a=2, b=-2*zetaoneoffset, c=2, 
                                                                          d=-2*zetaoneprimeoffset, f=1, 
                                                                          alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                               - 1j*Xi[1, 0]))
+                                                                               - 1j*Xi[m][1, 0]))
                                                                   * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     
                                     potential3pos = -(0.5*self.alpha*self.EJ*np.exp(-1j*2.0*np.pi*self.flux)
@@ -454,12 +462,12 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                                              a=2, b=-2*zetatwooffset,c=2, 
                                                              d=-2*zetatwoprimeoffset, f=1, 
                                                              alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                    + 1j*(Xi[1, 1] - Xi[0, 1])))
+                                                                    + 1j*(Xi[m][1, 1] - Xi[m][0, 1])))
                                                       * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
                                                              a=2, b=-2*zetaoneoffset, c=2, 
                                                              d=-2*zetaoneprimeoffset, f=1, 
                                                              alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                    + 1j*(Xi[1, 0] - Xi[0, 0])))
+                                                                    + 1j*(Xi[m][1, 0] - Xi[m][0, 0])))
                                                       * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     
                                     potential3neg = -(0.5*self.alpha*self.EJ*np.exp(1j*2.0*np.pi*self.flux)
@@ -468,16 +476,30 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                                              a=2, b=-2*zetatwooffset,c=2, 
                                                              d=-2*zetatwoprimeoffset, f=1, 
                                                              alpha=(zetatwooffset+zetatwoprimeoffset
-                                                                    - 1j*(Xi[1, 1] - Xi[0, 1])))
+                                                                    - 1j*(Xi[m][1, 1] - Xi[m][0, 1])))
                                                       * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
                                                              a=2, b=-2*zetaoneoffset, c=2, 
                                                              d=-2*zetaoneprimeoffset, f=1, 
                                                              alpha=(zetaoneoffset+zetaoneprimeoffset
-                                                                    - 1j*(Xi[1, 0] - Xi[0, 0])))
+                                                                    - 1j*(Xi[m][1, 0] - Xi[m][0, 0])))
                                                       * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
                                     
+                                    potentialconst = ((2.0+self.alpha)*self.EJ
+                                                      *np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
+                                                      * pImn(p=0, m=stwo, n=stwoprime, y=-1, z=-1, 
+                                                             a=2, b=-2*zetatwooffset,c=2, 
+                                                             d=-2*zetatwoprimeoffset, f=1, 
+                                                             alpha=(zetatwooffset+zetatwoprimeoffset))
+                                                      * pImn(p=0, m=sone, n=soneprime, y=-1, z=-1, 
+                                                             a=2, b=-2*zetaoneoffset, c=2, 
+                                                             d=-2*zetaoneprimeoffset, f=1, 
+                                                             alpha=(zetaoneoffset+zetaoneprimeoffset))
+                                                      * np.exp(-0.5*(zetaoneoffset**2 + zetaoneprimeoffset**2)))
+                                                      
+                                    
                                     matelem += (potential1pos + potential1neg + potential2pos
-                                               + potential2neg + potential3pos + potential3neg)
+                                               + potential2neg + potential3pos + potential3neg
+                                               + potentialconst)
                                     i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
                                     j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
 #                                    if ((i==6) and (j==0)):

@@ -83,7 +83,7 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                         +eta[mu, nu]*np.matmul(self.a_operator(mu).T, self.a_operator(nu).T)
                         +eta[mu, nu]*np.matmul(self.a_operator(mu), self.a_operator(nu))
                         for mu in range(2) for nu in range(2)], axis=0)
-        H_old += np.sum([zeta[mu, mu]*np.eye((self.num_exc+1)**2) for mu in range(2)], axis=0)
+        H_old += np.sum([zeta[mu, mu]*np.eye(self.hilbertdim()) for mu in range(2)], axis=0)
         print(H_new[0:5, 0:5])
         print(H_old[0:5, 0:5])
         return 0
@@ -271,7 +271,7 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                *np.exp(0.5*np.dot(Xi_mat[y, :], np.transpose(Xi_mat)[:, x])))
         
     def _identity(self):
-        return(np.identity((self.num_exc+1)**2, dtype=np.complex_))
+        return(np.identity(self.hilbertdim(), dtype=np.complex_))
         
     def delta_inv_matrix(self):
         """"Construct the delta inverse matrix, as described in David's notes """
@@ -398,66 +398,69 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                     kinetic_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm))*
                                     np.matmul(np.matmul(Udag, left_op), 
                                               np.matmul(kinetic_temp, np.matmul(right_op, Uprime))))
-                    num_exc_tot = (self.num_exc+1)**2
+                    num_exc_tot = self.hilbertdim()
                     kinetic_mat[m*num_exc_tot : m*num_exc_tot + num_exc_tot, 
                                 p*num_exc_tot : p*num_exc_tot + num_exc_tot] += kinetic_temp
                     jkvals = next(klist,-1)
                     
-        return kinetic_mat        
+        return kinetic_mat   
+    
+    def build_normal_ordered_squeezing_ops(self, m, p):
+        if m == 0: #At the global minimum, no squeezing required
+            rho = np.zeros((2, 2)) # 2 d.o.f.
+            sigma = np.zeros((2, 2))
+            tau = np.zeros((2, 2)) 
+        else:
+            rho, sigma, tau = self.build_U_squeezing_operator(m)
+        if p == 0:
+            rhoprime = np.zeros((2, 2)) # 2 d.o.f.
+            sigmaprime = np.zeros((2, 2))
+            tauprime = np.zeros((2, 2)) 
+        else:
+            rhoprime, sigmaprime, tauprime = self.build_U_squeezing_operator(p)
+            
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = self._define_squeezing_variables(rho, rhoprime)
+        
+        expsigma = sp.linalg.expm(-sigma)
+        expsigmaprime = sp.linalg.expm(-sigmaprime)
+        expdeltarhobar = sp.linalg.expm(deltarhobar)
+                
+        prefactor_adag_adag = 0.5*(tau.T-np.matmul(expsigma.T, np.matmul(deltarhoprime, expsigma)))
+        prefactor_a_a = 0.5*(tauprime-np.matmul(expsigmaprime.T, np.matmul(deltarho, expsigmaprime)))
+        prefactor_adag_a = sp.linalg.logm(np.matmul(expsigma.T, np.matmul(expdeltarhobar, expsigmaprime)))
+                
+        exp_adag_adag = sp.linalg.expm(np.sum([prefactor_adag_adag[i, j]
+                                               *np.matmul(self.a_operator(i).T, 
+                                                          self.a_operator(j).T)
+                                               for i in range(2) for j in range(2)], axis=0))
+        exp_a_a = sp.linalg.expm(np.sum([prefactor_a_a[i, j]
+                                         *np.matmul(self.a_operator(i), 
+                                                    self.a_operator(j))
+                                         for i in range(2) for j in range(2)], axis=0))
+        exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
+        
+        return (exp_adag_adag, exp_a_a, exp_adag_a, rho, 
+                rhoprime, sigma, sigmaprime, deltarho, deltarhobar, zp, zpp)
+        
     
     def kineticmat(self):
         """Return the kinetic part of the hamiltonian"""
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         delta_inv = np.matmul(np.transpose(Xi_inv), Xi_inv)
-        num_exc_tot = (self.num_exc+1)**2
+        num_exc_tot = self.hilbertdim()
         EC_mat = self.build_EC_matrix()
         EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
-        dim = self.hilbertdim()
+        dim = self.matrixdim()
         minima_list = self.sorted_minima()
         kinetic_mat = np.zeros((dim,dim), dtype=np.complex128)
         exp_a_list = self._exp_a_operators()
         nglist = np.array([self.ng1, self.ng2])
         for m, minima_m in enumerate(minima_list):
-            if m == 0: #At the global minimum, no squeezing required
-                rho = np.zeros((2, 2)) # 2 d.o.f.
-                sigma = np.zeros((2, 2))
-                tau = np.zeros((2, 2)) 
-            else:
-                rho, sigma, tau = self.build_U_squeezing_operator(m)
             for p, minima_p in enumerate(minima_list):
-                if p == 0:
-                    rhoprime = np.zeros((2, 2)) # 2 d.o.f.
-                    sigmaprime = np.zeros((2, 2))
-                    tauprime = np.zeros((2, 2)) 
-                else:
-                    rhoprime, sigmaprime, tauprime = self.build_U_squeezing_operator(p)
-                deltarho, deltarhoprime, deltarhobar, zp, zpp = self._define_squeezing_variables(rho, rhoprime)
-#                exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
-#                exp_min_diff_inv = sp.linalg.inv(exp_min_diff)
-                
-                expsigma = sp.linalg.expm(-sigma)
-                expsigmaprime = sp.linalg.expm(-sigmaprime)
-                expdeltarhobar = sp.linalg.expm(deltarhobar)
-                expsdrb = np.matmul(expsigma, expdeltarhobar)
-                
-                prefactor_adag_adag = 0.5*(tau.T-np.matmul(expsigma, np.matmul(deltarhoprime,
-                                                                               expsigma.T)))
-                prefactor_a_a = 0.5*(tauprime-np.matmul(expsigmaprime, np.matmul(deltarho, 
-                                                                                 expsigmaprime.T)))
-                prefactor_adag_a = sp.linalg.logm(np.matmul(expsigma.T, np.matmul(expdeltarhobar, 
-                                                                                  expsigmaprime)))
-
-                exp_adag_adag = sp.linalg.expm(np.sum([prefactor_adag_adag[i, j]
-                                                       *np.matmul(self.a_operator(i).T, 
-                                                                  self.a_operator(j).T)
-                                                       for i in range(2) for j in range(2)], axis=0))
-                exp_a_a = sp.linalg.expm(np.sum([prefactor_a_a[i, j]
-                                                 *np.matmul(self.a_operator(i), 
-                                                            self.a_operator(j))
-                                                 for i in range(2) for j in range(2)], axis=0))
-                exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
-                
+                (exp_adag_adag, exp_a_a, exp_adag_a, 
+                 rho, rhoprime, sigma, sigmaprime,
+                 deltarho, deltarhobar, zp, zpp) = self.build_normal_ordered_squeezing_ops(m, p)
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
@@ -470,14 +473,16 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                     z = 1j*Xi_inv.T/np.sqrt(2.)
                     scale = 1./np.sqrt(sp.linalg.det(np.eye(2)-np.matmul(rho, rhoprime)))
                     yrhop = np.matmul(y, rhoprime)
+                    expsdrb = np.matmul(sp.linalg.expm(-sigma).T, sp.linalg.expm(deltarhobar))
+                    expsigma = sp.linalg.expm(-sigma)
+                    expsigmaprime = sp.linalg.expm(-sigmaprime)
                     alpha = scale * np.exp(-0.5*(np.matmul(y, yrhop) + np.matmul(x-yrhop, np.matmul(deltarho, x-yrhop))))
                     deltarhopp = 0.5*np.matmul(x-yrhop, deltarho+deltarho.T)
                     
                     epsilon = (-np.matmul(z, np.matmul(rhoprime, deltarhopp) - yrhop + deltarhopp)
                                - (1j/2.)*np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)))
                                         
-                    prefactor_adag = np.matmul(x-np.matmul(y, rho), 
-                                               np.matmul(expdeltarhobar.T, expsigma))
+                    prefactor_adag = np.matmul(x-yrhop, np.matmul(sp.linalg.expm(deltarhobar).T, expsigma))
                     prefactor_a = np.matmul(y-deltarhopp, expsigmaprime)
                     
                     exp_adag = sp.linalg.expm(np.sum([prefactor_adag[i]*self.a_operator(i).T
@@ -504,12 +509,13 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                                            for mu in range(2) for nu in range(2)], axis = 0)
                     
                     kinetic_temp += 4*exp_adag_a*np.matmul(epsilon, np.matmul(EC_mat, epsilon))
-                    
+                    """
                     if m == 1 or p == 1: 
                         print("exp_adag_adag", exp_adag_adag)
                         print("exp_a_a", exp_a_a)
                         print("exp_adag_a", exp_adag_a)
                         print("epsilon", - (1j/2.)*np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)), epsilon)
+                    """
                                         
                     kinetic_temp = (alpha * np.exp(-1j*np.dot(nglist, delta_phi_kpm)) 
                                     * np.exp(-0.5*np.trace(sigma)-0.5*np.trace(sigmaprime)) #from U, U'
@@ -530,8 +536,8 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         delta_inv = np.matmul(np.transpose(Xi_inv), Xi_inv)
-        dim = self.hilbertdim()
-        num_exc_tot = (self.num_exc+1)**2
+        dim = self.matrixdim()
+        num_exc_tot = self.hilbertdim()
         potential_mat = np.zeros((dim,dim), dtype=np.complex128)
         minima_list = self.sorted_minima()
         exp_i_phi_0 = self.normal_ordered_exp_i_phi_operator(0)
@@ -540,50 +546,16 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
         exp_a_list = self._exp_a_operators()
         nglist = np.array([self.ng1, self.ng2])
         for m, minima_m in enumerate(minima_list):
-            if m == 0: #At the global minimum, no squeezing required
-                rho = np.zeros((2, 2)) # 2 d.o.f.
-                sigma = np.zeros((2, 2))
-                tau = np.zeros((2, 2)) 
-            else:
-                rho, sigma, tau = self.build_U_squeezing_operator(m)
             for p, minima_p in enumerate(minima_list):
-                if p == 0:
-                    rhoprime = np.zeros((2, 2)) # 2 d.o.f.
-                    sigmaprime = np.zeros((2, 2))
-                    tauprime = np.zeros((2, 2)) 
-                else:
-                    rhoprime, sigmaprime, tauprime = self.build_U_squeezing_operator(p)
-                deltarho, deltarhoprime, deltarhobar, zp, zpp = self._define_squeezing_variables(rho, rhoprime)
-#                exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
-#                exp_min_diff_inv = sp.linalg.inv(exp_min_diff)
-                
-                expsigma = sp.linalg.expm(-sigma)
-                expsigmaprime = sp.linalg.expm(-sigmaprime)
-                expdeltarhobar = sp.linalg.expm(deltarhobar)
-                expsdrb = np.matmul(expsigma, expdeltarhobar)
-                
-                prefactor_adag_adag = 0.5*(tau.T-np.matmul(expsigma, np.matmul(deltarhoprime, expsigma.T)))
-                prefactor_a_a = 0.5*(tauprime-np.matmul(expsigmaprime, np.matmul(deltarho, expsigmaprime.T)))
-                prefactor_adag_a = sp.linalg.logm(np.matmul(expsigma.T, np.matmul(expdeltarhobar, expsigmaprime)))
-
-                exp_adag_adag = sp.linalg.expm(np.sum([prefactor_adag_adag[i, j]
-                                                       *np.matmul(self.a_operator(i).T, 
-                                                                  self.a_operator(j).T)
-                                                       for i in range(2) for j in range(2)], axis=0))
-                exp_a_a = sp.linalg.expm(np.sum([prefactor_a_a[i, j]
-                                                 *np.matmul(self.a_operator(i), 
-                                                            self.a_operator(j))
-                                                 for i in range(2) for j in range(2)], axis=0))
-                exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
-                
+                (exp_adag_adag, exp_a_a, exp_adag_a, 
+                 rho, rhoprime, sigma, sigmaprime,
+                 deltarho, deltarhobar, _, _) = self.build_normal_ordered_squeezing_ops(m, p)
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
                     delta_phi_kpm = phik-(minima_m-minima_p) 
-                    phibar_kpm = 0.5*(phik+(minima_m+minima_p)) 
-                    minima_diff = minima_p-minima_m
-                    
+                    phibar_kpm = 0.5*(phik+(minima_m+minima_p))                     
                     for num in range(2): #summing over potential terms cos(\phi_x)
                         x = (np.matmul(delta_phi_kpm, Xi_inv.T) + 1j*Xi[num, :])/np.sqrt(2.)
                         y = (-np.matmul(delta_phi_kpm, Xi_inv.T) + 1j*Xi[num, :])/np.sqrt(2.)
@@ -602,13 +574,15 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                                           *np.exp(-1j*phibar_kpm[num])
                                           *np.exp(-.25*np.dot(Xi[num, :], np.transpose(Xi)[:, num])))
                         
+                        # This is adding the identity term for each of \cos(\phi_x)
+                        #####
                         just_trans_x = (x + x.conjugate())/2
                         just_trans_y = (y + y.conjugate())/2
-                        # This is adding the identity term for each of \cos(\phi_x)
                         potential_temp += self.EJ*self._potential_squeezing_helper(just_trans_x, just_trans_y, 
                                                                            exp_adag_a, rho, rhoprime, 
                                                                            deltarho, deltarhobar, 
                                                                            sigma, sigmaprime)
+                        #####
                         
                         potential_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm)) 
                                           * np.exp(-0.5*np.trace(sigma)-0.5*np.trace(sigmaprime))
@@ -641,13 +615,15 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                                        *np.exp(-.25*np.dot(Xi[1, :], np.transpose(Xi)[:, 1]))
                                        *np.exp(0.5*np.dot(Xi[1, :], np.transpose(Xi)[:, 0])))
                     
+                    # This is adding the identity term for \cos(\phi_1-\phi2-2*pi*f)
+                    #####
                     just_trans_x = (x + x.conjugate())/2
                     just_trans_y = (y + y.conjugate())/2
-                    # This is adding the identity term for \cos(\phi_1-\phi2-2*pi*f)
                     potential_temp += self.alpha*self.EJ*self._potential_squeezing_helper(just_trans_x, just_trans_y, 
                                                                        exp_adag_a, rho, rhoprime, 
                                                                        deltarho, deltarhobar, 
                                                                        sigma, sigmaprime)
+                    #####
 
                     potential_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm)) 
                                       * np.exp(-0.5*np.trace(sigma)-0.5*np.trace(sigmaprime))
@@ -672,14 +648,14 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
         alpha = scale * np.exp(-0.5*(np.matmul(y, yrhop) + np.matmul(x-yrhop, np.matmul(deltarho, x-yrhop))))
         deltarhopp = 0.5*np.matmul(x-np.matmul(rhoprime, y), deltarho+deltarho.T)
                     
-        prefactor_adag = np.matmul(x-np.matmul(y, rho), np.matmul(expdeltarhobar.T, expsigma))
+        prefactor_adag = np.matmul(x-np.matmul(y, rhoprime), np.matmul(expdeltarhobar.T, expsigma))
         prefactor_a = np.matmul(y-deltarhopp, expsigmaprime)
             
         exp_adag = sp.linalg.expm(np.sum([prefactor_adag[i]*self.a_operator(i).T
                                           for i in range(2)], axis=0))
         exp_a = sp.linalg.expm(np.sum([prefactor_a[i]*self.a_operator(i)
                                        for i in range(2)], axis=0))
-        return np.matmul(exp_adag, np.matmul(exp_adag_a, exp_a))
+        return alpha*np.matmul(exp_adag, np.matmul(exp_adag_a, exp_a))
                                                                           
     def hamiltonian(self):
         """Construct the Hamiltonian"""
@@ -690,50 +666,16 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         delta_inv = np.matmul(np.transpose(Xi_inv), Xi_inv)
-        dim = self.hilbertdim()
-        num_exc_tot = (self.num_exc+1)**2
+        dim = self.matrixdim()
+        num_exc_tot = self.hilbertdim()
         inner_product_mat = np.zeros((dim,dim), dtype=np.complex128)
         minima_list = self.sorted_minima()
-#        exp_i_phi_0 = self.normal_ordered_exp_i_phi_operator(0)
-#        exp_i_phi_1 = self.normal_ordered_exp_i_phi_operator(1)
-#        exp_i_phi_0_m1 = self.normal_ordered_exp_i_phix_mi_phiy(0, 1)
-#        exp_a_list = self._exp_a_operators()
         nglist = np.array([self.ng1, self.ng2])
         for m, minima_m in enumerate(minima_list):
-            if m == 0: #At the global minimum, no squeezing required
-                rho = np.zeros((2, 2)) # 2 d.o.f.
-                sigma = np.zeros((2, 2))
-                tau = np.zeros((2, 2)) 
-            else:
-                rho, sigma, tau = self.build_U_squeezing_operator(m)
             for p, minima_p in enumerate(minima_list):
-                if p == 0:
-                    rhoprime = np.zeros((2, 2)) # 2 d.o.f.
-                    sigmaprime = np.zeros((2, 2))
-                    tauprime = np.zeros((2, 2)) 
-                else:
-                    rhoprime, sigmaprime, tauprime = self.build_U_squeezing_operator(p)
-                deltarho, deltarhoprime, deltarhobar, zp, zpp = self._define_squeezing_variables(rho, rhoprime)
-                exp_min_diff = self._exp_a_operators_minima_diff(minima_p-minima_m)
-                exp_min_diff_inv = sp.linalg.inv(exp_min_diff)
-                
-                expsigma = sp.linalg.expm(-sigma)
-                expsigmaprime = sp.linalg.expm(-sigmaprime)
-                expdeltarhobar = sp.linalg.expm(deltarhobar)
-                expsdrb = np.matmul(expsigma, expdeltarhobar)
-                
-                prefactor_adag_adag = 0.5*(tau.T-np.matmul(expsigma, np.matmul(deltarhoprime, expsigma.T)))
-                prefactor_a_a = 0.5*(tauprime-np.matmul(expsigmaprime, np.matmul(deltarho, expsigmaprime.T)))
-                prefactor_adag_a = sp.linalg.logm(np.matmul(expsigma.T, np.matmul(expdeltarhobar, expsigmaprime)))
-
-                exp_adag_adag = sp.linalg.expm(np.sum([prefactor_adag_adag[i, j]
-                                                       *np.matmul(self.a_operator(i).T, self.a_operator(j).T)
-                                                       for i in range(2) for j in range(2)], axis=0))
-                exp_a_a = sp.linalg.expm(np.sum([prefactor_a_a[i, j]
-                                                 *np.matmul(self.a_operator(i), self.a_operator(j))
-                                                 for i in range(2) for j in range(2)], axis=0))
-                exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
-                
+                (exp_adag_adag, exp_a_a, exp_adag_a, 
+                 rho, rhoprime, sigma, sigmaprime,
+                 deltarho, deltarhobar, _, _) = self.build_normal_ordered_squeezing_ops(m, p)
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
@@ -747,10 +689,11 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                     scale = 1./np.sqrt(sp.linalg.det(np.eye(2)-np.matmul(rho, rhoprime)))
                     yrhop = np.matmul(y, rhoprime)
                     alpha = scale * np.exp(-0.5*(np.matmul(y, yrhop) + np.matmul(x-yrhop, np.matmul(deltarho, x-yrhop))))
-                    deltarhopp = 0.5*np.matmul(x-np.matmul(rhoprime, y), deltarho+deltarho.T)
+                    deltarhopp = 0.5*np.matmul(x-yrhop, deltarho+deltarho.T)
                 
-                    prefactor_adag = np.matmul(x-np.matmul(y, rho), np.matmul(expdeltarhobar.T, expsigma))
-                    prefactor_a = np.matmul(y-deltarhopp, expsigmaprime)
+                    prefactor_adag = np.matmul(x-yrhop, np.matmul(sp.linalg.expm(deltarhobar).T, 
+                                                                  sp.linalg.expm(-sigma)))
+                    prefactor_a = np.matmul(y-deltarhopp, sp.linalg.expm(-sigmaprime))
                     
                     exp_adag = sp.linalg.expm(np.sum([prefactor_adag[i]*self.a_operator(i).T
                                                       for i in range(2)], axis=0))
@@ -832,9 +775,13 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                                          sorted(zip(value_of_potential, minima_holder))])
         return sorted_minima_holder
     
+    def matrixdim(self):
+        """Return N if the size of the Hamiltonian matrix is NxN"""
+        return len(self.sorted_minima())*(self.num_exc+1)**2
+    
     def hilbertdim(self):
         """Return Hilbert space dimension."""
-        return len(self.sorted_minima())*(self.num_exc+1)**2
+        return (self.num_exc+1)**2
     
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """

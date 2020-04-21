@@ -16,8 +16,8 @@ from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 #-Flux Qubit using VCHOS 
 
-class FluxQubitVCHOS(QubitBaseClass):
-    def __init__(self, ECJ, ECg, EJ, ng1, ng2, alpha, flux, kmax, num_exc):
+class FluxQubitVCHOSGlobal(QubitBaseClass):
+    def __init__(self, ECJ, ECg, EJ, ng1, ng2, alpha, flux, kmax, global_exc):
         self.ECJ = ECJ
         self.EJ = EJ
         self.ECg = ECg
@@ -26,14 +26,96 @@ class FluxQubitVCHOS(QubitBaseClass):
         self.alpha = alpha
         self.flux = flux
         self.kmax = kmax
-        self.num_exc = num_exc
+        self.global_exc = global_exc
         self.hGHz = const.h * 10**9
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2*self.e)**2
         self.Phi0 = 1. / (2*self.e)
         
+        self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
+                                    29, 31, 37, 41, 43, 47, 53, 59,
+                                    61, 67, 71, 73, 79, 83, 89, 97, 
+                                    101, 103, 107, 109, 113, 127, 
+                                    131, 137, 139, 149, 151, 157, 
+                                    163, 167, 173, 179, 181, 191, 
+                                    193, 197, 199, 211, 223, 227,
+                                    229, 233, 239, 241, 251, 257, 
+                                    263, 269, 271, 277, 281, 283, 
+                                    293, 307, 311, 313, 317, 331, 
+                                    337, 347, 349, 353, 359, 367, 
+                                    373, 379, 383, 389, 397, 401,
+                                    409, 419, 421, 431, 433, 439, 
+                                    443, 449, 457, 461, 463, 467, 
+                                    479, 487, 491, 499, 503, 509, 
+                                    521, 523, 541, 547, 557, 563, 
+                                    569, 571, 577, 587, 593, 599, 
+                                    601, 607, 613, 617, 619, 631, 
+                                    641, 643, 647, 653, 659, 661, 
+                                    673, 677, 683, 691, 701, 709, 
+                                    719, 727, 733, 739, 743, 751, 
+                                    757, 761, 769, 773, 787, 797, 
+                                    809, 811, 821, 823, 827, 829, 
+                                    839, 853, 857, 859, 863, 877, 
+                                    881, 883, 887, 907, 911, 919, 
+                                    929, 937, 941, 947, 953, 967, 
+                                    971, 977, 983, 991, 997])
+        self.basis_vecs = self._gen_basis_vecs()
+        self.tag_list, self.index_array = self._gen_tags()
+        
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
+        
+    def _hash(self, vec):
+        dim = len(vec)
+        return np.sum([np.sqrt(self.prime_list[i])*vec[i] for i in range(dim)])
+    
+    def _gen_tags(self):
+        basis_vecs = self.basis_vecs
+        dim = basis_vecs.shape[0]
+        tag_list = np.array([self._hash(basis_vecs[i,:]) for i in range(dim)])
+        index_array = np.argsort(tag_list)
+        tag_list = tag_list[index_array]
+        return (tag_list, index_array)
+    
+    def _gen_basis_vecs(self):
+        sites = 2
+        vec_list = []
+        vec_list.append(np.zeros(sites))
+        for total_exc in range(1, self.global_exc+1):
+            prev_vec = np.zeros(sites)
+            prev_vec[0] = total_exc
+            vec_list.append(prev_vec)
+            while prev_vec[-1] != total_exc:
+                k = self._find_k(prev_vec)
+                next_vec = np.zeros(sites)
+                next_vec[0:k] = prev_vec[0:k]
+                next_vec[k] = prev_vec[k]-1
+                next_vec[k+1] = total_exc-np.sum([next_vec[i] for i in range(k+1)])
+                vec_list.append(next_vec)
+                prev_vec = next_vec
+        return np.array(vec_list)
+                
+    def _find_k(self, vec):
+        dim = len(vec)
+        for num in range(dim-2, -1, -1):
+            if vec[num]!=0:
+                return num
+    
+    def a_operator(self, i):
+        basis_vecs = self._gen_basis_vecs()
+        tags, index_array = self._gen_tags()
+        dim = basis_vecs.shape[0]
+        a = np.zeros((dim, dim))
+        for w, vec in enumerate(basis_vecs):
+            temp_vec = np.copy(vec)
+            if vec[i] >= 1:
+                temp_vec[i] = vec[i] - 1
+                temp_coeff = np.sqrt(vec[i])
+                temp_vec_tag = self._hash(temp_vec)
+                index = np.searchsorted(self.tag_list, temp_vec_tag)
+                basis_index = self.index_array[index]
+                a[basis_index, w] = temp_coeff
+        return a
     
     def _normal_ordered_adag_a_exponential(self, x):
         """Expectation is that exp(a_{i}^{\dagger}x_{ij}a_{j}) needs to be normal ordered"""
@@ -129,12 +211,6 @@ class FluxQubitVCHOS(QubitBaseClass):
                               sp.linalg.inv(np.diag(np.sqrt(omegasq)))/self.Z0))
 
         return np.transpose(Ximat)
-    
-    def a_operator(self, mu):
-        """Return the lowering operator associated with the xth d.o.f. in the full Hilbert space"""
-        a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)])
-        a_mat = np.diag(a,k=1)
-        return self._full_o([a_mat], [mu])
                     
     def normal_ordered_exp_i_phi_operator(self, x):
         """Return the normal ordered e^{i\phi_x} operator, expressed using ladder ops"""
@@ -162,7 +238,7 @@ class FluxQubitVCHOS(QubitBaseClass):
                *np.exp(0.5*np.dot(Xi_mat[y, :], np.transpose(Xi_mat)[:, x])))
         
     def _identity(self):
-        return(np.identity((self.num_exc+1)**2))
+        return(np.identity(len(self.tag_list)))
         
     def delta_inv_matrix(self):
         """"Construct the delta inverse matrix, as described in David's notes """
@@ -223,44 +299,6 @@ class FluxQubitVCHOS(QubitBaseClass):
         V_op_phik = self._V_operator_helper_using_exp_a_operators(phik, exp_a_list)
         V_op = prefactor * np.matmul(exp_min_diff, V_op_phik)
         return V_op
-        
-    def _unordered_kineticmat(self):
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        EC_mat = self.build_EC_matrix()
-        EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
-        dim = self.matrixdim()
-        minima_list = self.sorted_minima()
-        kinetic_mat = np.zeros((dim,dim), dtype=np.complex128)
-        nglist = np.array([self.ng1, self.ng2])
-        for m, minima_m in enumerate(minima_list):
-            for p, minima_p in enumerate(minima_list):
-                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                jkvals = next(klist,-1)
-                while jkvals != -1:
-                    phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                    delta_phi_kpm = phik-(minima_m-minima_p)
-                    minima_diff = minima_p-minima_m
-                    
-                    right_op = sp.linalg.expm(np.sum([-(1/np.sqrt(2.))*(phik+minima_p)[x]*np.transpose(Xi_inv)[x, mu]
-                                                     *(self.a_operator(mu)-self.a_operator(mu).T)
-                                                     for x in range(2) for mu in range(2)], axis=0))
-                    left_op = sp.linalg.expm(np.sum([(1/np.sqrt(2.))*(minima_m)[x]*np.transpose(Xi_inv)[x, mu]
-                                                     *(self.a_operator(mu)-self.a_operator(mu).T)
-                                                     for x in range(2) for mu in range(2)], axis=0))
-                    kinetic_temp = 0.0
-                    for mu in range(2):
-                        for nu in range(2):
-                            kinetic_temp += -2.0*EC_mat_t[mu, nu]*(np.matmul(self.a_operator(mu)-self.a_operator(mu).T,
-                                                                             self.a_operator(nu)-self.a_operator(nu).T))
-                    kinetic_temp = (np.exp(-1j*np.dot(nglist, delta_phi_kpm))*
-                                    np.matmul(left_op, np.matmul(kinetic_temp, right_op )))
-                    num_exc_tot = self.hilbertdim()
-                    kinetic_mat[m*num_exc_tot : m*num_exc_tot + num_exc_tot, 
-                                p*num_exc_tot : p*num_exc_tot + num_exc_tot] += kinetic_temp
-                    jkvals = next(klist,-1)
-                    
-        return kinetic_mat
         
     def kineticmat(self):
         """Return the kinetic part of the hamiltonian"""
@@ -479,12 +517,11 @@ class FluxQubitVCHOS(QubitBaseClass):
         return sorted_minima_holder
     
     def matrixdim(self):
-        """Return N if the size of the Hamiltonian matrix is NxN"""
-        return len(self.sorted_minima())*(self.num_exc+1)**2
+        return len(self.sorted_minima())*len(self.tag_list)
     
     def hilbertdim(self):
         """Return Hilbert space dimension."""
-        return (self.num_exc+1)**2
+        return len(self.tag_list)
     
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """
