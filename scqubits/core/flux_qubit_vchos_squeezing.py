@@ -416,6 +416,10 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
             rhoprime = np.zeros((2, 2)) # 2 d.o.f.
             sigmaprime = np.zeros((2, 2))
             tauprime = np.zeros((2, 2)) 
+        elif p == m:
+            rhoprime = np.copy(rho)
+            sigmaprime = np.copy(sigma)
+            tauprime = np.copy(tau)
         else:
             rhoprime, sigmaprime, tauprime = self.build_U_squeezing_operator(p)
             
@@ -454,7 +458,6 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
         dim = self.matrixdim()
         minima_list = self.sorted_minima()
         kinetic_mat = np.zeros((dim,dim), dtype=np.complex128)
-        exp_a_list = self._exp_a_operators()
         nglist = np.array([self.ng1, self.ng2])
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
@@ -502,20 +505,13 @@ class FluxQubitVCHOSSqueezing(QubitBaseClass):
                                                       np.matmul(EC_mat , np.matmul(zpp, expsdrb.T)))[mu, nu]
                                            -4*exp_adag_a*np.matmul(zpp.T, np.matmul(EC_mat, zp))[mu, nu]
                                            -8*np.matmul(exp_adag_a, self.a_operator(mu))
-                                           *epsilon[nu]*np.matmul(np.matmul(EC_mat[nu, :], zp), expsigma[:, mu])
+                                           *epsilon[nu]*np.matmul(np.matmul(EC_mat[nu, :], zp), expsigmaprime[:, mu])
                                            +8*np.matmul(self.a_operator(nu).T, exp_adag_a)
                                            *epsilon[mu]*np.matmul(np.matmul(EC_mat[mu, :], zpp), 
                                                                   np.transpose(expsdrb)[:, nu])
                                            for mu in range(2) for nu in range(2)], axis = 0)
                     
                     kinetic_temp += 4*exp_adag_a*np.matmul(epsilon, np.matmul(EC_mat, epsilon))
-                    """
-                    if m == 1 or p == 1: 
-                        print("exp_adag_adag", exp_adag_adag)
-                        print("exp_a_a", exp_a_a)
-                        print("exp_adag_a", exp_adag_a)
-                        print("epsilon", - (1j/2.)*np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)), epsilon)
-                    """
                                         
                     kinetic_temp = (alpha * np.exp(-1j*np.dot(nglist, delta_phi_kpm)) 
                                     * np.exp(-0.5*np.trace(sigma)-0.5*np.trace(sigmaprime)) #from U, U'

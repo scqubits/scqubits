@@ -518,10 +518,11 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         dim = self.hilbertdim()
         kinetic_test_mat = np.zeros((dim,dim))
         minima_list = self.sorted_minima()
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
+#        Xi = self.Xi_matrix()
+#        Xi_inv = sp.linalg.inv(Xi)
+        Xi = self.Xi_matrix_list()
+        Xi_inv = np.array([sp.linalg.inv(Xi[i]) for i in range(2)])
         EC_mat = self.build_EC_matrix()
-        EC_mat_t = np.matmul(Xi_inv,np.matmul(EC_mat,np.transpose(Xi_inv)))
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 for sone in range(self.num_exc+1):
@@ -531,14 +532,15 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
                                 jkvals = next(klist,-1)
                                 matelem = 0.0
+                                EC_mat_t = np.matmul(Xi_inv[m],np.matmul(EC_mat,np.transpose(Xi_inv[m])))
                                 while jkvals != -1:
                                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                                    zetaoneoffset = Xi_inv[0,0]*minima_m[0]+Xi_inv[0,1]*minima_m[1]
-                                    zetatwooffset = Xi_inv[1,0]*minima_m[0]+Xi_inv[1,1]*minima_m[1]
-                                    zetaoneprimeoffset = (Xi_inv[0,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[0,1]*(phik[1]+minima_p[1]))
-                                    zetatwoprimeoffset = (Xi_inv[1,0]*(phik[0]+minima_p[0])
-                                                          + Xi_inv[1,1]*(phik[1]+minima_p[1]))
+                                    zetaoneoffset = Xi_inv[m][0,0]*minima_m[0]+Xi_inv[m][0,1]*minima_m[1]
+                                    zetatwooffset = Xi_inv[m][1,0]*minima_m[0]+Xi_inv[m][1,1]*minima_m[1]
+                                    zetaoneprimeoffset = (Xi_inv[p][0,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[p][0,1]*(phik[1]+minima_p[1]))
+                                    zetatwoprimeoffset = (Xi_inv[p][1,0]*(phik[0]+minima_p[0])
+                                                          + Xi_inv[p][1,1]*(phik[1]+minima_p[1]))
                                     
                                     elem11 = (4.0*EC_mat_t[0, 0]
                                                 * np.exp(-0.5*(zetatwooffset**2 + zetatwoprimeoffset**2))
@@ -658,12 +660,7 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
                                         
                                     matelem += (elem11 + elem12 + elem13 + elem14 + elem15
                                                 + elem21 + elem22 + elem23 + elem24 + elem25)
-                                    i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
-                                    j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2
-#                                    if ((i==0) and (j==4)):
-#                                        print(elem11, elem12, elem13, elem14, elem15,
-#                                              elem21, elem22, elem23, elem24, elem25)
-#                                        print(matelem, "jkvals = ", jkvals, "babusci")
+                                    
                                     jkvals = next(klist, -1)
                                 i = (self.num_exc+1)*(sone)+stwo+m*(self.num_exc+1)**2
                                 j = (self.num_exc+1)*(soneprime)+stwoprime+p*(self.num_exc+1)**2

@@ -140,21 +140,21 @@ class FluxQubitVCHOS(QubitBaseClass):
         """Return the normal ordered e^{i\phi_x} operator, expressed using ladder ops"""
         Xi_mat = self.Xi_matrix()
         return(np.exp(-.25*np.dot(Xi_mat[x, :], np.transpose(Xi_mat)[:, x]))
-               *np.matmul(self.matrix_exp(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu).T 
+               *np.matmul(sp.linalg.expm(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu).T 
                                             for mu in range(2)], axis=0)/np.sqrt(2)), 
-                          self.matrix_exp(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu) 
+                          sp.linalg.expm(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu) 
                                             for mu in range(2)], axis=0)/np.sqrt(2))))
     
     def normal_ordered_exp_i_phix_mi_phiy(self, x, y):
         """Return the normal ordered e^{i\phi_x-i\phi_y} operator, expressed using ladder ops"""
         Xi_mat = self.Xi_matrix()
-        a_dag_prod = np.matmul(self.matrix_exp(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu).T 
+        a_dag_prod = np.matmul(sp.linalg.expm(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu).T 
                                                           for mu in range(2)], axis=0)/np.sqrt(2)),
-                               self.matrix_exp(-1j*np.sum([Xi_mat[y,mu]*self.a_operator(mu).T 
+                               sp.linalg.expm(-1j*np.sum([Xi_mat[y,mu]*self.a_operator(mu).T 
                                                            for mu in range(2)], axis=0)/np.sqrt(2)))
-        a_prod = np.matmul(self.matrix_exp(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu)
+        a_prod = np.matmul(sp.linalg.expm(1j*np.sum([Xi_mat[x,mu]*self.a_operator(mu)
                                                       for mu in range(2)], axis=0)/np.sqrt(2)),
-                           self.matrix_exp(-1j*np.sum([Xi_mat[y,mu]*self.a_operator(mu)
+                           sp.linalg.expm(-1j*np.sum([Xi_mat[y,mu]*self.a_operator(mu)
                                                        for mu in range(2)], axis=0)/np.sqrt(2)))
         return(np.matmul(a_dag_prod, a_prod)
                *np.exp(-.25*np.dot(Xi_mat[x, :], np.transpose(Xi_mat)[:, x]))
@@ -169,23 +169,20 @@ class FluxQubitVCHOS(QubitBaseClass):
         Xi_T_inv = np.transpose(sp.linalg.inv(self.Xi_matrix()))
         Xi_inv = sp.linalg.inv(self.Xi_matrix())
         return np.matmul(Xi_T_inv,Xi_inv)
-        
-    def matrix_exp(self, matrix):
-        return (sp.linalg.expm(matrix))
     
     def _exp_a_operators(self):
         """Return the exponential of the a operators with appropriate coefficients for efficiency purposes """
         Xi = self.Xi_matrix()
         Xi_inv_T = sp.linalg.inv(Xi).T
-        exp_a_00 = self.matrix_exp(2.0*np.pi*Xi_inv_T[0, 0]*self.a_operator(0)/np.sqrt(2.0))
-        exp_a_10 = self.matrix_exp(2.0*np.pi*Xi_inv_T[1, 0]*self.a_operator(0)/np.sqrt(2.0))
-        exp_a_01 = self.matrix_exp(2.0*np.pi*Xi_inv_T[0, 1]*self.a_operator(1)/np.sqrt(2.0))
-        exp_a_11 = self.matrix_exp(2.0*np.pi*Xi_inv_T[1, 1]*self.a_operator(1)/np.sqrt(2.0))
-        return(exp_a_00, exp_a_10, exp_a_01, exp_a_11)
+        exp_a_0 = sp.linalg.expm(np.sum([2.0*np.pi*Xi_inv_T[0, mu]*self.a_operator(mu)/np.sqrt(2.0)
+                                 for mu in range(2)], axis=0))
+        exp_a_1 = sp.linalg.expm(np.sum([2.0*np.pi*Xi_inv_T[1, mu]*self.a_operator(mu)/np.sqrt(2.0)
+                                 for mu in range(2)], axis=0))
+        return(exp_a_0, exp_a_1)
     
     def _exp_a_operators_minima_diff(self, minima_diff):
         Xi_inv_T = sp.linalg.inv(self.Xi_matrix()).T
-        exp_min_diff = self.matrix_exp(np.sum([minima_diff[x]*Xi_inv_T[x, mu]*self.a_operator(mu)
+        exp_min_diff = sp.linalg.expm(np.sum([minima_diff[x]*Xi_inv_T[x, mu]*self.a_operator(mu)
                                                for x in range(2) for mu in range(2)], axis=0)/np.sqrt(2.0))
         return(exp_min_diff)
     
@@ -193,16 +190,9 @@ class FluxQubitVCHOS(QubitBaseClass):
         """Return the periodic continuation part of the V operator without 
         additional calls to matrix_exp and without the prefactor """
         jkvals = phi/(2.0*np.pi)
-        j0 = int(jkvals[0])
-        j1 = int(jkvals[1])
                 
-        V00_op = np.linalg.matrix_power(exp_a_list[0], j0)
-        V01_op = np.linalg.matrix_power(exp_a_list[2], j0)
-        V0_op = np.matmul(V00_op, V01_op)
-        
-        V10_op = np.linalg.matrix_power(exp_a_list[1], j1)
-        V11_op = np.linalg.matrix_power(exp_a_list[3], j1)
-        V1_op = np.matmul(V10_op, V11_op)
+        V0_op = np.linalg.matrix_power(exp_a_list[0], int(jkvals[0]))
+        V1_op = np.linalg.matrix_power(exp_a_list[1], int(jkvals[1]))
         
         return(np.matmul(V0_op, V1_op))
             
@@ -212,7 +202,7 @@ class FluxQubitVCHOS(QubitBaseClass):
         prefactor = np.exp(-.125 * phi_delta_phi)
         phi_Xi_inv = np.matmul(phi,np.transpose(sp.linalg.inv(self.Xi_matrix())))
         phi_Xi_inv_a = np.sum([phi_Xi_inv[mu]*self.a_operator(mu) for mu in range(2)], axis=0)
-        op = self.matrix_exp((1./np.sqrt(2.))*phi_Xi_inv_a)
+        op = sp.linalg.expm((1./np.sqrt(2.))*phi_Xi_inv_a)
         return prefactor * op
     
     def V_operator_full(self, minima_diff, phik, exp_min_diff, exp_a_list, delta_inv):
