@@ -14,9 +14,6 @@ import functools
 import numpy as np
 import matplotlib.pyplot as plt
 
-import scqubits.utils.misc as utils
-import scqubits.settings as settings
-
 try:
     import lmfit
 except ImportError:
@@ -24,20 +21,18 @@ except ImportError:
 else:
     _HAS_LMFIT = True
 
-
-if settings.IN_IPYTHON:
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
-
-
-
 import scqubits
 import scqubits.core.qubit_base as qubit_base
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.core.param_sweep as param_sweep
 import scqubits.settings as settings
 import scqubits.utils.sweep_plotting as splot
+import scqubits.utils.misc as utils
+
+if settings.IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 class CalibrationModel(serializers.Serializable):
