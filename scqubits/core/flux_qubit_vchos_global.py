@@ -18,10 +18,11 @@ from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 #-Flux Qubit using VCHOS 
 
 class FluxQubitVCHOSGlobal(FluxQubitVCHOS):
-    def __init__(self, ECJ, ECg, EJ, ng1, ng2, alpha, flux, kmax, global_exc):
-        FluxQubitVCHOS.__init__(self, ECJ, ECg, EJ, ng1, ng2, alpha, flux, kmax, num_exc=None)
+    def __init__(self, ECJ, ECg, EJ, ng1, ng2, alpha, flux, kmax, global_exc, squeezing):
+        FluxQubitVCHOS.__init__(self, ECJ, ECg, EJ, ng1, ng2, alpha, flux, 
+                                kmax, num_exc=None, squeezing=squeezing)
         self.global_exc = global_exc
-
+        
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
                                     29, 31, 37, 41, 43, 47, 53, 59,
                                     61, 67, 71, 73, 79, 83, 89, 97, 
@@ -103,11 +104,10 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOS):
                 basis_index = self.index_array[index]
                 a[basis_index, w] = temp_coeff
         return a
-    
-            
+                
     def _identity(self):
-        return(np.identity(len(self.tag_list)))
-            
+        return(np.identity(self.hilbertdim(), dtype=np.complex_))
+        
     def matrixdim(self):
         return len(self.sorted_minima())*len(self.tag_list)
     
@@ -218,4 +218,4 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOS):
         if 'figsize' not in kwargs:
             kwargs['figsize'] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
- 
+    
