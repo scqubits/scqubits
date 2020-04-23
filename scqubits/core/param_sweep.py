@@ -275,7 +275,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         energy_table = np.empty(shape=(self.param_count, evals_count), dtype=np.float_)
         state_table = []  # for dressed states, entries are Qobj
         for j in range(self.param_count):
-            energy_table[j] = dressed_eigendata[j][0]
+            energy_table[j] = np.real_if_close(dressed_eigendata[j][0])
             state_table.append(dressed_eigendata[j][1])
         specdata = storage.SpectrumData(energy_table, system_params={}, param_name=self.param_name,
                                         param_vals=self.param_vals, state_table=state_table)

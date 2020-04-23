@@ -33,8 +33,10 @@ from scqubits.utils import misc as utils
 
 
 class HilbertSpaceUi:
+    """Class for setup and display of the ipywidget used for creation of a HilbertSpace object."""
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
     def __init__(self):
+        """Set up all widget GUI elements and class attributes."""
         self.error_output = None
         self.interact_current_index = 0
         self.interact_max_index = 0
@@ -46,7 +48,7 @@ class HilbertSpaceUi:
         self.subsys_box = ipywidgets.VBox([label, self.subsys_widget])
 
         self.interact_new_button = ipywidgets.Button(description='New', layout=ipywidgets.Layout(width='80px'))
-        self.interact_del_button = ipywidgets.Button(icon='remove', layout=ipywidgets.Layout(width='30px'))
+        self.interact_del_button = ipywidgets.Button(icon='fa-remove', layout=ipywidgets.Layout(width='30px'))
         self.interact_right_button = ipywidgets.Button(icon='arrow-right', layout=ipywidgets.Layout(width='30px'))
         self.interact_left_button = ipywidgets.Button(icon='arrow-left', layout=ipywidgets.Layout(width='30px'))
         self.interact_buttons = ipywidgets.HBox([self.interact_new_button, self.interact_left_button,
@@ -79,6 +81,7 @@ class HilbertSpaceUi:
         self.tab_nest.set_title(0, 'Subsystems')
         self.tab_nest.set_title(1, 'Interactions')
 
+        # run button is connected externally, see use in create_hilbertspace_widget below
         self.run_button = ipywidgets.Button(description='Finish')
 
         self.ui = ipywidgets.VBox([self.tab_nest, self.run_button])
@@ -217,17 +220,27 @@ class HilbertSpaceUi:
                         print("Type mismatch: '{}' is not a valid operator.".format(operator_str))
                     return False
             interaction_list.append(scqubits.InteractionTerm(g_strength=interaction_term['g_strength'],
-                                                             op1=interaction_term['op1'],
-                                                             subsys1=interaction_term['subsys1'],
-                                                             op2=interaction_term['op2'],
-                                                             subsys2=interaction_term['subsys2'],
+                                                             op1=eval(interaction_term['op1'], main.__dict__),
+                                                             subsys1=eval(interaction_term['subsys1'], main.__dict__),
+                                                             op2=eval(interaction_term['op2'], main.__dict__),
+                                                             subsys2=eval(interaction_term['subsys2'], main.__dict__),
                                                              add_hc=(interaction_term['add_hc'] == 'True')))
         return interaction_list
 
 
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
 def create_hilbertspace_widget(callback_func):
-    # ui_model = HilbertSpaceUiModel()
+    """
+    Display ipywidgets interface for creating a HilbertSpace object. Typically, this function will be called by
+    `HilbertSpace.create()``.
+
+
+    Parameters
+    ----------
+    callback_func: function
+        Function that receives the subsystem and interaction data from the widget. Typically, this is
+        ``HilbertSpace.__init__()``
+    """
     ui_view = HilbertSpaceUi()
 
     out = ipywidgets.interactive_output(
