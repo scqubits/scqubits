@@ -402,24 +402,24 @@ class VCHOS(QubitBaseClass):
                         V_op = np.matmul(V_op, V_op_temp)
                     exp_a = np.matmul(V_op, exp_a_mindiff)
 
+                    # TODO could make this more efficient by premultiplying
+                    # exp_adag_a with a_ops
                     kinetic_temp = np.sum([+4*np.matmul(exp_adag_a, np.matmul(a_op_list[mu],
-                                                                              a_op_list[nu]))
+                                                                              a_op_list[mu]))
                                            *np.matmul(np.matmul(expsigmaprime.T, zp.T), 
-                                                      np.matmul(EC_mat, np.matmul(zp, expsigmaprime)))[mu, nu]
-                                           -8*np.matmul(a_op_list[mu].T, np.matmul(exp_adag_a, a_op_list[nu]))
+                                                      np.matmul(EC_mat, np.matmul(zp, expsigmaprime)))[mu, mu]
+                                           -8*np.matmul(a_op_list[mu].T, np.matmul(exp_adag_a, a_op_list[mu]))
                                            *np.matmul(np.matmul(expsdrb, zpp.T), 
-                                                      np.matmul(EC_mat, np.matmul(zp, expsigmaprime)))[mu, nu]
-                                           +4*np.matmul(a_op_list[mu].T, np.matmul(a_op_list[nu].T, exp_adag_a))
+                                                      np.matmul(EC_mat, np.matmul(zp, expsigmaprime)))[mu, mu]
+                                           +4*np.matmul(a_op_list[mu].T, np.matmul(a_op_list[mu].T, exp_adag_a))
                                            *np.matmul(np.matmul(expsdrb, zpp.T), 
-                                                      np.matmul(EC_mat , np.matmul(zpp, expsdrb.T)))[mu, nu]
-                                           -4*exp_adag_a*np.matmul(zpp.T, np.matmul(EC_mat, zp))[mu, nu]
+                                                      np.matmul(EC_mat , np.matmul(zpp, expsdrb.T)))[mu, mu]
+                                           -4*exp_adag_a*np.matmul(zpp.T, np.matmul(EC_mat, zp))[mu, mu]
                                            -8*np.matmul(exp_adag_a, a_op_list[mu])
-                                           *epsilon[nu]*np.matmul(np.matmul(EC_mat[nu, :], zp), expsigmaprime[:, mu])
-                                           +8*np.matmul(a_op_list[nu].T, exp_adag_a)
-                                           *epsilon[mu]*np.matmul(np.matmul(EC_mat[mu, :], zpp), 
-                                                                  np.transpose(expsdrb)[:, nu])
-                                           for mu in range(self.num_deg_freedom) 
-                                           for nu in range(self.num_deg_freedom)], axis = 0)
+                                           *np.matmul(epsilon, np.matmul(np.matmul(EC_mat, zp), expsigmaprime))[mu]
+                                           +8*np.matmul(a_op_list[mu].T, exp_adag_a)
+                                           *np.matmul(epsilon, np.matmul(np.matmul(EC_mat, zpp), expsdrb.T))[mu]
+                                           for mu in range(self.num_deg_freedom)], axis = 0)
                     
                     kinetic_temp += 4*exp_adag_a*np.matmul(epsilon, np.matmul(EC_mat, epsilon))
                                         

@@ -9,20 +9,19 @@ from scipy.linalg import LinAlgError
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 from scqubits.core.discretization import GridSpec, Grid1d
-from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
+from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS
 from scqubits.core.hashing import Hashing
 from scqubits.core.storage import WaveFunctionOnGrid
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
-#-Flux Qubit using VCHOS and a global cutoff
+#-Flux Qubit using VCHOS 
 
-class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
-    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, global_exc, squeezing=False):
-        FluxQubitVCHOS.__init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, 
-                                kmax, num_exc=None, squeezing=squeezing)
-        Hashing.__init__(self, num_deg_freedom=2, global_exc=global_exc)
+class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, num_exc, squeezing=False):
+        CurrentMirrorVCHOS.__init__(N, ECB, ECJ, ECg, EJlist, nglist, flux, 
+                                    kmax, num_exc=None, squeezing=squeezing)
+        Hashing.__init__(self, num_deg_freedom=2*N-1, global_exc=global_exc)
         
     def a_operator(self, i):
         basis_vecs = self._gen_basis_vecs()
