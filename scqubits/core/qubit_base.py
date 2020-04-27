@@ -343,7 +343,8 @@ class QubitBaseClass(QuantumSystem, ABC):
                                                   subtract_ground=subtract_ground, num_cpus=num_cpus)
         return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
 
-    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', **kwargs):
+    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', show_numbers=False, show3d=True,
+                            **kwargs):
         """Plots matrix elements for `operator`, given as a string referring to a class method
         that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
         for the charge operator `n` is obtained by `trm.plot_matrixelements('n')`.
@@ -359,6 +360,10 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of desired matrix elements, starting with ground state (default value = 6)
         mode: str, optional
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
+        show_numbers: bool, optional
+            determines whether matrix element values are printed on top of the plot (default: False)
+        show3d: bool, optional
+            whether to show a 3d skyscraper plot of the matrix alongside the 2d plot (default: True)
         **kwargs: dict
             standard plotting option (see separate documentation)
 
@@ -367,7 +372,9 @@ class QubitBaseClass(QuantumSystem, ABC):
         Figure, Axes
         """
         matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
-        return plot.matrix(matrixelem_array, mode, **kwargs)
+        if not show3d:
+            return plot.matrix2d(matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs)
+        return plot.matrix(matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs)
 
     def plot_matelem_vs_paramvals(self, operator, param_name, param_vals,
                                   select_elems=4, mode='abs', num_cpus=settings.NUM_CPUS, **kwargs):

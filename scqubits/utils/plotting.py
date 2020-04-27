@@ -229,7 +229,7 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
     return fig, axes
 
 
-def matrix(data_matrix, mode='abs', **kwargs):
+def matrix(data_matrix, mode='abs', show_numbers=False, **kwargs):
     """
     Create a "skyscraper" plot and a 2d color-coded plot of a matrix.
 
@@ -239,6 +239,8 @@ def matrix(data_matrix, mode='abs', **kwargs):
         2d matrix data
     mode: str from `constants.MODE_FUNC_DICT`
         choice of processing function to be applied to data
+    show_numbers: bool, optional
+        determines whether matrix element values are printed on top of the plot (default: False)
     **kwargs: dict
         standard plotting option (see separate documentation)
 
@@ -254,7 +256,30 @@ def matrix(data_matrix, mode='abs', **kwargs):
         ax1 = fig.add_subplot(1, 2, 1, projection='3d')
         ax2 = plt.subplot(1, 2, 2)
 
-    matsize = len(data_matrix)
+    fig, ax2 = matrix2d(data_matrix, mode=mode, show_numbers=show_numbers, fig_ax=(fig, ax2), **kwargs)
+    fig, ax1 = matrix_skyscraper(data_matrix, mode=mode, fig_ax=(fig, ax1), **kwargs)
+    return fig, (ax1, ax2)
+
+def matrix_skyscraper(matrix, mode='abs', **kwargs):
+    """Display a 3d skyscraper plot of the matrix
+
+    Parameters
+    ----------
+    matrix: ndarray of float or complex
+        2d matrix data
+    mode: str from `constants.MODE_FUNC_DICT`
+        choice of processing function to be applied to data
+    **kwargs: dict
+        standard plotting option (see separate documentation)
+
+    Returns
+    -------
+    Figure, Axes
+        figure and axes objects for further editing
+    """
+    fig, axes = kwargs.get('fig_ax') or plt.subplots(projection='3d')
+
+    matsize = len(matrix)
     element_count = matsize ** 2  # num. of elements to plot
 
     xgrid, ygrid = np.meshgrid(range(matsize), range(matsize))
@@ -266,24 +291,65 @@ def matrix(data_matrix, mode='abs', **kwargs):
     dy = dx  # width of bars in y-direction (same as x-direction)
 
     modefunction = constants.MODE_FUNC_DICT[mode]
-    zheight = modefunction(data_matrix).flatten()  # height of bars from matrix elements
+    zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
     nrm = mpl.colors.Normalize(0, max(zheight))  # <-- normalize colors to max. data
     colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
 
-    # skyscraper plot
-    ax1.view_init(azim=210, elev=23)
-    ax1.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
-    ax1.axes.xaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set x-ticks to integers
-    ax1.axes.yaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set y-ticks to integers
-    ax1.set_zlim3d([0, max(zheight)])
+    axes.view_init(azim=210, elev=23)
+    axes.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
+    axes.axes.xaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set x-ticks to integers
+    axes.axes.yaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set y-ticks to integers
+    axes.set_zlim3d([0, max(zheight)])
 
-    # 2d plot
-    ax2.matshow(modefunction(data_matrix), cmap=plt.cm.viridis)
-    cax, _ = mpl.colorbar.make_axes(ax2, shrink=.75, pad=.02)  # add colorbar with normalized range
-    _ = mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
+    _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
+    return fig, axes
 
-    _process_options(fig, ax1, opts=defaults.matrix(), **kwargs)
-    return fig, (ax1, ax2)
+def matrix2d(matrix, mode='abs', show_numbers=True, **kwargs):
+    """Display a matrix as a color-coded 2d plot, optionally printing the numerical values of the matrix elements.
+
+    Parameters
+    ----------
+    matrix: ndarray of float or complex
+        2d matrix data
+    mode: str from `constants.MODE_FUNC_DICT`
+        choice of processing function to be applied to data
+    show_numbers: bool, optional
+        determines whether matrix element values are printed on top of the plot (default: True)
+    **kwargs: dict
+        standard plotting option (see separate documentation)
+
+    Returns
+    -------
+    Figure, Axes
+        figure and axes objects for further editing
+    """
+    fig, axes = kwargs.get('fig_ax') or plt.subplots()
+
+    modefunction = constants.MODE_FUNC_DICT[mode]
+    zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
+    nrm = mpl.colors.Normalize(0, max(zheight))  # <-- normalize colors to max. data
+
+    axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
+    cax, _ = mpl.colorbar.make_axes(axes, shrink=.75, pad=.02)  # add colorbar with normalized range
+    mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
+
+    if show_numbers:
+        for y_index in range(matrix.shape[0]):
+            for x_index in range(matrix.shape[1]):
+                axes.text(x_index, y_index, "{:.03f}".format(matrix[y_index, x_index]),
+                          va='center', ha='center', fontsize=8, rotation=45, color='white')
+    # shift the grid
+    for axis, locs in [(axes.xaxis, np.arange(matrix.shape[1])), (axes.yaxis, np.arange(matrix.shape[0]))]:
+        axis.set_ticks(locs + 0.5, minor=True)
+        axis.set(ticks=locs, ticklabels=locs)
+    axes.grid(True, which='minor', linewidth=0)
+    axes.grid(False, which='major', linewidth=0)
+
+    _process_options(fig, axes, **kwargs)
+    return fig, axes
+
+
+print_matrix = matrix2d  # legacv, support of name now deprecated
 
 
 def data_vs_paramvals(xdata, ydata, label_list=None, **kwargs):
@@ -391,28 +457,4 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
     else:
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)
-    return fig, axes
-
-
-def print_matrix(matrix, show_numbers=True, **kwargs):
-    """Pretty print a matrix, optionally printing the numerical values of the data.
-    """
-    fig, axes = kwargs.get('fig_ax') or plt.subplots()
-
-    m = axes.matshow(matrix, cmap=plt.cm.viridis, interpolation='none')
-    fig.colorbar(m, ax=axes)
-
-    if show_numbers:
-        for y_index in range(matrix.shape[0]):
-            for x_index in range(matrix.shape[1]):
-                axes.text(x_index, y_index, "{:.03f}".format(matrix[y_index, x_index]),
-                          va='center', ha='center', fontsize=8, rotation=45, color='white')
-    # shift the grid
-    for axis, locs in [(axes.xaxis, np.arange(matrix.shape[1])), (axes.yaxis, np.arange(matrix.shape[0]))]:
-        axis.set_ticks(locs + 0.5, minor=True)
-        axis.set(ticks=locs, ticklabels=locs)
-    axes.grid(True, which='minor')
-    axes.grid(False, which='major')
-
-    _process_options(fig, axes, **kwargs)
     return fig, axes
