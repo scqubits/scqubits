@@ -91,6 +91,7 @@ class CurrentMirrorVCHOS(VCHOS):
     
     def hilbertdim(self):
         """Return N if the size of the Hamiltonian matrix is NxN"""
+        print("b")
         return len(self.sorted_minima())*(self.num_exc+1)**(2*self.num_big_cap - 1)
     
     def _check_if_new_minima(self, new_minima, minima_holder):

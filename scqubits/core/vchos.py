@@ -224,7 +224,8 @@ class VCHOS(QubitBaseClass):
     def _normal_ordered_adag_a_exponential(self, x):
         """Expectation is that exp(a_{i}^{\dagger}x_{ij}a_{j}) needs to be normal ordered"""
         expx = sp.linalg.expm(x)
-        result = self._identity()
+        dim = self.hilbertdim()
+        result = np.eye(dim)
         dim = result.shape[0]
         additionalterm = np.eye(dim)
         a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom)])
@@ -283,13 +284,14 @@ class VCHOS(QubitBaseClass):
             exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
         else:
             N = self.num_deg_freedom
+            dim = a_op_list[0].shape[0]
             rho, sigma, tau = np.zeros((N, N)), np.zeros((N, N)), np.zeros((N, N))
             rhoprime, sigmaprime, tauprime = np.zeros((N, N)), np.zeros((N, N)), np.zeros((N, N))
             deltarho, deltarhoprime, deltarhobar, zp, zpp = self._define_squeezing_variables(rho, rhoprime, Xi)
             expsigma, expsigmaprime = np.eye(N), np.eye(N)
             expdeltarhobar, expdrbs = np.eye(N), np.eye(N)
             
-            exp_adag_adag, exp_a_a, exp_adag_a = self._identity(), self._identity(), self._identity()
+            exp_adag_adag, exp_a_a, exp_adag_a = np.eye(dim), np.eye(dim), np.eye(dim)
             
         Xi_inv = sp.linalg.inv(Xi)
 
@@ -391,13 +393,13 @@ class VCHOS(QubitBaseClass):
                     epsilon = (-np.matmul(z, np.matmul(rhoprime, deltarhopp) - yrhop + deltarhopp)
                                - (1j/2.)*np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)))
                     
-                    V_op_dag = self._identity()
+                    V_op_dag = np.eye(num_exc_tot)
                     for j in range(self.num_deg_freedom):
                         V_op_dag_temp = np.linalg.matrix_power(exp_adag_list[j], jkvals[j])
                         V_op_dag = np.matmul(V_op_dag, V_op_dag_temp)
                     exp_adag = np.matmul(V_op_dag, exp_adag_mindiff)
                     
-                    V_op = self._identity()
+                    V_op = np.eye(num_exc_tot)
                     for j in range(self.num_deg_freedom):
                         V_op_temp = np.linalg.matrix_power(exp_a_list[j], -jkvals[j])
                         V_op = np.matmul(V_op, V_op_temp)
@@ -475,13 +477,13 @@ class VCHOS(QubitBaseClass):
                     delta_phi_kpm = phik-(minima_m-minima_p) 
                     phibar_kpm = 0.5*(phik+(minima_m+minima_p))  
                     
-                    V_op_dag = self._identity()
+                    V_op_dag = np.eye(num_exc_tot)
                     for j in range(self.num_deg_freedom):
                         V_op_dag_temp = np.linalg.matrix_power(exp_adag_list[j], jkvals[j])
                         V_op_dag = np.matmul(V_op_dag, V_op_dag_temp)
                     exp_adag = np.matmul(V_op_dag, exp_adag_mindiff)
                     
-                    V_op = self._identity()
+                    V_op = np.eye(num_exc_tot)
                     for j in range(self.num_deg_freedom):
                         V_op_temp = np.linalg.matrix_power(exp_a_list[j], -jkvals[j])
                         V_op = np.matmul(V_op, V_op_temp)
@@ -591,13 +593,13 @@ class VCHOS(QubitBaseClass):
                     y = -x
                     alpha = scale * self._alpha_helper(x, y, rhoprime, deltarho)
                     
-                    V_op_dag = self._identity()
+                    V_op_dag = np.eye(num_exc_tot)
                     for j in range(self.num_deg_freedom):
                         V_op_dag_temp = np.linalg.matrix_power(exp_adag_list[j], jkvals[j])
                         V_op_dag = np.matmul(V_op_dag, V_op_dag_temp)
                     exp_adag = np.matmul(V_op_dag, exp_adag_mindiff)
                     
-                    V_op = self._identity()
+                    V_op = np.eye(num_exc_tot)
                     for j in range(self.num_deg_freedom):
                         V_op_temp = np.linalg.matrix_power(exp_a_list[j], -jkvals[j])
                         V_op = np.matmul(V_op, V_op_temp)
