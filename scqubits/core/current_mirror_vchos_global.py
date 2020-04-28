@@ -18,9 +18,10 @@ from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 #-Flux Qubit using VCHOS 
 
 class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, num_exc, squeezing=False):
-        CurrentMirrorVCHOS.__init__(N, ECB, ECJ, ECg, EJlist, nglist, flux, 
-                                    kmax, num_exc=None, squeezing=squeezing)
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, 
+                 kmax, global_exc, squeezing=False, truncated_dim=None):
+        CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, 
+                                    kmax, num_exc=None, squeezing=squeezing, truncated_dim=truncated_dim)
         Hashing.__init__(self, num_deg_freedom=2*N-1, global_exc=global_exc)
         
     def a_operator(self, i):
@@ -38,14 +39,7 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
                 basis_index = self.index_array[index]
                 a[basis_index, w] = temp_coeff
         return a
-                
-    def _identity(self):
-        return(np.identity(self.hilbertdim(), dtype=np.complex_))
         
-    def matrixdim(self):
-        return len(self.sorted_minima())*len(self.tag_list)
-    
     def hilbertdim(self):
-        """Return Hilbert space dimension."""
-        return len(self.tag_list)
+        return len(self.sorted_minima())*len(self.tag_list)
     

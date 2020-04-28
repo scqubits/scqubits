@@ -39,9 +39,6 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
                 basis_index = self.index_array[index]
                 a[basis_index, w] = temp_coeff
         return a
-                
-    def _identity(self):
-        return(np.identity(self.hilbertdim(), dtype=np.complex_))
         
     def matrixdim(self):
         return len(self.sorted_minima())*len(self.tag_list)

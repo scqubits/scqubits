@@ -64,16 +64,15 @@ class FluxQubitVCHOS(VCHOS):
         a_mat = np.diag(a,k=1)
         return self._full_o([a_mat], [mu])
     
-    def matrixdim(self):
+    def hilbertdim(self):
         """Return N if the size of the Hamiltonian matrix is NxN"""
         return len(self.sorted_minima())*(self.num_exc+1)**2
     
-    def hilbertdim(self):
-        """Return Hilbert space dimension."""
-        return (self.num_exc+1)**2
-        
     def _identity(self):
-        return(np.identity(self.hilbertdim(), dtype=np.complex_))
+        dim = self.hilbertdim()
+        num_min = len(self.sorted_minima())
+        num_exc_tot = int(dim/num_min)
+        return(np.identity(num_exc_tot, dtype=np.complex_))
     
     def _check_if_new_minima(self, new_minima, minima_holder):
         """

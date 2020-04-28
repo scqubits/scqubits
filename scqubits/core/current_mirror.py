@@ -73,6 +73,9 @@ class CurrentMirror(QubitBaseClass):
         evals, evecs = sps.linalg.eigsh(hamiltonian_mat, k=evals_count, which='SA', return_eigenvectors=True)
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
+    
+    def hilbertdim(self):
+        return((2*self.ncut+1)**(self.num_deg_freedom))
 
     def hamiltonian(self):
         no_node = self.num_deg_freedom
@@ -94,9 +97,9 @@ class CurrentMirror(QubitBaseClass):
             H += ((-E_j_npl[j] / 2.)* full_o([g_o], [j]))
             H += ((-E_j_npl[j] / 2.) * full_o([g_o_dg], [j]))
             H += E_j_npl[j]*full_o([],[])
-        H += ((-E_j_npl[-1] / 2.) * np.exp(-phi * 1j)
-              * full_o([g_o for j in range(no_node)], [j for j in range(no_node)]))
         H += ((-E_j_npl[-1] / 2.) * np.exp(phi * 1j)
+              * full_o([g_o for j in range(no_node)], [j for j in range(no_node)]))
+        H += ((-E_j_npl[-1] / 2.) * np.exp(-phi * 1j)
               * full_o([g_o_dg for j in range(no_node)],
                        [j for j in range(no_node)]))
         H += E_j_npl[-1]*full_o([],[])

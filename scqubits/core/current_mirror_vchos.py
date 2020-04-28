@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import scipy as sp
 import itertools
@@ -17,7 +19,8 @@ from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 #-Flux Qubit using VCHOS 
 
 class CurrentMirrorVCHOS(VCHOS):
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, num_exc, squeezing=False):
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, 
+                 kmax, num_exc, squeezing=False, truncated_dim=None):
         self.num_big_cap = N
         self.ECB = ECB
         self.ECJ = ECJ
@@ -40,6 +43,7 @@ class CurrentMirrorVCHOS(VCHOS):
         
         self._evec_dtype = np.complex_
         self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
+        self.truncated_dim = 6
     
     def build_capacitance_matrix(self):
         N = self.num_big_cap
@@ -80,22 +84,23 @@ class CurrentMirrorVCHOS(VCHOS):
         return self._full_o([a_mat], [mu])
         
     def _identity(self):
-        return(np.identity(self.hilbertdim(), dtype=np.complex_))
+        dim = self.hilbertdim()
+        num_min = len(self.sorted_minima())
+        num_exc_tot = int(dim/num_min)
+        return(np.identity(num_exc_tot, dtype=np.complex_))
     
-    def matrixdim(self):
+    def hilbertdim(self):
         """Return N if the size of the Hamiltonian matrix is NxN"""
         return len(self.sorted_minima())*(self.num_exc+1)**(2*self.num_big_cap - 1)
     
-    def hilbertdim(self):
-        """Return Hilbert space dimension."""
-        return (self.num_exc+1)**(2*self.num_big_cap - 1)
-    
     def _check_if_new_minima(self, new_minima, minima_holder):
         """
-        Helper function for find_minima, checking if minima is
-        already represented in minima_holder. If so, 
+        Helper function for find_minima, checking if new_minima is
+        indeed a minimum and is already represented in minima_holder. If so, 
         _check_if_new_minima returns False.
         """
+        if -self.potential(new_minima) <= 0: #maximum or saddle point then, not a minimum
+            return False
         new_minima_bool = True
         for minima in minima_holder:
             diff_array = minima - new_minima
@@ -116,9 +121,9 @@ class CurrentMirrorVCHOS(VCHOS):
         """
         minima_holder = []
         N = self.num_big_cap
-        for l in range(int(N/2 + self.flux)):
-            guess_pos = np.array([np.pi*l/N for j in range(self.num_deg_freedom)])
-            guess_neg = np.array([-np.pi*l/N for j in range(self.num_deg_freedom)])
+        for l in range(int(math.ceil(N/2 - np.abs(self.flux)))+1):
+            guess_pos = np.array([np.pi*(l+self.flux)/N for j in range(self.num_deg_freedom)])
+            guess_neg = np.array([np.pi*(-l+self.flux)/N for j in range(self.num_deg_freedom)])
             result_pos = minimize(self.potential, guess_pos)
             result_neg = minimize(self.potential, guess_neg)
             new_minimum_pos = self._check_if_new_minima(result_pos.x, minima_holder)
@@ -136,8 +141,16 @@ class CurrentMirrorVCHOS(VCHOS):
         minima_holder = self.find_minima()
         value_of_potential = np.array([self.potential(minima_holder[x]) 
                                        for x in range(len(minima_holder))])
+        sorted_value_holder = np.array([x for x,_ in 
+                                         sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
         sorted_minima_holder = np.array([x for _, x in 
-                                         sorted(zip(value_of_potential, minima_holder))])
+                                         sorted(zip(value_of_potential, minima_holder) , key=lambda x: x[0])])
+        # For efficiency purposes, don't want to displace states into minima
+        # that are too high energy. Arbitrarily set a 40 GHz cutoff
+        global_min = sorted_value_holder[0]
+        dim = len(sorted_minima_holder)
+        sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
+                                         if sorted_value_holder[i] < global_min + 40.0])
         return sorted_minima_holder
     
     def _full_o(self, operators, indices):
