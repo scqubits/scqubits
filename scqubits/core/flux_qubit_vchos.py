@@ -18,7 +18,7 @@ from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 #-Flux Qubit using VCHOS 
 
 class FluxQubitVCHOS(VCHOS):
-    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, num_exc, squeezing=False):
+    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, num_exc, squeezing=False, truncated_dim=None):
         self.ECJ = ECJ
         self.ECg = ECg
         self.EJlist = EJlist
@@ -28,6 +28,7 @@ class FluxQubitVCHOS(VCHOS):
         self.kmax = kmax
         self.num_exc = num_exc
         self.squeezing = squeezing
+        self.truncated_dim = truncated_dim
         self.hGHz = const.h * 10**9
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2*self.e)**2

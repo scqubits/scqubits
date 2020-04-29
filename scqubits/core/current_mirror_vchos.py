@@ -15,8 +15,10 @@ from scqubits.core.vchos import VCHOS
 from scqubits.core.storage import WaveFunctionOnGrid
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
-
-#-Flux Qubit using VCHOS 
+# Current Mirror using VCHOS. Truncation scheme used is defining a cutoff num_exc
+# of the number of excitations kept for each mode. The dimension of the hilbert space
+# is then m*(num_exc+1)**(2*N - 1), where m is the number of inequivalent minima in 
+# the first unit cell and N is the number of big capacitors.
 
 class CurrentMirrorVCHOS(VCHOS):
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, 

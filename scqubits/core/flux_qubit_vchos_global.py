@@ -19,9 +19,10 @@ from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 #-Flux Qubit using VCHOS and a global cutoff
 
 class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
-    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, global_exc, squeezing=False):
+    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax,
+                 global_exc, squeezing=False, truncated_dim=None):
         FluxQubitVCHOS.__init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, 
-                                kmax, num_exc=None, squeezing=squeezing)
+                                kmax, num_exc=None, squeezing=squeezing, truncated_dim=truncated_dim)
         Hashing.__init__(self, num_deg_freedom=2, global_exc=global_exc)
         
     def a_operator(self, i):

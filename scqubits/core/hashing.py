@@ -1,6 +1,13 @@
 import numpy as np
 import scipy as sp
 
+# Helper class for efficiently constructing raising and lowering operators
+# using a global excitation cutoff scheme, as opposed to the more commonly used
+# number of excitations per mode cutoff, which can be easily constructed 
+# using kronecker product. The ideas herein are based on the excellent 
+# paper 
+# [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
+
 class Hashing():
     def __init__(self, num_deg_freedom, global_exc):
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
@@ -51,11 +58,11 @@ class Hashing():
         sites = self.num_deg_freedom
         vec_list = []
         vec_list.append(np.zeros(sites))
-        for total_exc in range(1, self.global_exc+1):
+        for total_exc in range(1, self.global_exc+1): #No excitation number conservation as in [1]
             prev_vec = np.zeros(sites)
             prev_vec[0] = total_exc
             vec_list.append(prev_vec)
-            while prev_vec[-1] != total_exc:
+            while prev_vec[-1] != total_exc: #step through until the last entry is total_exc
                 k = self._find_k(prev_vec)
                 next_vec = np.zeros(sites)
                 next_vec[0:k] = prev_vec[0:k]

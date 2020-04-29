@@ -14,8 +14,11 @@ from scqubits.core.hashing import Hashing
 from scqubits.core.storage import WaveFunctionOnGrid
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
-
-#-Flux Qubit using VCHOS 
+# Current Mirror using VCHOS with a global excitation number cutoff scheme. 
+# The dimension of the hilbert space is then m*\frac{(global_exc+2N-2)!}{global_exc!(2N-2)!},
+# where m is the number of inequivalent minima in 
+# the first unit cell, N is the number of big capacitors and global_exc is the cutoff for 
+# total number of excitations that we allow to be kept.
 
 class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, 
@@ -25,6 +28,12 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
         Hashing.__init__(self, num_deg_freedom=2*N-1, global_exc=global_exc)
         
     def a_operator(self, i):
+        """
+        This method for defining the a_operator is based on
+        J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
+        We ask the question, for each basis vector, what is the action of a_i
+        on it? In this way, we can define a_i using a single for loop.
+        """
         basis_vecs = self._gen_basis_vecs()
         tags, index_array = self._gen_tags()
         dim = basis_vecs.shape[0]
