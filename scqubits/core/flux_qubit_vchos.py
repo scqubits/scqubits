@@ -58,21 +58,9 @@ class FluxQubitVCHOS(VCHOS):
         Cmat = self.build_capacitance_matrix()
         return  0.5 * self.e**2 * sp.linalg.inv(Cmat)
     
-    def a_operator(self, mu):
-        """Return the lowering operator associated with the xth d.o.f. in the full Hilbert space"""
-        a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)])
-        a_mat = np.diag(a,k=1)
-        return self._full_o([a_mat], [mu])
-    
     def hilbertdim(self):
         """Return N if the size of the Hamiltonian matrix is NxN"""
         return len(self.sorted_minima())*(self.num_exc+1)**2
-    
-    def _identity(self):
-        dim = self.hilbertdim()
-        num_min = len(self.sorted_minima())
-        num_exc_tot = int(dim/num_min)
-        return(np.identity(num_exc_tot, dtype=np.complex_))
     
     def _check_if_new_minima(self, new_minima, minima_holder):
         """
@@ -238,22 +226,6 @@ class FluxQubitVCHOS(VCHOS):
         if 'figsize' not in kwargs:
             kwargs['figsize'] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
-    
-    def _full_o(self, operators, indices):
-        i_o = np.eye(self.num_exc + 1)
-        i_o_list = [i_o for k in range(2)]
-        product_list = i_o_list[:]
-        oi_list = zip(operators, indices)
-        for oi in oi_list:
-            product_list[oi[1]] = oi[0]
-        full_op = self._kron_matrix_list(product_list)
-        return(full_op)
-    
-    def _kron_matrix_list(self, matrix_list):
-        output = matrix_list[0]
-        for matrix in matrix_list[1:]:
-            output = np.kron(output, matrix)
-        return(output)
     
     def harm_osc_wavefunction(self, n, x):
         """For given quantum number n=0,1,2,... return the value of the harmonic oscillator wave function

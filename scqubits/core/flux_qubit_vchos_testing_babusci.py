@@ -278,6 +278,7 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         #No longer get hermite polynomials of one variable for both sides)
         Xi_list = self.Xi_matrix_list()
         Xi_inv = np.array([sp.linalg.inv(Xi_list[i]) for i in range(2)])
+        Xi_inv = np.array([sp.linalg.inv(Xi_list[0]) for i in range(2)])
 #        Xi_inv = sp.linalg.inv(Xi)
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
@@ -385,7 +386,9 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
 #        Xi = self.Xi_matrix()
 #        Xi_inv = sp.linalg.inv(Xi)
         Xi = self.Xi_matrix_list()
+        Xi = np.array([self.Xi_matrix() for i in range(2)])
         Xi_inv = np.array([sp.linalg.inv(Xi[i]) for i in range(2)])
+        Xi_inv = np.array([sp.linalg.inv(Xi[0]) for i in range(2)])
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
                 for sone in range(self.num_exc+1):
@@ -522,6 +525,7 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
 #        Xi_inv = sp.linalg.inv(Xi)
         Xi = self.Xi_matrix_list()
         Xi_inv = np.array([sp.linalg.inv(Xi[i]) for i in range(2)])
+        Xi_inv = np.array([sp.linalg.inv(Xi[0]) for i in range(2)])
         EC_mat = self.build_EC_matrix()
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):

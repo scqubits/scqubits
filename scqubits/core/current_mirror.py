@@ -20,6 +20,7 @@ class CurrentMirror(QubitBaseClass):
         self.ECJ = ECJ
         self.ECg = ECg
         self.EJlist = EJlist
+        self.truncated_dim = truncated_dim
         
         V_m = self._build_V_m()
         self.nglist = np.dot(sp.linalg.inv(V_m).T, nglist)[0:-1]

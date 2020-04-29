@@ -40,10 +40,6 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
                 a[basis_index, w] = temp_coeff
         return a
         
-    def matrixdim(self):
-        return len(self.sorted_minima())*len(self.tag_list)
-    
     def hilbertdim(self):
-        """Return Hilbert space dimension."""
-        return len(self.tag_list)
+        return len(self.sorted_minima())*len(self.tag_list)
     

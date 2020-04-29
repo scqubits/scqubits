@@ -43,7 +43,7 @@ class CurrentMirrorVCHOS(VCHOS):
         
         self._evec_dtype = np.complex_
         self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
-        self.truncated_dim = 6
+        self.truncated_dim = truncated_dim
     
     def build_capacitance_matrix(self):
         N = self.num_big_cap
@@ -77,21 +77,8 @@ class CurrentMirrorVCHOS(VCHOS):
         Cmat = self.build_capacitance_matrix()
         return 0.5 * self.e**2 * sp.linalg.inv(Cmat)
     
-    def a_operator(self, mu):
-        """Return the lowering operator associated with the xth d.o.f. in the full Hilbert space"""
-        a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)])
-        a_mat = np.diag(a,k=1)
-        return self._full_o([a_mat], [mu])
-        
-    def _identity(self):
-        dim = self.hilbertdim()
-        num_min = len(self.sorted_minima())
-        num_exc_tot = int(dim/num_min)
-        return(np.identity(num_exc_tot, dtype=np.complex_))
-    
     def hilbertdim(self):
         """Return N if the size of the Hamiltonian matrix is NxN"""
-        print("b")
         return len(self.sorted_minima())*(self.num_exc+1)**(2*self.num_big_cap - 1)
     
     def _check_if_new_minima(self, new_minima, minima_holder):
@@ -153,19 +140,3 @@ class CurrentMirrorVCHOS(VCHOS):
         sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
                                          if sorted_value_holder[i] < global_min + 40.0])
         return sorted_minima_holder
-    
-    def _full_o(self, operators, indices):
-        i_o = np.eye(self.num_exc + 1)
-        i_o_list = [i_o for k in range(self.num_deg_freedom)]
-        product_list = i_o_list[:]
-        oi_list = zip(operators, indices)
-        for oi in oi_list:
-            product_list[oi[1]] = oi[0]
-        full_op = self._kron_matrix_list(product_list)
-        return(full_op)
-    
-    def _kron_matrix_list(self, matrix_list):
-        output = matrix_list[0]
-        for matrix in matrix_list[1:]:
-            output = np.kron(output, matrix)
-        return(output)
