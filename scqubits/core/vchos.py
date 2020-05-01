@@ -99,16 +99,32 @@ class VCHOS(QubitBaseClass):
                               sp.linalg.inv(np.diag(np.sqrt(omegasq)))/self.Z0))
 
         return np.transpose(Ximat)
+    
+    def _build_U_squeezing_operator_test(self, i, Xi):
+        freq, uvmat = self._squeezing_M_builder(i, Xi)
+        uvmat = uvmat.T
+        dim = uvmat.shape[0]
+        u = uvmat[0 : int(dim/2), 0 : int(dim/2)]
+#        print("u = ", u)
+        v = uvmat[int(dim/2) : dim, 0 : int(dim/2)]
+        u_inv = sp.linalg.inv(u)
+        rho = np.matmul(u_inv, v)
+        sigma = sp.linalg.logm(u)
+#        print("sigma = ", sigma)
+        tau = np.matmul(v, u_inv)
+        return rho, sigma, tau, u, v
         
     def _build_U_squeezing_operator(self, i, Xi):
         freq, uvmat = self._squeezing_M_builder(i, Xi)
         uvmat = uvmat.T
         dim = uvmat.shape[0]
         u = uvmat[0 : int(dim/2), 0 : int(dim/2)]
+#        print("u = ", u)
         v = uvmat[int(dim/2) : dim, 0 : int(dim/2)]
         u_inv = sp.linalg.inv(u)
         rho = np.matmul(u_inv, v)
         sigma = sp.linalg.logm(u)
+#        print("sigma = ", sigma)
         tau = np.matmul(v, u_inv)
         return rho, sigma, tau
 
@@ -143,13 +159,13 @@ class VCHOS(QubitBaseClass):
         K = np.block([[np.eye(dim), np.zeros((dim, dim))], 
                       [np.zeros((dim, dim)), -np.eye(dim)]])
         eigvals, eigvec = sp.linalg.eig(hmat)
+#        print("a", eigvals, eigvec)
         eigvals, eigvec = self._order_eigensystem_squeezing(np.real(eigvals), eigvec)
-        eigvec = eigvec.T #since eigvec represents M.T
-        dim = eigvec.shape[0]
-        u = eigvec[0 : int(dim/2), 0 : int(dim/2)]
-        v = eigvec[int(dim/2) : dim, 0 : int(dim/2)]
+#        print("b", eigvals, eigvec)
         eigvals, eigvec = self._normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
-        assert(np.allclose(np.matmul(eigvec.T, np.matmul(K, eigvec)), K))
+#        print("c", eigvals, eigvec)
+#        print(np.round(np.matmul(eigvec.T, np.matmul(K, eigvec)), decimals=3))
+#        assert(np.allclose(np.matmul(eigvec.T, np.matmul(K, eigvec)), K))
         return (eigvals, eigvec)
     
     def _order_eigensystem_squeezing(self, eigvals, eigvec):
@@ -160,12 +176,21 @@ class VCHOS(QubitBaseClass):
             if eigval > 0:
                 eigval_holder.append(eigval)
                 eigvec_holder.append(eigvec[:, k])
+        index_array = np.argsort(eigval_holder)
+#        print("val = ", eigval_holder)
+#        print("vec = ", eigvec_holder)
+#        eigval_holder = np.array(eigval_holder)[index_array]
+#        eigvec_holder = np.array(eigvec_holder)[index_array]
+#        print("val = ", eigval_holder)
+#        print("vec = ", eigvec_holder)
         eigval_result = np.copy(eigval_holder).tolist()
         eigvec_result = np.copy(eigvec_holder).tolist()
         for k, eigval in enumerate(eigval_holder):
             index = np.argwhere(np.isclose(eigvals, -1.0*eigval))[0, 0]
             eigval_result.append(eigvals[index])
             eigvec_result.append((eigvec[:, index]).tolist())
+#        print("test1", eigval_result)
+#        print("test2", np.array(eigvec_result))
         return(eigval_result, np.array(eigvec_result))
     
     def _normalize_symplectic_eigensystem_squeezing(self, eigvals, eigvec):
@@ -191,9 +216,9 @@ class VCHOS(QubitBaseClass):
         """Expectation is that exp(a_{i}^{\dagger}x_{ij}a_{j}) needs to be normal ordered"""
         expx = sp.linalg.expm(x)
         dim = self.a_operator(0).shape[0]
-        result = np.eye(dim)
+        result = np.eye(dim, dtype=np.complex128)
         dim = result.shape[0]
-        additionalterm = np.eye(dim)
+        additionalterm = np.eye(dim, dtype=np.complex128)
         a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom)])
         k = 1
         while not np.allclose(additionalterm, np.zeros((dim, dim))):
@@ -335,6 +360,19 @@ class VCHOS(QubitBaseClass):
                         for mu in range(self.num_deg_freedom)])
         return (xa, xaa, dxa, dx, ddx)
         
+    def _filter_jkvals(self, jkvals, minima_diff, Xi_inv):
+        """ 
+        Want to eliminate periodic continuation terms that are irrelevant, i.e.,
+        they add nothing to the Hamiltonian. These can be identified as each term 
+        is suppressed by a gaussian exponential factor. If the argument np.dot(dpkX, dpkX)
+        of the exponential is greater than 180.0, this results in a suppression of ~10**(-20),
+        and so can be safely neglected.
+        """
+        phik = 2.0*np.pi*np.array([jkvals[i] for i in range(self.num_deg_freedom)])
+        dpkX = np.matmul(Xi_inv, phik+minima_diff)
+        prod = np.dot(dpkX, dpkX)
+        return prod > 180.0
+        
     
     def kineticmat(self):
         """Return the kinetic part of the hamiltonian"""
@@ -377,8 +415,13 @@ class VCHOS(QubitBaseClass):
                                                        for mu in range(self.num_deg_freedom)], axis=0)
                 scale = 1./np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom)-np.matmul(rho, rhoprime)))
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
+#                print(len(list(klist)))
+#                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
+#                print(len(list(klist)))
+#                print(klist)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
+#                    print(jkvals)
                     phik = 2.0*np.pi*np.array([jkvals[i] for i in range(self.num_deg_freedom)])
                     delta_phi_kpm = phik-(minima_m-minima_p)
                     dpkX = np.matmul(Xi_inv, delta_phi_kpm)
@@ -413,9 +456,12 @@ class VCHOS(QubitBaseClass):
                                         
                     kinetic_temp = (alpha * exp_prod_coeff
                                     * np.matmul(exp_adag, np.matmul(kinetic_temp, exp_a)))
-                    if not np.allclose(kinetic_temp, np.zeros_like(kinetic_temp)):
-#                        print("m, p = ", m, p, jkvals, np.sum(np.abs(jkvals)))
-                        if np.sum(np.abs(jkvals))>=6: print(np.max(np.abs(kinetic_temp)))
+                    
+#                    if not np.allclose(kinetic_temp, np.zeros_like(kinetic_temp)):
+#                        print("m, p = ", m, p, jkvals, np.dot(dpkX, dpkX))
+#                        if np.sum(np.abs(jkvals))>=6: print(np.max(np.abs(kinetic_temp)))
+#                    if np.sum(np.abs(jkvals)) == 2:
+#                        print(jkvals, np.dot(dpkX, dpkX), np.max(np.abs(kinetic_temp)))
 
                     
                     kinetic_mat[m*num_exc_tot : m*num_exc_tot + num_exc_tot, 
@@ -468,6 +514,7 @@ class VCHOS(QubitBaseClass):
                 expsigmaprime = sp.linalg.expm(-sigmaprime)
                 scale = 1./np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom)-np.matmul(rho, rhoprime)))
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
+#                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[i] for i in range(self.num_deg_freedom)])
@@ -559,10 +606,9 @@ class VCHOS(QubitBaseClass):
         num_exc_tot = a_op_list[0].shape[0]
         minima_list = self.sorted_minima()
         dim = len(minima_list)*num_exc_tot
-        potential_mat = np.zeros((dim,dim), dtype=np.complex128)
+        inner_product_mat = np.zeros((dim,dim), dtype=np.complex128)
         nglist = self.nglist
         EJlist = self.EJlist
-        inner_product_mat = np.zeros((dim,dim), dtype=np.complex128)
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_p = minima_list[p]
@@ -572,8 +618,10 @@ class VCHOS(QubitBaseClass):
                 (exp_adag_adag, exp_a_a, exp_adag_a, 
                  exp_adag_list, exp_adag_mindiff, 
                  exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
+#                print(np.trace(sigma), np.trace(sigmaprime))
                 scale = 1./np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom)-np.matmul(rho, rhoprime)))
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
+#                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[i] for i in range(self.num_deg_freedom)])
