@@ -35,7 +35,6 @@ from scqubits.core.zeropi_full import FullZeroPi
 from scqubits.io_utils.fileio import read, write
 from scqubits.utils.fitting import FitData
 
-
 # version
 try:
     from scqubits.version import version as __version__

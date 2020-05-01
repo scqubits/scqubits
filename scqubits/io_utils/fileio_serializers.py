@@ -20,7 +20,6 @@ import numpy as np
 
 import scqubits.utils.misc as utils
 
-
 SERIALIZABLE_REGISTRY = {}
 
 
@@ -174,13 +173,13 @@ def dict_serialize(dict_instance):
     return io.IOData(typename, attributes, ndarrays, objects)
 
 
-def list_serialize(list_instance):
+def listlike_serialize(listlike_instance):
     """
-    Create an IOData instance from lisy data.
+    Create an IOData instance from list data.
 
     Parameters
     ----------
-    list_instance: list or tuple
+    listlike_instance: list or tuple
 
     Returns
     -------
@@ -190,14 +189,17 @@ def list_serialize(list_instance):
     attributes = {}
     ndarrays = {}
     objects = {}
-    typename = 'list'
-    for index, item in enumerate(list_instance):
+    typename = type(listlike_instance).__name__
+    for index, item in enumerate(listlike_instance):
         update_func = type_dispatch(item)
         attributes, ndarrays, objects = update_func(str(index), item, attributes, ndarrays, objects)
     return io.IOData(typename, attributes, ndarrays, objects)
 
 
-tuple_serialize = list_serialize
+list_serialize = listlike_serialize
+
+
+tuple_serialize = listlike_serialize
 
 
 def dict_deserialize(iodata):

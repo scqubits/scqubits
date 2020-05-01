@@ -221,13 +221,13 @@ class SpectrumLookup(serializers.Serializable):
         return self._dressed_specdata.energy_table[param_index]
 
     @check_sync_status
-    def energy_bare_index(self, bare_tuples, param_index=0):
+    def energy_bare_index(self, bare_tuple, param_index=0):
         """
         Look up dressed energy most closely corresponding to the given bare-state labels
 
         Parameters
         ----------
-        bare_tuples: tuple(int)
+        bare_tuple: tuple(int)
             bare state indices
         param_index: int
             index specifying the position in the self.param_vals array
@@ -237,7 +237,7 @@ class SpectrumLookup(serializers.Serializable):
         float or None
             dressed energy, if lookup successful
         """
-        dressed_index = self.dressed_index(bare_tuples, param_index)
+        dressed_index = self.dressed_index(bare_tuple, param_index)
         if dressed_index is None:
             return None
         return self._dressed_specdata.energy_table[param_index][dressed_index]

@@ -29,10 +29,10 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.cpu_switch import get_map_method
-from scqubits.utils.misc import process_which, InfoBar, drop_private_keys
+from scqubits.utils.misc import InfoBar, drop_private_keys, process_which
 from scqubits.utils.plot_defaults import set_scaling
-from scqubits.utils.spectrum_utils import (order_eigensystem, get_matrixelement_table, standardize_sign,
-                                           recast_esys_mapdata)
+from scqubits.utils.spectrum_utils import (get_matrixelement_table, order_eigensystem, recast_esys_mapdata,
+                                           standardize_sign)
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -40,7 +40,7 @@ else:
     from tqdm import tqdm
 
 
-# —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
+# —Generic quantum system container and Qubit base class—————————————————————————————————
 
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""

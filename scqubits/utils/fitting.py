@@ -11,8 +11,10 @@
 
 import functools
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+
+from scqubits.utils.spectrum_utils import closest_dressed_energy
 
 try:
     import lmfit
@@ -33,6 +35,45 @@ if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
+
+
+# tagging types (to facilitate file io: do not use Enum)
+NO_TAG = 'NO_TAG'
+DISPERSIVE_DRESSED = 'DISPERSIVE_DRESSED'
+DISPERSIVE_BARE = 'DISPERSIVE_BARE'
+CROSSING = 'CROSSING'
+CROSSING_DRESSED = 'CROSSING_DRESSED'
+
+
+class Tag(serializers.Serializable):
+    """
+    Store a single dataset tag. The tag can be of different types:
+    - NO_TAG: user did not tag data
+    - DISPERSIVE_DRESSED: transition between two states in the dispersive regime, tagged by dressed-states indices
+    - DISPERSIVE_BARE: : transition between two states in the dispersive regime, tagged by bare-states indices
+    - CROSSING: avoided crossing, left untagged (fitting should use closest-energy states)
+    - CROSSING_DRESSED: avoided crossing, tagged by dressed-states indices
+
+    Parameters
+    ----------
+    tagType: str
+        one of the tag types listed above
+    initial, final: int, or tuple of int, or None
+        - For NO_TAG and CROSSING, no initial and final state are specified.
+        - For DISPERSIVE_DRESSED and CROSSING_DRESSED, initial and final state are specified by an int dressed index.
+        - FOR DISPERSIVE_BARE, initial and final state are specified by a tuple of ints (exc. levels of each subsys)
+    photons: int or None
+        - For NO_TAG, no photon number is specified.
+        - For all other tag types, this int specifies the photon number rank of the transition.
+    subsysList: list of str
+        list of subsystem names
+    """
+    def __init__(self, tagType=NO_TAG, initial=None, final=None, photons=None, subsysList=None):
+        self.tag_type = tagType  # PySide2/datapyc use camelCase... revert here to align with PEP8
+        self.initial = initial
+        self.final = final
+        self.photons = photons
+        self.subsys_list = subsysList
 
 
 class CalibrationModel(serializers.Serializable):
@@ -90,7 +131,8 @@ scqubits.io_utils.fileio_serializers.SERIALIZABLE_REGISTRY['CalibrationModel'] =
 
 class FitData(serializers.Serializable):
     def __init__(self, datanames, datalist,
-                 z_data=None, x_data=None, y_data=None, image_data=None, calibration_data=None, fit_results=None):
+                 z_data=None, x_data=None, y_data=None, image_data=None,
+                 calibration_data=None, tag_data=None, fit_results=None):
         """
         Class for fitting experimental spectroscopy data to the Hamiltonian model of the qubit / coupled quantum system.
 
@@ -102,8 +144,11 @@ class FitData(serializers.Serializable):
             to data extracted from experimental spectroscopy data. Each corresponds to one particular transition among
             dressed-level eigenstates.
         z_data: ndarray
-        x_data: ndarray
-        y_data: ndarray
+            measurement z data (required unless measurement data given as `image_data`
+        x_data: ndarray, optional
+            array specifying x axis values
+        y_data: ndarray, optional
+            array specifying y axis values
         image_data: ndarray
             as obtained with matplotlib.image.imread
         calibration_data: datapyc.CalibrationModel
@@ -115,6 +160,7 @@ class FitData(serializers.Serializable):
         self.z_data = z_data
         self.image_data = image_data
         self.calibration_data = calibration_data
+        self.transition_tags = tag_data
         self.fit_results = fit_results
 
         self.calibrated_datalist = [self.calibration_data.calibrate_fitdataset(dataset) for dataset in self.datalist]
@@ -129,11 +175,10 @@ class FitData(serializers.Serializable):
         self.fit_params = {}
         self.evals_count = None
         self.sweep = None
-        self.transitions = None
 
         self._progress = None
 
-    def setup(self, system, sweep_name, update_func, transitions):
+    def setup(self, system, sweep_name, update_func, evals_count, **extra_params):
         """
         While the list of datasets and their names are provided at initialization (or when reading from a
         datapyc file), additional initialization is carried out through the `setup` method. Use of this method records
@@ -153,20 +198,12 @@ class FitData(serializers.Serializable):
         update_func: function
             Function specifying how a change in the sweep parameter translates into a change of parameters entering the
             HilbertSpace object.
-        transitions: list of tuples of int
-            Each list entry can have one of three forms.
-            1. int: an integer entry is interpreted as denoting a single-
-                photon transition from the ground state the the excited state specified by the integer.
-            2. tuple(int, int):
-                a tuple of two integers i1, i2 denotes a single photon-transition from i1 to i2.
-            3. tuple(int, int, int):
-                The three integers i1, i2, n specify an n-photon transition among levels i1 and i2.
-
+        evals_count: int
+            number of (dressed) eigenenergies to be calculated
         """
-        self.transitions = process_t(transitions)
-        self.evals_count = self.max_level() + 1
         self.sweep_name = sweep_name
         self.sweep_update_func = update_func
+        self.evals_count = evals_count
 
         self._set_system(system)
         self._register_subsys_names()
@@ -175,7 +212,7 @@ class FitData(serializers.Serializable):
 
     def _set_system(self, sys_object):
         """Set the `.system` attribute to record the given `sys_object`. If not provided as a HilbertSpace object, then
-        it is wraped into a HilbertSpace instance
+        it is wrapped into a HilbertSpace instance
 
         Parameters
         -----------
@@ -191,6 +228,13 @@ class FitData(serializers.Serializable):
 
     def _register_subsys_names(self):
         """Record the type names of the individual subsystems."""
+        for tag in self.transition_tags:
+            if tag.tag_type == DISPERSIVE_BARE:
+                self.subsys_names = tag.subsys_list
+                break
+        if self.subsys_names is not None:
+            return
+
         name_list = [type(subsys).__name__ for subsys in self.system]
         self.subsys_names = []
         for index, name in enumerate(name_list):
@@ -201,7 +245,8 @@ class FitData(serializers.Serializable):
         """Call the `.fit_params()` method for each HilbertSpace subsystem and InteractionTerm to obtain the list
         of possible fit parameters. (Any of then can be frozen via FitData.lmfit_params.add(<name>, vary=False.)"""
         if self.system is None:
-            raise Exception('FitData Error: system must be specified before setting fit parameters!')
+            raise Exception('FitData Error: system must be specified with `<FitData>.setup(..)` before setting fit '
+                            'parameters!')
         for index, subsys in enumerate(self.system):
             fitparams = subsys.fit_params()
             for name in fitparams:
@@ -220,10 +265,6 @@ class FitData(serializers.Serializable):
         sweep_values = functools.reduce(np.union1d, sweep_values)
         self.sweep_vals = sweep_values
 
-    def max_level(self):
-        """Determine the maximum energy level required according to the specified transitions."""
-        return np.max(np.union1d(self.transitions[:, 0], self.transitions[:, 1]))
-
     def change_param_values(self, params):
         """Change the parameter values of the HilbertSpace object.
 
@@ -240,8 +281,6 @@ class FitData(serializers.Serializable):
                 setattr(self.system[index], name, value)
 
     def new_sweep(self, num_cpus=settings.NUM_CPUS):
-        if self._progress is not None:
-            self._progress.update()
         settings.PROGRESSBAR_DISABLED = True
         self.sweep = param_sweep.ParameterSweep(
             param_name=self.sweep_name,
@@ -257,14 +296,16 @@ class FitData(serializers.Serializable):
     @utils.Required(lmfit=_HAS_LMFIT)
     def fit(self, num_cpus=settings.NUM_CPUS, **kwargs):
         self._progress = tqdm(desc='Fit iteration ')
-        minim = lmfit.Minimizer(residuals, self.lmfit_params, fcn_args=(self, num_cpus))
+        minim = lmfit.Minimizer(residuals,
+                                self.lmfit_params,
+                                fcn_args=(self,),
+                                fcn_kws={'dispersive_only': False, 'num_cpus': num_cpus},
+                                iter_cb=self.iteration_info,
+                                nan_policy='raise')
         self.fit_results = minim.minimize(**kwargs)
-        # self._progress.close()
-        # self._progress = None
         return self.fit_results
 
     def plot(self, **kwargs):
-
         fig, (axes1, axes2) = plt.subplots(2, gridspec_kw={'height_ratios': [3, 1]}, figsize=(10, 7))
         fig.set_figwidth(10)
 
@@ -294,7 +335,7 @@ class FitData(serializers.Serializable):
                          extent=[calibrated_xmin, calibrated_xmax, calibrated_ymin, calibrated_ymax], **kwargs)
 
         if self.fit_results is not None:
-            self.change_param_values(self.fit_results.lmfit_params.valuesdict())
+            self.change_param_values(self.fit_results.params.valuesdict())
             res_xvals = np.concatenate([dataset.transpose()[0] for dataset in self.datalist])
             width = (np.max(res_xvals) - np.min(res_xvals)) / 70.0
             axes2.bar(res_xvals, self.fit_results.residual, width=width)
@@ -307,31 +348,69 @@ class FitData(serializers.Serializable):
 
         return fig, (axes1, axes2)
 
+    def iteration_info(self, params, iter, resid, *args, **kwargs):
+        """Function called at each fit iteration.
+        See https://lmfit.github.io/lmfit-py/fitting.html#using-the-minimizer-class
 
-def residuals(params, fitdata, num_cpus=settings.NUM_CPUS):
+        Parameters
+        ----------
+        params: lmfit.Parameters
+            current parameter values
+        iter: int
+            current iteration number
+        resid: array
+            the current residual array
+        *args, **kwargs:
+            as passed to the objective function.
+        """
+        if self._progress is not None:
+            self._progress.set_description("sqrd deviations: {}; params:".format(np.dot(resid, resid), params))
+            self._progress.update()
+
+
+def residuals(params, fitdata, dispersive_only=False, num_cpus=settings.NUM_CPUS):
     fitdata.change_param_values(params)
     fitdata.new_sweep(num_cpus=num_cpus)
-    resids = []
-    for data, transition in zip(fitdata.calibrated_datalist, fitdata.transitions):
-        for point in data:
-            initial = transition[0]
-            final = transition[1]
-            nphoton = transition[2]
+    residuals_array = []
+    for dataset, transition_tag in zip(fitdata.calibrated_datalist, fitdata.transition_tags):
+        if dispersive_only and (transition_tag.tag_type in [CROSSING, CROSSING_DRESSED, NO_TAG]):
+            continue
+        # print(dataset)
+        # print(transition_tag.__dict__)
+        for point in dataset:
+            initial = transition_tag.initial
+            final = transition_tag.final
+            nphoton = transition_tag.photons
             index = np.where(np.isclose(fitdata.sweep_vals, point[0]))[0][0]
-            transition_energy = (fitdata.sweep.lookup.energy_dressed_index(dressed_index=final, param_index=index)
-                                 - fitdata.sweep.lookup.energy_dressed_index(dressed_index=initial, param_index=index)
-                                 ) / nphoton
-            resids.append(transition_energy - point[1])
-    return resids
 
-
-def process_t(transitions):
-    new = []
-    for item in transitions:
-        if isinstance(item, int):
-            new.append((0, item, 1))
-        elif len(item) == 2:
-            new.append(item + (1,))
-        else:
-            new.append(item)
-    return np.asarray(new)
+            if transition_tag.tag_type in [CROSSING, NO_TAG]:
+                # Get residuals as differences with respect to the closest transition energy E_j - E_0
+                # i.e., only 1-photon transitions starting in ground state
+                energies = fitdata.sweep.lookup.dressed_eigenenergies(param_index=index)
+                transition_energy_list = (energies - energies[0])[1:]
+                min_index = (np.abs(transition_energy_list - point[1])).argmin()
+                transition_energy = transition_energy_list[min_index]
+            elif transition_tag.tag_type in [DISPERSIVE_DRESSED, CROSSING_DRESSED]:
+                transition_energy = (
+                    fitdata.sweep.lookup.energy_dressed_index(dressed_index=final, param_index=index)
+                    - fitdata.sweep.lookup.energy_dressed_index(dressed_index=initial, param_index=index)
+                ) / nphoton
+            elif transition_tag.tag_type == DISPERSIVE_BARE:
+                energy_initial = fitdata.sweep.lookup.energy_bare_index(bare_tuple=initial, param_index=index)
+                energy_final = fitdata.sweep.lookup.energy_bare_index(bare_tuple=final, param_index=index)
+                if energy_initial is None:
+                    print("idx ", index)
+                    print("bare state ", initial)
+                    residuals_array.append(0.0)
+                    continue
+                if energy_final is None:
+                    print("idx ", index)
+                    print("bare state ", final)
+                    residuals_array.append(0.0)
+                    continue
+                transition_energy = (
+                    fitdata.sweep.lookup.energy_bare_index(bare_tuple=final, param_index=index)
+                    - fitdata.sweep.lookup.energy_bare_index(bare_tuple=initial, param_index=index)
+                ) / nphoton
+            residuals_array.append(transition_energy - point[1])
+    return residuals_array

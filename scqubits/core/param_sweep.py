@@ -20,11 +20,11 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.hilbert_space as hspace
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
+import scqubits.io_utils.fileio as io
 import scqubits.io_utils.fileio_qutip
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
-import scqubits.io_utils.fileio as io
-import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.misc as utils
 
 if settings.IN_IPYTHON:
