@@ -401,7 +401,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         interaction_op2 = self.identity_wrap(interactionterm.op2, interactionterm.subsys2, evecs=evecs2)
         hamiltonian = interactionterm.g_strength * interaction_op1 * interaction_op2
         if interactionterm.add_hc:
-            return hamiltonian + hamiltonian.conj()
+            return hamiltonian + hamiltonian.dag()
         return hamiltonian
 
     def _esys_for_paramval(self, paramval, update_hilbertspace, evals_count):
