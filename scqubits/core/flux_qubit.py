@@ -67,7 +67,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
     ncut: int
         charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
     truncated_dim: int, optional
-        desired dimension of the truncated quantum system
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
 
     EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')

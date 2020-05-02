@@ -49,7 +49,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
     cutoff: int
         number of harm. osc. basis states used in diagonalization
     truncated_dim: int, optional
-        desired dimension of the truncated quantum system
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')

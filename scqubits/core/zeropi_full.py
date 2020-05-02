@@ -79,7 +79,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         total charging energy including large shunting capacitances and junction capacitances; may be provided instead
         of EC
     truncated_dim: int, optional
-        desired dimension of the truncated quantum system
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
 
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')

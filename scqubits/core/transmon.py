@@ -44,7 +44,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
     ncut: int
         charge basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim: int, optional
-        desired dimension of the truncated quantum system
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -272,7 +272,7 @@ class TunableTransmon(Transmon, serializers.Serializable):
     ncut: int
         charge basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim: int, optional
-        desired dimension of the truncated quantum system
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
     EJmax = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     d = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
