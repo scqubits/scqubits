@@ -102,29 +102,23 @@ class VCHOS(QubitBaseClass):
     
     def _build_U_squeezing_operator_test(self, i, Xi):
         freq, uvmat = self._squeezing_M_builder(i, Xi)
-        uvmat = uvmat.T
         dim = uvmat.shape[0]
         u = uvmat[0 : int(dim/2), 0 : int(dim/2)]
-#        print("u = ", u)
         v = uvmat[int(dim/2) : dim, 0 : int(dim/2)]
         u_inv = sp.linalg.inv(u)
         rho = np.matmul(u_inv, v)
         sigma = sp.linalg.logm(u)
-#        print("sigma = ", sigma)
         tau = np.matmul(v, u_inv)
         return rho, sigma, tau, u, v
         
     def _build_U_squeezing_operator(self, i, Xi):
         freq, uvmat = self._squeezing_M_builder(i, Xi)
-        uvmat = uvmat.T
         dim = uvmat.shape[0]
         u = uvmat[0 : int(dim/2), 0 : int(dim/2)]
-#        print("u = ", u)
         v = uvmat[int(dim/2) : dim, 0 : int(dim/2)]
         u_inv = sp.linalg.inv(u)
         rho = np.matmul(u_inv, v)
         sigma = sp.linalg.logm(u)
-#        print("sigma = ", sigma)
         tau = np.matmul(v, u_inv)
         return rho, sigma, tau
 
@@ -159,39 +153,49 @@ class VCHOS(QubitBaseClass):
         K = np.block([[np.eye(dim), np.zeros((dim, dim))], 
                       [np.zeros((dim, dim)), -np.eye(dim)]])
         eigvals, eigvec = sp.linalg.eig(hmat)
-#        print("a", eigvals, eigvec)
         eigvals, eigvec = self._order_eigensystem_squeezing(np.real(eigvals), eigvec)
-#        print("b", eigvals, eigvec)
+        eigvec = eigvec.T #since eigvec represents M.T
         eigvals, eigvec = self._normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
-#        print("c", eigvals, eigvec)
 #        print(np.round(np.matmul(eigvec.T, np.matmul(K, eigvec)), decimals=3))
-#        assert(np.allclose(np.matmul(eigvec.T, np.matmul(K, eigvec)), K))
+        assert(np.allclose(np.matmul(eigvec.T, np.matmul(K, eigvec)), K))
         return (eigvals, eigvec)
     
+    #XXXX
+    # Need to fix what's going on here, log matrix issues
+    #XXXX
     def _order_eigensystem_squeezing(self, eigvals, eigvec):
         """Order eigensystem to have positive eigenvalues followed by negative, in same order"""
-        eigval_holder = []
-        eigvec_holder = []
+        dim2 = int(len(eigvals)/2)
+        eigval_holder = np.zeros(dim2)
+        eigvec_holder = np.zeros_like(eigvec)
+        count = 0
         for k, eigval in enumerate(eigvals):
             if eigval > 0:
-                eigval_holder.append(eigval)
-                eigvec_holder.append(eigvec[:, k])
+                eigval_holder[count] = eigval
+                eigvec_holder[:, count]= eigvec[:, k]
+                count += 1
         index_array = np.argsort(eigval_holder)
-#        print("val = ", eigval_holder)
-#        print("vec = ", eigvec_holder)
-#        eigval_holder = np.array(eigval_holder)[index_array]
-#        eigvec_holder = np.array(eigvec_holder)[index_array]
-#        print("val = ", eigval_holder)
-#        print("vec = ", eigvec_holder)
-        eigval_result = np.copy(eigval_holder).tolist()
-        eigvec_result = np.copy(eigvec_holder).tolist()
-        for k, eigval in enumerate(eigval_holder):
-            index = np.argwhere(np.isclose(eigvals, -1.0*eigval))[0, 0]
-            eigval_result.append(eigvals[index])
-            eigvec_result.append((eigvec[:, index]).tolist())
-#        print("test1", eigval_result)
-#        print("test2", np.array(eigvec_result))
-        return(eigval_result, np.array(eigvec_result))
+        eigval_holder = eigval_holder[index_array]
+        eigvec_holder[:, 0 : dim2] = eigvec_holder[:, index_array]
+        # Now attempt to deal with degenerate modes
+        for k in range(0, len(eigval_holder) - 1, 2):
+            if np.allclose(eigval_holder[k], eigval_holder[k+1],atol=1e-6):
+                evec_1 = eigvec_holder[:, k] 
+                evec_2 = eigvec_holder[:, k+1]
+                mat = np.array([[evec_1[k], evec_1[k+1]], #Assume maximal elements are same as global min
+                                [evec_2[k], evec_2[k+1]]])
+                sol = sp.linalg.inv(mat) # Find linear transformation to get (1, 0) and (0, 1) vectors
+                new_evec_1 = sol[0, 0]*evec_1 + sol[0, 1]*evec_2
+                new_evec_2 = sol[1, 0]*evec_1 + sol[1, 1]*evec_2
+                eigvec_holder[:, k] = new_evec_1
+                eigvec_holder[:, k+1] = new_evec_2
+        dim = eigvec.shape[0]
+        dim2 = int(dim/2)
+        u = eigvec_holder[0 : dim2, 0 : dim2]
+        v = eigvec_holder[dim2 : dim, 0 : dim2]
+        eigvec_holder[0 : dim2, dim2 : dim] = v
+        eigvec_holder[dim2 : dim, dim2 : dim] = u
+        return(eigval_holder, eigvec_holder)
     
     def _normalize_symplectic_eigensystem_squeezing(self, eigvals, eigvec):
         dim = eigvec.shape[0]
@@ -416,7 +420,7 @@ class VCHOS(QubitBaseClass):
                 scale = 1./np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom)-np.matmul(rho, rhoprime)))
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
 #                print(len(list(klist)))
-#                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
+                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
 #                print(len(list(klist)))
 #                print(klist)
                 jkvals = next(klist,-1)
@@ -514,7 +518,7 @@ class VCHOS(QubitBaseClass):
                 expsigmaprime = sp.linalg.expm(-sigmaprime)
                 scale = 1./np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom)-np.matmul(rho, rhoprime)))
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
-#                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
+                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[i] for i in range(self.num_deg_freedom)])
@@ -621,7 +625,7 @@ class VCHOS(QubitBaseClass):
 #                print(np.trace(sigma), np.trace(sigmaprime))
                 scale = 1./np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom)-np.matmul(rho, rhoprime)))
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
-#                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
+                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
                     phik = 2.0*np.pi*np.array([jkvals[i] for i in range(self.num_deg_freedom)])
