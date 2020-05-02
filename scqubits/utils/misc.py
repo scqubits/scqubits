@@ -24,6 +24,8 @@ else:
 
 def process_which(which, max_index):
     """
+    Processes different ways of specifying the selection of wanted eigenvalues/eigenstates.
+
     Parameters
     ----------
     which: int or tuple or list
