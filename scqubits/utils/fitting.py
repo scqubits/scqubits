@@ -10,6 +10,7 @@
 ############################################################################
 
 import functools
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,9 +33,7 @@ import scqubits.utils.sweep_plotting as splot
 import scqubits.utils.misc as utils
 
 if settings.IN_IPYTHON:
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
+    from IPython.core.display import clear_output, display, HTML
 
 
 # tagging types (to facilitate file io: do not use Enum)
@@ -174,9 +173,8 @@ class FitData(serializers.Serializable):
         self.lmfit_params = None if not _HAS_LMFIT else lmfit.Parameters()
         self.fit_params = {}
         self.evals_count = None
+        self.extra_params = None
         self.sweep = None
-
-        self._progress = None
 
     def setup(self, system, sweep_name, update_func, evals_count, **extra_params):
         """
@@ -204,6 +202,8 @@ class FitData(serializers.Serializable):
         self.sweep_name = sweep_name
         self.sweep_update_func = update_func
         self.evals_count = evals_count
+        self.extra_params = extra_params
+        self.lmfit_params = lmfit.Parameters()
 
         self._set_system(system)
         self._register_subsys_names()
@@ -258,6 +258,9 @@ class FitData(serializers.Serializable):
             long_name = name + '_' + str(index)
             self.fit_params[long_name] = (index, name)
             self.lmfit_params.add(long_name, value=getattr(self.system.interaction_list[index], name))
+        for name, value in self.extra_params.items():
+            self.fit_params[name] = (None, name)
+            self.lmfit_params.add(name, value=value)
 
     def _setup_sweepvals(self):
         """Compose the array of sweep values from the union of all x values of extracted data points."""
@@ -277,6 +280,8 @@ class FitData(serializers.Serializable):
             index, name = self.fit_params[long_name]
             if name == 'g_strength':
                 setattr(self.system.interaction_list[index], name, value)
+            elif index is None:
+                self.extra_params[name] = value
             else:
                 setattr(self.system[index], name, value)
 
@@ -294,18 +299,17 @@ class FitData(serializers.Serializable):
         settings.PROGRESSBAR_DISABLED = False
 
     @utils.Required(lmfit=_HAS_LMFIT)
-    def fit(self, num_cpus=settings.NUM_CPUS, **kwargs):
-        self._progress = tqdm(desc='Fit iteration ')
+    def fit(self, num_cpus=settings.NUM_CPUS, dispersive_only=False, verbose=False, **kwargs):
         minim = lmfit.Minimizer(residuals,
                                 self.lmfit_params,
                                 fcn_args=(self,),
-                                fcn_kws={'dispersive_only': False, 'num_cpus': num_cpus},
-                                iter_cb=self.iteration_info,
+                                fcn_kws={'dispersive_only': dispersive_only, 'num_cpus': num_cpus},
+                                iter_cb=self.iteration_info if verbose else None,
                                 nan_policy='raise')
         self.fit_results = minim.minimize(**kwargs)
         return self.fit_results
 
-    def plot(self, **kwargs):
+    def plot(self, progress_info=False, **kwargs):
         fig, (axes1, axes2) = plt.subplots(2, gridspec_kw={'height_ratios': [3, 1]}, figsize=(10, 7))
         fig.set_figwidth(10)
 
@@ -324,23 +328,32 @@ class FitData(serializers.Serializable):
             ymin = self.y_data[0]
             ymax = self.y_data[-1]
 
-        calibrated_xmin, calibrated_ymin = self.calibration_data.calibrate_datapoint([xmin, ymin])
-        calibrated_xmax, calibrated_ymax = self.calibration_data.calibrate_datapoint([xmax, ymax])
+        calibrated_x0, calibrated_y0 = self.calibration_data.calibrate_datapoint([xmin, ymin])
+        calibrated_x1, calibrated_y1 = self.calibration_data.calibrate_datapoint([xmax, ymax])
+        # take into account that calibration may exchange min <--> max
+        calibrated_xmin = min(calibrated_x0, calibrated_x1)
+        calibrated_xmax = max(calibrated_x0, calibrated_x1)
+        calibrated_ymin = min(calibrated_y0, calibrated_y1)
+        calibrated_ymax = max(calibrated_y0, calibrated_y1)
 
         if self.image_data is not None:
             axes1.imshow(self.image_data, aspect='auto',
-                         extent=[calibrated_xmin, calibrated_xmax, calibrated_ymax, calibrated_ymin], **kwargs)
+                         extent=[calibrated_xmin, calibrated_xmax, calibrated_ymin, calibrated_ymax], **kwargs)
         else:
             axes1.imshow(self.z_data, aspect='auto', origin='lower',
                          extent=[calibrated_xmin, calibrated_xmax, calibrated_ymin, calibrated_ymax], **kwargs)
 
         if self.fit_results is not None:
             self.change_param_values(self.fit_results.params.valuesdict())
-            res_xvals = np.concatenate([dataset.transpose()[0] for dataset in self.datalist])
+            res_xvals = np.concatenate([dataset.transpose()[0] for dataset in self.calibrated_datalist])
             width = (np.max(res_xvals) - np.min(res_xvals)) / 70.0
             axes2.bar(res_xvals, self.fit_results.residual, width=width)
             axes2.set_ylabel('residuals')
 
+            param_vals = np.linspace(-0.5, 0.5, 200)
+            self.sweep.param_vals = param_vals
+            self.sweep.param_count = len(param_vals)
+            self.sweep.run()
             splot.difference_spectrum(self.sweep, fig_ax=(fig, axes1), ylim=(calibrated_ymin, calibrated_ymax))
         else:
             axes2.text(0.5, 0.5, 'residuals: N/A  (run fit)',
@@ -348,7 +361,8 @@ class FitData(serializers.Serializable):
 
         return fig, (axes1, axes2)
 
-    def iteration_info(self, params, iter, resid, *args, **kwargs):
+    @utils.Required(IPython=settings.IN_IPYTHON)
+    def iteration_info(self, params, iteration, resid, *args, **kwargs):
         """Function called at each fit iteration.
         See https://lmfit.github.io/lmfit-py/fitting.html#using-the-minimizer-class
 
@@ -356,16 +370,17 @@ class FitData(serializers.Serializable):
         ----------
         params: lmfit.Parameters
             current parameter values
-        iter: int
+        iteration: int
             current iteration number
         resid: array
             the current residual array
         *args, **kwargs:
             as passed to the objective function.
         """
-        if self._progress is not None:
-            self._progress.set_description("sqrd deviations: {}; params:".format(np.dot(resid, resid), params))
-            self._progress.update()
+        if iteration % 5 == 0:
+            clear_output(wait=True)
+            display(params)
+            display(HTML("iteration: {}, squared deviations: {}".format(iteration, np.dot(resid, resid))))
 
 
 def residuals(params, fitdata, dispersive_only=False, num_cpus=settings.NUM_CPUS):
@@ -375,8 +390,7 @@ def residuals(params, fitdata, dispersive_only=False, num_cpus=settings.NUM_CPUS
     for dataset, transition_tag in zip(fitdata.calibrated_datalist, fitdata.transition_tags):
         if dispersive_only and (transition_tag.tag_type in [CROSSING, CROSSING_DRESSED, NO_TAG]):
             continue
-        # print(dataset)
-        # print(transition_tag.__dict__)
+
         for point in dataset:
             initial = transition_tag.initial
             final = transition_tag.final
@@ -398,14 +412,12 @@ def residuals(params, fitdata, dispersive_only=False, num_cpus=settings.NUM_CPUS
             elif transition_tag.tag_type == DISPERSIVE_BARE:
                 energy_initial = fitdata.sweep.lookup.energy_bare_index(bare_tuple=initial, param_index=index)
                 energy_final = fitdata.sweep.lookup.energy_bare_index(bare_tuple=final, param_index=index)
-                if energy_initial is None:
-                    print("idx ", index)
-                    print("bare state ", initial)
-                    residuals_array.append(0.0)
-                    continue
-                if energy_final is None:
-                    print("idx ", index)
-                    print("bare state ", final)
+                if energy_initial is None or energy_final is None:
+                    offending_state = initial if energy_initial is None else final
+                    warnings.warn("No match for state with bare label {}. Possible causes: state is above "
+                                  "the cutoff specified by evals_count; or, state is strongly hybridized, rendering "
+                                  "identification through bare labels inappropriate. "
+                                  "Skipping...".format(offending_state))
                     residuals_array.append(0.0)
                     continue
                 transition_energy = (
