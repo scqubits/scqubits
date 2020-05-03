@@ -92,7 +92,7 @@ jobs:
     displayName: 'Install scqubits and run pytest'
 - job: macOS
   pool:
-    vmImage: macOS-10.13
+    vmImage: "macos-latest"
   strategy:
     matrix:
       Python36:
