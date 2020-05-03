@@ -125,10 +125,8 @@ jobs:
     displayName: 'Upgrade pip'
   - script: |
       pip install wheel
-      pip install cython==0.28.5
-      pip install numpy==1.14.2
+      pip install --upgrade cython
       pip install scipy==1.1.0
-      pip install matplotlib==3.0.0
       pip install qutip==4.3.1
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
