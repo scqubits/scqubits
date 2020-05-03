@@ -137,7 +137,7 @@ jobs:
       pip install pytest pytest-azurepipelines
       pip install pathos
       pip install .
-      pip install scipy==1.1.0
+      pip install cython==0.28.5 numpy==1.14.2 scipy==1.1.0 matplotlib==3.0.0 qutip==4.3.1
     displayName: 'Install scqubits'
   - script: |
       pytest -v --pyargs scqubits
