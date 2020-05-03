@@ -126,7 +126,7 @@ jobs:
   - script: |
       pip install wheel
       pip install --upgrade cython
-      pip install --upgrade scipy
+      pip install scipy==1.1.0
 #      pip install --upgrade numpy
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
