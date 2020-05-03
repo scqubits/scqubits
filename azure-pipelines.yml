@@ -43,14 +43,20 @@ jobs:
       pip install pytest pytest-azurepipelines
       pip install pathos
       pip install .
+    displayName: 'Install scqubits'
+  - script: |
       pytest -v --pyargs scqubits
+    displayName: 'Pytest: single-core'
+  - script: |
       export OMP_NUM_THREADS=1
       export OPENBLAS_NUM_THREADS=1
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Install scqubits and run pytest'
+    displayName: 'Pytest: multiprocessing'
+#
+#
 - job: Windows
   pool:
     vmImage: 'windows-latest'
@@ -84,14 +90,20 @@ jobs:
       pip install pytest pytest-azurepipelines
       pip install pathos
       pip install .
+    displayName: 'Install scqubits'
+  - script: |
       pytest -v --pyargs scqubits
-      set OMP_NUM_THREADS=1
-      set OPENBLAS_NUM_THREADS=1
-      set MKL_NUM_THREADS=1
-      set VECLIB_MAXIMUM_THREADS=1
-      set NUMEXPR_NUM_THREADS=1
+    displayName: 'Pytest: single-core'
+  - script: |
+      export OMP_NUM_THREADS=1
+      export OPENBLAS_NUM_THREADS=1
+      export MKL_NUM_THREADS=1
+      export VECLIB_MAXIMUM_THREADS=1
+      export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Install scqubits and run pytest'
+    displayName: 'Pytest: multiprocessing'
+#
+#
 - job: macOS
   pool:
     vmImage: "macos-latest"
@@ -114,8 +126,8 @@ jobs:
   - script: |
       pip install wheel
       pip install --upgrade cython
-      pip install --upgrade numpy
       pip install --upgrade scipy
+#      pip install --upgrade numpy
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
       pip install -r requirements.txt
@@ -125,11 +137,15 @@ jobs:
       pip install pytest pytest-azurepipelines
       pip install pathos
       pip install .
+    displayName: 'Install scqubits'
+  - script: |
       pytest -v --pyargs scqubits
+    displayName: 'Pytest: single-core'
+  - script: |
       export OMP_NUM_THREADS=1
       export OPENBLAS_NUM_THREADS=1
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Install scqubits and run pytest'
+    displayName: 'Pytest: multiprocessing'
