@@ -4,7 +4,7 @@
 Full Zero-Pi Qubit  (incl. coupling to zeta mode)
 =================================================
 
-.. figure:: ../../graphics/zeropifull.png
+.. figure:: ../../graphics/fullzeropi.png
    :align: center
    :width: 4in
 
@@ -47,7 +47,7 @@ the disorder parameters ``dEJ`` and ``dCJ`` are not specified, and hence take on
 
 From within Jupyter notebook, an instance of the disordered Zero-Pi qubit can alternatively be created with::
 
-   zero_pi = scqubits.ZeroPiFull.create()
+   zero_pi = scqubits.FullZeroPi.create()
 
 This functionality is  enabled if the ``ipywidgets`` package is installed, and displays GUI forms prompting for
 the entry of the required parameters.

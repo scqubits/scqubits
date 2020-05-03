@@ -71,7 +71,7 @@ The following table lists the classes that can be saved to disk and read back fr
 +-------------------------+
 | ZeroPi                  |
 +-------------------------+
-| ZeroPiFull              |
+| FullZeroPi              |
 +-------------------------+
 
 Data stored to `.h5` files includes information about the type of object stored. Upon reading, the same type of object
