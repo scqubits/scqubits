@@ -10,6 +10,7 @@
 ############################################################################
 
 import math
+import os
 
 import numpy as np
 
@@ -18,12 +19,12 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
 
-# —Cooper pair box / transmon———————————————————————————————————————————————————————————————————————————————————————————
+# —Cooper pair box / transmon——————————————————————————————————————————————
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is represented in dense form in the number
@@ -43,7 +44,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
     ncut: int
         charge basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim: int, optional
-        desired dimension of the truncated quantum system
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -60,6 +61,21 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/transmon.png')
+
+    @staticmethod
+    def default_params():
+        return {
+            'EJ': 30.0,
+            'EC': 1.2,
+            'ng': 0.0,
+            'ncut': 30,
+            'truncated_dim': 10
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['ng', 'ncut', 'truncated_dim']
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
@@ -225,3 +241,74 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
                                                  np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)))
         return storage.WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes,
                                     energy=evals[which])
+
+
+# — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
+
+class TunableTransmon(Transmon, serializers.Serializable):
+    r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in dense form in the number
+    basis,
+    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{h.c.})`,
+    Here, the effective Josephson energy is flux-tunable:
+     :math:`\mathcal{E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(\pi\Phi/\Phi_0)}`
+    and :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes th junction asymmetry.
+
+    Initialize with, for example::
+
+        Transmon2J(EJmax=1.0, d=0.1, EC=2.0, flux=0.3, ng=0.2, ncut=30)
+
+    Parameters
+    ----------
+    EJmax: float
+       maximum effective Josephson energy (sum of the Josephson energies of the two junctions)
+    d: float
+        junction asymmetry parameter
+    EC: float
+        charging energy
+    flux: float
+        flux threading the SQUID loop, in units of the flux quantum
+    ng: float
+        offset charge
+    ncut: int
+        charge basis cutoff, `n = -ncut, ..., ncut`
+    truncated_dim: int, optional
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    """
+    EJmax = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    d = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
+    def __init__(self, EJmax, EC, d, flux, ng, ncut, truncated_dim=None):
+        self.EJmax = EJmax
+        self.EC = EC
+        self.d = d
+        self.flux = flux
+        self.ng = ng
+        self.ncut = ncut
+        self.truncated_dim = truncated_dim
+        self._sys_type = type(self).__name__
+        self._evec_dtype = np.float_
+        self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
+        self._default_n_range = (-5, 6)
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/tunable_transmon.png')
+
+    @property
+    def EJ(self):
+        """This is the effective, flux dependent Josephson energy, playing the role of EJ in the parent class `Transmon`"""
+        return self.EJmax * np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2)
+
+    @staticmethod
+    def default_params():
+        return {
+            'EJmax': 30.0,
+            'EC': 0.5,
+            'd': 0.01,
+            'flux': 0.0,
+            'ng': 0.0,
+            'ncut': 30,
+            'truncated_dim': 10
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['flux', 'ng', 'ncut', 'truncated_dim']

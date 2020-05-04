@@ -9,6 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import os
 import warnings
 
 import numpy as np
@@ -16,7 +17,7 @@ import scipy as sp
 
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 
 
 def harm_osc_wavefunction(n, x, losc):
@@ -62,6 +63,16 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
             self.E_osc = E_osc
 
         self._init_params.remove('omega')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/oscillator.png')
+
+    @staticmethod
+    def default_params():
+        return {'E_osc': 5.0,
+                'truncated_dim': 10}
+
+    @staticmethod
+    def nonfit_params():
+        return ['truncated_dim']
 
     def get_omega(self):
         # Support for omega will be rolled back eventually. For now allow with deprecation warnings.

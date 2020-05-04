@@ -19,4 +19,4 @@ summarized here. For a complete description see the API documentation.
    qubits/fluxonium.rst
    qubits/flux_qubit.rst
    qubits/zeropi.rst
-   qubits/zeropifull.rst
+   qubits/fullzeropi.rst

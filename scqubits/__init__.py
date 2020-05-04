@@ -26,14 +26,12 @@ from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep, StoredSweep
-from scqubits.core.spec_lookup import SpectrumLookup
-from scqubits.core.storage import DataStore, SpectrumData
-from scqubits.core.transmon import Transmon
+from scqubits.core.storage import SpectrumData
+from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
 # file IO
-from scqubits.utils.file_io import read, write
-from scqubits.utils.file_io_serializers import QutipEigenstates
+from scqubits.io_utils.fileio import read, write
 
 # version
 try:

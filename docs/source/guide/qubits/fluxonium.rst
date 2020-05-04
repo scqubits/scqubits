@@ -31,6 +31,13 @@ An instance of the fluxonium created as follows::
 
 Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`.
 
+From within Jupyter notebook, a fluxonium instance can alternatively be created with::
+
+   fluxonium = scqubits.Fluxonium.create()
+
+This functionality is  enabled if the ``ipywidgets`` package is installed, and displays GUI forms prompting for
+the entry of the required parameters.
+
 
 Calculational methods related to Hamiltonian and energy spectra
 ---------------------------------------------------------------

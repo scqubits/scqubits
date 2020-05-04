@@ -36,5 +36,5 @@ Manipulating spectral data
 Writing/reading data to disk
 ----------------------------
 
-.. automodule:: scqubits.utils.file_io
+.. automodule:: scqubits.io_utils.fileio
     :members:

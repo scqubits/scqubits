@@ -9,15 +9,19 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import os
+
 import numpy as np
 from scipy import sparse
 
 import scqubits
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
+import scqubits.core.discretization as discretization
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
 
 
@@ -75,7 +79,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         total charging energy including large shunting capacitances and junction capacitances; may be provided instead
         of EC
     truncated_dim: int, optional
-        desired dimension of the truncated quantum system
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
 
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
@@ -118,8 +122,56 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fullzeropi.png')
 
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
+
+    @staticmethod
+    def default_params():
+        return {
+            'EJ': 0.25,
+            'EL': 0.01,
+            'ECJ': 0.49,
+            'EC': 0.001,
+            'dEJ': 0.05,
+            'dCJ': 0.05,
+            'dC': 0.08,
+            'dEL': 0.05,
+            'ng': 0.1,
+            'flux': 0.23,
+            'ncut': 30,
+            'zeropi_cutoff': 10,
+            'zeta_cutoff': 40,
+            'truncated_dim': 10
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['ng', 'flux', 'ncut', 'zeropi_cutoff', 'zeta_cutoff', 'truncated_dim']
+
+    @classmethod
+    def create(cls):
+        phi_grid = discretization.Grid1d(-25.0, 25.0, 360)
+        init_params = cls.default_params()
+        zeropi = cls(**init_params, grid=phi_grid)
+        zeropi.widget()
+        return zeropi
+
+    def widget(self, params=None):
+        init_params = params or self.get_initdata()
+        del init_params['grid']
+        init_params['grid_max_val'] = self.grid.max_val
+        init_params['grid_min_val'] = self.grid.min_val
+        init_params['grid_pt_count'] = self.grid.pt_count
+        ui.create_widget(self.set_params, init_params, image_filename=self._image_filename)
+
+    def set_params(self, **kwargs):
+        phi_grid = discretization.Grid1d(kwargs.pop('grid_min_val'),
+                                         kwargs.pop('grid_max_val'),
+                                         kwargs.pop('grid_pt_count'))
+        self.grid = phi_grid
+        for param_name, param_val in kwargs.items():
+            setattr(self, param_name, param_val)
 
     def receive(self, event, sender, **kwargs):
         if sender is self._zeropi.grid:

@@ -1,4 +1,4 @@
-# file_io_serializers.py
+# fileio_serializers.py
 #
 # This file is part of scqubits.
 #
@@ -17,18 +17,28 @@ from abc import ABC
 from numbers import Number
 
 import numpy as np
-import qutip as qt
 
 import scqubits.utils.misc as utils
+
+SERIALIZABLE_REGISTRY = {}
 
 
 class Serializable(ABC):
     """Mix-in class that makes descendant classes serializable."""
+    _subclasses = []
+
     def __new__(cls, *args, **kwargs):
         """Used to set up class attributes that record which __init__ parameters will be stored as attributes, ndarrays,
         and objects."""
         cls._init_params = get_init_params(cls)
         return super().__new__(cls)
+
+    def __init_subclass__(cls, **kwargs):
+        """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
+        super().__init_subclass__(**kwargs)
+        if not inspect.isabstract(cls):
+            cls._subclasses.append(cls)
+            SERIALIZABLE_REGISTRY[cls.__name__] = cls
 
     def get_initdata(self):
         """Returns dict appropriate for creating/initializing a new Serializable object.
@@ -47,7 +57,7 @@ class Serializable(ABC):
 
         Parameters
         ----------
-        io_data: scqubits.utils.file_io_base.IOData
+        io_data: scqubits.io_utils.file_io_base.IOData
 
         Returns
         -------
@@ -61,7 +71,7 @@ class Serializable(ABC):
 
         Returns
         -------
-        scqubits.utils.file_io_base.IOData
+        scqubits.io_utils.file_io_base.IOData
         """
         initdata = {name: getattr(self, name) for name in self._init_params}
         iodata = dict_serialize(initdata)
@@ -75,7 +85,7 @@ class Serializable(ABC):
         ----------
         filename: str
         """
-        import scqubits.utils.file_io as io
+        import scqubits.io_utils.fileio as io
         io.write(self, filename)
 
     @classmethod
@@ -91,62 +101,8 @@ class Serializable(ABC):
         SpectrumData
             new SpectrumData object, initialized with data read from file
         """
-        import scqubits.utils.file_io as io
+        import scqubits.io_utils.fileio as io
         return io.read(filename)
-
-
-class QutipEigenstates(np.ndarray, Serializable):
-    """Wrapper class that adds serialization functionality to the numpy ndarray class."""
-    # https://docs.scipy.org/doc/numpy/user/basics.subclassing.html#extra-gotchas-custom-del-methods-and-ndarray-base
-    @classmethod
-    def deserialize(cls, io_data):
-        """
-        Take the given IOData and return an instance of the described class, initialized with the data stored in
-        io_data.
-
-        Parameters
-        ----------
-        io_data: IOData
-
-        Returns
-        -------
-        Serializable
-        """
-        qobj_dims = io_data.ndarrays['qobj_dims']
-        qobj_shape = io_data.ndarrays['qobj_shape']
-        evec_array = io_data.ndarrays['evecs']
-        qt_eigenstates = np.asarray([qt.Qobj(inpt=evec, dims=qobj_dims, shape=qobj_shape, type='ket')
-                                     for evec in evec_array], dtype=np.dtype('O'))
-        return qt_eigenstates
-
-    def serialize(self):
-        """
-        Convert the content of the current class instance into IOData format.
-
-        Returns
-        -------
-        IOData
-        """
-        import scqubits.utils.file_io as io
-        typename = type(self).__name__
-        evec_count = len(self)
-        qobj_dims = np.asarray(self[0].dims)
-        qobj_shape = np.asarray(self[0].shape)
-        io_attributes = {'evec_count': evec_count}
-        io_ndarrays = {'evecs': np.asarray([utils.qt_ket_to_ndarray(qobj_ket) for qobj_ket in self]),
-                       'qobj_dims': qobj_dims,
-                       'qobj_shape': qobj_shape}
-        return io.IOData(typename, io_attributes, io_ndarrays, objects=None)
-
-    def filewrite(self, filename):
-        """Convenience method bound to the class. Simply accesses the `write` function.
-
-        Parameters
-        ----------
-        filename: str
-        """
-        import scqubits.utils.file_io as io
-        io.write(self, filename)
 
 
 def _add_object(name, obj, attributes, ndarrays, objects):
@@ -166,7 +122,7 @@ def _add_attribute(name, obj, attributes, ndarrays, objects):
 
 TO_ATTRIBUTE = (str, Number, dict, list, tuple)
 TO_NDARRAY = (np.ndarray,)
-TO_OBJECT = (Serializable, QutipEigenstates)
+TO_OBJECT = (Serializable,)
 
 
 def type_dispatch(entity):
@@ -204,7 +160,7 @@ def dict_serialize(dict_instance):
     -------
     IOData
     """
-    import scqubits.utils.file_io as io
+    import scqubits.io_utils.fileio as io
     dict_instance = utils.remove_nones(dict_instance)
     attributes = {}
     ndarrays = {}
@@ -217,30 +173,33 @@ def dict_serialize(dict_instance):
     return io.IOData(typename, attributes, ndarrays, objects)
 
 
-def list_serialize(list_instance):
+def listlike_serialize(listlike_instance):
     """
-    Create an IOData instance from lisy data.
+    Create an IOData instance from list data.
 
     Parameters
     ----------
-    list_instance: list or tuple
+    listlike_instance: list or tuple
 
     Returns
     -------
     IOData
     """
-    import scqubits.utils.file_io as io
+    import scqubits.io_utils.fileio as io
     attributes = {}
     ndarrays = {}
     objects = {}
-    typename = 'list'
-    for index, item in enumerate(list_instance):
+    typename = type(listlike_instance).__name__
+    for index, item in enumerate(listlike_instance):
         update_func = type_dispatch(item)
         attributes, ndarrays, objects = update_func(str(index), item, attributes, ndarrays, objects)
     return io.IOData(typename, attributes, ndarrays, objects)
 
 
-tuple_serialize = list_serialize
+list_serialize = listlike_serialize
+
+
+tuple_serialize = listlike_serialize
 
 
 def dict_deserialize(iodata):
