@@ -71,6 +71,22 @@ class Hashing():
                 vec_list.append(next_vec)
                 prev_vec = next_vec
         return np.array(vec_list)
+    
+    def eigvec_population(self, eigvec):
+        basis_vecs = self._gen_basis_vecs()
+        dim = len(basis_vecs)
+        pop_list = []
+        vec_list = []
+        for k, elem in enumerate(eigvec):
+            if not np.allclose(elem, 0.0, atol=1e-4):
+                minimum = math.floor(k/dim)
+                pop_list.append(elem)
+                vec_list.append(basis_vecs[np.mod(k, dim)])
+        pop_list = np.real(pop_list)
+        index_array = np.argsort(np.abs(pop_list))
+        pop_list = (pop_list[index_array])[::-1]
+        vec_list = (np.array(vec_list)[index_array])[::-1]
+        return pop_list, vec_list
                 
     def _find_k(self, vec):
         dim = len(vec)

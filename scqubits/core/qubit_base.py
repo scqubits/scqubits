@@ -236,15 +236,22 @@ class QubitBaseClass(QuantumSystem):
         paramvals_count = len(param_vals)
         eigenvalue_table = np.zeros((paramvals_count, evals_count), dtype=np.float_)
         eigenstate_table = None
+        hilbertmax = 0
+        for index, paramval in enumerate(param_vals):
+            setattr(self, param_name, paramval)
+            hilbertdim = self.hilbertdim()
+            if hilbertdim > hilbertmax: hilbertmax = hilbertdim
+            
         if get_eigenstates:
-            eigenstate_table = np.empty(shape=(paramvals_count, self.hilbertdim(), evals_count), dtype=self._evec_dtype)
+            eigenstate_table = np.empty(shape=(paramvals_count, hilbertmax, evals_count), dtype=self._evec_dtype)
 
         for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
             setattr(self, param_name, paramval)
+            hilbertdim = self.hilbertdim()
 
             if get_eigenstates:
                 evals, evecs = self.eigensys(evals_count)
-                eigenstate_table[index] = evecs
+                eigenstate_table[index, : hilbertdim,:] = evecs
             else:
                 evals = self.eigenvals(evals_count)
             eigenvalue_table[index] = np.real(evals)   # for complex-hermitean H, eigenvalues have type np.complex_

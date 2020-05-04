@@ -156,13 +156,9 @@ class VCHOS(QubitBaseClass):
         eigvals, eigvec = self._order_eigensystem_squeezing(np.real(eigvals), eigvec)
         eigvec = eigvec.T #since eigvec represents M.T
         eigvals, eigvec = self._normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
-#        print(np.round(np.matmul(eigvec.T, np.matmul(K, eigvec)), decimals=3))
         assert(np.allclose(np.matmul(eigvec.T, np.matmul(K, eigvec)), K))
         return (eigvals, eigvec)
     
-    #XXXX
-    # Need to fix what's going on here, log matrix issues
-    #XXXX
     def _order_eigensystem_squeezing(self, eigvals, eigvec):
         """Order eigensystem to have positive eigenvalues followed by negative, in same order"""
         dim2 = int(len(eigvals)/2)
@@ -318,26 +314,24 @@ class VCHOS(QubitBaseClass):
         prefactor_a = np.matmul(np.eye(self.num_deg_freedom) - a_temp_coeff, expsigmaprime)
         
         exp_i_list = []
+        Xid = 1j*np.matmul(Xi, prefactor_adag)/np.sqrt(2.0)
+        Xia = 1j*np.matmul(Xi, prefactor_a)/np.sqrt(2.0)
         for j in range(self.num_deg_freedom):
-            exp_i_j_adag_part = sp.linalg.expm(np.sum([1j*(np.matmul(Xi, prefactor_adag)[j, i]/np.sqrt(2.0))
-                                                   *a_op_list[i].T for i in range(self.num_deg_freedom)], axis=0))
-            exp_i_j_a_part = sp.linalg.expm(np.sum([1j*(np.matmul(Xi, prefactor_a)[j, i]/np.sqrt(2.0))
-                                                   *a_op_list[i] for i in range(self.num_deg_freedom)], axis=0))
+            exp_i_j_adag_part = sp.linalg.expm(np.sum([Xid[j, i]*a_op_list[i].T 
+                                                       for i in range(self.num_deg_freedom)], axis=0))
+            exp_i_j_a_part = sp.linalg.expm(np.sum([Xia[j, i]*a_op_list[i] 
+                                                    for i in range(self.num_deg_freedom)], axis=0))
             exp_i_j = np.matmul(exp_i_j_adag_part, np.matmul(exp_adag_a, exp_i_j_a_part))
             exp_i_list.append(exp_i_j)
             
-        exp_i_sum_adag_part = sp.linalg.expm(np.sum([1j*self.boundary_coeffs[j]*
-                                                     np.matmul(Xi[j, :], prefactor_adag)[i]
-                                                     *a_op_list[i].T 
+        exp_i_sum_adag_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j]*
+                                                     Xid[j, i]*a_op_list[i].T 
                                                      for i in range(self.num_deg_freedom)
-                                                     for j in range(self.num_deg_freedom)], 
-                                                     axis=0)/np.sqrt(2.0))
-        exp_i_sum_a_part = sp.linalg.expm(np.sum([1j*self.boundary_coeffs[j]*
-                                                  np.matmul(Xi[j, :], prefactor_a)[i]
-                                                  *a_op_list[i]
+                                                     for j in range(self.num_deg_freedom)], axis=0))
+        exp_i_sum_a_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j]*
+                                                  Xia[j, i]*a_op_list[i]
                                                   for i in range(self.num_deg_freedom)
-                                                  for j in range(self.num_deg_freedom)], 
-                                                  axis=0)/np.sqrt(2.0))
+                                                  for j in range(self.num_deg_freedom)], axis=0))
         exp_i_sum = np.matmul(exp_i_sum_adag_part, np.matmul(exp_adag_a, exp_i_sum_a_part))
         
         exp_list = [exp_adag_adag, exp_a_a, exp_adag_a, 
@@ -419,13 +413,9 @@ class VCHOS(QubitBaseClass):
                                                        for mu in range(self.num_deg_freedom)], axis=0)
                 scale = 1./np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom)-np.matmul(rho, rhoprime)))
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
-#                print(len(list(klist)))
                 klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
-#                print(len(list(klist)))
-#                print(klist)
                 jkvals = next(klist,-1)
                 while jkvals != -1:
-#                    print(jkvals)
                     phik = 2.0*np.pi*np.array([jkvals[i] for i in range(self.num_deg_freedom)])
                     delta_phi_kpm = phik-(minima_m-minima_p)
                     dpkX = np.matmul(Xi_inv, delta_phi_kpm)
@@ -463,10 +453,6 @@ class VCHOS(QubitBaseClass):
                     
 #                    if not np.allclose(kinetic_temp, np.zeros_like(kinetic_temp)):
 #                        print("m, p = ", m, p, jkvals, np.dot(dpkX, dpkX))
-#                        if np.sum(np.abs(jkvals))>=6: print(np.max(np.abs(kinetic_temp)))
-#                    if np.sum(np.abs(jkvals)) == 2:
-#                        print(jkvals, np.dot(dpkX, dpkX), np.max(np.abs(kinetic_temp)))
-
                     
                     kinetic_mat[m*num_exc_tot : m*num_exc_tot + num_exc_tot, 
                                 p*num_exc_tot : p*num_exc_tot + num_exc_tot] += kinetic_temp
@@ -582,7 +568,6 @@ class VCHOS(QubitBaseClass):
 
                     potential_temp += (alpha*np.sum(EJlist)*exp_prod_coeff
                                        *np.matmul(exp_adag, np.matmul(exp_adag_a, exp_a)))
-#                    if np.allclose(potential_temp, np.zeros_like(potential_temp)):print(jkvals)
                     
                     potential_mat[m*num_exc_tot:m*num_exc_tot+num_exc_tot, 
                                   p*num_exc_tot:p*num_exc_tot+num_exc_tot] += potential_temp
@@ -622,7 +607,6 @@ class VCHOS(QubitBaseClass):
                 (exp_adag_adag, exp_a_a, exp_adag_a, 
                  exp_adag_list, exp_adag_mindiff, 
                  exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
-#                print(np.trace(sigma), np.trace(sigmaprime))
                 scale = 1./np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom)-np.matmul(rho, rhoprime)))
                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
                 klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
