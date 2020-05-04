@@ -11,15 +11,13 @@
 ############################################################################
 
 import numpy as np
+import pytest
 
-import scqubits.settings
 from scqubits import Transmon
-from scqubits.core.constants import FileType
 from scqubits.tests.conftest import StandardTests
 
-scqubits.settings.FILE_FORMAT = FileType.h5
 
-
+@pytest.mark.usefixtures("num_cpus", "io_type")
 class TestTransmon(StandardTests):
     @classmethod
     def setup_class(cls):

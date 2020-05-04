@@ -13,17 +13,18 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.constants as constants
+import scqubits.core.descriptors as descriptors
+import scqubits.core.discretization as discretization
+import scqubits.core.qubit_base as base
+import scqubits.core.storage as storage
+import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.plotting as plot
-from scqubits.core.descriptors import WatchedProperty
-from scqubits.core.discretization import GridSpec, Grid1d
-from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.core.storage import WaveFunctionOnGrid
-from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
+import scqubits.utils.spectrum_utils as spec_utils
 
 
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
 
-class FluxQubit(QubitBaseClass):
+class FluxQubit(base.QubitBaseClass, serializers.Serializable):
     r"""Flux Qubit
 
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
@@ -67,20 +68,21 @@ class FluxQubit(QubitBaseClass):
         desired dimension of the truncated quantum system
     """
 
-    EJ1 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ2 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ3 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ1 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ2 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ3 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg1 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg2 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng1 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng2 = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ncut = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, ncut, truncated_dim=None):
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, ncut,
+                 truncated_dim=None):
         self.EJ1 = EJ1
         self.EJ2 = EJ2
         self.EJ3 = EJ3
@@ -94,9 +96,9 @@ class FluxQubit(QubitBaseClass):
         self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = '3-jct. flux qubit'
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
-        self._default_grid = Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)    # for plotting in phi_j basis
+        self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)    # for plotting in phi_j basis
 
     def EC_matrix(self):
         """Return the charging energy matrix"""
@@ -122,7 +124,7 @@ class FluxQubit(QubitBaseClass):
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=False)
-        evals, evecs = order_eigensystem(evals, evecs)
+        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
     def hilbertdim(self):
@@ -233,7 +235,7 @@ class FluxQubit(QubitBaseClass):
         **kwargs:
             plot options
         """
-        phi_grid = self._try_defaults(phi_grid)
+        phi_grid = phi_grid or self._default_grid
         x_vals = y_vals = phi_grid.make_linspace()
         if 'figsize' not in kwargs:
             kwargs['figsize'] = (5, 5)
@@ -261,7 +263,7 @@ class FluxQubit(QubitBaseClass):
             _, evecs = self.eigensys(evals_count)
         else:
             _, evecs = esys
-        phi_grid = self._try_defaults(phi_grid)
+        phi_grid = phi_grid or self._default_grid
 
         dim = 2 * self.ncut + 1
         state_amplitudes = np.reshape(evecs[:, which], (dim, dim))
@@ -272,11 +274,11 @@ class FluxQubit(QubitBaseClass):
         a_2_phi = a_1_phi.T
         wavefunc_amplitudes = np.matmul(a_1_phi, state_amplitudes)
         wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, a_2_phi)
-        wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
+        wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
 
-        grid2d = GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
-                                      [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
-        return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
+        grid2d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                                                     [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
+        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
     def plot_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs', zero_calibrate=True, **kwargs):
         """Plots 2d phase-basis wave function.

@@ -17,6 +17,8 @@ To get started, the following links provide examples of jupyter notebooks illust
 
 `Zero-pi qubit demo <https://nbviewer.jupyter.org/github/scqubits/scqubits/blob/master/examples/demo_zeropi.ipynb>`_
 
+`HilbertSpace and ParameterSweep demo <https://nbviewer.jupyter.org/github/scqubits/scqubits/blob/master/examples/demo_hilbertspace.ipynb>`_
+
 `Running the test suite <https://nbviewer.jupyter.org/github/scqubits/scqubits/blob/master/examples/testing.ipynb>`_
 
 

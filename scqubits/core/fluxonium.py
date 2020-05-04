@@ -15,17 +15,19 @@ import math
 import numpy as np
 import scipy as sp
 
+import scqubits.core.constants as constants
+import scqubits.core.descriptors as descriptors
+import scqubits.core.discretization as discretization
+import scqubits.core.harmonic_osc as osc
 import scqubits.core.operators as op
-from scqubits.core.descriptors import WatchedProperty
-from scqubits.core.discretization import Grid1d
-from scqubits.core.harmonic_osc import harm_osc_wavefunction
-from scqubits.core.qubit_base import QubitBaseClass1d
-from scqubits.core.storage import WaveFunction
+import scqubits.core.qubit_base as base
+import scqubits.core.storage as storage
+import scqubits.utils.file_io_serializers as serializers
 
 
 # —Fluxonium qubit ————————————————————————
 
-class Fluxonium(QubitBaseClass1d):
+class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
     r"""Class for the fluxonium qubit. Hamiltonian
     :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi-\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
     is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
@@ -48,12 +50,11 @@ class Fluxonium(QubitBaseClass1d):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system
     """
-
-    EJ = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EC = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EL = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    cutoff = WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EC, EL, flux, cutoff, truncated_dim=None):
         self.EJ = EJ
@@ -62,9 +63,9 @@ class Fluxonium(QubitBaseClass1d):
         self.flux = flux
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
-        self._sys_type = 'fluxonium'
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
-        self._default_grid = Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
+        self._default_grid = discretization.Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
 
     def phi_osc(self):
         """
@@ -199,13 +200,38 @@ class Fluxonium(QubitBaseClass1d):
             evals, evecs = esys
         dim = self.hilbertdim()
 
-        phi_grid = self._try_defaults(phi_grid)
+        phi_grid = phi_grid or self._default_grid
 
         phi_basis_labels = phi_grid.make_linspace()
         wavefunc_osc_basis_amplitudes = evecs[:, which]
         phi_wavefunc_amplitudes = np.zeros(phi_grid.pt_count, dtype=np.complex_)
         phi_osc = self.phi_osc()
         for n in range(dim):
-            phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[n] * harm_osc_wavefunction(n, phi_basis_labels,
-                                                                                                phi_osc)
-        return WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes, energy=evals[which])
+            phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[n] * osc.harm_osc_wavefunction(n, phi_basis_labels,
+                                                                                                    phi_osc)
+        return storage.WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes,
+                                    energy=evals[which])
+
+    def wavefunction1d_defaults(self, mode, evals, wavefunc_count):
+        """Plot defaults for plotting.wavefunction1d.
+
+        Parameters
+        ----------
+        mode: str
+            amplitude modifier, needed to give the correct default y label
+        evals: ndarray
+            eigenvalues to include in plot
+        wavefunc_count: int
+            number of wave functions to be plotted
+        """
+        ylabel = r'$\psi_j(\varphi)$'
+        ylabel = constants.MODE_STR_DICT[mode](ylabel)
+        options = {
+            'xlabel': r'$\varphi$',
+            'ylabel': ylabel
+        }
+        if wavefunc_count > 1:
+            ymin = - 1.025 * self.EJ
+            ymax = max(1.8 * self.EJ, evals[-1] + 0.1 * (evals[-1] - evals[0]))
+            options['ylim'] = (ymin, ymax)
+        return options

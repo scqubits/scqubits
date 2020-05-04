@@ -15,7 +15,8 @@ import numpy as np
 import scipy as sp
 
 import scqubits.core.operators as op
-from scqubits.core.qubit_base import QuantumSystem
+import scqubits.core.qubit_base as base
+import scqubits.utils.file_io_serializers as serializers
 
 
 def harm_osc_wavefunction(n, x, losc):
@@ -42,10 +43,10 @@ def harm_osc_wavefunction(n, x, losc):
 
 # —Oscillator class—————————————————————————————————————————————————————————————————————————————————————————————————————
 
-class Oscillator(QuantumSystem):
+class Oscillator(base.QuantumSystem, serializers.Serializable):
     """General class for mode of an oscillator/resonator."""
     def __init__(self, E_osc=None, omega=None, truncated_dim=None):
-        self._sys_type = 'oscillator'
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self.truncated_dim = truncated_dim
 
@@ -60,9 +61,10 @@ class Oscillator(QuantumSystem):
         else:
             self.E_osc = E_osc
 
+        self._init_params.remove('omega')
 
-    # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
     def get_omega(self):
+        # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
         warnings.warn('To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.',
                       FutureWarning)
         return self.E_osc

@@ -13,8 +13,8 @@
 import numpy as np
 
 import scqubits
-from scqubits.core.constants import MODE_STR_DICT
-from scqubits.settings import DEFAULT_ENERGY_UNITS
+import scqubits.core.constants as constants
+import scqubits.settings as settings
 
 
 def set_scaling(qubit, scaling, potential_vals=None):
@@ -40,22 +40,6 @@ def set_scaling(qubit, scaling, potential_vals=None):
     return scaling
 
 
-def wavefunction1d(mode=None):
-    """Plot defaults for plotting.wavefunction1d.
-
-    Parameters
-    ----------
-    mode: str
-        amplitude modifier, needed to give the correct default y label"""
-    ylabel = r'$\psi_j(\varphi)$'
-    if mode:
-        ylabel = MODE_STR_DICT[mode](ylabel)
-    return {
-        'xlabel': r'$\varphi$',
-        'ylabel': ylabel
-    }
-
-
 def wavefunction1d_discrete(mode=None):
     """Plot defaults for plotting.wavefunction1d_discrete.
 
@@ -65,7 +49,7 @@ def wavefunction1d_discrete(mode=None):
         amplitude modifier, needed to give the correct default y label"""
     ylabel = r'$\psi_j(n)$'
     if mode:
-        ylabel = MODE_STR_DICT[mode](ylabel)
+        ylabel = constants.MODE_STR_DICT[mode](ylabel)
     return {
         'xlabel': 'n',
         'ylabel': ylabel
@@ -98,7 +82,7 @@ def matrix():
 def evals_vs_paramvals(specdata, **kwargs):
     """Plot defaults for plotting.evals_vs_paramvals"""
     kwargs['xlabel'] = kwargs.get('xlabel') or specdata.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or 'energy [{}]'.format(DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or 'energy [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
     return kwargs
 
 
@@ -116,22 +100,22 @@ def dressed_spectrum(sweep, **kwargs):
         kwargs['ymax'] = kwargs.get('ymax') or min(15, (np.max(sweep.dressed_specdata.energy_table) -
                                                         np.min(sweep.dressed_specdata.energy_table)))
     kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'energy [{}]'.format(DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'energy [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
     return kwargs
 
 
 def chi(sweep, **kwargs):
     """Plot defaults for sweep_plotting.chi"""
     kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$ [{}]'.format(DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$ [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
     return kwargs
 
 
 def chi01(param_name, yval, **kwargs):
     """Plot defaults for sweep_plotting.chi01"""
     kwargs['xlabel'] = kwargs.get('xlabel') or param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(DEFAULT_ENERGY_UNITS)
-    kwargs['title'] = kwargs.get('title') or r'$\chi_{{01}}=${:.4f} {}'.format(yval, DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
+    kwargs['title'] = kwargs.get('title') or r'$\chi_{{01}}=${:.4f} {}'.format(yval, settings.DEFAULT_ENERGY_UNITS)
     return kwargs
 
 
