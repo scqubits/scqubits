@@ -135,6 +135,7 @@ jobs:
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
+      pip install pytest-xdist
       pip install pathos
       pip install .
     displayName: 'Install scqubits'
