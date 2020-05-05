@@ -259,6 +259,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         if get_eigenstates:
             func = functools.partial(self._esys_for_paramval, param_name=param_name, evals_count=evals_count)
             with InfoBar("Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus), num_cpus):
+                # Note that it is useful here that the outermost eigenstate object is a list, 
+                # as for certain applications the necessary hilbert space dimension can vary with paramvals
                 eigensystem_mapdata = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
                                                                  disable=(num_cpus > 1))))
             eigenvalue_table, eigenstate_table = recast_esys_mapdata(eigensystem_mapdata)
