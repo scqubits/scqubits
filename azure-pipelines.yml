@@ -126,8 +126,8 @@ jobs:
   - script: |
       pip install wheel
       pip install --upgrade cython
-      pip install scipy==1.1.0
-      pip install qutip==4.3.1
+      pip install --upgrade numpy
+      pip install --upgrade scipy
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
       pip install -r requirements.txt
@@ -135,11 +135,19 @@ jobs:
     displayName: 'Install dependencies'
   - script: |
       pip install pytest pytest-azurepipelines
+      pip install pytest-xdist
       pip install pathos
       pip install .
     displayName: 'Install scqubits'
   - script: |
-      pytest -v --pyargs scqubits
+      pytest -v --pyargs scqubits.tests.test_explorer
+      pytest -v --pyargs scqubits.tests.test_fluxonium
+      pytest -v --pyargs scqubits.tests.test_fluxqubit
+      pytest -v --pyargs scqubits.tests.test_fullzeropi
+      pytest -v --pyargs scqubits.tests.test_hilbertspace
+      pytest -v --pyargs scqubits.tests.test_spectrumlookup
+      pytest -v --pyargs scqubits.tests.test_transmon
+      pytest -v --pyargs scqubits.tests.test_zeropi
     displayName: 'Pytest: single-core'
   - script: |
       export OMP_NUM_THREADS=1
@@ -147,5 +155,12 @@ jobs:
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
-      pytest -v --pyargs scqubits --num_cpus=4
+      cd $(python -c "import scqubits.tests.test_hilbertspace as tst; import os; print(os.path.dirname(tst.__file__))")
+      pytest -v test_explorer.py --num_cpus=2
+      pytest -v test_fluxonium.py --num_cpus=2
+      pytest -v test_fluxqubit.py --num_cpus=2
+      pytest -v test_hilbertspace.py --num_cpus=2
+      pytest -v test_spectrumlookup.py --num_cpus=2
+      pytest -v test_transmon.py --num_cpus=2
+      pytest -v test_zeropi.py --num_cpus=2
     displayName: 'Pytest: multiprocessing'
