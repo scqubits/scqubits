@@ -126,8 +126,8 @@ jobs:
   - script: |
       pip install wheel
       pip install --upgrade cython
-      pip install scipy==1.1.0
-      pip install qutip==4.3.1
+      pip install --upgrade numpy
+      pip install --upgrade scipy
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
       pip install -r requirements.txt
@@ -139,7 +139,14 @@ jobs:
       pip install .
     displayName: 'Install scqubits'
   - script: |
-      pytest -v --pyargs scqubits
+      pytest -v --pyargs scqubits.tests.test_explorer
+      pytest -v --pyargs scqubits.tests.test_fluxonium
+      pytest -v --pyargs scqubits.tests.test_fluxqubit
+      pytest -v --pyargs scqubits.tests.test_fullzeropi
+      pytest -v --pyargs scqubits.tests.test_hilbertspace
+      pytest -v --pyargs scqubits.tests.test_spectrumlookup
+      pytest -v --pyargs scqubits.tests.test_transmon
+      pytest -v --pyargs scqubits.tests.test_zeropi
     displayName: 'Pytest: single-core'
   - script: |
       export OMP_NUM_THREADS=1
@@ -147,5 +154,12 @@ jobs:
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
-      pytest -v --pyargs scqubits --num_cpus=4
+      pytest -v --pyargs scqubits.tests.test_explorer --num_cpus=2
+      pytest -v --pyargs scqubits.tests.test_fluxonium --num_cpus=2
+      pytest -v --pyargs scqubits.tests.test_fluxqubit --num_cpus=2
+      pytest -v --pyargs scqubits.tests.test_fullzeropi --num_cpus=2
+      pytest -v --pyargs scqubits.tests.test_hilbertspace --num_cpus=2
+      pytest -v --pyargs scqubits.tests.test_spectrumlookup --num_cpus=2
+      pytest -v --pyargs scqubits.tests.test_transmon --num_cpus=2
+      pytest -v --pyargs scqubits.tests.test_zeropi --num_cpus=2
     displayName: 'Pytest: multiprocessing'
