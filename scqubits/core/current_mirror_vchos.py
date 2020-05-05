@@ -23,7 +23,7 @@ from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 class CurrentMirrorVCHOS(VCHOS):
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux,
                  kmax, num_exc, squeezing=False, truncated_dim=None):
-        self.num_big_cap = N
+        self.N = N
         self.ECB = ECB
         self.ECJ = ECJ
         self.ECg = ECg
@@ -48,7 +48,7 @@ class CurrentMirrorVCHOS(VCHOS):
         self.truncated_dim = truncated_dim
 
     def build_capacitance_matrix(self):
-        N = self.num_big_cap
+        N = self.N
         CB = self.e**2 / (2.*self.ECB)
         CJ = self.e**2 / (2.*self.ECJ)
         Cg = self.e**2 / (2.*self.ECg)
@@ -67,7 +67,7 @@ class CurrentMirrorVCHOS(VCHOS):
         return Cmat[0:-1, 0:-1]
 
     def _build_V_m(self):
-        N = self.num_big_cap
+        N = self.N
         V_m = np.diagflat([-1 for j in range(2*N)], 0)
         V_m += np.diagflat([1 for j in range(2*N - 1)], 1)
         V_m[-1] = np.array([1 for j in range(2*N)])
@@ -81,7 +81,7 @@ class CurrentMirrorVCHOS(VCHOS):
 
     def hilbertdim(self):
         """Return N if the size of the Hamiltonian matrix is NxN"""
-        return len(self.sorted_minima())*(self.num_exc+1)**(2*self.num_big_cap - 1)
+        return len(self.sorted_minima())*(self.num_exc+1)**(2*self.N - 1)
 
     def _check_if_new_minima(self, new_minima, minima_holder):
         """
@@ -110,7 +110,7 @@ class CurrentMirrorVCHOS(VCHOS):
         Index all minima
         """
         minima_holder = []
-        N = self.num_big_cap
+        N = self.N
         for l in range(int(math.ceil(N/2 - np.abs(self.flux)))+1):
             guess_pos = np.array([np.pi*(l+self.flux)/N for j in range(self.num_deg_freedom)])
             guess_neg = np.array([np.pi*(-l+self.flux)/N for j in range(self.num_deg_freedom)])

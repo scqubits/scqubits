@@ -10,6 +10,7 @@ import scqubits.utils.plotting as plot
 from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import WaveFunctionOnGrid
+import scqubits.utils.file_io_serializers as serializers
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 # The VCHOS method (tight binding) allowing for the diagonalization of systems 
@@ -27,7 +28,7 @@ from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 # find and sort all inequivalent minima (based on the value of the 
 # potential at that minimum), respectively. 
 
-class VCHOS(QubitBaseClass):
+class VCHOS(QubitBaseClass, serializers.Serializable):
     def __init__(self):
         pass
     
