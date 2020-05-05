@@ -48,7 +48,7 @@ master_doc = 'index'
 
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+# templates_path = ['_templates']
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -59,13 +59,15 @@ exclude_patterns = ['_build', '**.ipynb_checkpoints']
 # -- Options for HTML output -------------------------------------------------
 
 # These folders are copied to the documentation's HTML output
-# html_static_path = ['_static']
+html_static_path = ['_static']
 
 # These paths are either relative to html_static_path
 # or fully qualified paths (eg. https://...)
-# html_css_files = [
-#     'css/custom.css',
-# ]
+html_context = {
+    'css_files': [
+        '_static/theme_overrides.css',  # override wide tables in RTD theme
+        ],
+     }
 
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for

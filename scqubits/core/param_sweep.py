@@ -20,10 +20,11 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.hilbert_space as hspace
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
+import scqubits.io_utils.fileio as io
+import scqubits.io_utils.fileio_qutip as qutip_serializer
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
-import scqubits.utils.file_io as io
-import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.misc as utils
 
 if settings.IN_IPYTHON:
@@ -121,7 +122,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
     hilbertspace: HilbertSpace
         collects all data specifying the Hilbert space of interest
     subsys_update_list: list or iterable
-        list of subsystems in the Hilbert space which get modified when the external parameter changes
+        list of subsys_list in the Hilbert space which get modified when the external parameter changes
     update_hilbertspace: function
         update_hilbertspace(param_val) specifies how a change in the external parameter affects
         the Hilbert space components
@@ -146,6 +147,8 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         self.subsys_update_list = tuple(subsys_update_list)
         self.update_hilbertspace = update_hilbertspace
         self.num_cpus = num_cpus
+
+        self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
         self._lookup = None
         self._bare_hamiltonian_constant = None
@@ -201,7 +204,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         with utils.InfoBar("Parallel compute bare eigensys [num_cpus={}]".format(self.num_cpus), self.num_cpus):
             bare_eigendata_varying = list(
                 target_map(self._compute_bare_spectrum_varying,
-                           tqdm(self.param_vals, desc='Bare spectra', leave=False, disable=(self.num_cpus > 1)))
+                           tqdm(self.param_vals, desc='Bare spectra', leave=False, disable=self.tqdm_disabled))
             )
         bare_specdata_list = self._recast_bare_eigendata(bare_eigendata_constant, bare_eigendata_varying)
         del bare_eigendata_constant
@@ -223,7 +226,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
 
         with utils.InfoBar("Parallel compute dressed eigensys [num_cpus={}]".format(self.num_cpus), self.num_cpus):
             dressed_eigendata = list(target_map(func, tqdm(param_indices, desc='Dressed spectrum', leave=False,
-                                                           disable=(self.num_cpus > 1))))
+                                                           disable=self.tqdm_disabled)))
         dressed_specdata = self._recast_dressed_eigendata(dressed_eigendata)
         del dressed_eigendata
         return dressed_specdata
@@ -272,7 +275,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         energy_table = np.empty(shape=(self.param_count, evals_count), dtype=np.float_)
         state_table = []  # for dressed states, entries are Qobj
         for j in range(self.param_count):
-            energy_table[j] = dressed_eigendata[j][0]
+            energy_table[j] = np.real_if_close(dressed_eigendata[j][0])
             state_table.append(dressed_eigendata[j][1])
         specdata = storage.SpectrumData(energy_table, system_params={}, param_name=self.param_name,
                                         param_vals=self.param_vals, state_table=state_table)
@@ -283,7 +286,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         Returns
         -------
         qutip.Qobj operator
-            composite Hamiltonian composed of bare Hamiltonians of subsystems independent of the external parameter
+            composite Hamiltonian composed of bare Hamiltonians of subsys_list independent of the external parameter
         """
         static_hamiltonian = 0
         for index, subsys in enumerate(self._hilbertspace):
@@ -362,7 +365,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
             hamiltonian += self._hilbertspace.interactionterm_hamiltonian(interaction_term,
                                                                           evecs1=evecs1, evecs2=evecs2)
         evals, evecs = hamiltonian.eigenstates(eigvals=self.evals_count)
-        evecs = evecs.view(serializers.QutipEigenstates)
+        evecs = evecs.view(qutip_serializer.QutipEigenstates)
         return evals, evecs
 
     def _lookup_bare_eigenstates(self, param_index, subsys, bare_specdata_list):

@@ -41,6 +41,13 @@ An instance of the Zero-Pi qubit is created as follows::
 Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`. In the above example,
 the disorder parameters ``dEJ`` and ``dCJ`` are not specified, and hence take on the default value zero (no disorder).
 
+From within Jupyter notebook, a fluxonium instance can alternatively be created with::
+
+   zero_pi = scqubits.ZeroPi.create()
+
+This functionality is  enabled if the ``ipywidgets`` package is installed, and displays GUI forms prompting for
+the entry of the required parameters.
+
 
 Calculational methods related to Hamiltonian and energy spectra
 ---------------------------------------------------------------

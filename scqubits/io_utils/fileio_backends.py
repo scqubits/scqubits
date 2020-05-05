@@ -1,4 +1,4 @@
-# file_io_backends.py
+# fileio_backends.py
 #
 # This file is part of scqubits.
 #
@@ -26,7 +26,7 @@ except ImportError:
 else:
     _HAS_H5PY = True
 
-import scqubits.utils.file_io as io
+import scqubits.io_utils.fileio as io
 import scqubits.utils.misc as utils
 
 
@@ -62,10 +62,14 @@ class IOWriter(ABC):
 
 
 class H5Writer(IOWriter):
+    """Writes IOData to a custom-format h5 file"""
     def write_attributes(self, h5file_group):
         """
-        Attribute data consists of those __init__ parameters that are of type str or numerical, and are directly written
-        into h5py.attributes
+        Attribute data consists of
+
+         1. `__init__` parameters that are of type str or numerical. These are directly written into `h5py.Group.attrs`
+         2. lists are stored under `<h5py.Group>/__lists`
+         3. dicts are stored under `<h5py.Group>/__dicts`
 
         Parameters
         ----------
@@ -86,10 +90,26 @@ class H5Writer(IOWriter):
                 h5file_group.attrs[attr_name] = attr_value
 
     def write_ndarrays(self, h5file_group):
+        """
+        Writes ndarray (float or complex) data contained in `self.iodata` to the provided `h5py.Group` as a
+        `h5py.Dataset`, using gzip compression.
+
+        Parameters
+        ----------
+        h5file_group: h5py.Group
+        """
         for name, array in self.io_data.ndarrays.items():
             h5file_group.create_dataset(name, data=array, dtype=array.dtype, compression="gzip")
 
     def write_objects(self, h5file_group):
+        """
+        Writes data representing a Python object other than ndarray, list and dict, contained in `self.iodata` to the
+        provided `h5py.Group`  und `<h5py.Group>/__objects`.
+
+        Parameters
+        ----------
+        h5file_group: h5py.Group
+        """
         h5file_group = h5file_group.create_group("__objects")
         for obj_name in self.io_data.objects.keys():
             new_h5group = h5file_group.create_group(obj_name)
@@ -98,7 +118,8 @@ class H5Writer(IOWriter):
     @utils.Required(h5py=_HAS_H5PY)
     def to_file(self, io_data, file_handle=None):
         """
-        Takes the serialized IOData and writes it to the given h5py.Group
+        Takes the serialized IOData and writes it either to a new h5 file with file name given by `self.filename` to to
+        the given h5py.Group of an open h5 file.
 
         Parameters
         ----------
@@ -117,6 +138,14 @@ class H5Writer(IOWriter):
 
 
 class H5Reader:
+    """
+    Enables reading h5 files generated with scqubits.
+
+    Parameters
+    ----------
+    filename: str
+    file_handle: h5py.Group, optional
+    """
     def __init__(self, filename, file_handle=None):
         self.filename = filename
         self.io_data = None
@@ -124,9 +153,33 @@ class H5Reader:
 
     @staticmethod
     def h5_attrs_to_dict(h5_attrs):
+        """
+        Converts h5 attribute data to a Python dictionary.
+
+        Parameters
+        ----------
+        h5_attrs: h5py.AttributeManager
+            as obtained by accessing `<h5py.Group>.attrs`
+
+        Returns
+        -------
+        dict [str, str or Number]
+        """
         return {attr_name: attr_value for attr_name, attr_value in h5_attrs.items()}
 
     def read_attributes(self, h5file_group):
+        """
+        Read data from h5 file group that is stored directly as `<h5py.Group>.attrs`, or saved in subgroups titled
+        `<h5py.Group>/__lists` and `<h5py.Group>/__dicts`.
+
+        Parameters
+        ----------
+        h5file_group: h5py.Group
+
+        Returns
+        -------
+        dict [str, dict or list]
+        """
         attributes = self.h5_attrs_to_dict(h5file_group.attrs)
         if '__dicts' in h5file_group:
             for dict_name in h5file_group['__dicts']:
@@ -137,10 +190,32 @@ class H5Reader:
         return attributes
 
     def read_ndarrays(self, h5file_group):
+        """
+        Read numpy array data from h5 file group.
+
+        Parameters
+        ----------
+        h5file_group: h5py.Group
+
+        Returns
+        -------
+        dict [str, ndarray]
+        """
         ndarrays = {name: array[:] for name, array in h5file_group.items() if isinstance(array, h5py.Dataset)}
         return ndarrays
 
     def read_objects(self, h5file_group):
+        """
+        Read data from the given h5 file group that represents a Python object other than an ndarray, list, or dict.
+
+        Parameters
+        ----------
+        h5file_group: h5py.Group
+
+        Returns
+        -------
+        dict [str, IOData]
+        """
         inner_objects = {}
         h5file_group = h5file_group["__objects"]
         for obj_name in h5file_group:
@@ -150,6 +225,9 @@ class H5Reader:
     @utils.Required(h5py=_HAS_H5PY)
     def from_file(self, filename, file_handle=None):
         """
+        Either opens a new h5 file for reading or accesses an already opened file via the given h5.Group handle. Reads
+        all data from the three categories of attributes (incl. lists and dicts), ndarrays, and objects.
+
         Parameters
         ----------
         filename: str
@@ -157,7 +235,7 @@ class H5Reader:
 
         Returns
         -------
-        class instance generated from file data
+        IOData
         """
         if file_handle is None:
             h5file_group = h5py.File(filename, 'r')
@@ -281,6 +359,15 @@ class CSVReader:
 
 
 def np_savetxt_3d(array3d, filename):
+    """
+    Helper function that splits a 3d numpy array into 2d slices for writing as csv data to a new file. Slices are
+    separated by a comment row `# New slice`.
+
+    Parameters
+    ----------
+    array3d: ndarray with ndim = 3
+    filename: str
+    """
     with open(filename, mode='w', newline='') as datafile:
         datafile.write('# Array shape: {0}\n'.format(array3d.shape))
         for data_slice in array3d:

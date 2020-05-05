@@ -30,6 +30,7 @@ jobs:
       python -m pip install --upgrade pip
     displayName: 'Upgrade pip'
   - script: |
+      pip install wheel
       pip install --upgrade cython
       pip install --upgrade numpy
       pip install --upgrade scipy
@@ -42,14 +43,20 @@ jobs:
       pip install pytest pytest-azurepipelines
       pip install pathos
       pip install .
+    displayName: 'Install scqubits'
+  - script: |
       pytest -v --pyargs scqubits
+    displayName: 'Pytest: single-core'
+  - script: |
       export OMP_NUM_THREADS=1
       export OPENBLAS_NUM_THREADS=1
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Install scqubits and run pytest'
+    displayName: 'Pytest: multiprocessing'
+#
+#
 - job: Windows
   pool:
     vmImage: 'windows-latest'
@@ -70,6 +77,7 @@ jobs:
       python -m pip install --upgrade pip
     displayName: 'Upgrade pip'
   - script: |
+      pip install wheel
       pip install --upgrade cython
       pip install --upgrade numpy
       pip install --upgrade scipy
@@ -82,17 +90,23 @@ jobs:
       pip install pytest pytest-azurepipelines
       pip install pathos
       pip install .
+    displayName: 'Install scqubits'
+  - script: |
       pytest -v --pyargs scqubits
-      set OMP_NUM_THREADS=1
-      set OPENBLAS_NUM_THREADS=1
-      set MKL_NUM_THREADS=1
-      set VECLIB_MAXIMUM_THREADS=1
-      set NUMEXPR_NUM_THREADS=1
+    displayName: 'Pytest: single-core'
+  - script: |
+      export OMP_NUM_THREADS=1
+      export OPENBLAS_NUM_THREADS=1
+      export MKL_NUM_THREADS=1
+      export VECLIB_MAXIMUM_THREADS=1
+      export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Install scqubits and run pytest'
+    displayName: 'Pytest: multiprocessing'
+#
+#
 - job: macOS
   pool:
-    vmImage: macOS-10.13
+    vmImage: "macos-latest"
   strategy:
     matrix:
       Python36:
@@ -110,9 +124,10 @@ jobs:
       python -m pip install --upgrade pip
     displayName: 'Upgrade pip'
   - script: |
+      pip install wheel
       pip install --upgrade cython
-      pip install --upgrade numpy
-      pip install --upgrade scipy
+      pip install scipy==1.1.0
+      pip install qutip==4.3.1
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
       pip install -r requirements.txt
@@ -122,11 +137,15 @@ jobs:
       pip install pytest pytest-azurepipelines
       pip install pathos
       pip install .
+    displayName: 'Install scqubits'
+  - script: |
       pytest -v --pyargs scqubits
+    displayName: 'Pytest: single-core'
+  - script: |
       export OMP_NUM_THREADS=1
       export OPENBLAS_NUM_THREADS=1
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Install scqubits and run pytest'
+    displayName: 'Pytest: multiprocessing'

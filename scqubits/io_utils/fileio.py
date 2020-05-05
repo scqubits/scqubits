@@ -1,4 +1,4 @@
-# file_io.py
+# io_utils.py
 #
 # This file is part of scqubits.
 #
@@ -14,9 +14,8 @@ Helper routines for writing data to files.
 
 import os
 
-import scqubits
 import scqubits.core.constants as const
-import scqubits.utils.file_io_serializers as io_serializers
+import scqubits.io_utils.fileio_serializers as io_serializers
 
 
 def serialize(the_object):
@@ -25,7 +24,7 @@ def serialize(the_object):
 
     Parameters
     ----------
-    the_object: serializable class instance
+    the_object: Serializable
 
     Returns
     -------
@@ -45,6 +44,9 @@ def serialize(the_object):
 def deserialize(iodata):
     """
     Turn IOData back into a Python object of the appropriate kind.
+    An object is deemed deserializable if
+    1) it is recorded in SERIALIZABLE_REGISTRY and has a `.deserialize` method
+    2) there exists a function `file_io_serializers.<typename>_deserialize`
 
     Parameters
     ----------
@@ -55,10 +57,9 @@ def deserialize(iodata):
     class instance
     """
     typename = iodata.typename
-    if hasattr(scqubits, iodata.typename):
-        cls = getattr(scqubits, iodata.typename)
-        if hasattr(cls, 'deserialize'):
-            return cls.deserialize(iodata)
+    if typename in io_serializers.SERIALIZABLE_REGISTRY:
+        cls = io_serializers.SERIALIZABLE_REGISTRY[typename]
+        return cls.deserialize(iodata)
 
     if hasattr(io_serializers, typename + '_deserialize'):
         deserialize_method = getattr(io_serializers, typename + '_deserialize')
@@ -122,7 +123,7 @@ class FileIOFactory:
         -------
         IOWriter
         """
-        import scqubits.utils.file_io_backends as io_backends
+        import scqubits.io_utils.fileio_backends as io_backends
         _, suffix = os.path.splitext(file_name)
         if suffix == '.csv':
             return io_backends.CSVWriter(file_name)
@@ -131,7 +132,7 @@ class FileIOFactory:
         raise Exception("Extension '{}' of given file name '{}' does not match any supported "
                         "file type: {}".format(suffix, file_name, const.FILE_TYPES))
 
-    def get_reader(self, file_name, file_handle=None):
+    def get_reader(self, file_name, file_handle=None, get_external_reader=False):
         """
         Based on the extension of the provided file name, return the appropriate reader engine.
 
@@ -139,12 +140,16 @@ class FileIOFactory:
         ----------
         file_name: str
         file_handle: h5py.Group, optional
+        get_external_reader: book, optional
 
         Returns
         -------
         H5Reader or CSVReader
         """
-        import scqubits.utils.file_io_backends as io_backends
+        if get_external_reader:
+            return get_external_reader(file_name, file_handle=file_handle)
+
+        import scqubits.io_utils.fileio_backends as io_backends
         _, suffix = os.path.splitext(file_name)
         if suffix == '.csv':
             return io_backends.CSVReader()

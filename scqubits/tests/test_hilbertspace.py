@@ -17,7 +17,7 @@ import scqubits as qubit
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.sweep_generators import generate_diffspec_sweep
-from scqubits.utils.spectrum_utils import get_matrixelement_table, absorption_spectrum
+from scqubits.utils.spectrum_utils import absorption_spectrum, get_matrixelement_table
 
 
 @pytest.mark.usefixtures("num_cpus")
@@ -241,7 +241,7 @@ class TestParameterSweep:
         param_name = 'flux'  # name of varying external parameter
         param_vals = np.linspace(-0.1, 0.6, 100)  # parameter values
 
-        subsys_update_list = [CPB1]  # list of HilbertSpace subsystems which are affected by parameter changes
+        subsys_update_list = [CPB1]  # list of HilbertSpace subsys_list which are affected by parameter changes
 
         def update_hilbertspace(param_val):  # function that shows how Hilbert space
             # components are updated

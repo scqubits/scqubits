@@ -13,6 +13,7 @@ Provides the base classes for qubits
 """
 
 import functools
+import inspect
 from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
@@ -21,16 +22,17 @@ import scipy as sp
 
 import scqubits.core.constants as constants
 import scqubits.settings as settings
+import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData
 from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
 from scqubits.utils.cpu_switch import get_map_method
-from scqubits.utils.misc import process_which, InfoBar, drop_private_keys
+from scqubits.utils.misc import InfoBar, drop_private_keys, process_which
 from scqubits.utils.plot_defaults import set_scaling
-from scqubits.utils.spectrum_utils import (order_eigensystem, get_matrixelement_table, standardize_sign,
-                                           recast_esys_mapdata)
+from scqubits.utils.spectrum_utils import (get_matrixelement_table, order_eigensystem, recast_esys_mapdata,
+                                           standardize_sign)
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -38,14 +40,31 @@ else:
     from tqdm import tqdm
 
 
-# —Generic quantum system container and Qubit base class————————————————————————————————————————————————————————————————
+# —Generic quantum system container and Qubit base class—————————————————————————————————
 
-class QuantumSystem(DispatchClient):
+class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     truncated_dim: int
+    _image_filename: str
     _evec_dtype: type
     _sys_type: str
+
+    subclasses = []
+
+    def __init_subclass__(cls, **kwargs):
+        """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
+        super().__init_subclass__(**kwargs)
+        if not inspect.isabstract(cls):
+            cls.subclasses.append(cls)
+
+    def __repr__(self):
+        if hasattr(self, '_init_params'):
+            init_names = self._init_params
+        else:
+            init_names = list(inspect.signature(self.__init__).parameters.keys())[1:]
+        init_dict = {name: getattr(self, name) for name in init_names}
+        return type(self).__name__ + f'(**{init_dict!r})'
 
     def __str__(self):
         output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
@@ -57,6 +76,45 @@ class QuantumSystem(DispatchClient):
     @abstractmethod
     def hilbertdim(self):
         """Returns dimension of Hilbert space"""
+
+    @classmethod
+    def create(cls):
+        """Use ipywidgets to create a new class instance"""
+        init_params = cls.default_params()
+        instance = cls(**init_params)
+        instance.widget()
+        return instance
+
+    def widget(self, params=None):
+        """Use ipywidgets to modify parameters of class instance"""
+        init_params = params or self.get_initdata()
+        ui.create_widget(self.set_params, init_params, image_filename=self._image_filename)
+
+    @abstractmethod
+    def default_params(self):
+        """Return dictionary with default parameter values for initialization of class instance"""
+
+    def set_params(self, **kwargs):
+        """
+        Set new parameters through the provided dictionary.
+
+        Parameters
+        ----------
+        kwargs: dict (str: Number)
+        """
+        for param_name, param_val in kwargs.items():
+            setattr(self, param_name, param_val)
+
+    @staticmethod
+    @abstractmethod
+    def nonfit_params():
+        """Return list of initialization parameter names that are not treated as fit parameters"""
+
+    def fit_params(self):
+        """Return list of initialization parameter names that are possible fit parameters"""
+        all_params = self.default_params().keys()
+        nonfit = self.nonfit_params()
+        return [param for param in all_params if param not in nonfit]
 
 
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -200,6 +258,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         if get_eigenstates:
             func = functools.partial(self._esys_for_paramval, param_name=param_name, evals_count=evals_count)
             with InfoBar("Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus), num_cpus):
+                # Note that it is useful here that the outermost eigenstate object is a list, 
+                # as for certain applications the necessary hilbert space dimension can vary with paramvals
                 eigensystem_mapdata = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
                                                                  disable=(num_cpus > 1))))
             eigenvalue_table, eigenstate_table = recast_esys_mapdata(eigensystem_mapdata)
@@ -284,7 +344,8 @@ class QubitBaseClass(QuantumSystem, ABC):
                                                   subtract_ground=subtract_ground, num_cpus=num_cpus)
         return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
 
-    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', **kwargs):
+    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', show_numbers=False, show3d=True,
+                            **kwargs):
         """Plots matrix elements for `operator`, given as a string referring to a class method
         that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
         for the charge operator `n` is obtained by `trm.plot_matrixelements('n')`.
@@ -300,6 +361,10 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of desired matrix elements, starting with ground state (default value = 6)
         mode: str, optional
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
+        show_numbers: bool, optional
+            determines whether matrix element values are printed on top of the plot (default: False)
+        show3d: bool, optional
+            whether to show a 3d skyscraper plot of the matrix alongside the 2d plot (default: True)
         **kwargs: dict
             standard plotting option (see separate documentation)
 
@@ -308,7 +373,9 @@ class QubitBaseClass(QuantumSystem, ABC):
         Figure, Axes
         """
         matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
-        return plot.matrix(matrixelem_array, mode, **kwargs)
+        if not show3d:
+            return plot.matrix2d(matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs)
+        return plot.matrix(matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs)
 
     def plot_matelem_vs_paramvals(self, operator, param_name, param_vals,
                                   select_elems=4, mode='abs', num_cpus=settings.NUM_CPUS, **kwargs):

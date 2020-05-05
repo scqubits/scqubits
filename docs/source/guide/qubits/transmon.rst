@@ -25,6 +25,13 @@ An instance of the transmon qubit is initialized as follows::
                                  ng=0.3,
                                  ncut=31)
 
+From within Jupyter notebook, a transmon instance can alternatively be created with::
+
+   transmon = scqubits.Transmon.create()
+
+This functionality is  enabled if the ``ipywidgets`` package is installed, and displays GUI forms prompting for
+the entry of the required parameters.
+
 Calculational methods related to Hamiltonian and energy spectra
 ---------------------------------------------------------------
 

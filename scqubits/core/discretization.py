@@ -14,7 +14,7 @@ from scipy import sparse
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.misc as utils
 
 
@@ -39,6 +39,10 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         self.min_val = min_val
         self.max_val = max_val
         self.pt_count = pt_count
+
+    def __repr__(self):
+        init_dict = self.get_initdata()
+        return type(self).__name__ + f'({init_dict!r})'
 
     def __str__(self):
         output = '    Grid1d ......'
