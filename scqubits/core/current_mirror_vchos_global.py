@@ -53,3 +53,23 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
     def hilbertdim(self):
         return len(self.sorted_minima())*len(self.tag_list)
     
+    @staticmethod
+    def default_params():
+        return {
+            'N': 3,
+            'ECB': 0.2,
+            'ECJ': 20.0/2.7,
+            'ECg': 20.0,
+            'EJlist': np.array(5*[18.95]),
+            'nglist': np.array(5*[0.0]),
+            'flux': 0.0,
+            'kmax': 1,
+            'global_exc' : 2,
+            'squeezing' : False,
+            'truncated_dim': 6
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['N', 'nglist', 'flux', 'kmax', 'global_exc', 'truncated_dim']
+    

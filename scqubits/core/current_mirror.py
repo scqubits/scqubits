@@ -31,6 +31,24 @@ class CurrentMirror(QubitBaseClass):
         
         self._basic_operators(self.ncut, self.num_deg_freedom, np.complex_)
         self._evec_dtype = np.complex_
+        
+    @staticmethod
+    def default_params():
+        return {
+            'N': 3,
+            'ECB': 0.2,
+            'ECJ': 20.0/2.7,
+            'ECg': 20.0,
+            'EJlist': np.array(5*[18.95]),
+            'nglist': np.array(5*[0.0]),
+            'flux': 0.0,
+            'ncut' : 10,
+            'truncated_dim': 6
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['N', 'nglist', 'flux','ncut', 'truncated_dim']
 
     def build_capacitance_matrix(self):
         N = self.num_big_cap

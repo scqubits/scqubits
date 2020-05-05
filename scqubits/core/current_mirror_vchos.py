@@ -46,6 +46,26 @@ class CurrentMirrorVCHOS(VCHOS):
         self._evec_dtype = np.complex_
         self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
         self.truncated_dim = truncated_dim
+        
+    @staticmethod
+    def default_params():
+        return {
+            'N': 3,
+            'ECB': 0.2,
+            'ECJ': 20.0/2.7,
+            'ECg': 20.0,
+            'EJlist': np.array(5*[18.95]),
+            'nglist': np.array(5*[0.0]),
+            'flux': 0.0,
+            'kmax': 1,
+            'num_exc' : 2,
+            'squeezing' : False,
+            'truncated_dim': 6
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['N', 'nglist', 'flux', 'kmax', 'num_exc', 'truncated_dim']
 
     def build_capacitance_matrix(self):
         N = self.N

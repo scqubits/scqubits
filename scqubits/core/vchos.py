@@ -10,7 +10,7 @@ import scqubits.utils.plotting as plot
 from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import WaveFunctionOnGrid
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 # The VCHOS method (tight binding) allowing for the diagonalization of systems 

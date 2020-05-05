@@ -33,17 +33,8 @@ from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep, StoredSweep
-<<<<<<< HEAD
-from scqubits.core.spec_lookup import SpectrumLookup
-from scqubits.core.storage import DataStore, SpectrumData
-from scqubits.core.transmon import Transmon
-from scqubits.core.transmon_vchos import TransmonVCHOS
-from scqubits.core.transmon_vchos_unordered import TransmonVCHOSUnordered
-
-=======
 from scqubits.core.storage import SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
->>>>>>> master
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
 # file IO
