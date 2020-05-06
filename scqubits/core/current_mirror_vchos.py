@@ -2,18 +2,10 @@ import math
 
 import numpy as np
 import scipy as sp
-import itertools
 from scipy.optimize import minimize
 import scipy.constants as const
-from scipy.special import hermite
-from scipy.linalg import LinAlgError
 
-import scqubits.core.constants as constants
-import scqubits.utils.plotting as plot
-from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.vchos import VCHOS
-from scqubits.core.storage import WaveFunctionOnGrid
-from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 # Current Mirror using VCHOS. Truncation scheme used is defining a cutoff num_exc
 # of the number of excitations kept for each mode. The dimension of the hilbert space
@@ -44,7 +36,6 @@ class CurrentMirrorVCHOS(VCHOS):
         self.num_deg_freedom = 2*N - 1
 
         self._evec_dtype = np.complex_
-        self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
         self.truncated_dim = truncated_dim
         
     @staticmethod

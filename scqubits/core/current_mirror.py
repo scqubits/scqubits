@@ -4,17 +4,14 @@ import scipy.sparse as sps
 import itertools
 import scipy.constants as const
 
-import scqubits.core.constants as constants
-import scqubits.utils.plotting as plot
-from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.core.storage import WaveFunctionOnGrid
-from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
+import scqubits.io_utils.fileio_serializers as serializers
+from scqubits.utils.spectrum_utils import order_eigensystem
 
-class CurrentMirror(QubitBaseClass):
+class CurrentMirror(QubitBaseClass, serializers.Serializable):
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, 
                  flux, ncut, truncated_dim=None):
-        self.num_big_cap = N
+        self.N = N
         self.num_deg_freedom = 2*N - 1
         self.ECB = ECB
         self.ECJ = ECJ
@@ -51,7 +48,7 @@ class CurrentMirror(QubitBaseClass):
         return ['N', 'nglist', 'flux','ncut', 'truncated_dim']
 
     def build_capacitance_matrix(self):
-        N = self.num_big_cap
+        N = self.N
         CB = self.e**2 / (2.*self.ECB)
         CJ = self.e**2 / (2.*self.ECJ)
         Cg = self.e**2 / (2.*self.ECg)
@@ -70,7 +67,7 @@ class CurrentMirror(QubitBaseClass):
         return Cmat[0:-1, 0:-1]
     
     def _build_V_m(self):
-        N = self.num_big_cap
+        N = self.N
         V_m = np.diagflat([-1 for j in range(2*N)], 0)
         V_m += np.diagflat([1 for j in range(2*N - 1)], 1)
         V_m[-1] = np.array([1 for j in range(2*N)])

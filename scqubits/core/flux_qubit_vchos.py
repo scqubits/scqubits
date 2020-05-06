@@ -1,17 +1,16 @@
+import os
+
 import numpy as np
 import scipy as sp
 import itertools
 from scipy.optimize import minimize
 import scipy.constants as const
-from scipy.special import hermite
-from scipy.linalg import LinAlgError
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
-from scqubits.core.discretization import GridSpec, Grid1d
-from scqubits.core.qubit_base import QubitBaseClass
+import scqubits.core.discretization as discretization
 from scqubits.core.vchos import VCHOS
-from scqubits.core.storage import WaveFunctionOnGrid
+import scqubits.core.storage as storage
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
@@ -38,7 +37,27 @@ class FluxQubitVCHOS(VCHOS):
         self.num_deg_freedom = 2
         
         self._evec_dtype = np.complex_
-        self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
+        self._default_grid = discretization.Grid1d(-6.5*np.pi, 6.5*np.pi, 651)    # for plotting in phi_j basis
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxqubitvchos.png')
+        
+    @staticmethod
+    def default_params():
+        return {
+            'ECJ': 1.0/10.0,
+            'ECg': 5.0,
+            'EJlist': np.array([1.0, 1.0, 0.8]),
+            'alpha' : 0.8,
+            'nglist': np.array(2*[0.0]),
+            'flux': 0.46,
+            'kmax' : 1,
+            'num_exc' : 4,
+            'squeezing' : False,
+            'truncated_dim': 6
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['alpha', 'nglist', 'kmax', 'num_exc', 'squeezing', 'truncated_dim']
     
     def build_capacitance_matrix(self):
         """Return the capacitance matrix"""
@@ -127,7 +146,8 @@ class FluxQubitVCHOS(VCHOS):
     
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """
-        Return a flux qubit wave function in phi1, phi2 basis
+        Return a flux qubit wave function in phi1, phi2 basis. Note that this implementation
+        does not include the effects of squeezing.
 
         Parameters
         ----------
@@ -135,10 +155,8 @@ class FluxQubitVCHOS(VCHOS):
             eigenvalues, eigenvectors
         which: int, optional
             index of desired wave function (default value = 0)
-        phi_range: tuple(float, float), optional
+        phi_grid: Grid1D object, optional
             used for setting a custom plot range for phi
-        phi_count: int, optional
-            number of points to use on grid in each direction
 
         Returns
         -------
@@ -149,15 +167,12 @@ class FluxQubitVCHOS(VCHOS):
             _, evecs = self.eigensys(evals_count)
         else:
             _, evecs = esys
-        phi_grid = self._try_defaults(phi_grid)
+        phi_grid = phi_grid or self._default_grid
         phi_vec = phi_grid.make_linspace()
-        zeta_vec = phi_grid.make_linspace()
-#        phi_vec = np.linspace(phi_grid.min_val, phi_grid.max_val, 10)
         
         minima_list = self.sorted_minima()
         num_minima = len(minima_list)
-        dim = self.hilbertdim()
-        num_deg_freedom = (self.num_exc+1)**2
+        total_num_states = int(self.hilbertdim()/num_minima)
         
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
@@ -165,23 +180,19 @@ class FluxQubitVCHOS(VCHOS):
         
         state_amplitudes_list = []
         
-        phi1_phi2_outer = np.outer(phi_vec, phi_vec)
-        wavefunc_amplitudes = np.zeros_like(phi1_phi2_outer)
+        wavefunc_amplitudes = np.zeros_like(np.outer(phi_vec, phi_vec))
         
         for i, minimum in enumerate(minima_list):
             klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
             jkvals = next(klist,-1)
             while jkvals != -1:
                 phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                phi1_s1_arg = (Xi_inv[0,0]*phik[0] - Xi_inv[0,0]*minimum[0])
-                phi2_s1_arg = (Xi_inv[0,1]*phik[1] - Xi_inv[0,1]*minimum[1])
-                phi1_s2_arg = (Xi_inv[1,0]*phik[0] - Xi_inv[1,0]*minimum[0])
-                phi2_s2_arg = (Xi_inv[1,1]*phik[1] - Xi_inv[1,1]*minimum[1])
-                state_amplitudes = np.real(np.reshape(evecs[i*num_deg_freedom : 
-                                                            (i+1)*num_deg_freedom, which],
+                phi1_s1_arg = Xi_inv[0,0]*(phik - minimum)[0]
+                phi2_s1_arg = Xi_inv[0,1]*(phik - minimum)[1]
+                phi1_s2_arg = Xi_inv[1,0]*(phik - minimum)[0]
+                phi2_s2_arg = Xi_inv[1,1]*(phik - minimum)[1]
+                state_amplitudes = np.real(np.reshape(evecs[i*total_num_states : (i+1)*total_num_states, which],
                                                       (self.num_exc+1, self.num_exc+1)))
-#                state_amplitudes = np.zeros_like(state_amplitudes)
-#                state_amplitudes[2,0] = 1.0
                 wavefunc_amplitudes += np.sum([state_amplitudes[s1, s2] * norm
                 * np.multiply(self.harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0,0]*phi_vec+phi1_s1_arg, 
                                                                           Xi_inv[0,1]*phi_vec+phi2_s1_arg)), 
@@ -191,12 +202,12 @@ class FluxQubitVCHOS(VCHOS):
                                                for s1 in range(self.num_exc+1)], axis=0).T #FIX .T NOT CORRECT
                 jkvals = next(klist,-1)
         
-        grid2d = GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+        grid2d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
                                       [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
     
         wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
 
-        return WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
+        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
     
    
     def plot_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs', zero_calibrate=True, **kwargs):

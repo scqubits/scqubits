@@ -1,17 +1,10 @@
 import numpy as np
 import scipy as sp
 import itertools
-from scipy.optimize import minimize
-import scipy.constants as const
-from scipy.special import hermite
 
-import scqubits.core.constants as constants
-import scqubits.utils.plotting as plot
-from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.core.storage import WaveFunctionOnGrid
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
+from scqubits.utils.spectrum_utils import order_eigensystem
 
 # The VCHOS method (tight binding) allowing for the diagonalization of systems 
 # with purely periodic potentials. This module assumes that the potential is

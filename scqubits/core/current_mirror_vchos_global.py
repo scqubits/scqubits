@@ -1,19 +1,7 @@
-import math
 import numpy as np
-import scipy as sp
-import itertools
-from scipy.optimize import minimize
-import scipy.constants as const
-from scipy.special import hermite
-from scipy.linalg import LinAlgError
 
-import scqubits.core.constants as constants
-import scqubits.utils.plotting as plot
-from scqubits.core.discretization import GridSpec, Grid1d
 from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS
 from scqubits.core.hashing import Hashing
-from scqubits.core.storage import WaveFunctionOnGrid
-from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 # Current Mirror using VCHOS with a global excitation number cutoff scheme. 
 # The dimension of the hilbert space is then m*\frac{(global_exc+2N-2)!}{global_exc!(2N-2)!},
@@ -27,6 +15,26 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
         CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, 
                                     kmax, num_exc=None, squeezing=squeezing, truncated_dim=truncated_dim)
         Hashing.__init__(self, num_deg_freedom=2*N-1, global_exc=global_exc)
+    
+    @staticmethod
+    def default_params():
+        return {
+            'N': 3,
+            'ECB': 0.2,
+            'ECJ': 20.0/2.7,
+            'ECg': 20.0,
+            'EJlist': np.array(5*[18.95]),
+            'nglist': np.array(5*[0.0]),
+            'flux': 0.0,
+            'kmax': 1,
+            'global_exc' : 2,
+            'squeezing' : False,
+            'truncated_dim': 6
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['N', 'nglist', 'flux', 'kmax', 'global_exc', 'truncated_dim']
         
     def a_operator(self, i):
         """
@@ -52,24 +60,4 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
         
     def hilbertdim(self):
         return len(self.sorted_minima())*len(self.tag_list)
-    
-    @staticmethod
-    def default_params():
-        return {
-            'N': 3,
-            'ECB': 0.2,
-            'ECJ': 20.0/2.7,
-            'ECg': 20.0,
-            'EJlist': np.array(5*[18.95]),
-            'nglist': np.array(5*[0.0]),
-            'flux': 0.0,
-            'kmax': 1,
-            'global_exc' : 2,
-            'squeezing' : False,
-            'truncated_dim': 6
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['N', 'nglist', 'flux', 'kmax', 'global_exc', 'truncated_dim']
     
