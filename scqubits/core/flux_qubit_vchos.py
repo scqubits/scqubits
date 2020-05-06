@@ -11,13 +11,37 @@ import scqubits.utils.plotting as plot
 import scqubits.core.discretization as discretization
 from scqubits.core.vchos import VCHOS
 import scqubits.core.storage as storage
-from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
+from scqubits.utils.spectrum_utils import standardize_phases
 
 
-#-Flux Qubit using VCHOS 
+# Flux Qubit using VCHOS
+
+def harm_osc_wavefunction(n, x):
+    """For given quantum number n=0,1,2,... return the value of the harmonic oscillator wave function
+    :math:`\\psi_n(x) = N H_n(x) \\exp(-x^2/2)`, N being the proper normalization factor. It is assumed
+    that the harmonic length has already been accounted for. Therefore that portion of the normalization
+    factor must be accounted for outside the function.
+
+    Parameters
+    ----------
+    n: int
+        index of wave function, n=0 is ground state
+    x: float or ndarray
+        coordinate(s) where wave function is evaluated
+
+    Returns
+    -------
+    float or ndarray
+        value(s) of harmonic oscillator wave function
+    """
+    return ((2.0 ** n * sp.special.gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25)
+            * sp.special.eval_hermite(n, x)
+            * np.exp(-x ** 2 / 2.))
+
 
 class FluxQubitVCHOS(VCHOS):
     def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, num_exc, squeezing=False, truncated_dim=None):
+        super().__init__()
         self.ECJ = ECJ
         self.ECg = ECg
         self.EJlist = EJlist
@@ -28,60 +52,60 @@ class FluxQubitVCHOS(VCHOS):
         self.num_exc = num_exc
         self.squeezing = squeezing
         self.truncated_dim = truncated_dim
-        self.hGHz = const.h * 10**9
-        self.e = np.sqrt(4.0*np.pi*const.alpha)
-        self.Z0 = 1. / (2*self.e)**2
-        self.Phi0 = 1. / (2*self.e)
-        #final term in potential is cos[(+1)\phi_1+(-1)\phi_2-2pi f]
-        self.boundary_coeffs = np.array([+1, -1]) 
+        self.hGHz = const.h * 10 ** 9
+        self.e = np.sqrt(4.0 * np.pi * const.alpha)
+        self.Z0 = 1. / (2 * self.e) ** 2
+        self.Phi0 = 1. / (2 * self.e)
+        # final term in potential is cos[(+1)\phi_1+(-1)\phi_2-2pi f]
+        self.boundary_coeffs = np.array([+1, -1])
         self.num_deg_freedom = 2
-        
+
         self._evec_dtype = np.complex_
-        self._default_grid = discretization.Grid1d(-6.5*np.pi, 6.5*np.pi, 651)    # for plotting in phi_j basis
+        self._default_grid = discretization.Grid1d(-6.5 * np.pi, 6.5 * np.pi, 651)  # for plotting in phi_j basis
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxqubitvchos.png')
-        
+
     @staticmethod
     def default_params():
         return {
-            'ECJ': 1.0/10.0,
+            'ECJ': 1.0 / 10.0,
             'ECg': 5.0,
             'EJlist': np.array([1.0, 1.0, 0.8]),
-            'alpha' : 0.8,
-            'nglist': np.array(2*[0.0]),
+            'alpha': 0.8,
+            'nglist': np.array(2 * [0.0]),
             'flux': 0.46,
-            'kmax' : 1,
-            'num_exc' : 4,
-            'squeezing' : False,
+            'kmax': 1,
+            'num_exc': 4,
+            'squeezing': False,
             'truncated_dim': 6
         }
 
     @staticmethod
     def nonfit_params():
         return ['alpha', 'nglist', 'kmax', 'num_exc', 'squeezing', 'truncated_dim']
-    
+
     def build_capacitance_matrix(self):
         """Return the capacitance matrix"""
         Cmat = np.zeros((self.num_deg_freedom, self.num_deg_freedom))
-                
-        CJ = self.e**2 / (2.*self.ECJ)
-        Cg = self.e**2 / (2.*self.ECg)
-        
-        Cmat[0, 0] = CJ + self.alpha*CJ + Cg
-        Cmat[1, 1] = CJ + self.alpha*CJ + Cg
-        Cmat[0, 1] = -self.alpha*CJ
-        Cmat[1, 0] = -self.alpha*CJ
-        
+
+        CJ = self.e ** 2 / (2. * self.ECJ)
+        Cg = self.e ** 2 / (2. * self.ECg)
+
+        Cmat[0, 0] = CJ + self.alpha * CJ + Cg
+        Cmat[1, 1] = CJ + self.alpha * CJ + Cg
+        Cmat[0, 1] = -self.alpha * CJ
+        Cmat[1, 0] = -self.alpha * CJ
+
         return Cmat
-    
+
     def build_EC_matrix(self):
         """Return the charging energy matrix"""
         Cmat = self.build_capacitance_matrix()
-        return  0.5 * self.e**2 * sp.linalg.inv(Cmat)
-    
+        return 0.5 * self.e ** 2 * sp.linalg.inv(Cmat)
+
     def hilbertdim(self):
         """Return N if the size of the Hamiltonian matrix is NxN"""
-        return len(self.sorted_minima())*(self.num_exc+1)**2
-    
+        return len(self.sorted_minima()) * (self.num_exc + 1) ** 2
+
     def _check_if_new_minima(self, new_minima, minima_holder):
         """
         Helper function for find_minima, checking if minima is
@@ -91,17 +115,17 @@ class FluxQubitVCHOS(VCHOS):
         new_minima_bool = True
         for minima in minima_holder:
             diff_array = minima - new_minima
-            diff_array_reduced = np.array([np.mod(x,2*np.pi) for x in diff_array])
+            diff_array_reduced = np.array([np.mod(x, 2 * np.pi) for x in diff_array])
             elem_bool = True
             for elem in diff_array_reduced:
                 # if every element is zero or 2pi, then we have a repeated minima
-                elem_bool = elem_bool and (np.allclose(elem,0.0,atol=1e-3) 
-                                           or np.allclose(elem,2*np.pi,atol=1e-3))
+                elem_bool = elem_bool and (np.allclose(elem, 0.0, atol=1e-3)
+                                           or np.allclose(elem, 2 * np.pi, atol=1e-3))
             if elem_bool:
                 new_minima_bool = False
                 break
         return new_minima_bool
-    
+
     def _ramp(self, k, minima_holder):
         """
         Helper function for find_minima, performing the ramp that
@@ -109,41 +133,40 @@ class FluxQubitVCHOS(VCHOS):
         
         [0] PRB ...
         """
-        guess = np.array([1.15*2.0*np.pi*k/3.0,2.0*np.pi*k/3.0])
+        guess = np.array([1.15 * 2.0 * np.pi * k / 3.0, 2.0 * np.pi * k / 3.0])
         result = minimize(self.potential, guess)
         new_minima = self._check_if_new_minima(result.x, minima_holder)
         if new_minima:
-            minima_holder.append(np.array([np.mod(elem,2*np.pi) for elem in result.x]))
-        return (minima_holder, new_minima)
-    
+            minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result.x]))
+        return minima_holder, new_minima
+
     def find_minima(self):
         """
         Index all minima in the variable space of phi1 and phi2
         """
         minima_holder = []
         if self.flux == 0.5:
-            guess = np.array([0.15,0.1])
+            guess = np.array([0.15, 0.1])
         else:
-            guess = np.array([0.0,0.0])
-        result = minimize(self.potential,guess)
-        minima_holder.append(np.array([np.mod(elem,2*np.pi) for elem in result.x]))
-        k = 0
-        for k in range(1,4):
+            guess = np.array([0.0, 0.0])
+        result = minimize(self.potential, guess)
+        minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result.x]))
+        for k in range(1, 4):
             (minima_holder, new_minima_positive) = self._ramp(k, minima_holder)
             (minima_holder, new_minima_negative) = self._ramp(-k, minima_holder)
             if not (new_minima_positive and new_minima_negative):
                 break
-        return(minima_holder)
-    
+        return minima_holder
+
     def sorted_minima(self):
         """Sort the minima based on the value of the potential at the minima """
         minima_holder = self.find_minima()
-        value_of_potential = np.array([self.potential(minima_holder[x]) 
+        value_of_potential = np.array([self.potential(minima_holder[x])
                                        for x in range(len(minima_holder))])
-        sorted_minima_holder = np.array([x for _, x in 
+        sorted_minima_holder = np.array([x for _, x in
                                          sorted(zip(value_of_potential, minima_holder))])
         return sorted_minima_holder
-    
+
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """
         Return a flux qubit wave function in phi1, phi2 basis. Note that this implementation
@@ -169,47 +192,45 @@ class FluxQubitVCHOS(VCHOS):
             _, evecs = esys
         phi_grid = phi_grid or self._default_grid
         phi_vec = phi_grid.make_linspace()
-        
+
         minima_list = self.sorted_minima()
         num_minima = len(minima_list)
-        total_num_states = int(self.hilbertdim()/num_minima)
-        
+        total_num_states = int(self.hilbertdim() / num_minima)
+
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
-        norm = np.sqrt(np.abs(np.linalg.det(Xi)))**(-1)
-        
-        state_amplitudes_list = []
-        
+        norm = np.sqrt(np.abs(np.linalg.det(Xi))) ** (-1)
+
         wavefunc_amplitudes = np.zeros_like(np.outer(phi_vec, phi_vec))
-        
+
         for i, minimum in enumerate(minima_list):
             klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-            jkvals = next(klist,-1)
+            jkvals = next(klist, -1)
             while jkvals != -1:
-                phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
-                phi1_s1_arg = Xi_inv[0,0]*(phik - minimum)[0]
-                phi2_s1_arg = Xi_inv[0,1]*(phik - minimum)[1]
-                phi1_s2_arg = Xi_inv[1,0]*(phik - minimum)[0]
-                phi2_s2_arg = Xi_inv[1,1]*(phik - minimum)[1]
-                state_amplitudes = np.real(np.reshape(evecs[i*total_num_states : (i+1)*total_num_states, which],
-                                                      (self.num_exc+1, self.num_exc+1)))
+                phik = 2.0 * np.pi * np.array([jkvals[0], jkvals[1]])
+                phi1_s1_arg = Xi_inv[0, 0] * (phik - minimum)[0]
+                phi2_s1_arg = Xi_inv[0, 1] * (phik - minimum)[1]
+                phi1_s2_arg = Xi_inv[1, 0] * (phik - minimum)[0]
+                phi2_s2_arg = Xi_inv[1, 1] * (phik - minimum)[1]
+                state_amplitudes = np.real(np.reshape(evecs[i * total_num_states: (i + 1) * total_num_states, which],
+                                                      (self.num_exc + 1, self.num_exc + 1)))
                 wavefunc_amplitudes += np.sum([state_amplitudes[s1, s2] * norm
-                * np.multiply(self.harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0,0]*phi_vec+phi1_s1_arg, 
-                                                                          Xi_inv[0,1]*phi_vec+phi2_s1_arg)), 
-                              self.harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1,0]*phi_vec+phi1_s2_arg,
-                                                                          Xi_inv[1,1]*phi_vec+phi2_s2_arg)))
-                                               for s2 in range(self.num_exc+1) 
-                                               for s1 in range(self.num_exc+1)], axis=0).T #FIX .T NOT CORRECT
-                jkvals = next(klist,-1)
-        
+                                               * np.multiply(
+                    harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0, 0] * phi_vec + phi1_s1_arg,
+                                                           Xi_inv[0, 1] * phi_vec + phi2_s1_arg)),
+                    harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1, 0] * phi_vec + phi1_s2_arg,
+                                                           Xi_inv[1, 1] * phi_vec + phi2_s2_arg)))
+                                               for s2 in range(self.num_exc + 1)
+                                               for s1 in range(self.num_exc + 1)], axis=0).T  # FIX .T NOT CORRECT
+                jkvals = next(klist, -1)
+
         grid2d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
-                                      [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
-    
+                                                     [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
+
         wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
 
         return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
-    
-   
+
     def plot_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs', zero_calibrate=True, **kwargs):
         """Plots 2d phase-basis wave function.
 
@@ -238,26 +259,3 @@ class FluxQubitVCHOS(VCHOS):
         if 'figsize' not in kwargs:
             kwargs['figsize'] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
-    
-    def harm_osc_wavefunction(self, n, x):
-        """For given quantum number n=0,1,2,... return the value of the harmonic oscillator wave function
-        :math:`\\psi_n(x) = N H_n(x) \\exp(-x^2/2)`, N being the proper normalization factor. It is assumed
-        that the harmonic length has already been accounted for. Therefore that portion of the normalization
-        factor must be accounted for outside the function.
-
-        Parameters
-        ----------
-        n: int
-            index of wave function, n=0 is ground state
-        x: float or ndarray
-            coordinate(s) where wave function is evaluated
-
-        Returns
-        -------
-        float or ndarray
-            value(s) of harmonic oscillator wave function
-        """
-        return ((2.0 ** n * sp.special.gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) 
-                * sp.special.eval_hermite(n, x) 
-                * np.exp(-x**2/2.))
- 

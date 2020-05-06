@@ -26,16 +26,17 @@ from scqubits.utils.spectrum_utils import order_eigensystem
 
 class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
     def __init__(self):
-        self.nglist = None
-        self.squeezing = None
-        self.Z0 = None
-        self.kmax = None
-        self.Phi0 = None
-        self.num_exc = None
-        self.flux = None
-        self.num_deg_freedom = None
-        self.boundary_coeffs = None
-        self.EJlist = None
+        # All of these parameters will be set in the individual qubit class
+        self.squeezing = False
+        self.kmax = 1
+        self.Phi0 = 0.0
+        self.num_exc = 1
+        self.Z0 = 0.0
+        self.flux = 0.0
+        self.num_deg_freedom = 0
+        self.boundary_coeffs = np.array([])
+        self.EJlist = np.array([])
+        self.nglist = np.array([])
 
     def potential(self, phiarray):
         """
@@ -384,7 +385,6 @@ class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
         kinetic_mat = np.zeros((dim, dim), dtype=np.complex128)
-        nglist = self.nglist
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_p = minima_list[p]
@@ -453,14 +453,14 @@ class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
                     #                        print("m, p = ", m, p, jkvals, np.dot(dpkX, dpkX))
 
                     kinetic_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
-                    p * num_exc_tot: p * num_exc_tot + num_exc_tot] += kinetic_temp
+                                p * num_exc_tot: p * num_exc_tot + num_exc_tot] += kinetic_temp
 
                     jkvals = next(klist, -1)
 
         for m, minima_m in enumerate(minima_list):
             for p in range(m + 1, len(minima_list)):
                 kinetic_temp = kinetic_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
-                               p * num_exc_tot: p * num_exc_tot + num_exc_tot]
+                                           p * num_exc_tot: p * num_exc_tot + num_exc_tot]
                 kinetic_mat[p * num_exc_tot: p * num_exc_tot + num_exc_tot,
                             m * num_exc_tot: m * num_exc_tot + num_exc_tot] += kinetic_temp.conjugate().T
 
@@ -480,7 +480,6 @@ class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
         potential_mat = np.zeros((dim, dim), dtype=np.complex128)
-        nglist = self.nglist
         EJlist = self.EJlist
         exp_prod_boundary_coeff = np.exp(-0.25 * np.sum([self.boundary_coeffs[j]
                                                          * self.boundary_coeffs[k]
@@ -503,7 +502,6 @@ class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
                 while jkvals != -1:
                     phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom)])
                     delta_phi_kpm = phik - (minima_m - minima_p)
-                    dpkX = np.matmul(Xi_inv, delta_phi_kpm)
                     phibar_kpm = 0.5 * (phik + (minima_m + minima_p))
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
@@ -569,7 +567,7 @@ class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
         for m, minima_m in enumerate(minima_list):
             for p in range(m + 1, len(minima_list)):
                 potential_temp = potential_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
-                                               p  * num_exc_tot: p * num_exc_tot + num_exc_tot]
+                                               p * num_exc_tot: p * num_exc_tot + num_exc_tot]
                 potential_mat[p * num_exc_tot: p * num_exc_tot + num_exc_tot,
                               m * num_exc_tot: m * num_exc_tot + num_exc_tot] += potential_temp.conjugate().T
 
@@ -619,7 +617,7 @@ class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
                     inner_temp = alpha * exp_prod_coeff * np.matmul(np.matmul(exp_adag, exp_adag_a), exp_a)
 
                     inner_product_mat[m * num_exc_tot:m * num_exc_tot + num_exc_tot,
-                    p * num_exc_tot:p * num_exc_tot + num_exc_tot] += inner_temp
+                                      p * num_exc_tot:p * num_exc_tot + num_exc_tot] += inner_temp
                     jkvals = next(klist, -1)
 
         for m, minima_m in enumerate(minima_list):
@@ -643,23 +641,23 @@ class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
             V_op_temp = np.linalg.matrix_power(exp_a_list[j], -jkvals[j])
             V_op = np.matmul(V_op, V_op_temp)
 
-        return (V_op_dag, V_op)
+        return V_op_dag, V_op
 
     def _full_o(self, operators, indices):
         i_o = np.eye(self.num_exc + 1)
-        i_o_list = [i_o for k in range(self.num_deg_freedom)]
+        i_o_list = [i_o for _ in range(self.num_deg_freedom)]
         product_list = i_o_list[:]
         oi_list = zip(operators, indices)
         for oi in oi_list:
             product_list[oi[1]] = oi[0]
         full_op = self._kron_matrix_list(product_list)
-        return (full_op)
+        return full_op
 
     def _kron_matrix_list(self, matrix_list):
         output = matrix_list[0]
         for matrix in matrix_list[1:]:
             output = np.kron(output, matrix)
-        return (output)
+        return output
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
