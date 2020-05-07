@@ -95,11 +95,11 @@ jobs:
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
   - script: |
-      export OMP_NUM_THREADS=1
-      export OPENBLAS_NUM_THREADS=1
-      export MKL_NUM_THREADS=1
-      export VECLIB_MAXIMUM_THREADS=1
-      export NUMEXPR_NUM_THREADS=1
+      set OMP_NUM_THREADS=1
+      set OPENBLAS_NUM_THREADS=1
+      set MKL_NUM_THREADS=1
+      set VECLIB_MAXIMUM_THREADS=1
+      set NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Pytest: multiprocessing'
 #
