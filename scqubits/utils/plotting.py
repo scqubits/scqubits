@@ -40,7 +40,7 @@ _direct_plot_options = {
     }
 
 
-def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_options):
+def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=None):
     """
     Select options from kwargs for a given plot_type and return them in a dictionary.
     
@@ -59,6 +59,7 @@ def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_
         dictionary with key/value pairs corresponding to selected options from kwargs
 
     """
+    direct_plot_options = direct_plot_options or _direct_plot_options
     d = {}
     if plot_type in direct_plot_options:
         for key in kwargs:  
@@ -264,8 +265,8 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
     x_grid, y_grid = np.meshgrid(x_vals, y_vals)
     z_array = func(x_grid, y_grid)
 
-    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower", 
-            **_extract_kwargs_options(kwargs, 'contourf'))
+    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower",
+                       **_extract_kwargs_options(kwargs, 'contourf'))
 
     if show_colorbar:
         divider = make_axes_locatable(axes)
@@ -306,6 +307,7 @@ def matrix(data_matrix, mode='abs', show_numbers=False, **kwargs):
     fig, ax2 = matrix2d(data_matrix, mode=mode, show_numbers=show_numbers, fig_ax=(fig, ax2), **kwargs)
     fig, ax1 = matrix_skyscraper(data_matrix, mode=mode, fig_ax=(fig, ax1), **kwargs)
     return fig, (ax1, ax2)
+
 
 def matrix_skyscraper(matrix, mode='abs', **kwargs):
     """Display a 3d skyscraper plot of the matrix
@@ -351,6 +353,7 @@ def matrix_skyscraper(matrix, mode='abs', **kwargs):
 
     _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
     return fig, axes
+
 
 def matrix2d(matrix, mode='abs', show_numbers=True, **kwargs):
     """Display a matrix as a color-coded 2d plot, optionally printing the numerical values of the matrix elements.
@@ -424,8 +427,7 @@ def data_vs_paramvals(xdata, ydata, label_list=None, **kwargs):
         axes.plot(xdata, ydata, **_extract_kwargs_options(kwargs, 'plot'))
     else:
         for idx, ydataset in enumerate(ydata.T):
-            axes.plot(xdata, ydataset, label=label_list[idx],
-                        **_extract_kwargs_options(kwargs, 'plot'))
+            axes.plot(xdata, ydataset, label=label_list[idx], **_extract_kwargs_options(kwargs, 'plot'))
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, **kwargs)
     return fig, axes
@@ -499,8 +501,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
 
     for (row, col) in index_pairs:
         y = modefunction(specdata.matrixelem_table[:, row, col])
-        axes.plot(x, y, label=str(row) + ',' + str(col), 
-                **_extract_kwargs_options(kwargs, 'plot'))
+        axes.plot(x, y, label=str(row) + ',' + str(col), **_extract_kwargs_options(kwargs, 'plot'))
 
     if _LABELLINES_ENABLED:
         labelLines(axes.get_lines(), zorder=1.5)

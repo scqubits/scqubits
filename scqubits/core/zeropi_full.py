@@ -323,7 +323,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         from the list `zeropi_states`. Most commonly, `zeropi_states` will contain eigenvectors of the
         `DisorderedZeroPi` type.
         """
-        # prefactor = self.EL * self.dEL * (8.0 * self.EC / self.EL)**0.25
         prefactor = self.EL * (self.dEL / 2.0) * (8.0 * self.EC / self.EL) ** 0.25
         return prefactor * spec_utils.get_matrixelement_table(self._zeropi.phi_operator(), zeropi_states)
 

@@ -90,8 +90,9 @@ class QuantumSystem(DispatchClient, ABC):
         init_params = params or self.get_initdata()
         ui.create_widget(self.set_params, init_params, image_filename=self._image_filename)
 
+    @staticmethod
     @abstractmethod
-    def default_params(self):
+    def default_params():
         """Return dictionary with default parameter values for initialization of class instance"""
 
     def set_params(self, **kwargs):
