@@ -575,7 +575,7 @@ class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
 
     def hamiltonian(self):
         """Construct the Hamiltonian"""
-        return (self.kineticmat + self.potentialmat())
+        return (self.kineticmat() + self.potentialmat())
 
     def inner_product(self):
         """Return the inner product matrix, which is nontrivial with VCHOS states"""
