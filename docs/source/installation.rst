@@ -56,7 +56,7 @@ scqubits depends on the following Python open-source libraries:
 +----------------+--------------+-----------------------------------------------------+
 | **Matplotlib** | 3.0.0+       | Some plotting does not work on lower versions.      |
 +----------------+--------------+-----------------------------------------------------+
-| **QuTiP**      | 4.3          |  Needed for composite Hilbert spaces.               |
+| **QuTiP**      | 4.3+         |  Needed for composite Hilbert spaces.               |
 +----------------+--------------+-----------------------------------------------------+
 | **Cython**     | 0.28.5+      |  Required by QuTiP                                  |
 +----------------+--------------+-----------------------------------------------------+
