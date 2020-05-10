@@ -66,8 +66,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJ': 30.0,
-            'EC': 1.2,
+            'EJ': 15.0,
+            'EC': 0.3,
             'ng': 0.0,
             'ncut': 30,
             'truncated_dim': 10
@@ -302,8 +302,8 @@ class TunableTransmon(Transmon, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJmax': 30.0,
-            'EC': 0.5,
+            'EJmax': 20.0,
+            'EC': 0.3,
             'd': 0.01,
             'flux': 0.0,
             'ng': 0.0,
