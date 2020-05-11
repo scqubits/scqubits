@@ -11,6 +11,7 @@ from scqubits.core.hashing import Hashing
 # total number of excitations that we allow to be kept.
 
 class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
+    global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux,
                  kmax, global_exc, squeezing=False, truncated_dim=None):
         CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux,

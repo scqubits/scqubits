@@ -1,10 +1,12 @@
 import math
+import os
 
 import numpy as np
 import scipy as sp
 from scipy.optimize import minimize
 import scipy.constants as const
 
+import scqubits.core.descriptors as descriptors
 from scqubits.core.vchos import VCHOS
 
 
@@ -14,8 +16,15 @@ from scqubits.core.vchos import VCHOS
 # the first unit cell and N is the number of big capacitors.
 
 class CurrentMirrorVCHOS(VCHOS):
+    N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECB = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, num_exc, squeezing=False, truncated_dim=None):
-        super().__init__()
         self.N = N
         self.ECB = ECB
         self.ECJ = ECJ
@@ -36,8 +45,11 @@ class CurrentMirrorVCHOS(VCHOS):
         self.boundary_coeffs = np.ones(2 * N - 1)
         self.num_deg_freedom = 2 * N - 1
 
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self.truncated_dim = truncated_dim
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                                            'qubit_pngs/currentmirrorvchos.png')
 
     @staticmethod
     def default_params():

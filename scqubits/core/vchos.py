@@ -4,7 +4,7 @@ import numpy as np
 import scipy as sp
 import itertools
 
-from scqubits.core.qubit_base import QubitBaseClass
+import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.utils.spectrum_utils import order_eigensystem
 
@@ -24,7 +24,7 @@ from scqubits.utils.spectrum_utils import order_eigensystem
 # find and sort all inequivalent minima (based on the value of the 
 # potential at that minimum), respectively. 
 
-class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
+class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def __init__(self):
         # All of these parameters will be set in the individual qubit class
         self.squeezing = False

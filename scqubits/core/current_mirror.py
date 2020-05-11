@@ -9,6 +9,14 @@ import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.utils.spectrum_utils import order_eigensystem
 
 class CurrentMirror(QubitBaseClass, serializers.Serializable):
+    N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECB = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, 
                  flux, ncut, truncated_dim=None):
         self.N = N
