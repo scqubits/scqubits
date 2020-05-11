@@ -92,21 +92,15 @@ class VCHOS(QubitBaseClass, serializers.Serializable, ABC):
         """Return a diagonal matrix of the normal mode frequencies of the global min """
         omegasq, _ = self._eigensystem_normal_modes()
         return np.diag(np.sqrt(omegasq))
-
+    
     def Xi_matrix(self):
         """Construct the Xi matrix, encoding the oscillator lengths of each dimension"""
-        Cmat = self.build_capacitance_matrix()
         omegasq, eigvec = self._eigensystem_normal_modes()
-        Ximat = np.array([eigvec[:, i] * np.sqrt(np.sqrt(1. / omegasq[i]))
-                          * np.sqrt(1. / self.Z0) for i in range(Cmat.shape[0])])
-
-        # Note that the actual Xi matrix is the transpose of above, 
-        # due to list comprehension syntax reasons. Here we are 
-        # asserting that \Xi^T C \Xi = \Omega^{-1}/Z0
-        assert (np.allclose(np.matmul(Ximat, np.matmul(Cmat, np.transpose(Ximat))),
-                            sp.linalg.inv(np.diag(np.sqrt(omegasq))) / self.Z0))
-
-        return np.transpose(Ximat)
+        # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
+        Ximat = np.array([eigvec[:, i] * (omegasq[i])**(-1/4)
+                          * np.sqrt(1. / self.Z0) for i in range(len(omegasq))]).T
+        
+        return Ximat
 
     def _build_U_squeezing_operator(self, i, Xi):
         freq, uvmat = self._squeezing_M_builder(i, Xi)

@@ -58,8 +58,8 @@ class CurrentMirrorVCHOS(VCHOS):
     @staticmethod
     def nonfit_params():
         return ['N', 'nglist', 'flux', 'kmax', 'num_exc', 'truncated_dim']
-
-    def build_capacitance_matrix(self):
+    
+    def build_Cmat_full(self):
         N = self.N
         CB = self.e ** 2 / (2. * self.ECB)
         CJ = self.e ** 2 / (2. * self.ECJ)
@@ -71,6 +71,11 @@ class CurrentMirrorVCHOS(VCHOS):
         Cmat += np.diagflat([- CB for _ in range(N)], +N)
         Cmat += np.diagflat([- CB for _ in range(N)], -N)
         Cmat[0, -1] = Cmat[-1, 0] = - CJ
+        
+        return Cmat
+
+    def build_capacitance_matrix(self):
+        Cmat = self.build_Cmat_full()
 
         V_m_inv = sp.linalg.inv(self._build_V_m())
         Cmat = np.matmul(V_m_inv.T, np.matmul(Cmat, V_m_inv))
@@ -128,10 +133,10 @@ class CurrentMirrorVCHOS(VCHOS):
             result_pos = minimize(self.potential, guess_pos)
             result_neg = minimize(self.potential, guess_neg)
             new_minimum_pos = self._check_if_new_minima(result_pos.x, minima_holder)
-            if new_minimum_pos:
+            if new_minimum_pos and result_pos.success:
                 minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result_pos.x]))
             new_minimum_neg = self._check_if_new_minima(result_neg.x, minima_holder)
-            if new_minimum_neg:
+            if new_minimum_neg and result_neg.success:
                 minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result_neg.x]))
         return minima_holder
 

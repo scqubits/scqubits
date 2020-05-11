@@ -207,6 +207,7 @@ class FluxQubitVCHOS(VCHOS):
             klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
             jkvals = next(klist, -1)
             while jkvals != -1:
+                #TODO offset charge not taken into account here. Must fix
                 phik = 2.0 * np.pi * np.array([jkvals[0], jkvals[1]])
                 phi1_s1_arg = Xi_inv[0, 0] * (phik - minimum)[0]
                 phi2_s1_arg = Xi_inv[0, 1] * (phik - minimum)[1]
