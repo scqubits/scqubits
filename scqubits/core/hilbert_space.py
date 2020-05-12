@@ -100,7 +100,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         if interaction_list:
             self.interaction_list = tuple(interaction_list)
         else:
-            self.interaction_list = None
+            self.interaction_list = []
 
         self._lookup = None
         self._osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
@@ -129,7 +129,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         output = '====== HilbertSpace object ======\n'
         for subsystem in self:
             output += '\n' + str(subsystem) + '\n'
-        if self.interaction_list is not None:
+        if self.interaction_list:
             for interaction_term in self.interaction_list:
                 output += '\n' + str(interaction_term) + '\n'
         return output
@@ -390,7 +390,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         qutip.Qobj operator
             interaction Hamiltonian
         """
-        if self.interaction_list is None:
+        if not self.interaction_list:
             return 0
 
         hamiltonian = [self.interactionterm_hamiltonian(term) for term in self.interaction_list]
