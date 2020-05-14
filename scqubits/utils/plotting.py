@@ -457,7 +457,7 @@ def evals_vs_paramvals(specdata, which=-1, subtract_ground=False, label_list=Non
     index_list = utils.process_which(which, specdata.energy_table[0].size)
 
     xdata = specdata.param_vals
-    ydata = specdata.energy_table[:, index_list]
+    ydata = np.array(specdata.energy_table[:][index_list])
     if subtract_ground:
         ydata = (ydata.T - ydata[:, 0]).T
     return data_vs_paramvals(xdata, ydata, label_list=label_list,
