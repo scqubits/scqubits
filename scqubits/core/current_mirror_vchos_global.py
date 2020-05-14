@@ -1,6 +1,7 @@
 import numpy as np
 
 from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS
+import scqubits.core.descriptors as descriptors
 from scqubits.core.hashing import Hashing
 
 
