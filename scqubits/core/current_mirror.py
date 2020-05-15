@@ -4,12 +4,11 @@ import scipy.sparse as sps
 import itertools
 import scipy.constants as const
 
-import scqubits.core.qubit_base as base
+from scqubits.core.qubit_base import QubitBaseClass
 import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.core.descriptors as descriptors
 from scqubits.utils.spectrum_utils import order_eigensystem
 
-class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
+class CurrentMirror(QubitBaseClass, serializers.Serializable):
     N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ECB = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
