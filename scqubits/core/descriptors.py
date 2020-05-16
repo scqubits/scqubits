@@ -9,6 +9,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+# Recap on descriptors: see https://realpython.com/python-descriptors/
+
 
 class ReadOnlyProperty:
     """
@@ -64,9 +66,11 @@ class WatchedProperty:
         if self.inner:
             inner_instance = instance.__dict__[self.inner]
             setattr(inner_instance, self.attr_name, value)
+            # Rely on inner_instance.attr_name to do the broadcasting.
         else:
             if self.attr_name not in instance.__dict__:
                 instance.__dict__[self.attr_name] = value
+                # Rely on inner_instance.attr_name to do the broadcasting.
             else:
                 instance.__dict__[self.attr_name] = value
                 instance.broadcast(self.event)

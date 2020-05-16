@@ -31,10 +31,27 @@ An instance of the flux qubit is initialized as follows::
 
    EJ = 35.0
    alpha = 0.6
-   fluxqubit = scqubits.FluxQubit(EJ1 = EJ, EJ2 = EJ, EJ3 = alpha*EJ, 
-                                ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0/alpha, 
-                                ECg1 = 50.0, ECg2 = 50.0, ng1 = 0.0, ng2 = 0.0, 
-                                flux = 0.5, ncut = 10)
+   fluxqubit = scqubits.FluxQubit(EJ1 = EJ,
+                                 EJ2 = EJ,
+                                 EJ3 = alpha*EJ,
+                                 ECJ1 = 1.0,
+                                 ECJ2 = 1.0,
+                                 ECJ3 = 1.0/alpha,
+                                 ECg1 = 50.0,
+                                 ECg2 = 50.0,
+                                 ng1 = 0.0,
+                                 ng2 = 0.0,
+                                 flux = 0.5,
+                                 ncut = 10)
+
+
+From within Jupyter notebook, a flux qubit instance can alternatively be created with::
+
+   fluxqubit = scqubits.FluxQubit.create()
+
+This functionality is  enabled if the ``ipywidgets`` package is installed, and displays GUI forms prompting for
+the entry of the required parameters.
+
 
 Calculational methods related to Hamiltonian and energy spectra
 ---------------------------------------------------------------

@@ -30,17 +30,19 @@ try:
 except ImportError:
     _LABELLINES_ENABLED = False
 
-#A dictionary of plotting options that are directly passed to specific matplotlib's
-#plot commands. 
-_direct_plot_options={
-        'plot':('alpha', 'linestyle', 'linewidth', 'marker', 'markersize'),
-        'imshow':('interpolation',),
-        'contourf':tuple()  #empty for now
+
+# A dictionary of plotting options that are directly passed to specific matplotlib's
+# plot commands.
+_direct_plot_options = {
+        'plot': ('alpha', 'linestyle', 'linewidth', 'marker', 'markersize'),
+        'imshow': ('interpolation',),
+        'contourf': tuple()  # empty for now
     }
 
-def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_options):
+
+def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=None):
     """
-    Select options from kwargs for a given plot_type
+    Select options from kwargs for a given plot_type and return them in a dictionary.
     
     Parameters
     ----------
@@ -49,7 +51,7 @@ def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_
     plot_type: str
         a type of plot for which the options should be selected
     direct_plot_options: dict
-        a lookup dictionary that plot_types to supported options
+        a lookup dictionary with supported options for a given plot_type
         
     Returns
     ----------
@@ -57,11 +59,12 @@ def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=_direct_plot_
         dictionary with key/value pairs corresponding to selected options from kwargs
 
     """
-    d={}
+    direct_plot_options = direct_plot_options or _direct_plot_options
+    d = {}
     if plot_type in direct_plot_options:
         for key in kwargs:  
             if key in direct_plot_options[plot_type]:
-                d[key]=kwargs[key]
+                d[key] = kwargs[key]
     return d
     
 
@@ -80,11 +83,10 @@ def _process_options(figure, axes, opts=None, **kwargs):
     """
     opts = opts or {}
 
-    #We only want to process items in kwargs that would not have been
-    #processed through _extract_kwargs_options()
-    filtered_kwargs={key:kwargs[key] for key in kwargs \
-            if key not in functools.reduce(operator.concat, 
-                                           _direct_plot_options.values())}
+    # Only process items in kwargs that would not have been
+    # processed through _extract_kwargs_options()
+    filtered_kwargs = {key: value for key, value in kwargs.items()
+                       if key not in functools.reduce(operator.concat, _direct_plot_options.values())}
 
     option_dict = {**opts, **filtered_kwargs}
 
@@ -263,8 +265,8 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
     x_grid, y_grid = np.meshgrid(x_vals, y_vals)
     z_array = func(x_grid, y_grid)
 
-    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower", 
-            **_extract_kwargs_options(kwargs, 'contourf'))
+    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower",
+                       **_extract_kwargs_options(kwargs, 'contourf'))
 
     if show_colorbar:
         divider = make_axes_locatable(axes)
@@ -275,7 +277,7 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
     return fig, axes
 
 
-def matrix(data_matrix, mode='abs', **kwargs):
+def matrix(data_matrix, mode='abs', show_numbers=False, **kwargs):
     """
     Create a "skyscraper" plot and a 2d color-coded plot of a matrix.
 
@@ -285,6 +287,8 @@ def matrix(data_matrix, mode='abs', **kwargs):
         2d matrix data
     mode: str from `constants.MODE_FUNC_DICT`
         choice of processing function to be applied to data
+    show_numbers: bool, optional
+        determines whether matrix element values are printed on top of the plot (default: False)
     **kwargs: dict
         standard plotting option (see separate documentation)
 
@@ -300,7 +304,31 @@ def matrix(data_matrix, mode='abs', **kwargs):
         ax1 = fig.add_subplot(1, 2, 1, projection='3d')
         ax2 = plt.subplot(1, 2, 2)
 
-    matsize = len(data_matrix)
+    fig, ax2 = matrix2d(data_matrix, mode=mode, show_numbers=show_numbers, fig_ax=(fig, ax2), **kwargs)
+    fig, ax1 = matrix_skyscraper(data_matrix, mode=mode, fig_ax=(fig, ax1), **kwargs)
+    return fig, (ax1, ax2)
+
+
+def matrix_skyscraper(matrix, mode='abs', **kwargs):
+    """Display a 3d skyscraper plot of the matrix
+
+    Parameters
+    ----------
+    matrix: ndarray of float or complex
+        2d matrix data
+    mode: str from `constants.MODE_FUNC_DICT`
+        choice of processing function to be applied to data
+    **kwargs: dict
+        standard plotting option (see separate documentation)
+
+    Returns
+    -------
+    Figure, Axes
+        figure and axes objects for further editing
+    """
+    fig, axes = kwargs.get('fig_ax') or plt.subplots(projection='3d')
+
+    matsize = len(matrix)
     element_count = matsize ** 2  # num. of elements to plot
 
     xgrid, ygrid = np.meshgrid(range(matsize), range(matsize))
@@ -312,24 +340,67 @@ def matrix(data_matrix, mode='abs', **kwargs):
     dy = dx  # width of bars in y-direction (same as x-direction)
 
     modefunction = constants.MODE_FUNC_DICT[mode]
-    zheight = modefunction(data_matrix).flatten()  # height of bars from matrix elements
+    zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
     nrm = mpl.colors.Normalize(0, max(zheight))  # <-- normalize colors to max. data
     colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
 
     # skyscraper plot
-    ax1.view_init(azim=210, elev=23)
-    ax1.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
-    ax1.axes.xaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set x-ticks to integers
-    ax1.axes.yaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set y-ticks to integers
-    ax1.set_zlim3d([0, max(zheight)])
+    axes.view_init(azim=210, elev=23)
+    axes.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
+    axes.axes.xaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set x-ticks to integers
+    axes.axes.yaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set y-ticks to integers
+    axes.set_zlim3d([0, max(zheight)])
 
-    # 2d plot
-    ax2.matshow(modefunction(data_matrix), cmap=plt.cm.viridis)
-    cax, _ = mpl.colorbar.make_axes(ax2, shrink=.75, pad=.02)  # add colorbar with normalized range
-    _ = mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
+    _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
+    return fig, axes
 
-    _process_options(fig, ax1, opts=defaults.matrix(), **kwargs)
-    return fig, (ax1, ax2)
+
+def matrix2d(matrix, mode='abs', show_numbers=True, **kwargs):
+    """Display a matrix as a color-coded 2d plot, optionally printing the numerical values of the matrix elements.
+
+    Parameters
+    ----------
+    matrix: ndarray of float or complex
+        2d matrix data
+    mode: str from `constants.MODE_FUNC_DICT`
+        choice of processing function to be applied to data
+    show_numbers: bool, optional
+        determines whether matrix element values are printed on top of the plot (default: True)
+    **kwargs: dict
+        standard plotting option (see separate documentation)
+
+    Returns
+    -------
+    Figure, Axes
+        figure and axes objects for further editing
+    """
+    fig, axes = kwargs.get('fig_ax') or plt.subplots()
+
+    modefunction = constants.MODE_FUNC_DICT[mode]
+    zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
+    nrm = mpl.colors.Normalize(0, max(zheight))  # <-- normalize colors to max. data
+
+    axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
+    cax, _ = mpl.colorbar.make_axes(axes, shrink=.75, pad=.02)  # add colorbar with normalized range
+    mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
+
+    if show_numbers:
+        for y_index in range(matrix.shape[0]):
+            for x_index in range(matrix.shape[1]):
+                axes.text(x_index, y_index, "{:.03f}".format(matrix[y_index, x_index]),
+                          va='center', ha='center', fontsize=8, rotation=45, color='white')
+    # shift the grid
+    for axis, locs in [(axes.xaxis, np.arange(matrix.shape[1])), (axes.yaxis, np.arange(matrix.shape[0]))]:
+        axis.set_ticks(locs + 0.5, minor=True)
+        axis.set(ticks=locs, ticklabels=locs)
+    axes.grid(True, which='minor', linewidth=0)
+    axes.grid(False, which='major', linewidth=0)
+
+    _process_options(fig, axes, **kwargs)
+    return fig, axes
+
+
+print_matrix = matrix2d  # legacv, support of name now deprecated
 
 
 def data_vs_paramvals(xdata, ydata, label_list=None, **kwargs):
@@ -356,8 +427,7 @@ def data_vs_paramvals(xdata, ydata, label_list=None, **kwargs):
         axes.plot(xdata, ydata, **_extract_kwargs_options(kwargs, 'plot'))
     else:
         for idx, ydataset in enumerate(ydata.T):
-            axes.plot(xdata, ydataset, label=label_list[idx],
-                        **_extract_kwargs_options(kwargs, 'plot'))
+            axes.plot(xdata, ydataset, label=label_list[idx], **_extract_kwargs_options(kwargs, 'plot'))
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, **kwargs)
     return fig, axes
@@ -431,36 +501,11 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
 
     for (row, col) in index_pairs:
         y = modefunction(specdata.matrixelem_table[:, row, col])
-        axes.plot(x, y, label=str(row) + ',' + str(col), 
-                **_extract_kwargs_options(kwargs, 'plot'))
+        axes.plot(x, y, label=str(row) + ',' + str(col), **_extract_kwargs_options(kwargs, 'plot'))
 
     if _LABELLINES_ENABLED:
         labelLines(axes.get_lines(), zorder=1.5)
     else:
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)
-    return fig, axes
-
-
-def print_matrix(matrix, show_numbers=True, **kwargs):
-    """Pretty print a matrix, optionally printing the numerical values of the data.
-    """
-    fig, axes = kwargs.get('fig_ax') or plt.subplots()
-
-    m = axes.matshow(matrix, cmap=plt.cm.viridis, interpolation='none')
-    fig.colorbar(m, ax=axes)
-
-    if show_numbers:
-        for y_index in range(matrix.shape[0]):
-            for x_index in range(matrix.shape[1]):
-                axes.text(x_index, y_index, "{:.03f}".format(matrix[y_index, x_index]),
-                          va='center', ha='center', fontsize=8, rotation=45, color='white')
-    # shift the grid
-    for axis, locs in [(axes.xaxis, np.arange(matrix.shape[1])), (axes.yaxis, np.arange(matrix.shape[0]))]:
-        axis.set_ticks(locs + 0.5, minor=True)
-        axis.set(ticks=locs, ticklabels=locs)
-    axes.grid(True, which='minor')
-    axes.grid(False, which='major')
-
-    _process_options(fig, axes, **kwargs)
     return fig, axes

@@ -57,7 +57,7 @@ NUM_CPUS = 1
 # Select multiprocessing library
 # Options:  'multiprocessing'
 #           'pathos'
-MULTIPROC = 'multiprocessing'
+MULTIPROC = 'pathos'
 
 # Matplotlib options ---------------------------------------------------------------------------------------------------
 # set custom matplotlib color cycle

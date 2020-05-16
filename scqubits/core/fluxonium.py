@@ -11,6 +11,7 @@
 
 import cmath
 import math
+import os
 
 import numpy as np
 import scipy as sp
@@ -22,7 +23,7 @@ import scqubits.core.harmonic_osc as osc
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 
 
 # —Fluxonium qubit ————————————————————————
@@ -48,7 +49,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
     cutoff: int
         number of harm. osc. basis states used in diagonalization
     truncated_dim: int, optional
-        desired dimension of the truncated quantum system
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -66,6 +67,22 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxonium.png')
+
+    @staticmethod
+    def default_params():
+        return {
+            'EJ': 8.9,
+            'EC': 2.5,
+            'EL': 0.5,
+            'flux': 0.0,
+            'cutoff': 110,
+            'truncated_dim': 10
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['flux', 'cutoff', 'truncated_dim']
 
     def phi_osc(self):
         """

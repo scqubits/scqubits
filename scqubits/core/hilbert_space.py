@@ -20,9 +20,11 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.harmonic_osc as osc
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
+import scqubits.io_utils.fileio_qutip
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
+import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
-import scqubits.utils.file_io_serializers as serializers
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
@@ -36,7 +38,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
     the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
-    1. V = g A B, where A, B are Hermitean operators in two specified subsystems,
+    1. V = g A B, where A, B are Hermitean operators in two specified subsys_list,
     2. V = g A B + h.c., where A, B may be non-Hermitean
     
     Parameters
@@ -46,9 +48,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     hilbertspace: HilbertSpace
         specifies the Hilbert space components
     subsys1, subsys2: QuantumSystem
-        the two subsystems involved in the interaction
+        the two subsys_list involved in the interaction
     op1, op2: str or ndarray
-        names of operators in the two subsystems
+        names of operators in the two subsys_list
     add_hc: bool, optional (default=False)
         If set to True, the interaction Hamiltonian is of type 2, and the Hermitean conjugate is added.
     """
@@ -71,9 +73,19 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
         self._init_params.remove('hilbertspace')
 
+    def __repr__(self):
+        init_dict = {name: getattr(self, name) for name in self._init_params}
+        return type(self).__name__ + f'(**{init_dict!r})'
+
+    def __str__(self):
+        output = type(self).__name__.upper() + '\n ———— PARAMETERS ————'
+        for param_name in self._init_params:
+            output += '\n' + str(param_name) + '\t: ' + str(getattr(self, param_name))
+        return output + '\n'
+
 
 class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
-    """Class holding information about the full Hilbert space, usually composed of multiple subsystems.
+    """Class holding information about the full Hilbert space, usually composed of multiple subsys_list.
     The class provides methods to turn subsystem operators into operators acting on the full Hilbert space, and
     establishes the interface to qutip. Returned operators are of the `qutip.Qobj` type. The class also provides methods
     for obtaining eigenvalues, absorption and emission spectra as a function of an external parameter.
@@ -88,7 +100,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         if interaction_list:
             self.interaction_list = tuple(interaction_list)
         else:
-            self.interaction_list = None
+            self.interaction_list = []
 
         self._lookup = None
         self._osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
@@ -100,13 +112,26 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         dispatch.CENTRAL_DISPATCH.register('INTERACTIONTERM_UPDATE', self)
         dispatch.CENTRAL_DISPATCH.register('INTERACTIONLIST_UPDATE', self)
 
+    @classmethod
+    def create(cls):
+        hilbertspace = cls([])
+        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)
+        return hilbertspace
+
     def __getitem__(self, index):
         return self._subsystems[index]
+
+    def __repr__(self):
+        init_dict = self.get_initdata()
+        return type(self).__name__ + f'(**{init_dict!r})'
 
     def __str__(self):
         output = '====== HilbertSpace object ======\n'
         for subsystem in self:
             output += '\n' + str(subsystem) + '\n'
+        if self.interaction_list:
+            for interaction_term in self.interaction_list:
+                output += '\n' + str(interaction_term) + '\n'
         return output
 
     def index(self, item):
@@ -126,15 +151,12 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             if event == 'QUANTUMSYSTEM_UPDATE' and sender in self:
                 self.broadcast('HILBERTSPACE_UPDATE')
                 self._lookup._out_of_sync = True
-                # print('Lookup table now out of sync')
             elif event == 'INTERACTIONTERM_UPDATE' and sender in self.interaction_list:
                 self.broadcast('HILBERTSPACE_UPDATE')
                 self._lookup._out_of_sync = True
-                # print('Lookup table now out of sync')
             elif event == 'INTERACTIONLIST_UPDATE' and sender is self:
                 self.broadcast('HILBERTSPACE_UPDATE')
                 self._lookup._out_of_sync = True
-                # print('Lookup table now out of sync')
 
     @property
     def subsystem_list(self):
@@ -160,7 +182,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     @property
     def subsystem_count(self):
-        """Returns number of subsystems composing the joint Hilbert space
+        """Returns number of subsys_list composing the joint Hilbert space
 
         Returns
         -------
@@ -210,12 +232,12 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
-        evecs = evecs.view(serializers.QutipEigenstates)
+        evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
         return evals, evecs
 
     def diag_operator(self, diag_elements, subsystem):
         """For given diagonal elements of a diagonal operator in `subsystem`, return the `Qobj` operator for the
-        full Hilbert space (perform wrapping in identities for other subsystems).
+        full Hilbert space (perform wrapping in identities for other subsys_list).
 
         Parameters
         ----------
@@ -334,7 +356,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         Returns
         -------
         qutip.Qobj operator
-            composite Hamiltonian composed of bare Hamiltonians of subsystems independent of the external parameter
+            composite Hamiltonian composed of bare Hamiltonians of subsys_list independent of the external parameter
         """
         bare_hamiltonian = 0
         for subsys in self:
@@ -368,7 +390,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         qutip.Qobj operator
             interaction Hamiltonian
         """
-        if self.interaction_list is None:
+        if not self.interaction_list:
             return 0
 
         hamiltonian = [self.interactionterm_hamiltonian(term) for term in self.interaction_list]
@@ -379,7 +401,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         interaction_op2 = self.identity_wrap(interactionterm.op2, interactionterm.subsys2, evecs=evecs2)
         hamiltonian = interactionterm.g_strength * interaction_op1 * interaction_op2
         if interactionterm.add_hc:
-            return hamiltonian + hamiltonian.conj()
+            return hamiltonian + hamiltonian.dag()
         return hamiltonian
 
     def _esys_for_paramval(self, paramval, update_hilbertspace, evals_count):

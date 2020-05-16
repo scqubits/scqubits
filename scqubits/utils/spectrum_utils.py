@@ -299,7 +299,7 @@ def generate_target_states_list(sweep, initial_state_labels):
     -------
     list of tuple"""
     target_states_list = []
-    for subsys_index, qbt_subsys in sweep.qbt_subsys_list:   # iterate through qubit subsystems
+    for subsys_index, qbt_subsys in sweep.qbt_subsys_list:   # iterate through qubit subsys_list
         initial_qbt_state = initial_state_labels[subsys_index]
         for state_label in range(initial_qbt_state + 1, qbt_subsys.truncated_dim):
             # for given qubit subsystem, generate target labels by increasing that qubit excitation level

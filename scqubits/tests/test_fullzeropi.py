@@ -1,4 +1,4 @@
-# test_zeropifull.py
+# test_fullzeropi.py
 # meant to be run with 'pytest'
 #
 # This file is part of scqubits.

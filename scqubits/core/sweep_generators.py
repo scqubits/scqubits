@@ -121,7 +121,7 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
 
 def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     """
-    Extracts energies for transitions among qubit states only, while all oscillator subsystems maintain their
+    Extracts energies for transitions among qubit states only, while all oscillator subsys_list maintain their
     excitation level.
 
     Parameters

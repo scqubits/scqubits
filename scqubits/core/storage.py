@@ -9,7 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import scqubits.utils.file_io_serializers as serializers
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 
 
