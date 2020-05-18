@@ -1,6 +1,7 @@
 import numpy as np
 
 from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS
+import scqubits.core.descriptors as descriptors
 from scqubits.core.hashing import Hashing
 
 
@@ -16,7 +17,8 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
                  kmax, global_exc, squeezing=False, truncated_dim=None):
         CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux,
                                     kmax, num_exc=None, squeezing=squeezing, truncated_dim=truncated_dim)
-        Hashing.__init__(self, num_deg_freedom=2 * N - 1, global_exc=global_exc)
+        Hashing.__init__(self)
+        self.global_exc = global_exc
 
     @staticmethod
     def default_params():
@@ -46,12 +48,12 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
         on it? In this way, we can define a_i using a single for loop.
         """
         basis_vecs = self._gen_basis_vecs()
-        tags, index_array = self._gen_tags()
+        tags, index_array = self._gen_tags(basis_vecs)
         dim = basis_vecs.shape[0]
         a = np.zeros((dim, dim))
         for w, vec in enumerate(basis_vecs):
-            temp_vec = np.copy(vec)
             if vec[i] >= 1:
+                temp_vec = np.copy(vec)
                 temp_vec[i] = vec[i] - 1
                 temp_coeff = np.sqrt(vec[i])
                 temp_vec_tag = self._hash(temp_vec)
@@ -61,4 +63,4 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
         return a
 
     def hilbertdim(self):
-        return len(self.sorted_minima()) * len(self.tag_list)
+        return len(self.sorted_minima()) * len(self._gen_basis_vecs())

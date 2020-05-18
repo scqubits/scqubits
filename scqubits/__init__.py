@@ -29,6 +29,7 @@ from scqubits.core.current_mirror_vchos_global import CurrentMirrorVCHOSGlobal
 from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
 from scqubits.core.flux_qubit_vchos_global import FluxQubitVCHOSGlobal
 from scqubits.core.flux_qubit_vchos_testing_babusci import FluxQubitVCHOSTestingBabusci
+from scqubits.core.transmon_vchos import TransmonVCHOS
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm

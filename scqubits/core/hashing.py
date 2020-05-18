@@ -9,7 +9,7 @@ import scipy as sp
 # [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
 
 class Hashing():
-    def __init__(self, num_deg_freedom, global_exc):
+    def __init__(self):
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
                                     29, 31, 37, 41, 43, 47, 53, 59,
                                     61, 67, 71, 73, 79, 83, 89, 97, 
@@ -37,17 +37,12 @@ class Hashing():
                                     881, 883, 887, 907, 911, 919, 
                                     929, 937, 941, 947, 953, 967, 
                                     971, 977, 983, 991, 997])
-        self.num_deg_freedom = num_deg_freedom
-        self.global_exc = global_exc
-        self.basis_vecs = self._gen_basis_vecs()
-        self.tag_list, self.index_array = self._gen_tags()
         
     def _hash(self, vec):
         dim = len(vec)
         return np.sum([np.sqrt(self.prime_list[i])*vec[i] for i in range(dim)])
     
-    def _gen_tags(self):
-        basis_vecs = self.basis_vecs
+    def _gen_tags(self, basis_vecs):
         dim = basis_vecs.shape[0]
         tag_list = np.array([self._hash(basis_vecs[i,:]) for i in range(dim)])
         index_array = np.argsort(tag_list)

@@ -10,9 +10,10 @@ import scipy.integrate as integrate
 import math
 
 import scqubits.core.constants as constants
+import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 from scqubits.core.discretization import GridSpec, Grid1d
-from scqubits.core.qubit_base import QubitBaseClass
+import scqubits.core.qubit_base as base
 from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
 
 
@@ -65,8 +66,8 @@ def pImn(p,m,n,y,z,a,b,c,d,f,alpha):
 
 #Class for testing FQV using Babusci integrals
 
-class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
-    def __init__(self, ECJ, ECg, EJ, ng1, ng2, alpha, flux, kmax, num_exc):
+class FluxQubitVCHOSTestingBabusci(base.QubitBaseClass, serializers.Serializable):
+    def __init__(self, ECJ, ECg, EJ, ng1, ng2, alpha, flux, kmax, num_exc, truncated_dim=6):
         self.ECJ = ECJ
         self.EJ = EJ
         self.ECg = ECg
@@ -80,9 +81,29 @@ class FluxQubitVCHOSTestingBabusci(QubitBaseClass):
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2*self.e)**2
         self.Phi0 = 1. / (2*self.e)
+        self.truncated_dim = truncated_dim
         
         self._evec_dtype = np.float_
         self._default_grid = Grid1d(-6.5*np.pi, 6.5*np.pi, 651)
+        
+    @staticmethod
+    def default_params():
+        return {
+            'ECJ': 1.0 / 10.0,
+            'ECg': 5.0,
+            'EJlist': np.array([1.0, 1.0, 0.8]),
+            'alpha': 0.8,
+            'nglist': np.array(2 * [0.0]),
+            'flux': 0.46,
+            'kmax': 1,
+            'num_exc': 4,
+            'squeezing': False,
+            'truncated_dim': 6
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['alpha', 'nglist', 'kmax', 'num_exc', 'squeezing', 'truncated_dim']
         
     def potential(self, phiarray):
         """

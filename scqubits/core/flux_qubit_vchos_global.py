@@ -16,7 +16,8 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
                  global_exc, squeezing=False, truncated_dim=None):
         FluxQubitVCHOS.__init__(self, ECJ, ECg, EJlist, alpha, nglist, flux,
                                 kmax, num_exc=None, squeezing=squeezing, truncated_dim=truncated_dim)
-        Hashing.__init__(self, num_deg_freedom=2, global_exc=global_exc)
+        Hashing.__init__(self)
+        self.global_exc = global_exc
 
     @staticmethod
     def default_params():
@@ -38,13 +39,19 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
         return ['alpha', 'nglist', 'kmax', 'global_exc', 'squeezing', 'truncated_dim']
 
     def a_operator(self, i):
+        """
+        This method for defining the a_operator is based on
+        J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
+        We ask the question, for each basis vector, what is the action of a_i
+        on it? In this way, we can define a_i using a single for loop.
+        """
         basis_vecs = self._gen_basis_vecs()
-        tags, index_array = self._gen_tags()
+        tags, index_array = self._gen_tags(basis_vecs)
         dim = basis_vecs.shape[0]
         a = np.zeros((dim, dim))
         for w, vec in enumerate(basis_vecs):
-            temp_vec = np.copy(vec)
             if vec[i] >= 1:
+                temp_vec = np.copy(vec)
                 temp_vec[i] = vec[i] - 1
                 temp_coeff = np.sqrt(vec[i])
                 temp_vec_tag = self._hash(temp_vec)
@@ -54,7 +61,7 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
         return a
 
     def hilbertdim(self):
-        return len(self.sorted_minima()) * len(self.tag_list)
+        return len(self.sorted_minima()) * len(self._gen_basis_vecs())
 
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """
