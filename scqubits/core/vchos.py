@@ -1,12 +1,15 @@
 from abc import ABC
+import warnings
 
 import numpy as np
 import scipy as sp
+from scipy.linalg import LinAlgError
 import itertools
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.utils.spectrum_utils import order_eigensystem
+from scqubits.utils.fix_heiberger import fixheiberger
 
 
 # The VCHOS method (tight binding) allowing for the diagonalization of systems
@@ -656,16 +659,28 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         inner_product_mat = self.inner_product()
-        evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
-                               eigvals_only=True, eigvals=(0, evals_count - 1))
+        try:
+            evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
+                                   eigvals_only=True, eigvals=(0, evals_count - 1))
+        except LinAlgError:
+            warnings.warn("Due to rounding errors, the inner-product matrix is no longer positive definite."
+                          "Trying now to eliminate small eigenvalues via the Fix-Heiberger algorithm.")
+            H = fixheiberger(hamiltonian_mat, inner_product_mat, 1e-6)
+            evals = sp.linalg.eigh(H, eigvals_only=True, eigvals=(0, evals_count - 1))
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         inner_product_mat = self.inner_product()
-        evals, evecs = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
-                                      eigvals_only=False, eigvals=(0, evals_count - 1))
-        evals, evecs = order_eigensystem(evals, evecs)
+        try:
+            evals, evecs = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
+                                          eigvals_only=False, eigvals=(0, evals_count - 1))
+            evals, evecs = order_eigensystem(evals, evecs)
+        except LinAlgError:
+            warnings.warn("Due to rounding errors, the inner-product matrix is no longer positive definite."
+                          "Trying now to eliminate small eigenvalues via the Fix-Heiberger algorithm.")
+            H = fixheiberger(hamiltonian_mat, inner_product_mat, 1e-6)
+            evals, evecs = sp.linalg.eigh(H, eigvals_only=False, eigvals=(0, evals_count - 1))
         return evals, evecs
 
     def sorted_minima(self):
