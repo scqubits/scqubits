@@ -663,11 +663,11 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
                                    eigvals_only=True, eigvals=(0, evals_count - 1))
         except LinAlgError:
-            warnings.warn("Due to rounding errors, the inner-product matrix is no longer positive definite."
-                          "Trying now to eliminate small eigenvalues via the Fix-Heiberger algorithm.")
-            H = fixheiberger(hamiltonian_mat, inner_product_mat, 1e-6)
-            evals = sp.linalg.eigh(H, eigvals_only=True, eigvals=(0, evals_count - 1))
-        return np.sort(evals)
+            warnings.warn("Singular inner product. Attempt QZ algorithm")
+            AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
+            evals = alpha/beta
+            evals = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
+        return evals
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -677,11 +677,23 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                           eigvals_only=False, eigvals=(0, evals_count - 1))
             evals, evecs = order_eigensystem(evals, evecs)
         except LinAlgError:
-            warnings.warn("Due to rounding errors, the inner-product matrix is no longer positive definite."
-                          "Trying now to eliminate small eigenvalues via the Fix-Heiberger algorithm.")
-            H = fixheiberger(hamiltonian_mat, inner_product_mat, 1e-6)
-            evals, evecs = sp.linalg.eigh(H, eigvals_only=False, eigvals=(0, evals_count - 1))
+            warnings.warn("Singular inner product. Attempt QZ algorithm")
+            AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
+            evals = alpha/beta
+            evals = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
+            evecs = Z.T  # Need to ensure that this is the right way to produce eigenvectors
         return evals, evecs
+
+    def _ordqz_filtercomplex(self, a):
+        if np.abs(np.imag(a)) > 1e-6:
+            return False
+        else:
+            return True
+
+    def _ordqz_sorter(self, alpha, beta):
+        x = alpha / beta
+        out = np.logical_and(np.real(x) > 0, np.abs(np.imag(x)) < 10 ** (-9))
+        return out
 
     def sorted_minima(self):
         pass

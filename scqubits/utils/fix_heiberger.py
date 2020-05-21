@@ -24,9 +24,9 @@ def fixheiberger(A, B, epsilon):
     """
     n = A.shape[0]
     D0, Q1 = linalg.eigh(B)
-    index_array = np.argsort(D0)[:: -1]  # sort in descending order
-    D0 = D0[index_array]
-    Q1 = Q1[:, index_array]
+    index_array_D0 = np.argsort(D0)[:: -1]  # sort in descending order
+    D0 = D0[index_array_D0]
+    Q1 = Q1[:, index_array_D0]
     # eliminate all eigenvalues of the inner product matrix
     # that are below the threshold epsilon
     for num in range(n-1, -1, -1):
@@ -53,13 +53,14 @@ def fixheiberger(A, B, epsilon):
     # Diagonalize A1_22, separate out offending
     # eigenvalues here as well
     D2, Q2_22 = linalg.eigh(A1_22)
-    index_array = np.argsort(D2)[:: -1]  # sort in descending order
-    D2 = D2[index_array]
-    Q2_22 = Q2_22[:, index_array]
+    index_array_D2 = np.argsort(D2)[:: -1]  # sort in descending order
+    D2 = D2[index_array_D2]
+    Q2_22 = Q2_22[:, index_array_D2]
     # Separate out eigenvalues of the A1_22 matrix that are
     # similarly below the epsilon threshold
     for num2 in range(n2-1, -1, -1):
-        if D2[num2] > epsilon*D2[0]:
+#        if D2[num2] > epsilon*D2[0]:
+        if D2[num2] > epsilon:
             ind2 = num2
             break
         if num2 == 0:  # All are below the threshold, n3 = 0
