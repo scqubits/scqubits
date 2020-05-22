@@ -106,28 +106,28 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
         no_node = self.num_deg_freedom
         ECmat, E_j_npl, n_gd_npl = self.build_EC_matrix(), self.EJlist, self.nglist
         phi = 2*np.pi*self.flux
-        n_o, g_o, g_o_dg, i_o = self._n_o, self._g_o, self._g_o_dg, self._i_o
-        full_o = self.full_o
+        n_o, g_o, g_o_dg, i_o, i_o_list = self._basic_operators(self.ncut, self.num_deg_freedom, np.complex_)
         
         H = 0.
         for j, k in itertools.product(range(no_node), range(no_node)):
             if j != k:
-                H += 4 * ECmat[j, k] * full_o([n_o - n_gd_npl[j] * i_o,
-                                               n_o - n_gd_npl[k] * i_o], [j, k])
+                H += 4 * ECmat[j, k] * self.full_o([n_o - n_gd_npl[j] * i_o,
+                                               n_o - n_gd_npl[k] * i_o], [j, k], i_o_list)
             else:
-                H += 4 * ECmat[j, j] * full_o([(n_o - n_gd_npl[j] * i_o)
-                                               .dot(n_o - n_gd_npl[j] * i_o)],[j])
+                H += 4 * ECmat[j, j] * self.full_o([(n_o - n_gd_npl[j] * i_o)
+                                               .dot(n_o - n_gd_npl[j] * i_o)],[j], i_o_list)
         
         for j in range(no_node):
-            H += ((-E_j_npl[j] / 2.)* full_o([g_o], [j]))
-            H += ((-E_j_npl[j] / 2.) * full_o([g_o_dg], [j]))
-            H += E_j_npl[j]*full_o([],[])
+            H += ((-E_j_npl[j] / 2.)* self.full_o([g_o], [j], i_o_list))
+            H += ((-E_j_npl[j] / 2.) * self.full_o([g_o_dg], [j], i_o_list))
+            H += E_j_npl[j]*self.full_o([],[], i_o_list)
         H += ((-E_j_npl[-1] / 2.) * np.exp(phi * 1j)
-              * full_o([g_o for j in range(no_node)], [j for j in range(no_node)]))
+              * self.full_o([g_o for j in range(no_node)], 
+                            [j for j in range(no_node)], i_o_list))
         H += ((-E_j_npl[-1] / 2.) * np.exp(-phi * 1j)
-              * full_o([g_o_dg for j in range(no_node)],
-                       [j for j in range(no_node)]))
-        H += E_j_npl[-1]*full_o([],[])
+              * self.full_o([g_o_dg for j in range(no_node)],
+                       [j for j in range(no_node)], i_o_list))
+        H += E_j_npl[-1]*self.full_o([],[], i_o_list)
         
         return H
     
@@ -141,11 +141,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
         g_o_dg = sps.eye(nstate_s, k=-1, format="csr", dtype=operator_dtype)
         i_o = sps.eye(nstate_s, k=0, format="csr", dtype=operator_dtype)
         i_o_list = [i_o for j in range(no_node)]
-        self._n_o = n_o
-        self._g_o = g_o
-        self._g_o_dg = g_o_dg
-        self._i_o = i_o
-        self._i_o_list = i_o_list
+        return n_o, g_o, g_o_dg, i_o, i_o_list
         
     def full_o(self, operators, indices, i_o_list=None):
         if i_o_list is None:
