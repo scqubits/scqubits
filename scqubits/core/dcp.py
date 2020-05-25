@@ -181,7 +181,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`n_\theta = - i d/d\\theta` operator in the LC harmonic oscillator basis
         """
-        dimension = self.phi_hilbertdim()
+        dimension = self.theta_hilbertdim()
         return 1j * (op.creation(dimension) - op.annihilation(dimension)) * self.n_theta_zpf()
 
     def exp_i_phi_2_operator(self):
@@ -243,7 +243,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         return np.eye(dimension)
 
     def varphi_identity(self):
-        dimension = 2 * self.varphi_hilbertdim() + 1
+        dimension = self.varphi_hilbertdim()
         return np.eye(dimension)
 
     def hamiltonian(self):  # follow W.C. Smith, A. Kou, X. Xiao, U. Vool, and M.H. Devoret, Npj Quantum Inf. 6, 8 (2020).
@@ -294,3 +294,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=True)
         return np.sort(evals)
+
+    # TODO not use it
+    def hilbertdim(self):
+        """Return Hilbert space dimension."""
+        return 0
