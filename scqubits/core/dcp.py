@@ -192,7 +192,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`e^{i\\phi/2}` operator in the LC harmonic oscillator basis
         """
-        exponent = 1j * self.phi_operator() / 2.0
+        exponent = 1j * self.phi_operator() * 0.5
         return expm(exponent)
 
     def cos_phi_2_operator(self):
@@ -204,7 +204,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         """
         cos_phi_op = 0.5 * self.exp_i_phi_2_operator()
         cos_phi_op += cos_phi_op.conjugate().T
-        return cos_phi_op
+        return np.real(cos_phi_op)
 
     def sin_phi_2_operator(self):
         """
@@ -215,7 +215,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         """
         sin_phi_op = -1j * 0.5 * self.exp_i_phi_2_operator()
         sin_phi_op += sin_phi_op.conjugate().T
-        return sin_phi_op
+        return np.real(sin_phi_op)
 
     def n_varphi_ng_operator(self):
         """Returns charge operator `n_phi - Ng` in the charge basis"""
@@ -240,6 +240,9 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         dimension = self.varphi_hilbertdim()
         return sparse.identity(dimension, format='csc', dtype=np.complex_)
 
+    def kron3(self, mat1, mat2, mat3):
+        return sparse.kron(sparse.kron(mat1, mat2, format='csc'), mat3, format='csc')
+
     def hamiltonian(self):  # follow W.C. Smith, A. Kou, X. Xiao, U. Vool, and M.H. Devoret, Npj Quantum Inf. 6, 8 (2020).
         """Return Hamiltonian
 
@@ -247,18 +250,18 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         -------
         ndarray
         """
-        phi_osc_matrix = sparse.kron(sparse.kron(op.number_sparse(self.phi_hilbertdim(), self.phi_plasma()), self.theta_identity(), format='csc'), self.varphi_identity(), format='csc')
-        theta_osc_matrix = sparse.kron(sparse.kron(self.phi_identity(), op.number_sparse(self.theta_hilbertdim(), self.theta_plasma()), format='csc'), self.varphi_identity(), format='csc')
+        phi_osc_matrix = self.kron3(op.number_sparse(self.phi_hilbertdim(), self.phi_plasma()), self.theta_identity(), self.varphi_identity())
+        theta_osc_matrix = self.kron3(self.phi_identity(), op.number_sparse(self.theta_hilbertdim(), self.theta_plasma()), self.varphi_identity())
 
-        n_varphi_ng_matrix = sparse.kron(sparse.kron(self.phi_identity(), self.theta_identity(), format='csc'), self.n_varphi_ng_operator(), format='csc')
-        n_theta_matrix = sparse.kron(sparse.kron(self.phi_identity(), self.n_theta_operator(), format='csc'), self.varphi_identity(), format='csc')
-        cross_kinetic_matrix = 2 * self.EC * (n_varphi_ng_matrix - n_theta_matrix).dot(n_varphi_ng_matrix - n_theta_matrix)
+        n_varphi_ng_matrix = self.kron3(self.phi_identity(), self.theta_identity(), self.n_varphi_ng_operator())
+        n_theta_matrix = self.kron3(self.phi_identity(), self.n_theta_operator(), self.varphi_identity())
+        cross_kinetic_matrix = 2 * self.EC * (n_varphi_ng_matrix - n_theta_matrix) * (n_varphi_ng_matrix - n_theta_matrix)
 
         phi_flux_term = self.cos_phi_2_operator() * np.cos(self.flux * np.pi) - self.sin_phi_2_operator() * np.sin(self.flux * np.pi)
-        junction_matrix = -2 * self.EJ * sparse.kron(sparse.kron(phi_flux_term, self.theta_identity(), format='csc'), self.cos_varphi_operator(), format='csc')
+        junction_matrix = -2 * self.EJ * self.kron3(phi_flux_term, self.theta_identity(), self.cos_varphi_operator())
 
         hamiltonian_mat = phi_osc_matrix + theta_osc_matrix + cross_kinetic_matrix + junction_matrix
-        return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential
+        return hamiltonian_mat
 
     def potential(self, phi, theta, varphi):
         """Double Cooper pair tunneling qubit potential evaluated at `phi, theta, varphi`.
