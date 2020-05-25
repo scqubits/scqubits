@@ -15,6 +15,8 @@ import os
 
 import numpy as np
 import scipy as sp
+from scipy import sparse
+from scipy.sparse.linalg import expm, eigsh
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -27,7 +29,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 
 # —Double Cooper pair tunneling qubit ————————————————————————
-# TODO must implement all abstract method
 class Dcp(base.QubitBaseClass, serializers.Serializable):
     r"""Class for the double Cooper pair tunneling qubit. Hamiltonian
     :math:`H_\text{dcp}=4E_\text{C}[2n_\phi^2+\frac{1}{2}(n_\varphi-N_\text{g}-n_\theta)^2+xn_\theta^2]+E_\text{L}(\frac{1}{4}\phi^2+\theta^2)-2E_\text{J}\cos(\varphi)\cos(\frac{\phi}{2}+\frac{\varphi_\text{ext}}{2})`
@@ -172,7 +173,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             Returns the phi operator in the LC harmonic oscillator basis
         """
         dimension = self.phi_hilbertdim()
-        return (op.creation(dimension) + op.annihilation(dimension)) * self.phi_zpf()
+        return (op.creation_sparse(dimension) + op.annihilation_sparse(dimension)) * self.phi_zpf()
 
     def n_theta_operator(self):
         """
@@ -182,7 +183,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`n_\theta = - i d/d\\theta` operator in the LC harmonic oscillator basis
         """
         dimension = self.theta_hilbertdim()
-        return 1j * (op.creation(dimension) - op.annihilation(dimension)) * self.n_theta_zpf()
+        return 1j * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension)) * self.n_theta_zpf()
 
     def exp_i_phi_2_operator(self):
         """
@@ -192,7 +193,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`e^{i\\phi/2}` operator in the LC harmonic oscillator basis
         """
         exponent = 1j * self.phi_operator() / 2.0
-        return sp.linalg.expm(exponent)
+        return expm(exponent)
 
     def cos_phi_2_operator(self):
         """
@@ -216,35 +217,28 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         sin_phi_op += sin_phi_op.conjugate().T
         return sin_phi_op
 
-    def n_varphi_operator(self):
-        """Returns charge operator `n_phi` in the charge basis"""
-        diag_elements = np.arange(-self.N0, self.N0 + 1, 1)
-        return np.diag(diag_elements)
-
-    def exp_i_varphi_operator(self):
-        """Returns operator :math:`e^{i\\varphi}` in the charge basis"""
-        dimension = self.varphi_hilbertdim()
-        entries = np.repeat(1.0, dimension - 1)
-        exp_op = np.diag(entries, -1)
-        return exp_op
+    def n_varphi_ng_operator(self):
+        """Returns charge operator `n_phi - Ng` in the charge basis"""
+        diag_elements = np.arange(-self.N0 - self.Ng, self.N0 + 1 - self.Ng)
+        return sparse.dia_matrix((diag_elements, [0]), shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
 
     def cos_varphi_operator(self):
         """Returns operator :math:`\\cos \\varphi` in the charge basis"""
-        cos_op = 0.5 * self.exp_i_varphi_operator()
-        cos_op += cos_op.T
+        cos_op = 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [1]), shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
+        cos_op += 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [-1]), shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
         return cos_op
 
     def phi_identity(self):
         dimension = self.phi_hilbertdim()
-        return np.eye(dimension)
+        return sparse.identity(dimension, format='csc', dtype=np.complex_)
 
     def theta_identity(self):
         dimension = self.theta_hilbertdim()
-        return np.eye(dimension)
+        return sparse.identity(dimension, format='csc', dtype=np.complex_)
 
     def varphi_identity(self):
         dimension = self.varphi_hilbertdim()
-        return np.eye(dimension)
+        return sparse.identity(dimension, format='csc', dtype=np.complex_)
 
     def hamiltonian(self):  # follow W.C. Smith, A. Kou, X. Xiao, U. Vool, and M.H. Devoret, Npj Quantum Inf. 6, 8 (2020).
         """Return Hamiltonian
@@ -253,21 +247,15 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         -------
         ndarray
         """
-        phi_dimension = self.phi_hilbertdim()
-        phi_diag_elements = [i * self.phi_plasma() for i in range(phi_dimension)]
-        phi_osc_matrix = np.kron(np.kron(np.diag(phi_diag_elements), self.theta_identity()), self.varphi_identity())
+        phi_osc_matrix = sparse.kron(sparse.kron(op.number_sparse(self.phi_hilbertdim(), self.phi_plasma()), self.theta_identity(), format='csc'), self.varphi_identity(), format='csc')
+        theta_osc_matrix = sparse.kron(sparse.kron(self.phi_identity(), op.number_sparse(self.theta_hilbertdim(), self.theta_plasma()), format='csc'), self.varphi_identity(), format='csc')
 
-        theta_dimension = self.theta_hilbertdim()
-        theta_diag_elements = [i * self.theta_plasma() for i in range(theta_dimension)]
-        theta_osc_matrix = np.kron(np.kron(self.phi_identity(), np.diag(theta_diag_elements)), self.varphi_identity())
-
-        n_varphi_matrix = np.kron(np.kron(self.phi_identity(), self.theta_identity()), self.n_varphi_operator())
-        ng_matrix = np.kron(np.kron(self.phi_identity(), self.theta_identity()), self.varphi_identity()) * self.Ng
-        n_theta_matrix = np.kron(np.kron(self.phi_identity(), self.n_theta_operator()), self.varphi_identity())
-        cross_kinetic_matrix = 2 * self.EC * np.linalg.matrix_power(n_varphi_matrix - ng_matrix - n_theta_matrix, 2)
+        n_varphi_ng_matrix = sparse.kron(sparse.kron(self.phi_identity(), self.theta_identity(), format='csc'), self.n_varphi_ng_operator(), format='csc')
+        n_theta_matrix = sparse.kron(sparse.kron(self.phi_identity(), self.n_theta_operator(), format='csc'), self.varphi_identity(), format='csc')
+        cross_kinetic_matrix = 2 * self.EC * (n_varphi_ng_matrix - n_theta_matrix).dot(n_varphi_ng_matrix - n_theta_matrix)
 
         phi_flux_term = self.cos_phi_2_operator() * np.cos(self.flux * np.pi) - self.sin_phi_2_operator() * np.sin(self.flux * np.pi)
-        junction_matrix = -2 * self.EJ * np.kron(np.kron(phi_flux_term, self.theta_identity()), self.cos_varphi_operator())
+        junction_matrix = -2 * self.EJ * sparse.kron(sparse.kron(phi_flux_term, self.theta_identity(), format='csc'), self.cos_varphi_operator(), format='csc')
 
         hamiltonian_mat = phi_osc_matrix + theta_osc_matrix + cross_kinetic_matrix + junction_matrix
         return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential
@@ -292,7 +280,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals = sp.linalg.eigh(hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=True)
+        evals = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
         return np.sort(evals)
 
     # TODO not use it
