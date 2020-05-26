@@ -667,10 +667,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
             evals = alpha/beta
             evals_qz = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
-            evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, epsilon_vals=3,
-                                    num_eigvals=evals_count, eigvals_only=True)
+            evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, num_eigvals=evals_count, eigvals_only=True)
             assert(np.allclose(evals_qz, evals_fh))
-            evals = evals_qz
+            evals = evals_fh
         return evals
 
     def _esys_calc(self, evals_count):
@@ -681,14 +680,13 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                           eigvals_only=False, eigvals=(0, evals_count - 1))
             evals, evecs = order_eigensystem(evals, evecs)
         except LinAlgError:
-            warnings.warn("Singular inner product. Attempt QZ algorithm")
+            warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare to ensure convergence")
             AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
             evals = alpha/beta
             evals_qz = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
-            evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, epsilon_vals=3,
-                                    num_eigvals=evals_count, eigvals_only=False)
+            evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, num_eigvals=evals_count, eigvals_only=False)
             assert (np.allclose(evals_qz, evals_fh))
-            evals = evals_qz
+            evals = evals_fh
             evecs = Z.T  # Need to ensure that this is the right way to produce eigenvectors
         return evals, evecs
 
