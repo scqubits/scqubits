@@ -227,12 +227,15 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
     def n_varphi_ng_operator(self):
         """Returns charge operator `n_phi - Ng` in the charge basis"""
         diag_elements = np.arange(-self.N0 - self.Ng, self.N0 + 1 - self.Ng)
-        return sparse.dia_matrix((diag_elements, [0]), shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
+        return sparse.dia_matrix((diag_elements, [0]),
+                                 shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
 
     def cos_varphi_operator(self):
         """Returns operator :math:`\\cos \\varphi` in the charge basis"""
-        cos_op = 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [1]), shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
-        cos_op += 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [-1]), shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
+        cos_op = 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [1]),
+                                         shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
+        cos_op += 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [-1]),
+                                          shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
         return cos_op
 
     def phi_identity(self):
@@ -250,21 +253,27 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
     def _kron3(self, mat1, mat2, mat3):
         return sparse.kron(sparse.kron(mat1, mat2, format='csc'), mat3, format='csc')
 
-    def hamiltonian(self):  # follow W.C. Smith, A. Kou, X. Xiao, U. Vool, and M.H. Devoret, Npj Quantum Inf. 6, 8 (2020).
+    def hamiltonian(
+            self):  # follow W.C. Smith, A. Kou, X. Xiao, U. Vool, and M.H. Devoret, Npj Quantum Inf. 6, 8 (2020).
         """Return Hamiltonian
 
         Returns
         -------
         ndarray
         """
-        phi_osc_matrix = self._kron3(op.number_sparse(self.phi_hilbertdim(), self.phi_plasma()), self.theta_identity(), self.varphi_identity())
-        theta_osc_matrix = self._kron3(self.phi_identity(), op.number_sparse(self.theta_hilbertdim(), self.theta_plasma()), self.varphi_identity())
+        phi_osc_matrix = self._kron3(op.number_sparse(self.phi_hilbertdim(), self.phi_plasma()), self.theta_identity(),
+                                     self.varphi_identity())
+        theta_osc_matrix = self._kron3(self.phi_identity(),
+                                       op.number_sparse(self.theta_hilbertdim(), self.theta_plasma()),
+                                       self.varphi_identity())
 
         n_varphi_ng_matrix = self._kron3(self.phi_identity(), self.theta_identity(), self.n_varphi_ng_operator())
         n_theta_matrix = self._kron3(self.phi_identity(), self.n_theta_operator(), self.varphi_identity())
-        cross_kinetic_matrix = 2 * self.EC * (n_varphi_ng_matrix - n_theta_matrix) * (n_varphi_ng_matrix - n_theta_matrix)
+        cross_kinetic_matrix = 2 * self.EC * (n_varphi_ng_matrix - n_theta_matrix) * (
+                    n_varphi_ng_matrix - n_theta_matrix)
 
-        phi_flux_term = self.cos_phi_2_operator() * np.cos(self.flux * np.pi) - self.sin_phi_2_operator() * np.sin(self.flux * np.pi)
+        phi_flux_term = self.cos_phi_2_operator() * np.cos(self.flux * np.pi) - self.sin_phi_2_operator() * np.sin(
+            self.flux * np.pi)
         junction_matrix = -2 * self.EJ * self._kron3(phi_flux_term, self.theta_identity(), self.cos_varphi_operator())
 
         hamiltonian_mat = phi_osc_matrix + theta_osc_matrix + cross_kinetic_matrix + junction_matrix
@@ -379,19 +388,24 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         varphi_basis_labels = varphi_grid.make_linspace()
 
         wavefunc_basis_amplitudes = np.reshape(evecs[:, which], self.hilbertdim())
-        wavefunc_amplitudes = np.zeros((phi_grid.pt_count, theta_grid.pt_count, varphi_grid.pt_count), dtype=np.complex_)
+        wavefunc_amplitudes = np.zeros((phi_grid.pt_count, theta_grid.pt_count, varphi_grid.pt_count),
+                                       dtype=np.complex_)
         for n in range(self.hilbertdim()):
             n_phi, n_theta, n_varphi = self.tensor_index_inv(n)
             num_varphi = n_varphi - self.N0
             phi_wavefunc_amplitudes = osc.harm_osc_wavefunction(n_phi, phi_basis_labels, self.phi_osc())
             theta_wavefunc_amplitudes = osc.harm_osc_wavefunction(n_theta, theta_basis_labels, self.theta_osc())
             varphi_wavefunc_amplitudes = np.exp(-1j * num_varphi * varphi_basis_labels) / (2 * np.pi) ** 0.5
-            wavefunc_amplitudes += wavefunc_basis_amplitudes[n] * np.tensordot(np.tensordot(phi_wavefunc_amplitudes, theta_wavefunc_amplitudes, 0), varphi_wavefunc_amplitudes, 0)
+            wavefunc_amplitudes += wavefunc_basis_amplitudes[n] * np.tensordot(
+                np.tensordot(phi_wavefunc_amplitudes, theta_wavefunc_amplitudes, 0), varphi_wavefunc_amplitudes, 0)
 
-        grid3d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count], [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count], [varphi_grid.min_val, varphi_grid.max_val, varphi_grid.pt_count]]))
+        grid3d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                                                     [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
+                                                     [varphi_grid.min_val, varphi_grid.max_val, varphi_grid.pt_count]]))
         return storage.WaveFunctionOnGrid(grid3d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self, esys=None, which=0, phi_grid=None, varphi_grid=None, mode='abs', zero_calibrate=True, **kwargs):
+    def plot_wavefunction(self, esys=None, which=0, phi_grid=None, varphi_grid=None, mode='abs', zero_calibrate=True,
+                          **kwargs):
         """Plots 2d phase-basis wave function for theta = 0
 
         Parameters
@@ -416,32 +430,39 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         Figure, Axes
         """
         phi_grid = phi_grid or self._default_phi_grid
-        theta_grid = discretization.Grid1d(0,0,1)
+        theta_grid = discretization.Grid1d(0, 0, 1)
         varphi_grid = varphi_grid or self._default_varphi_grid
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid, which=which)
+        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
+                                     which=which)
 
-        wavefunc.gridspec = discretization.GridSpec(np.asarray([[varphi_grid.min_val, varphi_grid.max_val, varphi_grid.pt_count], [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
-        wavefunc.amplitudes = amplitude_modifier(spec_utils.standardize_phases(wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count)))
+        wavefunc.gridspec = discretization.GridSpec(np.asarray(
+            [[varphi_grid.min_val, varphi_grid.max_val, varphi_grid.pt_count],
+             [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
+        wavefunc.amplitudes = amplitude_modifier(
+            spec_utils.standardize_phases(wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count)))
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
 
     def instanton_path(self, varphi):
         """instanton path phi(varphi)"""
         z = self.EL / self.EJ
         # TODO make sure the minus pi
-        return 1.0 / (1.0 + z) * (2 * np.abs(varphi - 2 * np.pi * np.round(varphi / (2 * np.pi))) + z * 2 * np.pi * self.flux) - np.pi
+        return 1.0 / (1.0 + z) * (
+                    2 * np.abs(varphi - 2 * np.pi * np.round(varphi / (2 * np.pi))) + z * 2 * np.pi * self.flux) - np.pi
 
     def plot_charge_wavefunction(self, esys=None, mode='real', which=0, n_varphi_list=None, **kwargs):
         """Wavefunction in n_varphi space"""
         phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         theta_grid = discretization.Grid1d(0, 0, 1)
-        varphi_grid = discretization.Grid1d(0, 2*np.pi, 500)
+        varphi_grid = discretization.Grid1d(0, 2 * np.pi, 500)
 
-        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid, which=which)
+        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
+                                     which=which)
 
         varphi_grid_list = varphi_grid.make_linspace()
-        d2_amplitudes = spec_utils.standardize_phases(wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
+        d2_amplitudes = spec_utils.standardize_phases(
+            wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
         d1_amplitudes = np.zeros(varphi_grid.pt_count, dtype=np.complex_)
         for n in range(varphi_grid.pt_count):
             phi_instanton = self.instanton_path(varphi_grid_list[n])
@@ -449,11 +470,12 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             d1_amplitudes[n] = d2_amplitudes[phi_idx, n]
 
         if n_varphi_list is None:
-            n_varphi_list = np.arange(-7,8)
+            n_varphi_list = np.arange(-7, 8)
         n_varphi_val = np.zeros(np.size(n_varphi_list), dtype=np.complex_)
         d_varphi = varphi_grid_list[1] - varphi_grid_list[0]
         for n in range(n_varphi_list.size):
-            n_varphi_val[n] = 1 / (2 * np.pi) * np.sum(d1_amplitudes * np.exp(1j * n_varphi_list[n] * varphi_grid_list)) * d_varphi
+            n_varphi_val[n] = 1 / (2 * np.pi) * np.sum(
+                d1_amplitudes * np.exp(1j * n_varphi_list[n] * varphi_grid_list)) * d_varphi
 
         n_varphi_wavefunction = storage.WaveFunction(n_varphi_list, n_varphi_val)
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
