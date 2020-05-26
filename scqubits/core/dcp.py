@@ -17,6 +17,7 @@ import numpy as np
 import scipy as sp
 from scipy import sparse
 from scipy.sparse.linalg import expm, eigsh
+import matplotlib.pyplot as plt
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -28,6 +29,7 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
+import scqubits.utils.plot_defaults as defaults
 
 
 # —Double Cooper pair tunneling qubit ————————————————————————
@@ -423,3 +425,38 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         wavefunc.gridspec = discretization.GridSpec(np.asarray([[varphi_grid.min_val, varphi_grid.max_val, varphi_grid.pt_count], [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
         wavefunc.amplitudes = amplitude_modifier(spec_utils.standardize_phases(wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count)))
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+
+    def instanton_path(self, varphi):
+        """instanton path phi(varphi)"""
+        z = self.EL / self.EJ
+        # TODO make sure the minus pi
+        return 1.0 / (1.0 + z) * (2 * np.abs(varphi - 2 * np.pi * np.round(varphi / (2 * np.pi))) + z * 2 * np.pi * self.flux) - np.pi
+
+    def plot_charge_wavefunction(self, esys=None, mode='real', which=0, n_varphi_list=None, **kwargs):
+        """Wavefunction in n_varphi space"""
+        phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
+        theta_grid = discretization.Grid1d(0, 0, 1)
+        varphi_grid = discretization.Grid1d(0, 2*np.pi, 500)
+
+        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid, which=which)
+
+        varphi_grid_list = varphi_grid.make_linspace()
+        d2_amplitudes = spec_utils.standardize_phases(wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
+        d1_amplitudes = np.zeros(varphi_grid.pt_count, dtype=np.complex_)
+        for n in range(varphi_grid.pt_count):
+            phi_instanton = self.instanton_path(varphi_grid_list[n])
+            phi_idx = (np.abs(phi_grid.make_linspace() - phi_instanton)).argmin()
+            d1_amplitudes[n] = d2_amplitudes[phi_idx, n]
+
+        if n_varphi_list is None:
+            n_varphi_list = np.arange(-7,8)
+        n_varphi_val = np.zeros(np.size(n_varphi_list), dtype=np.complex_)
+        d_varphi = varphi_grid_list[1] - varphi_grid_list[0]
+        for n in range(n_varphi_list.size):
+            n_varphi_val[n] = 1 / (2 * np.pi) * np.sum(d1_amplitudes * np.exp(1j * n_varphi_list[n] * varphi_grid_list)) * d_varphi
+
+        n_varphi_wavefunction = storage.WaveFunction(n_varphi_list, n_varphi_val)
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        n_varphi_wavefunction.amplitudes = amplitude_modifier(n_varphi_wavefunction.amplitudes)
+        kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
+        return plot.wavefunction1d_discrete(n_varphi_wavefunction, **kwargs)
