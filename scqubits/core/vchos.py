@@ -663,10 +663,14 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
                                    eigvals_only=True, eigvals=(0, evals_count - 1))
         except LinAlgError:
-            warnings.warn("Singular inner product. Attempt QZ algorithm")
+            warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare to ensure convergence")
             AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
             evals = alpha/beta
-            evals = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
+            evals_qz = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
+            evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, epsilon_vals=3,
+                                    num_eigvals=evals_count, eigvals_only=True)
+            assert(np.allclose(evals_qz, evals_fh))
+            evals = evals_qz
         return evals
 
     def _esys_calc(self, evals_count):
@@ -680,12 +684,16 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             warnings.warn("Singular inner product. Attempt QZ algorithm")
             AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
             evals = alpha/beta
-            evals = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
+            evals_qz = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
+            evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, epsilon_vals=3,
+                                    num_eigvals=evals_count, eigvals_only=False)
+            assert (np.allclose(evals_qz, evals_fh))
+            evals = evals_qz
             evecs = Z.T  # Need to ensure that this is the right way to produce eigenvectors
         return evals, evecs
 
     def _ordqz_filtercomplex(self, a):
-        if np.abs(np.imag(a)) > 1e-6:
+        if np.abs(np.imag(a)) > 1e-9:
             return False
         else:
             return True
