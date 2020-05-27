@@ -74,11 +74,14 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
     q0 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     p0 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EC, EL, x, flux, Ng, N0, q0, p0, truncated_dim=None):
+    def __init__(self, EJ, EC, EL, x, dL, dC, dJ, flux, Ng, N0, q0, p0, truncated_dim=None):
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
         self.x = x
+        self.dL = dL
+        self.dC = dC
+        self.dJ = dJ
         self.flux = flux
         self.Ng = Ng
         self.N0 = N0
@@ -136,23 +139,17 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             Returns the Hilbert space dimension for varphi degree of freedom."""
         return 2 * self.N0 + 1
 
-    def phi_zpf(self):
-        """
-        Returns
-        -------
-        float
-            Returns zero point fluctuation for the phi degree of freedom.
-        """
-        return (8.0 * self.EC / self.EL) ** 0.25
+    def hilbertdim(self):
+        """Return total Hilbert space dimension."""
+        return self.phi_hilbertdim() * self.theta_hilbertdim() * self.varphi_hilbertdim()
 
-    def n_theta_zpf(self):
-        """
-        Returns
-        -------
-        float
-            Returns zero point fluctuation for the n_theta degree of freedom.
-        """
-        return 0.5 * (self.EL / self.EC / self.x) ** 0.25
+    def phi_osc(self):
+        """Return the oscillator strength of phi degree of freedom"""
+        return (32 * self.EC / self.EL) ** 0.25
+
+    def theta_osc(self):
+        """Return the oscillator strength of theta degree of freedom"""
+        return (4 * self.EC * self.x / self.EL) ** 0.25
 
     def phi_plasma(self):
         """
@@ -180,7 +177,32 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             Returns the phi operator in the LC harmonic oscillator basis
         """
         dimension = self.phi_hilbertdim()
-        return (op.creation_sparse(dimension) + op.annihilation_sparse(dimension)) * self.phi_zpf()
+        return (op.creation_sparse(dimension) + op.annihilation_sparse(dimension)) * self.phi_osc() / math.sqrt(2)
+
+    def phi_opt(self):
+        """phi operator in the total hilbert space"""
+        return self._kron3(self.phi_operator(), self.theta_identity(), self.varphi_identity())
+
+    def n_phi_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`n_\phi = - i d/d\\phi` operator in the LC harmonic oscillator basis
+        """
+        dimension = self.phi_hilbertdim()
+        return 1j * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension)) / (
+                self.phi_osc() * math.sqrt(2))
+
+    def theta_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the theta operator in the LC harmonic oscillator basis
+        """
+        dimension = self.theta_hilbertdim()
+        return (op.creation_sparse(dimension) + op.annihilation_sparse(dimension)) * self.theta_osc() / math.sqrt(2)
 
     def n_theta_operator(self):
         """
@@ -190,7 +212,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`n_\theta = - i d/d\\theta` operator in the LC harmonic oscillator basis
         """
         dimension = self.theta_hilbertdim()
-        return 1j * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension)) * self.n_theta_zpf()
+        return 1j * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension)) / (
+                self.theta_osc() * math.sqrt(2))
 
     def exp_i_phi_2_operator(self):
         """
@@ -230,6 +253,16 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         return sparse.dia_matrix((diag_elements, [0]),
                                  shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
 
+    def n_varphi_operator(self):
+        """Returns charge operator `n_phi` in the charge basis"""
+        diag_elements = np.arange(-self.N0, self.N0 + 1)
+        return sparse.dia_matrix((diag_elements, [0]),
+                                 shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
+
+    def n_varphi_opt(self):
+        """n_varphi operator in the total hilbert space"""
+        return self._kron3(self.phi_identity(), self.theta_identity(), self.n_varphi_operator())
+
     def cos_varphi_operator(self):
         """Returns operator :math:`\\cos \\varphi` in the charge basis"""
         cos_op = 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [1]),
@@ -237,6 +270,14 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         cos_op += 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [-1]),
                                           shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
         return cos_op
+
+    def sin_varphi_operator(self):
+        """Returns operator :math:`\\sin \\varphi` in the charge basis"""
+        sin_op = 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [1]),
+                                         shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
+        sin_op -= 0.5 * sparse.dia_matrix((np.ones(self.varphi_hilbertdim()), [-1]),
+                                          shape=(self.varphi_hilbertdim(), self.varphi_hilbertdim())).tocsc()
+        return sin_op * (-1j)
 
     def phi_identity(self):
         dimension = self.phi_hilbertdim()
@@ -253,8 +294,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
     def _kron3(self, mat1, mat2, mat3):
         return sparse.kron(sparse.kron(mat1, mat2, format='csc'), mat3, format='csc')
 
-    def hamiltonian(
-            self):  # follow W.C. Smith, A. Kou, X. Xiao, U. Vool, and M.H. Devoret, Npj Quantum Inf. 6, 8 (2020).
+    def hamiltonian(self):
+        # follow W.C. Smith, A. Kou, X. Xiao, U. Vool, and M.H. Devoret, Npj Quantum Inf. 6, 8 (2020).
         """Return Hamiltonian
 
         Returns
@@ -270,7 +311,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         n_varphi_ng_matrix = self._kron3(self.phi_identity(), self.theta_identity(), self.n_varphi_ng_operator())
         n_theta_matrix = self._kron3(self.phi_identity(), self.n_theta_operator(), self.varphi_identity())
         cross_kinetic_matrix = 2 * self.EC * (n_varphi_ng_matrix - n_theta_matrix) * (
-                    n_varphi_ng_matrix - n_theta_matrix)
+                n_varphi_ng_matrix - n_theta_matrix)
 
         phi_flux_term = self.cos_phi_2_operator() * np.cos(self.flux * np.pi) - self.sin_phi_2_operator() * np.sin(
             self.flux * np.pi)
@@ -314,37 +355,25 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         x_vals = varphi_grid.make_linspace()
         y_vals = phi_grid.make_linspace()
         if 'figsize' not in kwargs:
-            kwargs['figsize'] = (5, 5)
+            kwargs['figsize'] = (4, 4)
         return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
     def _evals_calc(self, evals_count):
-        hamiltonian_mat = self.hamiltonian()
+        hamiltonian_mat = self.hamiltonian() + self.disorder()
         evals = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
-        hamiltonian_mat = self.hamiltonian()
+        hamiltonian_mat = self.hamiltonian() + self.disorder()
         evals, evecs = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def hilbertdim(self):
-        """Return total Hilbert space dimension."""
-        return self.phi_hilbertdim() * self.theta_hilbertdim() * self.varphi_hilbertdim()
-
-    def phi_osc(self):
-        """Return the oscillator strength of phi degree of freedom"""
-        return (32 * self.EC / self.EL) ** 0.25
-
-    def theta_osc(self):
-        """Return the oscillator strength of theta degree of freedom"""
-        return (4 * self.EC * self.x / self.EL) ** 0.25
-
-    def tensor_index(self, index_phi, index_theta, index_varphi):
+    def _tensor_index(self, index_phi, index_theta, index_varphi):
         """Return the index of the coefficient of the wavefunction, corresponding to the indices of phi, theta, and varphi """
         return (index_phi * self.theta_hilbertdim() + index_theta) * self.varphi_hilbertdim() + index_varphi
 
-    def tensor_index_inv(self, index_evec):
+    def _tensor_index_inv(self, index_evec):
         """Return the indices of phi, theta, and varphi corresponding to the index of the coefficient of the wavefunction"""
         index_varphi = index_evec % self.varphi_hilbertdim()
         index_temp = index_evec // self.varphi_hilbertdim()
@@ -391,7 +420,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         wavefunc_amplitudes = np.zeros((phi_grid.pt_count, theta_grid.pt_count, varphi_grid.pt_count),
                                        dtype=np.complex_)
         for n in range(self.hilbertdim()):
-            n_phi, n_theta, n_varphi = self.tensor_index_inv(n)
+            n_phi, n_theta, n_varphi = self._tensor_index_inv(n)
             num_varphi = n_varphi - self.N0
             phi_wavefunc_amplitudes = osc.harm_osc_wavefunction(n_phi, phi_basis_labels, self.phi_osc())
             theta_wavefunc_amplitudes = osc.harm_osc_wavefunction(n_theta, theta_basis_labels, self.theta_osc())
@@ -449,7 +478,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         z = self.EL / self.EJ
         # TODO make sure the minus pi
         return 1.0 / (1.0 + z) * (
-                    2 * np.abs(varphi - 2 * np.pi * np.round(varphi / (2 * np.pi))) + z * 2 * np.pi * self.flux) - np.pi
+                2 * np.abs(varphi - 2 * np.pi * np.round(varphi / (2 * np.pi))) + z * 2 * np.pi * self.flux) - np.pi
 
     def plot_charge_wavefunction(self, esys=None, mode='real', which=0, n_varphi_list=None, **kwargs):
         """Wavefunction in n_varphi space"""
@@ -482,3 +511,23 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         n_varphi_wavefunction.amplitudes = amplitude_modifier(n_varphi_wavefunction.amplitudes)
         kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
         return plot.wavefunction1d_discrete(n_varphi_wavefunction, **kwargs)
+
+    def disorder(self):
+        """Return disorder Hamiltonian
+
+        Returns
+        -------
+        ndarray
+        """
+        disorder_l = self.EL * self.dL / (1 - self.dL ** 2) * self._kron3(
+            self.n_phi_operator() - 2 * np.pi * self.flux * self.phi_identity(), self.theta_operator(),
+            self.varphi_identity())
+
+        disorder_j = 2 * self.EJ * self.dJ * self._kron3(self.sin_phi_2_operator(), self.theta_identity(),
+                                                         self.sin_varphi_operator())
+
+        n_varphi_ng_matrix = self._kron3(self.n_phi_operator(), self.theta_identity(), self.n_varphi_ng_operator())
+        n_theta_matrix = self._kron3(self.n_phi_operator(), self.n_theta_operator(), self.varphi_identity())
+        disorder_c = - 8 * self.EC * self.dC / (1 - self.dC ** 2) * (n_varphi_ng_matrix - n_theta_matrix)
+
+        return disorder_l + disorder_j + disorder_c
