@@ -87,7 +87,7 @@ def fixheiberger(A, B, num_eigvals=6, eigvals_only=True):
             evals = sp.linalg.eigh(fh_mat, eigvals_only=True, eigvals=(0, num_eigvals - 1))
             evals_list.append(evals)
             if j != 1:
-                converged = np.allclose(evals_list[j-2], evals_list[j-1])
+                converged = np.allclose(evals_list[j-2], evals_list[j-1], rtol=1e-3, atol=1e-8)
         elif n3 != 0:
             # different number of offending eigenvalues for A and B. Note that
             # this is not the ideal situation, since we end up folding matrix
@@ -116,7 +116,7 @@ def fixheiberger(A, B, num_eigvals=6, eigvals_only=True):
             evals = sp.linalg.eigh(fh_mat, eigvals_only=True, eigvals=(0, num_eigvals - 1))
             evals_list.append(evals)
             if j != 1:
-                converged = np.allclose(evals_list[j-2], evals_list[j-1])
+                converged = np.allclose(evals_list[j-2], evals_list[j-1], rtol=1e-3, atol=1e-8)
         else:  # same number of offending eigenvalues for A and B
             A2_13 = A2[0:n1, n1:n]
             # Reduce A2_13 to triangular form by Householder reflections
@@ -130,8 +130,8 @@ def fixheiberger(A, B, num_eigvals=6, eigvals_only=True):
             evals = sp.linalg.eigh(fh_mat, eigvals_only=True, eigvals=(0, num_eigvals - 1))
             evals_list.append(evals)
             if j != 1:
-                converged = np.allclose(evals_list[j-2], evals_list[j-1])
-    return evals_list[-1]
+                converged = np.allclose(evals_list[j-2], evals_list[j-1], rtol=1e-3, atol=1e-8)
+    return evals_list[-2]
 
 
 def _epsilon_update(epsilon, D0, n1):
@@ -145,9 +145,11 @@ def _epsilon_update(epsilon, D0, n1):
             if D0[num] > epsilon * D0[0]:
                 ind = num
                 break
+            if epsilon > D0[0]:
+                raise ConvergenceError("Convergence as a function of epsilon not achieved.")
         n1_new = ind + 1
         n2_new = n - n1_new
-        epsilon *= 10
+        epsilon *= 10.0
     return 0.1*epsilon, n1_new, n2_new
 
 

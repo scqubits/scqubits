@@ -663,13 +663,11 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
                                    eigvals_only=True, eigvals=(0, evals_count - 1))
         except LinAlgError:
-            warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare to ensure convergence")
-            AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
-            evals = alpha/beta
-            evals_qz = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
-            evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, num_eigvals=evals_count, eigvals_only=True)
-            assert(np.allclose(evals_qz, evals_fh))
-            evals = evals_fh
+            warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare for convergence")
+            evals = self._singular_inner_product_helper(hamiltonian_mat=hamiltonian_mat,
+                                                        inner_product_mat=inner_product_mat,
+                                                        evals_count=evals_count,
+                                                        eigvals_only=True)
         return evals
 
     def _esys_calc(self, evals_count):
@@ -680,25 +678,44 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                           eigvals_only=False, eigvals=(0, evals_count - 1))
             evals, evecs = order_eigensystem(evals, evecs)
         except LinAlgError:
-            warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare to ensure convergence")
-            AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
-            evals = alpha/beta
-            evals_qz = np.sort(np.real(list(filter(self._ordqz_filtercomplex, evals))))[0: evals_count]
-            evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, num_eigvals=evals_count, eigvals_only=False)
-            assert (np.allclose(evals_qz, evals_fh))
-            evals = evals_fh
-            evecs = Z.T  # Need to ensure that this is the right way to produce eigenvectors
+            warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare for convergence")
+            evals, evecs = self._singular_inner_product_helper(hamiltonian_mat=hamiltonian_mat,
+                                                               inner_product_mat=inner_product_mat,
+                                                               evals_count=evals_count,
+                                                               eigvals_only=False)
+
         return evals, evecs
 
-    def _ordqz_filtercomplex(self, a):
-        if np.abs(np.imag(a)) > 1e-9:
+    def _singular_inner_product_helper(self, hamiltonian_mat, inner_product_mat, evals_count, eigvals_only=True):
+        AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
+        ab = zip(alpha, beta)
+        a_max = np.max(np.abs(alpha))
+        b_max = np.max(np.abs(beta))
+        # filter ill-conditioned eigenvalues
+        ab = filter(lambda x: np.abs(x[0]) > 0.001 * a_max and np.abs(x[1]) > 0.001 * b_max, ab)
+        alpha, beta = list(zip(*ab))
+        evals_qz = np.array(alpha) / np.array(beta)
+        # Unsure if the filter function below should also filter out eigenvalues with large complex part
+        evals_qz = np.sort(np.real(list(filter(self._ordqz_filter, evals_qz))))[0: evals_count]
+        evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, num_eigvals=evals_count, eigvals_only=True)
+        assert (np.allclose(evals_qz, evals_fh))
+        evals = evals_qz
+        evecs = Z.T  # Need to ensure that this is the right way to produce eigenvectors
+        if eigvals_only:
+            return evals
+        else:
+            return evals, evecs
+
+    def _ordqz_filter(self, a):
+#        if np.abs(np.imag(a)) > 1e-12:
+        if np.real(a) < 0:
             return False
         else:
             return True
 
     def _ordqz_sorter(self, alpha, beta):
         x = alpha / beta
-        out = np.logical_and(np.real(x) > 0, np.abs(np.imag(x)) < 10 ** (-9))
+        out = np.logical_and(np.real(x) > 0, np.abs(np.imag(x)) < 10 ** (-12))
         return out
 
     def sorted_minima(self):
