@@ -29,7 +29,8 @@ An instance of the fluxonium created as follows::
                                   flux = 0.33,
                                   cutoff = 110)
 
-Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`.
+Here, the flux threading the circuit loop is specified by ``flux`` which records the flux in units of the magnetic
+flux quantum, :math:`\Phi_\text{ext}/\Phi_0`.
 
 From within Jupyter notebook, a fluxonium instance can alternatively be created with::
 
