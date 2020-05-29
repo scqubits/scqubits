@@ -17,6 +17,7 @@ import numpy as np
 import scipy as sp
 from scipy import sparse
 from scipy.sparse.linalg import expm, eigsh
+from scipy.special import kn
 import matplotlib.pyplot as plt
 
 import scqubits.core.constants as constants
@@ -143,13 +144,16 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         """Return total Hilbert space dimension."""
         return self.phi_hilbertdim() * self.theta_hilbertdim() * self.varphi_hilbertdim()
 
+    def _dis_el(self):
+        return self.EL / (1 - self.dL ** 2)
+
     def phi_osc(self):
         """Return the oscillator strength of phi degree of freedom"""
-        return (32 * self.EC / self.EL) ** 0.25
+        return (32 * self.EC / self._dis_el()) ** 0.25
 
     def theta_osc(self):
         """Return the oscillator strength of theta degree of freedom"""
-        return (4 * self.EC * self.x / self.EL) ** 0.25
+        return (4 * self.EC * self.x / self._dis_el()) ** 0.25
 
     def phi_plasma(self):
         """
@@ -158,7 +162,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         float
             Returns the plasma oscillation frequency for the phi degree of freedom.
         """
-        return math.sqrt(8.0 * self.EL * self.EC)
+        return math.sqrt(8.0 * self._dis_el() * self.EC)
 
     def theta_plasma(self):
         """
@@ -167,7 +171,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         float
             Returns the plasma oscillation frequency for the theta degree of freedom.
         """
-        return math.sqrt(16.0 * self.x * self.EL * self.EC)
+        return math.sqrt(16.0 * self.x * self._dis_el() * self.EC)
 
     def phi_operator(self):
         """
@@ -203,6 +207,10 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         """
         dimension = self.theta_hilbertdim()
         return (op.creation_sparse(dimension) + op.annihilation_sparse(dimension)) * self.theta_osc() / math.sqrt(2)
+
+    def theta_opt(self):
+        """theta operator in the total hilbert space"""
+        return self._kron3(self.phi_identity(), self.theta_operator(), self.varphi_identity())
 
     def n_theta_operator(self):
         """
@@ -334,7 +342,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         -------
         float or ndarray
         """
-        return self.EL * (0.25 * phi * phi) - 2 * self.EJ * np.cos(varphi) * np.cos(phi * 0.5 + np.pi * self.flux)
+        return self._dis_el() * (0.25 * phi * phi) - 2 * self.EJ * np.cos(varphi) * np.cos(
+            phi * 0.5 + np.pi * self.flux)
 
     def plot_potential(self, phi_grid=None, varphi_grid=None, contour_vals=None, **kwargs):
         """Draw contour plot of the potential energy.
@@ -475,6 +484,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
 
     def instanton_path(self, varphi):
         """instanton path phi(varphi)"""
+        # TODO this works now in symmetric case, check for disorder
         z = self.EL / self.EJ
         # TODO make sure the minus pi
         return 1.0 / (1.0 + z) * (
@@ -512,6 +522,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
         return plot.wavefunction1d_discrete(n_varphi_wavefunction, **kwargs)
 
+    # TODO check higher order disorder on junction and capacitance
     def disorder(self):
         """Return disorder Hamiltonian
 
@@ -519,9 +530,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         -------
         ndarray
         """
-        disorder_l = self.EL * self.dL / (1 - self.dL ** 2) * self._kron3(
-            self.n_phi_operator() - 2 * np.pi * self.flux * self.phi_identity(), self.theta_operator(),
-            self.varphi_identity())
+        disorder_l = - self._dis_el() * self.dL * self._kron3(self.phi_operator(), self.theta_operator(),
+                                                            self.varphi_identity())
 
         disorder_j = 2 * self.EJ * self.dJ * self._kron3(self.sin_phi_2_operator(), self.theta_identity(),
                                                          self.sin_varphi_operator())
@@ -531,3 +541,110 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         disorder_c = - 8 * self.EC * self.dC / (1 - self.dC ** 2) * (n_varphi_ng_matrix - n_theta_matrix)
 
         return disorder_l + disorder_j + disorder_c
+
+    def phi_1_opt(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the phi_1 operator in the LC harmonic oscillator basis, which is the phase across inductor 1
+        """
+        return self.theta_opt() - self.phi_opt() / 2.0
+
+    def phi_2_opt(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the phi_1 operator in the LC harmonic oscillator basis, which is the phase across inductor 2
+        """
+        return - self.theta_opt() - self.phi_opt() / 2.0
+
+    def kbt(self):
+        return 10 * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # 10 mK
+
+    def q_ind(self, energy):
+        q_ind_0 = 500 * 1e6
+        return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt()) * np.sinh(0.5 / 2.0 / self.kbt()) / kn(0, energy / 2.0 / self.kbt()) / np.sinh(energy / 2.0 / self.kbt())
+
+    def ind_loss(self, dL_list):
+        """Return the 1/T1 due to inductive loss"""
+        eng_obj = self.get_spectrum_vs_paramvals('dL', dL_list, evals_count=2, subtract_ground=True)
+        eng = eng_obj.energy_table[:, 1]
+
+        matele_obj_1 = self.get_matelements_vs_paramvals('phi_1_opt', 'dL', dL_list, evals_count=2)
+        matele_1 = matele_obj_1.matrixelem_table[:, 0, 1]
+        matele_obj_2 = self.get_matelements_vs_paramvals('phi_2_opt', 'dL', dL_list, evals_count=2)
+        matele_2 = matele_obj_2.matrixelem_table[:, 0, 1]
+
+        s_ind_1 = 2 / (1 - dL_list) / self.q_ind(eng) / np.tanh(eng / 2.0 / self.kbt())
+        s_ind_2 = 2 / (1 + dL_list) / self.q_ind(eng) / np.tanh(eng / 2.0 / self.kbt())
+
+        t1_ind_1 = np.abs(matele_1) ** 2 * s_ind_1
+        t1_ind_2 = np.abs(matele_2) ** 2 * s_ind_2
+
+        fig, axs = plt.subplots(3, 2, figsize=(10,12))
+        axs[0,0].plot(dL_list, s_ind_1)
+        axs[0,0].set_xlabel('dL')
+        axs[0,0].set_ylabel('$S_1(\omega)$')
+
+        axs[0, 1].plot(dL_list, s_ind_2)
+        axs[0, 1].set_xlabel('dL')
+        axs[0, 1].set_ylabel('$S_2(\omega)$')
+
+        axs[1, 0].plot(dL_list, np.abs(matele_1) ** 2)
+        axs[1, 0].set_xlabel('dL')
+        axs[1, 0].set_ylabel(r'$|\langle 0 | \phi_1 | 1 \rangle|^2 $')
+
+        axs[1, 1].plot(dL_list, np.abs(matele_2) ** 2)
+        axs[1, 1].set_xlabel('dL')
+        axs[1, 1].set_ylabel(r'$|\langle 0 | \phi_2 | 1 \rangle|^2 $')
+
+        axs[2, 0].plot(dL_list, eng)
+        axs[2, 0].set_xlabel('dL')
+        axs[2, 0].set_ylabel('$\Delta E$')
+
+        axs[2, 1].plot(dL_list, 1/(t1_ind_1 + t1_ind_2))
+        axs[2, 1].plot(dL_list, 1/t1_ind_1 )
+        axs[2, 1].plot(dL_list, 1/t1_ind_2)
+        axs[2, 1].set_xlabel('dL')
+        axs[2, 1].set_ylabel('$T_1$')
+        axs[2, 1].legend(['total','$L_1$','$L_2$'])
+        axs[2, 1].set_yscale('log')
+        axs[2, 1].set_ylim((1e3, 1e9))
+
+        return 1 / (t1_ind_1 + t1_ind_2)
+
+    def phiphi_opt(self):
+        return self.phi_opt() * self.phi_opt()
+
+    def phi_matele_norm(self, flux_list):
+        """Return phi matrix element involving the ground state, normalized by ground state <g|phi**2|?>"""
+        matele = self.get_matelements_vs_paramvals('phi_opt', 'flux', flux_list, evals_count=5)
+        matele_01 = matele.matrixelem_table[:, 0, 1]
+        matele_02 = matele.matrixelem_table[:, 0, 2]
+        matele_03 = matele.matrixelem_table[:, 0, 3]
+        matele_04 = matele.matrixelem_table[:, 0, 4]
+
+        norm = self.get_matelements_vs_paramvals('phiphi_opt', 'flux', flux_list, evals_count=2)
+        norm_val = np.real(norm.matrixelem_table[:, 0, 0])
+
+        norm_matele_01 = np.abs(matele_01) ** 2 / norm_val
+        norm_matele_02 = np.abs(matele_02) ** 2 / norm_val
+        norm_matele_03 = np.abs(matele_03) ** 2 / norm_val
+        norm_matele_04 = np.abs(matele_04) ** 2 / norm_val
+
+        fig = plt.figure(figsize=(4, 4))
+        plt.plot(flux_list, norm_matele_01)
+        plt.plot(flux_list, norm_matele_02)
+        plt.plot(flux_list, norm_matele_03)
+        plt.plot(flux_list, norm_matele_04)
+
+        plt.xlabel('flux')
+        plt.ylabel('matrix element')
+        plt.yscale('log')
+        plt.ylim((1e-8, 1))
+        plt.xlim((0.4, 0.6))
+        plt.legend(['0-1', '0-2', '0-3', '0-4'])
+
+        return norm_matele_01, norm_matele_02, norm_matele_03, norm_matele_04
