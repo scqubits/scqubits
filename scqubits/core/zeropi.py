@@ -536,4 +536,5 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
         wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate,
+                                   xlabel=r'$\phi$', ylabel=r'$\theta$', **kwargs)
