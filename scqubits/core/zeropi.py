@@ -117,10 +117,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJ': 0.25,
-            'EL': 0.01,
-            'ECJ': 0.49,
-            'EC': 0.001,
+            'EJ': 10.0,
+            'EL': 0.04,
+            'ECJ': 20.0,
+            'EC': 0.04,
             'dEJ': 0.0,
             'dCJ': 0.0,
             'ng': 0.1,
@@ -559,4 +559,5 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
         wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate,
+                                   xlabel=r'$\phi$', ylabel=r'$\theta$', **kwargs)

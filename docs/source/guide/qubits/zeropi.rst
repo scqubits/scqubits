@@ -38,7 +38,7 @@ An instance of the Zero-Pi qubit is created as follows::
                               flux = 0.23,
                               ncut = 30)
 
-Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`. In the above example,
+Here, ``flux`` is given in units of the flux quantum, i.e., in the form :math:`\Phi_\text{ext}/\Phi_0`. In the above example,
 the disorder parameters ``dEJ`` and ``dCJ`` are not specified, and hence take on the default value zero (no disorder).
 
 From within Jupyter notebook, a fluxonium instance can alternatively be created with::
