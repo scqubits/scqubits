@@ -129,10 +129,10 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJ': 0.25,
-            'EL': 0.01,
-            'ECJ': 0.49,
-            'EC': 0.001,
+            'EJ': 10.0,
+            'EL': 0.04,
+            'ECJ': 20.0,
+            'EC': 0.04,
             'dEJ': 0.05,
             'dCJ': 0.05,
             'dC': 0.08,
