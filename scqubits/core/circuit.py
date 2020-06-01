@@ -47,7 +47,7 @@ class Variable:
         min_node = np.round(-nodeNo/2)
         max_node = np.round(nodeNo/2)
         self.phase_grid = np.linspace(-np.pi*phase_periods+centre, np.pi*phase_periods+centre, nodeNo, endpoint=False)
-        self.charge_grid = np.linspace(min_node/phase_periods, max_node/phase_periods, nodeNo, endpoint=False)
+        self.charge_grid = np.linspace(min_node/phase_periods, max_node/phase_periods, nodeNo, endpoint=True)
         self.phase_step = 2*np.pi*phase_periods/nodeNo
         self.charge_step = 1.0/phase_periods
         self.nodeNo = nodeNo
@@ -231,7 +231,7 @@ class LagrangianCurrentSource(CircuitElement):
         return False
 
     
-class Circuit:
+class Circuit(base.QubitBaseClass):
     """
     The class containing references to nodes, elements, variables, variable-to-node mappings.
     """
@@ -252,9 +252,20 @@ class Circuit:
         self.phase_potential = None
         self.charge_potential = None
 
+    # TODO: add something
+    @staticmethod
+    def default_params():
+        return {
+        }
+
+    # TODO: add something
+    @staticmethod
+    def nonfit_params():
+        return []
+
     def hilbertdim(self):
         """Returns Hilbert space dimension"""
-        return np.prod(np.asarray(self.create_phase_grid()).shape)
+        return np.prod(self.grid_shape())
 
     def potential(self, *args):
         """Circuit phase-basis potential evaluated at `*args`, in order of `variables`. Variables of parameter type
@@ -290,12 +301,32 @@ class Circuit:
                                               element_node_ids, :]@phase_values, None)
         return energy
 
+    def plot_potential(self, phi_grid=None, contour_vals=None, **kwargs):
+        """
+        Draw contour plot of the potential energy.
+
+        Parameters
+        ----------
+        phi_grid: Grid1d, optional
+            used for setting a custom grid for phi; if None use self._default_grid
+        contour_vals: list of float, optional
+            specific contours to draw
+        **kwargs:
+            plot options
+        """
+        default_grid = discretization.Grid1d(-np.pi , np.pi, 100)  # for plotting in phi_j basis
+        phi_grid = phi_grid or default_grid
+        x_vals = y_vals = phi_grid.make_linspace()
+        if 'figsize' not in kwargs:
+            kwargs['figsize'] = (5, 5)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
+
     def hamiltonian(self):
         """Returns Hamiltonian in charge basis"""
-        dim = len([v for v in self.variables if v.variable_type == 'variable'])
+        dim = len(self.variables)
         phase_grid = np.reshape(self.create_phase_grid(), (dim, 1, -1))
         charge_grid = np.reshape(self.create_charge_grid(), (dim, -1, 1))
-        unitary = np.exp(1j*np.sum(phase_grid*charge_grid, axis=0))/np.sqrt(len(phase_grid))
+        unitary = np.exp(1j*np.sum(phase_grid*charge_grid, axis=0))/np.sqrt(self.hilbertdim())
         hamiltonian_mat = unitary@np.diag(self.calculate_phase_potential().ravel())@np.conj(unitary.T)
         hamiltonian_mat += np.diag(self.calculate_charge_potential().ravel())
         return hamiltonian_mat
@@ -471,9 +502,9 @@ class Circuit:
             bnn = ani*aii.inv()*ain#-Ann
             B = sympy.Matrix(np.zeros(self.capacitance_matrix_variables(symbolic).shape))
         else:
-            aii = self.capacitance_matrix_variables(symbolic)[np.meshgrid(inverted_indices, inverted_indices)].T
-            ain = self.capacitance_matrix_variables(symbolic)[np.meshgrid(inverted_indices, noninverted_indices)].T
-            ani = self.capacitance_matrix_variables(symbolic)[np.meshgrid(noninverted_indices, inverted_indices)].T
+            aii = self.capacitance_matrix_variables(symbolic)[tuple(np.meshgrid(inverted_indices, inverted_indices))].T
+            ain = self.capacitance_matrix_variables(symbolic)[tuple(np.meshgrid(inverted_indices, noninverted_indices))].T
+            ani = self.capacitance_matrix_variables(symbolic)[tuple(np.meshgrid(noninverted_indices, inverted_indices))].T
             # Ann = self.capacitance_matrix_variables(symbolic)[np.meshgrid(noninverted_indices, noninverted_indices)].T
             bii = np.linalg.inv(aii)
             bin = -np.dot(np.linalg.inv(aii), ain)
@@ -625,7 +656,7 @@ class Circuit:
         variable_voltage_symbols = []
         for variable_id, variable in enumerate(self.variables):
             variable.phase_symbol = sympy.Symbol(variable.name)
-            variable.voltage_symbol = sympy.Symbol('U'+variable.name)
+            variable.voltage_symbol = sympy.Symbol('\\partial_t'+variable.name)
             variable_phase_symbols.append(variable.phase_symbol)
             variable_voltage_symbols.append(variable.voltage_symbol)
         variable_phase_symbols = sympy.Matrix(variable_phase_symbols)
@@ -656,9 +687,9 @@ class Circuit:
         for variable_id, variable in enumerate(self.variables):
             variable.phase_symbol = sympy.Symbol(variable.name)
             if variable.variable_type=='variable':
-                variable.charge_symbol = sympy.Symbol('n'+variable.name)
+                variable.charge_symbol = -sympy.I*sympy.Symbol('\\partial_{'+variable.name+'}')
             else:
-                variable.charge_symbol = sympy.Symbol('U'+variable.name)
+                variable.charge_symbol = sympy.Symbol('\\partial_t'+variable.name)
             variable_phase_symbols.append(variable.phase_symbol)
             variable_charge_symbols.append(variable.charge_symbol)
         variable_phase_symbols = sympy.Matrix(variable_phase_symbols)
