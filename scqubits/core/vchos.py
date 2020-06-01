@@ -36,7 +36,6 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         self.num_exc = 1
         self.Z0 = 0.0
         self.flux = 0.0
-        self.num_deg_freedom = 0
         self.boundary_coeffs = np.array([])
         self.EJlist = np.array([])
         self.nglist = np.array([])
@@ -46,10 +45,10 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         Potential evaluated at the location specified by phiarray
         """
         pot_sum = np.sum([-self.EJlist[j] * np.cos(phiarray[j])
-                          for j in range(self.num_deg_freedom)])
+                          for j in range(self.num_deg_freedom())])
         pot_sum += (-self.EJlist[-1]
                     * np.cos(np.sum([self.boundary_coeffs[i] * phiarray[i]
-                                     for i in range(self.num_deg_freedom)])
+                                     for i in range(self.num_deg_freedom())])
                              + 2 * np.pi * self.flux))
         return pot_sum
 
@@ -66,19 +65,19 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         the last junction, which is a function of all of the variables
         
         """
-        gmat = np.zeros((self.num_deg_freedom, self.num_deg_freedom))
+        gmat = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
 
         min_loc = self.sorted_minima()[i]
         gamma_list = self.EJlist / self.Phi0 ** 2
 
         gamma_diag = np.diag([gamma_list[j] * np.cos(min_loc[j])
-                              for j in range(self.num_deg_freedom)])
+                              for j in range(self.num_deg_freedom())])
         gmat += gamma_diag
 
         min_loc_bound_sum = np.sum([self.boundary_coeffs[i] * min_loc[i]
-                                    for i in range(self.num_deg_freedom)])
-        for j in range(self.num_deg_freedom):
-            for k in range(self.num_deg_freedom):
+                                    for i in range(self.num_deg_freedom())])
+        for j in range(self.num_deg_freedom()):
+            for k in range(self.num_deg_freedom()):
                 gmat[j, k] += (gamma_list[-1] * self.boundary_coeffs[j] * self.boundary_coeffs[k]
                                * np.cos(min_loc_bound_sum + 2 * np.pi * self.flux))
 
@@ -118,11 +117,11 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
     def _define_squeezing_variables(self, rho, rhoprime, Xi):
         Xi_inv = sp.linalg.inv(Xi)
-        deltarhoprime = np.matmul(sp.linalg.inv(np.eye(self.num_deg_freedom)
+        deltarhoprime = np.matmul(sp.linalg.inv(np.eye(self.num_deg_freedom())
                                                 - np.matmul(rhoprime, rho)), rhoprime)
-        deltarho = np.matmul(sp.linalg.inv(np.eye(self.num_deg_freedom)
+        deltarho = np.matmul(sp.linalg.inv(np.eye(self.num_deg_freedom())
                                            - np.matmul(rho, rhoprime)), rho)
-        deltarhobar = sp.linalg.logm(sp.linalg.inv(np.eye(self.num_deg_freedom) - np.matmul(rhoprime, rho)))
+        deltarhobar = sp.linalg.logm(sp.linalg.inv(np.eye(self.num_deg_freedom()) - np.matmul(rhoprime, rho)))
         z = 1j * np.transpose(Xi_inv) / np.sqrt(2.)
         zp = (z + 0.5 * np.matmul(np.matmul(z, rhoprime), deltarho + deltarho.T)
               + 0.5 * np.matmul(z, deltarho + deltarho.T))
@@ -213,15 +212,15 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         result = np.eye(dim, dtype=np.complex128)
         dim = result.shape[0]
         additionalterm = np.eye(dim, dtype=np.complex128)
-        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom)])
+        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
         k = 1
         while not np.allclose(additionalterm, np.zeros((dim, dim))):
-            additionalterm = np.sum([((expx - np.eye(self.num_deg_freedom))[i, j]) ** k
+            additionalterm = np.sum([((expx - np.eye(self.num_deg_freedom()))[i, j]) ** k
                                      * (sp.special.factorial(k)) ** (-1)
                                      * np.matmul(np.linalg.matrix_power(a_op_list[i].T, k),
                                                  np.linalg.matrix_power(a_op_list[j], k))
-                                     for i in range(self.num_deg_freedom)
-                                     for j in range(self.num_deg_freedom)], axis=0)
+                                     for i in range(self.num_deg_freedom())
+                                     for j in range(self.num_deg_freedom())], axis=0)
             result += additionalterm
             k += 1
         return result
@@ -229,15 +228,15 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def _build_squeezing_ops(self, m, p, minima_diff, Xi, a_op_list):
         if self.squeezing:
             if m == 0:  # At the global minimum, no squeezing required
-                rho = np.zeros((self.num_deg_freedom, self.num_deg_freedom))
-                sigma = np.zeros((self.num_deg_freedom, self.num_deg_freedom))
-                tau = np.zeros((self.num_deg_freedom, self.num_deg_freedom))
+                rho = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
+                sigma = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
+                tau = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
             else:
                 rho, sigma, tau = self._build_U_squeezing_operator(m, Xi)
             if p == 0:
-                rhoprime = np.zeros((self.num_deg_freedom, self.num_deg_freedom))  # 2 d.o.f.
-                sigmaprime = np.zeros((self.num_deg_freedom, self.num_deg_freedom))
-                tauprime = np.zeros((self.num_deg_freedom, self.num_deg_freedom))
+                rhoprime = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))  # 2 d.o.f.
+                sigmaprime = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
+                tauprime = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
             elif p == m:
                 rhoprime = np.copy(rho)
                 sigmaprime = np.copy(sigma)
@@ -259,16 +258,16 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             exp_adag_adag = sp.linalg.expm(np.sum([prefactor_adag_adag[i, j]
                                                    * np.matmul(a_op_list[i].T,
                                                                a_op_list[j].T)
-                                                   for i in range(self.num_deg_freedom)
-                                                   for j in range(self.num_deg_freedom)], axis=0))
+                                                   for i in range(self.num_deg_freedom())
+                                                   for j in range(self.num_deg_freedom())], axis=0))
             exp_a_a = sp.linalg.expm(np.sum([prefactor_a_a[i, j]
                                              * np.matmul(a_op_list[i],
                                                          a_op_list[j])
-                                             for i in range(self.num_deg_freedom)
-                                             for j in range(self.num_deg_freedom)], axis=0))
+                                             for i in range(self.num_deg_freedom())
+                                             for j in range(self.num_deg_freedom())], axis=0))
             exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
         else:
-            N = self.num_deg_freedom
+            N = self.num_deg_freedom()
             dim = a_op_list[0].shape[0]
             rho, sigma, tau = np.zeros((N, N)), np.zeros((N, N)), np.zeros((N, N))
             rhoprime, sigmaprime, tauprime = np.zeros((N, N)), np.zeros((N, N)), np.zeros((N, N))
@@ -280,52 +279,52 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
         Xi_inv = sp.linalg.inv(Xi)
 
-        prefactor_adag = np.matmul(np.eye(self.num_deg_freedom) + rhoprime, expdrbs)
-        a_temp_coeff = 0.5 * np.matmul(np.eye(self.num_deg_freedom) + rhoprime, deltarho + deltarho.T)
-        prefactor_a = np.matmul(np.eye(self.num_deg_freedom) + a_temp_coeff, expsigmaprime)
+        prefactor_adag = np.matmul(np.eye(self.num_deg_freedom()) + rhoprime, expdrbs)
+        a_temp_coeff = 0.5 * np.matmul(np.eye(self.num_deg_freedom()) + rhoprime, deltarho + deltarho.T)
+        prefactor_a = np.matmul(np.eye(self.num_deg_freedom()) + a_temp_coeff, expsigmaprime)
 
         exp_adag_list = []
-        for j in range(self.num_deg_freedom):
+        for j in range(self.num_deg_freedom()):
             exp_adag_j = sp.linalg.expm(np.sum([2.0 * np.pi * (np.matmul(Xi_inv.T, prefactor_adag)[j, i] / np.sqrt(2.0))
-                                                * a_op_list[i].T for i in range(self.num_deg_freedom)], axis=0))
+                                                * a_op_list[i].T for i in range(self.num_deg_freedom())], axis=0))
             exp_adag_list.append(exp_adag_j)
 
         exp_adag_mindiff = sp.linalg.expm(np.sum([minima_diff[x] * np.matmul(Xi_inv.T, prefactor_adag)[x, i]
-                                                  * a_op_list[i].T for x in range(self.num_deg_freedom)
-                                                  for i in range(self.num_deg_freedom)], axis=0) / np.sqrt(2.0))
+                                                  * a_op_list[i].T for x in range(self.num_deg_freedom())
+                                                  for i in range(self.num_deg_freedom())], axis=0) / np.sqrt(2.0))
         exp_a_list = []
-        for j in range(self.num_deg_freedom):
+        for j in range(self.num_deg_freedom()):
             exp_a_j = sp.linalg.expm(np.sum([2.0 * np.pi * (np.matmul(Xi_inv.T, prefactor_a)[j, i] / np.sqrt(2.0))
-                                             * a_op_list[i] for i in range(self.num_deg_freedom)], axis=0))
+                                             * a_op_list[i] for i in range(self.num_deg_freedom())], axis=0))
             exp_a_list.append(exp_a_j)
 
         exp_a_mindiff = sp.linalg.expm(np.sum([-minima_diff[x] * np.matmul(Xi_inv.T, prefactor_a)[x, i]
-                                               * a_op_list[i] for x in range(self.num_deg_freedom)
-                                               for i in range(self.num_deg_freedom)], axis=0) / np.sqrt(2.0))
+                                               * a_op_list[i] for x in range(self.num_deg_freedom())
+                                               for i in range(self.num_deg_freedom())], axis=0) / np.sqrt(2.0))
 
-        prefactor_adag = np.matmul(np.eye(self.num_deg_freedom) - rhoprime, expdrbs)
-        a_temp_coeff = 0.5 * np.matmul(np.eye(self.num_deg_freedom) - rhoprime, deltarho + deltarho.T)
-        prefactor_a = np.matmul(np.eye(self.num_deg_freedom) - a_temp_coeff, expsigmaprime)
+        prefactor_adag = np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, expdrbs)
+        a_temp_coeff = 0.5 * np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, deltarho + deltarho.T)
+        prefactor_a = np.matmul(np.eye(self.num_deg_freedom()) - a_temp_coeff, expsigmaprime)
 
         exp_i_list = []
         Xid = 1j * np.matmul(Xi, prefactor_adag) / np.sqrt(2.0)
         Xia = 1j * np.matmul(Xi, prefactor_a) / np.sqrt(2.0)
-        for j in range(self.num_deg_freedom):
+        for j in range(self.num_deg_freedom()):
             exp_i_j_adag_part = sp.linalg.expm(np.sum([Xid[j, i] * a_op_list[i].T
-                                                       for i in range(self.num_deg_freedom)], axis=0))
+                                                       for i in range(self.num_deg_freedom())], axis=0))
             exp_i_j_a_part = sp.linalg.expm(np.sum([Xia[j, i] * a_op_list[i]
-                                                    for i in range(self.num_deg_freedom)], axis=0))
+                                                    for i in range(self.num_deg_freedom())], axis=0))
             exp_i_j = np.matmul(exp_i_j_adag_part, np.matmul(exp_adag_a, exp_i_j_a_part))
             exp_i_list.append(exp_i_j)
 
         exp_i_sum_adag_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j] *
                                                      Xid[j, i] * a_op_list[i].T
-                                                     for i in range(self.num_deg_freedom)
-                                                     for j in range(self.num_deg_freedom)], axis=0))
+                                                     for i in range(self.num_deg_freedom())
+                                                     for j in range(self.num_deg_freedom())], axis=0))
         exp_i_sum_a_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j] *
                                                   Xia[j, i] * a_op_list[i]
-                                                  for i in range(self.num_deg_freedom)
-                                                  for j in range(self.num_deg_freedom)], axis=0))
+                                                  for i in range(self.num_deg_freedom())
+                                                  for j in range(self.num_deg_freedom())], axis=0))
         exp_i_sum = np.matmul(exp_i_sum_adag_part, np.matmul(exp_adag_a, exp_i_sum_a_part))
 
         exp_list = [exp_adag_adag, exp_a_a, exp_adag_a,
@@ -341,15 +340,15 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                           d -> a_{i}^{\dag}
         """
         xa = np.array([np.matmul(exp_adag_a, a_op_list[mu])
-                       for mu in range(self.num_deg_freedom)])
+                       for mu in range(self.num_deg_freedom())])
         xaa = np.array([np.matmul(xa[mu], a_op_list[mu])
-                        for mu in range(self.num_deg_freedom)])
+                        for mu in range(self.num_deg_freedom())])
         dxa = np.array([np.matmul(a_op_list[mu].T, xa[mu])
-                        for mu in range(self.num_deg_freedom)])
+                        for mu in range(self.num_deg_freedom())])
         dx = np.array([np.matmul(a_op_list[mu].T, exp_adag_a)
-                       for mu in range(self.num_deg_freedom)])
+                       for mu in range(self.num_deg_freedom())])
         ddx = np.array([np.matmul(a_op_list[mu].T, dx[mu])
-                        for mu in range(self.num_deg_freedom)])
+                        for mu in range(self.num_deg_freedom())])
         return xa, xaa, dxa, dx, ddx
 
     def _filter_jkvals(self, jkvals, minima_diff, Xi_inv):
@@ -360,7 +359,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         of the exponential is greater than 180.0, this results in a suppression of ~10**(-20),
         and so can be safely neglected.
         """
-        phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom)])
+        phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom())])
         dpkX = np.matmul(Xi_inv, phik + minima_diff)
         prod = np.dot(dpkX, dpkX)
         return prod > 180.0
@@ -377,7 +376,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         EC_mat = self.build_EC_matrix()
-        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom)])
+        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
         num_exc_tot = a_op_list[0].shape[0]
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
@@ -408,13 +407,13 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                        - 8 * dxa[mu] * dxa_coeff[mu, mu]
                                                        + 4 * ddx[mu] * ddx_coeff[mu, mu]
                                                        - 4 * exp_adag_a * x_coeff[mu, mu]
-                                                       for mu in range(self.num_deg_freedom)], axis=0)
-                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom) - np.matmul(rho, rhoprime)))
-                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
+                                                       for mu in range(self.num_deg_freedom())], axis=0)
+                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom()) - np.matmul(rho, rhoprime)))
+                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom())
                 klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist, -1)
                 while jkvals != -1:
-                    phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom)])
+                    phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom())])
                     delta_phi_kpm = phik - (minima_m - minima_p)
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
@@ -438,7 +437,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     exp_a = np.matmul(exp_a, exp_a_a)
 
                     kinetic_temp = np.sum([-8 * xa[mu] * e_xa_coeff[mu] + 8 * dx[mu] * e_dx_coeff[mu]
-                                           for mu in range(self.num_deg_freedom)], axis=0)
+                                           for mu in range(self.num_deg_freedom())], axis=0)
                     kinetic_temp += kinetic_temp_dpk_independent
 
                     kinetic_temp += 4 * exp_adag_a * np.matmul(epsilon, np.matmul(EC_mat, epsilon))
@@ -472,7 +471,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         """Return the potential part of the hamiltonian"""
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
-        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom)])
+        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
         num_exc_tot = a_op_list[0].shape[0]
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
@@ -481,8 +480,8 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         exp_prod_boundary_coeff = np.exp(-0.25 * np.sum([self.boundary_coeffs[j]
                                                          * self.boundary_coeffs[k]
                                                          * np.dot(Xi[j, :], np.transpose(Xi)[:, k])
-                                                         for j in range(self.num_deg_freedom)
-                                                         for k in range(self.num_deg_freedom)]))
+                                                         for j in range(self.num_deg_freedom())
+                                                         for k in range(self.num_deg_freedom())]))
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_p = minima_list[p]
@@ -492,12 +491,12 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 (exp_adag_adag, exp_a_a, exp_adag_a,
                  exp_adag_list, exp_adag_mindiff,
                  exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
-                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom) - np.matmul(rho, rhoprime)))
-                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
+                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom()) - np.matmul(rho, rhoprime)))
+                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom())
                 klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist, -1)
                 while jkvals != -1:
-                    phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom)])
+                    phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom())])
                     delta_phi_kpm = phik - (minima_m - minima_p)
                     phibar_kpm = 0.5 * (phik + (minima_m + minima_p))
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
@@ -509,12 +508,12 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     exp_a = np.matmul(exp_a, exp_a_a)
 
                     exp_i_phi_list = np.array([exp_i_list[i] * np.exp(1j * phibar_kpm[i])
-                                               for i in range(self.num_deg_freedom)])
+                                               for i in range(self.num_deg_freedom())])
                     exp_i_phi_sum_op = (exp_i_sum * np.exp(1j * 2.0 * np.pi * self.flux)
                                         * np.prod([np.exp(1j * self.boundary_coeffs[i] * phibar_kpm[i])
-                                                   for i in range(self.num_deg_freedom)]))
+                                                   for i in range(self.num_deg_freedom())]))
 
-                    for num in range(self.num_deg_freedom):  # summing over potential terms cos(\phi_x)
+                    for num in range(self.num_deg_freedom()):  # summing over potential terms cos(\phi_x)
                         x = (np.matmul(delta_phi_kpm, Xi_inv.T) + 1j * Xi[num, :]) / np.sqrt(2.)
                         y = (-np.matmul(delta_phi_kpm, Xi_inv.T) + 1j * Xi[num, :]) / np.sqrt(2.)
 
@@ -534,10 +533,10 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     # cos(sum-2\pi f)
                     x = (np.matmul(delta_phi_kpm, Xi_inv.T)
                          + np.sum([1j * Xi[i, :] * self.boundary_coeffs[i]
-                                   for i in range(self.num_deg_freedom)], axis=0)) / np.sqrt(2.)
+                                   for i in range(self.num_deg_freedom())], axis=0)) / np.sqrt(2.)
                     y = (- np.matmul(delta_phi_kpm, Xi_inv.T)
                          + np.sum([1j * Xi[i, :] * self.boundary_coeffs[i]
-                                   for i in range(self.num_deg_freedom)], axis=0)) / np.sqrt(2.)
+                                   for i in range(self.num_deg_freedom())], axis=0)) / np.sqrt(2.)
                     alpha = scale * self._alpha_helper(x, y, rhoprime, deltarho)
                     alpha_con = scale * self._alpha_helper(x.conjugate(), y.conjugate(),
                                                            rhoprime, deltarho)
@@ -578,7 +577,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         """Return the inner product matrix, which is nontrivial with VCHOS states"""
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
-        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom)])
+        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
         num_exc_tot = a_op_list[0].shape[0]
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
@@ -592,12 +591,12 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 (exp_adag_adag, exp_a_a, exp_adag_a,
                  exp_adag_list, exp_adag_mindiff,
                  exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
-                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom) - np.matmul(rho, rhoprime)))
-                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom)
+                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom()) - np.matmul(rho, rhoprime)))
+                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom())
                 klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist, -1)
                 while jkvals != -1:
-                    phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom)])
+                    phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom())])
                     delta_phi_kpm = phik - (minima_m - minima_p)
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
@@ -629,12 +628,12 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def _V_op_builder(self, exp_adag_list, exp_a_list, jkvals):
         num_exc_tot = exp_adag_list[0].shape[0]
         V_op_dag = np.eye(num_exc_tot)
-        for j in range(self.num_deg_freedom):
+        for j in range(self.num_deg_freedom()):
             V_op_dag_temp = np.linalg.matrix_power(exp_adag_list[j], jkvals[j])
             V_op_dag = np.matmul(V_op_dag, V_op_dag_temp)
 
         V_op = np.eye(num_exc_tot)
-        for j in range(self.num_deg_freedom):
+        for j in range(self.num_deg_freedom()):
             V_op_temp = np.linalg.matrix_power(exp_a_list[j], -jkvals[j])
             V_op = np.matmul(V_op, V_op_temp)
 
@@ -642,7 +641,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
     def _full_o(self, operators, indices):
         i_o = np.eye(self.num_exc + 1)
-        i_o_list = [i_o for _ in range(self.num_deg_freedom)]
+        i_o_list = [i_o for _ in range(self.num_deg_freedom())]
         product_list = i_o_list[:]
         oi_list = zip(operators, indices)
         for oi in oi_list:
@@ -725,4 +724,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         pass
 
     def build_EC_matrix(self):
+        pass
+
+    def num_deg_freedom(self):
         pass

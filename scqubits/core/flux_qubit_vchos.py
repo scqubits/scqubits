@@ -58,7 +58,6 @@ class FluxQubitVCHOS(VCHOS):
         self.Phi0 = 1. / (2 * self.e)
         # final term in potential is cos[(+1)\phi_1+(-1)\phi_2-2pi f]
         self.boundary_coeffs = np.array([+1, -1])
-        self.num_deg_freedom = 2
 
         self._evec_dtype = np.complex_
         self._default_grid = discretization.Grid1d(-6.5 * np.pi, 6.5 * np.pi, 651)  # for plotting in phi_j basis
@@ -85,7 +84,7 @@ class FluxQubitVCHOS(VCHOS):
 
     def build_capacitance_matrix(self):
         """Return the capacitance matrix"""
-        Cmat = np.zeros((self.num_deg_freedom, self.num_deg_freedom))
+        Cmat = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
 
         CJ = self.e ** 2 / (2. * self.ECJ)
         Cg = self.e ** 2 / (2. * self.ECg)
@@ -105,6 +104,9 @@ class FluxQubitVCHOS(VCHOS):
     def hilbertdim(self):
         """Return N if the size of the Hamiltonian matrix is NxN"""
         return len(self.sorted_minima()) * (self.num_exc + 1) ** 2
+
+    def num_deg_freedom(self):
+        return 2
 
     def _check_if_new_minima(self, new_minima, minima_holder):
         """

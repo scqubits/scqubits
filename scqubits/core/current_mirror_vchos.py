@@ -43,7 +43,6 @@ class CurrentMirrorVCHOS(VCHOS):
         self.Z0 = 1. / (2 * self.e) ** 2
         self.Phi0 = 1. / (2 * self.e)
         self.boundary_coeffs = np.ones(2 * N - 1)
-        self.num_deg_freedom = 2 * N - 1
 
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
@@ -111,6 +110,9 @@ class CurrentMirrorVCHOS(VCHOS):
         """Return N if the size of the Hamiltonian matrix is NxN"""
         return len(self.sorted_minima()) * (self.num_exc + 1) ** (2 * self.N - 1)
 
+    def num_deg_freedom(self):
+        return 2 * self.N - 1
+
     def _check_if_new_minima(self, new_minima, minima_holder):
         """
         Helper function for find_minima, checking if new_minima is
@@ -140,8 +142,8 @@ class CurrentMirrorVCHOS(VCHOS):
         minima_holder = []
         N = self.N
         for m in range(int(math.ceil(N / 2 - np.abs(self.flux))) + 1):
-            guess_pos = np.array([np.pi * (m + self.flux) / N for _ in range(self.num_deg_freedom)])
-            guess_neg = np.array([np.pi * (-m + self.flux) / N for _ in range(self.num_deg_freedom)])
+            guess_pos = np.array([np.pi * (m + self.flux) / N for _ in range(self.num_deg_freedom())])
+            guess_neg = np.array([np.pi * (-m + self.flux) / N for _ in range(self.num_deg_freedom())])
             result_pos = minimize(self.potential, guess_pos)
             result_neg = minimize(self.potential, guess_neg)
             new_minimum_pos = self._check_if_new_minima(result_pos.x, minima_holder)

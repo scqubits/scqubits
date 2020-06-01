@@ -1,6 +1,5 @@
 import numpy as np
-import scipy as sp
-
+import math
 # Helper class for efficiently constructing raising and lowering operators
 # using a global excitation cutoff scheme, as opposed to the more commonly used
 # number of excitations per mode cutoff, which can be easily constructed 
@@ -8,7 +7,8 @@ import scipy as sp
 # paper 
 # [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
 
-class Hashing():
+
+class Hashing:
     def __init__(self):
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
                                     29, 31, 37, 41, 43, 47, 53, 59,
@@ -50,14 +50,14 @@ class Hashing():
         return (tag_list, index_array)
     
     def _gen_basis_vecs(self):
-        sites = self.num_deg_freedom
+        sites = self.num_deg_freedom()
         vec_list = []
         vec_list.append(np.zeros(sites))
-        for total_exc in range(1, self.global_exc+1): #No excitation number conservation as in [1]
+        for total_exc in range(1, self.global_exc+1):  # No excitation number conservation as in [1]
             prev_vec = np.zeros(sites)
             prev_vec[0] = total_exc
             vec_list.append(prev_vec)
-            while prev_vec[-1] != total_exc: #step through until the last entry is total_exc
+            while prev_vec[-1] != total_exc:  # step through until the last entry is total_exc
                 k = self._find_k(prev_vec)
                 next_vec = np.zeros(sites)
                 next_vec[0:k] = prev_vec[0:k]
@@ -71,21 +71,23 @@ class Hashing():
         basis_vecs = self._gen_basis_vecs()
         dim = len(basis_vecs)
         pop_list = []
+        min_list = []
         vec_list = []
         for k, elem in enumerate(eigvec):
             if not np.allclose(elem, 0.0, atol=1e-4):
                 minimum = math.floor(k/dim)
                 pop_list.append(elem)
+                min_list.append(minimum)
                 vec_list.append(basis_vecs[np.mod(k, dim)])
-        pop_list = np.real(pop_list)
+        pop_list = np.abs(pop_list)**2
         index_array = np.argsort(np.abs(pop_list))
         pop_list = (pop_list[index_array])[::-1]
+        min_list = (np.array(min_list)[index_array])[::-1]
         vec_list = (np.array(vec_list)[index_array])[::-1]
-        return pop_list, vec_list
+        return pop_list, zip(min_list, vec_list)
                 
     def _find_k(self, vec):
         dim = len(vec)
         for num in range(dim-2, -1, -1):
-            if vec[num]!=0:
+            if vec[num] != 0:
                 return num
-            
