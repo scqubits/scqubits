@@ -2,6 +2,7 @@ import numpy as np
 import scipy as sp
 from scipy import linalg
 
+
 # TODO understand how to return eigenvectors
 def fixheiberger(A, B, num_eigvals=6, eigvals_only=True):
     """Implement the Fix-Heiberger method for dealing
@@ -24,14 +25,13 @@ def fixheiberger(A, B, num_eigvals=6, eigvals_only=True):
     ndarray
         matrix of reduced dimension that is to be diagonalized
     """
+    global ind2
     n = A.shape[0]
     D0, Q1 = linalg.eigh(B)
-    neg_vals = list(filter(lambda x: x < 0, D0))
-    max_neg_val = np.max(np.abs(neg_vals))
     index_array_D0 = np.argsort(D0)[:: -1]  # sort in descending order
     D0 = D0[index_array_D0]
     Q1 = Q1[:, index_array_D0]
-    epsilon = 10.*(max_neg_val / D0[0])  # Choose epsilon such that all negative eigenvalues are neglected
+    epsilon = 10.0*np.abs(D0[-1] / D0[0])  # Choose epsilon such that all negative eigenvalues are neglected
     evals_list = []
     converged = False
     n1 = 0
