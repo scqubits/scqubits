@@ -301,26 +301,6 @@ class Circuit(base.QubitBaseClass):
                                               element_node_ids, :]@phase_values, None)
         return energy
 
-    def plot_potential(self, phi_grid=None, contour_vals=None, **kwargs):
-        """
-        Draw contour plot of the potential energy.
-
-        Parameters
-        ----------
-        phi_grid: Grid1d, optional
-            used for setting a custom grid for phi; if None use self._default_grid
-        contour_vals: list of float, optional
-            specific contours to draw
-        **kwargs:
-            plot options
-        """
-        default_grid = discretization.Grid1d(-np.pi , np.pi, 100)  # for plotting in phi_j basis
-        phi_grid = phi_grid or default_grid
-        x_vals = y_vals = phi_grid.make_linspace()
-        if 'figsize' not in kwargs:
-            kwargs['figsize'] = (5, 5)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
-
     def hamiltonian(self):
         """Returns Hamiltonian in charge basis"""
         dim = len(self.variables)
