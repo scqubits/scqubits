@@ -289,6 +289,22 @@ class FluxQubitVCHOSTestingBabusci(base.QubitBaseClass, serializers.Serializable
             evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
+    def _filter_jkvals(self, jkvals, minima_diff, Xi_inv):
+        """
+        Want to eliminate periodic continuation terms that are irrelevant, i.e.,
+        they add nothing to the Hamiltonian. These can be identified as each term
+        is suppressed by a gaussian exponential factor. If the argument np.dot(dpkX, dpkX)
+        of the exponential is greater than 180.0, this results in a suppression of ~10**(-20),
+        and so can be safely neglected.
+        """
+        phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom())])
+        dpkX = np.matmul(Xi_inv, phik + minima_diff)
+        prod = np.dot(dpkX, dpkX)
+        return prod > 180.0
+
+    def num_deg_freedom(self):
+        return 2
+
     def inner_product(self):
         dim = self.hilbertdim()
         identity_test_mat = np.zeros((dim,dim))
@@ -297,9 +313,9 @@ class FluxQubitVCHOSTestingBabusci(base.QubitBaseClass, serializers.Serializable
         #Modifying this to include squeezing. Note this will only be correct for diagonal blocks.
         #Off diagonal blocks will need to be calculated numerically (Since Xi matrices differ, 
         #No longer get hermite polynomials of one variable for both sides)
-        Xi_list = self.Xi_matrix_list()
-        Xi_inv = np.array([sp.linalg.inv(Xi_list[i]) for i in range(2)])
-        Xi_inv = np.array([sp.linalg.inv(Xi_list[0]) for i in range(2)])
+#        Xi_list = self.Xi_matrix_list()
+#        Xi_inv = np.array([sp.linalg.inv(Xi_list[i]) for i in range(2)])
+        Xi_inv = np.array([sp.linalg.inv(Xi) for i in range(2)])
 #        Xi_inv = sp.linalg.inv(Xi)
         for m, minima_m in enumerate(minima_list):
             for p, minima_p in enumerate(minima_list):
@@ -307,8 +323,11 @@ class FluxQubitVCHOSTestingBabusci(base.QubitBaseClass, serializers.Serializable
                     for stwo in range(self.num_exc+1):
                         for soneprime in range(self.num_exc+1):
                             for stwoprime in range(self.num_exc+1):
+                                minima_diff = minima_p - minima_m
                                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
+                                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv[0]),
+                                                              klist)
+                                jkvals = next(klist, -1)
                                 matelem = 0.
                                 while jkvals != -1:
                                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
@@ -416,8 +435,11 @@ class FluxQubitVCHOSTestingBabusci(base.QubitBaseClass, serializers.Serializable
                     for stwo in range(self.num_exc+1):
                         for soneprime in range(self.num_exc+1):
                             for stwoprime in range(self.num_exc+1):
+                                minima_diff = minima_p - minima_m
                                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
+                                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv[0]),
+                                                              klist)
+                                jkvals = next(klist, -1)
                                 matelem = 0.0
                                 while jkvals != -1:
                                     phik = 2.0*np.pi*np.array([jkvals[0],jkvals[1]])
@@ -554,8 +576,11 @@ class FluxQubitVCHOSTestingBabusci(base.QubitBaseClass, serializers.Serializable
                     for stwo in range(self.num_exc+1):
                         for soneprime in range(self.num_exc+1):
                             for stwoprime in range(self.num_exc+1):
+                                minima_diff = minima_p - minima_m
                                 klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-                                jkvals = next(klist,-1)
+                                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv[0]),
+                                                              klist)
+                                jkvals = next(klist, -1)
                                 matelem = 0.0
                                 EC_mat_t = np.matmul(Xi_inv[m],np.matmul(EC_mat,np.transpose(Xi_inv[m])))
                                 while jkvals != -1:
