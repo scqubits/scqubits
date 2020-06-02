@@ -224,7 +224,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
             for l2 in range(zeropi_dim):
                 zeropi_coupling += gmat[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
         hamiltonian_mat += sparse.kron(zeropi_coupling,
-                                       op.annihilation_sparse(zeta_dim) + op.creation_sparse(zeta_dim))
+                                       op.annihilation_sparse(zeta_dim)) + sparse.kron(zeropi_coupling.conjugate().T,
+                                                                                       op.creation_sparse(zeta_dim))
 
         if return_parts:
             return [hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat]
