@@ -469,7 +469,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
 
         x_vals = self.grid.make_linspace()
         y_vals = theta_grid.make_linspace()
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals,
+                             xlabel=r'$\phi$', ylabel=r'$\theta$', **kwargs)
 
     def wavefunction(self, esys=None, which=0, theta_grid=None):
         """Returns a zero-pi wave function in `phi`, `theta` basis
