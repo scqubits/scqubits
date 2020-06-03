@@ -309,13 +309,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
     def _evals_calc(self, evals_count, hamiltonian_mat=None):
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
+        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM', return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count, hamiltonian_mat=None):
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
+        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM',
+                                           return_eigenvectors=True)
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
