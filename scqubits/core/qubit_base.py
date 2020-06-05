@@ -491,3 +491,19 @@ class QubitBaseClass1d(QubitBaseClass):
             plot.wavefunction1d(phi_wavefunc, potential_vals=potential_vals, offset=phi_wavefunc.energy,
                                 scaling=scale, **kwargs)
         return fig_ax
+
+    def set_and_return(self, attr_name, value):
+        """
+        Allows to set an attribute after which self is returned. This is useful for doing 
+        something like:
+
+            qubit.set_and_return('flux', 0.23).some_method()
+    
+        instead of:
+
+            qubit.flux=0.23
+            qubit.some_method()
+
+        """
+        setattr(self, attr_name, value)
+        return self

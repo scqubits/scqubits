@@ -136,3 +136,25 @@ def remove_nones(dict_data):
 def qt_ket_to_ndarray(qobj_ket):
     # Qutip's `.eigenstates()` returns an object-valued ndarray, each entry of which is a Qobj ket.
     return np.asarray(qobj_ket.data.todense())
+
+def numeric_der(y,x):
+    """
+    First derivative using central difference calculation. 
+    Works with arbitrary x-spacing between points. 
+    Slightly adjusted version of:
+    http://stackoverflow.com/questions/18498457/numpy-gradient-function-and-numerical-derivatives
+
+    Use case:
+    x=np.linspace(0,10,201)
+    y=np.exp(-0.5*x)*np.sin(x+x**2)
+    #y=np.sin(x)
+    plt.plot(x,y)
+    plt.plot(x,numeric_der(y,x))
+    """
+    z1 = np.hstack((y[0], y[:-1]))
+    z2 = np.hstack((y[1:], y[-1]))
+    dx1 = np.hstack((0, np.diff(x)))
+    dx2 = np.hstack((np.diff(x), 0))
+    return (z2-z1)/(dx2+dx1)
+
+

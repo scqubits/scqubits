@@ -20,6 +20,7 @@ import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.harmonic_osc as osc
+import scqubits.core.noise as noise
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
@@ -28,7 +29,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 # —Fluxonium qubit ————————————————————————
 
-class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
+class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, noise.NoisySystem):
     r"""Class for the fluxonium qubit. Hamiltonian
     :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi-\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
     is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
@@ -83,6 +84,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
     @staticmethod
     def nonfit_params():
         return ['flux', 'cutoff', 'truncated_dim']
+
+    def _supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_cc', 'tphi_1_over_f_ng', 'tphi_1_over_f_flux'
+                't1_charge_line', 't1_dielectric_loss', 't1_bias_flux_line']
 
     def phi_osc(self):
         """

@@ -18,6 +18,7 @@ import warnings
 
 import scqubits.settings
 # core
+from scqubits.core import noise
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer
@@ -30,6 +31,7 @@ from scqubits.core.storage import SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
+
 # file IO
 from scqubits.io_utils.fileio import read, write
 

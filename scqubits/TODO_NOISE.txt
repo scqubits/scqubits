@@ -1,0 +1,46 @@
+
+noise ongoing TODO items:
+
+- *** go through noise equations/units, and check for correctness ***
+
+- figure out a nice way to deal with energy units 
+    i.e. if H not in GHz in noise calcs will 2pis wrong 
+
+- "preset" noise types for each of the qubits:
+    transmon, fluxonium, zeropi, flux
+
+    dephasing 1/f
+        flux
+        criticial current (multijunction qubits? average, mean, noise for each?)
+        charge
+        arbitrary (given a filter function)
+    relaxation
+        ohmic environment at temp T
+        dialectric noise
+        purcell (zeropi)
+        charge
+        arbitrary noisek
+
+- might update how the default options are passed to functions; this would reduce the boiler method definitions at a cost
+    of some helper _defult_options(noise) type functions.
+        
+- add a general dephasing noise with possibility of a filter fun i.e ~int sinc(omega' t) F(omega') domega'
+    this will will allow to mimic what one should expect from dynamical decoupling type protocols
+
+- 1/f dephasing second order calculations via matrix operators (messy! - use paper)
+
+- an easy routine that plots Tx vs parameter over some parameter range
+    (think plot_evals_vs_paramvals())
+
+- add "all qubit noise" type calculations (i.e 1/t1 = rate1 + rate2 + ...)
+
+- documentation
+    general descriptions of all channels
+    all default constants used
+    FACTORS OF 2PI RELATED TO UNITS USED 
+    what noise channels are available for each qubit 
+    
+- add a (much) faster version of calculation 1/f noise by numerically calculating derivatives (and not using matrix elements)    
+- split up demo_noise.ipynb and and noise related calcs to individual qubit notebooks
+ 
+- unit testing for all qubits

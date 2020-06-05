@@ -17,6 +17,7 @@ import numpy as np
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
+import scqubits.core.noise as noise
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
@@ -26,7 +27,7 @@ import scqubits.utils.plotting as plot
 
 # —Cooper pair box / transmon——————————————————————————————————————————————
 
-class Transmon(base.QubitBaseClass1d, serializers.Serializable):
+class Transmon(base.QubitBaseClass1d, serializers.Serializable, noise.NoisySystem):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is represented in dense form in the number
     basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
@@ -77,6 +78,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
     def nonfit_params():
         return ['ng', 'ncut', 'truncated_dim']
 
+    def _supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_cc', 'tphi_1_over_f_ng',
+                't1_tran_line']
+
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
@@ -109,6 +115,14 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
         hamiltonian_mat[ind, ind+1] = -self.EJ / 2.0
         hamiltonian_mat[ind+1, ind] = -self.EJ / 2.0
         return hamiltonian_mat
+
+    def d_hamiltonian_d_ng(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to charge offset `ng`."""
+        return -8*self.EC*self.n_operator()
+
+    def d_hamiltonian_d_EJ(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ."""
+        return -self.cos_phi_operator()
 
     def hilbertdim(self):
         """Returns Hilbert space dimension"""
@@ -245,7 +259,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
 
 # — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
 
-class TunableTransmon(Transmon, serializers.Serializable):
+class TunableTransmon(Transmon, serializers.Serializable, noise.NoisySystem):
     r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in dense form in the number
     basis,
     :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{h.c.})`,
@@ -314,3 +328,23 @@ class TunableTransmon(Transmon, serializers.Serializable):
     @staticmethod
     def nonfit_params():
         return ['flux', 'ng', 'ncut', 'truncated_dim']
+
+    def _supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_flux', 'tphi_1_over_f_cc', 'tphi_1_over_f_ng',
+                't1_tran_line', 't1_bias_flux_line']
+
+    def d_hamiltonian_d_flux(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to `flux`."""
+        return np.pi * self.EJmax * np.cos(np.pi * self.flux) * np.sin(np.pi * self.flux) * (self.d**2 - 1) \
+                / np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2) \
+                * self.cos_phi_operator()
+
+    # def d_hamiltonian_d_EJ(self):
+        # """Returns operator representing a derivittive of the Hamiltonian with respect to EJ.
+        # We approximate the two (potentially different) junctions as a single junction with energy EJmax
+        
+        # TODO Is this the right thing to do? 
+        # """
+        # return - np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2) * self.cos_phi_operator()
+
