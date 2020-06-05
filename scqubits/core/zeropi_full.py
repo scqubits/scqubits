@@ -89,13 +89,13 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
     ECS = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     dEJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     dCJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    dC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     grid = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     zeropi_cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi',
                                                 attr_name='truncated_dim')
-    dC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     dEL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
@@ -111,6 +111,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
             ncut=ncut,
             dEJ=dEJ,
             dCJ=dCJ,
+            dC=dC,
             ECS=ECS,
             # the zeropi_cutoff defines the truncated_dim of the "base" zeropi object
             truncated_dim=zeropi_cutoff
@@ -186,10 +187,21 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
         self._zeropi.set_EC_via_ECS(ECS)
 
+    def dis_ECJ(self):  # disorder renormalized ECJ
+        return self.ECJ * (1 / self.ECJ + 1 / self.EC * (1.0 - self.dC ** 2 / 4.0)) / (
+                1 / self.ECJ * (1.0 - self.dCJ ** 2 / 4.0) + 1 / self.EC * (1.0 - self.dC ** 2 / 4.0))
+
+    def dis_EC(self):  # disorder renormalized EC
+        return self.EC * (1 / self.ECJ * (1.0 - self.dCJ ** 2 / 4.0) + 1 / self.EC) / (
+                1 / self.ECJ * (1.0 - self.dCJ ** 2 / 4.0) + 1 / self.EC * (1.0 - self.dC ** 2 / 4.0))
+
+    def dis_ECS(self):  # disorder renormalized ECS
+        return 1 / (1 / self.EC * (1 - self.dC ** 2 / 4.0) + 1 / self.ECJ * (1 - self.dCJ ** 2 / 4.0))
+
     @property
     def E_zeta(self):
         """Returns energy quantum of the zeta mode"""
-        return (8.0 * self.EL * self.EC) ** 0.5
+        return (8.0 * self.EL * self.dis_EC()) ** 0.5
 
     def hamiltonian(self, return_parts=False):
         """Returns Hamiltonian in basis obtained by discretizing phi, employing charge basis for theta, and Fock
@@ -308,13 +320,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
     def _evals_calc(self, evals_count, hamiltonian_mat=None):
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
+        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM', return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count, hamiltonian_mat=None):
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
+        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM',
+                                           return_eigenvectors=True)
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
@@ -323,15 +336,21 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         from the list `zeropi_states`. Most commonly, `zeropi_states` will contain eigenvectors of the
         `DisorderedZeroPi` type.
         """
-        prefactor = self.EL * (self.dEL / 2.0) * (8.0 * self.EC / self.EL) ** 0.25
+        prefactor = self.EL * (self.dEL / 2.0) * (8.0 * self.dis_EC() / self.EL) ** 0.25
         return prefactor * spec_utils.get_matrixelement_table(self._zeropi.phi_operator(), zeropi_states)
 
     def g_theta_coupling_matrix(self, zeropi_states):
         """Returns a matrix of coupling strengths i*g^\\theta_{ll'} [cmp. Dempster et al., Eq. (17)], using the states
         from the list 'zeropi_states'.
         """
-        prefactor = 1j * self.ECS * (self.dC / 2.0) * (32.0 * self.EL / self.EC) ** 0.25
+        prefactor = 1j * self.dis_ECS() * (self.dC / 2.0) * (32.0 * self.EL / self.dis_EC()) ** 0.25
         return prefactor * spec_utils.get_matrixelement_table(self._zeropi.n_theta_operator(), zeropi_states)
+
+    def g2_phi_coupling_matrix(self, zeropi_states):
+        """Returns a matrix of coupling d_phi_d_zeta
+        """
+        prefactor = 1j * self.dis_ECS() * (self.dC * self.dCJ / 4.0) * (32.0 * self.EL / self.dis_EC()) ** 0.25
+        return prefactor * spec_utils.get_matrixelement_table(self._zeropi.i_d_dphi_operator(), zeropi_states)
 
     def g_coupling_matrix(self, zeropi_states=None, evals_count=None):
         """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
@@ -342,4 +361,5 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
             evals_count = self._zeropi.truncated_dim
         if zeropi_states is None:
             _, zeropi_states = self._zeropi.eigensys(evals_count=evals_count)
-        return self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(zeropi_states)
+        return self.g_phi_coupling_matrix(zeropi_states) + self.g_theta_coupling_matrix(
+            zeropi_states) + self.g2_phi_coupling_matrix(zeropi_states)

@@ -198,6 +198,10 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         return 1j * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension)) / (
                 self.phi_osc() * math.sqrt(2))
 
+    def n_phi_opt(self):
+        """n_phi operator in the total hilbert space"""
+        return self._kron3(self.n_phi_operator(), self.theta_identity(), self.varphi_identity())
+
     def theta_operator(self):
         """
         Returns
@@ -222,6 +226,10 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         dimension = self.theta_hilbertdim()
         return 1j * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension)) / (
                 self.theta_osc() * math.sqrt(2))
+
+    def n_theta_opt(self):
+        """n_theta operator in the total hilbert space"""
+        return self._kron3(self.phi_identity(), self.n_theta_operator(), self.varphi_identity())
 
     def exp_i_phi_2_operator(self):
         """
@@ -301,6 +309,9 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
 
     def _kron3(self, mat1, mat2, mat3):
         return sparse.kron(sparse.kron(mat1, mat2, format='csc'), mat3, format='csc')
+
+    def total_identity(self):
+        return self._kron3(self.phi_identity(), self.theta_identity(), self.varphi_identity())
 
     def hamiltonian(self):
         # follow W.C. Smith, A. Kou, X. Xiao, U. Vool, and M.H. Devoret, Npj Quantum Inf. 6, 8 (2020).
@@ -522,6 +533,131 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
         return plot.wavefunction1d_discrete(n_varphi_wavefunction, **kwargs)
 
+    def plot_charge_2dwavefunction(self, esys=None, mode='real', which=0, n_varphi_list=None, zero_calibrate=True,
+                                   **kwargs):
+        """Wavefunction in (phi, n_varphi) space"""
+        phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
+        theta_grid = discretization.Grid1d(0, 0, 1)
+        varphi_grid = discretization.Grid1d(0, 2 * np.pi, 500)
+        if n_varphi_list is None:
+            n_varphi_list = np.arange(-7, 8)
+            n_varphi_grid = discretization.Grid1d(-7, 7, 15)
+
+        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
+                                     which=which)
+
+        varphi_grid_list = varphi_grid.make_linspace()
+        d2_amplitudes = spec_utils.standardize_phases(
+            wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
+        ft_amplitudes = np.zeros((phi_grid.pt_count, n_varphi_list.size), dtype=np.complex_)
+        d_varphi = varphi_grid_list[1] - varphi_grid_list[0]
+        for n in range(n_varphi_list.size):
+            ft_amplitudes[:, n] = 1 / (2 * np.pi) * np.sum(
+                d2_amplitudes * np.exp(1j * n_varphi_list[n] * varphi_grid_list), axis=1) * d_varphi
+
+        # grid2d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+        #                                              [n_varphi_grid.min_val, n_varphi_grid.max_val, n_varphi_grid.pt_count]]))
+        grid2d = discretization.GridSpec(np.asarray([[n_varphi_grid.min_val, n_varphi_grid.max_val,
+                                                      n_varphi_grid.pt_count],
+                                                     [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                                                     ]))
+
+        wfnc = storage.WaveFunctionOnGrid(grid2d, ft_amplitudes)
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        wfnc.amplitudes = amplitude_modifier(spec_utils.standardize_phases(wfnc.amplitudes))
+        kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
+        return plot.wavefunction2d(wfnc, zero_calibrate=zero_calibrate, **kwargs)
+
+    def plot_n_phi_n_varphi_wavefunction(self, esys=None, mode='real', which=0, zero_calibrate=True, **kwargs):
+        """Wavefunction in (n_phi, n_varphi) space"""
+        phi_grid = discretization.Grid1d(-10 * np.pi, 10 * np.pi, 400)
+        theta_grid = discretization.Grid1d(0, 0, 1)
+        varphi_grid = discretization.Grid1d(0, 2 * np.pi, 500)
+
+        n_varphi_list = np.arange(-7, 8)
+        n_varphi_grid = discretization.Grid1d(-7, 7, 15)
+
+        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
+                                     which=which)
+
+        varphi_grid_list = varphi_grid.make_linspace()
+        d2_amplitudes = spec_utils.standardize_phases(
+            wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
+        ft_amplitudes = np.zeros((phi_grid.pt_count, n_varphi_list.size), dtype=np.complex_)
+        d_varphi = varphi_grid_list[1] - varphi_grid_list[0]
+        for n in range(n_varphi_list.size):
+            ft_amplitudes[:, n] = 1 / (2 * np.pi) * np.sum(
+                d2_amplitudes * np.exp(1j * n_varphi_list[n] * varphi_grid_list), axis=1) * d_varphi
+
+        d_phi = phi_grid.make_linspace()[1] - phi_grid.make_linspace()[0]
+        n_phi_linspace = np.sort(np.fft.fftfreq(phi_grid.pt_count, d_phi)) * 2 * np.pi
+        n_phi_grid = discretization.Grid1d(n_phi_linspace[0], n_phi_linspace[-1], n_phi_linspace.size)
+
+        fft_amplitudes = np.zeros((n_phi_linspace.size, n_varphi_list.size), dtype=np.complex_)
+        for n in range(n_varphi_list.size):
+            fft_amplitudes[:, n] = np.fft.ifft(ft_amplitudes[:, n]) * d_phi * phi_grid.pt_count
+            fft_amplitudes[:, n] = np.fft.fftshift(fft_amplitudes[:, n])
+        grid2d = discretization.GridSpec(np.asarray([
+            [n_varphi_grid.min_val, n_varphi_grid.max_val, n_varphi_grid.pt_count],
+            [n_phi_grid.min_val, n_phi_grid.max_val, n_phi_grid.pt_count]]))
+        wfnc = storage.WaveFunctionOnGrid(grid2d, fft_amplitudes)
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        wfnc.amplitudes = amplitude_modifier(spec_utils.standardize_phases(wfnc.amplitudes))
+        kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
+
+
+
+        fig, axs = plt.subplots(figsize=(4, 2))
+        axs.plot(n_phi_grid.make_linspace(),wfnc.amplitudes[:,7],'-o')
+        axs.set_xlabel(r'$N_\phi$')
+        axs.set_ylabel(r'$|\psi|$')
+        axs.set_xlim((-2,2))
+        axs.set_xticks([-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2])
+        axs.set_xticklabels(['-4', '-3', '-2', '-1', '0', '1', '2', '3', '4'])
+
+        return plot.wavefunction2d(wfnc, zero_calibrate=zero_calibrate, **kwargs)
+
+    def get_n_phi_n_varphi_wavefunction(self, esys=None, which=0):
+        phi_grid = discretization.Grid1d(-10 * np.pi, 10 * np.pi, 400)
+        theta_grid = discretization.Grid1d(0, 0, 1)
+        varphi_grid = discretization.Grid1d(0, 2 * np.pi, 500)
+
+        n_varphi_list = np.arange(-7, 8)
+        n_varphi_grid = discretization.Grid1d(-7, 7, 15)
+
+        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
+                                     which=which)
+
+        varphi_grid_list = varphi_grid.make_linspace()
+        d2_amplitudes = spec_utils.standardize_phases(
+            wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
+        ft_amplitudes = np.zeros((phi_grid.pt_count, n_varphi_list.size), dtype=np.complex_)
+        d_varphi = varphi_grid_list[1] - varphi_grid_list[0]
+        for n in range(n_varphi_list.size):
+            ft_amplitudes[:, n] = 1 / (2 * np.pi) * np.sum(
+                d2_amplitudes * np.exp(1j * n_varphi_list[n] * varphi_grid_list), axis=1) * d_varphi
+
+        d_phi = phi_grid.make_linspace()[1] - phi_grid.make_linspace()[0]
+        n_phi_linspace = np.sort(np.fft.fftfreq(phi_grid.pt_count, d_phi)) * 2 * np.pi
+        n_phi_grid = discretization.Grid1d(n_phi_linspace[0], n_phi_linspace[-1], n_phi_linspace.size)
+
+        fft_amplitudes = np.zeros((n_phi_linspace.size, n_varphi_list.size), dtype=np.complex_)
+        for n in range(n_varphi_list.size):
+            fft_amplitudes[:, n] = np.fft.ifft(ft_amplitudes[:, n]) * d_phi * phi_grid.pt_count
+            fft_amplitudes[:, n] = np.fft.fftshift(fft_amplitudes[:, n])
+        grid2d = discretization.GridSpec(np.asarray([
+            [n_varphi_grid.min_val, n_varphi_grid.max_val, n_varphi_grid.pt_count],
+            [n_phi_grid.min_val, n_phi_grid.max_val, n_phi_grid.pt_count]]))
+        wfnc = storage.WaveFunctionOnGrid(grid2d, fft_amplitudes)
+        wfnc.amplitudes = spec_utils.standardize_phases(wfnc.amplitudes)
+        return wfnc
+
+    def wavefunction_overlap(self, esys):
+        wfnc1 = self.get_n_phi_n_varphi_wavefunction(esys=esys, which=0)
+        wfnc2 = self.get_n_phi_n_varphi_wavefunction(esys=esys, which=1)
+        return np.abs(np.sum(wfnc1.amplitudes.conjugate() * wfnc2.amplitudes) / np.sum(wfnc1.amplitudes.conjugate() * wfnc1.amplitudes))**2, np.abs(np.sum(
+            wfnc1.amplitudes.conjugate() * wfnc2.amplitudes) / np.sum(wfnc2.amplitudes.conjugate() * wfnc2.amplitudes))**2
+
     # TODO check higher order disorder on junction and capacitance
     def disorder(self):
         """Return disorder Hamiltonian
@@ -531,7 +667,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         ndarray
         """
         disorder_l = - self._dis_el() * self.dL * self._kron3(self.phi_operator(), self.theta_operator(),
-                                                            self.varphi_identity())
+                                                              self.varphi_identity())
 
         disorder_j = 2 * self.EJ * self.dJ * self._kron3(self.sin_phi_2_operator(), self.theta_identity(),
                                                          self.sin_varphi_operator())
@@ -565,7 +701,9 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
 
     def q_ind(self, energy):
         q_ind_0 = 500 * 1e6
-        return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt()) * np.sinh(0.5 / 2.0 / self.kbt()) / kn(0, energy / 2.0 / self.kbt()) / np.sinh(energy / 2.0 / self.kbt())
+        return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt()) * np.sinh(0.5 / 2.0 / self.kbt()) / kn(0,
+                                                                                              energy / 2.0 / self.kbt()) / np.sinh(
+            energy / 2.0 / self.kbt())
 
     def ind_loss(self, dL_list):
         """Return the 1/T1 due to inductive loss"""
@@ -583,10 +721,10 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         t1_ind_1 = np.abs(matele_1) ** 2 * s_ind_1
         t1_ind_2 = np.abs(matele_2) ** 2 * s_ind_2
 
-        fig, axs = plt.subplots(3, 2, figsize=(10,12))
-        axs[0,0].plot(dL_list, s_ind_1)
-        axs[0,0].set_xlabel('dL')
-        axs[0,0].set_ylabel('$S_1(\omega)$')
+        fig, axs = plt.subplots(3, 2, figsize=(10, 12))
+        axs[0, 0].plot(dL_list, s_ind_1)
+        axs[0, 0].set_xlabel('dL')
+        axs[0, 0].set_ylabel('$S_1(\omega)$')
 
         axs[0, 1].plot(dL_list, s_ind_2)
         axs[0, 1].set_xlabel('dL')
@@ -604,12 +742,12 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         axs[2, 0].set_xlabel('dL')
         axs[2, 0].set_ylabel('$\Delta E$')
 
-        axs[2, 1].plot(dL_list, 1/(t1_ind_1 + t1_ind_2))
-        axs[2, 1].plot(dL_list, 1/t1_ind_1 )
-        axs[2, 1].plot(dL_list, 1/t1_ind_2)
+        axs[2, 1].plot(dL_list, 1 / (t1_ind_1 + t1_ind_2))
+        axs[2, 1].plot(dL_list, 1 / t1_ind_1)
+        axs[2, 1].plot(dL_list, 1 / t1_ind_2)
         axs[2, 1].set_xlabel('dL')
         axs[2, 1].set_ylabel('$T_1$')
-        axs[2, 1].legend(['total','$L_1$','$L_2$'])
+        axs[2, 1].legend(['total', '$L_1$', '$L_2$'])
         axs[2, 1].set_yscale('log')
         axs[2, 1].set_ylim((1e3, 1e9))
 
@@ -646,5 +784,107 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         plt.ylim((1e-8, 1))
         plt.xlim((0.4, 0.6))
         plt.legend(['0-1', '0-2', '0-3', '0-4'])
+
+        return norm_matele_01, norm_matele_02, norm_matele_03, norm_matele_04
+
+    def n_phi_sq_opt(self):
+        return self.n_phi_opt() * self.n_phi_opt()
+
+    def n_phi_matele_norm(self, flux_list):
+        """Return n_phi matrix element involving the ground state, normalized by ground state <g|n_phi**2|?>"""
+        matele = self.get_matelements_vs_paramvals('n_phi_opt', 'flux', flux_list, evals_count=5)
+        matele_01 = matele.matrixelem_table[:, 0, 1]
+        matele_02 = matele.matrixelem_table[:, 0, 2]
+        matele_03 = matele.matrixelem_table[:, 0, 3]
+        matele_04 = matele.matrixelem_table[:, 0, 4]
+
+        norm = self.get_matelements_vs_paramvals('n_phi_sq_opt', 'flux', flux_list, evals_count=2)
+        norm_val = np.real(norm.matrixelem_table[:, 0, 0])
+
+        norm_matele_01 = np.abs(matele_01) ** 2 / norm_val
+        norm_matele_02 = np.abs(matele_02) ** 2 / norm_val
+        norm_matele_03 = np.abs(matele_03) ** 2 / norm_val
+        norm_matele_04 = np.abs(matele_04) ** 2 / norm_val
+
+        fig, axs = plt.subplots(figsize=(4, 4))
+        axs.plot(flux_list, norm_matele_01)
+        axs.plot(flux_list, norm_matele_02)
+        axs.plot(flux_list, norm_matele_03)
+        axs.plot(flux_list, norm_matele_04)
+
+        axs.set_xlabel('flux')
+        axs.set_ylabel(r'$|\langle 0 | n_\phi | 1 \rangle|^2 $')
+        axs.set_yscale('log')
+        axs.set_ylim((1e-8, 1))
+        axs.set_xlim((0.4, 0.6))
+        axs.legend(['0-1', '0-2', '0-3', '0-4'])
+
+        return norm_matele_01, norm_matele_02, norm_matele_03, norm_matele_04
+
+    def n_theta_sq_opt(self):
+        return self.n_theta_opt() * self.n_theta_opt()
+
+    def n_theta_matele_norm(self, flux_list):
+        """Return n_theta matrix element involving the ground state, normalized by ground state <g|n_theta**2|?>"""
+        matele = self.get_matelements_vs_paramvals('n_theta_opt', 'flux', flux_list, evals_count=5)
+        matele_01 = matele.matrixelem_table[:, 0, 1]
+        matele_02 = matele.matrixelem_table[:, 0, 2]
+        matele_03 = matele.matrixelem_table[:, 0, 3]
+        matele_04 = matele.matrixelem_table[:, 0, 4]
+
+        norm = self.get_matelements_vs_paramvals('n_theta_sq_opt', 'flux', flux_list, evals_count=2)
+        norm_val = np.real(norm.matrixelem_table[:, 0, 0])
+
+        norm_matele_01 = np.abs(matele_01) ** 2 / norm_val
+        norm_matele_02 = np.abs(matele_02) ** 2 / norm_val
+        norm_matele_03 = np.abs(matele_03) ** 2 / norm_val
+        norm_matele_04 = np.abs(matele_04) ** 2 / norm_val
+
+        fig, axs = plt.subplots(figsize=(4, 4))
+        axs.plot(flux_list, norm_matele_01)
+        axs.plot(flux_list, norm_matele_02)
+        axs.plot(flux_list, norm_matele_03)
+        axs.plot(flux_list, norm_matele_04)
+
+        axs.set_xlabel('flux')
+        axs.set_ylabel(r'$|\langle 0 | n_\theta | 1 \rangle|^2 $')
+        axs.set_yscale('log')
+        axs.set_ylim((1e-8, 1))
+        axs.set_xlim((0.4, 0.6))
+        axs.legend(['0-1', '0-2', '0-3', '0-4'])
+
+        return norm_matele_01, norm_matele_02, norm_matele_03, norm_matele_04
+
+    def n_varphi_sq_opt(self):
+        return self.n_varphi_opt() * self.n_varphi_opt()
+
+    def n_varphi_matele_norm(self, flux_list):
+        """Return n_varphi matrix element involving the ground state, normalized by ground state <g|n_varphi**2|?>"""
+        matele = self.get_matelements_vs_paramvals('n_varphi_opt', 'flux', flux_list, evals_count=5)
+        matele_01 = matele.matrixelem_table[:, 0, 1]
+        matele_02 = matele.matrixelem_table[:, 0, 2]
+        matele_03 = matele.matrixelem_table[:, 0, 3]
+        matele_04 = matele.matrixelem_table[:, 0, 4]
+
+        norm = self.get_matelements_vs_paramvals('n_varphi_sq_opt', 'flux', flux_list, evals_count=2)
+        norm_val = np.real(norm.matrixelem_table[:, 0, 0])
+
+        norm_matele_01 = np.abs(matele_01) ** 2 / norm_val
+        norm_matele_02 = np.abs(matele_02) ** 2 / norm_val
+        norm_matele_03 = np.abs(matele_03) ** 2 / norm_val
+        norm_matele_04 = np.abs(matele_04) ** 2 / norm_val
+
+        fig, axs = plt.subplots(figsize=(4, 4))
+        axs.plot(flux_list, norm_matele_01)
+        axs.plot(flux_list, norm_matele_02)
+        axs.plot(flux_list, norm_matele_03)
+        axs.plot(flux_list, norm_matele_04)
+
+        axs.set_xlabel('flux')
+        axs.set_ylabel(r'$|\langle 0 | n_\varphi | 1 \rangle|^2 $')
+        axs.set_yscale('log')
+        axs.set_ylim((1e-8, 1))
+        axs.set_xlim((0.4, 0.6))
+        axs.legend(['0-1', '0-2', '0-3', '0-4'])
 
         return norm_matele_01, norm_matele_02, norm_matele_03, norm_matele_04

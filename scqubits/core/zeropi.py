@@ -63,6 +63,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
     dCJ: float
         relative disorder of the junction capacitances, i.e., (CJ1-CJ2)/CJavg
+    dC: float
+        relative disorder in shunting capacitance, i.e., (C1-C2)/Cavg, should only be specified from a call from FullZeroPi
     ng: float
         offset charge associated with theta
     flux: float
@@ -83,10 +85,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
     EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     dEJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     dCJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, grid, ncut, dEJ=0, dCJ=0, ECS=None, truncated_dim=None):
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, grid, ncut, dEJ=0, dCJ=0, dC=None, ECS=None, truncated_dim=None):
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
@@ -101,6 +104,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
             self.EC = 1 / (1 / ECS - 1 / self.ECJ)
         self.dEJ = dEJ
         self.dCJ = dCJ
+        if dC is None:
+            self.dC = 0
+        else:
+            self.dC = dC
         self.ng = ng
         self.flux = flux
         self.grid = grid
@@ -163,12 +170,13 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
+        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM', return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
+        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM',
+                                           return_eigenvectors=True)
         # TODO consider normalization of zeropi wavefunctions
         # evecs /= np.sqrt(self.grid.grid_spacing())
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
@@ -186,6 +194,17 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
     def set_EC_via_ECS(self, ECS):
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
         self.EC = 1 / (1 / ECS - 1 / self.ECJ)
+
+    def dis_ECJ(self):  # disorder renormalized ECJ
+        return self.ECJ * (1 / self.ECJ + 1 / self.EC * (1.0 - self.dC ** 2 / 4.0)) / (
+                1 / self.ECJ * (1.0 - self.dCJ ** 2 / 4.0) + 1 / self.EC * (1.0 - self.dC ** 2 / 4.0))
+
+    def dis_EC(self):  # disorder renormalized EC
+        return self.EC * (1 / self.ECJ * (1.0 - self.dCJ ** 2 / 4.0) + 1 / self.EC) / (
+                1 / self.ECJ * (1.0 - self.dCJ ** 2 / 4.0) + 1 / self.EC * (1.0 - self.dC ** 2 / 4.0))
+
+    def dis_ECS(self):  # disorder renormalized ECS
+        return 1 / (1 / self.EC * (1 - self.dC ** 2 / 4.0) + 1 / self.ECJ * (1 - self.dCJ ** 2 / 4.0))
 
     def hilbertdim(self):
         """Returns Hilbert space dimension"""
@@ -222,15 +241,15 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         identity_phi = sparse.identity(pt_count, format='csc', dtype=np.complex_)
         identity_theta = sparse.identity(dim_theta, format='csc', dtype=np.complex_)
 
-        kinetic_matrix_phi = self.grid.second_derivative_matrix(prefactor=-2.0 * self.ECJ)
+        kinetic_matrix_phi = self.grid.second_derivative_matrix(prefactor=-2.0 * self.dis_ECJ())
 
-        diag_elements = 2.0 * self.ECS * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
+        diag_elements = 2.0 * self.dis_ECS() * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
 
         kinetic_matrix = (sparse.kron(kinetic_matrix_phi, identity_theta, format='csc')
                           + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc'))
 
-        kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
+        kinetic_matrix -= 2.0 * self.dis_ECS() * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
         return kinetic_matrix
 
     def sparse_potential_mat(self):
