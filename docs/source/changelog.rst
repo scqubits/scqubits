@@ -7,6 +7,13 @@
 Change Log
 **********
 
+Version 1.2.3
++++++++++++++
+
+- **Bug fix**: the ``FullZeroPi`` Hamiltonian was incorrect in the case of nonzero ``dC``.
+- improvement: thanks to adjusted ARPACK options, diagonalization should be noticeably faster for ``ZeroPi`` and ``FullZeroPi``.
+
+
 Version 1.2.2
 +++++++++++++
 
