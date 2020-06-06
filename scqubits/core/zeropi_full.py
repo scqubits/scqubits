@@ -350,7 +350,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         """Returns a matrix of coupling d_phi_d_zeta
         """
         prefactor = 1j * self.dis_ECS() * (self.dC * self.dCJ / 4.0) * (32.0 * self.EL / self.dis_EC()) ** 0.25
-        return prefactor * spec_utils.get_matrixelement_table(self._zeropi.i_d_dphi_operator(), zeropi_states)
+        return prefactor * spec_utils.get_matrixelement_table(self._zeropi.i_d_dphi_operator(), zeropi_states) * (-1)
 
     def g_coupling_matrix(self, zeropi_states=None, evals_count=None):
         """Returns a matrix of coupling strengths g_{ll'} [cmp. Dempster et al., text above Eq. (17)], using the states
