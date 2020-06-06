@@ -11,9 +11,8 @@
 
 import numpy as np
 import scipy as sp
-# import scipy.constants
+import scipy.constants
 import scqubits.utils.misc as utils
-
 
 # Default values of various noise constants and parameters.
 CONSTANTS = {
@@ -61,7 +60,28 @@ class NoisySystem:
 
     def tphi_1_over_f(self, A_noise, i, j, noise_op, esys=None, get_rate=False, **params):
         """
-        TODO fix units issues 
+        Calculate the 1/f dephasing time (or rate) due to arbitrary noise source. 
+
+        Parameters
+        ----------
+        A_noise: float
+            noise strength
+        i: int >=0
+            state index that along with j defines a qubit
+        j: int >=0
+            state index that along with i defines a qubit
+        noise_op: operator (ndarray)
+            noise operator, typically Hamiltonian derivative w.r.t. noisy parameter
+        esys: tupple(ndarray, ndarray)
+            evals, evecs tupple
+        get_rate: bool
+            get rate or time
+
+        Returns
+        -------
+        float
+
+        TODO update once sorted out units
         """
 
         p = {key: CONSTANTS[key] for key in ['omega_low', 'omega_high', 't_exp']}
@@ -86,6 +106,27 @@ class NoisySystem:
             return 1/rate if rate != 0 else np.inf
 
     def tphi_1_over_f_flux(self, A_noise=CONSTANTS['A_flux'], i=0, j=1, esys=None, get_rate=False, **params):
+        """
+        Calculate the 1/f dephasing time (or rate) due to flux noise.
+
+        Parameters
+        ----------
+        A_noise: float
+            noise strength
+        i: int >=0
+            state index that along with j defines a qubit
+        j: int >=0
+            state index that along with i defines a qubit
+        esys: tupple(ndarray, ndarray)
+            evals, evecs tupple
+        get_rate: bool
+            get rate or time
+
+        Returns
+        -------
+        float
+        """
+
 
         if 'tphi_1_over_f_flux' not in self._supported_noise_channels():
             raise RuntimeError("Flux noise channel 'tphi_1_over_f_flux' is not supported in this system.")
@@ -94,6 +135,26 @@ class NoisySystem:
                                             esys=esys, get_rate=get_rate, **params)
 
     def tphi_1_over_f_cc(self, A_noise=CONSTANTS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+        """
+        Calculate the 1/f dephasing time (or rate) due to critical current noise.
+
+        Parameters
+        ----------
+        A_noise: float
+            noise strength
+        i: int >=0
+            state index that along with j defines a qubit
+        j: int >=0
+            state index that along with i defines a qubit
+        esys: tupple(ndarray, ndarray)
+            evals, evecs tupple
+        get_rate: bool
+            get rate or time
+
+        Returns
+        -------
+        float
+        """
 
         if 'tphi_1_over_f_cc' not in self._supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system.")
@@ -102,7 +163,26 @@ class NoisySystem:
                                             esys=esys, get_rate=get_rate, **params)
 
     def tphi_1_over_f_ng(self, A_noise=CONSTANTS['A_ng'], i=0, j=1, esys=None, get_rate=False, **params):
+        """
+        Calculate the 1/f dephasing time (or rate) due to charge noise.
 
+        Parameters
+        ----------
+        A_noise: float
+            noise strength
+        i: int >=0
+            state index that along with j defines a qubit
+        j: int >=0
+            state index that along with i defines a qubit
+        esys: tupple(ndarray, ndarray)
+            evals, evecs tupple
+        get_rate: bool
+            get rate or time
+
+        Returns
+        -------
+        float
+        """
         if 'tphi_1_over_f_ng' not in self._supported_noise_channels():
             raise RuntimeError("Charge noise channel 'tphi_1_over_f_ng' is not supported in this system.")
 
@@ -111,9 +191,33 @@ class NoisySystem:
 
     def t1(self, i, j, noise_op, spec_dens, esys=None, get_rate=False, **params):
         """
-        TODO fix units issues 
-        """
+        Calculate the a transition time (or rate) using Fermi's Golden Rule. Namely
 
+        :math:` \frac{1}{T_1} = \langle i| A | j \rangle S(\omega)
+
+        Note, here we absorb prefactors into A. 
+
+        Parameters
+        ----------
+        i: int >=0
+            state index that along with j defines a transition (i->j)
+        j: int >=0
+            state index that along with i defines a transition (i->j)
+        noise_op: operator (ndarray)
+            noise operator
+        spec_dens: callable object 
+            defines a spectral desnity, must take one argument: omega
+        esys: tupple(ndarray, ndarray)
+            evals, evecs tupple
+        get_rate: bool
+            get rate or time
+
+        Returns
+        -------
+        float
+
+        TODO update once sorted out units
+        """
         evals, evecs = self.eigensys(max(i, j)+1) if esys is None else esys
         omega = 2 * np.pi * (evals[i]-evals[j])
 
@@ -130,7 +234,9 @@ class NoisySystem:
         """Noise due to a capacitive dielectric loss.
 
         TODO double check formula, tan_delta in particular
-        TODO rewrite this in terms of the charge operator (why does everyone use phi??)
+        TODO rewrite this in terms of the charge operator (why does Maryland always use phi??)
+        TODO Cleanup up needed: Could be more rigorous in splitting up terms to S(omega) and prefactor before
+            passing to self.t1()
         """
 
         if 't1_dielectric_loss' not in self._supported_noise_channels():
@@ -147,6 +253,9 @@ class NoisySystem:
     def t1_flux_bias_line(self, i, j, M=CONSTANTS['M'],  Z=CONSTANTS['R_0'], T=CONSTANTS['T'], esys=None,
                             get_rate=False, **params):
         """Noise due to a bias flux line.
+
+        TODO Cleanup up needed: Could be more rigorous in splitting up terms to S(omega) and prefactor before
+            passing to self.t1()
         """
 
         if 't1_bias_flux_line' not in self._supported_noise_channels():
@@ -163,7 +272,7 @@ class NoisySystem:
     def t1_tran_line(self, i, j, Z=CONSTANTS['R_0'], T=CONSTANTS['T'], esys=None, get_rate=False, **params):
         """Noise due to a capacitive coupling to a transmission line. 
 
-        TODO Could be more rigorous in splitting up terms to S(omega) and prefactor before
+        TODO Cleanup up needed: Could be more rigorous in splitting up terms to S(omega) and prefactor before
             passing to self.t1()
         """
         if 't1_tran_line' not in self._supported_noise_channels():

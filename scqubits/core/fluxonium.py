@@ -20,7 +20,7 @@ import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.harmonic_osc as osc
-import scqubits.core.noise as noise
+from scqubits.core.noise import NoisySystem
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
@@ -29,7 +29,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 # —Fluxonium qubit ————————————————————————
 
-class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, noise.NoisySystem):
+class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the fluxonium qubit. Hamiltonian
     :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi-\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
     is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
@@ -87,8 +87,12 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, noise.NoisySyst
 
     def _supported_noise_channels(self):
         """Return a list of supported noise channels"""
-        return ['tphi_1_over_f_cc', 'tphi_1_over_f_ng', 'tphi_1_over_f_flux'
-                't1_charge_line', 't1_dielectric_loss', 't1_bias_flux_line']
+        return ['tphi_1_over_f_cc', 
+                # 'tphi_1_over_f_flux'
+                't1_charge_line', 
+                't1_dielectric_loss', 
+                't1_bias_flux_line'
+                ]
 
     def phi_osc(self):
         """
@@ -177,6 +181,16 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, noise.NoisySyst
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
         return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential,
         # fluxonium Hamiltonian in harm. osc. basis is real-valued
+
+    def d_hamiltonian_d_EJ(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ.
+
+        TODO: How do we group the flux here? At the moment keep what's done in the Hamiltonian
+        """
+        exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
+        return - 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+
+
 
     def hilbertdim(self):
         """

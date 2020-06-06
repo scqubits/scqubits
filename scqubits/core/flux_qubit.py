@@ -17,6 +17,7 @@ import scipy as sp
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
+from scqubits.core.noise import NoisySystem, CONSTANTS
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
@@ -24,9 +25,52 @@ import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 
 
+# -Flux qubit noise class
+
+class NoisyFluxQubit(NoisySystem):
+
+    def tphi_1_over_f_cc1(self, A_noise=CONSTANTS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+
+        if 'tphi_1_over_f_cc1' not in self._supported_noise_channels():
+            raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc1' is not supported in this system.")
+
+        return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ1(),
+                                            esys=esys, get_rate=get_rate, **params)
+
+    def tphi_1_over_f_cc2(self, A_noise=CONSTANTS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+
+        if 'tphi_1_over_f_cc2' not in self._supported_noise_channels():
+            raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc2' is not supported in this system.")
+
+        return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ2(),
+                                            esys=esys, get_rate=get_rate, **params)
+
+    def tphi_1_over_f_cc3(self, A_noise=CONSTANTS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+
+        if 'tphi_1_over_f_cc3' not in self._supported_noise_channels():
+            raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc3' is not supported in this system.")
+
+        return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ3(),
+                                            esys=esys, get_rate=get_rate, **params)
+
+    def tphi_1_over_f_cc(self, A_noise=CONSTANTS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+
+        if 'tphi_1_over_f_cc' not in self._supported_noise_channels():
+            raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system.")
+
+        rate = self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
+        rate += self.tphi_1_over_f_cc2(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
+        rate += self.tphi_1_over_f_cc3(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
+
+        if get_rate:
+            return rate
+        else:
+            return 1/rate if rate != 0 else np.inf
+
+
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
 
-class FluxQubit(base.QubitBaseClass, serializers.Serializable):
+class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     r"""Flux Qubit
 
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
@@ -125,6 +169,17 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
     def nonfit_params():
         return ['ng1', 'ng2', 'flux', 'ncut', 'truncated_dim']
 
+    def _supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_cc1',
+                'tphi_1_over_f_cc2',
+                'tphi_1_over_f_cc3',
+                'tphi_1_over_f_cc',
+                'tphi_1_over_f_ng1',
+                'tphi_1_over_f_ng2',
+                'tphi_1_over_f_ng',
+                ]
+
     def EC_matrix(self):
         """Return the charging energy matrix"""
         Cmat = np.zeros((2, 2))
@@ -190,6 +245,22 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
     def hamiltonian(self):
         """Return Hamiltonian in basis obtained by employing charge basis for both degrees of freedom"""
         return self.kineticmat() + self.potentialmat()
+
+    def d_hamiltonian_d_EJ1(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ1."""
+        return -0.5 * np.kron(self._exp_i_phi_operator() + self._exp_i_phi_operator().T,
+                                                  self._identity())
+
+    def d_hamiltonian_d_EJ2(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ2."""
+        return -0.5 * np.kron(self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T)
+
+    def d_hamiltonian_d_EJ3(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ3."""
+        return (-0.5 * (np.exp(1j * 2 * np.pi * self.flux)
+                                            * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)))\
+               + (-0.5 * (np.exp(-1j * 2 * np.pi * self.flux)
+                                            * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())))
 
     def _n_operator(self):
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)

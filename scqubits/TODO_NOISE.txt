@@ -17,9 +17,10 @@ noise ongoing TODO items:
     relaxation
         ohmic environment at temp T
         dialectric noise
+		flux bias line
         purcell (zeropi)
         charge
-        arbitrary noisek
+        arbitrary noise
 
 - might update how the default options are passed to functions; this would reduce the boiler method definitions at a cost
     of some helper _defult_options(noise) type functions.
@@ -27,7 +28,7 @@ noise ongoing TODO items:
 - add a general dephasing noise with possibility of a filter fun i.e ~int sinc(omega' t) F(omega') domega'
     this will will allow to mimic what one should expect from dynamical decoupling type protocols
 
-- 1/f dephasing second order calculations via matrix operators (messy! - use paper)
+- 1/f dephasing second order calculations via matrix operators (messy! - use paper results)
 
 - an easy routine that plots Tx vs parameter over some parameter range
     (think plot_evals_vs_paramvals())
@@ -41,6 +42,7 @@ noise ongoing TODO items:
     what noise channels are available for each qubit 
     
 - add a (much) faster version of calculation 1/f noise by numerically calculating derivatives (and not using matrix elements)    
-- split up demo_noise.ipynb and and noise related calcs to individual qubit notebooks
+- split up demo_noise.ipynb and and noise related calcs to individual qubit notebooks (? maybe better this way??)
  
 - unit testing for all qubits
+

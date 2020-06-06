@@ -13,6 +13,7 @@ Users Guide
    guide-overview.rst
    ./ipynb/basics.ipynb
    guide-qubits.rst
+   noise.rst
    ./ipynb/hilbertspace.ipynb
    ./ipynb/explorer.ipynb
    guide-plot-options.rst

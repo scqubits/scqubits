@@ -416,6 +416,22 @@ class QubitBaseClass(QuantumSystem, ABC):
                                                      evals_count=evals_count, num_cpus=num_cpus)
         return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, **kwargs)
 
+    def set_and_return(self, attr_name, value):
+        """
+        Allows to set an attribute after which self is returned. This is useful for doing 
+        something like:
+
+            qubit.set_and_return('flux', 0.23).some_method()
+    
+        instead of:
+
+            qubit.flux=0.23
+            qubit.some_method()
+
+        """
+        setattr(self, attr_name, value)
+        return self
+
 
 # —QubitBaseClass1d—————————————————————————————————————————————————————————————————————————————————————————————————————
 
@@ -492,18 +508,3 @@ class QubitBaseClass1d(QubitBaseClass):
                                 scaling=scale, **kwargs)
         return fig_ax
 
-    def set_and_return(self, attr_name, value):
-        """
-        Allows to set an attribute after which self is returned. This is useful for doing 
-        something like:
-
-            qubit.set_and_return('flux', 0.23).some_method()
-    
-        instead of:
-
-            qubit.flux=0.23
-            qubit.some_method()
-
-        """
-        setattr(self, attr_name, value)
-        return self

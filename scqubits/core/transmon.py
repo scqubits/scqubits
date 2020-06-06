@@ -17,7 +17,7 @@ import numpy as np
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
-import scqubits.core.noise as noise
+from scqubits.core.noise import NoisySystem
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
@@ -27,7 +27,7 @@ import scqubits.utils.plotting as plot
 
 # —Cooper pair box / transmon——————————————————————————————————————————————
 
-class Transmon(base.QubitBaseClass1d, serializers.Serializable, noise.NoisySystem):
+class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is represented in dense form in the number
     basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
@@ -259,7 +259,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, noise.NoisySyste
 
 # — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
 
-class TunableTransmon(Transmon, serializers.Serializable, noise.NoisySystem):
+class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in dense form in the number
     basis,
     :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{h.c.})`,
@@ -339,12 +339,4 @@ class TunableTransmon(Transmon, serializers.Serializable, noise.NoisySystem):
         return np.pi * self.EJmax * np.cos(np.pi * self.flux) * np.sin(np.pi * self.flux) * (self.d**2 - 1) \
                 / np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2) \
                 * self.cos_phi_operator()
-
-    # def d_hamiltonian_d_EJ(self):
-        # """Returns operator representing a derivittive of the Hamiltonian with respect to EJ.
-        # We approximate the two (potentially different) junctions as a single junction with energy EJmax
-        
-        # TODO Is this the right thing to do? 
-        # """
-        # return - np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2) * self.cos_phi_operator()
 
