@@ -244,7 +244,7 @@ class NoisySystem:
 
         def spec_dens(omega):
             return sp.constants.hbar * omega**2 * tan_delta / (8 * self.EC)  \
-                * 1/np.tanh(sp.constants.hbar * omega / (2 * sp.constants.k * T))
+                * (1 +  1/np.tanh(sp.constants.hbar * omega / (2 * sp.constants.k * T)))
 
         noise_op = self.phi_operator()
 
@@ -280,7 +280,7 @@ class NoisySystem:
 
         def spec_dens(omega):
             Q_c = CONSTANTS['R_q']/(16*np.pi*Z)
-            return omega/Q_c * 1/np.tanh(sp.constants.hbar * omega / (2 * sp.constants.k * T))
+            return omega/Q_c * (1 + 1/np.tanh(sp.constants.hbar * omega / (2 * sp.constants.k * T)))
 
         noise_op = self.n_operator()
 
