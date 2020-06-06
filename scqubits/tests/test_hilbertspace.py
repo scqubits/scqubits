@@ -125,8 +125,42 @@ class TestHilbertSpace:
 
         return h1 + h2 + hres + (vcpb1 + vcpb2) * (a + a.dag())
 
-    def test_HilbertSpace_build_hamiltonian(self):
-        _ = self.build_hamiltonian()
+    def hamiltonian_use_addhc(self):
+        res1 = qubit.Oscillator(
+            E_osc=6.0,
+            truncated_dim=4  # up to 3 photons (0,1,2,3)
+        )
+
+        res2 = qubit.Oscillator(
+            E_osc=5.5,
+            truncated_dim=7
+        )
+
+        # Form a list of all components making up the Hilbert space.
+        hilbertspace = HilbertSpace([res1, res2])
+
+        g1 = 0.29
+
+        interaction1 = InteractionTerm(
+            g_strength=g1,
+            op1=res1.annihilation_operator(),
+            subsys1=res1,
+            op2=res2.creation_operator(),
+            subsys2=res2,
+            add_hc=True
+        )
+
+        interaction_list = [interaction1]
+        hilbertspace.interaction_list = interaction_list
+        return hilbertspace.hamiltonian()
+
+    def test_HilbertSpace_hamiltonian_is_hermitean(self):
+        hamiltonian = self.build_hamiltonian()
+        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.dag())), 0.0)
+        hamiltonian = self.hamiltonian(flux=0.23)
+        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.dag())), 0.0)
+        hamiltonian = self.hamiltonian_use_addhc()
+        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.dag())), 0.0)
 
     def test_HilbertSpace_diagonalize_hamiltonian(self):
         hamiltonian = self.build_hamiltonian()
@@ -267,6 +301,4 @@ class TestParameterSweep:
         reference_energies = np.array([0., 4.74135372, 5.6773522, 5.98902462, 7.72420838, 10.72273595, 11.65962582,
                                        11.97802377, 12.46554431, 13.40154194, 13.71041554, 15.24359501, 16.70439594,
                                        17.01076356, 17.64202619])
-
-        print(calculated_energies)
         assert np.allclose(reference_energies, calculated_energies)
