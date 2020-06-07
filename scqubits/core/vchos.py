@@ -167,7 +167,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         eigval_holder = eigval_holder[index_array]
         eigvec_holder[:, 0: dim2] = eigvec_holder[:, index_array]
         # Now attempt to deal with degenerate modes
-        for k in range(0, len(eigval_holder) - 1, 2):
+        for k in range(0, len(eigval_holder) - 1):
             if np.allclose(eigval_holder[k], eigval_holder[k + 1], atol=1e-6):
                 evec_1 = eigvec_holder[:, k]
                 evec_2 = eigvec_holder[:, k + 1]
