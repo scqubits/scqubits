@@ -193,7 +193,7 @@ class NoisySystem:
         """
         Calculate the a transition time (or rate) using Fermi's Golden Rule. Namely
 
-        :math:` \frac{1}{T_1} = \langle i| A | j \rangle S(\omega)
+        :math:` \frac{1}{T_1} = |\langle i| A | j \rangle|^2 S(\omega)
 
         Note, here we absorb prefactors into A. 
 
