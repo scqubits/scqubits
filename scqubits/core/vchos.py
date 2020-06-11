@@ -1,15 +1,15 @@
-from abc import ABC
+import itertools
 import warnings
 
 import numpy as np
 import scipy as sp
 from scipy.linalg import LinAlgError
-import itertools
+from scipy.special import factorial
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.utils.spectrum_utils import order_eigensystem
 from scqubits.utils.fix_heiberger import fixheiberger
+from scqubits.utils.spectrum_utils import order_eigensystem
 
 
 # The VCHOS method (tight binding) allowing for the diagonalization of systems
@@ -43,6 +43,15 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def potential(self, phiarray):
         """
         Potential evaluated at the location specified by phiarray
+
+        Parameters
+        ----------
+        phiarray: ndarray
+            float value of the phase variable `phi`
+
+        Returns
+        -------
+        float
         """
         pot_sum = np.sum([-self.EJlist[j] * np.cos(phiarray[j])
                           for j in range(self.num_deg_freedom())])
@@ -63,6 +72,15 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         changed variables to the difference variables, so that
         each junction is a function of just one variable, except for
         the last junction, which is a function of all of the variables
+
+        Parameters
+        ----------
+        i: int
+            integer specifying which minimum to linearize around, 0<=i<= total number of minima
+
+        Returns
+        -------
+        ndarray
         
         """
         gmat = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
@@ -84,6 +102,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return gmat
 
     def _eigensystem_normal_modes(self):
+        """Return squared normal mode frequencies, matrix of eigenvectors"""
         Cmat = self.build_capacitance_matrix()
         gmat = self.build_gamma_matrix(0)
 
@@ -105,7 +124,22 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return Ximat
 
     def _build_U_squeezing_operator(self, i, Xi):
-        freq, uvmat = self._squeezing_M_builder(i, Xi)
+        """
+        Return the rho, sigma, tau matrices that define the overall squeezing operator U
+
+        Parameters
+        ----------
+        i: int
+            integer representing the minimum for which to build the squeezing operator U,
+            0<i<=total number of minima (no squeezing need be performed for the global min)
+        Xi: ndarray
+            Xi matrix, passed to avoid building multiple times
+
+        Returns
+        -------
+        ndarray, ndarray, ndarray
+        """
+        uvmat = self._squeezing_M_builder(i, Xi)
         dim = uvmat.shape[0]
         u = uvmat[0: int(dim / 2), 0: int(dim / 2)]
         v = uvmat[int(dim / 2): dim, 0: int(dim / 2)]
@@ -116,6 +150,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return rho, sigma, tau
 
     def _define_squeezing_variables(self, rho, rhoprime, Xi):
+        """Build variables helpful for constructing the Hamiltonian """
         Xi_inv = sp.linalg.inv(Xi)
         deltarhoprime = np.matmul(sp.linalg.inv(np.eye(self.num_deg_freedom())
                                                 - np.matmul(rhoprime, rho)), rhoprime)
@@ -129,13 +164,28 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return deltarho, deltarhoprime, deltarhobar, zp, zpp
 
     def a_operator(self, mu):
-        """Return the lowering operator associated with the xth d.o.f. in the full Hilbert space"""
+        """Return the lowering operator associated with the mu^th d.o.f. in the full Hilbert space"""
         a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)])
         a_mat = np.diag(a, k=1)
         return self._full_o([a_mat], [mu])
 
     def _squeezing_M_builder(self, i, Xi):
-        dim = Xi.shape[0]
+        """
+        Returns the M matrix as defined in G. Qin et. al “General multimodesqueezed states,”
+        (2001) arXiv:quant-ph/0109020, M=[[u, v],[v, u]] where u and v are the matrices
+        that define the Bogoliubov transformation
+        Parameters
+        ----------
+        i: int
+            integer representing the minimum for which to build the squeezing operator U,
+            0<i<=total number of minima (no squeezing need be performed for the global min)
+        Xi: ndarray
+            Xi matrix, passed to avoid building multiple times
+
+        Returns
+        -------
+        ndarray
+        """
         gamma = self.build_gamma_matrix(i)
         gamma_prime = np.matmul(Xi.T, np.matmul(gamma, Xi))
         omegamat = self.omegamat()
@@ -143,14 +193,12 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         eta = 0.25 * (self.Phi0 ** 2 * gamma_prime - omegamat)
         hmat = np.block([[zeta, -eta],
                          [eta, -zeta]])
-        K = np.block([[np.eye(dim), np.zeros((dim, dim))],
-                      [np.zeros((dim, dim)), -np.eye(dim)]])
         eigvals, eigvec = sp.linalg.eig(hmat)
         eigvals, eigvec = self._order_eigensystem_squeezing(np.real(eigvals), eigvec)
         eigvec = eigvec.T  # since eigvec represents M.T
-        eigvals, eigvec = self._normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
-        assert (np.allclose(np.matmul(eigvec.T, np.matmul(K, eigvec)), K))
-        return eigvals, eigvec
+        # Normalization ensures that eigvec.T K eigvec = K, K = [[1, 0],[0, -1]] (1, 0 are matrices)
+        _, eigvec = self._normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
+        return eigvec
 
     def _order_eigensystem_squeezing(self, eigvals, eigvec):
         """Order eigensystem to have positive eigenvalues followed by negative, in same order"""
@@ -187,6 +235,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return eigval_holder, eigvec_holder
 
     def _normalize_symplectic_eigensystem_squeezing(self, eigvals, eigvec):
+        """Enforce commutation relations so that Bogoliubov transformation is symplectic """
         dim = eigvec.shape[0]
         dim2 = int(dim / 2)
         for col in range(dim2):
@@ -206,17 +255,16 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return eigvals, eigvec
 
     def _normal_ordered_adag_a_exponential(self, x):
-        """Expectation is that exp(a_{i}^{\dagger}x_{ij}a_{j}) needs to be normal ordered"""
+        """Return normal ordered exponential matrix of exp(a_{i}^{\dagger}x_{ij}a_{j})"""
         expx = sp.linalg.expm(x)
         dim = self.a_operator(0).shape[0]
         result = np.eye(dim, dtype=np.complex128)
-        dim = result.shape[0]
         additionalterm = np.eye(dim, dtype=np.complex128)
         a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
         k = 1
         while not np.allclose(additionalterm, np.zeros((dim, dim))):
             additionalterm = np.sum([((expx - np.eye(self.num_deg_freedom()))[i, j]) ** k
-                                     * (sp.special.factorial(k)) ** (-1)
+                                     * (factorial(k)) ** (-1)
                                      * np.matmul(np.linalg.matrix_power(a_op_list[i].T, k),
                                                  np.linalg.matrix_power(a_op_list[j], k))
                                      for i in range(self.num_deg_freedom())
@@ -226,6 +274,11 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return result
 
     def _build_squeezing_ops(self, m, p, minima_diff, Xi, a_op_list):
+        """
+        Build all operators relevant for building the Hamiltonian. If there is no squeezing,
+        this routine then just builds the translation operators necessary for periodic
+        continuation, as well as the exp(i\phi_{j}) operators for the potential
+        """
         if self.squeezing:
             if m == 0:  # At the global minimum, no squeezing required
                 rho = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
@@ -234,7 +287,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             else:
                 rho, sigma, tau = self._build_U_squeezing_operator(m, Xi)
             if p == 0:
-                rhoprime = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))  # 2 d.o.f.
+                rhoprime = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
                 sigmaprime = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
                 tauprime = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
             elif p == m:
@@ -267,6 +320,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                              for j in range(self.num_deg_freedom())], axis=0))
             exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
         else:
+            # We will call squeezing operators later, so must define them to be 0 or 1 where appropriate
             N = self.num_deg_freedom()
             dim = a_op_list[0].shape[0]
             rho, sigma, tau = np.zeros((N, N)), np.zeros((N, N)), np.zeros((N, N))
@@ -279,6 +333,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
         Xi_inv = sp.linalg.inv(Xi)
 
+        # For the case of the translation operators
         prefactor_adag = np.matmul(np.eye(self.num_deg_freedom()) + rhoprime, expdrbs)
         a_temp_coeff = 0.5 * np.matmul(np.eye(self.num_deg_freedom()) + rhoprime, deltarho + deltarho.T)
         prefactor_a = np.matmul(np.eye(self.num_deg_freedom()) + a_temp_coeff, expsigmaprime)
@@ -302,6 +357,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                * a_op_list[i] for x in range(self.num_deg_freedom())
                                                for i in range(self.num_deg_freedom())], axis=0) / np.sqrt(2.0))
 
+        # Now the potential operators
         prefactor_adag = np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, expdrbs)
         a_temp_coeff = 0.5 * np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, deltarho + deltarho.T)
         prefactor_a = np.matmul(np.eye(self.num_deg_freedom()) - a_temp_coeff, expsigmaprime)
@@ -335,6 +391,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
     def _premultiplying_exp_adag_a_with_a(self, exp_adag_a, a_op_list):
         """
+        Helper function for building the kinetic part of the Hamiltonian.
         Naming scheme is  x -> exp(A_{ij}a_{i}^{\dag}a_{j}) (for whatever matrix A is)
                           a -> a_{i}
                           d -> a_{i}^{\dag}
@@ -365,6 +422,11 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return prod > 180.0
 
     def _exp_prod_coeff(self, delta_phi_kpm, Xi_inv, sigma, sigmaprime):
+        """
+        Overall multiplicative factor. Includes offset charge,
+        Gaussian suppression factor in the absence of squeezing. With squeezing,
+        also includes exponential of trace over sigma and sigmaprime, see Qin et. al
+        """
         dpkX = np.matmul(Xi_inv, delta_phi_kpm)
         nglist = self.nglist
         return (np.exp(-1j * np.dot(nglist, delta_phi_kpm))
@@ -417,7 +479,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     delta_phi_kpm = phik - (minima_m - minima_p)
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
+                    # x is the vector that appears in exp(x_{i}a_{i}^{\dagger}) (Einstein summation)
                     x = np.matmul(delta_phi_kpm, Xi_inv.T) / np.sqrt(2.)
+                    # y is the vector that appears in exp(y_{i}a_{i})
                     y = -x
                     z = 1j * Xi_inv.T / np.sqrt(2.)
 
@@ -425,11 +489,15 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     yrhop = np.matmul(y, rhoprime)
                     deltarhopp = 0.5 * np.matmul(x - yrhop, deltarho + deltarho.T)
 
+                    # offset present even in the absence of squeezing,
+                    # then equal to -i * 0.5 Xi^{-T} Xi^{-1} delta_phi_kpm
                     epsilon = (-np.matmul(z, np.matmul(rhoprime, deltarhopp) - yrhop + deltarhopp)
                                - (1j / 2.) * np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)))
                     e_xa_coeff = np.matmul(epsilon, xa_coeff)
                     e_dx_coeff = np.matmul(epsilon, dx_coeff)
 
+                    # use pre-exponentiated matrices to build the translation operators, using
+                    # the (hopefully) less costly matrix power routines
                     (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
                     exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
                     exp_adag = np.matmul(exp_adag_adag, exp_adag)
@@ -445,24 +513,18 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     kinetic_temp = (alpha * exp_prod_coeff
                                     * np.matmul(exp_adag, np.matmul(kinetic_temp, exp_a)))
 
-                    #                    if not np.allclose(kinetic_temp, np.zeros_like(kinetic_temp)):
-                    #                        print("m, p = ", m, p, jkvals, np.dot(dpkX, dpkX))
-
                     kinetic_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
                                 p * num_exc_tot: p * num_exc_tot + num_exc_tot] += kinetic_temp
 
                     jkvals = next(klist, -1)
 
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m + 1, len(minima_list)):
-                kinetic_temp = kinetic_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
-                                           p * num_exc_tot: p * num_exc_tot + num_exc_tot]
-                kinetic_mat[p * num_exc_tot: p * num_exc_tot + num_exc_tot,
-                            m * num_exc_tot: m * num_exc_tot + num_exc_tot] += kinetic_temp.conjugate().T
+        # fill in kinetic energy matrix according to hermiticity
+        kinetic_mat = self._populate_hermitian_matrix(kinetic_mat, minima_list, num_exc_tot)
 
         return kinetic_mat
 
     def _alpha_helper(self, x, y, rhoprime, deltarho):
+        """Build the prefactor that arises due to squeezing. With no squeezing, alpha=1 (number, not matrix)"""
         yrhop = np.matmul(y, rhoprime)
         alpha = np.exp(-0.5 * np.matmul(y, yrhop) - 0.5 * np.matmul(x - yrhop, np.matmul(deltarho, x - yrhop)))
         return alpha
@@ -560,21 +622,16 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
                     jkvals = next(klist, -1)
 
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m + 1, len(minima_list)):
-                potential_temp = potential_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
-                                               p * num_exc_tot: p * num_exc_tot + num_exc_tot]
-                potential_mat[p * num_exc_tot: p * num_exc_tot + num_exc_tot,
-                              m * num_exc_tot: m * num_exc_tot + num_exc_tot] += potential_temp.conjugate().T
+        potential_mat = self._populate_hermitian_matrix(potential_mat, minima_list, num_exc_tot)
 
         return potential_mat
 
     def hamiltonian(self):
         """Construct the Hamiltonian"""
-        return (self.kineticmat() + self.potentialmat())
+        return self.kineticmat() + self.potentialmat()
 
     def inner_product(self):
-        """Return the inner product matrix, which is nontrivial with VCHOS states"""
+        """Return the inner product matrix, which is nontrivial with tight-binding states"""
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
@@ -616,16 +673,28 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                       p * num_exc_tot:p * num_exc_tot + num_exc_tot] += inner_temp
                     jkvals = next(klist, -1)
 
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m + 1, len(minima_list)):
-                inner_temp = inner_product_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
-                                               p * num_exc_tot: p * num_exc_tot + num_exc_tot]
-                inner_product_mat[p * num_exc_tot: p * num_exc_tot + num_exc_tot,
-                                  m * num_exc_tot: m * num_exc_tot + num_exc_tot] += inner_temp.conjugate().T
+        inner_product_mat = self._populate_hermitian_matrix(inner_product_mat, minima_list, num_exc_tot)
 
         return inner_product_mat
 
+    def _populate_hermitian_matrix(self, mat, minima_list, num_exc_tot):
+        """
+        Return a fully Hermitian matrix, assuming that the input matrix has been
+        populated with the upper right blocks
+        """
+        for m, minima_m in enumerate(minima_list):
+            for p in range(m + 1, len(minima_list)):
+                mat_temp = mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
+                               p * num_exc_tot: p * num_exc_tot + num_exc_tot]
+                mat[p * num_exc_tot: p * num_exc_tot + num_exc_tot,
+                    m * num_exc_tot: m * num_exc_tot + num_exc_tot] += mat_temp.conjugate().T
+        return mat
+
     def _V_op_builder(self, exp_adag_list, exp_a_list, jkvals):
+        """
+        Build translation operators using matrix_power rather than the
+        more costly expm
+        """
         num_exc_tot = exp_adag_list[0].shape[0]
         V_op_dag = np.eye(num_exc_tot)
         for j in range(self.num_deg_freedom()):
@@ -640,6 +709,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return V_op_dag, V_op
 
     def _full_o(self, operators, indices):
+        """Return operator in the full Hilbert space"""
         i_o = np.eye(self.num_exc + 1)
         i_o_list = [i_o for _ in range(self.num_deg_freedom())]
         product_list = i_o_list[:]
@@ -687,14 +757,12 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
     def _singular_inner_product_helper(self, hamiltonian_mat, inner_product_mat, evals_count, eigvals_only=True):
         AA, BB, alpha, beta, Q, Z = sp.linalg.ordqz(hamiltonian_mat, inner_product_mat, sort=self._ordqz_sorter)
-        ab = zip(alpha, beta)
         a_max = np.max(np.abs(alpha))
         b_max = np.max(np.abs(beta))
-        # filter ill-conditioned eigenvalues
-        ab = filter(lambda x: np.abs(x[0]) > 0.001 * a_max and np.abs(x[1]) > 0.001 * b_max, ab)
-        alpha, beta = list(zip(*ab))
+        # filter ill-conditioned eigenvalues (alpha and beta values both small)
+        alpha, beta = list(zip(*filter(lambda x: np.abs(x[0]) > 0.001 * a_max
+                                       and np.abs(x[1]) > 0.001 * b_max, zip(alpha, beta))))
         evals_qz = np.array(alpha) / np.array(beta)
-        # Unsure if the filter function below should also filter out eigenvalues with large complex part
         evals_qz = np.sort(np.real(list(filter(self._ordqz_filter, evals_qz))))[0: evals_count]
         evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, num_eigvals=evals_count, eigvals_only=True)
         assert (np.allclose(evals_qz, evals_fh))
@@ -706,7 +774,6 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             return evals, evecs
 
     def _ordqz_filter(self, a):
-#        if np.abs(np.imag(a)) > 1e-12:
         if np.real(a) < 0:
             return False
         else:
@@ -717,14 +784,15 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         out = np.logical_and(np.real(x) > 0, np.abs(np.imag(x)) < 10 ** (-12))
         return out
 
+    # The following four methods must be overridden in child classes
     def sorted_minima(self):
-        pass
+        return []
 
     def build_capacitance_matrix(self):
-        pass
+        return []
 
     def build_EC_matrix(self):
-        pass
+        return []
 
     def num_deg_freedom(self):
-        pass
+        return 0
