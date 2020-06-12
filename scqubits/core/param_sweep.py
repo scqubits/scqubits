@@ -252,14 +252,12 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
             dim = subsys.hilbertdim()
             esys_dtype = subsys._evec_dtype
 
-#            energy_table = np.empty(shape=(self.param_count, evals_count), dtype=np.float_)
+            energy_table = np.empty(shape=(self.param_count, evals_count), dtype=np.float_)
 #            state_table = np.empty(shape=(self.param_count, dim, evals_count), dtype=esys_dtype)
-            energy_table = []
             state_table = []
             for j in range(self.param_count):
-#                energy_table[j] = eigendata[j][index][0]
+                energy_table[j] = eigendata[j][index][0]
 #                state_table[j] = eigendata[j][index][1]
-                energy_table.append(eigendata[j][index][0])
                 state_table.append(eigendata[j][index][1])
             specdata_list.append(storage.SpectrumData(energy_table, system_params={}, param_name=self.param_name,
                                                       param_vals=self.param_vals, state_table=state_table))
