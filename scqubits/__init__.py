@@ -18,7 +18,7 @@ import warnings
 
 import scqubits.settings
 # core
-from scqubits.core import noise
+import scqubits.core.noise as noise
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer

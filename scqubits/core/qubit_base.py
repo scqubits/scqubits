@@ -118,6 +118,13 @@ class QuantumSystem(DispatchClient, ABC):
         return [param for param in all_params if param not in nonfit]
 
 
+    def supported_noise_channels(self):
+        """
+        Returns a list of noise channels this QuantumSystem supports. If none, return an empty list. 
+        """
+        return [] 
+
+
 # —QubitBaseClass———————————————————————————————————————————————————————————————————————————————————————————————————————
 
 class QubitBaseClass(QuantumSystem, ABC):

@@ -17,7 +17,7 @@ import scipy as sp
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
-from scqubits.core.noise import NoisySystem, CONSTANTS
+from scqubits.core.noise import NoisySystem, NOISE_PARAMS
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
@@ -29,33 +29,33 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 class NoisyFluxQubit(NoisySystem):
 
-    def tphi_1_over_f_cc1(self, A_noise=CONSTANTS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+    def tphi_1_over_f_cc1(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
 
-        if 'tphi_1_over_f_cc1' not in self._supported_noise_channels():
+        if 'tphi_1_over_f_cc1' not in self.supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc1' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ1(),
                                             esys=esys, get_rate=get_rate, **params)
 
-    def tphi_1_over_f_cc2(self, A_noise=CONSTANTS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+    def tphi_1_over_f_cc2(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
 
-        if 'tphi_1_over_f_cc2' not in self._supported_noise_channels():
+        if 'tphi_1_over_f_cc2' not in self.supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc2' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ2(),
                                             esys=esys, get_rate=get_rate, **params)
 
-    def tphi_1_over_f_cc3(self, A_noise=CONSTANTS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+    def tphi_1_over_f_cc3(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
 
-        if 'tphi_1_over_f_cc3' not in self._supported_noise_channels():
+        if 'tphi_1_over_f_cc3' not in self.supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc3' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ3(),
                                             esys=esys, get_rate=get_rate, **params)
 
-    def tphi_1_over_f_cc(self, A_noise=CONSTANTS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+    def tphi_1_over_f_cc(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
 
-        if 'tphi_1_over_f_cc' not in self._supported_noise_channels():
+        if 'tphi_1_over_f_cc' not in self.supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system.")
 
         rate = self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
@@ -169,7 +169,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     def nonfit_params():
         return ['ng1', 'ng2', 'flux', 'ncut', 'truncated_dim']
 
-    def _supported_noise_channels(self):
+    def supported_noise_channels(self):
         """Return a list of supported noise channels"""
         return ['tphi_1_over_f_cc1',
                 'tphi_1_over_f_cc2',
