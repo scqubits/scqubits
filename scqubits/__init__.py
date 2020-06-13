@@ -29,6 +29,7 @@ from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep, StoredSweep
 from scqubits.core.storage import SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
+from scqubits.core.units import get_units, set_units, show_supported_units, units_scale_factor
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
 
