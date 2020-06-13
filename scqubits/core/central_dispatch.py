@@ -64,9 +64,19 @@ class CentralDispatch:
         """
         logging.debug("Registering {} for {}. welcome.".format(type(who).__name__, event))
         if callback is None:
-            callback_ref = weakref.WeakMethod(getattr(who, 'receive'))
+            callback_ref = getattr(who, 'receive')
+            # For purposes of garbage collection, this should preferably be:
+            # callback_ref = weakref.WeakMethod(getattr(who, 'receive'))
+            # However, as of 06/12/20, pathos balks on this on Windows (while Linux is passing).
+            # Note that reference to callback methods is likely to prevent proper garbage collection,
+            # so may have to revisit this issue if necessary.
         else:
-            callback_ref = weakref.WeakMethod(callback)
+            callback_ref = callback
+            # For purposes of garbage collection, this should preferably be:
+            # callback_ref = weakref.WeakMethod(callback)
+            # However, as of 06/12/20, pathos balks on this on Windows (while Linux is passing).
+            # Note that reference to callback methods is likely to prevent proper garbage collection,
+            # so may have to revisit this issue if necessary.
         self.get_clients_dict(event)[who] = callback_ref
 
     def unregister(self, event, who):
@@ -105,7 +115,9 @@ class CentralDispatch:
         """
         for client, callback_ref in self.get_clients_dict(event).items():
             logging.debug("Central dispatch calling {} about {}.".format(type(client).__name__, event))
-            callback_ref()(event, sender=sender, **kwargs)
+            callback_ref(event, sender=sender, **kwargs)
+            # When using WeakMethod references, this should rather be:
+            # callback_ref()(event, sender=sender, **kwargs)
 
     def listen(self, caller, event, **kwargs):
         """Receive message from client `caller` for event `event`. If dispatch is globally enabled, trigger a dispatch
