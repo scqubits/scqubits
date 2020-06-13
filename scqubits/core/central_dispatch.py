@@ -116,7 +116,9 @@ class CentralDispatch:
         """
         for client, callback_ref in self.get_clients_dict(event).items():
             logging.debug("Central dispatch calling {} about {}.".format(type(client).__name__, event))
-            callback_ref()(event, sender=sender, **kwargs)
+            callback_ref(event, sender=sender, **kwargs)
+            # When using WeakMethod references, this should rather be:
+            # callback_ref()(event, sender=sender, **kwargs)
 
     def listen(self, caller, event, **kwargs):
         """Receive message from client `caller` for event `event`. If dispatch is globally enabled, trigger a dispatch
