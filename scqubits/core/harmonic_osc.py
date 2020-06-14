@@ -63,7 +63,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
             self.E_osc = E_osc
 
         self._init_params.remove('omega')
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/oscillator.png')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/oscillator.png')
 
     @staticmethod
     def default_params():
