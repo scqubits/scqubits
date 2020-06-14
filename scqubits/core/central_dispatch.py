@@ -35,6 +35,22 @@ class CentralDispatch:
     # The objects are keys in the inner dict, implemented as a WeakKeyDictionary to allow deletion/garbage collection
     # when object should expire. Callback methods are stored as weakref.WeakMethod for the same reason.
 
+    def status(self):
+        """Print status information about Central Dispatch"""
+        if settings.DISPATCH_ENABLED:
+            print("Central Dispatch is currently ENABLED (default).")
+        else:
+            print("Central Dispatch is currently DISABLED.")
+
+        for event in EVENTS:
+            print("{} events -- registered objects for callbacks:".format(event))
+            registered_objects = list(self.get_clients_dict(event).keys())
+            if not registered_objects:
+                print("   No registered objects.")
+            else:
+                for an_object in registered_objects:
+                    print("   ", type(an_object), id(an_object))
+
     def get_clients_dict(self, event):
         """For given `event`, return the dict mapping each registered client to their callback routine
 
