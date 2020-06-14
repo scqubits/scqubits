@@ -4,7 +4,7 @@
 .. _guide:
 
 *******************
-Users Guide
+User Guide
 *******************
 
 .. toctree::
