@@ -111,7 +111,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         # for theta, needed for plotting wavefunction
         self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropi.png')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/zeropi.jpg')
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
     @staticmethod

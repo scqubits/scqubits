@@ -68,7 +68,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxonium.png')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/fluxonium.jpg')
 
     @staticmethod
     def default_params():
@@ -191,8 +191,6 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
         return - 0.5 * (exp_matrix + exp_matrix.conjugate().T)
-
-
 
     def hilbertdim(self):
         """
