@@ -18,6 +18,17 @@ Transmon
 
 ----------------------------------
 
+.. _classes-tunable_transmon:
+
+TunableTransmon
+--------------
+
+.. autoclass:: scqubits.TunableTransmon
+    :members:
+    :inherited-members:
+
+----------------------------------
+
 .. _classes-fluxonium:
 
 Fluxonium

@@ -16,6 +16,7 @@ summarized here. For a complete description see the API documentation.
    :maxdepth: 1
 
    qubits/transmon.rst
+   qubits/tunable_transmon.rst
    qubits/fluxonium.rst
    qubits/flux_qubit.rst
    qubits/zeropi.rst

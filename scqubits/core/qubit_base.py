@@ -40,6 +40,9 @@ else:
     from tqdm import tqdm
 
 
+# To facilitate warnings in set_units, introduce a counter keeping track of the number of QuantumSystem instances
+_QUANTUMSYSTEM_COUNTER = 0
+
 # —Generic quantum system container and Qubit base class—————————————————————————————————
 
 class QuantumSystem(DispatchClient, ABC):
@@ -51,6 +54,15 @@ class QuantumSystem(DispatchClient, ABC):
     _sys_type: str
 
     subclasses = []
+
+    def __new__(cls, *args, **kwargs):
+        global _QUANTUMSYSTEM_COUNTER
+        _QUANTUMSYSTEM_COUNTER += 1
+        return super().__new__(cls, *args, **kwargs)
+
+    def __del__(self):
+        global _QUANTUMSYSTEM_COUNTER
+        _QUANTUMSYSTEM_COUNTER -= 1
 
     def __init_subclass__(cls, **kwargs):
         """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
@@ -514,4 +526,3 @@ class QubitBaseClass1d(QubitBaseClass):
             plot.wavefunction1d(phi_wavefunc, potential_vals=potential_vals, offset=phi_wavefunc.energy,
                                 scaling=scale, **kwargs)
         return fig_ax
-

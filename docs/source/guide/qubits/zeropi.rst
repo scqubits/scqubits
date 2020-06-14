@@ -15,7 +15,7 @@ The Zero-Pi qubit [Brooks2013]_ [Dempster2014]_, when decoupled from the zeta mo
    H &= -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
     +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta\\
      &\qquad -2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2+2E_\text{J}
-    + E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2)
+    + E_J dE_J \sin\theta\sin(\phi-\varphi_\text{ext}/2)
 
 expressed in phase basis. The definition of the relevant charging energies :math:`E_\text{CJ}`, :math:`E_{\text{C}\Sigma}`,
 Josephson energies :math:`E_\text{J}`, inductive energies :math:`E_\text{L}`, and relative amounts of disorder
