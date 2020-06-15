@@ -24,16 +24,17 @@ from scqubits.utils.spectrum_utils import order_eigensystem
 # build_capacitance_matrix(), build_EC_matrix(), hilbertdim(), sorted_minima(), 
 # which define the capacitance matrix, the charging energy matrix, the dimension
 # of the hilbert space according to the specific truncation scheme used, and 
-# find and sort all inequivalent minima (based on the value of the 
+# a method to find and sort all inequivalent minima (based on the value of the
 # potential at that minimum), respectively. 
 
 class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def __init__(self):
         # All of these parameters will be set in the individual qubit class
+        self.e = 0.0
         self.squeezing = False
-        self.kmax = 1
+        self.kmax = 0
         self.Phi0 = 0.0
-        self.num_exc = 1
+        self.num_exc = 0
         self.Z0 = 0.0
         self.flux = 0.0
         self.boundary_coeffs = np.array([])
@@ -92,8 +93,8 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                               for j in range(self.num_deg_freedom())])
         gmat += gamma_diag
 
-        min_loc_bound_sum = np.sum([self.boundary_coeffs[i] * min_loc[i]
-                                    for i in range(self.num_deg_freedom())])
+        min_loc_bound_sum = np.sum([self.boundary_coeffs[j] * min_loc[j]
+                                    for j in range(self.num_deg_freedom())])
         for j in range(self.num_deg_freedom()):
             for k in range(self.num_deg_freedom()):
                 gmat[j, k] += (gamma_list[-1] * self.boundary_coeffs[j] * self.boundary_coeffs[k]
@@ -101,22 +102,34 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
         return gmat
 
-    def _eigensystem_normal_modes(self):
+    def _eigensystem_normal_modes(self, i):
         """Return squared normal mode frequencies, matrix of eigenvectors"""
         Cmat = self.build_capacitance_matrix()
-        gmat = self.build_gamma_matrix(0)
+        gmat = self.build_gamma_matrix(i)
 
         omegasq, eigvec = sp.linalg.eigh(gmat, b=Cmat)
         return omegasq, eigvec
 
-    def omegamat(self):
-        """Return a diagonal matrix of the normal mode frequencies of the global min """
-        omegasq, _ = self._eigensystem_normal_modes()
+    def omegamat(self, i):
+        """Return a diagonal matrix of the normal mode frequencies of a given minimim """
+        omegasq, _ = self._eigensystem_normal_modes(i)
         return np.diag(np.sqrt(omegasq))
-    
+
+    def oscillator_lengths(self, i):
+        """Return oscillator lengths of the mode frequencies for a given minimum"""
+        omegasq, eigvec = self._eigensystem_normal_modes(i)
+        omega = np.sqrt(omegasq)
+        diag_norm = np.matmul(eigvec.T, eigvec)
+        norm_eigvec = np.array([eigvec[:, mu]/np.sqrt(diag_norm[mu, mu]) for mu in range(self.num_deg_freedom())]).T
+        Cmat = self.build_capacitance_matrix()
+        Cmat_diag = np.matmul(norm_eigvec.T, np.matmul(Cmat, norm_eigvec))
+        ECmat_diag = 0.5 * self.e**2 * np.diag(Cmat_diag)**(-1)
+        oscillator_lengths = np.array([np.sqrt(8*ECmat_diag[mu]/omega[mu]) for mu in range(len(omega))])
+        return oscillator_lengths
+
     def Xi_matrix(self):
         """Construct the Xi matrix, encoding the oscillator lengths of each dimension"""
-        omegasq, eigvec = self._eigensystem_normal_modes()
+        omegasq, eigvec = self._eigensystem_normal_modes(0)
         # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
         Ximat = np.array([eigvec[:, i] * (omegasq[i])**(-1/4)
                           * np.sqrt(1. / self.Z0) for i in range(len(omegasq))]).T
@@ -188,7 +201,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         """
         gamma = self.build_gamma_matrix(i)
         gamma_prime = np.matmul(Xi.T, np.matmul(gamma, Xi))
-        omegamat = self.omegamat()
+        omegamat = self.omegamat(i)
         zeta = 0.25 * (self.Phi0 ** 2 * gamma_prime + omegamat)
         eta = 0.25 * (self.Phi0 ** 2 * gamma_prime - omegamat)
         hmat = np.block([[zeta, -eta],
@@ -416,7 +429,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         of the exponential is greater than 180.0, this results in a suppression of ~10**(-20),
         and so can be safely neglected.
         """
-        phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom())])
+        phik = 2.0 * np.pi * np.array(jkvals)
         dpkX = np.matmul(Xi_inv, phik + minima_diff)
         prod = np.dot(dpkX, dpkX)
         return prod > 180.0
@@ -475,7 +488,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist, -1)
                 while jkvals != -1:
-                    phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom())])
+                    phik = 2.0 * np.pi * np.array(jkvals)
                     delta_phi_kpm = phik - (minima_m - minima_p)
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
@@ -558,7 +571,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist, -1)
                 while jkvals != -1:
-                    phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom())])
+                    phik = 2.0 * np.pi * np.array(jkvals)
                     delta_phi_kpm = phik - (minima_m - minima_p)
                     phibar_kpm = 0.5 * (phik + (minima_m + minima_p))
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
@@ -653,7 +666,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
                 jkvals = next(klist, -1)
                 while jkvals != -1:
-                    phik = 2.0 * np.pi * np.array([jkvals[i] for i in range(self.num_deg_freedom())])
+                    phik = 2.0 * np.pi * np.array(jkvals)
                     delta_phi_kpm = phik - (minima_m - minima_p)
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 

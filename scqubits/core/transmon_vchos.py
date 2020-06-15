@@ -1,4 +1,3 @@
-import math
 import os
 
 import numpy as np
@@ -8,11 +7,8 @@ import itertools
 import scqubits.core.descriptors as descriptors
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.core.qubit_base as base
-import scqubits.utils.plot_defaults as defaults
-import scqubits.utils.plotting as plot
 from scqubits.core.discretization import Grid1d
-from scqubits.core.storage import WaveFunction
-from scqubits.utils.spectrum_utils import standardize_phases, order_eigensystem
+from scqubits.utils.spectrum_utils import order_eigensystem
 
 
 #-Transmon using VCHOS 
@@ -112,8 +108,6 @@ class TransmonVCHOS(base.QubitBaseClass1d, serializers.Serializable):
         return potential_mat
     
     def inner_product(self):
-        Xi = (8.0*self.EC/self.EJ)**(1/4)
-        a = self.a_operator()
         inner_mat = np.zeros((self.num_exc+1, self.num_exc+1), dtype=np.complex128)
         klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=1)
         jkvals = next(klist,-1)
