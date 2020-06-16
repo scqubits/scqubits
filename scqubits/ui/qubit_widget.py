@@ -25,6 +25,7 @@ else:
     _HAS_IPYTHON = True
 
 import scqubits.utils.misc as utils
+import scqubits.core.units as units
 import scqubits.settings as settings
 
 
@@ -52,7 +53,7 @@ def create_widget(callback_func, init_params, image_filename=None):
         label_str = name
         # NOTE: This will break if names of energy parameters in future qubits do not start with 'E'
         if name[0] == 'E':
-            label_str += ' [' + settings.DEFAULT_ENERGY_UNITS + ']'
+            label_str += ' [' + units.get_units() + ']'
         elif name == 'flux':
             label_str += r' $[\Phi_0]$'
         label = ipywidgets.Label(value=label_str)

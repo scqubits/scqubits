@@ -9,7 +9,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import scqubits.core.qubit_base as quantum_base
 import warnings
 
 # Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)
@@ -32,6 +31,9 @@ def get_units():
 def set_units(units):
     """Set system units.
     """
+    # Importing here avoids a cyclic import problem. 
+    import scqubits.core.qubit_base as quantum_base
+
     # Show a warning if we are changing units after some `QuantumSystems`
     # may have been instantiated.
     if quantum_base._QUANTUMSYSTEM_COUNTER > 0:

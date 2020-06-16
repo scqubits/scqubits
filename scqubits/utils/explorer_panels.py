@@ -9,6 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.utils.sweep_plotting as splot
 
@@ -28,7 +29,7 @@ def display_bare_wavefunctions(sweep, subsys, param_val, fig_ax):
 def display_dressed_spectrum(sweep, initial_bare, final_bare, energy_initial, energy_final, param_val, fig_ax):
     energy_difference = energy_final - energy_initial
     title = r'{} $\rightarrow$ {}: {:.4f} {}'.format(initial_bare, final_bare, energy_difference,
-                                                     settings.DEFAULT_ENERGY_UNITS)
+                                                     units.get_units())
     __ = splot.dressed_spectrum(sweep, title=title, fig_ax=fig_ax)
     _, axes = fig_ax
     axes.axvline(param_val, color='gray', linestyle=':')

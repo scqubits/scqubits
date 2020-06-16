@@ -14,6 +14,7 @@ import numpy as np
 
 import scqubits
 import scqubits.core.constants as constants
+import scqubits.core.units as units
 import scqubits.settings as settings
 
 
@@ -82,7 +83,7 @@ def matrix():
 def evals_vs_paramvals(specdata, **kwargs):
     """Plot defaults for plotting.evals_vs_paramvals"""
     kwargs['xlabel'] = kwargs.get('xlabel') or specdata.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or 'energy [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or 'energy [{}]'.format(units.get_units())
     return kwargs
 
 
@@ -100,22 +101,22 @@ def dressed_spectrum(sweep, **kwargs):
         kwargs['ymax'] = kwargs.get('ymax') or min(15, (np.max(sweep.dressed_specdata.energy_table) -
                                                         np.min(sweep.dressed_specdata.energy_table)))
     kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'energy [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'energy [{}]'.format(units.get_units())
     return kwargs
 
 
 def chi(sweep, **kwargs):
     """Plot defaults for sweep_plotting.chi"""
     kwargs['xlabel'] = kwargs.get('xlabel') or sweep.param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$ [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$ [{}]'.format(units.get_units())
     return kwargs
 
 
 def chi01(param_name, yval, **kwargs):
     """Plot defaults for sweep_plotting.chi01"""
     kwargs['xlabel'] = kwargs.get('xlabel') or param_name
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
-    kwargs['title'] = kwargs.get('title') or r'$\chi_{{01}}=${:.4f} {}'.format(yval, settings.DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(units.get_units())
+    kwargs['title'] = kwargs.get('title') or r'$\chi_{{01}}=${:.4f} {}'.format(yval, units.get_units())
     return kwargs
 
 
