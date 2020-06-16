@@ -9,7 +9,11 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-# Currently set units (must be one of the units in `_supported_units`
+import scqubits.core.qubit_base as quantum_base
+import warnings
+
+# Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)
+# Often system units need to be converted to "standard units", which are considered to be `[Hz]` or `2pi/[s]`
 _current_units = 'GHz'
 
 # Units that we currently support
@@ -20,18 +24,26 @@ _units_factor = {'GHz': 1e9, 'MHz': 1e6, 'kHz': 1e3, 'Hz': 1, }
 
 
 def get_units():
-    """Get current units.
+    """Get system units.
     """
     return _current_units
 
 
 def set_units(units):
-    """Set current units.
+    """Set system units.
     """
+    # Show a warning if we are changing units after some `QuantumSystems`
+    # may have been instantiated.
+    if quantum_base._QUANTUMSYSTEM_COUNTER > 0:
+        with warnings.catch_warnings():
+            warnings.simplefilter("always")
+            warnings.warn("WARNING: Calling set_units() after initializing qubit instances "
+                          "is likely to cause unintended inconsistencies.")
+
     global _current_units
 
     if units not in _supported_units:
-        raise ValueError("Unsupported units given. Must be one of: {}".format(str(_supported_units)))
+        raise ValueError("Unsupported system units given. Must be one of: {}".format(str(_supported_units)))
     else:
         _current_units = units
 
@@ -39,15 +51,51 @@ def set_units(units):
 
 
 def show_supported_units():
-    """Returns a list of supported units.
+    """Returns a list of supported system units.
     """
     return _supported_units_list
+
+
+def to_standard_units(value):
+    """
+    Converts `value` (a frequency or angular frequency) from system units,
+    to standard units (`[Hz]` or  `2\pi / [s]`).
+
+    Parameters
+    ----------
+    value: float
+        a frequency or angular frequency assumed to be in system units. 
+    Returns
+    -------
+    float: 
+        frequency or angular frequency converted to `[Hz]` or `2pi/[s]
+
+    """
+    return value * _units_factor[_current_units]
+
+
+def from_standard_units(value):
+    """
+    Converts `value` (a frequency or angular frequency) from standard units (`[Hz]` or  `2\pi / [s]`)
+    to system units. 
+
+    Parameters
+    ----------
+    value: float
+        a frequency or angular frequency assumed to be in standard units (`[Hz]` or  `2\pi / [s]`)
+    Returns
+    -------
+    float: 
+        frequency or angular frequency converted to system units
+
+    """
+    return value / _units_factor[_current_units]
 
 
 # TODO must be a better name for this?!
 def units_scale_factor(units=None):
     """
-    Return a numerical scaling factor that converts form Hz to `units` 
+    Return a numerical scaling factor that converts form Hz to `units`.
     (given as argument or, by default, stored in  `_current_units`) .
     """
     global _current_units
@@ -56,5 +104,3 @@ def units_scale_factor(units=None):
     if units not in _supported_units:
         raise ValueError("Unsupported units given. Must be one of: {}".format(str(_supported_units)))
     return _units_factor[units]
-
-

@@ -13,37 +13,30 @@ import numpy as np
 import scipy as sp
 import scipy.constants
 import scqubits.utils.misc as utils
+import scqubits.core.units as units
 
 
 # Helpers for units conversion
-def temp_to_ghz(T):
-    """Converts temperature in Kelvin to GHz"""
-    return sp.constants.k * T / sp.constants.h * 1e-9
+def calc_therm_ratio(omega, T):
+    """Returns the ratio 
+    
+    :math:`\beta \omega = \frac{\hbar \omega}{k_B T}`
 
+    after converting `\omega` from system units, to standard units.
 
-def temp_to_mhz(T):
-    """Converts temperature in Kelvin to MHz"""
-    return sp.constants.k * T / sp.constants.h * 1e-6
+    Parameters
+    ----------
+    omega: float
+        angular frequency in system units
+    T: float 
+        temperature in Kelvin
 
+    Parameters
+    ----------
+    float
 
-def temp_to_khz(T):
-    """Converts temperature in Kelvin to kHz"""
-    return sp.constants.k * T / sp.constants.h * 1e-3
-
-
-def ghz_to_temp(freq):
-    """Converts frequency in GHz to Kelvin"""
-    return freq * sp.constants.h / sp.constants.k * 1e9
-
-
-def mhz_to_temp(freq):
-    """Converts frequency in MHz to Kelvin"""
-    return freq * sp.constants.h / sp.constants.k * 1e6
-
-
-def khz_to_temp(freq):
-    """Converts frequency in MHz to Kelvin"""
-    return freq * sp.constants.h / sp.constants.k * 1e3
+    """
+    return (sp.constants.hbar * units.to_standard_units(omega)) / (sp.constants.k * T)
 
 
 # Default values of various noise constants and parameters.
@@ -54,7 +47,7 @@ NOISE_PARAMS = {
     # Units of charge e
     'A_ng': 1e-4,
 
-    # units of critical current i_c
+    # units of critical current I_c
     'A_cc': 1e-7,
 
     # Units: 2pi GHz
@@ -63,8 +56,7 @@ NOISE_PARAMS = {
     'omega_high': 3 * 2 * np.pi,
 
     # Capacitive quality factor, see Smith et al. npj Quant. Info. 6:8, (2020)
-    # TODO: This assumes specific units! Need to have a better way...
-    'Q_cap': lambda energy: 1e6 * (6 / np.abs(energy))**0.7,
+    'Q_cap': lambda omega: 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7,
 
     # Capacitive quality factor, see Smith et al. npj Quant. Info. 6:8, (2020)
     # TODO: Use full functional, freq-dependent form
@@ -76,8 +68,8 @@ NOISE_PARAMS = {
     # Units: Ohms
     'R_0': 50,
 
-    # Units: GHz
-    'T': temp_to_ghz(0.015),
+    # Units: K
+    'T': 0.015,
 
     # Mutual inductance. Units: \Phi_0 / Amperes
     'M': 1000,
@@ -117,19 +109,22 @@ class NoisySystem:
         -------
         float
         """
+        # Sanity check
+        if i == j or i < 0 or j < 0:
+            raise ValueError("Level indices 'i' and 'j' must be different, and i,j>=0")
 
         p = {key: NOISE_PARAMS[key] for key in ['omega_low', 'omega_high', 't_exp']}
         p.update(params)
 
-        evals, evecs = self.eigensys(max(j, i)+1) if esys is None else esys
+        evals, evecs = self.eigensys(evals_count=max(j, i)+1) if esys is None else esys
 
         rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, i])) -
                 np.vdot(evecs[:, j], np.dot(noise_op, evecs[:, j])))
 
         rate *= A_noise * np.sqrt(2 * np.abs(np.log(p['omega_low'] * p['t_exp'])))
 
-        # We assume that the system energies are given in frequency and not
-        # angular frequency
+        # We assume that the system energies are given in units of frequency and
+        # not the angular frequency, hence we have to multiply by `2\pi`
         rate *= 2 * np.pi
 
         if get_rate:
@@ -223,7 +218,7 @@ class NoisySystem:
     def t1(self, i, j, noise_op, spec_dens, total=False, esys=None, get_rate=False, **params):
         """
         Calculate the transition time (or rate) using Fermi's Golden Rule due to a noise channel with
-        a spectral density `spec_dens` and system noise operator `noise_op`. Mathematically, it often reads:
+        a spectral density `spec_dens` and system noise operator `noise_op`. Mathematically, it reads:
 
         :math:` \frac{1}{T_1} = \frac{1}{\hbar^2} |\langle i| A_{\rm noise} | j \rangle|^2 S(energy)
 
@@ -247,7 +242,7 @@ class NoisySystem:
         noise_op: operator (ndarray)
             noise operator
         spec_dens: callable object 
-            defines a spectral desnity, must take one argument: energy (in frequency units)
+            defines a spectral density, must take one argument: `omega` (assumed to be in units of `2 \pi * <system units>`)
         total: bool
             if False return a time/rate associated with a transition from state i to state j.
             if True return a time/rate associated with both i to j and j to i transitions
@@ -258,17 +253,22 @@ class NoisySystem:
 
         Returns
         -------
-        float
+        decay rate or time: float
+            decay rate in units of `2\pi * <system units>`. Alternatively, 1/rate can be returned. 
 
         """
+        # Sanity check
         if i == j or i < 0 or j < 0:
             raise ValueError("Level indices 'i' and 'j' must be different, and i,j>=0")
 
-        evals, evecs = self.eigensys(max(i, j)+1) if esys is None else esys
-        # We assume that the energies are provided in the units of frequency and *not*
-        # angular frequency.
-        energy = (evals[i]-evals[j])
-        s = spec_dens(energy) + spec_dens(-energy) if total else spec_dens(energy)
+        evals, evecs = self.eigensys(evals_count=max(i, j)+1) if esys is None else esys
+
+        # We assume that the energies in `evals` are given in the units of frequency and *not*
+        # angular frequency. The function `spec_dens` is assumed to take as a parameter an
+        # angular frequency, hence we have to convert.
+        omega = 2 * np.pi * (evals[i]-evals[j])
+
+        s = spec_dens(omega) + spec_dens(-omega) if total else spec_dens(omega)
 
         rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, j])))**2 * s
 
@@ -279,6 +279,9 @@ class NoisySystem:
 
     def t1_capacitive_loss(self, i, j, EC=None, Q_cap=NOISE_PARAMS['Q_cap'], T=NOISE_PARAMS['T'],  total=False,
                             esys=None, get_rate=False, **params):
+        """
+        Loss due to dielectric dissipation in the Jesephson junction capacitances. 
+        """
 
         if 't1_capacitive_loss' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_capacitive_loss' is not supported in this system.")
@@ -286,10 +289,14 @@ class NoisySystem:
         # We assume EC is given in the units of frequency
         EC = self.EC if EC is None else EC
 
-        def spec_dens(energy):
-            q_cap = Q_cap(energy) if callable(Q_cap) else Q_cap
-            s = 2 * 8 * EC / q_cap * (1/np.tanh(np.abs(energy) / (2 * T))) / (1 + np.exp(-energy/T))
-            s *= 2 * np.pi  # We assume the units of EC are given as frequency
+        def spec_dens(omega):
+            """See Smith et al (2020)
+            """
+            q_cap = Q_cap(omega) if callable(Q_cap) else Q_cap
+            therm_ratio = calc_therm_ratio(omega, T)
+            s = 2 * 8 * EC / q_cap * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            # We assume system energies are given in in frequency units, hence have to convert to angular frequency.
+            s *= 2 * np.pi
             return s
 
         noise_op = self.n_operator()
@@ -309,10 +316,14 @@ class NoisySystem:
         # We assume EC is given in the units of frequency
         EL = self.EL if EL is None else EL
 
-        def spec_dens(energy):
+        def spec_dens(omega):
+            """See Smith et al (2020)
+            """
             q_ind = Q_ind(energy) if callable(Q_ind) else Q_ind
-            s = 2 * EL / q_ind * (1/np.tanh(np.abs(energy) / (2 * T))) / (1 + np.exp(-energy/T))
-            s *= 2 * np.pi  # We assume the units of EC are given as frequency
+            therm_ratio = calc_therm_ratio(omega, T)
+            s = 2 * EL / q_ind * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            # We assume system energies are given in in frequency units, hence have to convert to angular frequency.
+            s *= 2 * np.pi
             return s
 
         noise_op = self.phi_operator()
@@ -320,9 +331,10 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total,
                 esys=esys, get_rate=get_rate, **params)
 
-    def t1_tran_line(self, i, j, Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=False,
+
+    def t1_tran_line(self, i, j, ReZ=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=False,
                       esys=None, get_rate=False, **params):
-        """Noise due to a capacitive coupling to a transmission line. 
+        """Noise due to a capacitive coupling to a dissipative impedance (such as a transmission line) 
 
         TODO: update the form here; want to use capacitance ratio to define how strongly
         the line is coupled?
@@ -330,9 +342,10 @@ class NoisySystem:
         if 't1_tran_line' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_tran_line' is not supported in this system.")
 
-        def spec_dens(energy):
-            Q_c = NOISE_PARAMS['R_q']/(16*np.pi*Z)
-            s = energy/Q_c * (1/np.tanh(energy / (2 * T))) / (1 + np.exp(-energy/T))
+        def spec_dens(omega):
+            Q_c = NOISE_PARAMS['R_q']/(16*np.pi*ReZ)
+            therm_ratio = calc_therm_ratio(omega, T)
+            s = energy/Q_c * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
             s *= 2 * np.pi  # We assume the units of EC are given as frequency
             return s
 
@@ -340,7 +353,6 @@ class NoisySystem:
 
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys,
                        get_rate=get_rate, total=False, **params)
-
 
     def t1_flux_bias_line(self, i, j, M=NOISE_PARAMS['M'],  Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
                            total=False,  esys=None, get_rate=False, **params):
@@ -351,48 +363,12 @@ class NoisySystem:
             raise RuntimeError("Noise channel 't1_bias_flux_line' is not supported in this system.")
 
         def spec_dens(omega):
-            return M**2 * 2 * sp.constants.hbar * omega / Z  \
-                * (1 + 1/np.tanh(sp.constants.hbar * omega / (2 * sp.constants.k * T)))
+            therm_ratio = calc_therm_ratio(omega, T)
+            s =  M**2 * 2 * sp.constants.hbar * omega / Z  \
+                * (1 + 1/np.tanh(0.5 * therm_ratio))
+            return s
 
         noise_op = self.d_hamiltonian_d_flux()
 
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys, get_rate=get_rate, **params)
 
-
-    # def t1_tran_line(self, i, j, Z=NOISE_PARAMS['R_0'], kbT=NOISE_PARAMS['kbT'], esys=None, get_rate=False, **params):
-        # """Noise due to a capacitive coupling to a transmission line.
-
-        # TODO Could be more rigorous in splitting up terms to S(omega) and prefactor before
-            # passing to self.t1()
-        # """
-        # if 't1_tran_line' not in self.supported_noise_channels():
-            # raise RuntimeError("Noise channel 't1_tran_line' is not supported in this system.")
-
-        # def spec_dens(omega):
-            # Q_c = NOISE_PARAMS['R_q']/(16*np.pi*Z)
-            # return omega/Q_c * 1/np.tanh(sp.constants.hbar * omega / (2 * sp.constants.k * T))
-
-        # noise_op = self.n_operator()
-
-        # return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys, get_rate=get_rate, **params)
-
-    # def t1_dielectric_loss(self, i, j, tan_delta=NOISE_PARAMS['tan_delta'], T=NOISE_PARAMS['T'],  total=False,
-                            # esys=None, get_rate=False, **params):
-        # """Noise due to a capacitive dielectric loss.
-
-        # TODO double check formula, tan_delta in particular
-        # TODO rewrite this in terms of the charge operator (why does Maryland always use phi??)
-        # TODO Cleanup up needed: Could be more rigorous in splitting up terms to S(omega) and prefactor before
-            # passing to self.t1()
-        # """
-
-        # if 't1_dielectric_loss' not in self.supported_noise_channels():
-            # raise RuntimeError("Noise channel 't1_dielectric_loss' is not supported in this system.")
-
-        # def spec_dens(omega):
-            # return sp.constants.hbar * omega**2 * tan_delta / (8 * self.EC)  \
-                # * (1 + 1/np.tanh(sp.constants.hbar * omega / (2 * sp.constants.k * T)))
-
-        # noise_op = self.phi_operator()
-
-        # return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys, get_rate=get_rate, **params)

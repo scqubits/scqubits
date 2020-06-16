@@ -88,12 +88,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def supported_noise_channels(self):
         """Return a list of supported noise channels"""
         return ['tphi_1_over_f_cc', 
-                # 'tphi_1_over_f_flux'
+                'tphi_1_over_f_flux'
+                't1_bias_flux_line'
                 't1_capacitive_loss',
                 't1_inductive_loss',
                 't1_tran_line', 
-                # 't1_dielectric_loss', 
-                # 't1_bias_flux_line'
                 ]
 
     def phi_osc(self):
@@ -177,6 +176,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         diag_elements = [i * self.E_plasma() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
 
+        # TODO i think there should be a minus sign in the cmath exponential (i.e flux -> - flux)?
         exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
         cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
@@ -185,12 +185,21 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         # fluxonium Hamiltonian in harm. osc. basis is real-valued
 
     def d_hamiltonian_d_EJ(self):
-        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ.
+        """Returns operator representing a derivittive of the Hamiltonian with respect to `EJ`.
 
-        TODO: How do we group the flux here? At the moment keep what's done in the Hamiltonian
+        TODO How do we group the flux here? At the moment keep what's done in the Hamiltonian
         """
         exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
         return - 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+
+
+    def d_hamiltonian_d_flux(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to `flux`.
+
+        TODO How do we group the flux here? At the moment keep what's done in the Hamiltonian
+        """
+        exp_matrix = self.exp_i_phi_operator() * cmath.exp(-1j * 2 * np.pi * self.flux)
+        return 2 * np.pi * self.EJ * ( - 0.5j * (exp_matrix - exp_matrix.conjugate().T) )
 
     def hilbertdim(self):
         """

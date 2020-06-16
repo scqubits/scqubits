@@ -105,6 +105,7 @@ class CentralDispatch:
         who: DispatchClient
             object to be unregistered
         """
+        print("registering", event, who)
         del self.get_clients_dict(event)[who]
 
     def unregister_object(self, who):
@@ -149,7 +150,6 @@ class CentralDispatch:
         """
         if settings.DISPATCH_ENABLED:
             self._dispatch(event, sender=caller, **kwargs)
-
 
 class DispatchClient:
     """Base class inherited by objects participating in central dispatch."""

@@ -80,8 +80,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def supported_noise_channels(self):
         """Return a list of supported noise channels"""
-        return ['tphi_1_over_f_cc', 'tphi_1_over_f_ng',
-                't1_capacitive_loss']
+        return ['tphi_1_over_f_cc', 
+                'tphi_1_over_f_ng',
+                't1_capacitive_loss'
+                't1_tran_line', 
+                ]
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
@@ -335,7 +338,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 'tphi_1_over_f_cc', 
                 'tphi_1_over_f_ng',
                 't1_tran_line', 
-                # 't1_bias_flux_line'
+                't1_bias_flux_line'
                 ]
 
     def d_hamiltonian_d_flux(self):
