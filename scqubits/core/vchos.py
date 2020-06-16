@@ -286,6 +286,35 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             k += 1
         return result
 
+    def _find_k_values_for_different_minima(self):
+        """
+        We have found that specifically this part of the code is quite slow, that
+        is finding the relevant nearest neighbor, next nearest neighbor, etc. lattice vectors
+        that meaningfully contribute. This is a calculation that previously had to be done
+        for the kinetic, potential and inner product matrices separately, even though
+        the results were the same for all three matrices. This helper function allows us to only
+        do it once.
+        """
+        Xi_inv = sp.linalg.inv(self.Xi_matrix())
+        minima_list = self.sorted_minima()
+        wrapper_klist_holder = []
+        klist_holder = []
+        counter = 0
+        for m, minima_m in enumerate(minima_list):
+            for p in range(m, len(minima_list)):
+                minima_p = minima_list[p]
+                minima_diff = minima_p - minima_m
+                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom())
+                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
+                jkvals = next(klist, -1)
+                while jkvals != -1:
+                    klist_holder.append(jkvals)
+                    jkvals = next(klist, -1)
+                wrapper_klist_holder.append(klist_holder)
+                klist_holder = []
+                counter += 1
+        return wrapper_klist_holder
+
     def _build_squeezing_ops(self, m, p, minima_diff, Xi, a_op_list):
         """
         Build all operators relevant for building the Hamiltonian. If there is no squeezing,
@@ -446,8 +475,10 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 * np.exp(-0.5 * np.trace(sigma) - 0.5 * np.trace(sigmaprime))
                 * np.exp(-0.25 * np.dot(dpkX, dpkX)))
 
-    def kineticmat(self):
+    def kineticmat(self, wrapper_klist=None):
         """Return the kinetic part of the hamiltonian"""
+        if wrapper_klist is None:
+            wrapper_klist = self._find_k_values_for_different_minima()
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         EC_mat = self.build_EC_matrix()
@@ -456,6 +487,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
         kinetic_mat = np.zeros((dim, dim), dtype=np.complex128)
+        counter = 0
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_p = minima_list[p]
@@ -484,12 +516,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                        - 4 * exp_adag_a * x_coeff[mu, mu]
                                                        for mu in range(self.num_deg_freedom())], axis=0)
                 scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom()) - np.matmul(rho, rhoprime)))
-                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom())
-                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
-                jkvals = next(klist, -1)
-                while jkvals != -1:
+                for jkvals in wrapper_klist[counter]:
                     phik = 2.0 * np.pi * np.array(jkvals)
-                    delta_phi_kpm = phik - (minima_m - minima_p)
+                    delta_phi_kpm = phik + minima_diff
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
                     # x is the vector that appears in exp(x_{i}a_{i}^{\dagger}) (Einstein summation)
@@ -529,7 +558,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     kinetic_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
                                 p * num_exc_tot: p * num_exc_tot + num_exc_tot] += kinetic_temp
 
-                    jkvals = next(klist, -1)
+                counter += 1
 
         # fill in kinetic energy matrix according to hermiticity
         kinetic_mat = self._populate_hermitian_matrix(kinetic_mat, minima_list, num_exc_tot)
@@ -542,8 +571,10 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         alpha = np.exp(-0.5 * np.matmul(y, yrhop) - 0.5 * np.matmul(x - yrhop, np.matmul(deltarho, x - yrhop)))
         return alpha
 
-    def potentialmat(self):
+    def potentialmat(self, wrapper_klist=None):
         """Return the potential part of the hamiltonian"""
+        if wrapper_klist is None:
+            wrapper_klist = self._find_k_values_for_different_minima()
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
@@ -557,6 +588,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                          * np.dot(Xi[j, :], np.transpose(Xi)[:, k])
                                                          for j in range(self.num_deg_freedom())
                                                          for k in range(self.num_deg_freedom())]))
+        counter = 0
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_p = minima_list[p]
@@ -567,12 +599,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                  exp_adag_list, exp_adag_mindiff,
                  exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
                 scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom()) - np.matmul(rho, rhoprime)))
-                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom())
-                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
-                jkvals = next(klist, -1)
-                while jkvals != -1:
+                for jkvals in wrapper_klist[counter]:
                     phik = 2.0 * np.pi * np.array(jkvals)
-                    delta_phi_kpm = phik - (minima_m - minima_p)
+                    delta_phi_kpm = phik + minima_diff
                     phibar_kpm = 0.5 * (phik + (minima_m + minima_p))
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
@@ -633,7 +662,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     potential_mat[m * num_exc_tot:m * num_exc_tot + num_exc_tot,
                                   p * num_exc_tot:p * num_exc_tot + num_exc_tot] += potential_temp
 
-                    jkvals = next(klist, -1)
+                counter += 1
 
         potential_mat = self._populate_hermitian_matrix(potential_mat, minima_list, num_exc_tot)
 
@@ -641,10 +670,13 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
     def hamiltonian(self):
         """Construct the Hamiltonian"""
-        return self.kineticmat() + self.potentialmat()
+        wrapper_klist = self._find_k_values_for_different_minima()
+        return self.kineticmat(wrapper_klist) + self.potentialmat(wrapper_klist)
 
-    def inner_product(self):
+    def inner_product(self, wrapper_klist=None):
         """Return the inner product matrix, which is nontrivial with tight-binding states"""
+        if wrapper_klist is None:
+            wrapper_klist = self._find_k_values_for_different_minima()
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
@@ -652,6 +684,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
         inner_product_mat = np.zeros((dim, dim), dtype=np.complex128)
+        counter = 0
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_p = minima_list[p]
@@ -662,12 +695,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                  exp_adag_list, exp_adag_mindiff,
                  exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
                 scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom()) - np.matmul(rho, rhoprime)))
-                klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=self.num_deg_freedom())
-                klist = itertools.filterfalse(lambda e: self._filter_jkvals(e, minima_diff, Xi_inv), klist)
-                jkvals = next(klist, -1)
-                while jkvals != -1:
+                for jkvals in wrapper_klist[counter]:
                     phik = 2.0 * np.pi * np.array(jkvals)
-                    delta_phi_kpm = phik - (minima_m - minima_p)
+                    delta_phi_kpm = phik + minima_diff
                     exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
                     x = np.matmul(delta_phi_kpm, Xi_inv.T) / np.sqrt(2.)
@@ -684,7 +714,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
                     inner_product_mat[m * num_exc_tot:m * num_exc_tot + num_exc_tot,
                                       p * num_exc_tot:p * num_exc_tot + num_exc_tot] += inner_temp
-                    jkvals = next(klist, -1)
+                counter += 1
 
         inner_product_mat = self._populate_hermitian_matrix(inner_product_mat, minima_list, num_exc_tot)
 
@@ -739,8 +769,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return output
 
     def _evals_calc(self, evals_count):
-        hamiltonian_mat = self.hamiltonian()
-        inner_product_mat = self.inner_product()
+        wrapper_klist = self._find_k_values_for_different_minima()
+        hamiltonian_mat = self.kineticmat(wrapper_klist) + self.potentialmat(wrapper_klist)
+        inner_product_mat = self.inner_product(wrapper_klist)
         try:
             evals = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
                                    eigvals_only=True, eigvals=(0, evals_count - 1))
@@ -753,8 +784,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return evals
 
     def _esys_calc(self, evals_count):
-        hamiltonian_mat = self.hamiltonian()
-        inner_product_mat = self.inner_product()
+        wrapper_klist = self._find_k_values_for_different_minima()
+        hamiltonian_mat = self.kineticmat(wrapper_klist) + self.potentialmat(wrapper_klist)
+        inner_product_mat = self.inner_product(wrapper_klist)
         try:
             evals, evecs = sp.linalg.eigh(hamiltonian_mat, b=inner_product_mat,
                                           eigvals_only=False, eigvals=(0, evals_count - 1))
