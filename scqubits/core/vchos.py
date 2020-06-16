@@ -315,7 +315,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 counter += 1
         return wrapper_klist_holder
 
-    def _build_squeezing_ops(self, m, p, minima_diff, Xi, a_op_list):
+    def _build_squeezing_ops(self, m, p, minima_diff, Xi, a_op_list, potential=True):
         """
         Build all operators relevant for building the Hamiltonian. If there is no squeezing,
         this routine then just builds the translation operators necessary for periodic
@@ -400,30 +400,32 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                for i in range(self.num_deg_freedom())], axis=0) / np.sqrt(2.0))
 
         # Now the potential operators
-        prefactor_adag = np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, expdrbs)
-        a_temp_coeff = 0.5 * np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, deltarho + deltarho.T)
-        prefactor_a = np.matmul(np.eye(self.num_deg_freedom()) - a_temp_coeff, expsigmaprime)
-
         exp_i_list = []
-        Xid = 1j * np.matmul(Xi, prefactor_adag) / np.sqrt(2.0)
-        Xia = 1j * np.matmul(Xi, prefactor_a) / np.sqrt(2.0)
-        for j in range(self.num_deg_freedom()):
-            exp_i_j_adag_part = sp.linalg.expm(np.sum([Xid[j, i] * a_op_list[i].T
-                                                       for i in range(self.num_deg_freedom())], axis=0))
-            exp_i_j_a_part = sp.linalg.expm(np.sum([Xia[j, i] * a_op_list[i]
-                                                    for i in range(self.num_deg_freedom())], axis=0))
-            exp_i_j = np.matmul(exp_i_j_adag_part, np.matmul(exp_adag_a, exp_i_j_a_part))
-            exp_i_list.append(exp_i_j)
+        exp_i_sum = 0.0
+        if potential == True:
+            prefactor_adag = np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, expdrbs)
+            a_temp_coeff = 0.5 * np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, deltarho + deltarho.T)
+            prefactor_a = np.matmul(np.eye(self.num_deg_freedom()) - a_temp_coeff, expsigmaprime)
 
-        exp_i_sum_adag_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j] *
-                                                     Xid[j, i] * a_op_list[i].T
-                                                     for i in range(self.num_deg_freedom())
-                                                     for j in range(self.num_deg_freedom())], axis=0))
-        exp_i_sum_a_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j] *
-                                                  Xia[j, i] * a_op_list[i]
-                                                  for i in range(self.num_deg_freedom())
-                                                  for j in range(self.num_deg_freedom())], axis=0))
-        exp_i_sum = np.matmul(exp_i_sum_adag_part, np.matmul(exp_adag_a, exp_i_sum_a_part))
+            Xid = 1j * np.matmul(Xi, prefactor_adag) / np.sqrt(2.0)
+            Xia = 1j * np.matmul(Xi, prefactor_a) / np.sqrt(2.0)
+            for j in range(self.num_deg_freedom()):
+                exp_i_j_adag_part = sp.linalg.expm(np.sum([Xid[j, i] * a_op_list[i].T
+                                                           for i in range(self.num_deg_freedom())], axis=0))
+                exp_i_j_a_part = sp.linalg.expm(np.sum([Xia[j, i] * a_op_list[i]
+                                                        for i in range(self.num_deg_freedom())], axis=0))
+                exp_i_j = np.matmul(exp_i_j_adag_part, np.matmul(exp_adag_a, exp_i_j_a_part))
+                exp_i_list.append(exp_i_j)
+
+            exp_i_sum_adag_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j] *
+                                                         Xid[j, i] * a_op_list[i].T
+                                                         for i in range(self.num_deg_freedom())
+                                                         for j in range(self.num_deg_freedom())], axis=0))
+            exp_i_sum_a_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j] *
+                                                      Xia[j, i] * a_op_list[i]
+                                                      for i in range(self.num_deg_freedom())
+                                                      for j in range(self.num_deg_freedom())], axis=0))
+            exp_i_sum = np.matmul(exp_i_sum_adag_part, np.matmul(exp_adag_a, exp_i_sum_a_part))
 
         exp_list = [exp_adag_adag, exp_a_a, exp_adag_a,
                     exp_adag_list, exp_adag_mindiff,
@@ -493,7 +495,8 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 minima_p = minima_list[p]
                 minima_diff = minima_p - minima_m
                 (exp_list, rho, rhoprime, sigma, sigmaprime,
-                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi, a_op_list)
+                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi,
+                                                                             a_op_list, potential=False)
                 (exp_adag_adag, exp_a_a, exp_adag_a,
                  exp_adag_list, exp_adag_mindiff,
                  exp_a_list, exp_a_mindiff, _, _) = exp_list
@@ -594,7 +597,8 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 minima_p = minima_list[p]
                 minima_diff = minima_p - minima_m
                 (exp_list, rho, rhoprime, sigma, sigmaprime,
-                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi, a_op_list)
+                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi,
+                                                                             a_op_list, potential=True)
                 (exp_adag_adag, exp_a_a, exp_adag_a,
                  exp_adag_list, exp_adag_mindiff,
                  exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
@@ -690,10 +694,11 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 minima_p = minima_list[p]
                 minima_diff = minima_p - minima_m
                 (exp_list, rho, rhoprime, sigma, sigmaprime,
-                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi, a_op_list)
+                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi,
+                                                                             a_op_list, potential=False)
                 (exp_adag_adag, exp_a_a, exp_adag_a,
                  exp_adag_list, exp_adag_mindiff,
-                 exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
+                 exp_a_list, exp_a_mindiff, _, _) = exp_list
                 scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom()) - np.matmul(rho, rhoprime)))
                 for jkvals in wrapper_klist[counter]:
                     phik = 2.0 * np.pi * np.array(jkvals)
