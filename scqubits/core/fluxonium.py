@@ -176,8 +176,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         diag_elements = [i * self.E_plasma() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
 
-        # TODO i think there should be a minus sign in the cmath exponential (i.e flux -> - flux)?
-        exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
+        exp_matrix = self.exp_i_phi_operator() * cmath.exp(-1j * 2 * np.pi * self.flux)
         cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
