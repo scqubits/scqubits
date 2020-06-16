@@ -83,7 +83,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return ['tphi_1_over_f_cc', 
                 'tphi_1_over_f_ng',
                 't1_capacitive_loss',
-                't1_tran_line', 
+                't1_charge_impedance', 
                 ]
 
     def n_operator(self):
@@ -338,10 +338,9 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 'tphi_1_over_f_cc', 
                 'tphi_1_over_f_ng',
                 't1_capacitive_loss',
-                't1_bias_flux_line',
-                't1_tran_line', 
+                't1_flux_bias_line',
+                't1_charge_impedance', 
                 ]
-
 
     def d_hamiltonian_d_flux(self):
         """Returns operator representing a derivittive of the Hamiltonian with respect to `flux`."""

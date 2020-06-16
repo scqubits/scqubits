@@ -71,10 +71,12 @@ NOISE_PARAMS = {
     # Units: K
     'T': 0.015,
 
-    # Mutual inductance. Units: \Phi_0 / Amperes
-    'M': 1000,
+    # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Amperes
+    'M': 400,
 
     # Superconducting quantum of resistance (~6.5 k\Omega)
+    # Note, in some papers this is defined as: h/e^2 
+    # and called the Klitzing constant. 
     'R_q': sp.constants.h/(2*sp.constants.e)**2.0,
 }
 
@@ -281,6 +283,8 @@ class NoisySystem:
                             esys=None, get_rate=False, **params):
         """
         Loss due to dielectric dissipation in the Jesephson junction capacitances. 
+
+        Reference: Smith et al (2020)
         """
 
         if 't1_capacitive_loss' not in self.supported_noise_channels():
@@ -288,13 +292,11 @@ class NoisySystem:
 
         EC = self.EC if EC is None else EC
 
-        def spec_dens(omega):
-            """See Smith et al (2020)
-            """
+        def spec_dens(omega, Q_cap=Q_cap):
             q_cap = Q_cap(omega) if callable(Q_cap) else Q_cap
             therm_ratio = calc_therm_ratio(omega, T)
-            EC *= 2 * np.pi  # We assume the system energy is given in units of frequency 
             s = 2 * 8 * EC / q_cap * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s *= 2 * np.pi  # We assume that system energies are given in units of frequency 
             return s
 
         noise_op = self.n_operator()
@@ -306,6 +308,9 @@ class NoisySystem:
                             esys=None, get_rate=False, **params):
         """
         TODO check factor of 1/2 definition in EL; should be the same in all qubits, otherwise we'll get this wrong.
+            In that case, could overwrite it for some qubits. 
+
+        Reference: Smith et al (2020)
         """
 
         if 't1_inductive_loss' not in self.supported_noise_channels():
@@ -313,13 +318,11 @@ class NoisySystem:
 
         EL = self.EL if EL is None else EL
 
-        def spec_dens(omega):
-            """See Smith et al (2020)
-            """
-            q_ind = Q_ind(energy) if callable(Q_ind) else Q_ind
+        def spec_dens(omega, Q_ind=Q_ind):
+            q_ind = Q_ind(omega) if callable(Q_ind) else Q_ind
             therm_ratio = calc_therm_ratio(omega, T)
-            EL *= 2 * np.pi  # We assume the system energy is given in units of frequency 
             s = 2 * EL / q_ind * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s *= 2 * np.pi  # We assume that system energies are given in units of frequency 
             return s
 
         noise_op = self.phi_operator()
@@ -328,21 +331,21 @@ class NoisySystem:
                 esys=esys, get_rate=get_rate, **params)
 
 
-    def t1_tran_line(self, i, j, ReZ=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=False,
+    def t1_charge_impedance(self, i, j, ReZ=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=False,
                       esys=None, get_rate=False, **params):
-        """Noise due to a capacitive coupling to a dissipative impedance (such as a transmission line) 
+        """Noise due to charge coupling to an impedance (such as a transmission line).
 
-        TODO: update the form here; want to use capacitance ratio to define how strongly
-        the line is coupled?
+        Reference: Clerk et al (2010), also Zhang et al (2020) - note different definition of R_q
         """
-        if 't1_tran_line' not in self.supported_noise_channels():
-            raise RuntimeError("Noise channel 't1_tran_line' is not supported in this system.")
+        if 't1_charge_impedance' not in self.supported_noise_channels():
+            raise RuntimeError("Noise channel 't1_charge_impedance' is not supported in this system.")
 
-        def spec_dens(omega):
-            Q_c = NOISE_PARAMS['R_q']/(16*np.pi*ReZ)
+        def spec_dens(omega, ReZ=ReZ):
+            ReZ = ReZ(omega) if callable(ReZ) else ReZ
+            # Note, our definition of R_q is different from Zhang et al (2020) by a factor of 1/4
+            Q_c = NOISE_PARAMS['R_q']/(2*np.pi*ReZ)
             therm_ratio = calc_therm_ratio(omega, T)
-            s = energy/Q_c * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
-            s *= 2 * np.pi  # We assume the system energy is given in units of frequency 
+            s = 2 * omega / Q_c * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
             return s
 
         noise_op = self.n_operator()
@@ -350,18 +353,27 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys,
                        get_rate=get_rate, total=False, **params)
 
-    def t1_flux_bias_line(self, i, j, M=NOISE_PARAMS['M'],  Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
+    def t1_flux_bias_line(self, i, j, M=NOISE_PARAMS['M'],  ReZ=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
                            total=False,  esys=None, get_rate=False, **params):
         """Noise due to a bias flux line.
         """
 
-        if 't1_bias_flux_line' not in self.supported_noise_channels():
-            raise RuntimeError("Noise channel 't1_bias_flux_line' is not supported in this system.")
+        if 't1_flux_bias_line' not in self.supported_noise_channels():
+            raise RuntimeError("Noise channel 't1_flux_bias_line' is not supported in this system.")
 
-        def spec_dens(omega):
+        def spec_dens(omega, ReZ=ReZ):
+            """
+            Our definitions assume that the noise_op is dH/dflux.
+            """
+            ReZ = ReZ(omega) if callable(ReZ) else ReZ
             therm_ratio = calc_therm_ratio(omega, T)
-            s =  M**2 * 2 * sp.constants.hbar * omega / Z  \
-                * (1 + 1/np.tanh(0.5 * therm_ratio))
+            s = 2 * (2 * np.pi)**2 * M**2 * omega * sp.constants.hbar / ReZ  \
+                    * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
+            # We assume that system energies are given in units of frequency
+            # and that the noise operator to be used with this `spec_dens` is dH/dflux.
+            # Hence we have to convert to 2 powers of frequency to standard units
+            # (TODO fix; this is horrendous; what's a cleaner way to do this? )
+            s *= (units.to_standard_units(1))**2.0
             return s
 
         noise_op = self.d_hamiltonian_d_flux()

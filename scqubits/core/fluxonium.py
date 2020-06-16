@@ -88,11 +88,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def supported_noise_channels(self):
         """Return a list of supported noise channels"""
         return ['tphi_1_over_f_cc', 
-                'tphi_1_over_f_flux'
-                't1_bias_flux_line'
+                'tphi_1_over_f_flux',
+                't1_flux_bias_line',
                 't1_capacitive_loss',
                 't1_inductive_loss',
-                't1_tran_line', 
+                't1_charge_impedance', 
                 ]
 
     def phi_osc(self):
