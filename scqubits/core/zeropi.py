@@ -19,6 +19,7 @@ import scqubits.core.central_dispatch as dispatch
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
+from scqubits.core.noise import NoisySystem, NOISE_PARAMS
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
@@ -27,9 +28,15 @@ import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 
 
+# - ZeroPi noise class
+
+class NoisyZeroPi(NoisySystem):
+    pass
+
+
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
 
-class ZeroPi(base.QubitBaseClass, serializers.Serializable):
+class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     r"""Zero-Pi Qubit
 
     | [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
@@ -140,6 +147,15 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         zeropi = cls(**init_params, grid=phi_grid)
         zeropi.widget()
         return zeropi
+
+    def supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_cc', 
+                'tphi_1_over_f_flux'
+                't1_bias_flux_line'
+                # 't1_capacitive_loss',
+                't1_inductive_loss',
+                ]
 
     def widget(self, params=None):
         init_params = params or self.get_initdata()
@@ -330,6 +346,18 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
             matrix representing the derivative of the Hamiltonian
         """
         return self.sparse_d_potential_d_EJ_mat()
+
+
+    def d_hamiltonian_d_ng(self):
+        r"""Calculates a derivative of the Hamiltonian w.r.t ng.
+        as stored in the object.
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the Hamiltonian
+        """
+        return -8 * self.EC * self.n_theta_operator()
 
 
     def _identity_phi(self):

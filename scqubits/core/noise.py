@@ -286,7 +286,6 @@ class NoisySystem:
         if 't1_capacitive_loss' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_capacitive_loss' is not supported in this system.")
 
-        # We assume EC is given in the units of frequency
         EC = self.EC if EC is None else EC
 
         def spec_dens(omega):
@@ -294,9 +293,8 @@ class NoisySystem:
             """
             q_cap = Q_cap(omega) if callable(Q_cap) else Q_cap
             therm_ratio = calc_therm_ratio(omega, T)
+            EC *= 2 * np.pi  # We assume the system energy is given in units of frequency 
             s = 2 * 8 * EC / q_cap * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
-            # We assume system energies are given in in frequency units, hence have to convert to angular frequency.
-            s *= 2 * np.pi
             return s
 
         noise_op = self.n_operator()
@@ -313,7 +311,6 @@ class NoisySystem:
         if 't1_inductive_loss' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_inductive_loss' is not supported in this system.")
 
-        # We assume EC is given in the units of frequency
         EL = self.EL if EL is None else EL
 
         def spec_dens(omega):
@@ -321,9 +318,8 @@ class NoisySystem:
             """
             q_ind = Q_ind(energy) if callable(Q_ind) else Q_ind
             therm_ratio = calc_therm_ratio(omega, T)
+            EL *= 2 * np.pi  # We assume the system energy is given in units of frequency 
             s = 2 * EL / q_ind * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
-            # We assume system energies are given in in frequency units, hence have to convert to angular frequency.
-            s *= 2 * np.pi
             return s
 
         noise_op = self.phi_operator()
@@ -346,7 +342,7 @@ class NoisySystem:
             Q_c = NOISE_PARAMS['R_q']/(16*np.pi*ReZ)
             therm_ratio = calc_therm_ratio(omega, T)
             s = energy/Q_c * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
-            s *= 2 * np.pi  # We assume the units of EC are given as frequency
+            s *= 2 * np.pi  # We assume the system energy is given in units of frequency 
             return s
 
         noise_op = self.n_operator()

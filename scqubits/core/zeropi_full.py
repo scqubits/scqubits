@@ -18,14 +18,19 @@ import scqubits
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
+from scqubits.core.noise import NoisySystem, NOISE_PARAMS
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
 
+# - ZeroPi noise class
 
-class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
+class NoisyFullZeroPi(NoisySystem):
+    pass
+
+class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
     Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
 
@@ -157,6 +162,15 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         zeropi.widget()
         return zeropi
 
+    def supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_cc', 
+                'tphi_1_over_f_flux'
+                't1_bias_flux_line'
+                # 't1_capacitive_loss',
+                't1_inductive_loss',
+                ]
+
     def widget(self, params=None):
         init_params = params or self.get_initdata()
         del init_params['grid']
@@ -262,6 +276,19 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         """
         return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_EJ(),
                                                       zeropi_evecs=zeropi_evecs)
+
+
+    def d_hamiltonian_d_ng(self):
+        r"""Calculates a derivative of the Hamiltonian w.r.t ng.
+        as stored in the object.
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the Hamiltonian
+        """
+        return -8 * self.EC * self.n_theta_operator()
+
 
     def _zeropi_operator_in_product_basis(self, zeropi_operator, zeropi_evecs=None):
         """Helper method that converts a zeropi operator into one in the product basis.
