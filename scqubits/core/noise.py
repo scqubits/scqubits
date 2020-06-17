@@ -371,8 +371,8 @@ class NoisySystem:
                     * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
             # We assume that system energies are given in units of frequency
             # and that the noise operator to be used with this `spec_dens` is dH/dflux.
-            # Hence we have to convert to 2 powers of frequency to standard units
-            # (TODO fix; this is horrendous; what's a cleaner way to do this? )
+            # Hence we have to convert  2 powers of frequency to standard units
+            # (TODO this is ugly; what's a cleaner way to do this? )
             s *= (units.to_standard_units(1))**2.0
             return s
 
@@ -380,3 +380,31 @@ class NoisySystem:
 
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys, get_rate=get_rate, **params)
 
+    # TODO add quasi particle tunneling; depends on admitance each junction sees. 
+    # In principle this can vary quite a bit in differnt qubits 
+    # def t1_quasiparticle_tunneling(self, i, j, ReYqp=NOISE_PARAMS['Y'],  ReZ=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
+                           # total=False,  esys=None, get_rate=False, **params):
+        # """Noise due to a bias flux line.
+        # """
+
+        # if 't1_flux_bias_line' not in self.supported_noise_channels():
+            # raise RuntimeError("Noise channel 't1_flux_bias_line' is not supported in this system.")
+
+        # def spec_dens(omega, ReZ=ReZ):
+            # """
+            # Our definitions assume that the noise_op is dH/dflux.
+            # """
+            # ReZ = ReZ(omega) if callable(ReZ) else ReZ
+            # therm_ratio = calc_therm_ratio(omega, T)
+            # s = 2 * (2 * np.pi)**2 * M**2 * omega * sp.constants.hbar / ReZ  \
+                    # * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
+            # # We assume that system energies are given in units of frequency
+            # # and that the noise operator to be used with this `spec_dens` is dH/dflux.
+            # # Hence we have to convert  2 powers of frequency to standard units
+            # # (TODO this is ugly; what's a cleaner way to do this? )
+            # s *= (units.to_standard_units(1))**2.0
+            # return s
+
+        # noise_op = self.sin_phi_operator()
+
+        # return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys, get_rate=get_rate, **params)

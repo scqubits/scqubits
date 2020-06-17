@@ -133,35 +133,35 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         dimension = self.hilbertdim()
         return 1j * (op.creation(dimension) - op.annihilation(dimension)) / (self.phi_osc() * math.sqrt(2))
 
-    def exp_i_phi_operator(self):
+    def exp_i_phi_operator(self, alpha=1, beta=0):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`e^{i\\phi}` operator in the LC harmonic oscillator basis
+            Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the LC harmonic oscillator basis
         """
-        exponent = 1j * self.phi_operator()
+        exponent = 1j * (alpha * self.phi_operator() + beta)
         return sp.linalg.expm(exponent)
 
-    def cos_phi_operator(self):
+    def cos_phi_operator(self, alpha=1, beta=0):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`\\cos \\phi` operator in the LC harmonic oscillator basis
+            Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis
         """
-        cos_phi_op = 0.5 * self.exp_i_phi_operator()
+        cos_phi_op = 0.5 * self.exp_i_phi_operator(alpha, beta)
         cos_phi_op += cos_phi_op.conjugate().T
         return cos_phi_op
 
-    def sin_phi_operator(self):
+    def sin_phi_operator(self, alpha=1, beta=0):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`\\sin \\phi` operator in the LC harmonic oscillator basis
+            Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis
         """
-        sin_phi_op = -1j * 0.5 * self.exp_i_phi_operator()
+        sin_phi_op = -1j * 0.5 * self.exp_i_phi_operator(alpha, beta)
         sin_phi_op += sin_phi_op.conjugate().T
         return sin_phi_op
 
