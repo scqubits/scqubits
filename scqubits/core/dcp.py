@@ -90,7 +90,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
     q0 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     p0 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EC, EL, x, dL, dC, dJ, flux, Ng, N0, q0, p0, truncated_dim=None):
+    def __init__(self, EJ, EC, EL, x, dL, dC, dJ, flux, Ng, kbt, N0, q0, p0, truncated_dim=None):
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
@@ -100,6 +100,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         self.dJ = dJ
         self.flux = flux
         self.Ng = Ng
+        self.kbt = kbt * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # temperature unit mK
         self.N0 = N0
         self.q0 = q0
         self.p0 = p0
@@ -174,13 +175,21 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             Returns the inductive energy renormalized by with disorder."""
         return self.EL / (1 - self.dL ** 2)
 
+    def _dis_ec(self):
+        """
+        Returns
+        -------
+        float
+            Returns the capacitance energy renormalized by with disorder."""
+        return self.EC / (1 - self.dC ** 2)
+
     def phi_osc(self):
         """
         Returns
         -------
         float
             Returns the oscillator strength of :math:`phi' degree of freedom."""
-        return (32 * self.EC / self._dis_el()) ** 0.25
+        return (32 * self._dis_ec() / self._dis_el()) ** 0.25
 
     def theta_osc(self):
         """
@@ -188,7 +197,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         -------
         float
             Returns the oscillator strength of :math:`theta' degree of freedom."""
-        return (4 * self.EC * self.x / self._dis_el()) ** 0.25
+        return (4 * self._dis_ec() * self.x / self._dis_el()) ** 0.25
 
     def phi_plasma(self):
         """
@@ -197,7 +206,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         float
             Returns the plasma oscillation frequency of :math:`phi' degree of freedom.
         """
-        return math.sqrt(8.0 * self._dis_el() * self.EC)
+        return math.sqrt(8.0 * self._dis_el() * self._dis_ec())
 
     def theta_plasma(self):
         """
@@ -206,7 +215,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         float
             Returns the plasma oscillation frequency of :math:`theta' degree of freedom.
         """
-        return math.sqrt(16.0 * self.x * self._dis_el() * self.EC)
+        return math.sqrt(16.0 * self.x * self._dis_el() * self._dis_ec())
 
     def _phi_operator(self):
         """
@@ -318,12 +327,76 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         sin_phi_op += sin_phi_op.conj().T
         return np.real(sin_phi_op)
 
+    def _exp_i_phi_4_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`e^{i\\phi/4}` operator in the LC harmonic oscillator basis
+        """
+        exponent = 1j * self._phi_operator() * 0.25
+        return expm(exponent)
+
+    def _cos_phi_4_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`\\cos \\phi/4` operator in the LC harmonic oscillator basis
+        """
+        cos_phi_op = 0.5 * self._exp_i_phi_4_operator()
+        cos_phi_op += cos_phi_op.conj().T
+        return np.real(cos_phi_op)
+
+    def _sin_phi_4_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`\\sin \\phi/2` operator in the LC harmonic oscillator basis
+        """
+        sin_phi_op = -1j * 0.5 * self._exp_i_phi_4_operator()
+        sin_phi_op += sin_phi_op.conj().T
+        return np.real(sin_phi_op)
+
+    def _exp_i_theta_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`e^{i\\theta}` operator in the LC harmonic oscillator basis
+        """
+        exponent = 1j * self._theta_operator()
+        return expm(exponent)
+
+    def _cos_theta_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`\\cos \\theta` operator in the LC harmonic oscillator basis
+        """
+        cos_phi_op = 0.5 * self._exp_i_theta_operator()
+        cos_phi_op += cos_phi_op.conj().T
+        return np.real(cos_phi_op)
+
+    def _sin_theta_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`\\sin \\theta` operator in the LC harmonic oscillator basis
+        """
+        sin_phi_op = -1j * 0.5 * self._exp_i_theta_operator()
+        sin_phi_op += sin_phi_op.conj().T
+        return np.real(sin_phi_op)
+
     def _n_varphi_operator(self):
         """
         Returns
         -------
         ndarray
-            Returns charge operator :math:`\\n_phi` in the charge basis
+            Returns charge operator :math:`\\n_varphi` in the charge basis
         """
         diag_elements = np.arange(-self.N0, self.N0 + 1)
         return sparse.dia_matrix((diag_elements, [0]),
@@ -334,7 +407,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         Returns
         -------
         ndarray
-            Returns charge operator :math:`\\n_phi` in the total Hilbert space
+            Returns charge operator :math:`\\n_varphi` in the total Hilbert space
         """
         return self._kron3(self._identity_phi(), self._identity_theta(), self._n_varphi_operator())
 
@@ -433,7 +506,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
 
         n_varphi_ng_mat = self.n_varphi_operator() - self.total_identity() * self.Ng
         n_theta_mat = self._kron3(self._identity_phi(), self._n_theta_operator(), self._identity_varphi())
-        cross_kinetic_mat = 2 * self.EC * (n_varphi_ng_mat - n_theta_mat) ** 2
+        cross_kinetic_mat = 2 * self._dis_ec() * (n_varphi_ng_mat - n_theta_mat) ** 2
 
         phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
             self.flux * np.pi)
@@ -459,7 +532,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         float or ndarray
         """
         return self._dis_el() * (0.25 * phi * phi) - 2 * self.EJ * np.cos(varphi) * np.cos(
-            phi * 0.5 + np.pi * self.flux)
+            phi * 0.5 + np.pi * self.flux) + 2 * self.dJ * self.EJ * np.sin(phi * 0.5 + np.pi * self.flux) * np.sin(
+            varphi)
 
     def plot_potential(self, phi_grid=None, varphi_grid=None, contour_vals=None, **kwargs):
         """
@@ -539,7 +613,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             _, evecs = esys
 
         phi_grid = phi_grid or self._default_phi_grid
-        theta_grid = theta_grid or self._default_phi_grid
+        theta_grid = theta_grid or self._default_theta_grid
         varphi_grid = varphi_grid or self._default_varphi_grid
 
         phi_basis_labels = phi_grid.make_linspace()
@@ -717,6 +791,50 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
         return plot.wavefunction2d(phi_n_varphi_wavefunction, zero_calibrate=zero_calibrate, **kwargs)
 
+    # TODO: test purpose only
+    def ft_wavefunction(self, esys=None, which=0):
+        phi_grid = discretization.Grid1d(-10 * np.pi, 10 * np.pi, 100)
+        theta_grid = self._default_theta_grid
+        varphi_grid = discretization.Grid1d(0, 2 * np.pi, 100)
+
+        n_varphi_list = np.arange(-7, 8)
+        n_varphi_grid = discretization.Grid1d(-7, 7, 15)
+
+        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
+                                     which=which)
+
+        varphi_grid_list = varphi_grid.make_linspace()
+        phi_theta_varphi_amplitudes = spec_utils.standardize_phases(wavefunc.amplitudes)
+        phi_theta_n_varphi_amplitudes = np.zeros((phi_grid.pt_count, theta_grid.pt_count, n_varphi_list.size),
+                                                 dtype=np.complex_)
+        d_varphi = varphi_grid_list[1] - varphi_grid_list[0]
+        for n in range(n_varphi_list.size):
+            phi_theta_n_varphi_amplitudes[:, :, n] = 1 / (2 * np.pi) * np.sum(
+                phi_theta_varphi_amplitudes * np.exp(1j * n_varphi_list[n] * varphi_grid_list), axis=2) * d_varphi
+
+        d_phi = phi_grid.make_linspace()[1] - phi_grid.make_linspace()[0]
+        n_phi_list = np.sort(np.fft.fftfreq(phi_grid.pt_count, d_phi)) * 2 * np.pi
+        n_phi_grid = discretization.Grid1d(n_phi_list[0], n_phi_list[-1], n_phi_list.size)
+
+        d_theta = theta_grid.make_linspace()[1] - theta_grid.make_linspace()[0]
+        n_theta_list = np.sort(np.fft.fftfreq(theta_grid.pt_count, d_theta)) * 2 * np.pi
+        n_theta_grid = discretization.Grid1d(n_theta_list[0], n_theta_list[-1], n_theta_list.size)
+
+        n_phi_n_theta_n_varphi_amplitudes = np.zeros((n_phi_list.size, n_theta_list.size, n_varphi_list.size),
+                                                     dtype=np.complex_)
+        for n in range(n_varphi_list.size):
+            n_phi_n_theta_n_varphi_amplitudes[:, :, n] = np.fft.ifft2(
+                phi_theta_n_varphi_amplitudes[:, :, n]) * d_phi * phi_grid.pt_count * d_theta * theta_grid.pt_count
+            n_phi_n_theta_n_varphi_amplitudes[:, :, n] = np.fft.fftshift(n_phi_n_theta_n_varphi_amplitudes[:, :, n])
+        grid3d = discretization.GridSpec(np.asarray([
+            [n_phi_grid.min_val, n_phi_grid.max_val, n_phi_grid.pt_count],
+            [n_theta_grid.min_val, n_theta_grid.max_val, n_theta_grid.pt_count],
+            [n_varphi_grid.min_val, n_varphi_grid.max_val, n_varphi_grid.pt_count]]))
+        n_phi_n_theta_n_varphi_wavefunction = storage.WaveFunctionOnGrid(grid3d, n_phi_n_theta_n_varphi_amplitudes)
+        n_phi_n_theta_n_varphi_wavefunction.amplitudes = spec_utils.standardize_phases(
+            n_phi_n_theta_n_varphi_wavefunction.amplitudes)
+        return n_phi_n_theta_n_varphi_wavefunction
+
     def get_n_phi_n_varphi_wavefunction(self, esys=None, which=0):
         """
         Calculate 2D wave function for n_phi and n_varphi at theta = 0
@@ -813,6 +931,15 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         axs.set_xticks([-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2])
         axs.set_xticklabels(['-4', '-3', '-2', '-1', '0', '1', '2', '3', '4'])  # plot using zeropi notation
 
+        # plot at slice n_phi = 0
+        n_varphi_grid = discretization.Grid1d(-7, 7, 15)
+        n_varphi_list = n_varphi_grid.make_linspace()
+        n_varphi_wavefunction = storage.WaveFunction(n_varphi_list, n_phi_n_varphi_wavefunction.amplitudes[200, :])
+        fig, axs = plot.wavefunction1d_discrete(n_varphi_wavefunction, figsize=(4, 2))
+        axs.set_xlabel(r'$N_\theta$')
+        axs.set_ylabel(r'$|\psi|$')
+        axs.set_xlim((-4, 4))
+
         return plot.wavefunction2d(n_phi_n_varphi_wavefunction, zero_calibrate=zero_calibrate, **kwargs)
 
     # TODO: for test purpose
@@ -825,7 +952,15 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             wfnc1.amplitudes.conj() * wfnc2.amplitudes) / np.sum(
             wfnc2.amplitudes.conj() * wfnc2.amplitudes)) ** 2
 
-    # TODO: check higher order disorder on dC and dJ
+    def _n_phi_wavefunction_overlap(self, esys):
+        """overlap of wavefunction in n_phi_n_varphi plane"""
+        wfnc1 = self.get_n_phi_n_varphi_wavefunction(esys=esys, which=0)
+        wfnc2 = self.get_n_phi_n_varphi_wavefunction(esys=esys, which=1)
+        return np.abs(np.sum(wfnc1.amplitudes[:, 7].conj() * wfnc2.amplitudes[:, 7]) / np.sum(
+            wfnc1.amplitudes[:, 7].conj() * wfnc1.amplitudes[:, 7])) ** 2, np.abs(np.sum(
+            wfnc1.amplitudes[:, 7].conj() * wfnc2.amplitudes[:, 7]) / np.sum(
+            wfnc2.amplitudes[:, 7].conj() * wfnc2.amplitudes[:, 7])) ** 2
+
     def disorder(self):
         """
         Return disorder Hamiltonian due to dL
@@ -837,12 +972,14 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         disorder_l = - self._dis_el() * self.dL * self._kron3(self._phi_operator(), self._theta_operator(),
                                                               self._identity_varphi())
 
-        disorder_j = 2 * self.EJ * self.dJ * self._kron3(self._sin_phi_2_operator(), self._identity_theta(),
+        phi_flux_term = self._sin_phi_2_operator() * np.cos(self.flux * np.pi) + self._cos_phi_2_operator() * np.sin(
+            self.flux * np.pi)
+        disorder_j = 2 * self.EJ * self.dJ * self._kron3(phi_flux_term, self._identity_theta(),
                                                          self._sin_varphi_operator())
 
         n_varphi_ng_mat = self.n_varphi_operator() - self.total_identity() * self.Ng
         n_theta_mat = self._kron3(self._n_phi_operator(), self._n_theta_operator(), self._identity_varphi())
-        disorder_c = - 8 * self.EC * self.dC / (1 - self.dC ** 2) * (n_varphi_ng_mat - n_theta_mat)
+        disorder_c = - 8 * self._dis_ec() * self.dC * (n_varphi_ng_mat - n_theta_mat)
 
         return disorder_l + disorder_j + disorder_c
 
@@ -864,16 +1001,12 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         """
         return - self.theta_operator() - self.phi_operator() / 2.0
 
-    def kbt(self):
-        """k_B T = 10 mK"""
-        return 10 * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9
-
     def q_ind(self, energy):
         """Frequency dependent quality factor of inductance"""
         q_ind_0 = 500 * 1e6
-        return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt()) * np.sinh(0.5 / 2.0 / self.kbt()) / kn(0,
-                                                                                              energy / 2.0 / self.kbt()) / np.sinh(
-            energy / 2.0 / self.kbt())
+        return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt) * np.sinh(0.5 / 2.0 / self.kbt) / kn(0,
+                                                                                          energy / 2.0 / self.kbt) / np.sinh(
+            energy / 2.0 / self.kbt)
 
     # TODO: test purpose
     def t1_ind_loss(self, dl_list):
@@ -898,8 +1031,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         matele_obj_2 = self.get_matelements_vs_paramvals('phi_2_operator', 'dL', dl_list, evals_count=2)
         matele_2 = matele_obj_2.matrixelem_table[:, 0, 1]
 
-        s_ind_1 = 2 / (1 - dl_list) / self.q_ind(eng) / np.tanh(eng / 2.0 / self.kbt())
-        s_ind_2 = 2 / (1 + dl_list) / self.q_ind(eng) / np.tanh(eng / 2.0 / self.kbt())
+        s_ind_1 = self.EL * 2 / (1 - dl_list) / self.q_ind(eng) / np.tanh(eng / 2.0 / self.kbt)
+        s_ind_2 = self.EL * 2 / (1 + dl_list) / self.q_ind(eng) / np.tanh(eng / 2.0 / self.kbt)
 
         t1_ind_1 = np.abs(matele_1) ** 2 * s_ind_1
         t1_ind_2 = np.abs(matele_2) ** 2 * s_ind_2
@@ -954,7 +1087,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         """
         return self.n_phi_operator() ** 2
 
-    def n_theta_n_theta_opt(self):
+    def n_theta_n_theta_operator(self):
         """
         Returns
         -------
@@ -963,7 +1096,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         """
         return self.n_theta_operator() ** 2
 
-    def n_varphi_n_varphi_opt(self):
+    def n_varphi_n_varphi_operator(self):
         """
         Returns
         -------
@@ -1019,3 +1152,180 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         plt.legend(['0-1', '0-2', '0-3', '0-4'])
 
         return norm_matele_01, norm_matele_02, norm_matele_03, norm_matele_04
+
+    def N_1_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:'N_1' operator in the LC harmonic oscillator basis, which is the charge on junction 1
+        """
+        return self.n_phi_operator() + 0.5 * (self.n_varphi_operator() - self.n_theta_operator())
+
+    def N_2_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:'N_2' operator in the LC harmonic oscillator basis, which is the charge on junction 2
+        """
+        return self.n_phi_operator() - 0.5 * (self.n_varphi_operator() - self.n_theta_operator())
+
+    def q_cap(self, energy):
+        """Frequency dependent quality factor of capacitance"""
+        q_cap_0 = 1 * 1e6
+        return q_cap_0 * (2 * np.pi * 6 / energy) ** 0.7
+
+    # TODO: test purpose
+    def t1_cap_loss(self, dl_list):
+        """Return the 1/T1 due to capcitive loss"""
+        """
+        calculate 1/T1 due to inductive loss
+
+        Parameters
+        ----------
+        dL_list: ndarray
+            list of inductive disorder
+
+        Returns
+        -------
+        ndarray
+        """
+        eng_obj = self.get_spectrum_vs_paramvals('dL', dl_list, evals_count=2, subtract_ground=True)
+        eng = eng_obj.energy_table[:, 1]
+
+        matele_obj_1 = self.get_matelements_vs_paramvals('N_1_operator', 'dL', dl_list, evals_count=2)
+        matele_1 = matele_obj_1.matrixelem_table[:, 0, 1]
+        matele_obj_2 = self.get_matelements_vs_paramvals('N_2_operator', 'dL', dl_list, evals_count=2)
+        matele_2 = matele_obj_2.matrixelem_table[:, 0, 1]
+
+        s_vv_1 = 2 * 8 * self.EC / (1 - self.dC) / self.q_cap(eng) / np.tanh(eng / 2.0 / self.kbt)
+        s_vv_2 = 2 * 8 * self.EC / (1 + self.dC) / self.q_cap(eng) / np.tanh(eng / 2.0 / self.kbt)
+
+        t1_cap_1 = np.abs(matele_1) ** 2 * s_vv_1
+        t1_cap_2 = np.abs(matele_2) ** 2 * s_vv_2
+
+        fig, axs = plt.subplots(3, 2, figsize=(10, 12))
+        axs[0, 0].plot(dl_list, s_vv_1)
+        axs[0, 0].set_xlabel('dL')
+        axs[0, 0].set_ylabel('$S_1(\omega)$')
+
+        axs[0, 1].plot(dl_list, s_vv_2)
+        axs[0, 1].set_xlabel('dL')
+        axs[0, 1].set_ylabel('$S_2(\omega)$')
+
+        axs[1, 0].plot(dl_list, np.abs(matele_1) ** 2)
+        axs[1, 0].set_xlabel('dL')
+        axs[1, 0].set_ylabel(r'$|\langle 0 | \phi_1 | 1 \rangle|^2 $')
+
+        axs[1, 1].plot(dl_list, np.abs(matele_2) ** 2)
+        axs[1, 1].set_xlabel('dL')
+        axs[1, 1].set_ylabel(r'$|\langle 0 | \phi_2 | 1 \rangle|^2 $')
+
+        axs[2, 0].plot(dl_list, eng)
+        axs[2, 0].set_xlabel('dL')
+        axs[2, 0].set_ylabel('$\Delta E$')
+
+        axs[2, 1].plot(dl_list, 1 / (t1_cap_1 + t1_cap_2))
+        axs[2, 1].plot(dl_list, 1 / t1_cap_1)
+        axs[2, 1].plot(dl_list, 1 / t1_cap_2)
+        axs[2, 1].set_xlabel('dL')
+        axs[2, 1].set_ylabel('$T_1$')
+        axs[2, 1].legend(['total', '$J_1$', '$J_2$'])
+        axs[2, 1].set_yscale('log')
+        axs[2, 1].set_ylim((1e3, 1e12))
+
+        return 1 / (t1_cap_1 + t1_cap_2)
+
+    def get_t1_capacitive_loss(self, para_name, para_vals):
+        energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
+                 :, 1]
+        matele_1 = self.get_matelements_vs_paramvals('N_1_operator', para_name, para_vals,
+                                                     evals_count=2).matrixelem_table[:, 0, 1]
+        matele_2 = self.get_matelements_vs_paramvals('N_2_operator', para_name, para_vals,
+                                                     evals_count=2).matrixelem_table[:, 0, 1]
+        s_vv_1 = 16 * self.EC / (1 - self.dC) / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
+        s_vv_2 = 16 * self.EC / (1 + self.dC) / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
+        gamma1_cap_1 = np.abs(matele_1) ** 2 * s_vv_1
+        gamma1_cap_2 = np.abs(matele_2) ** 2 * s_vv_2
+        return 1 / (gamma1_cap_1 + gamma1_cap_2) * 1e-6, np.abs(matele_1) ** 2, np.abs(matele_2) ** 2, s_vv_1, s_vv_2
+
+    def get_t1_inductive_loss(self, para_name, para_vals):
+        energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
+                 :, 1]
+        matele_1 = self.get_matelements_vs_paramvals('phi_1_operator', para_name, para_vals,
+                                                     evals_count=2).matrixelem_table[:, 0, 1]
+        matele_2 = self.get_matelements_vs_paramvals('phi_2_operator', para_name, para_vals,
+                                                     evals_count=2).matrixelem_table[:, 0, 1]
+        s_ii_1 = 2 * self.EL / (1 - self.dL) / self.q_ind(energy) / np.tanh(energy / 2.0 / self.kbt)
+        s_ii_2 = 2 * self.EL / (1 + self.dL) / self.q_ind(energy) / np.tanh(energy / 2.0 / self.kbt)
+        gamma1_ind_1 = np.abs(matele_1) ** 2 * s_ii_1
+        gamma1_ind_2 = np.abs(matele_2) ** 2 * s_ii_2
+        return 1 / (gamma1_ind_1 + gamma1_ind_2) * 1e-6, np.abs(matele_1) ** 2, np.abs(matele_2) ** 2, s_ii_1, s_ii_2
+
+    def get_t2_charge_noise(self, para_name, para_vals):
+        original_ng = self.Ng
+        self.Ng = 0.0
+        energy_ng_0 = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
+                                                     subtract_ground=True).energy_table[:, 1]
+        self.Ng = 0.5
+        energy_ng_5 = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
+                                                     subtract_ground=True).energy_table[:, 1]
+        self.Ng = original_ng
+        epsilon = np.abs(energy_ng_5 - energy_ng_0)
+        return 1.49734 / epsilon * 1e-6  # unit in ms
+
+    def get_t2_flux_noise(self, para_name, para_vals):
+        orginal_flux = self.flux
+        delta = 1e-7
+        pts = 11
+        flux_list = np.linspace(0.5 - delta, 0.5 + delta, pts)
+        energy = np.zeros((pts, para_vals.size))
+        for i in range(pts):
+            self.flux = flux_list[i]
+            energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
+                                                          subtract_ground=True).energy_table[:, 1]
+        second_derivative = np.gradient(np.gradient(energy, flux_list, axis=0), flux_list, axis=0)[
+                            int(np.round(pts / 2)), :]
+        self.flux = orginal_flux
+        return np.abs(1 / (9e-12 * second_derivative) * 1e-6)  # unit in ms
+
+    def get_t2_current_noise(self, para_name, para_vals):
+        orginal_ej = self.EJ
+        delta = 1e-7
+        pts = 11
+        ej_list = np.linspace(orginal_ej - delta, orginal_ej + delta, pts)
+        energy = np.zeros((pts, para_vals.size))
+        for i in range(pts):
+            self.EJ = ej_list[i]
+            energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
+                                                          subtract_ground=True).energy_table[:, 1]
+        first_derivative = np.gradient(energy, ej_list, axis=0)[int(np.round(pts / 2)), :]
+        self.EJ = orginal_ej
+        return np.abs(1 / (5e-7 * orginal_ej * first_derivative) * 1e-6)  # unit in ms
+
+    def noise_analysis(self, para_name, para_vals):
+        t2_charge = self.get_t2_charge_noise(para_name, para_vals)
+        t2_flux = self.get_t2_flux_noise(para_name, para_vals)
+        t2_current = self.get_t2_current_noise(para_name, para_vals)
+        t1_cap = self.get_t1_capacitive_loss(para_name, para_vals)
+        t1_ind = self.get_t1_inductive_loss(para_name, para_vals)
+
+        plt.figure(figsize=(4, 4))
+        plt.plot(para_vals, t2_charge, '--')
+        plt.plot(para_vals, t2_current, '--')
+        plt.plot(para_vals, t2_flux, '--')
+        plt.plot(para_vals, t1_cap[0])
+        plt.plot(para_vals, t1_ind[0])
+        plt.legend(['T2_charge', 'T2_current', 'T2_flux', 'T1_cap', 'T1_ind'])
+        plt.xlabel(para_name)
+        plt.ylabel('T1, T2 (ms)')
+        plt.yscale('log')
+
+    def print_noise(self):
+        t2_charge = self.get_t2_charge_noise('dC', np.array([0]))
+        t2_current = self.get_t2_current_noise('dC', np.array([0]))
+        t2_flux = self.get_t2_flux_noise('dC', np.array([0]))
+        t1_cap = self.get_t1_capacitive_loss('dC', np.array([0]))
+        t1_ind = self.get_t1_inductive_loss('dC', np.array([0]))
+        return print(' T2_charge=', t2_charge, '\n T2_current=', t2_current, '\n T2_flux=', t2_flux, '\n T1_cap=', t1_cap[0], '\n T1_ind=', t1_ind[0])
