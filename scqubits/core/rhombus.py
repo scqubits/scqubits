@@ -362,18 +362,19 @@ class Rhombus(base.QubitBaseClass, serializers.Serializable):
         ndarray
         """
 
-        phi_1_ng_mat = 4 * self.EC1 * (self.n_phi_1_operator() - self.ng1 * self.total_identity()) ** 2
-        phi_2_ng_mat = 4 * self.EC2 * (self.n_phi_2_operator() - self.ng2 * self.total_identity()) ** 2
-        theta_ng_mat = 4 * self.ECS * (self.n_theta_operator() - self.ngs * self.total_identity()) ** 2
+        phi_1_ng_mat = 2 * self.EC1 * (self.n_phi_1_operator() - self.ng1 * self.total_identity()) ** 2
+        phi_2_ng_mat = 2 * self.EC2 * (self.n_phi_2_operator() - self.ng2 * self.total_identity()) ** 2
+        theta_ng_mat = 2 * self.ECS * (self.n_theta_operator() - self.ngs * self.total_identity()) ** 2
+        kinetic_mat = phi_1_ng_mat + phi_2_ng_mat + theta_ng_mat
 
-        theta_flux_term = 2 * (
-                self._cos_theta_operator() * np.cos(self.flux * 2 * np.pi) + self._sin_theta_operator() * np.sin(
-            self.flux * 2 * np.pi))
-        potential_mat = - self._kron3(self._identity_phi_1(), self._identity_phi_2(), theta_flux_term) * (
-                self._kron3(self.EJ1 * self._cos_phi_1_operator(), self._identity_phi_2(), self._identity_theta()) +
-                self._kron3(self._identity_phi_1(), self.EJ2 * self._cos_phi_2_operator(), self._identity_theta()))
+        theta_flux_term = self._cos_theta_operator() * np.cos(self.flux * np.pi) + self._sin_theta_operator() * np.sin(
+            self.flux * np.pi)
+        potential_mat = -2 * (self.EJ1 * self._kron3(self._cos_phi_1_operator(), self._identity_phi_2(),
+                                                     self._cos_theta_operator()) + self.EJ2 * self._kron3(
+            self._identity_phi_1(), self._cos_phi_2_operator(), theta_flux_term)) + 2 * (
+                                    self.EJ1 + self.EJ2) * self.total_identity()
 
-        return phi_1_ng_mat + phi_2_ng_mat + theta_ng_mat + potential_mat
+        return kinetic_mat + potential_mat
 
     def potential(self, phi_1, phi_2):
         """
@@ -390,7 +391,7 @@ class Rhombus(base.QubitBaseClass, serializers.Serializable):
         -------
         float or ndarray
         """
-        return - 2 * np.cos(-self.flux * 2 * np.pi) * (self.EJ1 * np.cos(phi_1) + self.EJ2 * np.cos(phi_2))
+        return -2 * self.EJ1 * np.cos(phi_1) - 2 * self.EJ2 * np.cos(- np.pi * self.flux) * np.cos(phi_2)
 
     def plot_potential(self, phi_1_grid=None, phi_2_grid=None, contour_vals=None, **kwargs):
         """
