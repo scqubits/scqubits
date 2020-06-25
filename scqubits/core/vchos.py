@@ -120,20 +120,20 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         omegasq, eigvec = self._eigensystem_normal_modes(i)
         omega = np.sqrt(omegasq)
         diag_norm = np.matmul(eigvec.T, eigvec)
-        norm_eigvec = np.array([eigvec[:, mu]/np.sqrt(diag_norm[mu, mu]) for mu in range(self.num_deg_freedom())]).T
+        norm_eigvec = np.array([eigvec[:, mu] / np.sqrt(diag_norm[mu, mu]) for mu in range(self.num_deg_freedom())]).T
         Cmat = self.build_capacitance_matrix()
         Cmat_diag = np.matmul(norm_eigvec.T, np.matmul(Cmat, norm_eigvec))
-        ECmat_diag = 0.5 * self.e**2 * np.diag(Cmat_diag)**(-1)
-        oscillator_lengths = np.array([np.sqrt(8*ECmat_diag[mu]/omega[mu]) for mu in range(len(omega))])
+        ECmat_diag = 0.5 * self.e ** 2 * np.diag(Cmat_diag) ** (-1)
+        oscillator_lengths = np.array([np.sqrt(8 * ECmat_diag[mu] / omega[mu]) for mu in range(len(omega))])
         return oscillator_lengths
 
     def Xi_matrix(self):
         """Construct the Xi matrix, encoding the oscillator lengths of each dimension"""
         omegasq, eigvec = self._eigensystem_normal_modes(0)
         # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
-        Ximat = np.array([eigvec[:, i] * (omegasq[i])**(-1/4)
+        Ximat = np.array([eigvec[:, i] * (omegasq[i]) ** (-1 / 4)
                           * np.sqrt(1. / self.Z0) for i in range(len(omegasq))]).T
-        
+
         return Ximat
 
     def _build_U_squeezing_operator(self, i, Xi):
@@ -181,6 +181,157 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)])
         a_mat = np.diag(a, k=1)
         return self._full_o([a_mat], [mu])
+
+    def n_operator(self, j, wrapper_klist=None):
+        """Return the charge operator associated with the j^th node, neglecting squeezing"""
+        if wrapper_klist is None:
+            wrapper_klist = self._find_k_values_for_different_minima()
+        Xi = self.Xi_matrix()
+        Xi_inv = sp.linalg.inv(Xi)
+        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
+        num_exc_tot = a_op_list[0].shape[0]
+        minima_list = self.sorted_minima()
+        dim = len(minima_list) * num_exc_tot
+        n_op_mat = np.zeros((dim, dim), dtype=np.complex128)
+        counter = 0
+        n_op = -1j * np.sum([np.transpose(Xi_inv)[j, mu] * (a_op_list[mu] - a_op_list[mu].T)
+                             for mu in range(self.num_deg_freedom())], axis=0) / np.sqrt(2.)
+        for m, minima_m in enumerate(minima_list):
+            for p in range(m, len(minima_list)):
+                minima_p = minima_list[p]
+                minima_diff = minima_p - minima_m
+                (exp_list, _, _, _, _, _, _, _, _) = self._build_squeezing_ops(m, p, minima_diff, Xi,
+                                                                               a_op_list, potential=False)
+                (exp_adag_adag, exp_a_a, exp_adag_a,
+                 exp_adag_list, exp_adag_mindiff,
+                 exp_a_list, exp_a_mindiff, _, _) = exp_list
+                id_op = np.copy(exp_a_a)
+                for jkvals in wrapper_klist[counter]:
+                    phik = 2.0 * np.pi * np.array(jkvals)
+                    delta_phi_kpm = phik + minima_diff
+                    dpkX = np.matmul(Xi_inv, delta_phi_kpm)
+                    exp_prod_coeff = (np.exp(-1j * np.dot(self.nglist, delta_phi_kpm))
+                                      * np.exp(-0.25 * np.dot(dpkX, dpkX)))
+
+                    epsilon = - (1j / 2.) * np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)) * id_op
+
+                    (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
+                    exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
+                    exp_adag = np.matmul(exp_adag_adag, exp_adag)
+                    exp_a = np.matmul(exp_a, exp_a_mindiff)
+                    exp_a = np.matmul(exp_a, exp_a_a)
+
+                    n_op_tmp = exp_prod_coeff * np.matmul(exp_adag, np.matmul(n_op + epsilon, exp_a))
+
+                    n_op_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
+                             p * num_exc_tot: p * num_exc_tot + num_exc_tot] += n_op_tmp
+
+                counter += 1
+
+        # fill in kinetic energy matrix according to hermiticity
+        n_op_mat = self._populate_hermitian_matrix(n_op_mat, minima_list, num_exc_tot)
+
+        return n_op_mat
+
+    def cos_or_sin_phi_operator(self, j, which='cos', wrapper_klist=None):
+        """Return the operator cos(\phi_j) or sin(\phi_j), or cos\sin(\sum_j \phi_j)
+        if j corresponds to the boundary
+
+        Parameters
+        ----------
+        j: int
+            integer corresponding to the junction, 1<=j<=self.num_deg_freedom+1
+        which: str
+            string corresponding to which operator is desired, cos or sin
+        wrapper_klist: ndarray
+            optional argument for speeding up calculations, if relevant
+            k vectors have been precomputed.
+
+        Returns
+        -------
+        ndarray corresponding to cos or sin operator
+        """
+
+        if wrapper_klist is None:
+            wrapper_klist = self._find_k_values_for_different_minima()
+        Xi = self.Xi_matrix()
+        Xi_inv = sp.linalg.inv(Xi)
+        a_op_list = np.array([self.a_operator(i) for i in range(self.num_deg_freedom())])
+        num_exc_tot = a_op_list[0].shape[0]
+        minima_list = self.sorted_minima()
+        dim = len(minima_list) * num_exc_tot
+        cos_or_sin_phi_j_mat = np.zeros((dim, dim), dtype=np.complex128)
+        exp_prod_boundary_coeff = np.exp(-0.25 * np.sum([self.boundary_coeffs[j]
+                                                         * self.boundary_coeffs[k]
+                                                         * np.dot(Xi[j, :], np.transpose(Xi)[:, k])
+                                                         for j in range(self.num_deg_freedom())
+                                                         for k in range(self.num_deg_freedom())]))
+        counter = 0
+        for m, minima_m in enumerate(minima_list):
+            for p in range(m, len(minima_list)):
+                minima_p = minima_list[p]
+                minima_diff = minima_p - minima_m
+                (exp_list, rho, rhoprime, sigma, sigmaprime,
+                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi,
+                                                                             a_op_list, potential=True)
+                (exp_adag_adag, exp_a_a, exp_adag_a,
+                 exp_adag_list, exp_adag_mindiff,
+                 exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
+                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.num_deg_freedom()) - np.matmul(rho, rhoprime)))
+                for jkvals in wrapper_klist[counter]:
+                    phik = 2.0 * np.pi * np.array(jkvals)
+                    delta_phi_kpm = phik + minima_diff
+                    phibar_kpm = 0.5 * (phik + (minima_m + minima_p))
+                    exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
+
+                    (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
+                    exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
+                    exp_adag = np.matmul(exp_adag_adag, exp_adag)
+                    exp_a = np.matmul(exp_a, exp_a_mindiff)
+                    exp_a = np.matmul(exp_a, exp_a_a)
+
+                    if j == (self.num_deg_freedom()+1):
+                        exp_i_phi_op = (exp_i_sum * np.exp(1j * 2.0 * np.pi * self.flux
+                                                           / (self.num_deg_freedom()+1))
+                                        * np.prod([np.exp(1j * self.boundary_coeffs[i] * phibar_kpm[i])
+                                                   for i in range(self.num_deg_freedom())])
+                                        * exp_prod_boundary_coeff * exp_prod_coeff)
+                        x = (np.matmul(delta_phi_kpm, Xi_inv.T)
+                             + np.sum([1j * Xi[i, :] * self.boundary_coeffs[i]
+                                       for i in range(self.num_deg_freedom())], axis=0)) / np.sqrt(2.)
+                        y = (- np.matmul(delta_phi_kpm, Xi_inv.T)
+                             + np.sum([1j * Xi[i, :] * self.boundary_coeffs[i]
+                                       for i in range(self.num_deg_freedom())], axis=0)) / np.sqrt(2.)
+
+                    else:
+                        exp_i_phi_op = (exp_i_list[j-1] * np.exp(1j * 2.0 * np.pi * self.flux
+                                                                 / (self.num_deg_freedom()+1))
+                                        * np.exp(1j * phibar_kpm[j-1])
+                                        * np.exp(-.25 * np.dot(Xi[j - 1, :], np.transpose(Xi)[:, j - 1]))
+                                        * exp_prod_coeff)
+                        x = (np.matmul(delta_phi_kpm, Xi_inv.T) + 1j * Xi[j-1, :]) / np.sqrt(2.)
+                        y = (-np.matmul(delta_phi_kpm, Xi_inv.T) + 1j * Xi[j-1, :]) / np.sqrt(2.)
+
+                    alpha = scale * self._alpha_helper(x, y, rhoprime, deltarho)
+                    alpha_con = scale * self._alpha_helper(x.conjugate(), y.conjugate(),
+                                                           rhoprime, deltarho)
+                    if which is 'cos':
+                        cos_or_sin_phi_j = 0.5 * (alpha * exp_i_phi_op + alpha_con * exp_i_phi_op.conjugate())
+                    elif which is 'sin':
+                        cos_or_sin_phi_j = -1j*0.5*(alpha * exp_i_phi_op - alpha_con * exp_i_phi_op.conjugate())
+                    else:
+                        raise ValueError('which must be cos or sin')
+
+                    cos_or_sin_phi_j = np.matmul(exp_adag, np.matmul(cos_or_sin_phi_j, exp_a))
+
+                    cos_or_sin_phi_j_mat[m * num_exc_tot:m * num_exc_tot + num_exc_tot,
+                                         p * num_exc_tot:p * num_exc_tot + num_exc_tot] += cos_or_sin_phi_j
+
+                counter += 1
+
+        cos_or_sin_phi_j_mat = self._populate_hermitian_matrix(cos_or_sin_phi_j_mat, minima_list, num_exc_tot)
+
+        return cos_or_sin_phi_j_mat
 
     def _squeezing_M_builder(self, i, Xi):
         """
@@ -402,7 +553,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         # Now the potential operators
         exp_i_list = []
         exp_i_sum = 0.0
-        if potential == True:
+        if potential:
             prefactor_adag = np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, expdrbs)
             a_temp_coeff = 0.5 * np.matmul(np.eye(self.num_deg_freedom()) - rhoprime, deltarho + deltarho.T)
             prefactor_a = np.matmul(np.eye(self.num_deg_freedom()) - a_temp_coeff, expsigmaprime)
@@ -630,6 +781,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                                rhoprime, deltarho)
 
                         potential_temp = -0.5 * EJlist[num] * alpha * exp_i_phi_list[num]
+                        # No need to .T the h.c. term, all that is necessary is conjugation
                         potential_temp += -0.5 * EJlist[num] * alpha_con * exp_i_phi_list[num].conjugate()
                         potential_temp = np.matmul(exp_adag, np.matmul(potential_temp, exp_a))
                         potential_temp *= (np.exp(-.25 * np.dot(Xi[num, :], np.transpose(Xi)[:, num]))
