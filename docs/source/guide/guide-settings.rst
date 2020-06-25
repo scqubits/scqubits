@@ -32,7 +32,7 @@ scqubits has a few internal parameters that can be changed by the user:
 +-------------------------+------------------------------+-------------------------------------------------------------------+
 | ``DISPATCH_ENABLED``    | True / False (default: True) | Whether to use central dispatch system                            |
 +-------------------------+------------------------------+-------------------------------------------------------------------+
-| ``MULTIPROC``           | `str`                        | 'multiprocessing' (default) or 'pathos'                           |
+| ``MULTIPROC``           | `str`                        | 'pathos' (default) or 'multiprocessing'                           |
 +-------------------------+------------------------------+-------------------------------------------------------------------+
 | ``NUM_CPUS``            | int                          | number of cores to be used in parallelization (default: 1)        |
 +-------------------------+------------------------------+-------------------------------------------------------------------+

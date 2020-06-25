@@ -117,10 +117,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJ': 0.25,
-            'EL': 0.01,
-            'ECJ': 0.49,
-            'EC': 0.001,
+            'EJ': 10.0,
+            'EL': 0.04,
+            'ECJ': 20.0,
+            'EC': 0.04,
             'dEJ': 0.0,
             'dCJ': 0.0,
             'ng': 0.1,
@@ -163,12 +163,13 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
+        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM', return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
+        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM',
+                                           return_eigenvectors=True)
         # TODO consider normalization of zeropi wavefunctions
         # evecs /= np.sqrt(self.grid.grid_spacing())
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
@@ -469,7 +470,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
 
         x_vals = self.grid.make_linspace()
         y_vals = theta_grid.make_linspace()
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals,
+                             xlabel=r'$\phi$', ylabel=r'$\theta$', **kwargs)
 
     def wavefunction(self, esys=None, which=0, theta_grid=None):
         """Returns a zero-pi wave function in `phi`, `theta` basis
@@ -536,4 +538,5 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
         wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
-        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate,
+                                   xlabel=r'$\phi$', ylabel=r'$\theta$', **kwargs)

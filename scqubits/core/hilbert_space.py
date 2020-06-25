@@ -96,11 +96,15 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     interaction_list = descriptors.WatchedProperty('INTERACTIONLIST_UPDATE')
 
     def __init__(self, subsystem_list, interaction_list=None):
+
+        # Make sure all the given subsystems have required parameters set up. 
+        self._subsystems_check(subsystem_list)
+
         self._subsystems = tuple(subsystem_list)
         if interaction_list:
             self.interaction_list = tuple(interaction_list)
         else:
-            self.interaction_list = None
+            self.interaction_list = []
 
         self._lookup = None
         self._osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
@@ -129,10 +133,35 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         output = '====== HilbertSpace object ======\n'
         for subsystem in self:
             output += '\n' + str(subsystem) + '\n'
-        if self.interaction_list is not None:
+        if self.interaction_list:
             for interaction_term in self.interaction_list:
                 output += '\n' + str(interaction_term) + '\n'
         return output
+    
+    def _subsystems_check(self, subsystems):
+        """Check if all the subsystems have truncated_dim set, which 
+        is required for HilbertSpace to work correctly.
+        Raise an exception if not.
+
+        Parameters
+        ----------
+        subsystems: list of QuantumSystems
+
+        """
+        bad_indices=[i for i, sub_sys in enumerate(subsystems) if sub_sys.truncated_dim is None]
+        
+        if bad_indices:
+            s="Subsystems with indices '{}' do".format(", ".join([str(i) for i in bad_indices]))  \
+                if len(bad_indices)>1 else "Subsystem with index '{:d}' does".format(bad_indices[0])
+
+            raise RuntimeError("""{} not have `truncated_dim` set,
+            which is required for `HilbertSpace` to operate correctly. This parameter can be
+            set at object creation time. For example:
+
+            tmon = scqubits.Transmon(EJ=30.02, EC=1.2, ng=0.3, ncut=31, truncated_dim=4)
+
+            """.format(s))
+
 
     def index(self, item):
         return self._subsystems.index(item)
@@ -390,7 +419,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         qutip.Qobj operator
             interaction Hamiltonian
         """
-        if self.interaction_list is None:
+        if not self.interaction_list:
             return 0
 
         hamiltonian = [self.interactionterm_hamiltonian(term) for term in self.interaction_list]

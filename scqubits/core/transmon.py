@@ -66,8 +66,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJ': 30.0,
-            'EC': 1.2,
+            'EJ': 15.0,
+            'EC': 0.3,
             'ng': 0.0,
             'ncut': 30,
             'truncated_dim': 10
@@ -290,18 +290,20 @@ class TunableTransmon(Transmon, serializers.Serializable):
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/tunable_transmon.png')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            'qubit_pngs/tunable_transmon.png')
 
     @property
     def EJ(self):
-        """This is the effective, flux dependent Josephson energy, playing the role of EJ in the parent class `Transmon`"""
+        """This is the effective, flux dependent Josephson energy, playing the role of EJ
+        in the parent class `Transmon`"""
         return self.EJmax * np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2)
 
     @staticmethod
     def default_params():
         return {
-            'EJmax': 30.0,
-            'EC': 0.5,
+            'EJmax': 20.0,
+            'EC': 0.3,
             'd': 0.01,
             'flux': 0.0,
             'ng': 0.0,

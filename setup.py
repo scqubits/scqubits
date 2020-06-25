@@ -44,7 +44,7 @@ EXTRA_KWARGS = {}
 # version information about scqubits goes here
 MAJOR = 1
 MINOR = 2
-MICRO = 1
+MICRO = 3
 ISRELEASED = True
 
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
@@ -56,7 +56,7 @@ with open(os.path.join(CURRENT_DIR, "requirements.txt")) as requirements:
 
 EXTRAS_REQUIRE = {'graphics': ['matplotlib-label-lines (>=0.3.6)'],
                   'explorer': ['ipywidgets (>=7.5)'],
-                  'h5-support': ['h5py (>=2.7.1)'],
+                  'h5-support': ['h5py (>=2.10)'],
                   'pathos': ['pathos', 'dill'],
                   'fitting': ['lmfit']}
 

@@ -42,17 +42,12 @@ An instance of the full Zero-Pi qubit is created as follows::
                                 zeropi_cutoff = 10,
                                 zeta_cutoff = 30)
 
-Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`. In the above example,
+Here, ``flux`` is given in in terms of the flux quantum, i.e., in the form :math:`\Phi_\text{ext}/\Phi_0`. In the above example,
 the disorder parameters ``dEJ`` and ``dCJ`` are not specified, and hence take on the default value zero (no disorder).
-=======
-                                
-
-Here, ``flux`` is given in dimensionless units, in the form :math:`2\pi\Phi_\text{ext}/\Phi_0`.
->>>>>>> master:docs/source/guide/qubits/zeropifull.rst
 
 From within Jupyter notebook, an instance of the disordered Zero-Pi qubit can alternatively be created with::
 
-   zero_pi = scqubits.FullZeroPi.create()
+   zero_pi = scqubits.ZeroPiFull.create()
 
 This functionality is  enabled if the ``ipywidgets`` package is installed, and displays GUI forms prompting for
 the entry of the required parameters.
@@ -109,4 +104,3 @@ Utility method for setting charging energies
 .. autosummary::
 
     scqubits.ZeroPi.set_EC_via_ECS
-

@@ -129,10 +129,10 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJ': 0.25,
-            'EL': 0.01,
-            'ECJ': 0.49,
-            'EC': 0.001,
+            'EJ': 10.0,
+            'EL': 0.04,
+            'ECJ': 20.0,
+            'EC': 0.04,
             'dEJ': 0.05,
             'dCJ': 0.05,
             'dC': 0.08,
@@ -224,7 +224,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
             for l2 in range(zeropi_dim):
                 zeropi_coupling += gmat[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
         hamiltonian_mat += sparse.kron(zeropi_coupling,
-                                       op.annihilation_sparse(zeta_dim) + op.creation_sparse(zeta_dim))
+                                       op.annihilation_sparse(zeta_dim)) + sparse.kron(zeropi_coupling.conjugate().T,
+                                                                                       op.creation_sparse(zeta_dim))
 
         if return_parts:
             return [hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat]
@@ -308,13 +309,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
     def _evals_calc(self, evals_count, hamiltonian_mat=None):
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
+        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM', return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count, hamiltonian_mat=None):
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
+        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM',
+                                           return_eigenvectors=True)
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
@@ -323,7 +325,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         from the list `zeropi_states`. Most commonly, `zeropi_states` will contain eigenvectors of the
         `DisorderedZeroPi` type.
         """
-        # prefactor = self.EL * self.dEL * (8.0 * self.EC / self.EL)**0.25
         prefactor = self.EL * (self.dEL / 2.0) * (8.0 * self.EC / self.EL) ** 0.25
         return prefactor * spec_utils.get_matrixelement_table(self._zeropi.phi_operator(), zeropi_states)
 
