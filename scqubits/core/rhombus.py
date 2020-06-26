@@ -740,7 +740,7 @@ class Rhombus(base.QubitBaseClass, serializers.Serializable):
         plt.plot(para_vals, t2_ngs, '--')
         plt.plot(para_vals, t2_ej1, '--')
         plt.plot(para_vals, t2_ej2, '--')
-        plt.legend(['T2_ng1', 'T2_ng2', 'T2_ngs', 'T1_ej1', 'T1_ej2'])
+        plt.legend(['T2_ng1', 'T2_ng2', 'T2_ngs', 'T2_ej1', 'T2_ej2'])
         plt.xlabel(para_name)
         plt.ylabel('T1, T2 (ms)')
         plt.yscale('log')

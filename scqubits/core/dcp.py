@@ -29,6 +29,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 import scqubits.utils.plot_defaults as defaults
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 # —Double Cooper pair tunneling qubit ————————————————————————
@@ -1244,11 +1245,11 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
                                                      evals_count=2).matrixelem_table[:, 0, 1]
         matele_2 = self.get_matelements_vs_paramvals('N_2_operator', para_name, para_vals,
                                                      evals_count=2).matrixelem_table[:, 0, 1]
-        s_vv_1 = 16 * self.EC / (1 - self.dC) / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
-        s_vv_2 = 16 * self.EC / (1 + self.dC) / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
+        s_vv_1 = 2 * np.pi * 16 * self.EC / (1 - self.dC) / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
+        s_vv_2 = 2 * np.pi * 16 * self.EC / (1 + self.dC) / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
         gamma1_cap_1 = np.abs(matele_1) ** 2 * s_vv_1
         gamma1_cap_2 = np.abs(matele_2) ** 2 * s_vv_2
-        return 1 / (gamma1_cap_1 + gamma1_cap_2) * 1e-6, np.abs(matele_1) ** 2, np.abs(matele_2) ** 2, s_vv_1, s_vv_2
+        return 1 / (gamma1_cap_1 + gamma1_cap_2) * 1e-6
 
     def get_t1_inductive_loss(self, para_name, para_vals):
         energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
@@ -1257,11 +1258,11 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
                                                      evals_count=2).matrixelem_table[:, 0, 1]
         matele_2 = self.get_matelements_vs_paramvals('phi_2_operator', para_name, para_vals,
                                                      evals_count=2).matrixelem_table[:, 0, 1]
-        s_ii_1 = 2 * self.EL / (1 - self.dL) / self.q_ind(energy) / np.tanh(energy / 2.0 / self.kbt)
-        s_ii_2 = 2 * self.EL / (1 + self.dL) / self.q_ind(energy) / np.tanh(energy / 2.0 / self.kbt)
+        s_ii_1 = 2 * np.pi * 2 * self.EL / (1 - self.dL) / self.q_ind(energy) / np.tanh(energy / 2.0 / self.kbt)
+        s_ii_2 = 2 * np.pi * 2 * self.EL / (1 + self.dL) / self.q_ind(energy) / np.tanh(energy / 2.0 / self.kbt)
         gamma1_ind_1 = np.abs(matele_1) ** 2 * s_ii_1
         gamma1_ind_2 = np.abs(matele_2) ** 2 * s_ii_2
-        return 1 / (gamma1_ind_1 + gamma1_ind_2) * 1e-6, np.abs(matele_1) ** 2, np.abs(matele_2) ** 2, s_ii_1, s_ii_2
+        return 1 / (gamma1_ind_1 + gamma1_ind_2) * 1e-6
 
     def get_t2_charge_noise(self, para_name, para_vals):
         original_ng = self.Ng
@@ -1276,19 +1277,19 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         return 1.49734 / epsilon * 1e-6  # unit in ms
 
     def get_t2_flux_noise(self, para_name, para_vals):
-        orginal_flux = self.flux
+        orginal_flux = getattr(self, 'flux')
         delta = 1e-7
         pts = 11
         flux_list = np.linspace(0.5 - delta, 0.5 + delta, pts)
         energy = np.zeros((pts, para_vals.size))
         for i in range(pts):
-            self.flux = flux_list[i]
+            setattr(self, 'flux', flux_list[i])
             energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
                                                           subtract_ground=True).energy_table[:, 1]
         second_derivative = np.gradient(np.gradient(energy, flux_list, axis=0), flux_list, axis=0)[
                             int(np.round(pts / 2)), :]
-        self.flux = orginal_flux
-        return np.abs(1 / (9e-12 * second_derivative) * 1e-6)  # unit in ms
+        setattr(self, 'flux', orginal_flux)
+        return np.abs(1 / (9e-12 * second_derivative) * 1e-6) / (2 * np.pi)  # unit in ms
 
     def get_t2_current_noise(self, para_name, para_vals):
         orginal_ej = self.EJ
@@ -1302,7 +1303,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
                                                           subtract_ground=True).energy_table[:, 1]
         first_derivative = np.gradient(energy, ej_list, axis=0)[int(np.round(pts / 2)), :]
         self.EJ = orginal_ej
-        return np.abs(1 / (5e-7 * orginal_ej * first_derivative) * 1e-6)  # unit in ms
+        return np.abs(1 / (5e-7 * orginal_ej * first_derivative) * 1e-6) / (2 * np.pi)  # unit in ms
 
     def noise_analysis(self, para_name, para_vals):
         t2_charge = self.get_t2_charge_noise(para_name, para_vals)
@@ -1315,8 +1316,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         plt.plot(para_vals, t2_charge, '--')
         plt.plot(para_vals, t2_current, '--')
         plt.plot(para_vals, t2_flux, '--')
-        plt.plot(para_vals, t1_cap[0])
-        plt.plot(para_vals, t1_ind[0])
+        plt.plot(para_vals, t1_cap)
+        plt.plot(para_vals, t1_ind)
         plt.legend(['T2_charge', 'T2_current', 'T2_flux', 'T1_cap', 'T1_ind'])
         plt.xlabel(para_name)
         plt.ylabel('T1, T2 (ms)')
@@ -1328,4 +1329,36 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         t2_flux = self.get_t2_flux_noise('dC', np.array([0]))
         t1_cap = self.get_t1_capacitive_loss('dC', np.array([0]))
         t1_ind = self.get_t1_inductive_loss('dC', np.array([0]))
-        return print(' T2_charge=', t2_charge, '\n T2_current=', t2_current, '\n T2_flux=', t2_flux, '\n T1_cap=', t1_cap[0], '\n T1_ind=', t1_ind[0])
+        return print(' T2_charge=', t2_charge, '\n T2_current=', t2_current, '\n T2_flux=', t2_flux, '\n T1_cap=', t1_cap, '\n T1_ind=', t1_ind)
+
+    def get_noise_analysis_2d(self, func, para_name_1, para_vals_1, para_name_2, para_vals_2):
+        noise = np.zeros((para_vals_1.size, para_vals_2.size))
+        original_para_val = getattr(self, para_name_1)
+        for n in range(para_vals_1.size):
+            setattr(self, para_name_1, para_vals_1[n])
+            noise[n, :] = func(para_name_2, para_vals_2)
+        setattr(self, para_name_1, original_para_val)
+
+        imshow_minval = np.log10(np.min(noise))
+        imshow_maxval = np.log10(np.max(noise))
+        fig, axes = plt.subplots(figsize=(4,4))
+        im = axes.imshow(np.log10(noise), extent=[para_vals_2[0], para_vals_2[-1], para_vals_1[0], para_vals_1[-1]],
+                         cmap=plt.cm.viridis, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
+        divider = make_axes_locatable(axes)
+        cax = divider.append_axes("right", size="2%", pad=0.05)
+        fig.colorbar(im, cax=cax)
+        axes.set_xlabel(para_name_2)
+        axes.set_ylabel(para_name_1)
+        return fig, axes
+
+    def noise_analysis_2d(self, para_name_1, para_vals_1, para_name_2, para_vals_2):
+        fig, axes = self.get_noise_analysis_2d(self.get_t2_charge_noise, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        axes.set_title('T2 charge noise (log) (ms)')
+        fig, axes = self.get_noise_analysis_2d(self.get_t2_current_noise, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        axes.set_title('T2 current noise (log) (ms)')
+        fig, axes = self.get_noise_analysis_2d(self.get_t2_flux_noise, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        axes.set_title('T2 flux noise (log) (ms)')
+        fig, axes = self.get_noise_analysis_2d(self.get_t1_capacitive_loss, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        axes.set_title('T1 capacitive loss (log) (ms)')
+        fig, axes = self.get_noise_analysis_2d(self.get_t1_inductive_loss, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        axes.set_title('T1 inductive loss (log) (ms)')
