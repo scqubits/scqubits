@@ -45,7 +45,7 @@ class HilbertSpaceUi:
 
         # == subsystems panel ==========================================================================================
         label = ipywidgets.Label(value="Select all HilbertSpace\n subsystems (Ctrl-Click)")
-        self.subsys_refresh_button = ipywidgets.Button(icon='refresh', layout=ipywidgets.Layout(width='30px'))
+        self.subsys_refresh_button = ipywidgets.Button(icon='refresh', layout=ipywidgets.Layout(width='35px'))
         self.subsys_toprow = ipywidgets.HBox([label, self.subsys_refresh_button])
 
         self.subsys_widget = ipywidgets.SelectMultiple(
@@ -58,8 +58,8 @@ class HilbertSpaceUi:
 
         # == InteractionTerms list panel ===============================================================================
         label = ipywidgets.Label(value="Interaction term(s)   ")
-        self.interact_new_button = ipywidgets.Button(description='New', layout=ipywidgets.Layout(width='50px'))
-        self.interact_del_button = ipywidgets.Button(icon='remove', layout=ipywidgets.Layout(width='30px'))
+        self.interact_new_button = ipywidgets.Button(icon='plus', layout=ipywidgets.Layout(width='35px'))
+        self.interact_del_button = ipywidgets.Button(icon='remove', layout=ipywidgets.Layout(width='35px'))
         self.interact_buttons = ipywidgets.HBox([label, self.interact_new_button, self.interact_del_button])
         self.interact_list_widget = ipywidgets.Select(
             options=[],
