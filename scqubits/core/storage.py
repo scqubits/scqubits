@@ -82,10 +82,11 @@ class DataStore(serializers.Serializable):
         else:
             self.param_count = 1   # just one value if there is no parameter sweep
 
-        self._datanames = []
+        self._datanames = []  # stores names of additional datasets
         for dataname, data in kwargs.items():
             setattr(self, dataname, data)
             self._datanames.append(dataname)
+            self._init_params.append(dataname)  # register additional dataset for file IO
 
     def add_data(self, **kwargs):
         """
@@ -100,6 +101,7 @@ class DataStore(serializers.Serializable):
         for dataname, data in kwargs.items():
             setattr(self, dataname, data)
             self._datanames.append(dataname)
+            self._init_params.append(dataname)   # register additional dataset for file IO
 
 
 # —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -126,9 +128,10 @@ class SpectrumData(DataStore):
     """
     # mark for file serializers purposes:
     def __init__(self, energy_table, system_params, param_name=None, param_vals=None, state_table=None,
-                 matrixelem_table=None):
+                 matrixelem_table=None, **kwargs):
         super().__init__(system_params=system_params, param_name=param_name, param_vals=param_vals,
-                         energy_table=energy_table, state_table=state_table, matrixelem_table=matrixelem_table)
+                         energy_table=energy_table, state_table=state_table, matrixelem_table=matrixelem_table,
+                         **kwargs)
 
     def subtract_ground(self):
         """Subtract ground state energies from spectrum"""
