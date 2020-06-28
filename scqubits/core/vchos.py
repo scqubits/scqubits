@@ -291,8 +291,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     exp_a = np.matmul(exp_a, exp_a_a)
 
                     if j == (self.num_deg_freedom()+1):
-                        exp_i_phi_op = (exp_i_sum * np.exp(1j * 2.0 * np.pi * self.flux
-                                                           / (self.num_deg_freedom()+1))
+                        exp_i_phi_op = (exp_i_sum * np.exp(1j * 2.0 * np.pi * self.flux)
                                         * np.prod([np.exp(1j * self.boundary_coeffs[i] * phibar_kpm[i])
                                                    for i in range(self.num_deg_freedom())])
                                         * exp_prod_boundary_coeff * exp_prod_coeff)
@@ -304,9 +303,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                        for i in range(self.num_deg_freedom())], axis=0)) / np.sqrt(2.)
 
                     else:
-                        exp_i_phi_op = (exp_i_list[j-1] * np.exp(1j * 2.0 * np.pi * self.flux
-                                                                 / (self.num_deg_freedom()+1))
-                                        * np.exp(1j * phibar_kpm[j-1])
+                        exp_i_phi_op = (exp_i_list[j-1] * np.exp(1j * phibar_kpm[j-1])
                                         * np.exp(-.25 * np.dot(Xi[j - 1, :], np.transpose(Xi)[:, j - 1]))
                                         * exp_prod_coeff)
                         x = (np.matmul(delta_phi_kpm, Xi_inv.T) + 1j * Xi[j-1, :]) / np.sqrt(2.)
@@ -450,7 +447,6 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         minima_list = self.sorted_minima()
         wrapper_klist_holder = []
         klist_holder = []
-        counter = 0
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_p = minima_list[p]
@@ -463,7 +459,6 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                     jkvals = next(klist, -1)
                 wrapper_klist_holder.append(klist_holder)
                 klist_holder = []
-                counter += 1
         return wrapper_klist_holder
 
     def _build_squeezing_ops(self, m, p, minima_diff, Xi, a_op_list, potential=True):
