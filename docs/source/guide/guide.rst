@@ -13,10 +13,11 @@ User Guide
    guide-overview.rst
    ./ipynb/basics.ipynb
    guide-qubits.rst
-   noise.rst
+   guide-noise.rst
    ./ipynb/hilbertspace.ipynb
    ./ipynb/explorer.ipynb
    guide-plot-options.rst
+   guide-units.rst
    guide-io.rst
    ./ipynb/parallel.ipynb
    guide-example-ipynb.rst

@@ -14,3 +14,6 @@ Bibliography
 .. [Dempster2014] Dempster et al., Phys. Rev. B 90, 094518 (2014), https://link.aps.org/doi/10.1103/PhysRevB.90.094518
 .. [Groszkowski2018] Groszkowski et al., New J. Phys. 20, 043053 (2018), https://doi.org/10.1088/1367-2630/aab7cd
 .. [Orlando1999] Orlando et al., Phys. Rev. B 60, 15398 (1999), https://link.aps.org/doi/10.1103/PhysRevB.60.15398
+.. [Ithier2005] Ithier et al., Phys. Rev. B 72 134519 (2005), https://journals.aps.org/prb/abstract/10.1103/PhysRevB.72.134519
+.. [Smith2020] Smith et al., npj Quantum Information 6.1 (2020), https://www.nature.com/articles/s41534-019-0231-2
+
