@@ -36,7 +36,7 @@ scqubits has a few internal parameters that can be changed by the user:
 +-------------------------+------------------------------+-------------------------------------------------------------------+
 
 
-Note that the ``DEFAULT_ENERGY_UNIT`` setting from is no longer used - see :ref:`guide_units` for information on how to set energy units. 
+.. note:: The ``DEFAULT_ENERGY_UNIT`` setting is no longer used - see :ref:`guide_units` for information on how to set energy units. 
 
 
 .. _settings-usage:

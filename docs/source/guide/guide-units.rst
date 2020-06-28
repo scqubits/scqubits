@@ -19,8 +19,7 @@ Currently set units can be obtained with ``get_units`` function, and new ones ca
 
 scqubits also include a couple of helper functions that help with conversion from currently set system units, to and from `Hz`. This is done with functions ``to_standard_units`` and ``from_standard_units``. 
 
-
-Note that the ``DEFAULT_ENERGY_UNIT`` :ref:`setting <guide-settings>` is no longer used. 
+.. note:: The ``DEFAULT_ENERGY_UNIT`` :ref:`setting <guide-settings>` is no longer used. 
 
 
 
