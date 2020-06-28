@@ -120,7 +120,7 @@ def _add_attribute(name, obj, attributes, ndarrays, objects):
     return attributes, ndarrays, objects
 
 
-TO_ATTRIBUTE = (str, Number, dict, list, tuple)
+TO_ATTRIBUTE = (str, Number, dict, list, tuple, bool, np.bool_)
 TO_NDARRAY = (np.ndarray,)
 TO_OBJECT = (Serializable,)
 
