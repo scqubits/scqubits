@@ -26,7 +26,7 @@ The last call to the method ``tphi_1_over_f_flux()`` returns an estimate of the 
 
 By default, all the noise methods return a decay time (:math:`t_1` in the case of a depolarizing channel or :math:`t_\phi` in a case of a dephasing channel), however, by supplying an option ``get_rate=True``, one can obtain the corresponding rate instead. 
 
-The units of of the returned decay (or dephasing) times reflect the global units settings. For example, if the global units are set to ``GHz``, then the resulting decay and dephasing times will be given in ``ns``. See the `Units` section of this guide for more information on how global units can be set. 
+The units of of the returned decay (or dephasing) times reflect the global units settings. For example, if the global units are set to ``GHz``, then the resulting decay and dephasing times will be given in ``ns``. See the :ref:`guide_units` section of this guide for more information on how global units can be set. 
 
 By default all the noise functions assume that the qubit Hilbert space consist of the lowest two energy levels. The user, however, can provide different energy levels as arguments in order to redefine the relevant subspace. 
 

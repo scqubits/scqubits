@@ -73,7 +73,7 @@ The following operators are implemented for use in matrix element calculations.
     scqubits.TunableTransmon.exp_i_phi_operator
     scqubits.TunableTransmon.cos_phi_operator
     scqubits.TunableTransmon.sin_phi_operator
-Tunable
+
 
 
 Computation and visualization of matrix elements

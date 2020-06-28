@@ -55,21 +55,20 @@ See the API for method signatures.
 +--------------------------------------------+-----------------------------------------+
 
 
-Qubits that support this noise channel include: `TunableTransmon`, `Fluxonium`, `ZeroPi`, `FullZeroPi`.
+Qubits that support this noise channel include: ``TunableTransmon``, ``Fluxonium``, ``ZeroPi``, ``FullZeroPi``.
 
 1/f charge noise
 ^^^^^^^^^^^^^^^^^^^^^
 
-
 +--------------------------------------------+-----------------------------------------+
 | Method name                                | ``tphi_1_over_ng``                      |
 +--------------------------------------------+-----------------------------------------+
-| Noise operator                             | :math:`\partial H/\partial /n_g`         |
+| Noise operator                             | :math:`\partial H/\partial /n_g`        |
 +--------------------------------------------+-----------------------------------------+
 | Default value of  :math:`A_{\lambda}`      |  :math:`10^{-4} e`                      |
 +--------------------------------------------+-----------------------------------------+
 
-Qubits that support this noise channel include: `Transmon`, `TunableTransmon`, `ZeroPi`, `FullZeroPi`.
+Qubits that support this noise channel include: ``Transmon``, ``TunableTransmon``, ``ZeroPi``, ``FullZeroPi``.
 
 1/f criticial current noise
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -84,7 +83,7 @@ The critical current noise is suspected to arise from trapping and de-trapping o
 +--------------------------------------------+-----------------------------------------+
 
 
-Qubits that support this noise channel include: `Transmon`, `TunableTransmon`, `Fluxonium`, `ZeroPi`, `FullZeroPi`.
+Qubits that support this noise channel include: ``Transmon``, ``TunableTransmon``, ``Fluxonium``, ``ZeroPi``, ``FullZeroPi``.
 
 Shot noise
 ---------------
