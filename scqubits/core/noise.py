@@ -9,11 +9,14 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import matplotlib.pyplot as plt
+import math
 import numpy as np
 import scipy as sp
 import scipy.constants
 import scqubits.utils.misc as utils
 import scqubits.core.units as units
+import scqubits.settings as settings
 
 
 # Helpers for units conversion
@@ -56,11 +59,11 @@ NOISE_PARAMS = {
     # Hight frequency cutoff. Units: 2pi GHz
     'omega_high': 3 * 2 * np.pi,
 
-    # Superconducting gap for aluminum (at T=0). Units: eV 
+    # Superconducting gap for aluminum (at T=0). Units: eV
     'Delta': 3.4e-4,
 
     # TODO add reference
-    # Quasiparticles density.  
+    # Quasiparticles density.
     'x_qp': 1e-8,
 
     # High frequency cutoff. Units: 2pi GHz
@@ -85,6 +88,56 @@ NOISE_PARAMS = {
 
 
 class NoisySystem:
+
+    def plot_noise(self, param_name, param_vals, noise_channels=None, spec_data=None, num_cpus=settings.NUM_CPUS, **kwargs):
+        """
+        Show plots of various noise channels supported by the qubit. 
+            
+        TODO:
+        - a bit hackish right now; can make this quicker/cleaner
+        - should we take spec_data or list of (evals, evecs) tuples?
+        - should actually split this up; have one function that calculates all the noise into 
+        some data structure, say `NoiseData`, then another one that does all the plotting. 
+        - parallelize 
+        - as an option add composite plots for (1) all t1s (2) all tphis, (3) all
+        - should probably update to use `SpectrumData` when generating the spectrum. 
+
+        Parameters
+        ----------
+        noise_channels: str, dict, list of strings or list of dict
+
+        """
+        noise_channels = self.supported_noise_channels() if noise_channels is None else noise_channels
+        # if we only have a single noise channel to consider (and hence have a str), put it in a list
+        noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
+
+        # TODO setup appropriate evals_count based on potentially given plot options
+        # spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=8, subtract_ground=True,
+                                  # get_eigenstates=True, filename=None, num_cpus=settings.NUM_CPUS)
+
+        # figure out how many plots we need
+        plot_grid = [1] if isinstance(noise_channels, str) else (math.ceil(len(noise_channels)/2), 2)
+        # If axes, was given in fig_as, it should support the plot structure consistent with plot_grid
+        fig, axes = kwargs.get('fig_ax') or plt.subplots(*plot_grid)
+
+        # remember current value of param_name
+        current_val = getattr(self, param_name)
+
+        for i, noise_channel in enumerate(noise_channels):
+
+            # noise_channel is a string representing the noise method
+            if isinstance(noise_channel, str):
+
+                # TODO update to reuse esys in all cases
+                noise_vals = [getattr(self.set_and_return(param_name, v), noise_channel)()
+                                for v in param_vals]
+
+                axes.ravel()[i].plot(param_vals, noise_vals)
+
+        # Set the parameter we varied to its initial value
+        setattr(self, param_name, current_val)
+
+        return fig, axes
 
     def tphi_1_over_f(self, A_noise, i, j, noise_op, esys=None, get_rate=False, **params):
         """
@@ -220,7 +273,7 @@ class NoisySystem:
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_ng(),
                                             esys=esys, get_rate=get_rate, **params)
 
-    def t1(self, i, j, noise_op, spec_dens, total=False, esys=None, get_rate=False, **params):
+    def t1(self, i, j, noise_op, spec_dens, total=True, esys=None, get_rate=False, **params):
         """
         Calculate the transition time (or rate) using Fermi's Golden Rule due to a noise channel with
         a spectral density `spec_dens` and system noise operator `noise_op`. Mathematically, it reads:
@@ -282,7 +335,7 @@ class NoisySystem:
         else:
             return 1/rate if rate != 0 else np.inf
 
-    def t1_capacitive_loss(self, i, j, EC=None, Q_cap=None, T=NOISE_PARAMS['T'],  total=False,
+    def t1_capacitive_loss(self, i=1, j=0, EC=None, Q_cap=None, T=NOISE_PARAMS['T'],  total=True,
                             esys=None, get_rate=False, **params):
         """
         Loss due to dielectric dissipation in the Jesephson junction capacitances. 
@@ -322,7 +375,7 @@ class NoisySystem:
 
         if Q_cap is None:
             # See Smith et al (2020)
-            Q_cap = lambda omega: 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7,
+            def Q_cap(omega): return 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7
 
         def spec_dens(omega, Q_cap=Q_cap):
             q_cap = Q_cap(omega) if callable(Q_cap) else Q_cap
@@ -336,7 +389,7 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total,
                 esys=esys, get_rate=get_rate, **params)
 
-    def t1_inductive_loss(self, i, j, EL=None, Q_ind=None, T=NOISE_PARAMS['T'],  total=False,
+    def t1_inductive_loss(self, i=1, j=0, EL=None, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
                             esys=None, get_rate=False, **params):
         """
         Loss due to inductive dissipation in a superinductor.  
@@ -379,7 +432,7 @@ class NoisySystem:
 
         if Q_ind is None:
             # See Smith et al (2020)
-            Q_ind = 500e6 
+            Q_ind = 500e6
 
         def spec_dens(omega, Q_ind=Q_ind):
             q_ind = Q_ind(omega) if callable(Q_ind) else Q_ind
@@ -393,7 +446,7 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total,
                 esys=esys, get_rate=get_rate, **params)
 
-    def t1_charge_impedance(self, i, j, Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=False,
+    def t1_charge_impedance(self, i=1, j=0, Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=True,
                       esys=None, get_rate=False, **params):
         """Noise due to charge coupling to an impedance (such as a transmission line).
 
@@ -429,7 +482,7 @@ class NoisySystem:
         def spec_dens(omega, Z=Z):
             Z = Z(omega) if callable(Z) else Z
             # Note, our definition of Q_c is different from Zhang et al (2020) by a factor of 2
-            Q_c = NOISE_PARAMS['R_q']/(8*np.pi * complex(Z).real)
+            Q_c = NOISE_PARAMS['R_k']/(8*np.pi * complex(Z).real)
             therm_ratio = calc_therm_ratio(omega, T)
             s = 2 * omega / Q_c * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
             return s
@@ -439,8 +492,8 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys,
                        get_rate=get_rate, total=False, **params)
 
-    def t1_flux_bias_line(self, i, j, M=NOISE_PARAMS['M'],  Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
-                           total=False,  esys=None, get_rate=False, **params):
+    def t1_flux_bias_line(self, i=1, j=0, M=NOISE_PARAMS['M'],  Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
+                           total=True,  esys=None, get_rate=False, **params):
         """Noise due to a bias flux line.
         
         Parameters
@@ -491,8 +544,8 @@ class NoisySystem:
 
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys, get_rate=get_rate, **params)
 
-    def t1_quasiparticle_tunneling(self, i, j, Y_qp=None, Delta=NOISE_PARAMS['Delta'], x_qp=NOISE_PARAMS['x_qp'],
-                            T=NOISE_PARAMS['T'], total=False,  esys=None, get_rate=False, **params):
+    def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, Delta=NOISE_PARAMS['Delta'], x_qp=NOISE_PARAMS['x_qp'],
+                            T=NOISE_PARAMS['T'], total=True,  esys=None, get_rate=False, **params):
         """Noise due quasiparticle tunneling across a Josephson junction.
 
         References: Smith et al (2020)
@@ -508,7 +561,7 @@ class NoisySystem:
         if Y_qp is None:
             # TODO implement a fancy omega-dependent function; how does it differ for different qubits?
             # Namely, should we calculate based on each qubit's topology (i.e. how is are the junctions shunted)?
-            Y_qp = 1000 # dummy for now
+            Y_qp = 1000  # dummy for now
 
         def spec_dens(omega, Y_qp=Y_qp):
             """
@@ -524,4 +577,3 @@ class NoisySystem:
         noise_op = self.sin_phi_operator(alpha=0.5)
 
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys, get_rate=get_rate, **params)
-
