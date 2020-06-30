@@ -1,6 +1,7 @@
 .. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
+.. _qubit_fluxonium:
 
 Fluxonium Qubit
 ===============

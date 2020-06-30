@@ -4,6 +4,8 @@
 Flux Qubit
 ==============
 
+.. _qubit_flux_qubit:
+
 .. figure:: ../../graphics/fluxqubit.png
    :align: center
    :width: 4in

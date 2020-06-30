@@ -46,8 +46,11 @@ See the API for method signatures.
 1/f flux noise
 ^^^^^^^^^^^^^^^^^^^^^
 
-+--------------------------------------------+-----------------------------------------+
-| Method name                                | ``tphi_1_over_f_flux``                  |
+.. autosummary::
+
+    scqubits.noise.NoisySystem.tphi_1_over_f_flux
+
+
 +--------------------------------------------+-----------------------------------------+
 | Noise operator                             | :math:`\partial H/\partial \Phi_{x}`    |
 +--------------------------------------------+-----------------------------------------+
@@ -55,15 +58,22 @@ See the API for method signatures.
 +--------------------------------------------+-----------------------------------------+
 
 
-Qubits that support this noise channel include: ``TunableTransmon``, ``Fluxonium``, ``ZeroPi``, ``FullZeroPi``.
+Qubits that support this noise channel include: 
+:ref:`TunableTransmon <qubit_tunable_transmon>`, 
+:ref:`Fluxonium <qubit_fluxonium>`, 
+:ref:`FullZeroPi <qubit_fullzeropi>`, 
+:ref:`ZeroPi <qubit_zeropi>`.
 
 1/f charge noise
 ^^^^^^^^^^^^^^^^^^^^^
 
+.. autosummary::
+
+    scqubits.noise.NoisySystem.tphi_1_over_f_ng
+
+
 +--------------------------------------------+-----------------------------------------+
-| Method name                                | ``tphi_1_over_ng``                      |
-+--------------------------------------------+-----------------------------------------+
-| Noise operator                             | :math:`\partial H/\partial n_g`        |
+| Noise operator                             | :math:`\partial H/\partial n_g`         |
 +--------------------------------------------+-----------------------------------------+
 | Default value of  :math:`A_{\lambda}`      |  :math:`10^{-4} e`                      |
 +--------------------------------------------+-----------------------------------------+
@@ -74,8 +84,11 @@ Qubits that support this noise channel include: ``Transmon``, ``TunableTransmon`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The critical current noise is suspected to arise from trapping and de-trapping of charges at defect sites of Josephson junctions. These trapped charges then may drop the tunneling through some regions of the junction, leading to current fluctuations.   
 
-+--------------------------------------------+-----------------------------------------+
-| Method name                                | ``tphi_1_over_f_cc``                    |
+.. autosummary::
+
+    scqubits.noise.NoisySystem.tphi_1_over_f_cc
+
+
 +--------------------------------------------+-----------------------------------------+
 | Noise operator                             | :math:`\partial H/\partial I_{c}`       |
 +--------------------------------------------+-----------------------------------------+

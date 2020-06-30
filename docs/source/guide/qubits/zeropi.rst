@@ -1,6 +1,8 @@
 .. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
+.. _qubit_zeropi:
+
 Zero-Pi Qubit  (decoupled from zeta mode)
 =========================================
 
