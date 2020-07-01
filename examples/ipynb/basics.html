@@ -1,0 +1,844 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Basics &mdash; scqubits Documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true, "ignoreClass": "document", "processClass": "math|output_area"}})</script>
+        <script type="text/javascript" src="https://unpkg.com/@jupyter-widgets/html-manager@^0.18.0/dist/embed-amd.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/theme_overrides.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Qubits" href="../guide-qubits.html" />
+    <link rel="prev" title="Guide Overview" href="../guide-overview.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html">
+          
+
+          
+            
+            <img src="../../_static/scqubits-logo2.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../guide.html">Users Guide</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../guide-overview.html">Guide Overview</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Basics</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#Example:-Transmon-qubit">Example: Transmon qubit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Computing-and-plotting-energy-spectra">Computing and plotting energy spectra</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Plotting-wavefunctions">Plotting wavefunctions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Evaluating-and-visualizing-matrix-elements">Evaluating and visualizing matrix elements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#Tunable-Transmon">Tunable Transmon</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../guide-qubits.html">Qubits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hilbertspace.html">Composite Hilbert Spaces, QuTiP Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="explorer.html">Explorer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guide-plot-options.html">Plot Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guide-io.html">Writing Data and Figures to File</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parallel.html">Parallel Processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guide-example-ipynb.html">Jupyter Notebook Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../guide-settings.html">Modifying Internal scqubits Settings</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../api-doc/apidoc.html">API documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Change Log</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributors.html">Developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributors.html#contributors">Contributors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../acknowledgments.html">Funding Acknowledgments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../bibliography.html">Bibliography</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">scqubits</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../guide.html">Users Guide</a> &raquo;</li>
+        
+      <li>Basics</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container,
+div.nbinput.container div.prompt,
+div.nbinput.container div.input_area,
+div.nbinput.container div[class*=highlight],
+div.nbinput.container div[class*=highlight] pre,
+div.nboutput.container,
+div.nboutput.container div.prompt,
+div.nboutput.container div.output_area,
+div.nboutput.container div[class*=highlight],
+div.nboutput.container div[class*=highlight] pre {
+    background: none;
+    border: none;
+    padding: 0 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    background: #f5f5f5;
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt a.copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="section" id="Basics">
+<h1>Basics<a class="headerlink" href="#Basics" title="Permalink to this headline">¶</a></h1>
+<p>Interactive use of the <code class="docutils literal notranslate"><span class="pre">scqubits</span></code> library from a jupyter notebook starts with importing the <code class="docutils literal notranslate"><span class="pre">scqubits</span></code> library.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scqubits</span> <span class="k">as</span> <span class="nn">scq</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="Example:-Transmon-qubit">
+<h2>Example: Transmon qubit<a class="headerlink" href="#Example:-Transmon-qubit" title="Permalink to this headline">¶</a></h2>
+<p>To illustrate basic functionality built into scqubits, we consider the implementation of the transmon qubit as an example. Each qubit type is represented by a class that accomplishes storage of relevant data, such as circuit parameters, and provides a collection of methods used for common computations and plotting. (A more systematic discussion of the set of qubits available in scqubits is given in the subsequent section.)</p>
+<p>An instance of the transmon qubit is set up by creating an instance of the class <code class="docutils literal notranslate"><span class="pre">Transmon</span></code> and providing the necessary system parameters for initialization:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">transmon</span> <span class="o">=</span> <span class="n">scq</span><span class="o">.</span><span class="n">Transmon</span><span class="p">(</span>
+    <span class="n">EJ</span><span class="o">=</span><span class="mf">30.0</span><span class="p">,</span>
+    <span class="n">EC</span><span class="o">=</span><span class="mf">1.2</span><span class="p">,</span>
+    <span class="n">ng</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
+    <span class="n">ncut</span><span class="o">=</span><span class="mi">31</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p>Or, alternatively, we can use the graphical user interface (if the <code class="docutils literal notranslate"><span class="pre">ipywidgets</span></code> package is installed):</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">tmon</span> <span class="o">=</span> <span class="n">scq</span><span class="o">.</span><span class="n">Transmon</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "288cf15565364fcc92f70d25619fe1ee", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "85ca4ed50cff440c97c728e76cfb60fe", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>scqubits does not check convergence with respect to Hilbert space truncation. For example, in the case of the transmon qubit, this regards the charge cutoff <code class="docutils literal notranslate"><span class="pre">ncut</span></code>. Responsibility to establish convergence with respect to cutoffs lies with the user.</p>
+</div>
+</div>
+<div class="section" id="Computing-and-plotting-energy-spectra">
+<h2>Computing and plotting energy spectra<a class="headerlink" href="#Computing-and-plotting-energy-spectra" title="Permalink to this headline">¶</a></h2>
+<p>The energy eigenvalues of the transmon Hamiltonian are obtained by calling the <code class="docutils literal notranslate"><span class="pre">eigenvals()</span></code> method. The optional parameter <code class="docutils literal notranslate"><span class="pre">evals_count</span></code> specifies the sought number of eigenenergies:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">transmon</span><span class="o">.</span><span class="n">eigenvals</span><span class="p">(</span><span class="n">evals_count</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([-21.82665096,  -6.1637235 ,   8.0193175 ,  20.04763559,
+        30.53712535,  38.70154385,  54.55166998,  67.49080961,
+        90.05007774, 107.1126152 , 135.67738991, 156.68121682])
+</pre></div></div>
+</div>
+<p>To plot eigenenergies as a function of one of the qubit parameters (<code class="docutils literal notranslate"><span class="pre">EJ</span></code>, <code class="docutils literal notranslate"><span class="pre">EC</span></code>, or <code class="docutils literal notranslate"><span class="pre">ng</span></code>), the first step is to generate an array of values for the desired parameter. Then, call the method <code class="docutils literal notranslate"><span class="pre">plot_evals_vs_paramvals</span></code>, specifying the parameter to be varied as a string. The following is an example for eigenenergies as a function of offset charge <code class="docutils literal notranslate"><span class="pre">ng</span></code>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">ng_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">220</span><span class="p">)</span>
+<span class="n">transmon</span><span class="o">.</span><span class="n">plot_evals_vs_paramvals</span><span class="p">(</span><span class="s1">&#39;ng&#39;</span><span class="p">,</span> <span class="n">ng_list</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">subtract_ground</span><span class="o">=</span><span class="kc">False</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/guide_ipynb_basics_14_2.svg" src="../../_images/guide_ipynb_basics_14_2.svg" /></div>
+</div>
+<p>Plotting routines generally return a matplotlib.Figure and a matplotlib.axes object, in case further processing is desired.</p>
+<p>The full eigensystem consisting of both eigenvalues and eigenvectors is obtained through the method <code class="docutils literal notranslate"><span class="pre">eigensys()</span></code>. For the transmon qubit, the calculation proceeds in the charge basis, and uses <code class="docutils literal notranslate"><span class="pre">scipy.linalg.eigh</span></code> for matrix diagonalization. Accordingly, the eigenvector corresponding to the lowest eigenvalue is <code class="docutils literal notranslate"><span class="pre">evecs.T[0]</span></code>.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">evals</span><span class="p">,</span> <span class="n">evecs</span> <span class="o">=</span> <span class="n">transmon</span><span class="o">.</span><span class="n">eigensys</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="Plotting-wavefunctions">
+<h2>Plotting wavefunctions<a class="headerlink" href="#Plotting-wavefunctions" title="Permalink to this headline">¶</a></h2>
+<p>For a qubit as simple as the transmon, wavefunctions are one-dimensional and can be plotted easily. The first option, is to employ the discrete charge basis (<code class="docutils literal notranslate"><span class="pre">n</span></code>):</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">transmon</span><span class="o">.</span><span class="n">plot_n_wavefunction</span><span class="p">(</span><span class="n">esys</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;real&#39;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/guide_ipynb_basics_20_0.svg" src="../../_images/guide_ipynb_basics_20_0.svg" /></div>
+</div>
+<p>Here, <code class="docutils literal notranslate"><span class="pre">esys=None</span></code> signifies that the eigensystem is not provided as an argument, but should be calculated fresh. <code class="docutils literal notranslate"><span class="pre">which=0</span></code> specifies that the ground state wavefunction is to be plotted. Finally, <code class="docutils literal notranslate"><span class="pre">mode='real'</span></code> is asking for a plot of the real parts of the wavefunction amplitudes.</p>
+<p>The options for <code class="docutils literal notranslate"><span class="pre">mode</span></code> are:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 24%" />
+<col style="width: 76%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>mode keyword</p></th>
+<th class="head"><p>extracted function of amplitudes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">'real'</span></code></p></td>
+<td><p>real part of wavefunction amplitudes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">'imag'</span></code></p></td>
+<td><p>imaginary part of wavefunction amplitudes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">'abs'</span></code></p></td>
+<td><p>absolute value of wavefunction amplitudes</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">'abs_sqr'</span></code></p></td>
+<td><p>absolute value squared of wavefunction amplitudes</p></td>
+</tr>
+</tbody>
+</table>
+<p>Instead of the charge-basis representation, the transmon wavefunction can also be plotted in phi representation by switching from <code class="docutils literal notranslate"><span class="pre">n</span></code> to <code class="docutils literal notranslate"><span class="pre">phi</span></code>. Multiple wavefunctions can be plotted simultaneously by feeding a tuple to the argument <code class="docutils literal notranslate"><span class="pre">which</span></code>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">transmon</span><span class="o">.</span><span class="n">plot_phi_wavefunction</span><span class="p">(</span><span class="n">esys</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">which</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">4</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;real&#39;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/guide_ipynb_basics_22_0.svg" src="../../_images/guide_ipynb_basics_22_0.svg" /></div>
+</div>
+<p>Wavefunctions are displayed on top of the cosine potential, and are offset by their corresponding eigenenergies.</p>
+</div>
+<div class="section" id="Evaluating-and-visualizing-matrix-elements">
+<h2>Evaluating and visualizing matrix elements<a class="headerlink" href="#Evaluating-and-visualizing-matrix-elements" title="Permalink to this headline">¶</a></h2>
+<p>For a number of purposes, one needs to compute matrix elements of operators such as the charge operator with respect to the eigenstates of the system. For a display of the matrix elements of the operator <code class="docutils literal notranslate"><span class="pre">n_operator</span></code> (the charge number operator), use:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">transmon</span><span class="o">.</span><span class="n">plot_matrixelements</span><span class="p">(</span><span class="s1">&#39;n_operator&#39;</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">10</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/guide_ipynb_basics_26_0.svg" src="../../_images/guide_ipynb_basics_26_0.svg" /></div>
+</div>
+<p>An alternative way to display matrix elements is to use a pure 2d representation with text representation of each matrix element entry. Here, we use the example of the <code class="docutils literal notranslate"><span class="pre">.cos_phi_operator</span></code>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">transmon</span><span class="o">.</span><span class="n">plot_matrixelements</span><span class="p">(</span><span class="s1">&#39;cos_phi_operator&#39;</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">show3d</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show_numbers</span><span class="o">=</span><span class="kc">True</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/guide_ipynb_basics_28_0.svg" src="../../_images/guide_ipynb_basics_28_0.svg" /></div>
+</div>
+<p>To store the matrix elements in a numpy array, utilize the method <code class="docutils literal notranslate"><span class="pre">matrixelement_table()</span></code>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">nmat</span> <span class="o">=</span> <span class="n">transmon</span><span class="o">.</span><span class="n">matrixelement_table</span><span class="p">(</span><span class="s1">&#39;sin_phi_operator&#39;</span><span class="p">,</span> <span class="n">evals_count</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">nmat</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+array([[0.+6.93889390e-018j, 0.-4.71298793e-001j, 0.-1.26356452e-003j],
+       [0.+4.71298793e-001j, 0.-1.38777878e-017j, 0.-5.72832824e-001j],
+       [0.+1.26356452e-003j, 0.+5.72832824e-001j, 0.+2.35410818e-101j]])
+</pre></div></div>
+</div>
+<p>Sometimes it is useful to plot matrix elements as a function of an external parameter. This is accomplished by the method <code class="docutils literal notranslate"><span class="pre">plot_matelem_vs_paramvals()</span></code>, here for the dependence of charge-operator matrix elements on the offset charge <code class="docutils literal notranslate"><span class="pre">ng</span></code>:</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">ng_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">220</span><span class="p">)</span>
+<span class="n">transmon</span><span class="o">.</span><span class="n">plot_matelem_vs_paramvals</span><span class="p">(</span><span class="s1">&#39;n_operator&#39;</span><span class="p">,</span> <span class="s1">&#39;ng&#39;</span><span class="p">,</span> <span class="n">ng_list</span><span class="p">,</span> <span class="n">select_elems</span><span class="o">=</span><span class="mi">4</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/guide_ipynb_basics_32_4.svg" src="../../_images/guide_ipynb_basics_32_4.svg" /></div>
+</div>
+</div>
+<div class="section" id="Tunable-Transmon">
+<h2>Tunable Transmon<a class="headerlink" href="#Tunable-Transmon" title="Permalink to this headline">¶</a></h2>
+<p>An important modification of the transmon qubit is the replacement of the Josephson junction by a SQUID loop of two Josephson junctions. A flux threaded through this loop can then be used to change the effective Josephson energy of the circuit and thus make the transmon tunable. The resulting Hamiltonian is</p>
+<div class="math notranslate nohighlight">
+\begin{equation}
+H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{1}{2}E_\text{J,eff}(\Phi_\text{ext})\sum_n(|n\rangle\langle n+1|+\text{h.c.}),
+\end{equation}</div><p>expressed in the charge basis. Here, parameters are as above except for the effective Josephson energy <span class="math notranslate nohighlight">\(E_\text{J,eff}(\Phi_\text{ext}) = E_{\text{J,max}} \sqrt{\cos^2(\pi\Phi_\text{ext}/\Phi_0)+ d^2 \sin^2 (\pi\Phi_\text{ext}/\Phi_0)}\)</span>, where <span class="math notranslate nohighlight">\(E_\text{J,max} = E_\text{J1} + E_\text{J2}\)</span> is the maximum Josephson energy, and <span class="math notranslate nohighlight">\(d=(E_\text{J1}-E_\text{J2})/(E_\text{J1}+E_\text{J2})\)</span> is the relative junction asymmetry.</p>
+<p>An instance of a tunable transmon qubit is obtained like this:</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">tune_tmon</span> <span class="o">=</span> <span class="n">scq</span><span class="o">.</span><span class="n">TunableTransmon</span><span class="p">(</span>
+    <span class="n">EJmax</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span>
+    <span class="n">EC</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">d</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+    <span class="n">flux</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">ng</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">ncut</span><span class="o">=</span><span class="mi">30</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">flux_list</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mf">1.1</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">,</span> <span class="mi">220</span><span class="p">)</span>
+<span class="n">tune_tmon</span><span class="o">.</span><span class="n">plot_evals_vs_paramvals</span><span class="p">(</span><span class="s1">&#39;flux&#39;</span><span class="p">,</span> <span class="n">flux_list</span><span class="p">,</span> <span class="n">subtract_ground</span><span class="o">=</span><span class="kc">True</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<script type="application/vnd.jupyter.widget-view+json">{"model_id": "", "version_major": 2, "version_minor": 0}</script></div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/guide_ipynb_basics_35_2.svg" src="../../_images/guide_ipynb_basics_35_2.svg" /></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span>
+</pre></div>
+</div>
+</div>
+<script type="application/vnd.jupyter.widget-state+json">
+{"state": {"02e80fc1983b45c1a9f651c62910ae59": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "0574fbd71543453b9719bb7ea45336d3": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "0ecbdc6f1b8b48ea8f340d53c50c01b7": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "1398d4d3ca9f4b3fb13212da33710992": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "ProgressStyleModel", "state": {"description_width": "initial"}}, "15299ed39716486ea640447d504c6cc4": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "LabelModel", "state": {"layout": "IPY_MODEL_d9f4a8d76ae8432194c41b515dbe7054", "style": "IPY_MODEL_ef64fb4fdd8649eabea432c91e615880", "value": "ncut"}}, "1880e3c0e7ce47c2b9fa2ad4f233f59b": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {"width": "400px"}}, "19fdb34b18364d9394b0e375a8b375eb": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "LabelModel", "state": {"layout": "IPY_MODEL_fbecac4c291142a08adad8ea20013c6f", "style": "IPY_MODEL_33696c09c8db4714a2806c79f4e8f4ea", "value": "EJ"}}, "1cd9cc4b234c4884921855ab20272525": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "FloatProgressModel", "state": {"description": "Spectral data: 100%", "layout": "IPY_MODEL_c0248578249b4c9f8e9f8e7fc0f18c5a", "max": 220, "style": "IPY_MODEL_a6fd5b77b87b4108a7f0aa3f17c62538", "value": 220}}, "20943dd388924afeac820e16b5fa1a67": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "236b2e7495294607b16068ec392fb313": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "LabelModel", "state": {"layout": "IPY_MODEL_f61129c3b0224cfbb5f22a768e84cf20", "style": "IPY_MODEL_9f92cc57dd1d419287a9d823867b1759", "value": "EC"}}, "249d0bb208024c8ebdd612caeca9be93": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "FloatTextModel", "state": {"layout": "IPY_MODEL_f7d782d4c0454008b8d37b7b17649c32", "step": null, "style": "IPY_MODEL_c8796fd0c8f448b291266ebee0e57788", "value": 30}}, "288cf15565364fcc92f70d25619fe1ee": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HBoxModel", "state": {"children": ["IPY_MODEL_a65159b4285a428ba848b1fd426ead13", "IPY_MODEL_b81cd3c6f4a84cc6b82cc7f55beb2600"], "layout": "IPY_MODEL_df9f38bb57f844108c442b321a1e784b"}}, "2bc7ea9209904f3c9f377577edf241c0": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {"justify_content": "flex-end"}}, "30b30f11c4d141888634da7d40760409": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "33696c09c8db4714a2806c79f4e8f4ea": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "34c994619d21498eb3053b39447a0f29": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HBoxModel", "state": {"children": ["IPY_MODEL_19fdb34b18364d9394b0e375a8b375eb", "IPY_MODEL_249d0bb208024c8ebdd612caeca9be93"], "layout": "IPY_MODEL_3950c144c6cc4e51a364c5e3eaa2f816"}}, "3950c144c6cc4e51a364c5e3eaa2f816": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {"justify_content": "flex-end"}}, "3d44fdc11250449d9449094c87cb2b09": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "3d7aac161bcf48639bbba26844789d5a": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HTMLModel", "state": {"layout": "IPY_MODEL_8879bf564f0e44e1bbb100cad202a324", "style": "IPY_MODEL_e756e1f52ecb4fad99e43e323c9617c3", "value": " 220/220 [00:00&lt;00:00, 493.86it/s]"}}, "3f534490f91e4b478979382702c92a43": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "FloatTextModel", "state": {"layout": "IPY_MODEL_02e80fc1983b45c1a9f651c62910ae59", "step": null, "style": "IPY_MODEL_d74c01bfff924b1887f18bfde9e38d6f", "value": 1.2}}, "3fbcebfd1ba14031b14caea1dcdd5380": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "406dcab2d9584cc6bde03dbbe407dba0": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HBoxModel", "state": {"children": ["IPY_MODEL_236b2e7495294607b16068ec392fb313", "IPY_MODEL_3f534490f91e4b478979382702c92a43"], "layout": "IPY_MODEL_fa56022c22844a4f88fce33bf5d226af"}}, "42d3499e992342e08a324d71d59e9bee": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "45923d7a79594cdf8f3ce973320d1c97": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "49d2e17edae14fc7a9a7e249b23670b3": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {"justify_content": "flex-end"}}, "4ded03e66bef4186a6666f6fb8138ae0": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "ProgressStyleModel", "state": {"description_width": "initial"}}, "504b72f2b95f4d238ddea7a5b3b11bf0": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "LabelModel", "state": {"layout": "IPY_MODEL_945411e4d15546a6a16ed22f3912bf01", "style": "IPY_MODEL_828763b84e37446cb82861d135890fcd", "value": "ng"}}, "6260a2581ca14f11b4807ca62e0de632": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "685363d587084180b016ecf563930747": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "FloatProgressModel", "state": {"description": "Spectral data: 100%", "layout": "IPY_MODEL_b15e2df455064788ac71572c030e29a7", "max": 220, "style": "IPY_MODEL_4ded03e66bef4186a6666f6fb8138ae0", "value": 220}}, "6968f2b2ac6a4c9c899b92c490cd7480": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "6c3f9640c6944ffcac39c3ef6dd4831a": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {"justify_content": "flex-end"}}, "6f77d18b4371467f9e69300d16b55a11": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "7bbb8bb20c554bbfb5b3150547fb0f10": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "IntTextModel", "state": {"layout": "IPY_MODEL_0574fbd71543453b9719bb7ea45336d3", "step": 1, "style": "IPY_MODEL_3d44fdc11250449d9449094c87cb2b09", "value": 30}}, "80bef6d428234a5a92caa42e5480a11a": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "ProgressStyleModel", "state": {"description_width": "initial"}}, "828763b84e37446cb82861d135890fcd": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "85ca4ed50cff440c97c728e76cfb60fe": {"model_module": "@jupyter-widgets/output", "model_module_version": "1.0.0", "model_name": "OutputModel", "state": {"layout": "IPY_MODEL_6968f2b2ac6a4c9c899b92c490cd7480"}}, "8879bf564f0e44e1bbb100cad202a324": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "88afd045f70e4b178d9e03ed3a7c7a66": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "LabelModel", "state": {"layout": "IPY_MODEL_aee52745d24a4a5b93c3a79df4e8db38", "style": "IPY_MODEL_6260a2581ca14f11b4807ca62e0de632", "value": "truncated_dim"}}, "91c40e325a494130ae3089aa9da29779": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "945411e4d15546a6a16ed22f3912bf01": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "95d0185fe4d847bebf77fb3b5e0367e2": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "FloatTextModel", "state": {"layout": "IPY_MODEL_9a867853ecaf4bd688a1e4d2e8c703cd", "step": null, "style": "IPY_MODEL_6f77d18b4371467f9e69300d16b55a11"}}, "975d1095a724423c8f64dccbb2595786": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "98ddfcf5e12f44efa4ff148d6ff06fc0": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "9a867853ecaf4bd688a1e4d2e8c703cd": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "9f92cc57dd1d419287a9d823867b1759": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "a5bee06102b64029a3c5fe2badb8d4e5": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HTMLModel", "state": {"layout": "IPY_MODEL_e391610806d04e0ba956f6f6f4cfb41c", "style": "IPY_MODEL_cb7a554a88174f718102ad08b7e9c6ac", "value": " 220/220 [00:00&lt;00:00, 23.67it/s]"}}, "a65159b4285a428ba848b1fd426ead13": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "VBoxModel", "state": {"children": ["IPY_MODEL_34c994619d21498eb3053b39447a0f29", "IPY_MODEL_406dcab2d9584cc6bde03dbbe407dba0", "IPY_MODEL_d40b058b1a4a463cad2456205cc8fd4a", "IPY_MODEL_fe92e030b4ff4852a9522c7109da1e77", "IPY_MODEL_d4d68dadec1540f591d550050250ed9d"], "layout": "IPY_MODEL_91c40e325a494130ae3089aa9da29779"}}, "a6fd5b77b87b4108a7f0aa3f17c62538": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "ProgressStyleModel", "state": {"description_width": "initial"}}, "aee52745d24a4a5b93c3a79df4e8db38": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "b15e2df455064788ac71572c030e29a7": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "b81cd3c6f4a84cc6b82cc7f55beb2600": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "VBoxModel", "state": {"children": ["IPY_MODEL_e22f28f219f6467e9433564910cb6be6"], "layout": "IPY_MODEL_dcf45e3ca2254ef2b1b387f18a1002ed"}}, "b95467eb6acd477fbeb41595a9cc6886": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "c0248578249b4c9f8e9f8e7fc0f18c5a": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "c5523f9478ce4bfaaac5066e33eb7c83": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "c61232a695f149079f592e69545a378d": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "FloatProgressModel", "state": {"description": "100%", "layout": "IPY_MODEL_b95467eb6acd477fbeb41595a9cc6886", "max": 220, "style": "IPY_MODEL_1398d4d3ca9f4b3fb13212da33710992", "value": 220}}, "c8796fd0c8f448b291266ebee0e57788": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "cb7a554a88174f718102ad08b7e9c6ac": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "cbf8c896cc844011b500c25737aa2e93": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "FloatProgressModel", "state": {"description": "Spectral data: 100%", "layout": "IPY_MODEL_30b30f11c4d141888634da7d40760409", "max": 220, "style": "IPY_MODEL_80bef6d428234a5a92caa42e5480a11a", "value": 220}}, "cc59fa53b1834e65bab4b7e21c7c9bd3": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "cef829cdd24749b5a007ea2126fa2cb6": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "d40b058b1a4a463cad2456205cc8fd4a": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HBoxModel", "state": {"children": ["IPY_MODEL_504b72f2b95f4d238ddea7a5b3b11bf0", "IPY_MODEL_95d0185fe4d847bebf77fb3b5e0367e2"], "layout": "IPY_MODEL_49d2e17edae14fc7a9a7e249b23670b3"}}, "d4d68dadec1540f591d550050250ed9d": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HBoxModel", "state": {"children": ["IPY_MODEL_88afd045f70e4b178d9e03ed3a7c7a66", "IPY_MODEL_ebf0bd7b6dc8476aa81ce815c0269f58"], "layout": "IPY_MODEL_2bc7ea9209904f3c9f377577edf241c0"}}, "d74c01bfff924b1887f18bfde9e38d6f": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "d9f4a8d76ae8432194c41b515dbe7054": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "dcf45e3ca2254ef2b1b387f18a1002ed": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "df9f38bb57f844108c442b321a1e784b": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "e22f28f219f6467e9433564910cb6be6": {"buffers": [{"data": "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", "encoding": "base64", "path": ["value"]}], "model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "ImageModel", "state": {"layout": "IPY_MODEL_1880e3c0e7ce47c2b9fa2ad4f233f59b"}}, "e391610806d04e0ba956f6f6f4cfb41c": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "e756e1f52ecb4fad99e43e323c9617c3": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "ea2b62b7a66b4a8ebae005374b034bab": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HTMLModel", "state": {"layout": "IPY_MODEL_98ddfcf5e12f44efa4ff148d6ff06fc0", "style": "IPY_MODEL_975d1095a724423c8f64dccbb2595786", "value": " 220/220 [00:00&lt;00:00, 292.68it/s]"}}, "ebf0bd7b6dc8476aa81ce815c0269f58": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "IntTextModel", "state": {"layout": "IPY_MODEL_45923d7a79594cdf8f3ce973320d1c97", "step": 1, "style": "IPY_MODEL_cef829cdd24749b5a007ea2126fa2cb6", "value": 10}}, "ef64fb4fdd8649eabea432c91e615880": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "DescriptionStyleModel", "state": {"description_width": ""}}, "f19359c12def42c69b77b1df224e3e70": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HTMLModel", "state": {"layout": "IPY_MODEL_3fbcebfd1ba14031b14caea1dcdd5380", "style": "IPY_MODEL_20943dd388924afeac820e16b5fa1a67", "value": " 220/220 [00:00&lt;00:00, 324.33it/s]"}}, "f61129c3b0224cfbb5f22a768e84cf20": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "f7d782d4c0454008b8d37b7b17649c32": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "fa56022c22844a4f88fce33bf5d226af": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {"justify_content": "flex-end"}}, "fbecac4c291142a08adad8ea20013c6f": {"model_module": "@jupyter-widgets/base", "model_module_version": "1.2.0", "model_name": "LayoutModel", "state": {}}, "fe92e030b4ff4852a9522c7109da1e77": {"model_module": "@jupyter-widgets/controls", "model_module_version": "1.5.0", "model_name": "HBoxModel", "state": {"children": ["IPY_MODEL_15299ed39716486ea640447d504c6cc4", "IPY_MODEL_7bbb8bb20c554bbfb5b3150547fb0f10"], "layout": "IPY_MODEL_6c3f9640c6944ffcac39c3ef6dd4831a"}}}, "version_major": 2, "version_minor": 0}
+</script></div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../guide-qubits.html" class="btn btn-neutral float-right" title="Qubits" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../guide-overview.html" class="btn btn-neutral float-left" title="Guide Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Jens Koch, Peter Groszkowski
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

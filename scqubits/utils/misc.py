@@ -115,9 +115,9 @@ class Required:
             if all(self.requirements_bools):
                 return func(*args, **kwargs)
             else:
-                raise Exception("ImportError: use of this method requires the optional package(s): {}. If you wish to"
-                                "use this functionality, the corresponding package(s) must be installed manually."
-                                "(Install through `conda install -c conda-forge <packagename>` or "
+                raise Exception("ImportError: use of this method requires the optional package(s): {}. If you wish to "
+                                "use this functionality, the corresponding package(s) must be installed manually. "
+                                "(Installation via `conda install -c conda-forge <packagename>` or "
                                 "`pip install <packagename>` is recommended.)".format(self.requirements_names))
         return decorated_func
 

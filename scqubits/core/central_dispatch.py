@@ -9,11 +9,15 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+
 import logging
 import warnings
 import weakref
 
 import scqubits.settings as settings
+
+# To enable logging output, uncomment the following setting:
+# logging.basicConfig(level=logging.DEBUG)
 
 EVENTS = [
     'QUANTUMSYSTEM_UPDATE',
@@ -34,22 +38,6 @@ class CentralDispatch:
     # For each event, store a dict that maps the clients registered for that event to their callback routines
     # The objects are keys in the inner dict, implemented as a WeakKeyDictionary to allow deletion/garbage collection
     # when object should expire. Callback methods are stored as weakref.WeakMethod for the same reason.
-
-    def status(self):
-        """Print status information about Central Dispatch"""
-        if settings.DISPATCH_ENABLED:
-            print("Central Dispatch is currently ENABLED (default).")
-        else:
-            print("Central Dispatch is currently DISABLED.")
-
-        for event in EVENTS:
-            print("{} events -- registered objects for callbacks:".format(event))
-            registered_objects = list(self.get_clients_dict(event).keys())
-            if not registered_objects:
-                print("   No registered objects.")
-            else:
-                for an_object in registered_objects:
-                    print("   ", type(an_object), id(an_object))
 
     def get_clients_dict(self, event):
         """For given `event`, return the dict mapping each registered client to their callback routine
@@ -91,7 +79,7 @@ class CentralDispatch:
             # For purposes of garbage collection, this should preferably be:
             # callback_ref = weakref.WeakMethod(callback)
             # However, as of 06/12/20, pathos balks on this on Windows (while Linux is passing).
-            # Note that reference to callback methods is likely to prevent proper garbage collection,
+            # Note that the reference to callback methods is likely to prevent proper garbage collection,
             # so may have to revisit this issue if necessary.
         self.get_clients_dict(event)[who] = callback_ref
 
@@ -105,7 +93,6 @@ class CentralDispatch:
         who: DispatchClient
             object to be unregistered
         """
-        print("registering", event, who)
         del self.get_clients_dict(event)[who]
 
     def unregister_object(self, who):
@@ -151,6 +138,11 @@ class CentralDispatch:
         if settings.DISPATCH_ENABLED:
             self._dispatch(event, sender=caller, **kwargs)
 
+
+# Start global instance of CentralDispatch()
+CENTRAL_DISPATCH = CentralDispatch()
+
+
 class DispatchClient:
     """Base class inherited by objects participating in central dispatch."""
     def broadcast(self, event, **kwargs):
@@ -179,9 +171,9 @@ class DispatchClient:
         warnings.warn("`receive() method not implemented for {}".format(self))
 
     def __del__(self):
-        logging.debug("Unregistering {}. au revoir.".format(type(self).__name__))
-        CENTRAL_DISPATCH.unregister_object(self)
-
-
-# Start global instance of CentralDispatch()
-CENTRAL_DISPATCH = CentralDispatch()
+        # Garbage collection will invoke this at undetermined time. `if` clauses below prevent exceptions upon program
+        # exit. (`logging` and `CENTRAL_DISPATCH` may have already been removed.)
+        if logging:
+            logging.debug("Unregistering {}. au revoir.".format(type(self).__name__))
+        if CENTRAL_DISPATCH:
+            CENTRAL_DISPATCH.unregister_object(self)
