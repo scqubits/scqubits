@@ -62,7 +62,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/fixed-transmon.jpg')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fixed-transmon.png')
 
     @staticmethod
     def default_params():
@@ -308,7 +308,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_img/tunable-transmon.jpg')
+                                            'qubit_pngs/tunable-transmon.png')
 
     @property
     def EJ(self):
