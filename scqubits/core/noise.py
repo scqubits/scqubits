@@ -161,8 +161,6 @@ class NoisySystem:
         """
         Calculate the 1/f dephasing time (or rate) due to arbitrary noise source. 
 
-        Assumptions:
-        ----------
         We assume that the qubit energies (or the passed in eigenspectrum) has units 
         of frequency (and *not* angular frequency). 
 
@@ -296,16 +294,14 @@ class NoisySystem:
         Calculate the transition time (or rate) using Fermi's Golden Rule due to a noise channel with
         a spectral density `spec_dens` and system noise operator `noise_op`. Mathematically, it reads:
 
-        :math:` \frac{1}{T_1} = \frac{1}{\hbar^2} |\langle i| A_{\rm noise} | j \rangle|^2 S(energy)
+        :math:`\frac{1}{T_1} = \frac{1}{\hbar^2} |\langle i| A_{\rm noise} | j \rangle|^2 S(energy)`
 
         Here we calculate
 
-        :math:` \frac{1}{T_1} = |\langle i| noise_op noise} | j \rangle|^2 spec_dens(energy)
+        :math:`\frac{1}{T_1} = |\langle i| noise_op noise} | j \rangle|^2 spec_dens(energy)`
 
         Hence the units and prefactors have to be appropriately absorbed into function arguments. 
 
-        Assumptions:
-        ----------
         We assume that the qubit energies (or the passed in eigenspectrum) has units 
         of frequency (and *not* angular frequency). 
 

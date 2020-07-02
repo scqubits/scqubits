@@ -14,22 +14,59 @@ A transition rate from state :math:`i` to state :math:`j`, can be expressed as
 
 where :math:`A_\lambda` is the noise operator, while S(\omega_ij) the spectral density function, evaluated at the angular frequency :math:`\omega_{ij} = \omega_{j} - \omega_{i}`. A positive :math:`\omega_{ij}` corrsponds to a decay where the system gives of energy to the bath, while a negative :math:`\omega_{ij}` to an excitation, where the system takes energy from the bath. 
 
+Unless stated otherwise, each of the depolarizing noise channels assume that detailed balanced is satisfied, resulting in
+
+.. math::
+
+    \frac{S(-\omega)}{S(\omega)} = \exp{\frac{\hbar \omega}{k_B T}},
+
+where :math:`T` is the bath temperature, and :math:`k_B` the Boltzmann constant.
 
 
 Capacitive noise
 -----------------------
 
-.. autosummary::
++--------------------------------------------+-----------------------------------------+
+| Method name                                | ``t1_capacitive_loss``                  |
++--------------------------------------------+-----------------------------------------+
+| :math:`A_\lambda`                          | :math:`n_g` (charge)                    |
++--------------------------------------------+-----------------------------------------+
 
-    scqubits.noise.NoisySystem.t1_capacitive_loss
+The spectral density of this noise channel is [Smith2020]_:
 
+.. math::
+
+    S(\omega) = \frac{2 \hbar}{C_J Q_{\rm cap}(\omega)} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
+
+where :math:`C_J` is the relevant capacitance, and :math:`Q_{\rm cap}` the corresponding capacitive quality factor.
+The default value of the frequency-dependent quality is assumed to be
+
+.. math::
+
+    Q_{\rm cap}(\omega) = 
 
 Inductive noise
 -----------------------
 
-.. autosummary::
 
-    scqubits.noise.NoisySystem.t1_inductive_loss
++--------------------------------------------+-----------------------------------------+
+| Method name                                | ``t1_inductive_loss``                   |
++--------------------------------------------+-----------------------------------------+
+| :math:`A_\lambda`                          | :math:`\phi` (phase)                    |
++--------------------------------------------+-----------------------------------------+
+
+The spectral density of this noise channel is [Smith2020]_:
+
+.. math::
+
+    S(\omega) = \frac{2 \hbar}{L Q_{\rm ind}(\omega)} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
+
+where :math:`L_J` is the relevant superinductance, and :math:`Q_{\rm ind}` the corresponding inductive quality factor.
+The default value of the frequency-dependent quality is assumed to be
+
+.. math::
+
+    Q_{\rm ind}(\omega) = 
 
 
 Charge-coupled impedance noise
@@ -37,7 +74,7 @@ Charge-coupled impedance noise
 
 .. autosummary::
 
-    scqubits.noise.NoisySystem.t1_charge_impedance
+    scqubits.core.noise.NoisySystem.t1_charge_impedance
 
 Flux-bias line noise
 -------------------------
@@ -45,14 +82,14 @@ Flux-bias line noise
 
 .. autosummary::
 
-    scqubits.noise.NoisySystem.t1_flux_bias_line
+    scqubits.core.noise.NoisySystem.t1_flux_bias_line
 
 Quasiparticle-tunneling noise
 ----------------------------------
 
 .. autosummary::
 
-    scqubits.noise.NoisySystem.t1_quasiparticle_tunneling
+    scqubits.core.noise.NoisySystem.t1_quasiparticle_tunneling
 
 
 
@@ -61,5 +98,5 @@ User-defined noise
 
 .. autosummary::
 
-    scqubits.noise.NoisySystem.t1
+    scqubits.core.noise.NoisySystem.t1
 

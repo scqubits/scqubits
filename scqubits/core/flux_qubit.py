@@ -58,7 +58,7 @@ class NoisyFluxQubit(NoisySystem):
         if 'tphi_1_over_f_cc' not in self.supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system.")
 
-        rate = self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
+        rate =  self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
         rate += self.tphi_1_over_f_cc2(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
         rate += self.tphi_1_over_f_cc3(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
 

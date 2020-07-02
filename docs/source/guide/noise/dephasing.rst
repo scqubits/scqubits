@@ -48,7 +48,7 @@ See the API for method signatures.
 
 .. autosummary::
 
-    scqubits.noise.NoisySystem.tphi_1_over_f_flux
+    scqubits.core.noise.NoisySystem.tphi_1_over_f_flux
 
 
 +--------------------------------------------+-----------------------------------------+
@@ -69,7 +69,7 @@ Qubits that support this noise channel include:
 
 .. autosummary::
 
-    scqubits.noise.NoisySystem.tphi_1_over_f_ng
+    scqubits.core.noise.NoisySystem.tphi_1_over_f_ng
 
 
 +--------------------------------------------+-----------------------------------------+
@@ -86,7 +86,7 @@ The critical current noise is suspected to arise from trapping and de-trapping o
 
 .. autosummary::
 
-    scqubits.noise.NoisySystem.tphi_1_over_f_cc
+    scqubits.core.noise.NoisySystem.tphi_1_over_f_cc
 
 
 +--------------------------------------------+-----------------------------------------+
