@@ -31,7 +31,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the fluxonium qubit. Hamiltonian
-    :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi-\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
+    :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi+\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
     is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
     potential is handled via matrix exponentiation. Initialize with, for example::
 
@@ -138,21 +138,23 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         Returns
         -------
         ndarray
-            Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the LC harmonic oscillator basis
+            Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the LC harmonic oscillator basis,
+            with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        exponent = 1j * (alpha * self.phi_operator() + beta)
-        return sp.linalg.expm(exponent)
+        exponent = 1j * (alpha * self.phi_operator())
+        return sp.linalg.expm(exponent) * cmath.exp(1j * beta)
 
     def cos_phi_operator(self, alpha=1, beta=0):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis
+            Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis,
+            with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        cos_phi_op = 0.5 * self.exp_i_phi_operator(alpha, beta)
-        cos_phi_op += cos_phi_op.conjugate().T
-        return cos_phi_op
+        exp_matrix = self.exp_i_phi_operator(alpha, beta)
+        return 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+
 
     def sin_phi_operator(self, alpha=1, beta=0):
         """
@@ -160,10 +162,10 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         -------
         ndarray
             Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis
+            with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        sin_phi_op = -1j * 0.5 * self.exp_i_phi_operator(alpha, beta)
-        sin_phi_op += sin_phi_op.conjugate().T
-        return sin_phi_op
+        exp_matrix = self.exp_i_phi_operator(alpha, beta)
+        return -1j * 0.5 * (exp_matrix - exp_matrix.conjugate().T)
 
     def hamiltonian(self):  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu et al., PRB 87, 024510 (2013)
@@ -176,7 +178,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         diag_elements = [i * self.E_plasma() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
 
-        exp_matrix = self.exp_i_phi_operator() * cmath.exp(-1j * 2 * np.pi * self.flux)
+        exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
         cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
@@ -188,8 +190,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
         TODO How do we group the flux here? At the moment keep what's done in the Hamiltonian
         """
-        exp_matrix = self.exp_i_phi_operator() * cmath.exp(-1j * 2 * np.pi * self.flux)
-        return - 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+        return - self.cos_phi_operator(1,  2 * np.pi * self.flux)
 
 
     def d_hamiltonian_d_flux(self):
@@ -197,8 +198,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
         TODO How do we group the flux here? At the moment keep what's done in the Hamiltonian
         """
-        exp_matrix = self.exp_i_phi_operator() * cmath.exp(-1j * 2 * np.pi * self.flux)
-        return 2 * np.pi * self.EJ * ( - 0.5j * (exp_matrix - exp_matrix.conjugate().T) )
+        return  - 2 * np.pi * self.EJ * self.sin_phi_operator(1,  2 * np.pi * self.flux)
 
     def hilbertdim(self):
         """

@@ -137,10 +137,10 @@ class NoisySystem:
             # noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
 
-                # TODO update to reuse esys in all cases
+                # calculate the noise over the full param span in param_vals    
                 noise_vals = [getattr(self.set_and_return(param_name, v), noise_channel)(i=i, j=j,
-                    esys=(spec_data.energy_table[:, n], spec_data.state_table[n]))
-                    for v in param_vals]
+                    esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]))
+                    for v_i, v in enumerate(param_vals)]
 
                 ax = axes.ravel()[n]
                 ax.plot(param_vals, noise_vals)
