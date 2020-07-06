@@ -188,7 +188,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
         TODO How do we group the flux here? At the moment keep what's done in the Hamiltonian
         """
-        exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
+        exp_matrix = self.exp_i_phi_operator() * cmath.exp(-1j * 2 * np.pi * self.flux)
         return - 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
 
