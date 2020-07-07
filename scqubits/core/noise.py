@@ -640,3 +640,4 @@ class NoisySystem:
 
         return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens,  total=total, 
                 esys=esys, get_rate=get_rate, **params)
+
