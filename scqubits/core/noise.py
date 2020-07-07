@@ -96,40 +96,46 @@ class NoisySystem:
         Show plots of various noise channels supported by the qubit.  
 
         TODO:
+        - could (should!) actually split this up; have one function that calculates all the noise into 
+        some data structure, say `NoiseData`, then another one that does all the plotting. 
+        The plotting function could take an already precalculated `NoiseData` object as an optional argument.
         - add ability to give noise channels as a regular expression, or say, substing. 
             eg: so something like 't1' would include all the t1 noise channels
             or '1_over_f' will show all the 1 over f noise channels, etc. 
-            this should be trivial, but very powerfull. 
-        - support our standard plot options mechanisms
-        - a bit hackish right now; can make this quicker/cleaner
         - should we take spec_data or list of (evals, evecs) tuples?
-        - could (should!) actually split this up; have one function that calculates all the noise into 
-        some data structure, say `NoiseData`, then another one that does all the plotting. 
-        - parallelize; the noise calcs, not just esys ones (as currently done)
+        - parallelize; the noise calcs, not just esys ones (as currently done). Should do this in `NoiseData`
+        calculation
         - as an option add composite plots for (1) all t1s (2) all tphis, (3) all
 
         Parameters
         ----------
-        noise_channels: str, dict, list of strings or list of dict
+        noise_channels: str or list(str) or list(tuple(str, dict))
 
         """
-        # if we're not told what channels to consider, user the supported list
+        # if we're not told what channels to consider, just use the supported list
         noise_channels = self.supported_noise_channels() if noise_channels is None else noise_channels
 
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
-        # TODO setup appropriate evals_count based on potentially given plot options
+        # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
+        # from the diagonalization.  
+        # This may be hidden in noise-channel-specific options, so have to search through those, if any were given. 
+        max_level=max(i, j)
+        for noise_channel in (noise_channels):
+            if isinstance(noise_channel, tuple):
+                opts=noise_channel[1]
+                max_level=max(max_level, opts.get('i', 0), opts.get('j', 0))
 
-        spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=8, subtract_ground=True,
+        spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1, subtract_ground=True,
                                   get_eigenstates=True, filename=None, num_cpus=settings.NUM_CPUS)
 
         # figure out how many plots we need to produce
-        plot_grid = (1,1) if len(noise_channels)==1 else (math.ceil(len(noise_channels)/2), 2)
+        plot_grid = (1, 1) if len(noise_channels) == 1 else (math.ceil(len(noise_channels)/2), 2)
 
-        # figure out how large the figure should be, based on how many plots we have. 
+        # figure out how large the figure should be, based on how many plots we have.
         # We currently assume 2 plots per row
-        figsize = kwargs.get('figsize', (4, 3) if plot_grid == (1,1) else (8, 3*plot_grid[0]))
+        figsize = kwargs.get('figsize', (4, 3) if plot_grid == (1, 1) else (8, 3*plot_grid[0]))
 
         # If axes, was given in fig_as, it should support the plot structure consistent with plot_grid,
         # otherwise the plotting routine below, will fail
@@ -143,7 +149,7 @@ class NoisySystem:
             # noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
 
-                # calculate the noise over the full param span in param_vals    
+                # calculate the noise over the full param span in param_vals
                 noise_vals = [scale * getattr(self.set_and_return(param_name, v), noise_channel)(i=i, j=j,
                     esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]), get_rate=get_rate)
                     for v_i, v in enumerate(param_vals)]
@@ -157,6 +163,35 @@ class NoisySystem:
                 ax.set_yscale("log")
 
                 plotting._process_options(fig, ax, **kwargs)
+
+            # noise_channel is a tuple representing the noise method and default options 
+            elif isinstance(noise_channel, tuple):
+
+                nc, options = noise_channel
+
+                # Some of the options may be in conflict to the global options given directly to plot_noise. 
+                # In such a case, we let the noise-channel-specific options take priority. 
+                if 'i' not in options: options['i']=i
+                if 'j' not in options: options['j']=j
+                if 'get_rate' not in options: options['get_rate']=get_rate
+
+                # calculate the noise over the full param span in param_vals
+                noise_vals = [scale * getattr(self.set_and_return(param_name, v), nc)(
+                    esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]), **options)
+                    for v_i, v in enumerate(param_vals)]
+
+                ax = axes.ravel()[n] if len(noise_channels) > 1 else axes
+                ax.plot(param_vals, noise_vals, **plotting._extract_kwargs_options(kwargs, 'plot'))
+                ax.set_title(nc)
+
+                ax.set_xlabel(param_name)
+                ax.set_ylabel(units.get_units_time_label())
+                ax.set_yscale("log")
+
+                plotting._process_options(fig, ax, **kwargs)
+
+            else:
+                raise ValueError("`noise_channels` argument should be one of {str, list of str or tuples}.") 
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
@@ -204,7 +239,7 @@ class NoisySystem:
             # if so, use numpy's vdot and dot
             rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, i])) -
                 np.vdot(evecs[:, j], np.dot(noise_op, evecs[:, j])))
-        else: # Else, we have a sparse operator, use it's own dot method. 
+        else:  # Else, we have a sparse operator, use it's own dot method.
             rate = np.abs(np.vdot(evecs[:, i], noise_op.dot(evecs[:, i])) -
                 np.vdot(evecs[:, j], noise_op.dot(evecs[:, j])))
 
@@ -354,7 +389,7 @@ class NoisySystem:
         if isinstance(noise_op, np.ndarray):  # Check if the operator is given in dense form
             # if so, use numpy's vdot and dot
             rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, j])))**2 * s
-        else: # Else, we have a sparse operator, use it's own dot method. 
+        else:  # Else, we have a sparse operator, use it's own dot method.
             rate = np.abs(np.vdot(evecs[:, i], noise_op.dot(evecs[:, j])))**2 * s
 
         if get_rate:
@@ -516,8 +551,8 @@ class NoisySystem:
 
         noise_op = self.n_operator()
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys,
-                       get_rate=get_rate, total=False, **params)
+        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total, esys=esys,
+                       get_rate=get_rate, **params)
 
     def t1_flux_bias_line(self, i=1, j=0, M=NOISE_PARAMS['M'],  Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
                            total=True,  esys=None, get_rate=False, **params):
@@ -569,7 +604,8 @@ class NoisySystem:
 
         noise_op = self.d_hamiltonian_d_flux()
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys, get_rate=get_rate, **params)
+        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total, esys=esys, 
+                get_rate=get_rate, **params)
 
     def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, Delta=NOISE_PARAMS['Delta'], x_qp=NOISE_PARAMS['x_qp'],
                             T=NOISE_PARAMS['T'], total=True,  esys=None, get_rate=False, **params):
@@ -603,4 +639,5 @@ class NoisySystem:
 
         noise_op = self.sin_phi_operator(alpha=0.5)
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, esys=esys, get_rate=get_rate, **params)
+        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens,  total=total, 
+                esys=esys, get_rate=get_rate, **params)
