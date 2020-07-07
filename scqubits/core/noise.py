@@ -200,8 +200,13 @@ class NoisySystem:
 
         evals, evecs = self.eigensys(evals_count=max(j, i)+1) if esys is None else esys
 
-        rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, i])) -
+        if isinstance(noise_op, np.ndarray):  # Check if the operator is given in dense form
+            # if so, use numpy's vdot and dot
+            rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, i])) -
                 np.vdot(evecs[:, j], np.dot(noise_op, evecs[:, j])))
+        else: # Else, we have a sparse operator, use it's own dot method. 
+            rate = np.abs(np.vdot(evecs[:, i], noise_op.dot(evecs[:, i])) -
+                np.vdot(evecs[:, j], noise_op.dot(evecs[:, j])))
 
         rate *= A_noise * np.sqrt(2 * np.abs(np.log(p['omega_low'] * p['t_exp'])))
 
@@ -346,7 +351,11 @@ class NoisySystem:
 
         s = spec_dens(omega) + spec_dens(-omega) if total else spec_dens(omega)
 
-        rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, j])))**2 * s
+        if isinstance(noise_op, np.ndarray):  # Check if the operator is given in dense form
+            # if so, use numpy's vdot and dot
+            rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, j])))**2 * s
+        else: # Else, we have a sparse operator, use it's own dot method. 
+            rate = np.abs(np.vdot(evecs[:, i], noise_op.dot(evecs[:, j])))**2 * s
 
         if get_rate:
             return rate
