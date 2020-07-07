@@ -33,7 +33,6 @@ import scqubits.utils.spectrum_utils as spec_utils
 class NoisyZeroPi(NoisySystem):
     pass
 
-
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
 
 class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
@@ -150,9 +149,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def supported_noise_channels(self):
         """Return a list of supported noise channels"""
-        return ['tphi_1_over_f_cc', 
-                'tphi_1_over_f_flux'
-                't1_flux_bias_line'
+        return [
+                # 'tphi_1_over_f_cc', 
+                'tphi_1_over_f_flux',
+                't1_flux_bias_line',
                 # 't1_capacitive_loss',
                 't1_inductive_loss',
                 ]
