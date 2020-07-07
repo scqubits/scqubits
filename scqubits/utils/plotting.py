@@ -35,7 +35,7 @@ except ImportError:
 # A dictionary of plotting options that are directly passed to specific matplotlib's
 # plot commands.
 _direct_plot_options = {
-        'plot': ('alpha', 'linestyle', 'linewidth', 'marker', 'markersize'),
+        'plot': ('alpha', 'color', 'linestyle', 'linewidth', 'marker', 'markersize'),
         'imshow': ('interpolation',),
         'contourf': tuple()  # empty for now
     }

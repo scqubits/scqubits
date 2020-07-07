@@ -21,6 +21,9 @@ _supported_units = ['GHz', 'MHz', 'kHz', 'Hz']
 # Numerical factor between a given unit and Hz
 _units_factor = {'GHz': 1e9, 'MHz': 1e6, 'kHz': 1e3, 'Hz': 1, }
 
+# labels for time-frequencies
+_units_time_labels = {'GHz': r"$ns$", 'MHz': r"$\mu s$", 'kHz': r"$m s$", 'Hz': r"$s$"}
+
 
 def get_units():
     """Get system units.
@@ -31,7 +34,7 @@ def get_units():
 def set_units(units):
     """Set system units.
     """
-    # Importing here avoids a cyclic import problem. 
+    # Importing here avoids a cyclic import problem.
     import scqubits.core.qubit_base as quantum_base
 
     # Show a warning if we are changing units after some `QuantumSystems`
@@ -50,6 +53,19 @@ def set_units(units):
         _current_units = units
 
     return units
+
+
+def get_units_time_label(units=None):
+    """Get a latex representation of of 1/units 
+    """
+    global _current_units
+
+    units = _current_units if units is None else units
+
+    if units not in _supported_units:
+        raise ValueError("Unsupported system units given. Must be one of: {}".format(str(_supported_units)))
+
+    return _units_time_labels[units]
 
 
 def show_supported_units():

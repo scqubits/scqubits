@@ -15,6 +15,7 @@ import numpy as np
 import scipy as sp
 import scipy.constants
 import scqubits.utils.misc as utils
+import scqubits.utils.plotting as plotting
 import scqubits.core.units as units
 import scqubits.settings as settings
 
@@ -90,19 +91,22 @@ NOISE_PARAMS = {
 class NoisySystem:
 
     def plot_noise(self, param_name, param_vals, noise_channels=None, spec_data=None,
-                   i=1, j=0, num_cpus=settings.NUM_CPUS, **kwargs):
+                   i=1, j=0, get_rate=False, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
-        Show plots of various noise channels supported by the qubit. 
-            
+        Show plots of various noise channels supported by the qubit.  
+
         TODO:
+        - add ability to give noise channels as a regular expression, or say, substing. 
+            eg: so something like 't1' would include all the t1 noise channels
+            or '1_over_f' will show all the 1 over f noise channels, etc. 
+            this should be trivial, but very powerfull. 
         - support our standard plot options mechanisms
         - a bit hackish right now; can make this quicker/cleaner
         - should we take spec_data or list of (evals, evecs) tuples?
-        - should actually split this up; have one function that calculates all the noise into 
+        - could (should!) actually split this up; have one function that calculates all the noise into 
         some data structure, say `NoiseData`, then another one that does all the plotting. 
-        - parallelize 
+        - parallelize; the noise calcs, not just esys ones (as currently done)
         - as an option add composite plots for (1) all t1s (2) all tphis, (3) all
-        - should probably update to use `SpectrumData` when generating the spectrum. 
 
         Parameters
         ----------
@@ -112,18 +116,20 @@ class NoisySystem:
         # if we're not told what channels to consider, user the supported list
         noise_channels = self.supported_noise_channels() if noise_channels is None else noise_channels
 
-        # if we only have a single noise channel to consider (and hence have a str), put it in a list
+        # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
         # TODO setup appropriate evals_count based on potentially given plot options
+
         spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=8, subtract_ground=True,
                                   get_eigenstates=True, filename=None, num_cpus=settings.NUM_CPUS)
 
         # figure out how many plots we need to produce
-        plot_grid = [1] if isinstance(noise_channels, str) else (math.ceil(len(noise_channels)/2), 2)
+        plot_grid = (1,1) if len(noise_channels)==1 else (math.ceil(len(noise_channels)/2), 2)
 
-        # figure out how large the figure should be, based on how many plots we have
-        figsize = kwargs.get('figsize', (8, 3) if plot_grid == [1] else (8, 3*plot_grid[0]))
+        # figure out how large the figure should be, based on how many plots we have. 
+        # We currently assume 2 plots per row
+        figsize = kwargs.get('figsize', (4, 3) if plot_grid == (1,1) else (8, 3*plot_grid[0]))
 
         # If axes, was given in fig_as, it should support the plot structure consistent with plot_grid,
         # otherwise the plotting routine below, will fail
@@ -138,17 +144,19 @@ class NoisySystem:
             if isinstance(noise_channel, str):
 
                 # calculate the noise over the full param span in param_vals    
-                noise_vals = [getattr(self.set_and_return(param_name, v), noise_channel)(i=i, j=j,
-                    esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]))
+                noise_vals = [scale * getattr(self.set_and_return(param_name, v), noise_channel)(i=i, j=j,
+                    esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]), get_rate=get_rate)
                     for v_i, v in enumerate(param_vals)]
 
-                ax = axes.ravel()[n]
-                ax.plot(param_vals, noise_vals)
-                # ax.set_title(noise_channel.replace("_", " "))
+                ax = axes.ravel()[n] if len(noise_channels) > 1 else axes
+                ax.plot(param_vals, noise_vals, **plotting._extract_kwargs_options(kwargs, 'plot'))
                 ax.set_title(noise_channel)
 
                 ax.set_xlabel(param_name)
-                # ax.set_ylable()
+                ax.set_ylabel(units.get_units_time_label())
+                ax.set_yscale("log")
+
+                plotting._process_options(fig, ax, **kwargs)
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
