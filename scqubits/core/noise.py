@@ -91,7 +91,7 @@ NOISE_PARAMS = {
 class NoisySystem:
 
     def plot_noise(self, param_name, param_vals, noise_channels=None, spec_data=None,
-                   i=1, j=0, get_rate=False, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+                   i=1, j=0, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Show plots of various noise channels supported by the qubit.  
 
@@ -151,7 +151,7 @@ class NoisySystem:
 
                 # calculate the noise over the full param span in param_vals
                 noise_vals = [scale * getattr(self.set_and_return(param_name, v), noise_channel)(i=i, j=j,
-                    esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]), get_rate=get_rate)
+                    esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]))
                     for v_i, v in enumerate(param_vals)]
 
                 ax = axes.ravel()[n] if len(noise_channels) > 1 else axes
@@ -173,7 +173,6 @@ class NoisySystem:
                 # In such a case, we let the noise-channel-specific options take priority. 
                 if 'i' not in options: options['i']=i
                 if 'j' not in options: options['j']=j
-                if 'get_rate' not in options: options['get_rate']=get_rate
 
                 # calculate the noise over the full param span in param_vals
                 noise_vals = [scale * getattr(self.set_and_return(param_name, v), nc)(
