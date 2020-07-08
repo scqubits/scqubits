@@ -300,7 +300,6 @@ class Circuit(base.QubitBaseClass):
                 energy += element.energy_term(np.asarray(self.linear_coordinate_transform)[
                                               element_node_ids, :]@phase_values, None)
         return energy
-
     def phase_operator_action(self, state_vector, index=0):
         """
         Returns
@@ -314,6 +313,8 @@ class Circuit(base.QubitBaseClass):
         """
         shape = psi.shape
         return np.reshape(self.phase_operator(index = index).ravel()*psi.ravel(),shape)
+        shape = state_vector.shape
+        return np.reshape(self.phase_operator(index = index).ravel()*state_vector.ravel(),shape)
     
     def charge_operator(self, index=0):
         """
