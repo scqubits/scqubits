@@ -17,7 +17,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
-
 class CircuitNode:
     def __init__(self, name):
         self.name = name
@@ -47,7 +46,7 @@ class Variable:
         min_node = np.round(-nodeNo/2)
         max_node = np.round(nodeNo/2)
         self.phase_grid = np.linspace(-np.pi*phase_periods+centre, np.pi*phase_periods+centre, nodeNo, endpoint=False)
-        self.charge_grid = np.linspace(min_node/phase_periods, max_node/phase_periods, nodeNo, endpoint=True)
+        self.charge_grid = np.linspace(min_node/phase_periods, max_node/phase_periods, nodeNo, endpoint=False)
         self.phase_step = 2*np.pi*phase_periods/nodeNo
         self.charge_step = 1.0/phase_periods
         self.nodeNo = nodeNo
@@ -251,6 +250,7 @@ class Circuit(base.QubitBaseClass):
         self.best_permutation_cache = {}
         self.phase_potential = None
         self.charge_potential = None
+        self.nodes_graph=[]
 
     # TODO: add something
     @staticmethod
@@ -338,6 +338,7 @@ class Circuit(base.QubitBaseClass):
         :type node_names: list of str
         """
         self.elements.append(element)
+        self.nodes_graph.append(tuple(node_names))
         for node_name in node_names:
             nodes_found = 0
             for node in self.nodes:
@@ -605,7 +606,7 @@ class Circuit(base.QubitBaseClass):
         self.charge_potential = np.reshape(self.charge_potential, grid_shape)
         return self.charge_potential
         
-    def calculate_potentials(self):    
+    def calculate_potentials(self):
         """
         Calculate potentials for Fourier-based hamiltonian action.
         """
