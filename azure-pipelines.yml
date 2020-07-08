@@ -141,6 +141,7 @@ jobs:
       pip install .
     displayName: 'Install scqubits'
   - script: |
+      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       pytest -v --pyargs scqubits.tests.test_explorer
       pytest -v --pyargs scqubits.tests.test_fluxonium
       pytest -v --pyargs scqubits.tests.test_fluxqubit
@@ -151,11 +152,13 @@ jobs:
       pytest -v --pyargs scqubits.tests.test_zeropi
     displayName: 'Pytest: single-core'
   - script: |
+      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       export OMP_NUM_THREADS=1
       export OPENBLAS_NUM_THREADS=1
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
+      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       cd $(python -c "import scqubits.tests.test_hilbertspace as tst; import os; print(os.path.dirname(tst.__file__))")
       pytest -v test_explorer.py --num_cpus=2
       pytest -v test_fluxonium.py --num_cpus=2

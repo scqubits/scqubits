@@ -28,8 +28,8 @@ class Serializable(ABC):
     _subclasses = []
 
     def __new__(cls, *args, **kwargs):
-        """Used to set up class attributes that record which __init__ parameters will be stored as attributes, ndarrays,
-        and objects."""
+        """Modified `__new__` to set up `cls._init_params`. The latter is used to record which of the `__init__`
+         parameters are to be stored/read in file IO."""
         cls._init_params = get_init_params(cls)
         return super().__new__(cls)
 
@@ -120,7 +120,7 @@ def _add_attribute(name, obj, attributes, ndarrays, objects):
     return attributes, ndarrays, objects
 
 
-TO_ATTRIBUTE = (str, Number, dict, list, tuple)
+TO_ATTRIBUTE = (str, Number, dict, list, tuple, bool, np.bool_)
 TO_NDARRAY = (np.ndarray,)
 TO_OBJECT = (Serializable,)
 

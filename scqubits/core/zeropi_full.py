@@ -121,7 +121,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         self._sys_type = type(self).__name__
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
-        self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
+        self._init_params.remove('ECS')  # used for file IO Serializable purposes; remove ECS as init parameter
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fullzeropi.png')
 
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
@@ -224,7 +224,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
             for l2 in range(zeropi_dim):
                 zeropi_coupling += gmat[l1, l2] * op.hubbard_sparse(l1, l2, zeropi_dim)
         hamiltonian_mat += sparse.kron(zeropi_coupling,
-                                       op.annihilation_sparse(zeta_dim) + op.creation_sparse(zeta_dim))
+                                       op.annihilation_sparse(zeta_dim)) + sparse.kron(zeropi_coupling.conjugate().T,
+                                                                                       op.creation_sparse(zeta_dim))
 
         if return_parts:
             return [hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat]
@@ -308,13 +309,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
     def _evals_calc(self, evals_count, hamiltonian_mat=None):
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
+        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM', return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count, hamiltonian_mat=None):
         if hamiltonian_mat is None:
             hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
+        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM',
+                                           return_eigenvectors=True)
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 

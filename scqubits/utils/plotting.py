@@ -23,6 +23,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import scqubits.core.constants as constants
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
+import scqubits.settings as settings
 
 try:
     from labellines import labelLines
@@ -100,6 +101,15 @@ def _process_options(figure, axes, opts=None, **kwargs):
     filename = kwargs.get('filename')
     if filename:
         figure.savefig(os.path.splitext(filename)[0] + '.pdf')
+
+    if settings.DESPINE and not axes.name == '3d':
+        # Hide the right and top spines
+        axes.spines['right'].set_visible(False)
+        axes.spines['top'].set_visible(False)
+
+        # Only show ticks on the left and bottom spines
+        axes.yaxis.set_ticks_position('left')
+        axes.xaxis.set_ticks_position('bottom')
 
 
 def _process_special_option(figure, axes, key, value):

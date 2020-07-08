@@ -163,12 +163,13 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
+        evals = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM', return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, which='SA')
+        evals, evecs = sparse.linalg.eigsh(hamiltonian_mat, k=evals_count, sigma=0.0, which='LM',
+                                           return_eigenvectors=True)
         # TODO consider normalization of zeropi wavefunctions
         # evecs /= np.sqrt(self.grid.grid_spacing())
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
@@ -469,7 +470,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
 
         x_vals = self.grid.make_linspace()
         y_vals = theta_grid.make_linspace()
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals,
+                             xlabel=r'$\phi$', ylabel=r'$\theta$', **kwargs)
 
     def wavefunction(self, esys=None, which=0, theta_grid=None):
         """Returns a zero-pi wave function in `phi`, `theta` basis

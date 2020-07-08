@@ -12,6 +12,7 @@
 
 
 import pytest
+import numpy as np
 
 import scqubits as qubit
 from scqubits.core.storage import SpectrumData
@@ -25,6 +26,13 @@ class TestFullZeroPi(BaseTest):
         cls.qbt = None
         cls.qbt_type = qubit.FullZeroPi
         cls.file_str = 'fullzeropi'
+
+    def test_hamiltonian_is_hermitean(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        hamiltonian = self.qbt.hamiltonian()
+        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.conj().T)), 0.0)
 
     def test_eigenvals(self, io_type):
         testname = self.file_str + '_1.' + io_type
