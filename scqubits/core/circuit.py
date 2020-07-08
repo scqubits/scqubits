@@ -300,6 +300,18 @@ class Circuit(base.QubitBaseClass):
                 energy += element.energy_term(np.asarray(self.linear_coordinate_transform)[
                                               element_node_ids, :]@phase_values, None)
         return energy
+    
+    def phase_operator(self, index=0):
+        """
+        Returns
+        -------
+        ndarray
+        Returns the select phi operator in Phi basis
+    
+        index - phase variable (default index=0)
+        """
+        return self.create_phase_grid()[index]
+    
     def phase_operator_action(self, state_vector, index=0):
         """
         Returns
