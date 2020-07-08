@@ -301,6 +301,128 @@ class Circuit(base.QubitBaseClass):
                                               element_node_ids, :]@phase_values, None)
         return energy
 
+    def phase_operator_action(self, state_vector, index=0):
+        """
+        Returns
+        -------
+        ndarray
+        
+        Implements the action of the phase operator on the state vector describing the system in phase representation.
+        :param state_vector: wavefunction to act upon
+        :param index - phase variable (default index=0)
+        :returns: wavefunction after action of the hamiltonian
+        """
+        shape = psi.shape
+        return np.reshape(self.phase_operator(index = index).ravel()*psi.ravel(),shape)
+    
+    def charge_operator(self, index=0):
+        """
+        Returns
+        -------
+        ndarray
+        Returns the select phi operator in charge basis
+        
+        index - charge variable (default index=0)
+        """
+        return self.create_charge_grid()[index]
+    
+    def charge_operator_action(self, state_vector, index=0):
+        """
+        Returns
+        -------
+        ndarray
+        
+        Implements the action of the charge operator on the state vector describing the system in phase representation.
+        :param state_vector: wavefunction to act upon
+        :param index - charge variable (default index=0)
+        :returns: wavefunction  in phase representation after action of the charge operator
+        """
+        shape = state_vector.shape
+        charge_wave = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(state_vector)))
+        w = np.fft.ifftshift(np.fft.ifftn(np.fft.ifftshift(self.charge_operator(index = index)*charge_wave)))
+        # It can also be done in charge basis as 
+        # w_charge = self.charge_operator(index)*self.wave_function_charge(state_vector, index)
+        return np.reshape(w, shape) 
+    
+    def wave_function_charge(self, state_vector, index):
+        """
+        Returns
+        -------
+        ndarray
+        
+        Returns wave_function in charge basis
+        :param state_vector: wavefunction in phase representation
+        :param index - charge variable (default index=0)
+        :returns: wavefunction  in charge representation 
+        """
+        charge_wave = np.fft.fftshift(np.fft.fft(np.fft.fftshift(state_vector, axes=index), norm='ortho', axis=index), axes=index)
+        return charge_wave    
+    
+    def exp_i_phi_operator(self, index=0):
+        """
+        Returns
+        -------
+        ndarray
+        Returns the :math:`e^{i\\phi}` operator in phase basis
+        """
+        exponent = 1j * self.phase_operator(index=index)
+        #shape=exponent.shape
+        return np.exp(exponent)#np.reshape(sp.linalg.expm(exponent.ravel()), shape)
+    
+    def cos_phi_operator(self, index=0):
+        """
+        Returns
+        -------
+        ndarray
+        Returns the :math:`\\cos \\phi` operator in phase basis
+        """
+        #cos_phi_op = 0.5 * exp_i_phi_operator(index = index)
+        #cos_phi_op += cos_phi_op.conjugate()
+        cos_phi_op = np.cos(self.phase_operator(index=index))
+        return cos_phi_op
+    
+    def sin_phi_operator(self, index=0):
+        """
+        Returns
+        -------
+        ndarray
+        Returns the :math:`\\sin \\phi` operator in phase basis
+        """
+        #sin_phi_op = -1j * 0.5 * exp_i_phi_operator(index = index)
+        #sin_phi_op += sin_phi_op.conjugate()
+        sin_phi_op = np.sin(self.phase_operator(index=index))
+        return sin_phi_op
+    
+    def operator_action_phase(self, operator, state_vector):
+        """
+        Returns
+        -------
+        number
+        
+        Implements the action of the selected operator on the state vector describing the system in phase representation.
+        
+        :param state_vector: wavefunction to act upon
+        :param operator: selected operator to act on state vector in phase representation
+        :returns: wavefunction after action of the operator
+        """
+        return operator*state_vector
+    
+    def operator_matrix_elements(self, operator, state_vector1, state_vector2):
+        """
+        Returns
+        -------
+        number
+        
+        Calculation matrix elements for the selected operator in phase representation.
+        
+        :param state_vector1: wavefunction to act upon (ket)
+        :param operator: selected operator to act on state vector1 in phase representation
+        :param state_vector2: wavefunction (bra)
+        :returns: matrix element <state_vector2|operator|state_vector1>
+        """
+        
+        return np.sum(np.conj(state_vector2)*operator*state_vector1)
+    
     def hamiltonian(self):
         """Returns Hamiltonian in charge basis"""
         dim = len(self.variables)
