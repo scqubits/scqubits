@@ -30,6 +30,7 @@ import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 import scqubits.utils.plot_defaults as defaults
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scqubits.utils.spectrum_utils import matrix_element
 
 
 # —Double Cooper pair tunneling qubit ————————————————————————
@@ -108,7 +109,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
-        self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
+        self._default_phi_grid = discretization.Grid1d(-10 * np.pi, 10 * np.pi, 400)
         self._default_theta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_varphi_grid = discretization.Grid1d(-2 * np.pi, 3 * np.pi, 100)
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -794,7 +795,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
 
     # TODO: test purpose only
     def ft_wavefunction(self, esys=None, which=0):
-        phi_grid = discretization.Grid1d(-10 * np.pi, 10 * np.pi, 100)
+        phi_grid = self._default_phi_grid
         theta_grid = self._default_theta_grid
         varphi_grid = discretization.Grid1d(0, 2 * np.pi, 100)
 
@@ -857,7 +858,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         -------
         WaveFunctionOnGrid object
         """
-        phi_grid = discretization.Grid1d(-10 * np.pi, 10 * np.pi, 400)
+        phi_grid = self._default_phi_grid
         theta_grid = discretization.Grid1d(0, 0, 1)
         varphi_grid = discretization.Grid1d(0, 2 * np.pi, 500)
 
@@ -919,7 +920,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}  # if any duplicates, later ones survive
 
         # plot at slice n_varphi = 0
-        phi_grid = discretization.Grid1d(-10 * np.pi, 10 * np.pi, 400)
+        phi_grid = self._default_phi_grid
         d_phi = phi_grid.make_linspace()[1] - phi_grid.make_linspace()[0]
         n_phi_list = np.sort(np.fft.fftfreq(phi_grid.pt_count, d_phi)) * 2 * np.pi
         n_phi_grid = discretization.Grid1d(n_phi_list[0], n_phi_list[-1], n_phi_list.size)
@@ -942,6 +943,116 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         axs.set_xlim((-4, 4))
 
         return plot.wavefunction2d(n_phi_n_varphi_wavefunction, zero_calibrate=zero_calibrate, **kwargs)
+
+    # TODO: TEST PURPOSE ONLY
+    def n_wavefunction_cancellation(self, esys=None):
+
+        n_phi_n_varphi_wavefunction_0 = self.get_n_phi_n_varphi_wavefunction(esys=esys, which=0)
+        n_phi_n_varphi_wavefunction_0.amplitudes = spec_utils.standardize_phases(
+            n_phi_n_varphi_wavefunction_0.amplitudes)
+        n_phi_n_varphi_wavefunction_1 = self.get_n_phi_n_varphi_wavefunction(esys=esys, which=1)
+        n_phi_n_varphi_wavefunction_1.amplitudes = spec_utils.standardize_phases(
+            n_phi_n_varphi_wavefunction_1.amplitudes)
+
+        phi_grid = self._default_phi_grid
+        d_phi = phi_grid.make_linspace()[1] - phi_grid.make_linspace()[0]
+        n_phi_list = np.sort(np.fft.fftfreq(phi_grid.pt_count, d_phi)) * 2 * np.pi
+        d_n_phi = n_phi_list[1] - n_phi_list[0]
+
+        matele = np.zeros((15, 1), dtype=np.complex_)
+        for i in range(15):
+            matele[i] = np.sum(
+                np.array(n_phi_list, dtype=np.complex_) * n_phi_n_varphi_wavefunction_0.amplitudes[:, i] * np.conj(
+                    n_phi_n_varphi_wavefunction_1.amplitudes[:, i])) * d_n_phi
+
+        plt.figure(figsize=(4, 4))
+        plt.plot(np.linspace(-7, 7, 15), np.real(matele), 'o-')
+        plt.plot(np.linspace(-7, 7, 15), np.imag(matele), 'o-')
+        plt.plot(np.linspace(-7, 7, 15), np.abs(np.sum(matele)) * np.ones(15), 'r--')
+        plt.legend(['real', 'imaginary', r'sum over $N_\theta$'])
+        plt.xlabel(r'$N_\theta$')
+        plt.ylabel(r'$n$ matrix element')
+
+        return np.abs(np.sum(matele))
+
+    def phi_wavefunction_cancellation(self, esys=None):
+        phi_grid = self._default_phi_grid
+        theta_grid = discretization.Grid1d(0, 0, 1)
+        varphi_grid = discretization.Grid1d(0, 2 * np.pi, 500)
+        n_varphi_list = np.arange(-7, 8)
+
+        wavefunc_0= self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
+                                     which=0)
+        varphi_grid_list = varphi_grid.make_linspace()
+        phi_varphi_amplitudes_0 = spec_utils.standardize_phases(
+            wavefunc_0.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
+        phi_n_varphi_amplitudes_0 = np.zeros((phi_grid.pt_count, n_varphi_list.size), dtype=np.complex_)
+        d_varphi = varphi_grid_list[1] - varphi_grid_list[0]
+        for n in range(n_varphi_list.size):
+            phi_n_varphi_amplitudes_0[:, n] = 1 / (2 * np.pi) * np.sum(
+                phi_varphi_amplitudes_0 * np.exp(1j * n_varphi_list[n] * varphi_grid_list), axis=1) * d_varphi
+
+        wavefunc_1 = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
+                                       which=1)
+        phi_varphi_amplitudes_1 = spec_utils.standardize_phases(
+            wavefunc_1.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
+        phi_n_varphi_amplitudes_1 = np.zeros((phi_grid.pt_count, n_varphi_list.size), dtype=np.complex_)
+        for n in range(n_varphi_list.size):
+            phi_n_varphi_amplitudes_1[:, n] = 1 / (2 * np.pi) * np.sum(
+                phi_varphi_amplitudes_1 * np.exp(1j * n_varphi_list[n] * varphi_grid_list), axis=1) * d_varphi
+
+        d_phi = phi_grid.make_linspace()[1] - phi_grid.make_linspace()[0]
+
+        phi_list = phi_grid.make_linspace()
+        matele = np.zeros((15, 1), dtype=np.complex_)
+        for i in range(15):
+            matele[i] = np.sum(
+                np.array(phi_list, dtype=np.complex_) * phi_n_varphi_amplitudes_0[:, i] * np.conj(
+                    phi_n_varphi_amplitudes_1[:, i])) * d_phi
+
+        plt.figure(figsize=(4, 4))
+        plt.plot(np.linspace(-7, 7, 15), np.real(matele), 'o-')
+        plt.plot(np.linspace(-7, 7, 15), np.imag(matele), 'o-')
+        plt.plot(np.linspace(-7, 7, 15), np.abs(np.sum(matele)) * np.ones(15), 'r--')
+        plt.legend(['real', 'imaginary', r'sum over $N_\theta$'])
+        plt.xlabel(r'$N_\theta$')
+        plt.ylabel(r'$\phi$ matrix element')
+
+        return np.abs(np.sum(matele))
+
+    def n_wavefunction_cancellation_ft(self, esys=None):
+        ft_wavefunction_0 = self.ft_wavefunction(esys=esys, which=0)
+        ft_wavefunction_1 = self.ft_wavefunction(esys=esys, which=1)
+
+        phi_grid = self._default_phi_grid
+        d_phi = phi_grid.make_linspace()[1] - phi_grid.make_linspace()[0]
+        n_phi_list = np.sort(np.fft.fftfreq(phi_grid.pt_count, d_phi)) * 2 * np.pi
+        d_n_phi = n_phi_list[1] - n_phi_list[0]
+
+        theta_grid = self._default_theta_grid
+        d_theta = theta_grid.make_linspace()[1] - theta_grid.make_linspace()[0]
+        n_theta_list = np.sort(np.fft.fftfreq(theta_grid.pt_count, d_theta)) * 2 * np.pi
+        d_n_theta = n_theta_list[1] - n_theta_list[0]
+
+        opt = np.zeros((n_phi_list.size, n_theta_list.size), dtype=np.complex_)
+        for j in range(n_theta_list.size):
+            opt[:, j] = n_phi_list
+
+        matele = np.zeros((15, 1), dtype=np.complex_)
+        for i in range(15):
+            matele[i] = np.sum(
+                opt * ft_wavefunction_0.amplitudes[:, :, i] * np.conj(
+                    ft_wavefunction_1.amplitudes[:, :, i])) * d_n_phi * d_n_theta
+
+        plt.figure(figsize=(4, 4))
+        plt.plot(np.linspace(-7, 7, 15), np.real(matele), 'o-')
+        plt.plot(np.linspace(-7, 7, 15), np.imag(matele), 'o-')
+        plt.plot(np.linspace(-7, 7, 15), np.imag(np.sum(matele)) * np.ones(15), 'r--')
+        plt.legend(['real', 'imaginary', r'sum over $N_\theta$'])
+        plt.xlabel(r'$N_\theta$')
+        plt.ylabel('matrix element')
+
+        return np.abs(np.sum(matele))
 
     # TODO: for test purpose
     def _n_phi_n_varphi_wavefunction_overlap(self, esys):
@@ -1305,10 +1416,87 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         self.EJ = orginal_ej
         return np.abs(1 / (5e-7 * orginal_ej * first_derivative) * 1e-6) / (2 * np.pi)  # unit in ms
 
+    def _kron2(self, mat1, mat2):
+        return sparse.kron(mat1, mat2, format='csc')
+
+    def _flux_charge_hamiltonian(self):
+        phi_osc_mat = self._kron2(op.number_sparse(self.dim_phi(), self.phi_plasma()), self._identity_varphi())
+        n_varphi_ng_mat = self._kron2(self._identity_phi(), self._n_varphi_operator()) - self._kron2(
+            self._identity_phi(), self._identity_varphi()) * self.Ng
+        cross_kinetic_mat = 2 * self._dis_ec() * n_varphi_ng_mat ** 2
+
+        phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
+            self.flux * np.pi)
+        junction_mat = -2 * self.EJ * self._kron2(phi_flux_term,
+                                                  self._cos_varphi_operator()) + 2 * self.EJ * self._kron2(
+            self._identity_phi(), self._identity_varphi())
+        return phi_osc_mat + cross_kinetic_mat + junction_mat
+
+    def _dispersive_shift(self, ratio_plot=False):
+        evals_count = 10
+        hamiltonian_mat = self._flux_charge_hamiltonian()
+        evals, evecs = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, sigma=0.0, which='LM')
+        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
+
+        # TODO: add other disorder here
+        n_varphi_ng_mat = self._kron2(self._identity_phi(), self._n_varphi_operator()) - self._kron2(
+            self._identity_phi(), self._identity_varphi()) * self.Ng
+        phi_mat = self._kron2(self._phi_operator(), self._identity_varphi())
+        coupling_operator = 4 * self._dis_ec() * n_varphi_ng_mat / np.sqrt(
+            2) / self.theta_osc() * 1j - self._dis_el() * self.dL * phi_mat * self.theta_osc() / np.sqrt(
+            2)
+
+        detuning_mat = np.zeros((evals_count, evals_count))
+        for i in np.arange(evals_count):
+            for j in np.arange(evals_count):
+                detuning_mat[i, j] = evals[i] - evals[j] - self.theta_plasma()
+
+        coupling_mat = np.zeros((evals_count, evals_count), dtype=np.complex_)
+        for i in np.arange(evals_count):
+            for j in np.arange(evals_count):
+                coupling_mat[i, j] = matrix_element(evecs[:, i], coupling_operator, evecs[:, j])
+
+        if ratio_plot is True:
+            ratio = np.abs(coupling_mat / detuning_mat)
+            imshow_minval = np.log10(np.min(ratio))
+            imshow_maxval = np.log10(np.max(ratio))
+            fig, axes = plt.subplots(figsize=(4, 4))
+            im = axes.imshow(np.log10(ratio), extent=[0, evals_count - 1, 0, evals_count - 1],
+                             cmap=plt.cm.viridis, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
+            divider = make_axes_locatable(axes)
+            cax = divider.append_axes("right", size="2%", pad=0.05)
+            fig.colorbar(im, cax=cax)
+            axes.set_title(r'$\log(|g_{ij}/\Delta_{ij}|)$')
+            axes.set_xlabel('i')
+            axes.set_ylabel('j')
+
+        chi_0 = 0.0
+        chi_1 = 0.0
+        for i in np.arange(evals_count):
+            chi_0 += np.abs(coupling_mat[0, i]) ** 2 * (1 / detuning_mat[0, i] - 1 / detuning_mat[i, 0])
+            chi_1 += np.abs(coupling_mat[1, i]) ** 2 * (1 / detuning_mat[1, i] - 1 / detuning_mat[i, 1])
+        return (chi_1 - chi_0) / 2.0
+
+    def _get_t2_shot_noise(self):
+        n_th = 1 / (np.exp(self.theta_plasma() / self.kbt) - 1)
+        kappa = self.theta_plasma() / self.q_cap(self.theta_plasma())
+        chi = self._dispersive_shift()
+        return 1 / (n_th * kappa * chi ** 2 / (chi ** 2 + kappa ** 2)) * 1e-6 / (2 * np.pi)
+
+    def get_t2_shot_noise(self, para_name, para_vals):
+        original_para = getattr(self, para_name)
+        t2_shot = np.zeros((para_vals.size, 1))
+        for i in range(para_vals.size):
+            setattr(self, para_name, para_vals[i])
+            t2_shot[i] = self._get_t2_shot_noise()
+        setattr(self, para_name, original_para)
+        return t2_shot[:, 0]
+
     def noise_analysis(self, para_name, para_vals):
         t2_charge = self.get_t2_charge_noise(para_name, para_vals)
         t2_flux = self.get_t2_flux_noise(para_name, para_vals)
         t2_current = self.get_t2_current_noise(para_name, para_vals)
+        t2_shot = self.get_t2_shot_noise(para_name, para_vals)
         t1_cap = self.get_t1_capacitive_loss(para_name, para_vals)
         t1_ind = self.get_t1_inductive_loss(para_name, para_vals)
 
@@ -1316,9 +1504,10 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         plt.plot(para_vals, t2_charge, '--')
         plt.plot(para_vals, t2_current, '--')
         plt.plot(para_vals, t2_flux, '--')
+        plt.plot(para_vals, t2_shot, '--')
         plt.plot(para_vals, t1_cap)
         plt.plot(para_vals, t1_ind)
-        plt.legend(['T2_charge', 'T2_current', 'T2_flux', 'T1_cap', 'T1_ind'])
+        plt.legend(['T2_charge', 'T2_current', 'T2_flux', 'T2_shot', 'T1_cap', 'T1_ind'])
         plt.xlabel(para_name)
         plt.ylabel('T1, T2 (ms)')
         plt.yscale('log')
@@ -1327,9 +1516,12 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         t2_charge = self.get_t2_charge_noise('dC', np.array([0]))
         t2_current = self.get_t2_current_noise('dC', np.array([0]))
         t2_flux = self.get_t2_flux_noise('dC', np.array([0]))
+        t2_shot = self.get_t2_shot_noise('dC', np.array([0]))
         t1_cap = self.get_t1_capacitive_loss('dC', np.array([0]))
         t1_ind = self.get_t1_inductive_loss('dC', np.array([0]))
-        return print(' T2_charge=', t2_charge, '\n T2_current=', t2_current, '\n T2_flux=', t2_flux, '\n T1_cap=', t1_cap, '\n T1_ind=', t1_ind)
+        return print(' T2_charge =', t2_charge, ' ms', '\n T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
+                     ' ms', '\n T2_shot =', t2_shot, ' ms', '\n T1_cap =',
+                     t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms')
 
     def get_noise_analysis_2d(self, func, para_name_1, para_vals_1, para_name_2, para_vals_2):
         noise = np.zeros((para_vals_1.size, para_vals_2.size))
@@ -1341,7 +1533,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
 
         imshow_minval = np.log10(np.min(noise))
         imshow_maxval = np.log10(np.max(noise))
-        fig, axes = plt.subplots(figsize=(4,4))
+        fig, axes = plt.subplots(figsize=(4, 4))
         im = axes.imshow(np.log10(noise), extent=[para_vals_2[0], para_vals_2[-1], para_vals_1[0], para_vals_1[-1]],
                          cmap=plt.cm.viridis, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
         divider = make_axes_locatable(axes)
@@ -1352,13 +1544,21 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         return fig, axes
 
     def noise_analysis_2d(self, para_name_1, para_vals_1, para_name_2, para_vals_2):
-        fig, axes = self.get_noise_analysis_2d(self.get_t2_charge_noise, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        fig, axes = self.get_noise_analysis_2d(self.get_t2_charge_noise, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
         axes.set_title('T2 charge noise (log) (ms)')
-        fig, axes = self.get_noise_analysis_2d(self.get_t2_current_noise, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        fig, axes = self.get_noise_analysis_2d(self.get_t2_current_noise, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
         axes.set_title('T2 current noise (log) (ms)')
-        fig, axes = self.get_noise_analysis_2d(self.get_t2_flux_noise, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        fig, axes = self.get_noise_analysis_2d(self.get_t2_flux_noise, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
         axes.set_title('T2 flux noise (log) (ms)')
-        fig, axes = self.get_noise_analysis_2d(self.get_t1_capacitive_loss, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        fig, axes = self.get_noise_analysis_2d(self.get_t2_shot_noise, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
+        axes.set_title('T2 shot noise (log) (ms)')
+        fig, axes = self.get_noise_analysis_2d(self.get_t1_capacitive_loss, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
         axes.set_title('T1 capacitive loss (log) (ms)')
-        fig, axes = self.get_noise_analysis_2d(self.get_t1_inductive_loss, para_name_1, para_vals_1, para_name_2, para_vals_2)
+        fig, axes = self.get_noise_analysis_2d(self.get_t1_inductive_loss, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
         axes.set_title('T1 inductive loss (log) (ms)')
