@@ -323,6 +323,7 @@ class Circuit(base.QubitBaseClass):
         :param index - phase variable (default index=0)
         :returns: wavefunction after action of the hamiltonian
         """
+       
         shape = state_vector.shape
         return np.reshape(self.phase_operator(index = index).ravel()*state_vector.ravel(),shape)
     
