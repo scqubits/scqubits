@@ -127,7 +127,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
         self._init_params.remove('ECS')  # used for file IO Serializable purposes; remove ECS as init parameter
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fullzeropi.png')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/fullzeropi.jpg')
 
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 

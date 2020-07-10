@@ -137,7 +137,7 @@ class NoisySystem:
         # We currently assume 2 plots per row
         figsize = kwargs.get('figsize', (4, 3) if plot_grid == (1, 1) else (8, 3*plot_grid[0]))
 
-        # If axes, was given in fig_as, it should support the plot structure consistent with plot_grid,
+        # If axes was given in fig_as, it should support the plot structure consistent with plot_grid,
         # otherwise the plotting routine below, will fail
         fig, axes = kwargs.get('fig_ax') or plt.subplots(*plot_grid, figsize=figsize)
 
@@ -169,7 +169,7 @@ class NoisySystem:
 
                 nc, options = noise_channel
 
-                # Some of the options may be in conflict to the global options given directly to plot_noise. 
+                # Some of the options may be in conflict with the global options given directly to plot_noise. 
                 # In such a case, we let the noise-channel-specific options take priority. 
                 if 'i' not in options: options['i']=i
                 if 'j' not in options: options['j']=j

@@ -42,7 +42,7 @@ def set_units(units):
     if quantum_base._QUANTUMSYSTEM_COUNTER > 0:
         with warnings.catch_warnings():
             warnings.simplefilter("always")
-            warnings.warn("WARNING: Calling set_units() after initializing qubit instances "
+            warnings.warn("WARNING: Changing units (by alling set_units()) after initializing qubit instances "
                           "is likely to cause unintended inconsistencies.")
 
     global _current_units
