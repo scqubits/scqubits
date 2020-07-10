@@ -107,6 +107,7 @@ class NoisySystem:
         calculation
         - as an option add composite plots for (1) all t1s (2) all tphis, (3) all
 
+
         Parameters
         ----------
         noise_channels: str or list(str) or list(tuple(str, dict))

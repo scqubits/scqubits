@@ -21,7 +21,7 @@ Transmon
 .. _classes-tunable_transmon:
 
 TunableTransmon
---------------
+-----------------
 
 .. autoclass:: scqubits.TunableTransmon
     :members:
@@ -32,7 +32,7 @@ TunableTransmon
 .. _classes-fluxonium:
 
 Fluxonium
----------
+------------
 
 .. autoclass:: scqubits.Fluxonium
     :members:
