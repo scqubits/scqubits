@@ -120,13 +120,13 @@ class NoisySystem:
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
         # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
-        # from the diagonalization.  
-        # This may be hidden in noise-channel-specific options, so have to search through those, if any were given. 
-        max_level=max(i, j)
+        # from the diagonalization.
+        # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
+        max_level = max(i, j)
         for noise_channel in (noise_channels):
             if isinstance(noise_channel, tuple):
-                opts=noise_channel[1]
-                max_level=max(max_level, opts.get('i', 0), opts.get('j', 0))
+                opts = noise_channel[1]
+                max_level = max(max_level, opts.get('i', 0), opts.get('j', 0))
 
         spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1, subtract_ground=True,
                                   get_eigenstates=True, filename=None, num_cpus=settings.NUM_CPUS)
@@ -165,15 +165,17 @@ class NoisySystem:
 
                 plotting._process_options(fig, ax, **kwargs)
 
-            # noise_channel is a tuple representing the noise method and default options 
+            # noise_channel is a tuple representing the noise method and default options
             elif isinstance(noise_channel, tuple):
 
                 nc, options = noise_channel
 
-                # Some of the options may be in conflict with the global options given directly to plot_noise. 
-                # In such a case, we let the noise-channel-specific options take priority. 
-                if 'i' not in options: options['i']=i
-                if 'j' not in options: options['j']=j
+                # Some of the options may be in conflict with the global options given directly to plot_noise.
+                # In such a case, we let the noise-channel-specific options take priority.
+                if 'i' not in options:
+                    options['i'] = i
+                if 'j' not in options:
+                    options['j'] = j
 
                 # calculate the noise over the full param span in param_vals
                 noise_vals = [scale * getattr(self.set_and_return(param_name, v), nc)(
@@ -191,7 +193,7 @@ class NoisySystem:
                 plotting._process_options(fig, ax, **kwargs)
 
             else:
-                raise ValueError("`noise_channels` argument should be one of {str, list of str or tuples}.") 
+                raise ValueError("The `noise_channels` argument should be one of {str, list of str or tuples}.")
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
@@ -199,6 +201,66 @@ class NoisySystem:
         fig.tight_layout()
 
         return fig, axes
+
+    def t1_effective(self, noise_channels=None, esys=None, i=1, j=0, get_rate=False, total=True, **kwargs):
+        r"""
+        Calculate the effective t1 time (or rate). 
+
+        Parameters
+        ----------
+        noise_channels: str or list(str) or list(tuple(str, dict))
+            noise channels that should contribute to t1_effective
+
+        """
+        # If we're not given channels to consider, just use the supported list that
+        # correspond to t1 processes
+        noise_channels = [channel for channel in self.supported_noise_channels() 
+                    if channel.startswith('t1') and channel is not 't1_effective']
+                    if noise_channels is None else noise_channels
+
+        # If we're given only a single channel as a string, make it a one entry list
+        noise_channels=[noise_channels] if isinstance(noise_channels, str) else noise_channels
+
+        # Do a sanity check; if we're given a tphi channel, raise an exception
+        for noise_channel in noise_channels:
+            channel = noise_channel[0] if isinstance(noise_channel, tuple) else noise_channel
+            if not channel.startswith("t1"):
+             raise ValueError("Only t1 channels should can contribute to effective t1 noise.")
+
+        rate = 0.0
+
+        for n, noise_channel in enumerate(noise_channels):
+
+            # noise_channel is a string representing the noise method
+            if isinstance(noise_channel, str):
+
+                # calculate the noise over the full param span in param_vals
+                rate += getattr(self, noise_channel)(i=i, j=j, esys=esys, get_rate=True)
+
+            # noise_channel is a tuple representing the noise method and default options
+            elif isinstance(noise_channel, tuple):
+
+                nc, options = noise_channel
+
+                # Some of the options may be in conflict with the global options given directly to plot_noise.
+                # In such a case, we let the noise-channel-specific options take priority.
+                if 'i' not in options: options['i'] = i
+                if 'j' not in options: options['j'] = j
+                if 'total' not in options: options['total'] = total
+
+                options['get_rate'] = True
+                options['esys'] = esys
+
+                # calculate the noise over the full param span in param_vals
+                rate += getattr(self, nc)(**options)
+
+            else:
+                raise ValueError("The `noise_channels` argument should be one of {str, list of str or tuples}.")
+
+        if get_rate:
+            return rate
+        else:
+            return 1/rate if rate != 0 else np.inf
 
     def tphi_1_over_f(self, A_noise, i, j, noise_op, esys=None, get_rate=False, **params):
         r"""
@@ -604,7 +666,7 @@ class NoisySystem:
 
         noise_op = self.d_hamiltonian_d_flux()
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total, esys=esys, 
+        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total, esys=esys,
                 get_rate=get_rate, **params)
 
     def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, Delta=NOISE_PARAMS['Delta'], x_qp=NOISE_PARAMS['x_qp'],
@@ -639,6 +701,5 @@ class NoisySystem:
 
         noise_op = self.sin_phi_operator(alpha=0.5)
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens,  total=total, 
+        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens,  total=total,
                 esys=esys, get_rate=get_rate, **params)
-
