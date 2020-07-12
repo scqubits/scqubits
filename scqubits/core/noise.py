@@ -202,7 +202,7 @@ class NoisySystem:
 
         return fig, axes
 
-    def t1_effective(self, noise_channels=None, esys=None, i=1, j=0, get_rate=False, total=True, **kwargs):
+    def t1_effective(self, noise_channels=None, esys=None, i=1, j=0, total=True, get_rate=False, **kwargs):
         r"""
         Calculate the effective t1 time (or rate). 
 
@@ -215,8 +215,8 @@ class NoisySystem:
         # If we're not given channels to consider, just use the supported list that
         # correspond to t1 processes
         noise_channels = [channel for channel in self.supported_noise_channels() 
-                    if channel.startswith('t1') and channel is not 't1_effective']
-                    if noise_channels is None else noise_channels
+                if channel.startswith('t1')] if noise_channels is None else noise_channels
+                    # if channel.startswith('t1') and channel is not 't1_effective']
 
         # If we're given only a single channel as a string, make it a one entry list
         noise_channels=[noise_channels] if isinstance(noise_channels, str) else noise_channels
@@ -261,6 +261,67 @@ class NoisySystem:
             return rate
         else:
             return 1/rate if rate != 0 else np.inf
+
+    def tphi_effective(self, noise_channels=None, esys=None, i=1, j=0, total=True, get_rate=False, **kwargs):
+        r"""
+        Calculate the effective tphi time (or rate). 
+
+        Parameters
+        ----------
+        noise_channels: str or list(str) or list(tuple(str, dict))
+            noise channels that should contribute to t1_effective
+
+        """
+        # If we're not given channels to consider, just use the supported list
+        noise_channels = [channel 
+                for channel in self.supported_noise_channels()] if noise_channels is None else noise_channels
+                    # if channel is not ('tphi_effective') and channel is not 't1_effective']
+
+        # If we're given only a single channel as a string, make it a one entry list
+        noise_channels=[noise_channels] if isinstance(noise_channels, str) else noise_channels
+
+        rate = 0.0
+
+        for n, noise_channel in enumerate(noise_channels):
+
+            # noise_channel is a string representing the noise method
+            if isinstance(noise_channel, str):
+
+                # If we have a t1 process, its contribution to the dephasing rate its halfed.
+                scale_factor = 1 if noise_channel.startswith("tphi") else 0.5
+
+                # calculate the noise over the full param span in param_vals
+                rate += scale_factor * getattr(self, noise_channel)(i=i, j=j, esys=esys, get_rate=True)
+
+
+            # noise_channel is a tuple representing the noise method and default options
+            elif isinstance(noise_channel, tuple):
+
+                nc, options = noise_channel
+
+                # Some of the options may be in conflict with the global options given directly to plot_noise.
+                # In such a case, we let the noise-channel-specific options take priority.
+                if 'i' not in options: options['i'] = i
+                if 'j' not in options: options['j'] = j
+                if 'total' not in options: options['total'] = total
+
+                options['get_rate'] = True
+                options['esys'] = esys
+
+                # If we have a t1 process, its contribution to the dephasing rate its halfed.
+                scale_factor = 1 if nc.startswith("tphi") else 0.5
+
+                # calculate the noise over the full param span in param_vals
+                rate += scale_factor * getattr(self, nc)(**options)
+
+            else:
+                raise ValueError("The `noise_channels` argument should be one of {str, list of str or tuples}.")
+
+        if get_rate:
+            return rate
+        else:
+            return 1/rate if rate != 0 else np.inf
+
 
     def tphi_1_over_f(self, A_noise, i, j, noise_op, esys=None, get_rate=False, **params):
         r"""
