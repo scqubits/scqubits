@@ -7,9 +7,13 @@
 Noise
 ******
 
-scqubits implements noise calculations that allow one to estimate depolarization as well as pure dephasing rates and times for a majority of qubits. Each qubit may support a variety of noise channels, ranging from ones common to most superconducting circuits, but also specialized ones, only relevant to that particular qubit.
+scqubits implements noise calculations for estimating depolarization and pure dephasing times for a majority of the
+qubits implemented. For each qubit a variety of noise channels can be considered, ranging from ubiquitous channels
+affecting most circuits to more specialized ones applicable only to the qubit of interest.
 
-To list what channels are supported by a given qubit, one can call its  ``supported_noise_channels()``, method. Each of the elements of the list corresponds to a function that can be directly called on the qubit object. For example, in the case of  the ``TunableTransmon`` qubit one could do::
+A list of the channels supported by a given qubit can be obtained by calling the ``supported_noise_channels()`` method.
+Each entry in the returned list represents a method that can be directly called on the qubit object.
+For example, in the case of  the ``TunableTransmon`` qubit, this could take this form::
 
     tune_tmon = scq.TunableTransmon(
         EJmax=20.0,
@@ -22,15 +26,23 @@ To list what channels are supported by a given qubit, one can call its  ``suppor
     transmon.supported_noise_channels()
     transmon.tphi_1_over_f_flux()
     
-The last call to the method ``tphi_1_over_f_flux()`` returns an estimate of the pure dephasing time due to 1/f flux noise. 
 
-By default, all the noise methods return a decay time (:math:`t_1` in the case of a depolarizing channel or :math:`t_\phi` in a case of a dephasing channel), however, by supplying an option ``get_rate=True``, one can obtain the corresponding rate instead. 
+The last call to the method ``tphi_1_over_f_flux()`` returns an estimate of the pure dephasing time due
+to 1/f flux noise.
 
-The units of of the returned decay (or dephasing) times reflect the global units settings. For example, if the global units are set to ``GHz``, then the resulting decay and dephasing times will be given in ``ns``. See the :ref:`guide_units` section of this guide for more information on how global units can be set. 
+By default, all noise methods return a decay time (:math:`T_1` in the case of a depolarizing channel or
+:math:`T_\phi` in case of a dephasing channel). However, by supplying the option ``get_rate=True``,
+one can obtain the corresponding rate instead.
 
-By default all the noise functions assume that the qubit Hilbert space consist of the lowest two energy levels. The user, however, can provide different energy levels as arguments in order to redefine the relevant subspace. 
+The units of the returned decoherence times reflect the global units settings. For example, if the global units are set
+to ``GHz`` (default), then the resulting decay and dephasing times will be given in ``ns``. See the :ref:`guide_units`
+section for more information on how global units can be set.
 
-A set of examples that show how many of the noise estimations can be calculated are presented in this `jupyter notebook <https://nbviewer.jupyter.org/github/scqubits/scqubits/blob/master/examples/demo_noise.ipynb>`_
+By default, all noise calculations assume that the qubit Hilbert space is reduced to the lowest two energy levels.
+If needed, the user can provide different energy levels as arguments in order to redefine the relevant subspace.
+
+A set of examples that show how many of the noise estimations can be calculated are presented in
+this `jupyter notebook <https://nbviewer.jupyter.org/github/scqubits/scqubits/blob/master/examples/demo_noise.ipynb>`_
 
 A more detailed discussion of each of the supporting noise channels is shown below.  
 

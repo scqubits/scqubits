@@ -4,23 +4,27 @@
 Depolarization
 ================
 
-Depolarization noise captures transitions between eigenstates. scqubits uses standar Fermi's Golder Rule approach to approximate these transitions due to different noise channels. 
+Depolarization noise captures spontaneous transitions between eigenstates. scqubits uses the standard perturbative
+approach (Fermi's Golden Rule) to approximate the resulting transition rates due to different noise channels.
 
-A transition rate from state :math:`i` to state :math:`j`, can be expressed as 
+The rate of a transition from state :math:`i` to state :math:`j` can be expressed as
 
 .. math::
 
    \Gamma_{ij} = \frac{1}{\hbar^2} |\langle i| A_{\lambda} |j \rangle|^2 S(\omega_{ij}),
 
-where :math:`A_\lambda` is the noise operator, while S(\omega_ij) the spectral density function, evaluated at the angular frequency :math:`\omega_{ij} = \omega_{j} - \omega_{i}`. A positive :math:`\omega_{ij}` corrsponds to a decay where the system gives of energy to the bath, while a negative :math:`\omega_{ij}` to an excitation, where the system takes energy from the bath. 
+where :math:`A_\lambda` is the noise operator, and :math:`S(\omega_{ij})` the spectral density function evaluated at
+the angular frequency :math:`\omega_{ij} = \omega_{j} - \omega_{i}`. A positive :math:`\omega_{ij}` corresponds to a
+decay (the system emits energy to the bath), while a negative :math:`\omega_{ij}` implies an excitation of the system
+(the system absorbs energy from the bath).
 
-Unless stated otherwise, each of the depolarizing noise channels assume that detailed balanced is satisfied, resulting in
+Unless stated otherwise, it is assumed that the depolarizing noise channels satisfy detailed balanced. This implies
 
 .. math::
 
     \frac{S(-\omega)}{S(\omega)} = \exp{\frac{\hbar \omega}{k_B T}},
 
-where :math:`T` is the bath temperature, and :math:`k_B` the Boltzmann constant.
+where :math:`T` is the bath temperature, and :math:`k_B` Boltzmann's constant.
 
 
 Capacitive noise
@@ -43,11 +47,11 @@ The default value of the frequency-dependent quality is assumed to be
 
 .. math::
 
-    Q_{\rm cap}(\omega) = 
+    Q_{\rm cap}(\omega) =   TODO: MISSING
+
 
 Inductive noise
 -----------------------
-
 
 +--------------------------------------------+-----------------------------------------+
 | Method name                                | ``t1_inductive_loss``                   |
@@ -61,12 +65,12 @@ The spectral density of this noise channel is [Smith2020]_:
 
     S(\omega) = \frac{2 \hbar}{L Q_{\rm ind}(\omega)} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
 
-where :math:`L_J` is the relevant superinductance, and :math:`Q_{\rm ind}` the corresponding inductive quality factor.
-The default value of the frequency-dependent quality is assumed to be
+where :math:`L_J` is the relevant inductance or superinductance, and :math:`Q_{\rm ind}` the corresponding inductive
+quality factor. The default value of the frequency-dependent quality is assumed to be
 
 .. math::
 
-    Q_{\rm ind}(\omega) = 
+    Q_{\rm ind}(\omega) =    TODO: MISSING
 
 
 Charge-coupled impedance noise
