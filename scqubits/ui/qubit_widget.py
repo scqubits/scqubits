@@ -55,7 +55,7 @@ def create_widget(callback_func, init_params, image_filename=None):
         if name[0] == 'E':
             label_str += ' [' + units.get_units() + ']'
         elif name == 'flux':
-            label_str += r' $[\Phi_0]$'
+            label_str += r' [$\Phi_0$]'
         label = ipywidgets.Label(value=label_str)
         if isinstance(value, float):
             enter_widget = ipywidgets.FloatText
