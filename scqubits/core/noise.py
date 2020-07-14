@@ -54,7 +54,7 @@ NOISE_PARAMS = {
     't_exp': 1e4,     # Measurement time. Units: ns
     'R_0': 50,        # Characteristic impedance of a transmission line. Units: Ohms
     'T': 0.015,       # Typical temperature for a superconducting circuit experiment. Units: K
-    'M': 400,         # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Amperes
+    'M': 400,         # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Ampere
     'R_k': sp.constants.h / sp.constants.e**2.0,  # Superconducting quantum resistance, aka Klitzing constant.
                                                   # Note, in some papers quantum resistance is defined as: h/(2e)^2
 }
@@ -667,7 +667,7 @@ class NoisySystem:
         j: int >=0
             state index that along with i defines a transition (i->j)
         M: float
-            Impedance in units of \Phi_0 / Ampers
+            Impedance in units of \Phi_0 / Ampere
         Z: float or callable
             potentially complex impedance; a fixed value or function of `omega`
         T: float
