@@ -81,10 +81,6 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             'truncated_dim': 10
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['flux', 'cutoff', 'truncated_dim']
-
     def supported_noise_channels(self):
         """Return a list of supported noise channels"""
         return ['tphi_1_over_f_cc', 

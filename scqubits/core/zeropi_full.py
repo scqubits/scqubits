@@ -150,10 +150,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             'truncated_dim': 10
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['ng', 'flux', 'ncut', 'zeropi_cutoff', 'zeta_cutoff', 'truncated_dim']
-
     @classmethod
     def create(cls):
         phi_grid = discretization.Grid1d(-25.0, 25.0, 360)

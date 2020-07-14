@@ -165,10 +165,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             'truncated_dim': 10
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['ng1', 'ng2', 'flux', 'ncut', 'truncated_dim']
-
     def supported_noise_channels(self):
         """Return a list of supported noise channels"""
         return ['tphi_1_over_f_cc1',

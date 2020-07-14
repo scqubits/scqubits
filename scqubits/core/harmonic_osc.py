@@ -70,10 +70,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return {'E_osc': 5.0,
                 'truncated_dim': 10}
 
-    @staticmethod
-    def nonfit_params():
-        return ['truncated_dim']
-
     def get_omega(self):
         # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
         warnings.warn('To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.',

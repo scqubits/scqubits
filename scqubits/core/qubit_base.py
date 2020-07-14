@@ -118,18 +118,6 @@ class QuantumSystem(DispatchClient, ABC):
         for param_name, param_val in kwargs.items():
             setattr(self, param_name, param_val)
 
-    @staticmethod
-    @abstractmethod
-    def nonfit_params():
-        """Return list of initialization parameter names that are not treated as fit parameters"""
-
-    def fit_params(self):
-        """Return list of initialization parameter names that are possible fit parameters"""
-        all_params = self.default_params().keys()
-        nonfit = self.nonfit_params()
-        return [param for param in all_params if param not in nonfit]
-
-
     def supported_noise_channels(self):
         """
         Returns a list of noise channels this QuantumSystem supports. If none, return an empty list. 
