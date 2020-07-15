@@ -161,11 +161,7 @@ class VCHOSSqueezing(VCHOS):
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
         cos_or_sin_phi_j_mat = np.zeros((dim, dim), dtype=np.complex128)
-        exp_prod_boundary_coeff = np.exp(-0.25 * np.sum([self.boundary_coeffs[j]
-                                                         * self.boundary_coeffs[k]
-                                                         * np.dot(Xi[j, :], np.transpose(Xi)[:, k])
-                                                         for j in range(self.number_degrees_freedom())
-                                                         for k in range(self.number_degrees_freedom())]))
+        exp_prod_boundary_coeff = self._exp_prod_bound_coeff()
         counter = 0
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
@@ -314,6 +310,25 @@ class VCHOSSqueezing(VCHOS):
         eigvec[dim2: dim, dim2: dim] = A
         eigvec[0: dim2, dim2: dim] = B
         return eigvals, eigvec
+
+    def _normal_ordered_adag_a_exponential(self, x):
+        """Return normal ordered exponential matrix of exp(a_{i}^{\dagger}x_{ij}a_{j})"""
+        expx = sp.linalg.expm(x)
+        dim = self.a_operator(0).shape[0]
+        result = np.eye(dim, dtype=np.complex128)
+        additionalterm = np.eye(dim, dtype=np.complex128)
+        a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
+        k = 1
+        while not np.allclose(additionalterm, np.zeros((dim, dim))):
+            additionalterm = np.sum([((expx - np.eye(self.number_degrees_freedom()))[i, j]) ** k
+                                     * (factorial(k)) ** (-1)
+                                     * np.matmul(np.linalg.matrix_power(a_op_list[i].T, k),
+                                                 np.linalg.matrix_power(a_op_list[j], k))
+                                     for i in range(self.number_degrees_freedom())
+                                     for j in range(self.number_degrees_freedom())], axis=0)
+            result += additionalterm
+            k += 1
+        return result
 
     def _build_exponentiated_operators(self, m, p, minima_diff, Xi, a_op_list, potential=True):
         """
@@ -542,11 +557,7 @@ class VCHOSSqueezing(VCHOS):
         dim = len(minima_list) * num_exc_tot
         potential_mat = np.zeros((dim, dim), dtype=np.complex128)
         EJlist = self.EJlist
-        exp_prod_boundary_coeff = np.exp(-0.25 * np.sum([self.boundary_coeffs[j]
-                                                         * self.boundary_coeffs[k]
-                                                         * np.dot(Xi[j, :], np.transpose(Xi)[:, k])
-                                                         for j in range(self.number_degrees_freedom())
-                                                         for k in range(self.number_degrees_freedom())]))
+        exp_prod_boundary_coeff = self._exp_prod_bound_coeff()
         counter = 0
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):

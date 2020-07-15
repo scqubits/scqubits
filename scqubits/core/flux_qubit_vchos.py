@@ -4,7 +4,6 @@ import numpy as np
 import scipy as sp
 import itertools
 from scipy.optimize import minimize
-import scipy.constants as const
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
@@ -40,25 +39,15 @@ def harm_osc_wavefunction(n, x):
 
 
 class FluxQubitVCHOS(VCHOS):
-    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, num_exc, squeezing=False, truncated_dim=None):
-        super().__init__()
+    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, num_exc, truncated_dim=None):
+        VCHOS.__init__(self, EJlist, nglist, flux, kmax, num_exc)
         self.ECJ = ECJ
         self.ECg = ECg
-        self.EJlist = EJlist
-        self.nglist = nglist
         self.alpha = alpha
-        self.flux = flux
-        self.kmax = kmax
-        self.num_exc = num_exc
-        self.squeezing = squeezing
-        self.truncated_dim = truncated_dim
-        self.hGHz = const.h * 10 ** 9
-        self.e = np.sqrt(4.0 * np.pi * const.alpha)
-        self.Z0 = 1. / (2 * self.e) ** 2
-        self.Phi0 = 1. / (2 * self.e)
         # final term in potential is cos[(+1)\phi_1+(-1)\phi_2-2pi f]
         self.boundary_coeffs = np.array([+1, -1])
-
+        self.truncated_dim = truncated_dim
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self._default_grid = discretization.Grid1d(-6.5 * np.pi, 6.5 * np.pi, 651)  # for plotting in phi_j basis
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxqubitvchos.png')
@@ -100,10 +89,6 @@ class FluxQubitVCHOS(VCHOS):
         """Return the charging energy matrix"""
         Cmat = self.build_capacitance_matrix()
         return 0.5 * self.e ** 2 * sp.linalg.inv(Cmat)
-
-    def hilbertdim(self):
-        """Return N if the size of the Hamiltonian matrix is NxN"""
-        return len(self.sorted_minima()) * (self.num_exc + 1) ** 2
 
     def number_degrees_freedom(self):
         return 2

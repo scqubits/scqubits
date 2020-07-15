@@ -52,7 +52,7 @@ class Hashing:
         return tag_list, index_array
     
     def _gen_basis_vecs(self):
-        sites = self.num_deg_freedom()
+        sites = self.number_degrees_freedom()
         vec_list = [np.zeros(sites)]
         for total_exc in range(1, self.global_exc+1):  # No excitation number conservation as in [1]
             prev_vec = np.zeros(sites)
@@ -93,5 +93,5 @@ class Hashing:
             if vec[num] != 0:
                 return num
 
-    def num_deg_freedom(self):
-        pass
+    def number_degrees_freedom(self):
+        return 0

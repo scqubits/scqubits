@@ -2,6 +2,8 @@ import numpy as np
 import scipy as sp
 import itertools
 
+from scipy.special import comb
+
 import scqubits.core.discretization as discretization
 import scqubits.core.storage as storage
 from scqubits.utils.spectrum_utils import standardize_phases
@@ -12,11 +14,11 @@ from scqubits.core.hashing import Hashing
 # -Flux Qubit using VCHOS and a global cutoff
 
 class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
-    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax,
-                 global_exc, squeezing=False, truncated_dim=None):
+    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, global_exc, truncated_dim=None):
         FluxQubitVCHOS.__init__(self, ECJ, ECg, EJlist, alpha, nglist, flux,
-                                kmax, num_exc=None, squeezing=squeezing, truncated_dim=truncated_dim)
+                                kmax, num_exc=None, truncated_dim=truncated_dim)
         Hashing.__init__(self)
+        self._sys_type = type(self).__name__
         self.global_exc = global_exc
 
     @staticmethod
@@ -60,8 +62,12 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
                 a[basis_index, w] = temp_coeff
         return a
 
-    def hilbertdim(self):
-        return len(self.sorted_minima()) * len(self._gen_basis_vecs())
+    def number_states_per_minimum(self):
+        """
+        Using the global excitation scheme the total number of states
+        per minimum is given by the hockey-stick identity
+        """
+        return int(comb(self.global_exc + self.number_degrees_freedom(), self.number_degrees_freedom()))
 
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """

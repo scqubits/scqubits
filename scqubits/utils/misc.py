@@ -136,3 +136,10 @@ def remove_nones(dict_data):
 def qt_ket_to_ndarray(qobj_ket):
     # Qutip's `.eigenstates()` returns an object-valued ndarray, each entry of which is a Qobj ket.
     return np.asarray(qobj_ket.data.todense())
+
+
+def kron_matrix_list(matrix_list):
+    output = matrix_list[0]
+    for matrix in matrix_list[1:]:
+        output = np.kron(output, matrix)
+    return output
