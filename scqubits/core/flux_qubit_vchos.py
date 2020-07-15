@@ -84,7 +84,7 @@ class FluxQubitVCHOS(VCHOS):
 
     def build_capacitance_matrix(self):
         """Return the capacitance matrix"""
-        Cmat = np.zeros((self.num_deg_freedom(), self.num_deg_freedom()))
+        Cmat = np.zeros((self.number_degrees_freedom(), self.number_degrees_freedom()))
 
         CJ = self.e ** 2 / (2. * self.ECJ)
         Cg = self.e ** 2 / (2. * self.ECg)
@@ -105,7 +105,7 @@ class FluxQubitVCHOS(VCHOS):
         """Return N if the size of the Hamiltonian matrix is NxN"""
         return len(self.sorted_minima()) * (self.num_exc + 1) ** 2
 
-    def num_deg_freedom(self):
+    def number_degrees_freedom(self):
         return 2
 
     def _check_if_new_minima(self, new_minima, minima_holder):

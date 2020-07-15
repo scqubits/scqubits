@@ -62,5 +62,9 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
                 a[basis_index, w] = temp_coeff
         return a
 
-    def hilbertdim(self):
-        return len(self.sorted_minima()) * len(self._gen_basis_vecs())
+    def number_states_per_minimum(self):
+        """
+        Using the global excitation scheme the total number of states
+        per minimum is given by the hockey-stick identity
+        """
+        return comb(self.global_exc + self.number_degrees_freedom(), self.number_degrees_freedom())

@@ -108,9 +108,9 @@ class CurrentMirrorVCHOS(VCHOS):
 
     def hilbertdim(self):
         """Return N if the size of the Hamiltonian matrix is NxN"""
-        return len(self.sorted_minima()) * (self.num_exc + 1) ** (2 * self.N - 1)
+        return len(self.sorted_minima()) * self.number_states_per_minimum()
 
-    def num_deg_freedom(self):
+    def number_degrees_freedom(self):
         return 2 * self.N - 1
 
     def _check_if_new_minima(self, new_minima, minima_holder):
@@ -142,8 +142,8 @@ class CurrentMirrorVCHOS(VCHOS):
         minima_holder = []
         N = self.N
         for m in range(int(math.ceil(N / 2 - np.abs(self.flux))) + 1):
-            guess_pos = np.array([np.pi * (m + self.flux) / N for _ in range(self.num_deg_freedom())])
-            guess_neg = np.array([np.pi * (-m + self.flux) / N for _ in range(self.num_deg_freedom())])
+            guess_pos = np.array([np.pi * (m + self.flux) / N for _ in range(self.number_degrees_freedom())])
+            guess_neg = np.array([np.pi * (-m + self.flux) / N for _ in range(self.number_degrees_freedom())])
             result_pos = minimize(self.potential, guess_pos)
             result_neg = minimize(self.potential, guess_neg)
             new_minimum_pos = self._check_if_new_minima(result_pos.x, minima_holder)

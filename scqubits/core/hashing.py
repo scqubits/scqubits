@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import comb
 import math
 # Helper class for efficiently constructing raising and lowering operators
 # using a global excitation cutoff scheme, as opposed to the more commonly used
@@ -37,22 +38,22 @@ class Hashing:
                                     881, 883, 887, 907, 911, 919, 
                                     929, 937, 941, 947, 953, 967, 
                                     971, 977, 983, 991, 997])
-        
+        self.global_exc = 0
+
     def _hash(self, vec):
         dim = len(vec)
         return np.sum([np.sqrt(self.prime_list[i])*vec[i] for i in range(dim)])
     
     def _gen_tags(self, basis_vecs):
         dim = basis_vecs.shape[0]
-        tag_list = np.array([self._hash(basis_vecs[i,:]) for i in range(dim)])
+        tag_list = np.array([self._hash(basis_vecs[i, :]) for i in range(dim)])
         index_array = np.argsort(tag_list)
         tag_list = tag_list[index_array]
-        return (tag_list, index_array)
+        return tag_list, index_array
     
     def _gen_basis_vecs(self):
         sites = self.num_deg_freedom()
-        vec_list = []
-        vec_list.append(np.zeros(sites))
+        vec_list = [np.zeros(sites)]
         for total_exc in range(1, self.global_exc+1):  # No excitation number conservation as in [1]
             prev_vec = np.zeros(sites)
             prev_vec[0] = total_exc
@@ -91,3 +92,6 @@ class Hashing:
         for num in range(dim-2, -1, -1):
             if vec[num] != 0:
                 return num
+
+    def num_deg_freedom(self):
+        pass
