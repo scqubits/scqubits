@@ -32,7 +32,6 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
             'flux': 0.46,
             'kmax': 1,
             'global_exc': 4,
-            'squeezing': False,
             'truncated_dim': 6
         }
 

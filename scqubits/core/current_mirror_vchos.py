@@ -23,7 +23,8 @@ class CurrentMirrorVCHOS(VCHOS):
     nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, num_exc, squeezing=False, truncated_dim=None):
+
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, num_exc, truncated_dim=None):
         VCHOS.__init__(EJlist, nglist, flux, kmax, num_exc)
         self.N = N
         self.ECB = ECB
@@ -96,28 +97,6 @@ class CurrentMirrorVCHOS(VCHOS):
 
     def number_degrees_freedom(self):
         return 2 * self.N - 1
-
-    def _check_if_new_minima(self, new_minima, minima_holder):
-        """
-        Helper function for find_minima, checking if new_minima is
-        indeed a minimum and is already represented in minima_holder. If so,
-        _check_if_new_minima returns False.
-        """
-        if -self.potential(new_minima) <= 0:  # maximum or saddle point then, not a minimum
-            return False
-        new_minima_bool = True
-        for minima in minima_holder:
-            diff_array = minima - new_minima
-            diff_array_reduced = np.array([np.mod(x, 2 * np.pi) for x in diff_array])
-            elem_bool = True
-            for elem in diff_array_reduced:
-                # if every element is zero or 2pi, then we have a repeated minima
-                elem_bool = elem_bool and (np.allclose(elem, 0.0, atol=1e-3)
-                                           or np.allclose(elem, 2 * np.pi, atol=1e-3))
-            if elem_bool:
-                new_minima_bool = False
-                break
-        return new_minima_bool
 
     def find_minima(self):
         """

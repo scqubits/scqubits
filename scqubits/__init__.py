@@ -23,10 +23,12 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.vchos import VCHOS
+from scqubits.core.vchos_old import VCHOSOld
 from scqubits.core.current_mirror import CurrentMirror
 from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS
 from scqubits.core.current_mirror_vchos_global import CurrentMirrorVCHOSGlobal
 from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
+from scqubits.core.flux_qubit_vchos_old import FluxQubitVCHOSOld
 from scqubits.core.flux_qubit_vchos_global import FluxQubitVCHOSGlobal
 from scqubits.core.flux_qubit_vchos_testing_babusci import FluxQubitVCHOSTestingBabusci
 from scqubits.core.transmon_vchos import TransmonVCHOS

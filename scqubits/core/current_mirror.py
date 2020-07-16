@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
 import scipy.sparse as sps
+from scipy.sparse.linalg import eigsh
 import itertools
 import scipy.constants as const
 
@@ -8,6 +9,7 @@ import scqubits.core.qubit_base as base
 import scqubits.core.descriptors as descriptors
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.utils.spectrum_utils import order_eigensystem
+
 
 class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
     N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -18,6 +20,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
     nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, 
                  flux, ncut, truncated_dim=None):
         self.N = N
@@ -48,13 +51,13 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
             'EJlist': np.array(5*[18.95]),
             'nglist': np.array(5*[0.0]),
             'flux': 0.0,
-            'ncut' : 10,
+            'ncut': 10,
             'truncated_dim': 6
         }
 
     @staticmethod
     def nonfit_params():
-        return ['N', 'nglist', 'flux','ncut', 'truncated_dim']
+        return ['N', 'nglist', 'flux', 'ncut', 'truncated_dim']
 
     def build_capacitance_matrix(self):
         N = self.N
@@ -63,11 +66,11 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
         Cg = self.e**2 / (2.*self.ECg)
         
         Cmat = np.diagflat(
-            [Cg + 2 * CJ + CB for j in range(2 * N)], 0)
-        Cmat += np.diagflat([- CJ for j in range(2 * N - 1)], +1)
-        Cmat += np.diagflat([- CJ for j in range(2 * N - 1)], -1)
-        Cmat += np.diagflat([- CB for j in range(N)], +N)
-        Cmat += np.diagflat([- CB for j in range(N)], -N)
+            [Cg + 2 * CJ + CB for _ in range(2 * N)], 0)
+        Cmat += np.diagflat([- CJ for _ in range(2 * N - 1)], +1)
+        Cmat += np.diagflat([- CJ for _ in range(2 * N - 1)], -1)
+        Cmat += np.diagflat([- CB for _ in range(N)], +N)
+        Cmat += np.diagflat([- CB for _ in range(N)], -N)
         Cmat[0, -1] = Cmat[-1, 0] = - CJ
         
         V_m_inv = sp.linalg.inv(self._build_V_m())
@@ -77,9 +80,9 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
     
     def _build_V_m(self):
         N = self.N
-        V_m = np.diagflat([-1 for j in range(2*N)], 0)
-        V_m += np.diagflat([1 for j in range(2*N - 1)], 1)
-        V_m[-1] = np.array([1 for j in range(2*N)])
+        V_m = np.diagflat([-1 for _ in range(2*N)], 0)
+        V_m += np.diagflat([1 for _ in range(2*N - 1)], 1)
+        V_m[-1] = np.array([1 for _ in range(2*N)])
         
         return V_m
     
@@ -90,17 +93,17 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals = sps.linalg.eigsh(hamiltonian_mat, k=evals_count, which='SA', return_eigenvectors=False)
+        evals = eigsh(hamiltonian_mat, k=evals_count, which='SA', return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sps.linalg.eigsh(hamiltonian_mat, k=evals_count, which='SA', return_eigenvectors=True)
+        evals, evecs = eigsh(hamiltonian_mat, k=evals_count, which='SA', return_eigenvectors=True)
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
     
     def hilbertdim(self):
-        return((2*self.ncut+1)**(self.num_deg_freedom))
+        return (2*self.ncut+1)**self.num_deg_freedom
 
     def hamiltonian(self):
         no_node = self.num_deg_freedom
@@ -108,26 +111,24 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
         phi = 2*np.pi*self.flux
         n_o, g_o, g_o_dg, i_o, i_o_list = self._basic_operators(self.ncut, self.num_deg_freedom, np.complex_)
         
-        H = 0.
+        H = 0.*self.full_o([], [], i_o_list)
         for j, k in itertools.product(range(no_node), range(no_node)):
             if j != k:
                 H += 4 * ECmat[j, k] * self.full_o([n_o - n_gd_npl[j] * i_o,
-                                               n_o - n_gd_npl[k] * i_o], [j, k], i_o_list)
+                                                    n_o - n_gd_npl[k] * i_o], [j, k], i_o_list)
             else:
                 H += 4 * ECmat[j, j] * self.full_o([(n_o - n_gd_npl[j] * i_o)
-                                               .dot(n_o - n_gd_npl[j] * i_o)],[j], i_o_list)
+                                                   .dot(n_o - n_gd_npl[j] * i_o)], [j], i_o_list)
         
         for j in range(no_node):
-            H += ((-E_j_npl[j] / 2.)* self.full_o([g_o], [j], i_o_list))
+            H += ((-E_j_npl[j] / 2.) * self.full_o([g_o], [j], i_o_list))
             H += ((-E_j_npl[j] / 2.) * self.full_o([g_o_dg], [j], i_o_list))
-            H += E_j_npl[j]*self.full_o([],[], i_o_list)
+            H += E_j_npl[j]*self.full_o([], [], i_o_list)
         H += ((-E_j_npl[-1] / 2.) * np.exp(phi * 1j)
-              * self.full_o([g_o for j in range(no_node)], 
-                            [j for j in range(no_node)], i_o_list))
+              * self.full_o([g_o for _ in range(no_node)], [j for j in range(no_node)], i_o_list))
         H += ((-E_j_npl[-1] / 2.) * np.exp(-phi * 1j)
-              * self.full_o([g_o_dg for j in range(no_node)],
-                       [j for j in range(no_node)], i_o_list))
-        H += E_j_npl[-1]*self.full_o([],[], i_o_list)
+              * self.full_o([g_o_dg for _ in range(no_node)], [j for j in range(no_node)], i_o_list))
+        H += E_j_npl[-1]*self.full_o([], [], i_o_list)
         
         return H
     
@@ -140,22 +141,19 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
         g_o = sps.eye(nstate_s, k=1, format="csr", dtype=operator_dtype)
         g_o_dg = sps.eye(nstate_s, k=-1, format="csr", dtype=operator_dtype)
         i_o = sps.eye(nstate_s, k=0, format="csr", dtype=operator_dtype)
-        i_o_list = [i_o for j in range(no_node)]
+        i_o_list = [i_o for _ in range(no_node)]
         return n_o, g_o, g_o_dg, i_o, i_o_list
         
-    def full_o(self, operators, indices, i_o_list=None):
-        if i_o_list is None:
-            i_o_list = self._i_o_list
+    def full_o(self, operators, indices, i_o_list):
         product_list = i_o_list[:]
         oi_list = zip(operators, indices)
         for oi in oi_list:
             product_list[oi[1]] = oi[0]
         full_op = self.kron_sparse_matrix_list(product_list)
-        return(full_op)
+        return full_op
     
     def kron_sparse_matrix_list(self, sparse_list):
         output = sparse_list[0]
         for matrix in sparse_list[1:]:
             output = sps.kron(output, matrix, format="csr")
-        return(output)
-    
+        return output

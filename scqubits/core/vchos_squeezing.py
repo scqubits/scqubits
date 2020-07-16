@@ -85,7 +85,7 @@ class VCHOSSqueezing(VCHOS):
     def n_operator(self, j, wrapper_klist=None):
         """Return the charge operator associated with the j^th node, neglecting squeezing"""
         if wrapper_klist is None:
-            wrapper_klist = self._find_k_values_for_different_minima()
+            wrapper_klist = self._find_nearest_neighbors_for_each_minimum()
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
@@ -153,7 +153,7 @@ class VCHOSSqueezing(VCHOS):
         """
 
         if wrapper_klist is None:
-            wrapper_klist = self._find_k_values_for_different_minima()
+            wrapper_klist = self._find_nearest_neighbors_for_each_minimum()
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
@@ -161,7 +161,7 @@ class VCHOSSqueezing(VCHOS):
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
         cos_or_sin_phi_j_mat = np.zeros((dim, dim), dtype=np.complex128)
-        exp_prod_boundary_coeff = self._exp_prod_bound_coeff()
+        exp_prod_boundary_coeff = self._BCH_factor_for_potential_boundary()
         counter = 0
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
@@ -451,7 +451,7 @@ class VCHOSSqueezing(VCHOS):
     def kineticmat(self, wrapper_klist=None):
         """Return the kinetic part of the hamiltonian"""
         if wrapper_klist is None:
-            wrapper_klist = self._find_k_values_for_different_minima()
+            wrapper_klist = self._find_nearest_neighbors_for_each_minimum()
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         EC_mat = self.build_EC_matrix()
@@ -548,7 +548,7 @@ class VCHOSSqueezing(VCHOS):
     def potentialmat(self, wrapper_klist=None):
         """Return the potential part of the hamiltonian"""
         if wrapper_klist is None:
-            wrapper_klist = self._find_k_values_for_different_minima()
+            wrapper_klist = self._find_nearest_neighbors_for_each_minimum()
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
@@ -557,7 +557,7 @@ class VCHOSSqueezing(VCHOS):
         dim = len(minima_list) * num_exc_tot
         potential_mat = np.zeros((dim, dim), dtype=np.complex128)
         EJlist = self.EJlist
-        exp_prod_boundary_coeff = self._exp_prod_bound_coeff()
+        exp_prod_boundary_coeff = self._BCH_factor_for_potential_boundary()
         counter = 0
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
@@ -642,13 +642,13 @@ class VCHOSSqueezing(VCHOS):
 
     def hamiltonian(self):
         """Construct the Hamiltonian"""
-        wrapper_klist = self._find_k_values_for_different_minima()
+        wrapper_klist = self._find_nearest_neighbors_for_each_minimum()
         return self.kineticmat(wrapper_klist) + self.potentialmat(wrapper_klist)
 
     def inner_product(self, wrapper_klist=None):
         """Return the inner product matrix, which is nontrivial with tight-binding states"""
         if wrapper_klist is None:
-            wrapper_klist = self._find_k_values_for_different_minima()
+            wrapper_klist = self._find_nearest_neighbors_for_each_minimum()
         Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])

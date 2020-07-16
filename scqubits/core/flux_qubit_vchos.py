@@ -4,6 +4,7 @@ import numpy as np
 import scipy as sp
 import itertools
 from scipy.optimize import minimize
+from scipy.special import eval_hermite, gamma
 
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
@@ -33,9 +34,7 @@ def harm_osc_wavefunction(n, x):
     float or ndarray
         value(s) of harmonic oscillator wave function
     """
-    return ((2.0 ** n * sp.special.gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25)
-            * sp.special.eval_hermite(n, x)
-            * np.exp(-x ** 2 / 2.))
+    return (2.0 ** n * gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) * eval_hermite(n, x) * np.exp(-x ** 2 / 2.)
 
 
 class FluxQubitVCHOS(VCHOS):
@@ -63,7 +62,6 @@ class FluxQubitVCHOS(VCHOS):
             'flux': 0.46,
             'kmax': 1,
             'num_exc': 4,
-            'squeezing': False,
             'truncated_dim': 6
         }
 
@@ -92,26 +90,6 @@ class FluxQubitVCHOS(VCHOS):
 
     def number_degrees_freedom(self):
         return 2
-
-    def _check_if_new_minima(self, new_minima, minima_holder):
-        """
-        Helper function for find_minima, checking if minima is
-        already represented in minima_holder. If so, 
-        _check_if_new_minima returns False.
-        """
-        new_minima_bool = True
-        for minima in minima_holder:
-            diff_array = minima - new_minima
-            diff_array_reduced = np.array([np.mod(x, 2 * np.pi) for x in diff_array])
-            elem_bool = True
-            for elem in diff_array_reduced:
-                # if every element is zero or 2pi, then we have a repeated minima
-                elem_bool = elem_bool and (np.allclose(elem, 0.0, atol=1e-3)
-                                           or np.allclose(elem, 2 * np.pi, atol=1e-3))
-            if elem_bool:
-                new_minima_bool = False
-                break
-        return new_minima_bool
 
     def _ramp(self, k, minima_holder):
         """
