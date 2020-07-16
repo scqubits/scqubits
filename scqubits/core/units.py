@@ -9,20 +9,27 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+
 import warnings
 
 # Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)
-# Often system units need to be converted to "standard units", which are considered to be `[Hz]` or `2pi/[s]`
+# Often, system units need to be converted to "standard units", which are considered to be `[Hz]` or `2pi/[s]`
 _current_units = 'GHz'
 
 # Units that we currently support
 _supported_units = ['GHz', 'MHz', 'kHz', 'Hz']
 
 # Numerical factor between a given unit and Hz
-_units_factor = {'GHz': 1e9, 'MHz': 1e6, 'kHz': 1e3, 'Hz': 1, }
+_units_factor = {'GHz': 1e9,
+                 'MHz': 1e6,
+                 'kHz': 1e3,
+                 'Hz': 1.0}
 
-# labels for time-frequencies
-_units_time_labels = {'GHz': r"$ns$", 'MHz': r"$\mu s$", 'kHz': r"$m s$", 'Hz': r"$s$"}
+# labels for time units obtained from 1/frequency units
+_units_time_labels = {'GHz': r"$ns$",
+                      'MHz': r"$\mu s$",
+                      'kHz': r"$m s$",
+                      'Hz': r"$s$"}
 
 
 def get_units():
@@ -71,11 +78,11 @@ def get_units_time_label(units=None):
 def show_supported_units():
     """Returns a list of supported system units.
     """
-    return _supported_units_list
+    return _supported_units
 
 
 def to_standard_units(value):
-    """
+    r"""
     Converts `value` (a frequency or angular frequency) from system units,
     to standard units (`[Hz]` or  `2\pi / [s]`).
 
@@ -93,7 +100,7 @@ def to_standard_units(value):
 
 
 def from_standard_units(value):
-    """
+    r"""
     Converts `value` (a frequency or angular frequency) from standard units (`[Hz]` or  `2\pi / [s]`)
     to system units. 
 
