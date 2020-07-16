@@ -28,7 +28,7 @@ _units_factor = {'GHz': 1e9,
 # labels for time units obtained from 1/frequency units
 _units_time_labels = {'GHz': r"$ns$",
                       'MHz': r"$\mu s$",
-                      'kHz': r"$m s$",
+                      'kHz': r"$ms$",
                       'Hz': r"$s$"}
 
 

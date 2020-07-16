@@ -44,11 +44,6 @@ except NameError:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
 
-# As of 2020_06_16_Tue this is depricated. The built-in `get_units()` and `set_units()` functions
-# should be used. 
-# default energy units
-# DEFAULT_ENERGY_UNITS = 'GHz'
-
 # define settings for tqdm progressbar
 TQDM_KWARGS = {'disable': PROGRESSBAR_DISABLED,
                'leave': False}

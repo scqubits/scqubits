@@ -102,7 +102,7 @@ class NoisySystem:
 
         spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
                                                    subtract_ground=True, get_eigenstates=True, filename=None,
-                                                   num_cpus=settings.NUM_CPUS)
+                                                   num_cpus=num_cpus) if spec_data is None else spec_data
 
         # figure out how many plots we need to produce
         plot_grid = (1, 1) if len(noise_channels) == 1 else (math.ceil(len(noise_channels)/2), 2)
@@ -169,7 +169,7 @@ class NoisySystem:
                 plotting._process_options(fig, ax, **kwargs)
 
             else:
-                raise ValueError("The `noise_channels` argument should be one of {str, list of str or tuples}.")
+                raise ValueError("The `noise_channels` argument should be one of {str, list of str, or list of tuples}.")
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
@@ -234,7 +234,7 @@ class NoisySystem:
                 rate += getattr(self, nc)(**options)
 
             else:
-                raise ValueError("The `noise_channels` argument should be one of {str, list of str or tuples}.")
+                raise ValueError("The `noise_channels` argument should be one of {str, list of str, or list of tuples}.")
 
         if get_rate:
             return rate
@@ -295,7 +295,7 @@ class NoisySystem:
                 rate += scale_factor * getattr(self, nc)(**options)
 
             else:
-                raise ValueError("The `noise_channels` argument should be one of {str, list of str or tuples}.")
+                raise ValueError("The `noise_channels` argument should be one of {str, list of str, or list of tuples}.")
 
         if get_rate:
             return rate
@@ -439,10 +439,10 @@ class NoisySystem:
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_ng(),
                                   esys=esys, get_rate=get_rate, **params)
 
-    def t1(self, i, j, noise_op, spec_dens, total=True, esys=None, get_rate=False, **params):
+    def t1(self, i, j, noise_op, spectral_density, total=True, esys=None, get_rate=False, **params):
         r"""
         Calculate the transition time (or rate) using Fermi's Golden Rule due to a noise channel with
-        a spectral density `spec_dens` and system noise operator `noise_op`. Mathematically, it reads:
+        a spectral density `spectral_density` and system noise operator `noise_op`. Mathematically, it reads:
 
         .. math::
 
@@ -459,7 +459,7 @@ class NoisySystem:
             state index that along with i defines a transition (i->j)
         noise_op: operator (ndarray)
             noise operator
-        spec_dens: callable object 
+        spectral_density: callable object 
             defines a spectral density, must take one argument: `omega` (assumed to be in units of `2 \pi * <system units>`)
         total: bool
             if False return a time/rate associated with a transition from state i to state j.
@@ -482,11 +482,11 @@ class NoisySystem:
         evals, evecs = self.eigensys(evals_count=max(i, j)+1) if esys is None else esys
 
         # We assume that the energies in `evals` are given in the units of frequency and *not*
-        # angular frequency. The function `spec_dens` is assumed to take as a parameter an
+        # angular frequency. The function `spectral_density` is assumed to take as a parameter an
         # angular frequency, hence we have to convert.
         omega = 2 * np.pi * (evals[i]-evals[j])
 
-        s = spec_dens(omega) + spec_dens(-omega) if total else spec_dens(omega)
+        s = spectral_density(omega) + spectral_density(-omega) if total else spectral_density(omega)
 
         if isinstance(noise_op, np.ndarray):  # Check if the operator is given in dense form
             # if so, use numpy's vdot and dot
@@ -514,7 +514,7 @@ class NoisySystem:
             state index that along with i defines a transition (i->j)
         EC: float
             capacitive energy (in frequency units)
-        Q_cap: float or callable
+        Q_cap: numeric or callable
             capacitive quality factor; a fixed value or function of `omega`
         T: float
             temperature in Kelvin
@@ -539,18 +539,21 @@ class NoisySystem:
 
         if Q_cap is None:
             # See Smith et al (2020)
-            def Q_cap(omega): return 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7
-
-        def spec_dens(omega, Q_cap=Q_cap):
-            q_cap = Q_cap(omega) if callable(Q_cap) else Q_cap
+            Q_cap_fun=lambda omega: return 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7
+        elif callable(Q_cap): #Q_cap is a function of omega
+            Q_cap_fun=Q_cap
+        else: # Q_cap is a number, so we make it a trivial function of omega
+            Q_cap_fun=lambda omega: Q_cap
+            
+        def spectral_density(omega, Q_cap=Q_cap):
             therm_ratio = calc_therm_ratio(omega, T)
-            s = 2 * 8 * EC / q_cap * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s = 2 * 8 * EC / q_cap_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
             s *= 2 * np.pi  # We assume that system energies are given in units of frequency
             return s
 
         noise_op = self.n_operator()
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total,
+        return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **params)
 
     def t1_inductive_loss(self, i=1, j=0, EL=None, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
@@ -598,7 +601,7 @@ class NoisySystem:
             # See Smith et al (2020)
             Q_ind = 500e6
 
-        def spec_dens(omega, Q_ind=Q_ind):
+        def spectral_density(omega, Q_ind=Q_ind):
             q_ind = Q_ind(omega) if callable(Q_ind) else Q_ind
             therm_ratio = calc_therm_ratio(omega, T)
             s = 2 * EL / q_ind * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
@@ -607,7 +610,7 @@ class NoisySystem:
 
         noise_op = self.phi_operator()
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total,
+        return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **params)
 
     def t1_charge_impedance(self, i=1, j=0, Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=True,
@@ -643,7 +646,7 @@ class NoisySystem:
         if 't1_charge_impedance' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_charge_impedance' is not supported in this system.")
 
-        def spec_dens(omega, Z=Z):
+        def spectral_density(omega, Z=Z):
             Z = Z(omega) if callable(Z) else Z
             # Note, our definition of Q_c is different from Zhang et al (2020) by a factor of 2
             Q_c = NOISE_PARAMS['R_k']/(8*np.pi * complex(Z).real)
@@ -653,7 +656,7 @@ class NoisySystem:
 
         noise_op = self.n_operator()
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total, esys=esys,
+        return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total, esys=esys,
                        get_rate=get_rate, **params)
 
     def t1_flux_bias_line(self, i=1, j=0, M=NOISE_PARAMS['M'],  Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
@@ -689,7 +692,7 @@ class NoisySystem:
         if 't1_flux_bias_line' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_flux_bias_line' is not supported in this system.")
 
-        def spec_dens(omega, Z=Z):
+        def spectral_density(omega, Z=Z):
             """
             Our definitions assume that the noise_op is dH/dflux.
             """
@@ -698,7 +701,7 @@ class NoisySystem:
             s = 2 * (2 * np.pi)**2 * M**2 * omega * sp.constants.hbar / complex(Z).real  \
                 * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
             # We assume that system energies are given in units of frequency
-            # and that the noise operator to be used with this `spec_dens` is dH/dflux.
+            # and that the noise operator to be used with this `spectral_density` is dH/dflux.
             # Hence we have to convert  2 powers of frequency to standard units
             # (TODO this is ugly; what's a cleaner way to do this? )
             s *= (units.to_standard_units(1))**2.0
@@ -706,7 +709,7 @@ class NoisySystem:
 
         noise_op = self.d_hamiltonian_d_flux()
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens, total=total, esys=esys,
+        return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total, esys=esys,
                        get_rate=get_rate, **params)
 
     def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, Delta=NOISE_PARAMS['Delta'], x_qp=NOISE_PARAMS['x_qp'],
@@ -728,7 +731,7 @@ class NoisySystem:
             # Namely, should we calculate based on each qubit's topology (i.e. how is are the junctions shunted)?
             Y_qp = 1000  # dummy for now
 
-        def spec_dens(omega, Y_qp=Y_qp):
+        def spectral_density(omega, Y_qp=Y_qp):
             """
             Our definitions assume that the noise_op is dH/dflux.
 
@@ -741,5 +744,5 @@ class NoisySystem:
 
         noise_op = self.sin_phi_operator(alpha=0.5)
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spec_dens=spec_dens,  total=total,
+        return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density,  total=total,
                        esys=esys, get_rate=get_rate, **params)
