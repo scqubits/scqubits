@@ -201,7 +201,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def _build_single_exp_i_phi_j_operator(self, j):
         Xi = self.Xi_matrix()
         dim = self.number_degrees_freedom()
-        if j == dim - 1:
+        if j == dim:
             exp_i_phi_j_a_component = expm(np.sum([self.boundary_coeffs[i] *
                                                    1j * Xi[i, k] * self.a_operator(k) / np.sqrt(2.0)
                                                    for i in range(dim) for k in range(dim)], axis=0))
@@ -218,7 +218,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         as well as the exp(i\phi_{j}) operators for the potential
         :return:
         """
-        return np.array([self._build_single_exp_i_phi_j_operator(j) for j in range(self.number_degrees_freedom())])
+        return np.array([self._build_single_exp_i_phi_j_operator(j) for j in range(self.number_degrees_freedom()+1)])
 
     def _build_exponentiated_translation_operators(self, minima_diff):
         """
@@ -293,7 +293,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         kinetic_matrix = np.sum([(- 0.5*4*np.matmul(self.a_operator(i), self.a_operator(i))
                                   - 0.5*4*np.matmul(self.a_operator(i).T, self.a_operator(i).T)
                                   + 0.5*8*np.matmul(self.a_operator(i).T, self.a_operator(i))
-                                  + (4*(self.a_operator(i) - self.a_operator(i).T)
+                                  - (4*(self.a_operator(i) - self.a_operator(i).T)
                                      * delta_phi_kpm_rotated[i]/np.sqrt(2.0)))
                                  * EC_mat_transformed[i, i]
                                  for i in range(self.number_degrees_freedom())], axis=0)
@@ -398,7 +398,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         hamiltonian_matrix, inner_product_matrix = self._efficient_construction_of_hamiltonian_and_inner_product()
         try:
             evals = eigh(hamiltonian_matrix, b=inner_product_matrix,
-                                   eigvals_only=True, eigvals=(0, evals_count - 1))
+                         eigvals_only=True, eigvals=(0, evals_count - 1))
         except LinAlgError:
             warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare for convergence")
             evals = self._singular_inner_product_helper(hamiltonian_mat=hamiltonian_matrix,
@@ -411,7 +411,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         hamiltonian_matrix, inner_product_matrix = self._efficient_construction_of_hamiltonian_and_inner_product()
         try:
             evals, evecs = eigh(hamiltonian_matrix, b=inner_product_matrix,
-                                          eigvals_only=False, eigvals=(0, evals_count - 1))
+                                eigvals_only=False, eigvals=(0, evals_count - 1))
             evals, evecs = order_eigensystem(evals, evecs)
         except LinAlgError:
             warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare for convergence")
