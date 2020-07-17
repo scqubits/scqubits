@@ -6,6 +6,7 @@ from scipy.special import comb
 
 import scqubits.core.discretization as discretization
 import scqubits.core.storage as storage
+from scqubits.core import descriptors
 from scqubits.utils.spectrum_utils import standardize_phases
 from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
 from scqubits.core.hashing import Hashing
