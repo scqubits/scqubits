@@ -129,7 +129,7 @@ class VCHOSSqueezing(VCHOS):
                 counter += 1
 
         # fill in kinetic energy matrix according to hermiticity
-        n_op_mat = self._populate_hermitian_matrix(n_op_mat, minima_list, num_exc_tot)
+        n_op_mat = self._populate_hermitean_matrix(n_op_mat, minima_list, num_exc_tot)
 
         return n_op_mat
 
@@ -178,7 +178,7 @@ class VCHOSSqueezing(VCHOS):
                     phik = 2.0 * np.pi * np.array(jkvals)
                     delta_phi_kpm = phik + minima_diff
                     phibar_kpm = 0.5 * (phik + (minima_m + minima_p))
-                    exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
+                    exp_prod_coeff = self._exp_product_coefficient(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
                     (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
                     exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
@@ -222,7 +222,7 @@ class VCHOSSqueezing(VCHOS):
 
                 counter += 1
 
-        cos_or_sin_phi_j_mat = self._populate_hermitian_matrix(cos_or_sin_phi_j_mat, minima_list, num_exc_tot)
+        cos_or_sin_phi_j_mat = self._populate_hermitean_matrix(cos_or_sin_phi_j_mat, minima_list, num_exc_tot)
 
         return cos_or_sin_phi_j_mat
 
@@ -245,7 +245,7 @@ class VCHOSSqueezing(VCHOS):
         """
         gamma = self.build_gamma_matrix(i)
         gamma_prime = np.matmul(Xi.T, np.matmul(gamma, Xi))
-        omegamat = self.omegamat(i)
+        omegamat = self.omega_matrix(i)
         zeta = 0.25 * (self.Phi0 ** 2 * gamma_prime + omegamat)
         eta = 0.25 * (self.Phi0 ** 2 * gamma_prime - omegamat)
         hmat = np.block([[zeta, -eta],
@@ -493,7 +493,7 @@ class VCHOSSqueezing(VCHOS):
                 for jkvals in wrapper_klist[counter]:
                     phik = 2.0 * np.pi * np.array(jkvals)
                     delta_phi_kpm = phik + minima_diff
-                    exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
+                    exp_prod_coeff = self._exp_product_coefficient(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
                     # x is the vector that appears in exp(x_{i}a_{i}^{\dagger}) (Einstein summation)
                     x = np.matmul(delta_phi_kpm, Xi_inv.T) / np.sqrt(2.)
@@ -535,7 +535,7 @@ class VCHOSSqueezing(VCHOS):
                 counter += 1
 
         # fill in kinetic energy matrix according to hermiticity
-        kinetic_mat = self._populate_hermitian_matrix(kinetic_mat, minima_list, num_exc_tot)
+        kinetic_mat = self._populate_hermitean_matrix(kinetic_mat, minima_list, num_exc_tot)
 
         return kinetic_mat
 
@@ -574,7 +574,7 @@ class VCHOSSqueezing(VCHOS):
                     phik = 2.0 * np.pi * np.array(jkvals)
                     delta_phi_kpm = phik + minima_diff
                     phibar_kpm = 0.5 * (phik + (minima_m + minima_p))
-                    exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
+                    exp_prod_coeff = self._exp_product_coefficient(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
                     (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
                     exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
@@ -636,7 +636,7 @@ class VCHOSSqueezing(VCHOS):
 
                 counter += 1
 
-        potential_mat = self._populate_hermitian_matrix(potential_mat, minima_list, num_exc_tot)
+        potential_mat = self._populate_hermitean_matrix(potential_mat, minima_list, num_exc_tot)
 
         return potential_mat
 
@@ -645,7 +645,7 @@ class VCHOSSqueezing(VCHOS):
         wrapper_klist = self._find_nearest_neighbors_for_each_minimum()
         return self.kineticmat(wrapper_klist) + self.potentialmat(wrapper_klist)
 
-    def inner_product(self, wrapper_klist=None):
+    def inner_product_matrix(self, wrapper_klist=None):
         """Return the inner product matrix, which is nontrivial with tight-binding states"""
         if wrapper_klist is None:
             wrapper_klist = self._find_nearest_neighbors_for_each_minimum()
@@ -671,7 +671,7 @@ class VCHOSSqueezing(VCHOS):
                 for jkvals in wrapper_klist[counter]:
                     phik = 2.0 * np.pi * np.array(jkvals)
                     delta_phi_kpm = phik + minima_diff
-                    exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
+                    exp_prod_coeff = self._exp_product_coefficient(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
 
                     x = np.matmul(delta_phi_kpm, Xi_inv.T) / np.sqrt(2.)
                     y = -x
@@ -689,6 +689,6 @@ class VCHOSSqueezing(VCHOS):
                                       p * num_exc_tot:p * num_exc_tot + num_exc_tot] += inner_temp
                 counter += 1
 
-        inner_product_mat = self._populate_hermitian_matrix(inner_product_mat, minima_list, num_exc_tot)
+        inner_product_mat = self._populate_hermitean_matrix(inner_product_mat, minima_list, num_exc_tot)
 
         return inner_product_mat

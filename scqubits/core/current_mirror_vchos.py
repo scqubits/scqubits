@@ -74,12 +74,12 @@ class CurrentMirrorVCHOS(VCHOS):
         return Cmat
 
     def build_capacitance_matrix(self):
-        Cmat = self.build_Cmat_full()
+        C_matrix = self.build_Cmat_full()
 
         V_m_inv = sp.linalg.inv(self._build_V_m())
-        Cmat = np.matmul(V_m_inv.T, np.matmul(Cmat, V_m_inv))
+        C_matrix = np.matmul(V_m_inv.T, np.matmul(C_matrix, V_m_inv))
 
-        return Cmat[0:-1, 0:-1]
+        return C_matrix[0:-1, 0:-1]
 
     def _build_V_m(self):
         N = self.N
@@ -91,8 +91,8 @@ class CurrentMirrorVCHOS(VCHOS):
 
     def build_EC_matrix(self):
         """Return the charging energy matrix"""
-        Cmat = self.build_capacitance_matrix()
-        return 0.5 * self.e ** 2 * sp.linalg.inv(Cmat)
+        C_matrix = self.build_capacitance_matrix()
+        return 0.5 * self.e ** 2 * sp.linalg.inv(C_matrix)
 
     def number_degrees_freedom(self):
         return 2 * self.N - 1

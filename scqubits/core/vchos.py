@@ -29,9 +29,9 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 
 class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def __init__(self, EJlist, nglist, flux, kmax, num_exc=None):
-        self.e = np.sqrt(4.0 * np.pi * const.alpha)
-        self.Z0 = 1. / (2 * self.e) ** 2
-        self.Phi0 = 1. / (2 * self.e)
+        self.e = np.sqrt(4.0*np.pi*const.alpha)
+        self.Z0 = 1./(2*self.e)**2
+        self.Phi0 = 1./(2*self.e)
         self.nearest_neighbor_cutoff = 180.0
         self.EJlist = EJlist
         self.nglist = nglist
@@ -50,13 +50,13 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def nonfit_params():
         return []
 
-    def potential(self, phiarray):
+    def potential(self, phi_array):
         """
-        Potential evaluated at the location specified by phiarray
+        Potential evaluated at the location specified by phi_array
 
         Parameters
         ----------
-        phiarray: ndarray
+        phi_array: ndarray
             float value of the phase variable `phi`
 
         Returns
@@ -64,19 +64,18 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         float
         """
         dim = self.number_degrees_freedom()
-        pot_sum = np.sum([-self.EJlist[j] * np.cos(phiarray[j]) for j in range(dim)])
-        pot_sum += (-self.EJlist[-1] * np.cos(np.sum([self.boundary_coeffs[i] * phiarray[i]
-                                                      for i in range(dim)]) + 2 * np.pi * self.flux))
+        pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
+        pot_sum += (- self.EJlist[-1]*np.cos(np.sum([self.boundary_coeffs[i] * phi_array[i]
+                                                     for i in range(dim)]) + 2*np.pi*self.flux))
         return pot_sum
 
     def build_gamma_matrix(self, i):
-        """
-        Return linearized potential matrix
-        
+        """Return linearized potential matrix
+
         Note that we must divide by Phi_0^2 since Ej/Phi_0^2 = 1/Lj,
         or one over the effective impedance of the junction.
-        
-        We are imagining an arbitrary loop of JJs where we have 
+
+        We are imagining an arbitrary loop of JJs where we have
         changed variables to the difference variables, so that
         each junction is a function of just one variable, except for
         the last junction, which is a function of all of the variables
@@ -89,72 +88,135 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         Returns
         -------
         ndarray
-        
         """
         dim = self.number_degrees_freedom()
         gmat = np.zeros((dim, dim))
         min_loc = self.sorted_minima()[i]
         gamma_list = self.EJlist / self.Phi0 ** 2
 
-        gamma_diag = np.diag([gamma_list[j] * np.cos(min_loc[j]) for j in range(dim)])
+        gamma_diag = np.diag([gamma_list[j]*np.cos(min_loc[j]) for j in range(dim)])
         gmat += gamma_diag
 
-        min_loc_bound_sum = np.sum([self.boundary_coeffs[j] * min_loc[j] for j in range(dim)])
+        min_loc_bound_sum = np.sum([self.boundary_coeffs[j]*min_loc[j] for j in range(dim)])
         for j in range(dim):
             for k in range(dim):
-                gmat[j, k] += (gamma_list[-1] * self.boundary_coeffs[j] * self.boundary_coeffs[k]
-                               * np.cos(min_loc_bound_sum + 2 * np.pi * self.flux))
+                gmat[j, k] += (gamma_list[-1]*self.boundary_coeffs[j]*self.boundary_coeffs[k]
+                               * np.cos(min_loc_bound_sum + 2*np.pi*self.flux))
         return gmat
 
-    def _eigensystem_normal_modes(self, i):
-        """Return squared normal mode frequencies, matrix of eigenvectors"""
-        Cmat = self.build_capacitance_matrix()
-        gmat = self.build_gamma_matrix(i)
+    def eigensystem_normal_modes(self, i):
+        """Return squared normal mode frequencies, matrix of eigenvectors
 
-        omegasq, eigvec = eigh(gmat, b=Cmat)
-        return omegasq, eigvec
+        Parameters
+        ----------
+        i: int
+            integer specifying which minimum to linearize around, 0<=i<= total number of minima
 
-    def omegamat(self, i):
-        """Return a diagonal matrix of the normal mode frequencies of a given minimim """
-        omegasq, _ = self._eigensystem_normal_modes(i)
-        return np.diag(np.sqrt(omegasq))
+        Returns
+        -------
+        ndarray, ndarray
+        """
+        C_matrix = self.build_capacitance_matrix()
+        g_matrix = self.build_gamma_matrix(i)
+
+        omega_squared, normal_mode_eigenvectors = eigh(g_matrix, b=C_matrix)
+        return omega_squared, normal_mode_eigenvectors
+
+    def omega_matrix(self, i):
+        """Return a diagonal matrix of the normal mode frequencies of a given minimum
+
+        Parameters
+        ----------
+        i: int
+            integer specifying which minimum to linearize around, 0<=i<= total number of minima
+
+        Returns
+        -------
+        ndarray
+        """
+        omega_squared, _ = self.eigensystem_normal_modes(i)
+        return np.diag(np.sqrt(omega_squared))
 
     def oscillator_lengths(self, i):
-        """Return oscillator lengths of the mode frequencies for a given minimum"""
+        """Return oscillator lengths of the mode frequencies for a given minimum
+
+        Parameters
+        ----------
+        i: int
+            integer specifying which minimum to linearize around, 0<=i<= total number of minima
+
+        Returns
+        -------
+        ndarray
+        """
         dim = self.number_degrees_freedom()
-        omegasq, eigvec = self._eigensystem_normal_modes(i)
-        omega = np.sqrt(omegasq)
-        diag_norm = np.matmul(eigvec.T, eigvec)
-        norm_eigvec = np.array([eigvec[:, mu] / np.sqrt(diag_norm[mu, mu]) for mu in range(dim)]).T
-        Cmat = self.build_capacitance_matrix()
-        Cmat_diag = np.matmul(norm_eigvec.T, np.matmul(Cmat, norm_eigvec))
-        ECmat_diag = 0.5 * self.e ** 2 * np.diag(Cmat_diag) ** (-1)
-        oscillator_lengths = np.array([np.sqrt(8 * ECmat_diag[mu] / omega[mu]) for mu in range(len(omega))])
+        omega_squared, normal_mode_eigenvectors = self.eigensystem_normal_modes(i)
+        omega = np.sqrt(omega_squared)
+        diag_norm = np.matmul(normal_mode_eigenvectors.T, normal_mode_eigenvectors)
+        normalized_eigenvectors = np.array([normal_mode_eigenvectors[:, mu]
+                                            / np.sqrt(diag_norm[mu, mu]) for mu in range(dim)]).T
+        C_matrix = self.build_capacitance_matrix()
+        C_matrix_diagonal = np.matmul(normalized_eigenvectors.T, np.matmul(C_matrix, normalized_eigenvectors))
+        EC_matrix_diagonal = 0.5*self.e**2*np.diag(C_matrix_diagonal)**(-1)
+        oscillator_lengths = np.array([np.sqrt(8*EC_matrix_diagonal[mu]/omega[mu]) for mu in range(len(omega))])
         return oscillator_lengths
 
     def Xi_matrix(self):
-        """Construct the Xi matrix, encoding the oscillator lengths of each dimension"""
-        omegasq, eigvec = self._eigensystem_normal_modes(0)
+        """
+        Returns
+        -------
+        ndarray
+            Xi matrix of the normal mode eigenvectors normalized
+            to encode the harmonic length
+        """
+        omega_squared, normal_mode_eigenvectors = self.eigensystem_normal_modes(0)
         # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
-        Ximat = np.array([eigvec[:, i] * (omegasq[i]) ** (-1 / 4)
-                          * np.sqrt(1. / self.Z0) for i in range(len(omegasq))]).T
-        return Ximat
+        Xi_matrix = np.array([normal_mode_eigenvectors[:, i]*(omega_squared[i]) ** (-1 / 4)
+                          * np.sqrt(1. / self.Z0) for i in range(len(omega_squared))]).T
+        return Xi_matrix
 
     def a_operator(self, mu):
-        """Return the lowering operator associated with the mu^th d.o.f. in the full Hilbert space"""
+        """Return the lowering operator associated with the mu^th d.o.f. in the full Hilbert space
+
+        Parameters
+        ----------
+        mu: int
+            which degree of freedom, 0<=mu<=self.number_degrees_freedom()
+
+        Returns
+        -------
+        ndarray
+        """
         a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)])
         a_mat = np.diag(a, k=1)
         return self._full_o([a_mat], [mu])
 
-    def _identity(self):
+    def identity(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the identity matrix whose dimensions are the same as self.a_operator(mu)
+        """
         return np.eye(int(self.number_states_per_minimum()))
 
     def number_states_per_minimum(self):
+        """
+        Returns
+        -------
+        int
+            Returns the number of states displaced into each local minimum
+        """
         return (self.num_exc + 1) ** self.number_degrees_freedom()
 
     def hilbertdim(self):
-        """Return N if the size of the Hamiltonian matrix is NxN"""
-        return int(len(self.sorted_minima()) * self.number_states_per_minimum())
+        """
+        Returns
+        -------
+        int
+            Returns the Hilbert space dimension.
+        """
+        return int(len(self.sorted_minima())*self.number_states_per_minimum())
 
     def _find_nearest_neighbors_for_each_minimum(self):
         """
@@ -192,8 +254,8 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         of the exponential is greater than 180.0, this results in a suppression of ~10**(-20),
         and so can be safely neglected.
         """
-        phik = 2.0 * np.pi * np.array(neighbor)
-        dpkX = np.matmul(Xi_inv, phik + minima_diff)
+        phi_neighbor = 2.0*np.pi*np.array(neighbor)
+        dpkX = np.matmul(Xi_inv, phi_neighbor + minima_diff)
         prod = np.dot(dpkX, dpkX)
         return prod > self.nearest_neighbor_cutoff
 
@@ -208,28 +270,22 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         Xi = self.Xi_matrix()
         dim = self.number_degrees_freedom()
         if j == dim:
-            exp_i_phi_j_a_component = expm(np.sum([self.boundary_coeffs[i] *
-                                                   1j * Xi[i, k] * self.a_operator(k) / np.sqrt(2.0)
+            exp_i_phi_j_a_component = expm(np.sum([self.boundary_coeffs[i]
+                                                   * 1j*Xi[i, k]*self.a_operator(k)/np.sqrt(2.0)
                                                    for i in range(dim) for k in range(dim)], axis=0))
             BCH_factor = self._BCH_factor_for_potential_boundary()
         else:
-            exp_i_phi_j_a_component = expm(np.sum([1j * Xi[j, k] * self.a_operator(k) / np.sqrt(2.0)
+            exp_i_phi_j_a_component = expm(np.sum([1j*Xi[j, k]*self.a_operator(k)/np.sqrt(2.0)
                                                    for k in range(dim)], axis=0))
             BCH_factor = self._BCH_factor_for_junction(j)
         exp_i_phi_j_a_dagger_component = exp_i_phi_j_a_component.T
-        return BCH_factor * np.matmul(exp_i_phi_j_a_dagger_component, exp_i_phi_j_a_component)
+        return BCH_factor*np.matmul(exp_i_phi_j_a_dagger_component, exp_i_phi_j_a_component)
 
     def _build_all_exp_i_phi_j_operators(self):
-        """
-        as well as the exp(i\phi_{j}) operators for the potential
-        :return:
-        """
         return np.array([self._build_single_exp_i_phi_j_operator(j) for j in range(self.number_degrees_freedom()+1)])
 
     def _build_exponentiated_translation_operators(self, minima_diff, Xi_inv):
-        """
-        This routine builds the translation operators necessary for periodic continuation
-        """
+        """In general this is the costliest part of the code (expm is quite slow)"""
         dim = self.number_degrees_freedom()
         exp_a_list = np.array([expm(np.sum([(2.0*np.pi*Xi_inv.T[i, j]/np.sqrt(2.0))*self.a_operator(j)
                                             for j in range(dim)], axis=0)) for i in range(dim)])
@@ -238,14 +294,11 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return exp_a_list, exp_a_minima_difference
 
     def _translation_operator_builder(self, exp_a_list_and_minima_difference, neighbor):
-        """
-        Build translation operators using matrix_power rather than the
-        more costly expm
-        """
+        """Build translation operators using matrix_power rather than the more costly expm"""
         dim = self.number_degrees_freedom()
         exp_a_list, exp_a_minima_difference = exp_a_list_and_minima_difference
-        translation_op_a_dagger = self._identity()
-        translation_op_a = self._identity()
+        translation_op_a_dagger = self.identity()
+        translation_op_a = self.identity()
         for j in range(dim):
             translation_op_a_dagger = np.matmul(translation_op_a_dagger, matrix_power(exp_a_list[j].T, neighbor[j]))
         for j in range(dim):
@@ -254,29 +307,38 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         translation_op_a = np.matmul(translation_op_a, inv(exp_a_minima_difference))
         return translation_op_a_dagger, translation_op_a
 
-    def _exp_prod_coeff(self, delta_phi, Xi_inv):
-        """
-        Overall multiplicative factor. Includes offset charge,
-        Gaussian suppression factor
-        """
+    def _exp_product_coefficient(self, delta_phi, Xi_inv):
+        """Overall multiplicative factor, including offset charge, Gaussian suppression factor"""
         delta_phi_rotated = np.matmul(Xi_inv, delta_phi)
-        return (np.exp(-1j * np.dot(self.nglist, delta_phi))
-                * np.exp(-0.25 * np.dot(delta_phi_rotated, delta_phi_rotated)))
+        return (np.exp(-1j*np.dot(self.nglist, delta_phi))
+                * np.exp(-0.25*np.dot(delta_phi_rotated, delta_phi_rotated)))
 
     def _BCH_factor_for_potential_boundary(self):
         Xi = self.Xi_matrix()
         dim = self.number_degrees_freedom()
-        return np.exp(-0.25 * np.sum([self.boundary_coeffs[j] * self.boundary_coeffs[k]
-                                      * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim) for k in range(dim)]))
+        return np.exp(-0.25*np.sum([self.boundary_coeffs[j]*self.boundary_coeffs[k]
+                                    * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim) for k in range(dim)]))
 
     def _BCH_factor_for_junction(self, j):
         Xi = self.Xi_matrix()
-        return np.exp(-0.25 * np.dot(Xi[j, :], Xi.T[:, j]))
+        return np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j]))
 
     def hamiltonian(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the Hamiltonian matrix
+        """
         return self.kinetic_matrix() + self.potential_matrix()
 
     def kinetic_matrix(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the kinetic energy matrix
+        """
         nearest_neighbors = self._find_nearest_neighbors_for_each_minimum()
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
         kinetic_function = self._kinetic_contribution_to_hamiltonian(premultiplied_a_and_a_dagger,
@@ -284,53 +346,90 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return self.wrapper_for_operator_construction(kinetic_function, nearest_neighbors=nearest_neighbors)
 
     def potential_matrix(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the potential energy matrix
+        """
         nearest_neighbors = self._find_nearest_neighbors_for_each_minimum()
         exp_i_phi_list = self._build_all_exp_i_phi_j_operators()
         potential_function = self._potential_contribution_to_hamiltonian(exp_i_phi_list)
         return self.wrapper_for_operator_construction(potential_function, nearest_neighbors=nearest_neighbors)
 
     def _kinetic_contribution_to_hamiltonian(self, premultiplied_a_and_a_dagger, Xi_inv):
-        def _inner_kinetic_c_t_h(delta_phi, phibar):
+        """Calculating products of a, a_dagger operators is costly,
+        as well as repeatedly calculating Xi (or Xi_inv) which is why they are
+        passed to this function in this way rather than calculated below"""
+        def _inner_kinetic_c_t_h(delta_phi, phi_bar):
             a, a_a, a_dagger_a = premultiplied_a_and_a_dagger
             EC_mat_transformed = np.matmul(Xi_inv, np.matmul(self.build_EC_matrix(), Xi_inv.T))
             delta_phi_rotated = np.matmul(Xi_inv, delta_phi)
-            kinetic_matrix = np.sum([(- 0.5*4*a_a[i] - 0.5*4*a_a[i].T + 0.5*8*a_dagger_a[i]
+            kinetic_matrix = np.sum([(-0.5*4*a_a[i] - 0.5*4*a_a[i].T + 0.5*8*a_dagger_a[i]
                                       - 4*(a[i] - a[i].T)*delta_phi_rotated[i]/np.sqrt(2.0))
                                      * EC_mat_transformed[i, i]
                                      for i in range(self.number_degrees_freedom())], axis=0)
             identity_coefficient = 0.5*4*np.trace(EC_mat_transformed)
             identity_coefficient += -0.25*4*np.matmul(delta_phi_rotated,
                                                       np.matmul(EC_mat_transformed, delta_phi_rotated))
-            kinetic_matrix += identity_coefficient*self._identity()
+            kinetic_matrix += identity_coefficient*self.identity()
             return kinetic_matrix
         return _inner_kinetic_c_t_h
 
     def _potential_contribution_to_hamiltonian(self, exp_i_phi_list):
-        def _inner_potential_c_t_h(delta_phi, phibar):
+        """Calculating exp_i_phi operators is costly, which is why it is
+        passed to this function in this way rather than calculated below"""
+        def _inner_potential_c_t_h(delta_phi, phi_bar):
             dim = self.number_degrees_freedom()
-            exp_i_phi_list_without_boundary = np.array([exp_i_phi_list[i] * np.exp(1j * phibar[i])
+            exp_i_phi_list_without_boundary = np.array([exp_i_phi_list[i]*np.exp(1j * phi_bar[i])
                                                         for i in range(dim)])
-            exp_i_sum_phi = (exp_i_phi_list[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
-                             * np.prod([np.exp(1j * self.boundary_coeffs[i] * phibar[i]) for i in range(dim)]))
+            exp_i_sum_phi = (exp_i_phi_list[-1] * np.exp(1j*2.0*np.pi*self.flux)
+                             * np.prod([np.exp(1j * self.boundary_coeffs[i] * phi_bar[i]) for i in range(dim)]))
             potential_matrix = np.sum([-0.5*self.EJlist[junction]
                                        * (exp_i_phi_list_without_boundary[junction]
                                           + exp_i_phi_list_without_boundary[junction].conjugate())
                                        for junction in range(dim)], axis=0)
-            potential_matrix += -0.5 * self.EJlist[-1] * (exp_i_sum_phi + exp_i_sum_phi.conjugate())
-            potential_matrix += np.sum(self.EJlist) * self._identity()
+            potential_matrix += -0.5*self.EJlist[-1]*(exp_i_sum_phi + exp_i_sum_phi.conjugate())
+            potential_matrix += np.sum(self.EJlist)*self.identity()
             return potential_matrix
         return _inner_potential_c_t_h
 
-    def inner_product(self):
+    def inner_product_matrix(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the inner product matrix
+        """
         nearest_neighbors = self._find_nearest_neighbors_for_each_minimum()
         return self.wrapper_for_operator_construction(self._inner_product_operator,
                                                       nearest_neighbors=nearest_neighbors)
 
     # TODO find a way to eliminate the arguments here, as they are unnecessary
-    def _inner_product_operator(self, delta_phi, phibar):
-        return self._identity()
+    def _inner_product_operator(self, delta_phi, phi_bar):
+        return self.identity()
 
     def wrapper_for_operator_construction(self, specific_function, nearest_neighbors=None):
+        """This function is the meat of the VCHOS method. Any operator whose matrix
+        elements we want (the Hamiltonian and inner product matrices are obvious examples)
+        can be passed to this function, and the matrix elements of that operator
+        will be returned.
+
+        Parameters
+        ----------
+        specific_function: method
+            function that takes two arguments (delta_phi, phi_bar) and returns the
+            relevant operator with dimension NxN, where N is the number of states
+            displaced into each minimum. For instance to find the inner product matrix,
+            we use the function self._inner_product_operator(delta_phi, phi_bar) -> self.identity
+        nearest_neighbors: self._find_nearest_neighbors_for_each_minimum()
+            list that encodes the nearest neighbors relevant when examining matrix elements
+            between states in inequivalent minima.
+
+        Returns
+        -------
+        ndarray
+        """
         if nearest_neighbors is None:
             nearest_neighbors = self._find_nearest_neighbors_for_each_minimum()
         Xi_inv = inv(self.Xi_matrix())
@@ -344,24 +443,22 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                 minima_diff = minima_list[p] - minima_m
                 exp_a_list_and_minima_difference = self._build_exponentiated_translation_operators(minima_diff, Xi_inv)
                 for neighbor in nearest_neighbors[counter]:
-                    phik = 2.0 * np.pi * np.array(neighbor)
-                    delta_phi = phik + minima_diff
-                    phibar = 0.5 * (phik + (minima_m + minima_list[p]))
-                    exp_prod_coeff = self._exp_prod_coeff(delta_phi, Xi_inv)
+                    phi_neighbor = 2.0*np.pi*np.array(neighbor)
+                    delta_phi = phi_neighbor + minima_diff
+                    phi_bar = 0.5*(phi_neighbor + (minima_m + minima_list[p]))
+                    exp_prod_coefficient = self._exp_product_coefficient(delta_phi, Xi_inv)
                     exp_a_dagger, exp_a = self._translation_operator_builder(exp_a_list_and_minima_difference, neighbor)
-                    matrix_element = exp_prod_coeff * specific_function(delta_phi, phibar)
+                    matrix_element = exp_prod_coefficient*specific_function(delta_phi, phi_bar)
                     matrix_element = np.matmul(exp_a_dagger, np.matmul(matrix_element, exp_a))
                     operator_matrix[m*num_states_min: (m + 1)*num_states_min,
                                     p*num_states_min: (p + 1)*num_states_min] += matrix_element
                 counter += 1
-        operator_matrix = self._populate_hermitian_matrix(operator_matrix)
+        operator_matrix = self._populate_hermitean_matrix(operator_matrix)
         return operator_matrix
 
-    def _populate_hermitian_matrix(self, mat):
-        """
-        Return a fully Hermitian matrix, assuming that the input matrix has been
-        populated with the upper right blocks
-        """
+    def _populate_hermitean_matrix(self, mat):
+        """Return a fully Hermitean matrix, assuming that the input matrix has been
+        populated with the upper right blocks"""
         minima_list = self.sorted_minima()
         num_states_min = int(self.number_states_per_minimum())
         for m, minima_m in enumerate(minima_list):
@@ -391,8 +488,8 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                                      inv(self.Xi_matrix()))
         potential_function = self._potential_contribution_to_hamiltonian(exp_i_phi_list)
 
-        def kinetic_plus_potential(delta_phi, phibar):
-            return kinetic_function(delta_phi, phibar) + potential_function(delta_phi, phibar)
+        def kinetic_plus_potential(delta_phi, phi_bar):
+            return kinetic_function(delta_phi, phi_bar) + potential_function(delta_phi, phi_bar)
         hamiltonian_matrix = self.wrapper_for_operator_construction(kinetic_plus_potential,
                                                                     nearest_neighbors=nearest_neighbors)
         inner_product_matrix = self.wrapper_for_operator_construction(self._inner_product_operator,
@@ -433,12 +530,12 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         new_minima_bool = True
         for minima in minima_holder:
             diff_array = minima - new_minima
-            diff_array_reduced = np.array([np.mod(x, 2 * np.pi) for x in diff_array])
+            diff_array_reduced = np.array([np.mod(x, 2*np.pi) for x in diff_array])
             elem_bool = True
             for elem in diff_array_reduced:
                 # if every element is zero or 2pi, then we have a repeated minima
                 elem_bool = elem_bool and (np.allclose(elem, 0.0, atol=1e-3)
-                                           or np.allclose(elem, 2 * np.pi, atol=1e-3))
+                                           or np.allclose(elem, 2*np.pi, atol=1e-3))
             if elem_bool:
                 new_minima_bool = False
                 break
