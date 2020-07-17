@@ -62,7 +62,7 @@ NOISE_PARAMS = {
 
 class NoisySystem:
 
-    def plot_coherence_vs_paramvals(self, param_name, param_vals, common_noise_options={}, noise_channels=None, 
+    def plot_coherence_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={}, 
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Show plots of various noise channels supported by the qubit.  
@@ -125,6 +125,7 @@ class NoisySystem:
                 ax.set_xlabel(param_name)
                 ax.set_ylabel(units.get_units_time_label())
                 ax.set_yscale("log")
+                ax.grid(True)
 
                 plotting._process_options(fig, ax, **kwargs)
 
@@ -152,6 +153,7 @@ class NoisySystem:
                 ax.set_xlabel(param_name)
                 ax.set_ylabel(units.get_units_time_label())
                 ax.set_yscale("log")
+                ax.grid(True)
 
                 plotting._process_options(fig, ax, **kwargs)
 
@@ -527,12 +529,12 @@ class NoisySystem:
         if Q_cap is None:
             # See Smith et al (2020)
             q_cap_fun=lambda omega: 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7
-        elif callable(Q_cap): #Q_cap is a function of omega
+        elif callable(Q_cap): # Q_cap is a function of omega
             q_cap_fun=Q_cap
-        else: # Q_cap is a number, so we make it a trivial function of omega
+        else: # Q_cap is given as a number
             q_cap_fun=lambda omega: Q_cap
             
-        def spectral_density(omega, Q_cap=Q_cap):
+        def spectral_density(omega):
             therm_ratio = calc_therm_ratio(omega, T)
             s = 2 * 8 * EC / q_cap_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
             s *= 2 * np.pi  # We assume that system energies are given in units of frequency
@@ -586,12 +588,15 @@ class NoisySystem:
 
         if Q_ind is None:
             # See Smith et al (2020)
-            Q_ind = 500e6
+            q_ind_fun = lambda omega: 500e6
+        elif callable(Q_ind): # Q_ind is a function of omega
+            q_ind_fun=Q_ind
+        else: # Q_ind is given as a number
+            q_ind_fun=lambda omega: Q_cap
 
-        def spectral_density(omega, Q_ind=Q_ind):
-            q_ind = Q_ind(omega) if callable(Q_ind) else Q_ind
+        def spectral_density(omega):
             therm_ratio = calc_therm_ratio(omega, T)
-            s = 2 * EL / q_ind * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s = 2 * EL / q_ind_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
             s *= 2 * np.pi  # We assume that system energies are given in units of frequency
             return s
 
@@ -633,10 +638,11 @@ class NoisySystem:
         if 't1_charge_impedance' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_charge_impedance' is not supported in this system.")
 
-        def spectral_density(omega, Z=Z):
-            Z = Z(omega) if callable(Z) else Z
+        Z_fun = Z if callable(Z) else lambda omega: Z
+
+        def spectral_density(omega):
             # Note, our definition of Q_c is different from Zhang et al (2020) by a factor of 2
-            Q_c = NOISE_PARAMS['R_k']/(8*np.pi * complex(Z).real)
+            Q_c = NOISE_PARAMS['R_k']/(8*np.pi * complex(Z_fun(omega)).real)
             therm_ratio = calc_therm_ratio(omega, T)
             s = 2 * omega / Q_c * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
             return s
@@ -679,13 +685,14 @@ class NoisySystem:
         if 't1_flux_bias_line' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_flux_bias_line' is not supported in this system.")
 
+        Z_fun = Z if callable(Z) else lambda omega: Z
+
         def spectral_density(omega, Z=Z):
             """
             Our definitions assume that the noise_op is dH/dflux.
             """
-            Z = Z(omega) if callable(Z) else Z
             therm_ratio = calc_therm_ratio(omega, T)
-            s = 2 * (2 * np.pi)**2 * M**2 * omega * sp.constants.hbar / complex(Z).real  \
+            s = 2 * (2 * np.pi)**2 * M**2 * omega * sp.constants.hbar / complex(Z_fun(omega)).real  \
                 * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
             # We assume that system energies are given in units of frequency
             # and that the noise operator to be used with this `spectral_density` is dH/dflux.
@@ -716,17 +723,19 @@ class NoisySystem:
         if Y_qp is None:
             # TODO implement a fancy omega-dependent function; how does it differ for different qubits?
             # Namely, should we calculate based on each qubit's topology (i.e. how is are the junctions shunted)?
-            Y_qp = 1000  # dummy for now
+            y_qp_fun = lambda omega: 1000  # dummy for now
+        elif callable(Y_qp): # Y_qp is a function of omega
+            y_qp_fun = Y_qp
+        else: # Y_qp is given as a number
+            y_qp_fun = lambda omega: Y_qp
 
         def spectral_density(omega, Y_qp=Y_qp):
             """
             Our definitions assume that the noise_op is dH/dflux.
-
             TODO finish this
             """
-            Y_qp = Y_qp(omega) if callable(Y_qp) else Y_qp
             therm_ratio = calc_therm_ratio(omega, T)
-            s = NOISE_PARAMS['R_k'] * Y_qp * omega / np.pi * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
+            s = NOISE_PARAMS['R_k'] * y_qp_fun(omega) * omega / np.pi * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
             return s
 
         noise_op = self.sin_phi_operator(alpha=0.5)
