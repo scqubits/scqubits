@@ -2,15 +2,14 @@ import itertools
 import warnings
 
 import numpy as np
-from scipy.linalg import LinAlgError, expm, inv, eigh, ordqz
+from scipy.linalg import LinAlgError, expm, inv, eigh
 import scipy.constants as const
 from numpy.linalg import matrix_power
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.utils.fix_heiberger import fixheiberger
 from scqubits.utils.misc import kron_matrix_list
-from scqubits.utils.spectrum_utils import order_eigensystem
+from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ
 
 
 # The VCHOS method (tight binding) allowing for the diagonalization of systems
@@ -198,6 +197,13 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         prod = np.dot(dpkX, dpkX)
         return prod > self.nearest_neighbor_cutoff
 
+    def _build_premultiplied_a_and_a_dagger(self):
+        dim = self.number_degrees_freedom()
+        a = np.array([self.a_operator(i) for i in range(dim)])
+        a_a = np.array([np.matmul(self.a_operator(i), self.a_operator(i)) for i in range(dim)])
+        a_dagger_a = np.array([np.matmul(self.a_operator(i).T, self.a_operator(i)) for i in range(dim)])
+        return a, a_a, a_dagger_a
+
     def _build_single_exp_i_phi_j_operator(self, j):
         Xi = self.Xi_matrix()
         dim = self.number_degrees_freedom()
@@ -220,12 +226,10 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         """
         return np.array([self._build_single_exp_i_phi_j_operator(j) for j in range(self.number_degrees_freedom()+1)])
 
-    def _build_exponentiated_translation_operators(self, minima_diff):
+    def _build_exponentiated_translation_operators(self, minima_diff, Xi_inv):
         """
         This routine builds the translation operators necessary for periodic continuation
         """
-        Xi = self.Xi_matrix()
-        Xi_inv = inv(Xi)
         dim = self.number_degrees_freedom()
         exp_a_list = np.array([expm(np.sum([(2.0*np.pi*Xi_inv.T[i, j]/np.sqrt(2.0))*self.a_operator(j)
                                             for j in range(dim)], axis=0)) for i in range(dim)])
@@ -250,16 +254,14 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         translation_op_a = np.matmul(translation_op_a, inv(exp_a_minima_difference))
         return translation_op_a_dagger, translation_op_a
 
-    def _exp_prod_coeff(self, delta_phi_kpm):
+    def _exp_prod_coeff(self, delta_phi, Xi_inv):
         """
         Overall multiplicative factor. Includes offset charge,
         Gaussian suppression factor
         """
-        Xi = self.Xi_matrix()
-        Xi_inv = inv(Xi)
-        delta_phi_kpm_rotated = np.matmul(Xi_inv, delta_phi_kpm)
-        return (np.exp(-1j * np.dot(self.nglist, delta_phi_kpm))
-                * np.exp(-0.25 * np.dot(delta_phi_kpm_rotated, delta_phi_kpm_rotated)))
+        delta_phi_rotated = np.matmul(Xi_inv, delta_phi)
+        return (np.exp(-1j * np.dot(self.nglist, delta_phi))
+                * np.exp(-0.25 * np.dot(delta_phi_rotated, delta_phi_rotated)))
 
     def _BCH_factor_for_potential_boundary(self):
         Xi = self.Xi_matrix()
@@ -276,7 +278,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
     def kinetic_matrix(self):
         nearest_neighbors = self._find_nearest_neighbors_for_each_minimum()
-        kinetic_function = self._kinetic_contribution_to_hamiltonian
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        kinetic_function = self._kinetic_contribution_to_hamiltonian(premultiplied_a_and_a_dagger,
+                                                                     inv(self.Xi_matrix()))
         return self.wrapper_for_operator_construction(kinetic_function, nearest_neighbors=nearest_neighbors)
 
     def potential_matrix(self):
@@ -285,31 +289,29 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         potential_function = self._potential_contribution_to_hamiltonian(exp_i_phi_list)
         return self.wrapper_for_operator_construction(potential_function, nearest_neighbors=nearest_neighbors)
 
-    def _kinetic_contribution_to_hamiltonian(self, delta_phi_kpm, phibar_kpm):
-        Xi = self.Xi_matrix()
-        Xi_inv = inv(Xi)
-        EC_mat_transformed = np.matmul(Xi_inv, np.matmul(self.build_EC_matrix(), Xi_inv.T))
-        delta_phi_kpm_rotated = np.matmul(Xi_inv, delta_phi_kpm)
-        kinetic_matrix = np.sum([(- 0.5*4*np.matmul(self.a_operator(i), self.a_operator(i))
-                                  - 0.5*4*np.matmul(self.a_operator(i).T, self.a_operator(i).T)
-                                  + 0.5*8*np.matmul(self.a_operator(i).T, self.a_operator(i))
-                                  - (4*(self.a_operator(i) - self.a_operator(i).T)
-                                     * delta_phi_kpm_rotated[i]/np.sqrt(2.0)))
-                                 * EC_mat_transformed[i, i]
-                                 for i in range(self.number_degrees_freedom())], axis=0)
-        identity_coefficient = 0.5*4*np.trace(EC_mat_transformed)
-        identity_coefficient += -0.25*4*np.matmul(delta_phi_kpm_rotated,
-                                                  np.matmul(EC_mat_transformed, delta_phi_kpm_rotated))
-        kinetic_matrix += identity_coefficient*self._identity()
-        return kinetic_matrix
+    def _kinetic_contribution_to_hamiltonian(self, premultiplied_a_and_a_dagger, Xi_inv):
+        def _inner_kinetic_c_t_h(delta_phi, phibar):
+            a, a_a, a_dagger_a = premultiplied_a_and_a_dagger
+            EC_mat_transformed = np.matmul(Xi_inv, np.matmul(self.build_EC_matrix(), Xi_inv.T))
+            delta_phi_rotated = np.matmul(Xi_inv, delta_phi)
+            kinetic_matrix = np.sum([(- 0.5*4*a_a[i] - 0.5*4*a_a[i].T + 0.5*8*a_dagger_a[i]
+                                      - 4*(a[i] - a[i].T)*delta_phi_rotated[i]/np.sqrt(2.0))
+                                     * EC_mat_transformed[i, i]
+                                     for i in range(self.number_degrees_freedom())], axis=0)
+            identity_coefficient = 0.5*4*np.trace(EC_mat_transformed)
+            identity_coefficient += -0.25*4*np.matmul(delta_phi_rotated,
+                                                      np.matmul(EC_mat_transformed, delta_phi_rotated))
+            kinetic_matrix += identity_coefficient*self._identity()
+            return kinetic_matrix
+        return _inner_kinetic_c_t_h
 
     def _potential_contribution_to_hamiltonian(self, exp_i_phi_list):
-        def _inner_potential_c_t_h(delta_phi_kpm, phibar_kpm):
+        def _inner_potential_c_t_h(delta_phi, phibar):
             dim = self.number_degrees_freedom()
-            exp_i_phi_list_without_boundary = np.array([exp_i_phi_list[i] * np.exp(1j * phibar_kpm[i])
+            exp_i_phi_list_without_boundary = np.array([exp_i_phi_list[i] * np.exp(1j * phibar[i])
                                                         for i in range(dim)])
             exp_i_sum_phi = (exp_i_phi_list[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
-                             * np.prod([np.exp(1j * self.boundary_coeffs[i] * phibar_kpm[i]) for i in range(dim)]))
+                             * np.prod([np.exp(1j * self.boundary_coeffs[i] * phibar[i]) for i in range(dim)]))
             potential_matrix = np.sum([-0.5*self.EJlist[junction]
                                        * (exp_i_phi_list_without_boundary[junction]
                                           + exp_i_phi_list_without_boundary[junction].conjugate())
@@ -325,12 +327,13 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                       nearest_neighbors=nearest_neighbors)
 
     # TODO find a way to eliminate the arguments here, as they are unnecessary
-    def _inner_product_operator(self, delta_phi_kpm, phibar_kpm):
+    def _inner_product_operator(self, delta_phi, phibar):
         return self._identity()
 
     def wrapper_for_operator_construction(self, specific_function, nearest_neighbors=None):
         if nearest_neighbors is None:
             nearest_neighbors = self._find_nearest_neighbors_for_each_minimum()
+        Xi_inv = inv(self.Xi_matrix())
         minima_list = self.sorted_minima()
         hilbertdim = self.hilbertdim()
         num_states_min = self.number_states_per_minimum()
@@ -339,14 +342,14 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_diff = minima_list[p] - minima_m
-                exp_a_list_and_minima_difference = self._build_exponentiated_translation_operators(minima_diff)
+                exp_a_list_and_minima_difference = self._build_exponentiated_translation_operators(minima_diff, Xi_inv)
                 for neighbor in nearest_neighbors[counter]:
                     phik = 2.0 * np.pi * np.array(neighbor)
-                    delta_phi_kpm = phik + minima_diff
-                    phibar_kpm = 0.5 * (phik + (minima_m + minima_list[p]))
-                    exp_prod_coeff = self._exp_prod_coeff(delta_phi_kpm)
+                    delta_phi = phik + minima_diff
+                    phibar = 0.5 * (phik + (minima_m + minima_list[p]))
+                    exp_prod_coeff = self._exp_prod_coeff(delta_phi, Xi_inv)
                     exp_a_dagger, exp_a = self._translation_operator_builder(exp_a_list_and_minima_difference, neighbor)
-                    matrix_element = exp_prod_coeff * specific_function(delta_phi_kpm, phibar_kpm)
+                    matrix_element = exp_prod_coeff * specific_function(delta_phi, phibar)
                     matrix_element = np.matmul(exp_a_dagger, np.matmul(matrix_element, exp_a))
                     operator_matrix[m*num_states_min: (m + 1)*num_states_min,
                                     p*num_states_min: (p + 1)*num_states_min] += matrix_element
@@ -383,15 +386,17 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def _efficient_construction_of_hamiltonian_and_inner_product(self):
         nearest_neighbors = self._find_nearest_neighbors_for_each_minimum()
         exp_i_phi_list = self._build_all_exp_i_phi_j_operators()
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        kinetic_function = self._kinetic_contribution_to_hamiltonian(premultiplied_a_and_a_dagger,
+                                                                     inv(self.Xi_matrix()))
         potential_function = self._potential_contribution_to_hamiltonian(exp_i_phi_list)
-        kinetic_function = self._kinetic_contribution_to_hamiltonian
-        potential_matrix = self.wrapper_for_operator_construction(potential_function,
-                                                                  nearest_neighbors=nearest_neighbors)
-        kinetic_matrix = self.wrapper_for_operator_construction(kinetic_function,
-                                                                nearest_neighbors=nearest_neighbors)
+
+        def kinetic_plus_potential(delta_phi, phibar):
+            return kinetic_function(delta_phi, phibar) + potential_function(delta_phi, phibar)
+        hamiltonian_matrix = self.wrapper_for_operator_construction(kinetic_plus_potential,
+                                                                    nearest_neighbors=nearest_neighbors)
         inner_product_matrix = self.wrapper_for_operator_construction(self._inner_product_operator,
                                                                       nearest_neighbors=nearest_neighbors)
-        hamiltonian_matrix = kinetic_matrix + potential_matrix
         return hamiltonian_matrix, inner_product_matrix
 
     def _evals_calc(self, evals_count):
@@ -400,11 +405,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             evals = eigh(hamiltonian_matrix, b=inner_product_matrix,
                          eigvals_only=True, eigvals=(0, evals_count - 1))
         except LinAlgError:
-            warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare for convergence")
-            evals = self._singular_inner_product_helper(hamiltonian_mat=hamiltonian_matrix,
-                                                        inner_product_mat=inner_product_matrix,
-                                                        evals_count=evals_count,
-                                                        eigvals_only=True)
+            warnings.warn("Singular inner product. Attempt QZ algorithm")
+            evals = solve_generalized_eigenvalue_problem_with_QZ(hamiltonian_matrix, inner_product_matrix,
+                                                                 evals_count, eigvals_only=True)
         return evals
 
     def _esys_calc(self, evals_count):
@@ -414,30 +417,10 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                 eigvals_only=False, eigvals=(0, evals_count - 1))
             evals, evecs = order_eigensystem(evals, evecs)
         except LinAlgError:
-            warnings.warn("Singular inner product. Attempt QZ algorithm and Fix-Heiberger, compare for convergence")
-            evals, evecs = self._singular_inner_product_helper(hamiltonian_mat=hamiltonian_matrix,
-                                                               inner_product_mat=inner_product_matrix,
-                                                               evals_count=evals_count,
-                                                               eigvals_only=False)
+            warnings.warn("Singular inner product. Attempt QZ algorithm")
+            evals, evecs = solve_generalized_eigenvalue_problem_with_QZ(hamiltonian_matrix, inner_product_matrix,
+                                                                        evals_count, eigvals_only=False)
         return evals, evecs
-
-    def _singular_inner_product_helper(self, hamiltonian_mat, inner_product_mat, evals_count, eigvals_only=True):
-        AA, BB, alpha, beta, Q, Z = ordqz(hamiltonian_mat, inner_product_mat)
-        a_max = np.max(np.abs(alpha))
-        b_max = np.max(np.abs(beta))
-        # filter ill-conditioned eigenvalues (alpha and beta values both small)
-        alpha, beta = list(zip(*filter(lambda x: np.abs(x[0]) > 0.001 * a_max
-                                       and np.abs(x[1]) > 0.001 * b_max, zip(alpha, beta))))
-        evals_qz = np.array(alpha) / np.array(beta)
-        evals_qz = np.sort(np.real(list(filter(lambda a: np.real(a) > 0, evals_qz))))[0: evals_count]
-        evals_fh = fixheiberger(hamiltonian_mat, inner_product_mat, num_eigvals=evals_count, eigvals_only=True)
-        assert (np.allclose(evals_qz, evals_fh))
-        evals = evals_qz
-        evecs = Z.T  # Need to ensure that this is the right way to produce eigenvectors
-        if eigvals_only:
-            return evals
-        else:
-            return evals, evecs
 
     def _check_if_new_minima(self, new_minima, minima_holder):
         """

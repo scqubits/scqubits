@@ -13,6 +13,7 @@ import cmath
 
 import numpy as np
 import qutip as qt
+from scipy.linalg import ordqz
 
 
 def order_eigensystem(evals, evecs):
@@ -326,3 +327,20 @@ def recast_esys_mapdata(esys_mapdata):
     eigenenergy_table = np.asarray([esys_mapdata[index][0] for index in range(paramvals_count)])
     eigenstate_table = [esys_mapdata[index][1] for index in range(paramvals_count)]
     return eigenenergy_table, eigenstate_table
+
+
+def solve_generalized_eigenvalue_problem_with_QZ(hamiltonian, inner_product, evals_count, eigvals_only=True):
+    AA, BB, alpha, beta, Q, Z = ordqz(hamiltonian, inner_product)
+    alpha_max = np.max(np.abs(alpha))
+    beta_max = np.max(np.abs(beta))
+    # filter ill-conditioned eigenvalues (alpha and beta values both small)
+    alpha, beta = list(zip(*filter(lambda x: np.abs(x[0]) > 0.001 * alpha_max
+                                   and np.abs(x[1]) > 0.001 * beta_max, zip(alpha, beta))))
+    evals = np.array(alpha) / np.array(beta)
+    index = np.argsort(np.real(list(filter(lambda a: np.real(a) > 0, evals))))
+    evals = np.real(evals[index][0: evals_count])
+    evecs = Z[:, index]
+    if eigvals_only:
+        return evals
+    else:
+        return evals, evecs
