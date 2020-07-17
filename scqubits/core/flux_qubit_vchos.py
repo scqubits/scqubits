@@ -9,6 +9,7 @@ from scipy.special import eval_hermite, gamma
 import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 import scqubits.core.discretization as discretization
+from scqubits.core import descriptors
 from scqubits.core.vchos import VCHOS
 import scqubits.core.storage as storage
 from scqubits.utils.spectrum_utils import standardize_phases
@@ -38,6 +39,13 @@ def harm_osc_wavefunction(n, x):
 
 
 class FluxQubitVCHOS(VCHOS):
+    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    alpha = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
     def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, num_exc, truncated_dim=None):
         VCHOS.__init__(self, EJlist, nglist, flux, kmax, num_exc)
         self.ECJ = ECJ

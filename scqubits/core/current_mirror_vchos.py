@@ -22,7 +22,6 @@ class CurrentMirrorVCHOS(VCHOS):
     EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, num_exc, truncated_dim=None):
         VCHOS.__init__(EJlist, nglist, flux, kmax, num_exc)

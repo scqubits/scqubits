@@ -18,7 +18,7 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOS, Hashing):
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux,
                  kmax, global_exc, squeezing=False, truncated_dim=None):
         CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux,
-                                    kmax, num_exc=None, squeezing=squeezing, truncated_dim=truncated_dim)
+                                    kmax, num_exc=None, truncated_dim=truncated_dim)
         Hashing.__init__(self)
         self._sys_type = type(self).__name__
         self.global_exc = global_exc

@@ -14,6 +14,8 @@ from scqubits.core.hashing import Hashing
 # -Flux Qubit using VCHOS and a global cutoff
 
 class FluxQubitVCHOSGlobal(FluxQubitVCHOS, Hashing):
+    global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
     def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, global_exc, truncated_dim=None):
         FluxQubitVCHOS.__init__(self, ECJ, ECg, EJlist, alpha, nglist, flux,
                                 kmax, num_exc=None, truncated_dim=truncated_dim)
