@@ -97,6 +97,9 @@ class CurrentMirrorVCHOS(VCHOS):
     def number_degrees_freedom(self):
         return 2 * self.N - 1
 
+    def number_periodic_degrees_freedom(self):
+        return self.number_degrees_freedom()
+
     def find_minima(self):
         """
         Index all minima
@@ -115,20 +118,3 @@ class CurrentMirrorVCHOS(VCHOS):
             if new_minimum_neg and result_neg.success:
                 minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result_neg.x]))
         return minima_holder
-
-    def sorted_minima(self):
-        """Sort the minima based on the value of the potential at the minima """
-        minima_holder = self.find_minima()
-        value_of_potential = np.array([self.potential(minima_holder[x])
-                                       for x in range(len(minima_holder))])
-        sorted_value_holder = np.array([x for x, _ in
-                                        sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
-        sorted_minima_holder = np.array([x for _, x in
-                                         sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
-        # For efficiency purposes, don't want to displace states into minima
-        # that are too high energy. Arbitrarily set a 40 GHz cutoff
-        global_min = sorted_value_holder[0]
-        dim = len(sorted_minima_holder)
-        sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
-                                         if sorted_value_holder[i] < global_min + 40.0])
-        return sorted_minima_holder

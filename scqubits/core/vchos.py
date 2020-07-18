@@ -21,11 +21,10 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 # minima, the definition of the capacitance matrix, the number of degrees of freedom, etc.
 
 # Specifically, the user must provide in their parent class the functions 
-# build_capacitance_matrix(), build_EC_matrix(), hilbertdim(), sorted_minima(), 
+# build_capacitance_matrix(), build_EC_matrix(), hilbertdim(), find_minima(),
 # which define the capacitance matrix, the charging energy matrix, the dimension
 # of the hilbert space according to the specific truncation scheme used, and 
-# a method to find and sort all inequivalent minima (based on the value of the
-# potential at that minimum), respectively. 
+# a method to find and find all inequivalent minima, respectively.
 
 class VCHOS(base.QubitBaseClass, serializers.Serializable):
     def __init__(self, EJlist, nglist, flux, kmax, num_exc=None):
@@ -90,19 +89,19 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         ndarray
         """
         dim = self.number_degrees_freedom()
-        gmat = np.zeros((dim, dim))
+        gamma_matrix = np.zeros((dim, dim))
         min_loc = self.sorted_minima()[i]
         gamma_list = self.EJlist / self.Phi0 ** 2
 
         gamma_diag = np.diag([gamma_list[j]*np.cos(min_loc[j]) for j in range(dim)])
-        gmat += gamma_diag
+        gamma_matrix += gamma_diag
 
         min_loc_bound_sum = np.sum([self.boundary_coeffs[j]*min_loc[j] for j in range(dim)])
         for j in range(dim):
             for k in range(dim):
-                gmat[j, k] += (gamma_list[-1]*self.boundary_coeffs[j]*self.boundary_coeffs[k]
+                gamma_matrix[j, k] += (gamma_list[-1]*self.boundary_coeffs[j]*self.boundary_coeffs[k]
                                * np.cos(min_loc_bound_sum + 2*np.pi*self.flux))
-        return gmat
+        return gamma_matrix
 
     def eigensystem_normal_modes(self, i):
         """Return squared normal mode frequencies, matrix of eigenvectors
@@ -187,7 +186,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         -------
         ndarray
         """
-        a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)])
+        a = np.array([np.sqrt(num) for num in range(1, self.num_exc + 1)], dtype=np.complex_)
         a_mat = np.diag(a, k=1)
         return self._full_o([a_mat], [mu])
 
@@ -231,16 +230,18 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         minima_list = self.sorted_minima()
         nearest_neighbors = []
         nearest_neighbors_single_minimum = []
+        dim_extended = self.number_extended_degrees_freedom()
+        dim_periodic = self.number_periodic_degrees_freedom()
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_diff = minima_list[p] - minima_m
-                all_neighbors = itertools.product(np.arange(-self.kmax, self.kmax + 1),
-                                                  repeat=self.number_degrees_freedom())
+                all_neighbors = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=dim_periodic)
                 filtered_neighbors = itertools.filterfalse(lambda e: self._filter_neighbors(e, minima_diff, Xi_inv),
                                                            all_neighbors)
                 neighbor = next(filtered_neighbors, -1)
                 while neighbor != -1:
-                    nearest_neighbors_single_minimum.append(neighbor)
+                    nearest_neighbors_single_minimum.append(np.concatenate((np.zeros(dim_extended, dtype=int),
+                                                                            neighbor)))
                     neighbor = next(filtered_neighbors, -1)
                 nearest_neighbors.append(nearest_neighbors_single_minimum)
                 nearest_neighbors_single_minimum = []
@@ -253,8 +254,10 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         is suppressed by a gaussian exponential factor. If the argument np.dot(dpkX, dpkX)
         of the exponential is greater than 180.0, this results in a suppression of ~10**(-20),
         and so can be safely neglected.
+
+        Assumption is that extended degrees of freedom precede the periodic d.o.f.
         """
-        phi_neighbor = 2.0*np.pi*np.array(neighbor)
+        phi_neighbor = 2.0*np.pi*np.concatenate((np.zeros(self.number_extended_degrees_freedom()), neighbor))
         dpkX = np.matmul(Xi_inv, phi_neighbor + minima_diff)
         prod = np.dot(dpkX, dpkX)
         return prod > self.nearest_neighbor_cutoff
@@ -354,7 +357,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         """
         nearest_neighbors = self._find_nearest_neighbors_for_each_minimum()
         exp_i_phi_list = self._build_all_exp_i_phi_j_operators()
-        potential_function = self._potential_contribution_to_hamiltonian(exp_i_phi_list)
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        potential_function = self._potential_contribution_to_hamiltonian(exp_i_phi_list, premultiplied_a_and_a_dagger,
+                                                                         self.Xi_matrix())
         return self.wrapper_for_operator_construction(potential_function, nearest_neighbors=nearest_neighbors)
 
     def _kinetic_contribution_to_hamiltonian(self, premultiplied_a_and_a_dagger, Xi_inv):
@@ -376,7 +381,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
             return kinetic_matrix
         return _inner_kinetic_c_t_h
 
-    def _potential_contribution_to_hamiltonian(self, exp_i_phi_list):
+    def _potential_contribution_to_hamiltonian(self, exp_i_phi_list, premultiplied_a_and_a_dagger, Xi):
         """Calculating exp_i_phi operators is costly, which is why it is
         passed to this function in this way rather than calculated below"""
         def _inner_potential_c_t_h(delta_phi, phi_bar):
@@ -486,7 +491,8 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
         kinetic_function = self._kinetic_contribution_to_hamiltonian(premultiplied_a_and_a_dagger,
                                                                      inv(self.Xi_matrix()))
-        potential_function = self._potential_contribution_to_hamiltonian(exp_i_phi_list)
+        potential_function = self._potential_contribution_to_hamiltonian(exp_i_phi_list, premultiplied_a_and_a_dagger,
+                                                                         self.Xi_matrix())
 
         def kinetic_plus_potential(delta_phi, phi_bar):
             return kinetic_function(delta_phi, phi_bar) + potential_function(delta_phi, phi_bar)
@@ -519,6 +525,24 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                                         evals_count, eigvals_only=False)
         return evals, evecs
 
+    def sorted_minima(self):
+        """Sort the minima based on the value of the potential at the minima """
+        minima_holder = self.find_minima()
+        value_of_potential = np.array([self.potential(minima_holder[x])
+                                       for x in range(len(minima_holder))])
+        sorted_value_holder = np.array([x for x, _ in
+                                        sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
+        sorted_minima_holder = np.array([x for _, x in
+                                         sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
+        # For efficiency purposes, don't want to displace states into minima
+        # that are too high energy. Arbitrarily set a 40 GHz cutoff
+        global_min = sorted_value_holder[0]
+        dim = len(sorted_minima_holder)
+        sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
+                                         if sorted_value_holder[i] < global_min + 40.0])
+        return sorted_minima_holder
+
+
     def _check_if_new_minima(self, new_minima, minima_holder):
         """
         Helper function for find_minima, checking if new_minima is
@@ -542,7 +566,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         return new_minima_bool
 
     # The following four methods must be overridden in child classes
-    def sorted_minima(self):
+    def find_minima(self):
         return []
 
     def build_capacitance_matrix(self):
@@ -553,3 +577,9 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
     def number_degrees_freedom(self):
         return 0
+
+    def number_periodic_degrees_freedom(self):
+        return 0
+
+    def number_extended_degrees_freedom(self):
+        return self.number_degrees_freedom() - self.number_periodic_degrees_freedom()

@@ -99,6 +99,9 @@ class FluxQubitVCHOS(VCHOS):
     def number_degrees_freedom(self):
         return 2
 
+    def number_periodic_degrees_freedom(self):
+        return self.number_degrees_freedom()
+
     def _ramp(self, k, minima_holder):
         """
         Helper function for find_minima, performing the ramp that
@@ -130,15 +133,6 @@ class FluxQubitVCHOS(VCHOS):
             if not (new_minima_positive and new_minima_negative):
                 break
         return minima_holder
-
-    def sorted_minima(self):
-        """Sort the minima based on the value of the potential at the minima """
-        minima_holder = self.find_minima()
-        value_of_potential = np.array([self.potential(minima_holder[x])
-                                       for x in range(len(minima_holder))])
-        sorted_minima_holder = np.array([x for _, x in
-                                         sorted(zip(value_of_potential, minima_holder))])
-        return sorted_minima_holder
 
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """

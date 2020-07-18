@@ -22,14 +22,7 @@ from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
-from scqubits.core.vchos import VCHOS
 from scqubits.core.current_mirror import CurrentMirror
-from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS
-from scqubits.core.current_mirror_vchos_global import CurrentMirrorVCHOSGlobal
-from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
-from scqubits.core.flux_qubit_vchos_global import FluxQubitVCHOSGlobal
-from scqubits.core.flux_qubit_vchos_testing_babusci import FluxQubitVCHOSTestingBabusci
-from scqubits.core.transmon_vchos import TransmonVCHOS
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
@@ -38,6 +31,16 @@ from scqubits.core.storage import SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
+
+from scqubits.core.vchos import VCHOS
+from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS
+from scqubits.core.current_mirror_vchos_global import CurrentMirrorVCHOSGlobal
+from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
+from scqubits.core.flux_qubit_vchos_global import FluxQubitVCHOSGlobal
+from scqubits.core.flux_qubit_vchos_testing_babusci import FluxQubitVCHOSTestingBabusci
+from scqubits.core.zero_pi_vchos import ZeroPiVCHOS
+from scqubits.core.zero_pi_vchos_global import ZeroPiVCHOSGlobal
+from scqubits.core.transmon_vchos import TransmonVCHOS
 # file IO
 from scqubits.io_utils.fileio import read, write
 
