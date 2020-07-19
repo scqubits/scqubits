@@ -45,8 +45,8 @@ class CurrentMirrorFunctions:
 
     def build_EC_matrix(self):
         """Return the charging energy matrix"""
-        Cmat = self.build_capacitance_matrix()
-        return 0.5 * self.e**2 * sp.linalg.inv(Cmat)
+        C_matrix = self.build_capacitance_matrix()
+        return 0.5 * self.e**2 * sp.linalg.inv(C_matrix)
 
     def _build_V_m(self):
         N = self.N

@@ -10,7 +10,8 @@ import scqubits.core.constants as constants
 import scqubits.utils.plotting as plot
 import scqubits.core.discretization as discretization
 from scqubits.core import descriptors
-from scqubits.core.vchos import VCHOS
+from scqubits.core.flux_qubit import FluxQubitFunctions
+from scqubits.core.vchos import VCHOS, VCHOSMinimaFinder, VCHOSGlobal
 import scqubits.core.storage as storage
 from scqubits.utils.spectrum_utils import standardize_phases
 
@@ -38,66 +39,13 @@ def harm_osc_wavefunction(n, x):
     return (2.0 ** n * gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) * eval_hermite(n, x) * np.exp(-x ** 2 / 2.)
 
 
-class FluxQubitVCHOS(VCHOS):
-    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    alpha = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
-    def __init__(self, ECJ, ECg, EJlist, alpha, nglist, flux, kmax, num_exc, truncated_dim=None):
-        VCHOS.__init__(self, EJlist, nglist, flux, kmax, num_exc)
-        self.ECJ = ECJ
-        self.ECg = ECg
-        self.alpha = alpha
+class FluxQubitVCHOSFunctions(FluxQubitFunctions, VCHOSMinimaFinder):
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                 ECJ3, ECg1, ECg2, ng1, ng2, flux):
+        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                                    ECJ3, ECg1, ECg2, ng1, ng2, flux)
         # final term in potential is cos[(+1)\phi_1+(-1)\phi_2-2pi f]
         self.boundary_coeffs = np.array([+1, -1])
-        self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-        self._default_grid = discretization.Grid1d(-6.5 * np.pi, 6.5 * np.pi, 651)  # for plotting in phi_j basis
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxqubitvchos.png')
-
-    @staticmethod
-    def default_params():
-        return {
-            'ECJ': 1.0 / 10.0,
-            'ECg': 5.0,
-            'EJlist': np.array([1.0, 1.0, 0.8]),
-            'alpha': 0.8,
-            'nglist': np.array(2 * [0.0]),
-            'flux': 0.46,
-            'kmax': 1,
-            'num_exc': 4,
-            'truncated_dim': 6
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['alpha', 'nglist', 'kmax', 'num_exc', 'squeezing', 'truncated_dim']
-
-    def build_capacitance_matrix(self):
-        """Return the capacitance matrix"""
-        Cmat = np.zeros((self.number_degrees_freedom(), self.number_degrees_freedom()))
-
-        CJ = self.e ** 2 / (2. * self.ECJ)
-        Cg = self.e ** 2 / (2. * self.ECg)
-
-        Cmat[0, 0] = CJ + self.alpha * CJ + Cg
-        Cmat[1, 1] = CJ + self.alpha * CJ + Cg
-        Cmat[0, 1] = -self.alpha * CJ
-        Cmat[1, 0] = -self.alpha * CJ
-
-        return Cmat
-
-    def build_EC_matrix(self):
-        """Return the charging energy matrix"""
-        Cmat = self.build_capacitance_matrix()
-        return 0.5 * self.e ** 2 * sp.linalg.inv(Cmat)
-
-    def number_degrees_freedom(self):
-        return 2
 
     def number_periodic_degrees_freedom(self):
         return self.number_degrees_freedom()
@@ -106,7 +54,7 @@ class FluxQubitVCHOS(VCHOS):
         """
         Helper function for find_minima, performing the ramp that
         is described in Sec. III E of [0]
-        
+
         [0] PRB ...
         """
         guess = np.array([1.15 * 2.0 * np.pi * k / 3.0, 2.0 * np.pi * k / 3.0])
@@ -133,6 +81,54 @@ class FluxQubitVCHOS(VCHOS):
             if not (new_minima_positive and new_minima_negative):
                 break
         return minima_holder
+
+
+class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS):
+    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    kmax = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                 ECJ3, ECg1, ECg2, ng1, ng2, flux, kmax, num_exc, truncated_dim=None):
+        EJlist = np.array([EJ1, EJ2, EJ3])
+        nglist = np.array([ng1, ng2])
+        VCHOS.__init__(self, EJlist, nglist, flux, kmax, num_exc)
+        FluxQubitVCHOSFunctions.__init__(EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                                         ECJ3, ECg1, ECg2, ng1, ng2,
+                                         flux, kmax)
+        self.truncated_dim = truncated_dim
+        self._sys_type = type(self).__name__
+        self._evec_dtype = np.complex_
+        self._default_grid = discretization.Grid1d(-6.5 * np.pi, 6.5 * np.pi, 651)  # for plotting in phi_j basis
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxqubitvchos.png')
+
+    @staticmethod
+    def default_params():
+        return {
+            'ECJ': 1.0 / 10.0,
+            'ECg': 5.0,
+            'EJlist': np.array([1.0, 1.0, 0.8]),
+            'alpha': 0.8,
+            'nglist': np.array(2 * [0.0]),
+            'flux': 0.46,
+            'kmax': 1,
+            'num_exc': 4,
+            'truncated_dim': 6
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['alpha', 'nglist', 'kmax', 'num_exc', 'squeezing', 'truncated_dim']
 
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """
@@ -227,3 +223,116 @@ class FluxQubitVCHOS(VCHOS):
         if 'figsize' not in kwargs:
             kwargs['figsize'] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+
+
+class FluxQubitVCHOSGlobal(FluxQubitVCHOSFunctions, VCHOSGlobal):
+    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    kmax = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                 ECJ3, ECg1, ECg2, ng1, ng2, flux, kmax,
+                 global_exc, truncated_dim=None):
+        EJlist = np.array([EJ1, EJ2, EJ3])
+        nglist = np.array([ng1, ng2])
+        VCHOSGlobal.__init__(self, EJlist, nglist, flux, kmax, global_exc)
+        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                                         ECJ3, ECg1, ECg2, ng1, ng2, flux)
+        self._sys_type = type(self).__name__
+        self._evec_dtype = np.complex_
+        self.truncated_dim = truncated_dim
+
+    @staticmethod
+    def default_params():
+        return {
+            'ECJ': 1.0 / 10.0,
+            'ECg': 5.0,
+            'EJlist': np.array([1.0, 1.0, 0.8]),
+            'alpha': 0.8,
+            'nglist': np.array(2 * [0.0]),
+            'flux': 0.46,
+            'kmax': 1,
+            'global_exc': 4,
+            'truncated_dim': 6
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['alpha', 'nglist', 'kmax', 'global_exc', 'squeezing', 'truncated_dim']
+
+    def wavefunction(self, esys=None, which=0, phi_grid=None):
+        """
+        Return a flux qubit wave function in phi1, phi2 basis. This implementation
+        is for the global excitation cutoff scheme, and similarly to FQV
+        does not include the effects of squeezing.
+
+        Parameters
+        ----------
+        esys: ndarray, ndarray
+            eigenvalues, eigenvectors
+        which: int, optional
+            index of desired wave function (default value = 0)
+        phi_grid: Grid1D object, optional
+            used for setting a custom plot range for phi
+
+        Returns
+        -------
+        WaveFunctionOnGrid object
+        """
+        evals_count = max(which + 1, 3)
+        if esys is None:
+            _, evecs = self.eigensys(evals_count)
+        else:
+            _, evecs = esys
+        phi_grid = phi_grid or self._default_grid
+        phi_vec = phi_grid.make_linspace()
+
+        minima_list = self.sorted_minima()
+        num_minima = len(minima_list)
+        total_num_states = int(self.hilbertdim() / num_minima)
+        basis_vecs = self._gen_basis_vecs()
+
+        Xi = self.Xi_matrix()
+        Xi_inv = sp.linalg.inv(Xi)
+        norm = np.sqrt(np.abs(np.linalg.det(Xi))) ** (-1)
+
+        wavefunc_amplitudes = np.zeros_like(np.outer(phi_vec, phi_vec))
+
+        for i, minimum in enumerate(minima_list):
+            klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
+            jkvals = next(klist, -1)
+            while jkvals != -1:
+                phik = 2.0 * np.pi * np.array([jkvals[0], jkvals[1]])
+                phi1_s1_arg = Xi_inv[0, 0] * (phik - minimum)[0]
+                phi2_s1_arg = Xi_inv[0, 1] * (phik - minimum)[1]
+                phi1_s2_arg = Xi_inv[1, 0] * (phik - minimum)[0]
+                phi2_s2_arg = Xi_inv[1, 1] * (phik - minimum)[1]
+                state_amplitudes = np.real(evecs[i * total_num_states: (i + 1) * total_num_states, which])
+                for j in range(total_num_states):
+                    basis_vec = basis_vecs[j]
+                    s1 = int(basis_vec[0])
+                    s2 = int(basis_vec[1])
+                    ho_2d = np.multiply(
+                        harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0, 0] * phi_vec + phi1_s1_arg,
+                                                               Xi_inv[0, 1] * phi_vec + phi2_s1_arg)),
+                        harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1, 0] * phi_vec + phi1_s2_arg,
+                                                               Xi_inv[1, 1] * phi_vec + phi2_s2_arg)))
+                    wavefunc_amplitudes += norm * state_amplitudes[j] * ho_2d.T
+                jkvals = next(klist, -1)
+
+        grid2d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                                                     [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
+
+        wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
+
+        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)

@@ -22,25 +22,6 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions, VCHOSMinimaFinder):
     def number_periodic_degrees_freedom(self):
         return self.number_degrees_freedom()
 
-    def potential(self, phi_array):
-        """
-        Potential evaluated at the location specified by phi_array
-
-        Parameters
-        ----------
-        phi_array: ndarray
-            float value of the phase variable `phi`
-
-        Returns
-        -------
-        float
-        """
-        dim = self.number_degrees_freedom()
-        pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
-        pot_sum += (- self.EJlist[-1]*np.cos(np.sum([self.boundary_coeffs[i] * phi_array[i]
-                                                     for i in range(dim)]) + 2*np.pi*self.flux))
-        return pot_sum
-
     def find_minima(self):
         """
         Index all minima
@@ -75,6 +56,7 @@ class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS):
         VCHOS.__init__(self, EJlist, nglist, flux, kmax, num_exc)
         CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
+        self._evec_dtype = np.complex_
         self.truncated_dim = truncated_dim
 
     @staticmethod
@@ -111,6 +93,7 @@ class CurrentMirrorVCHOSGlobal(CurrentMirrorVCHOSFunctions, VCHOSGlobal):
         VCHOSGlobal.__init__(self, EJlist, nglist, flux, kmax, global_exc)
         CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
+        self._evec_dtype = np.complex_
         self.truncated_dim = truncated_dim
 
     @staticmethod

@@ -13,6 +13,7 @@ import os
 
 import numpy as np
 import scipy as sp
+import scipy.constants as const
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -26,7 +27,48 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
 
-class FluxQubit(base.QubitBaseClass, serializers.Serializable):
+
+class FluxQubitFunctions:
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                 ECJ3, ECg1, ECg2, ng1, ng2, flux,):
+        self.e = np.sqrt(4.0 * np.pi * const.alpha)
+        self.EJ1 = EJ1
+        self.EJ2 = EJ2
+        self.EJ3 = EJ3
+        self.ECJ1 = ECJ1
+        self.ECJ2 = ECJ2
+        self.ECJ3 = ECJ3
+        self.ECg1 = ECg1
+        self.ECg2 = ECg2
+        self.ng1 = ng1
+        self.ng2 = ng2
+        self.flux = flux
+
+    def build_capacitance_matrix(self):
+        C_matrix = np.zeros((2, 2))
+        CJ1 = self.e**2 / (2 * self.ECJ1)
+        CJ2 = self.e**2 / (2 * self.ECJ2)
+        CJ3 = self.e**2 / (2 * self.ECJ3)
+        Cg1 = self.e**2 / (2 * self.ECg1)
+        Cg2 = self.e**2 / (2 * self.ECg2)
+
+        C_matrix[0, 0] = CJ1 + CJ3 + Cg1
+        C_matrix[1, 1] = CJ2 + CJ3 + Cg2
+        C_matrix[0, 1] = -CJ3
+        C_matrix[1, 0] = -CJ3
+
+        return C_matrix
+
+    def build_EC_matrix(self):
+        """Return the charging energy matrix"""
+        C_matrix = self.build_capacitance_matrix()
+        return 0.5 * self.e ** 2 * sp.linalg.inv(C_matrix)
+
+    def number_degrees_freedom(self):
+        return 2
+
+
+class FluxQubit(base.QubitBaseClass, serializers.Serializable, FluxQubitFunctions):
     r"""Flux Qubit
 
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
@@ -85,17 +127,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, ncut,
                  truncated_dim=None):
-        self.EJ1 = EJ1
-        self.EJ2 = EJ2
-        self.EJ3 = EJ3
-        self.ECJ1 = ECJ1
-        self.ECJ2 = ECJ2
-        self.ECJ3 = ECJ3
-        self.ECg1 = ECg1
-        self.ECg2 = ECg2
-        self.ng1 = ng1
-        self.ng2 = ng2
-        self.flux = flux
+        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                                    ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -125,22 +158,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
     def nonfit_params():
         return ['ng1', 'ng2', 'flux', 'ncut', 'truncated_dim']
 
-    def EC_matrix(self):
-        """Return the charging energy matrix"""
-        Cmat = np.zeros((2, 2))
-        CJ1 = 1. / (2 * self.ECJ1)  # capacitances in units where e is set to 1
-        CJ2 = 1. / (2 * self.ECJ2)
-        CJ3 = 1. / (2 * self.ECJ3)
-        Cg1 = 1. / (2 * self.ECg1)
-        Cg2 = 1. / (2 * self.ECg2)
-
-        Cmat[0, 0] = CJ1 + CJ3 + Cg1
-        Cmat[1, 1] = CJ2 + CJ3 + Cg2
-        Cmat[0, 1] = -CJ3
-        Cmat[1, 0] = -CJ3
-
-        return np.linalg.inv(Cmat) / 2.
-
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=True)
@@ -163,7 +180,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable):
 
     def kineticmat(self):
         """Return the kinetic energy matrix."""
-        ECmat = self.EC_matrix()
+        ECmat = self.build_EC_matrix()
 
         kinetic_mat = 4.0 * ECmat[0, 0] * np.kron(np.matmul(self._n_operator() - self.ng1 * self._identity(),
                                                             self._n_operator() - self.ng1 * self._identity()),

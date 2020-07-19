@@ -34,8 +34,7 @@ from scqubits.core.zeropi_full import FullZeroPi
 
 from scqubits.core.vchos import VCHOS
 from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS, CurrentMirrorVCHOSGlobal
-from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
-from scqubits.core.flux_qubit_vchos_global import FluxQubitVCHOSGlobal
+from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS, FluxQubitVCHOSGlobal
 from scqubits.core.zero_pi_vchos import ZeroPiVCHOS
 from scqubits.core.zero_pi_vchos_global import ZeroPiVCHOSGlobal
 from scqubits.core.transmon_vchos import TransmonVCHOS

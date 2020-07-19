@@ -73,7 +73,23 @@ class VCHOSMinimaFinder:
         return []
 
     def potential(self, phi_array):
-        return 0.0
+        """
+        Potential evaluated at the location specified by phi_array
+
+        Parameters
+        ----------
+        phi_array: ndarray
+            float value of the phase variable `phi`
+
+        Returns
+        -------
+        float
+        """
+        dim = self.number_degrees_freedom()
+        pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
+        pot_sum += (- self.EJlist[-1] * np.cos(np.sum([self.boundary_coeffs[i] * phi_array[i]
+                                                       for i in range(dim)]) + 2 * np.pi * self.flux))
+        return pot_sum
 
 
 class VCHOS(base.QubitBaseClass, serializers.Serializable, VCHOSMinimaFinder):
