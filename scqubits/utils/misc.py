@@ -13,6 +13,7 @@ import ast
 import functools
 
 import numpy as np
+from scipy.sparse import kron
 
 from scqubits.settings import IN_IPYTHON
 
@@ -143,3 +144,19 @@ def kron_matrix_list(matrix_list):
     for matrix in matrix_list[1:]:
         output = np.kron(output, matrix)
     return output
+
+
+def kron_sparse_matrix_list(sparse_list):
+    output = sparse_list[0]
+    for matrix in sparse_list[1:]:
+        output = kron(output, matrix, format="csr")
+    return output
+
+
+def full_o(operators, indices, i_o_list):
+    product_list = i_o_list[:]
+    oi_list = zip(operators, indices)
+    for oi in oi_list:
+        product_list[oi[1]] = oi[0]
+    full_op = kron_sparse_matrix_list(product_list)
+    return full_op

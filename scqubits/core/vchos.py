@@ -5,9 +5,11 @@ import numpy as np
 from scipy.linalg import LinAlgError, expm, inv, eigh
 import scipy.constants as const
 from numpy.linalg import matrix_power
+from scipy.special import comb
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
+from scqubits.core.hashing import Hashing
 from scqubits.utils.misc import kron_matrix_list
 from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ
 
@@ -26,7 +28,55 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 # of the hilbert space according to the specific truncation scheme used, and 
 # a method to find and find all inequivalent minima, respectively.
 
-class VCHOS(base.QubitBaseClass, serializers.Serializable):
+
+class VCHOSMinimaFinder:
+    def sorted_minima(self):
+        """Sort the minima based on the value of the potential at the minima """
+        minima_holder = self.find_minima()
+        value_of_potential = np.array([self.potential(minima_holder[x])
+                                       for x in range(len(minima_holder))])
+        sorted_value_holder = np.array([x for x, _ in
+                                        sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
+        sorted_minima_holder = np.array([x for _, x in
+                                         sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
+        # For efficiency purposes, don't want to displace states into minima
+        # that are too high energy. Arbitrarily set a 40 GHz cutoff
+        global_min = sorted_value_holder[0]
+        dim = len(sorted_minima_holder)
+        sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
+                                         if sorted_value_holder[i] < global_min + 40.0])
+        return sorted_minima_holder
+
+    def _check_if_new_minima(self, new_minima, minima_holder):
+        """
+        Helper function for find_minima, checking if new_minima is
+        indeed a minimum and is already represented in minima_holder. If so,
+        _check_if_new_minima returns False.
+        """
+        if -self.potential(new_minima) <= 0:  # maximum or saddle point then, not a minimum
+            return False
+        new_minima_bool = True
+        for minima in minima_holder:
+            diff_array = minima - new_minima
+            diff_array_reduced = np.array([np.mod(x, 2 * np.pi) for x in diff_array])
+            elem_bool = True
+            for elem in diff_array_reduced:
+                # if every element is zero or 2pi, then we have a repeated minima
+                elem_bool = elem_bool and (np.allclose(elem, 0.0, atol=1e-3)
+                                           or np.allclose(elem, 2 * np.pi, atol=1e-3))
+            if elem_bool:
+                new_minima_bool = False
+                break
+        return new_minima_bool
+
+    def find_minima(self):
+        return []
+
+    def potential(self, phi_array):
+        return 0.0
+
+
+class VCHOS(base.QubitBaseClass, serializers.Serializable, VCHOSMinimaFinder):
     def __init__(self, EJlist, nglist, flux, kmax, num_exc=None):
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1./(2*self.e)**2
@@ -48,25 +98,6 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
     @staticmethod
     def nonfit_params():
         return []
-
-    def potential(self, phi_array):
-        """
-        Potential evaluated at the location specified by phi_array
-
-        Parameters
-        ----------
-        phi_array: ndarray
-            float value of the phase variable `phi`
-
-        Returns
-        -------
-        float
-        """
-        dim = self.number_degrees_freedom()
-        pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
-        pot_sum += (- self.EJlist[-1]*np.cos(np.sum([self.boundary_coeffs[i] * phi_array[i]
-                                                     for i in range(dim)]) + 2*np.pi*self.flux))
-        return pot_sum
 
     def build_gamma_matrix(self, i):
         """Return linearized potential matrix
@@ -100,7 +131,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         for j in range(dim):
             for k in range(dim):
                 gamma_matrix[j, k] += (gamma_list[-1]*self.boundary_coeffs[j]*self.boundary_coeffs[k]
-                               * np.cos(min_loc_bound_sum + 2*np.pi*self.flux))
+                                       * np.cos(min_loc_bound_sum + 2*np.pi*self.flux))
         return gamma_matrix
 
     def eigensystem_normal_modes(self, i):
@@ -171,7 +202,7 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
         omega_squared, normal_mode_eigenvectors = self.eigensystem_normal_modes(0)
         # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
         Xi_matrix = np.array([normal_mode_eigenvectors[:, i]*(omega_squared[i]) ** (-1 / 4)
-                          * np.sqrt(1. / self.Z0) for i in range(len(omega_squared))]).T
+                              * np.sqrt(1. / self.Z0) for i in range(len(omega_squared))]).T
         return Xi_matrix
 
     def a_operator(self, mu):
@@ -525,50 +556,6 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
                                                                         evals_count, eigvals_only=False)
         return evals, evecs
 
-    def sorted_minima(self):
-        """Sort the minima based on the value of the potential at the minima """
-        minima_holder = self.find_minima()
-        value_of_potential = np.array([self.potential(minima_holder[x])
-                                       for x in range(len(minima_holder))])
-        sorted_value_holder = np.array([x for x, _ in
-                                        sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
-        sorted_minima_holder = np.array([x for _, x in
-                                         sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
-        # For efficiency purposes, don't want to displace states into minima
-        # that are too high energy. Arbitrarily set a 40 GHz cutoff
-        global_min = sorted_value_holder[0]
-        dim = len(sorted_minima_holder)
-        sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
-                                         if sorted_value_holder[i] < global_min + 40.0])
-        return sorted_minima_holder
-
-
-    def _check_if_new_minima(self, new_minima, minima_holder):
-        """
-        Helper function for find_minima, checking if new_minima is
-        indeed a minimum and is already represented in minima_holder. If so,
-        _check_if_new_minima returns False.
-        """
-        if -self.potential(new_minima) <= 0:  # maximum or saddle point then, not a minimum
-            return False
-        new_minima_bool = True
-        for minima in minima_holder:
-            diff_array = minima - new_minima
-            diff_array_reduced = np.array([np.mod(x, 2*np.pi) for x in diff_array])
-            elem_bool = True
-            for elem in diff_array_reduced:
-                # if every element is zero or 2pi, then we have a repeated minima
-                elem_bool = elem_bool and (np.allclose(elem, 0.0, atol=1e-3)
-                                           or np.allclose(elem, 2*np.pi, atol=1e-3))
-            if elem_bool:
-                new_minima_bool = False
-                break
-        return new_minima_bool
-
-    # The following four methods must be overridden in child classes
-    def find_minima(self):
-        return []
-
     def build_capacitance_matrix(self):
         return []
 
@@ -583,3 +570,39 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable):
 
     def number_extended_degrees_freedom(self):
         return self.number_degrees_freedom() - self.number_periodic_degrees_freedom()
+
+
+class VCHOSGlobal(VCHOS, Hashing):
+    def __init__(self, EJlist, nglist, flux, kmax, global_exc):
+        VCHOS.__init__(self, EJlist, nglist, flux, kmax, num_exc=None)
+        Hashing.__init__(self)
+        self.global_exc = global_exc
+
+    def a_operator(self, i):
+        """
+        This method for defining the a_operator is based on
+        J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
+        We ask the question, for each basis vector, what is the action of a_i
+        on it? In this way, we can define a_i using a single for loop.
+        """
+        basis_vecs = self._gen_basis_vecs()
+        tags, index_array = self._gen_tags(basis_vecs)
+        dim = basis_vecs.shape[0]
+        a = np.zeros((dim, dim))
+        for w, vec in enumerate(basis_vecs):
+            if vec[i] >= 1:
+                temp_vec = np.copy(vec)
+                temp_vec[i] = vec[i] - 1
+                temp_coeff = np.sqrt(vec[i])
+                temp_vec_tag = self._hash(temp_vec)
+                index = np.searchsorted(tags, temp_vec_tag)
+                basis_index = index_array[index]
+                a[basis_index, w] = temp_coeff
+        return a
+
+    def number_states_per_minimum(self):
+        """
+        Using the global excitation scheme the total number of states
+        per minimum is given by the hockey-stick identity
+        """
+        return int(comb(self.global_exc + self.number_degrees_freedom(), self.number_degrees_freedom()))
