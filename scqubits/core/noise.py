@@ -167,6 +167,127 @@ class NoisySystem:
 
         return fig, axes
 
+
+    def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={}, 
+            spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+
+       # If we're not given channels to consider, just use the supported list that
+        # correspond to t1 processes
+        noise_channels = [channel for channel in self.supported_noise_channels()
+                          if channel.startswith('t1')] if noise_channels is None else noise_channels
+
+        # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
+        noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
+
+        if spec_data is None: 
+
+            # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
+            # from the diagonalization.
+            # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
+            max_level = max(common_noise_options.get('i', 1), common_noise_options.get('j', 1))
+            for noise_channel in noise_channels:
+                if isinstance(noise_channel, tuple):
+                    opts = noise_channel[1]
+                    max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
+
+            spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
+                                                   subtract_ground=True, get_eigenstates=True, filename=None,
+                                                   num_cpus=num_cpus)
+
+        # remember current value of param_name
+        current_val = getattr(self, param_name)
+
+        # def t1_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
+
+        # calculate the noise over the full param span in param_vals
+        noise_vals = [scale * self.set_and_return(param_name, v).t1_effective(
+                                                        noise_channels=noise_channels,
+                                                        common_noise_options=common_noise_options,
+                                                        esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i])
+                                                        )
+                     for v_i, v in enumerate(param_vals)]
+
+        # Set the parameter we varied to its initial value
+        setattr(self, param_name, current_val)
+
+        # If axes was given in fig_as, it should support the plot structure consistent with plot_grid,
+        # otherwise the plotting routine below, will fail
+        fig, axes = kwargs.get('fig_ax') or plt.subplots(1)
+
+        axes.plot(param_vals, noise_vals, **plotting._extract_kwargs_options(kwargs, 'plot'))
+        axes.set_title('t1_effective')
+
+        axes.set_xlabel(param_name)
+        axes.set_ylabel(units.get_units_time_label())
+        axes.set_yscale("log")
+        axes.grid(True)
+
+        plotting._process_options(fig, axes, **kwargs)
+
+        fig.tight_layout()
+
+        return fig, axes
+
+    def plot_tphi_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={}, 
+            spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+
+        # If we're not given channels to consider, just use ones fromthe supported list
+        noise_channels = [channel for 
+                channel in self.supported_noise_channels()] if noise_channels is None else noise_channels
+
+        # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
+        noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
+
+        if spec_data is None: 
+
+            # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
+            # from the diagonalization.
+            # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
+            max_level = max(common_noise_options.get('i', 1), common_noise_options.get('j', 1))
+            for noise_channel in noise_channels:
+                if isinstance(noise_channel, tuple):
+                    opts = noise_channel[1]
+                    max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
+
+            spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
+                                                   subtract_ground=True, get_eigenstates=True, filename=None,
+                                                   num_cpus=num_cpus)
+
+        # remember current value of param_name
+        current_val = getattr(self, param_name)
+
+        # def t1_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
+
+        # calculate the noise over the full param span in param_vals
+        noise_vals = [scale * self.set_and_return(param_name, v).tphi_effective(
+                                                        noise_channels=noise_channels,
+                                                        common_noise_options=common_noise_options,
+                                                        esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i])
+                                                        )
+                     for v_i, v in enumerate(param_vals)]
+
+        # Set the parameter we varied to its initial value
+        setattr(self, param_name, current_val)
+
+        # If axes was given in fig_as, it should support the plot structure consistent with plot_grid,
+        # otherwise the plotting routine below, will fail
+        fig, axes = kwargs.get('fig_ax') or plt.subplots(1)
+
+        axes.plot(param_vals, noise_vals, **plotting._extract_kwargs_options(kwargs, 'plot'))
+        axes.set_title('tphi_effective')
+
+        axes.set_xlabel(param_name)
+        axes.set_ylabel(units.get_units_time_label())
+        axes.set_yscale("log")
+        axes.grid(True)
+
+        plotting._process_options(fig, axes, **kwargs)
+
+        fig.tight_layout()
+
+        return fig, axes
+
+
     def _effective_rate(self, noise_channels, common_noise_options, esys, noise_type):
         """
         Helper method used when calculating the effective rates related to t1_effective and tphi_effecive.
