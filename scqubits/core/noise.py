@@ -167,7 +167,7 @@ class NoisySystem:
 
         return fig, axes
 
-    def t1_effective(self, noise_channels=None, esys=None, i=1, j=0, total=True, get_rate=False, **kwargs):
+    def t1_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
         r"""
         Calculate the effective t1 time (or rate). 
 
@@ -190,7 +190,19 @@ class NoisySystem:
         for noise_channel in noise_channels:
             channel = noise_channel[0] if isinstance(noise_channel, tuple) else noise_channel
             if not channel.startswith("t1"):
-                raise ValueError("Only t1 channels should can contribute to effective t1 noise.")
+                raise ValueError("Only t1 channels can contribute to effective t1 noise.")
+
+        if esys is None:
+            # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
+            # from the diagonalization.
+            # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
+            max_level = max(common_noise_options.get('i', 1), common_noise_options.get('j', 1))
+            for noise_channel in noise_channels:
+                if isinstance(noise_channel, tuple):
+                    opts = noise_channel[1]
+                    max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
+
+            esys = self.eigensys(evals_count=max_level+1)
 
         rate = 0.0
 
@@ -199,28 +211,29 @@ class NoisySystem:
             # noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
 
+                noise_channel_method=noise_channel
+
+                options=common_noise_options.copy()
+                # We need to make sure we calculate a rate
+                options['get_rate']=True
+
                 # calculate the noise over the full param span in param_vals
-                rate += getattr(self, noise_channel)(i=i, j=j, esys=esys, get_rate=True)
+                rate += getattr(self, noise_channel_method)(esys=esys, **options)
 
             # noise_channel is a tuple representing the noise method and default options
             elif isinstance(noise_channel, tuple):
 
-                nc, options = noise_channel
+                noise_channel_method=noise_channel[0]
 
-                # Some of the options may be in conflict with the global options given directly to plot_noise.
-                # In such a case, we let the noise-channel-specific options take priority.
-                if 'i' not in options:
-                    options['i'] = i
-                if 'j' not in options:
-                    options['j'] = j
-                if 'total' not in options:
-                    options['total'] = total
-
-                options['get_rate'] = True
-                options['esys'] = esys
+                options=common_noise_options.copy()
+                # Some of the channel-specific options may be in conflict with the common options options.
+                # In such a case, we let the channel-specific options take priority.
+                options.update(noise_channel[1])
+                # We need to make sure we calculate a rate
+                options['get_rate']=True
 
                 # calculate the noise over the full param span in param_vals
-                rate += getattr(self, nc)(**options)
+                rate += getattr(self, noise_channel_method)(esys=esys, **options)
 
             else:
                 raise ValueError("The `noise_channels` argument should be one of {str, list of str, or list of tuples}.")
@@ -230,7 +243,7 @@ class NoisySystem:
         else:
             return 1/rate if rate != 0 else np.inf
 
-    def tphi_effective(self, noise_channels=None, esys=None, i=1, j=0, total=True, get_rate=False, **kwargs):
+    def tphi_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
         r"""
         Calculate the effective tphi time (or rate). 
 
