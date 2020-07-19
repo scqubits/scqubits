@@ -18,8 +18,9 @@ import scqubits.utils.plotting as plotting
 import scqubits.core.units as units
 import scqubits.settings as settings
 
-
 # Helpers for units conversion
+
+
 def calc_therm_ratio(omega, T):
     """Returns the ratio 
     
@@ -62,7 +63,7 @@ NOISE_PARAMS = {
 
 class NoisySystem:
 
-    def plot_coherence_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={}, 
+    def plot_coherence_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Show plots of various noise channels supported by the qubit.  
@@ -78,7 +79,7 @@ class NoisySystem:
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
-        if spec_data is None: 
+        if spec_data is None:
 
             # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
             # from the diagonalization.
@@ -104,6 +105,12 @@ class NoisySystem:
         # otherwise the plotting routine below, will fail
         fig, axes = kwargs.get('fig_ax') or plt.subplots(*plot_grid, figsize=figsize)
 
+        plotting_options = {'xlabel': units.get_units_time_label(),
+                            'yscale': 'log',
+                            'grid': True,
+                            }
+        plotting_options.update({k: v for (k, v) in kwargs.items() if k not in ['fig_ax', 'figsize']})
+
         # remember current value of param_name
         current_val = getattr(self, param_name)
 
@@ -112,53 +119,38 @@ class NoisySystem:
             # noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
 
+                noise_channel_method = noise_channel
+
                 # calculate the noise over the full param span in param_vals
-                noise_vals = [scale * getattr(self.set_and_return(param_name, v), noise_channel)(
-                             esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]), 
-                             **common_noise_options)
-                             for v_i, v in enumerate(param_vals)]
-
-                ax = axes.ravel()[n] if len(noise_channels) > 1 else axes
-                ax.plot(param_vals, noise_vals, **plotting._extract_kwargs_options(kwargs, 'plot'))
-                ax.set_title(noise_channel)
-
-                ax.set_xlabel(param_name)
-                ax.set_ylabel(units.get_units_time_label())
-                ax.set_yscale("log")
-                ax.grid(True)
-
-                plotting._process_options(fig, ax, **kwargs)
+                noise_vals = [scale * getattr(self.set_and_return(param_name, v), noise_channel_method)(
+                    esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]),
+                    **common_noise_options)
+                    for v_i, v in enumerate(param_vals)]
 
             # noise_channel is a tuple representing the noise method and default options
             elif isinstance(noise_channel, tuple):
 
-                nc, opts = noise_channel
+                noise_channel_method = noise_channel[0]
 
-                # Some of the options for this noise channel, may be in conflict with the common options that the user
-                # specified. In such cases, we let the noise-channel-specific options take priority.
-                options=common_noise_options.copy()
-                for key, val in opts.items():
-                    options[key]=val
+                options = common_noise_options.copy()
+                # Some of the channel-specific options may be in conflict with the common options options.
+                # In such a case, we let the channel-specific options take priority.
+                options.update(noise_channel[1])
 
                 # calculate the noise over the full param span in param_vals
-                noise_vals = [scale * getattr(self.set_and_return(param_name, v), nc)(
-                              esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]), 
+                noise_vals = [scale * getattr(self.set_and_return(param_name, v), noise_channel_method)(
+                              esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]),
                               **options)
                               for v_i, v in enumerate(param_vals)]
 
-                ax = axes.ravel()[n] if len(noise_channels) > 1 else axes
-                ax.plot(param_vals, noise_vals, **plotting._extract_kwargs_options(kwargs, 'plot'))
-                ax.set_title(nc)
-
-                ax.set_xlabel(param_name)
-                ax.set_ylabel(units.get_units_time_label())
-                ax.set_yscale("log")
-                ax.grid(True)
-
-                plotting._process_options(fig, ax, **kwargs)
-
             else:
-                raise ValueError("The `noise_channels` argument should be one of {str, list of str, or list of tuples}.")
+                raise ValueError(
+                    "The `noise_channels` argument should be one of {str, list of str, or list of tuples}.")
+
+            ax = axes.ravel()[n] if len(noise_channels) > 1 else axes
+            plotting_options['fig_ax'] = fig, ax
+            plotting_options['title'] = noise_channel_method
+            plotting.data_vs_paramvals(param_vals, noise_vals, **plotting_options)
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
@@ -167,8 +159,7 @@ class NoisySystem:
 
         return fig, axes
 
-
-    def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={}, 
+    def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
 
        # If we're not given channels to consider, just use the supported list that
@@ -179,7 +170,7 @@ class NoisySystem:
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
-        if spec_data is None: 
+        if spec_data is None:
 
             # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
             # from the diagonalization.
@@ -197,48 +188,41 @@ class NoisySystem:
         # remember current value of param_name
         current_val = getattr(self, param_name)
 
-        # def t1_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
-
         # calculate the noise over the full param span in param_vals
         noise_vals = [scale * self.set_and_return(param_name, v).t1_effective(
-                                                        noise_channels=noise_channels,
-                                                        common_noise_options=common_noise_options,
-                                                        esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i])
-                                                        )
-                     for v_i, v in enumerate(param_vals)]
+            noise_channels=noise_channels,
+            common_noise_options=common_noise_options,
+            esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i])
+        )
+            for v_i, v in enumerate(param_vals)]
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
 
-        # If axes was given in fig_as, it should support the plot structure consistent with plot_grid,
-        # otherwise the plotting routine below, will fail
-        fig, axes = kwargs.get('fig_ax') or plt.subplots(1)
-
-        axes.plot(param_vals, noise_vals, **plotting._extract_kwargs_options(kwargs, 'plot'))
-        axes.set_title('t1_effective')
-
-        axes.set_xlabel(param_name)
-        axes.set_ylabel(units.get_units_time_label())
-        axes.set_yscale("log")
-        axes.grid(True)
-
-        plotting._process_options(fig, axes, **kwargs)
+        plotting_options = {'fig_ax': plt.subplots(1),
+                          'title': 't1_effective',
+                          'xlabel': units.get_units_time_label(),
+                          'yscale': 'log',
+                          'grid': True,
+                            }
+        plotting_options.update(kwargs)
+        fig, axes = plotting.data_vs_paramvals(param_vals, noise_vals, **plotting_options)
 
         fig.tight_layout()
 
         return fig, axes
 
-    def plot_tphi_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={}, 
+    def plot_tphi_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
 
         # If we're not given channels to consider, just use ones fromthe supported list
-        noise_channels = [channel for 
+        noise_channels = [channel for
                 channel in self.supported_noise_channels()] if noise_channels is None else noise_channels
 
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
-        if spec_data is None: 
+        if spec_data is None:
 
             # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
             # from the diagonalization.
@@ -256,37 +240,29 @@ class NoisySystem:
         # remember current value of param_name
         current_val = getattr(self, param_name)
 
-        # def t1_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
-
         # calculate the noise over the full param span in param_vals
         noise_vals = [scale * self.set_and_return(param_name, v).tphi_effective(
-                                                        noise_channels=noise_channels,
-                                                        common_noise_options=common_noise_options,
-                                                        esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i])
-                                                        )
-                     for v_i, v in enumerate(param_vals)]
+            noise_channels=noise_channels,
+            common_noise_options=common_noise_options,
+            esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i])
+        )
+            for v_i, v in enumerate(param_vals)]
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
 
-        # If axes was given in fig_as, it should support the plot structure consistent with plot_grid,
-        # otherwise the plotting routine below, will fail
-        fig, axes = kwargs.get('fig_ax') or plt.subplots(1)
-
-        axes.plot(param_vals, noise_vals, **plotting._extract_kwargs_options(kwargs, 'plot'))
-        axes.set_title('tphi_effective')
-
-        axes.set_xlabel(param_name)
-        axes.set_ylabel(units.get_units_time_label())
-        axes.set_yscale("log")
-        axes.grid(True)
-
-        plotting._process_options(fig, axes, **kwargs)
+        plotting_options = {'fig_ax': plt.subplots(1),
+                          'title': 'tphi_effective',
+                          'xlabel': units.get_units_time_label(),
+                          'yscale': 'log',
+                          'grid': True,
+                            }
+        plotting_options.update(kwargs)
+        fig, axes = plotting.data_vs_paramvals(param_vals, noise_vals, **plotting_options)
 
         fig.tight_layout()
 
         return fig, axes
-
 
     def _effective_rate(self, noise_channels, common_noise_options, esys, noise_type):
         """
@@ -302,11 +278,11 @@ class NoisySystem:
                 # If dealing with a tphi noise type, the contribution of a t1 process to the dephasing rate its halved.
                 scale_factor = 0.5 if noise_type == 'tphi' and noise_channel.startswith("t1") else 1
 
-                noise_channel_method=noise_channel
+                noise_channel_method = noise_channel
 
-                options=common_noise_options.copy()
+                options = common_noise_options.copy()
                 # We need to make sure we calculate a rate
-                options['get_rate']=True
+                options['get_rate'] = True
 
                 # calculate the noise over the full param span in param_vals
                 rate += scale_factor * getattr(self, noise_channel_method)(esys=esys, **options)
@@ -317,20 +293,21 @@ class NoisySystem:
                 # If dealing with a tphi noise type, the contribution of a t1 process to the dephasing rate its halved.
                 scale_factor = 0.5 if noise_type == 'tphi' and noise_channel.startswith("t1") else 1
 
-                noise_channel_method=noise_channel[0]
+                noise_channel_method = noise_channel[0]
 
-                options=common_noise_options.copy()
+                options = common_noise_options.copy()
                 # Some of the channel-specific options may be in conflict with the common options options.
                 # In such a case, we let the channel-specific options take priority.
                 options.update(noise_channel[1])
                 # We need to make sure we calculate a rate
-                options['get_rate']=True
+                options['get_rate'] = True
 
                 # calculate the noise over the full param span in param_vals
                 rate += scale_factor * getattr(self, noise_channel_method)(esys=esys, **options)
 
             else:
-                raise ValueError("The `noise_channels` argument should be one of {str, list of str, or list of tuples}.")
+                raise ValueError(
+                    "The `noise_channels` argument should be one of {str, list of str, or list of tuples}.")
 
         return rate
 
@@ -370,7 +347,7 @@ class NoisySystem:
 
             esys = self.eigensys(evals_count=max_level+1)
 
-        rate=self._effective_rate(noise_channels=noise_channels, 
+        rate = self._effective_rate(noise_channels=noise_channels,
                                             common_noise_options=common_noise_options,
                                             esys=esys,
                                             noise_type='t1')
@@ -391,7 +368,7 @@ class NoisySystem:
         """
 
         # If we're not given channels to consider, just use ones fromthe supported list
-        noise_channels = [channel for 
+        noise_channels = [channel for
                 channel in self.supported_noise_channels()] if noise_channels is None else noise_channels
 
         # If we're given only a single channel as a string, make it a one entry list
@@ -409,7 +386,7 @@ class NoisySystem:
 
             esys = self.eigensys(evals_count=max_level+1)
 
-        rate=self._effective_rate(noise_channels=noise_channels, 
+        rate = self._effective_rate(noise_channels=noise_channels,
                                             common_noise_options=common_noise_options,
                                             esys=esys,
                                             noise_type='tphi')
@@ -656,12 +633,12 @@ class NoisySystem:
 
         if Q_cap is None:
             # See Smith et al (2020)
-            q_cap_fun=lambda omega: 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7
-        elif callable(Q_cap): # Q_cap is a function of omega
-            q_cap_fun=Q_cap
-        else: # Q_cap is given as a number
-            q_cap_fun=lambda omega: Q_cap
-            
+            def q_cap_fun(omega): return 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7
+        elif callable(Q_cap):  # Q_cap is a function of omega
+            q_cap_fun = Q_cap
+        else:  # Q_cap is given as a number
+            def q_cap_fun(omega): return Q_cap
+
         def spectral_density(omega):
             therm_ratio = calc_therm_ratio(omega, T)
             s = 2 * 8 * EC / q_cap_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
@@ -716,11 +693,11 @@ class NoisySystem:
 
         if Q_ind is None:
             # See Smith et al (2020)
-            q_ind_fun = lambda omega: 500e6
-        elif callable(Q_ind): # Q_ind is a function of omega
-            q_ind_fun=Q_ind
-        else: # Q_ind is given as a number
-            q_ind_fun=lambda omega: Q_cap
+            def q_ind_fun(omega): return 500e6
+        elif callable(Q_ind):  # Q_ind is a function of omega
+            q_ind_fun = Q_ind
+        else:  # Q_ind is given as a number
+            def q_ind_fun(omega): return Q_cap
 
         def spectral_density(omega):
             therm_ratio = calc_therm_ratio(omega, T)
@@ -851,11 +828,11 @@ class NoisySystem:
         if Y_qp is None:
             # TODO implement a fancy omega-dependent function; how does it differ for different qubits?
             # Namely, should we calculate based on each qubit's topology (i.e. how is are the junctions shunted)?
-            y_qp_fun = lambda omega: 1000  # dummy for now
-        elif callable(Y_qp): # Y_qp is a function of omega
+            def y_qp_fun(omega): return 1000  # dummy for now
+        elif callable(Y_qp):  # Y_qp is a function of omega
             y_qp_fun = Y_qp
-        else: # Y_qp is given as a number
-            y_qp_fun = lambda omega: Y_qp
+        else:  # Y_qp is given as a number
+            def y_qp_fun(omega): return Y_qp
 
         def spectral_density(omega, Y_qp=Y_qp):
             """
@@ -863,7 +840,8 @@ class NoisySystem:
             TODO finish this
             """
             therm_ratio = calc_therm_ratio(omega, T)
-            s = NOISE_PARAMS['R_k'] * y_qp_fun(omega) * omega / np.pi * (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
+            s = NOISE_PARAMS['R_k'] * y_qp_fun(omega) * omega / np.pi * \
+                                               (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
             return s
 
         noise_op = self.sin_phi_operator(alpha=0.5)
