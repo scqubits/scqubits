@@ -41,6 +41,25 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions, VCHOSMinimaFinder):
                 minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result_neg.x]))
         return minima_holder
 
+    def potential(self, phi_array):
+        """
+        Potential evaluated at the location specified by phi_array
+
+        Parameters
+        ----------
+        phi_array: ndarray
+            float value of the phase variable `phi`
+
+        Returns
+        -------
+        float
+        """
+        dim = self.number_degrees_freedom()
+        pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
+        pot_sum += (- self.EJlist[-1] * np.cos(np.sum([self.boundary_coeffs[i] * phi_array[i]
+                                                       for i in range(dim)]) + 2 * np.pi * self.flux))
+        return pot_sum
+
 
 class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS):
     N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')

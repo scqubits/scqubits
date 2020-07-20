@@ -5,13 +5,17 @@ import numpy as np
 from scipy.linalg import LinAlgError, expm, inv, eigh
 import scipy.constants as const
 from numpy.linalg import matrix_power
-from scipy.special import comb
+from scipy.special import comb, gamma, eval_hermite
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
+from scqubits.core import discretization, storage
 from scqubits.core.hashing import Hashing
+import scqubits.core.constants as constants
+import scqubits.utils.plotting as plot
 from scqubits.utils.misc import kron_matrix_list
-from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ
+from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ, \
+    standardize_phases
 
 
 # The VCHOS method (tight binding) allowing for the diagonalization of systems
@@ -27,6 +31,27 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 # which define the capacitance matrix, the charging energy matrix, the dimension
 # of the hilbert space according to the specific truncation scheme used, and 
 # a method to find and find all inequivalent minima, respectively.
+
+
+def harm_osc_wavefunction(n, x):
+    """For given quantum number n=0,1,2,... return the value of the harmonic oscillator wave function
+    :math:`\\psi_n(x) = N H_n(x) \\exp(-x^2/2)`, N being the proper normalization factor. It is assumed
+    that the harmonic length has already been accounted for. Therefore that portion of the normalization
+    factor must be accounted for outside the function.
+
+    Parameters
+    ----------
+    n: int
+        index of wave function, n=0 is ground state
+    x: float or ndarray
+        coordinate(s) where wave function is evaluated
+
+    Returns
+    -------
+    float or ndarray
+        value(s) of harmonic oscillator wave function
+    """
+    return (2.0 ** n * gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) * eval_hermite(n, x) * np.exp(-x ** 2 / 2.)
 
 
 class VCHOSMinimaFinder:
@@ -73,23 +98,7 @@ class VCHOSMinimaFinder:
         return []
 
     def potential(self, phi_array):
-        """
-        Potential evaluated at the location specified by phi_array
-
-        Parameters
-        ----------
-        phi_array: ndarray
-            float value of the phase variable `phi`
-
-        Returns
-        -------
-        float
-        """
-        dim = self.number_degrees_freedom()
-        pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
-        pot_sum += (- self.EJlist[-1] * np.cos(np.sum([self.boundary_coeffs[i] * phi_array[i]
-                                                       for i in range(dim)]) + 2 * np.pi * self.flux))
-        return pot_sum
+        return 0.0
 
 
 class VCHOS(base.QubitBaseClass, serializers.Serializable, VCHOSMinimaFinder):
@@ -106,6 +115,8 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable, VCHOSMinimaFinder):
         # This must be set in the individual qubit class and
         # specifies the structure of the boundary term
         self.boundary_coeffs = np.array([])
+        self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
+        self.extended_grid = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
 
     @staticmethod
     def default_params():
@@ -572,6 +583,105 @@ class VCHOS(base.QubitBaseClass, serializers.Serializable, VCHOSMinimaFinder):
                                                                         evals_count, eigvals_only=False)
         return evals, evecs
 
+    def wavefunction(self, esys=None, which=0):
+        """
+        Return a vchos wavefunction, assuming the qubit has 2 degrees of freedom
+
+        Parameters
+        ----------
+        esys: ndarray, ndarray
+            eigenvalues, eigenvectors
+        which: int, optional
+            index of desired wave function (default value = 0)
+
+        Returns
+        -------
+        WaveFunctionOnGrid object
+        """
+        evals_count = max(which + 1, 3)
+        if esys is None:
+            _, evecs = self.eigensys(evals_count)
+        else:
+            _, evecs = esys
+        minima_list = self.sorted_minima()
+
+        Xi = self.Xi_matrix()
+        norm = np.sqrt(np.abs(np.linalg.det(Xi))) ** (-1)
+
+        dim_extended = self.number_extended_degrees_freedom()
+        dim_periodic = self.number_periodic_degrees_freedom()
+        phi_1_grid = self.periodic_grid
+        phi_1_vec = phi_1_grid.make_linspace()
+        phi_2_grid = self.periodic_grid
+        phi_2_vec = phi_2_grid.make_linspace()
+
+        if dim_extended != 0:
+            phi_1_grid = self.extended_grid
+            phi_1_vec = phi_1_grid.make_linspace()
+
+        wavefunc_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec)).T
+
+        for i, minimum in enumerate(minima_list):
+            klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=dim_periodic)
+            neighbor = next(klist, -1)
+            while neighbor != -1:
+                # TODO offset charge not taken into account here. Must fix
+                phik = 2.0 * np.pi * np.concatenate((np.zeros(dim_extended), neighbor))
+                phi_offset = phik - minimum
+                state_amplitudes = self.state_amplitudes_function(i, evecs, which)
+                wavefunc_amplitudes += norm * self.wavefunc_amplitudes_function(state_amplitudes, phi_1_vec,
+                                                                                phi_2_vec, phi_offset)
+                neighbor = next(klist, -1)
+
+        grid2d = discretization.GridSpec(np.asarray([[phi_1_grid.min_val, phi_1_grid.max_val, phi_1_grid.pt_count],
+                                                     [phi_2_grid.min_val, phi_2_grid.max_val, phi_2_grid.pt_count]]))
+
+        wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
+
+        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
+
+    def state_amplitudes_function(self, i, evecs, which):
+        total_num_states = self.number_states_per_minimum()
+        return np.real(np.reshape(evecs[i * total_num_states: (i + 1) * total_num_states, which],
+                                  (self.num_exc + 1, self.num_exc + 1)))
+
+    def wavefunc_amplitudes_function(self, state_amplitudes, phi_1_vec, phi_2_vec, phi_offset):
+        return np.sum([self._multiply_two_ho_functions(s1, s2, phi_1_vec, phi_2_vec, phi_offset)
+                       * state_amplitudes[s1, s2] for s2 in range(self.num_exc + 1)
+                       for s1 in range(self.num_exc + 1)], axis=0).T
+
+    def _multiply_two_ho_functions(self, s1, s2, phi_1_vec, phi_2_vec, phi_offset):
+        Xi_inv = inv(self.Xi_matrix())
+        return np.multiply(harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0, 0]*(phi_1_vec + phi_offset[0]),
+                                                                  Xi_inv[0, 1]*(phi_2_vec + phi_offset[1]))),
+                           harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1, 0]*(phi_1_vec + phi_offset[0]),
+                                                                  Xi_inv[1, 1]*(phi_2_vec + phi_offset[1]))))
+
+    def plot_wavefunction(self, esys=None, which=0, mode='abs', zero_calibrate=True, **kwargs):
+        """Plots 2d phase-basis wave function.
+
+        Parameters
+        ----------
+        esys: ndarray, ndarray
+            eigenvalues, eigenvectors as obtained from `.eigensystem()`
+        which: int, optional
+            index of wave function to be plotted (default value = (0)
+        mode: str, optional
+            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
+        zero_calibrate: bool, optional
+            if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
+        **kwargs:
+            plot options
+
+        Returns
+        -------
+        Figure, Axes
+        """
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        wavefunc = self.wavefunction(esys, which=which)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+
     def build_capacitance_matrix(self):
         return []
 
@@ -622,3 +732,19 @@ class VCHOSGlobal(VCHOS, Hashing):
         per minimum is given by the hockey-stick identity
         """
         return int(comb(self.global_exc + self.number_degrees_freedom(), self.number_degrees_freedom()))
+
+    def state_amplitudes_function(self, i, evecs, which):
+        total_num_states = self.number_states_per_minimum()
+        return np.real(evecs[i * total_num_states: (i + 1) * total_num_states, which])
+
+    def wavefunc_amplitudes_function(self, state_amplitudes, phi_1_vec, phi_2_vec, phi_offset):
+        total_num_states = self.number_states_per_minimum()
+        basis_vecs = self._gen_basis_vecs()
+        wavefunc_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec)).T
+        for j in range(total_num_states):
+            basis_vec = basis_vecs[j]
+            s1 = int(basis_vec[0])
+            s2 = int(basis_vec[1])
+            ho_2d = self._multiply_two_ho_functions(s1, s2, phi_1_vec, phi_2_vec, phi_offset)
+            wavefunc_amplitudes += state_amplitudes[j] * ho_2d.T
+        return wavefunc_amplitudes

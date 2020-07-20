@@ -1,43 +1,15 @@
 import os
 
 import numpy as np
-import scipy as sp
-import itertools
 from scipy.optimize import minimize
-from scipy.special import eval_hermite, gamma
 
-import scqubits.core.constants as constants
-import scqubits.utils.plotting as plot
 import scqubits.core.discretization as discretization
 from scqubits.core import descriptors
 from scqubits.core.flux_qubit import FluxQubitFunctions
 from scqubits.core.vchos import VCHOS, VCHOSMinimaFinder, VCHOSGlobal
-import scqubits.core.storage as storage
-from scqubits.utils.spectrum_utils import standardize_phases
 
 
 # Flux Qubit using VCHOS
-
-def harm_osc_wavefunction(n, x):
-    """For given quantum number n=0,1,2,... return the value of the harmonic oscillator wave function
-    :math:`\\psi_n(x) = N H_n(x) \\exp(-x^2/2)`, N being the proper normalization factor. It is assumed
-    that the harmonic length has already been accounted for. Therefore that portion of the normalization
-    factor must be accounted for outside the function.
-
-    Parameters
-    ----------
-    n: int
-        index of wave function, n=0 is ground state
-    x: float or ndarray
-        coordinate(s) where wave function is evaluated
-
-    Returns
-    -------
-    float or ndarray
-        value(s) of harmonic oscillator wave function
-    """
-    return (2.0 ** n * gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) * eval_hermite(n, x) * np.exp(-x ** 2 / 2.)
-
 
 class FluxQubitVCHOSFunctions(FluxQubitFunctions, VCHOSMinimaFinder):
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
@@ -81,6 +53,26 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions, VCHOSMinimaFinder):
             if not (new_minima_positive and new_minima_negative):
                 break
         return minima_holder
+
+    def potential(self, phi_array):
+        """
+        Potential evaluated at the location specified by phi_array
+
+        Parameters
+        ----------
+        phi_array: ndarray
+            float value of the phase variable `phi`
+
+        Returns
+        -------
+        float
+        """
+        EJlist = np.array([self.EJ1, self.EJ2, self.EJ3])
+        dim = self.number_degrees_freedom()
+        pot_sum = np.sum([- EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
+        pot_sum += (- EJlist[-1] * np.cos(np.sum([self.boundary_coeffs[i] * phi_array[i]
+                                                  for i in range(dim)]) + 2 * np.pi * self.flux))
+        return pot_sum
 
 
 class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS):
@@ -130,100 +122,6 @@ class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS):
     def nonfit_params():
         return ['alpha', 'nglist', 'kmax', 'num_exc', 'squeezing', 'truncated_dim']
 
-    def wavefunction(self, esys=None, which=0, phi_grid=None):
-        """
-        Return a flux qubit wave function in phi1, phi2 basis. Note that this implementation
-        does not include the effects of squeezing.
-
-        Parameters
-        ----------
-        esys: ndarray, ndarray
-            eigenvalues, eigenvectors
-        which: int, optional
-            index of desired wave function (default value = 0)
-        phi_grid: Grid1D object, optional
-            used for setting a custom plot range for phi
-
-        Returns
-        -------
-        WaveFunctionOnGrid object
-        """
-        evals_count = max(which + 1, 3)
-        if esys is None:
-            _, evecs = self.eigensys(evals_count)
-        else:
-            _, evecs = esys
-        phi_grid = phi_grid or self._default_grid
-        phi_vec = phi_grid.make_linspace()
-
-        minima_list = self.sorted_minima()
-        num_minima = len(minima_list)
-        total_num_states = int(self.hilbertdim() / num_minima)
-
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        norm = np.sqrt(np.abs(np.linalg.det(Xi))) ** (-1)
-
-        wavefunc_amplitudes = np.zeros_like(np.outer(phi_vec, phi_vec))
-
-        for i, minimum in enumerate(minima_list):
-            klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-            jkvals = next(klist, -1)
-            while jkvals != -1:
-                #TODO offset charge not taken into account here. Must fix
-                phik = 2.0 * np.pi * np.array([jkvals[0], jkvals[1]])
-                phi1_s1_arg = Xi_inv[0, 0] * (phik - minimum)[0]
-                phi2_s1_arg = Xi_inv[0, 1] * (phik - minimum)[1]
-                phi1_s2_arg = Xi_inv[1, 0] * (phik - minimum)[0]
-                phi2_s2_arg = Xi_inv[1, 1] * (phik - minimum)[1]
-                state_amplitudes = np.real(np.reshape(evecs[i * total_num_states: (i + 1) * total_num_states, which],
-                                                      (self.num_exc + 1, self.num_exc + 1)))
-                wavefunc_amplitudes += np.sum([state_amplitudes[s1, s2] * norm
-                                               * np.multiply(
-                    harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0, 0] * phi_vec + phi1_s1_arg,
-                                                           Xi_inv[0, 1] * phi_vec + phi2_s1_arg)),
-                    harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1, 0] * phi_vec + phi1_s2_arg,
-                                                           Xi_inv[1, 1] * phi_vec + phi2_s2_arg)))
-                                               for s2 in range(self.num_exc + 1)
-                                               for s1 in range(self.num_exc + 1)], axis=0).T  # FIX .T NOT CORRECT
-                jkvals = next(klist, -1)
-
-        grid2d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
-                                                     [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
-
-        wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
-
-        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
-
-    def plot_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs', zero_calibrate=True, **kwargs):
-        """Plots 2d phase-basis wave function.
-
-        Parameters
-        ----------
-        esys: ndarray, ndarray
-            eigenvalues, eigenvectors as obtained from `.eigensystem()`
-        which: int, optional
-            index of wave function to be plotted (default value = (0)
-        phi_grid: Grid1d, optional
-            used for setting a custom grid for phi; if None use self._default_grid
-        mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
-        zero_calibrate: bool, optional
-            if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
-        **kwargs:
-            plot options
-
-        Returns
-        -------
-        Figure, Axes
-        """
-        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, which=which)
-        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
-        if 'figsize' not in kwargs:
-            kwargs['figsize'] = (5, 5)
-        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
-
 
 class FluxQubitVCHOSGlobal(FluxQubitVCHOSFunctions, VCHOSGlobal):
     EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -269,70 +167,3 @@ class FluxQubitVCHOSGlobal(FluxQubitVCHOSFunctions, VCHOSGlobal):
     @staticmethod
     def nonfit_params():
         return ['alpha', 'nglist', 'kmax', 'global_exc', 'squeezing', 'truncated_dim']
-
-    def wavefunction(self, esys=None, which=0, phi_grid=None):
-        """
-        Return a flux qubit wave function in phi1, phi2 basis. This implementation
-        is for the global excitation cutoff scheme, and similarly to FQV
-        does not include the effects of squeezing.
-
-        Parameters
-        ----------
-        esys: ndarray, ndarray
-            eigenvalues, eigenvectors
-        which: int, optional
-            index of desired wave function (default value = 0)
-        phi_grid: Grid1D object, optional
-            used for setting a custom plot range for phi
-
-        Returns
-        -------
-        WaveFunctionOnGrid object
-        """
-        evals_count = max(which + 1, 3)
-        if esys is None:
-            _, evecs = self.eigensys(evals_count)
-        else:
-            _, evecs = esys
-        phi_grid = phi_grid or self._default_grid
-        phi_vec = phi_grid.make_linspace()
-
-        minima_list = self.sorted_minima()
-        num_minima = len(minima_list)
-        total_num_states = int(self.hilbertdim() / num_minima)
-        basis_vecs = self._gen_basis_vecs()
-
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        norm = np.sqrt(np.abs(np.linalg.det(Xi))) ** (-1)
-
-        wavefunc_amplitudes = np.zeros_like(np.outer(phi_vec, phi_vec))
-
-        for i, minimum in enumerate(minima_list):
-            klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=2)
-            jkvals = next(klist, -1)
-            while jkvals != -1:
-                phik = 2.0 * np.pi * np.array([jkvals[0], jkvals[1]])
-                phi1_s1_arg = Xi_inv[0, 0] * (phik - minimum)[0]
-                phi2_s1_arg = Xi_inv[0, 1] * (phik - minimum)[1]
-                phi1_s2_arg = Xi_inv[1, 0] * (phik - minimum)[0]
-                phi2_s2_arg = Xi_inv[1, 1] * (phik - minimum)[1]
-                state_amplitudes = np.real(evecs[i * total_num_states: (i + 1) * total_num_states, which])
-                for j in range(total_num_states):
-                    basis_vec = basis_vecs[j]
-                    s1 = int(basis_vec[0])
-                    s2 = int(basis_vec[1])
-                    ho_2d = np.multiply(
-                        harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0, 0] * phi_vec + phi1_s1_arg,
-                                                               Xi_inv[0, 1] * phi_vec + phi2_s1_arg)),
-                        harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1, 0] * phi_vec + phi1_s2_arg,
-                                                               Xi_inv[1, 1] * phi_vec + phi2_s2_arg)))
-                    wavefunc_amplitudes += norm * state_amplitudes[j] * ho_2d.T
-                jkvals = next(klist, -1)
-
-        grid2d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
-                                                     [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
-
-        wavefunc_amplitudes = standardize_phases(wavefunc_amplitudes)
-
-        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
