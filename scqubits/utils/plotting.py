@@ -388,7 +388,7 @@ def matrix2d(matrix, mode='abs', show_numbers=True, **kwargs):
 
     modefunction = constants.MODE_FUNC_DICT[mode]
     zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
-    nrm = mpl.colors.Normalize(0, max(zheight))  # <-- normalize colors to max. data
+    nrm = mpl.colors.Normalize(min(zheight), max(zheight))  # <-- normalize colors to max. data
 
     axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
     cax, _ = mpl.colorbar.make_axes(axes, shrink=.75, pad=.02)  # add colorbar with normalized range
