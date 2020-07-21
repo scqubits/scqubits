@@ -3,11 +3,16 @@ from scipy.optimize import minimize
 from scipy.linalg import expm, inv
 import scipy.constants as const
 
-from scqubits.core.vchos import VCHOS, VCHOSMinimaFinder, VCHOSGlobal
+from scqubits.core.hashing import Hashing
+from scqubits.core.vchos import VCHOS
+import scqubits.core.qubit_base as base
+import scqubits.io_utils.fileio_serializers as serializers
 
 
-class ZeroPiVCHOSFunctions(VCHOSMinimaFinder):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux):
+class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, kmax, num_exc, dEJ=0, dCJ=0, truncated_dim=None):
+        VCHOS.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux, kmax,
+                       number_degrees_freedom=2, number_periodic_degrees_freedom=1, num_exc=num_exc)
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
         self.EJ = EJ
         self.EL = EL
@@ -15,29 +20,48 @@ class ZeroPiVCHOSFunctions(VCHOSMinimaFinder):
         self.EC = EC
         self.ng = ng
         self.flux = flux
+        self.dEJ = dEJ
+        self.dCJ = dCJ
+        self.truncated_dim = truncated_dim
+        self._sys_type = type(self).__name__
+        self._evec_dtype = np.complex_
+
+    @staticmethod
+    def default_params():
+        return {
+            'EJ': 10.0,
+            'EL': 0.04,
+            'ECJ': 20.0,
+            'EC': 0.04,
+            'dEJ': 0.0,
+            'dCJ': 0.0,
+            'ng': 0.1,
+            'flux': 0.23,
+            'num_exc': 5,
+            'truncated_dim': 10
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['ng', 'flux', 'num_exc', 'truncated_dim']
 
     def build_capacitance_matrix(self):
-        dim = self.number_degrees_freedom()
+        dim = self.number_degrees_freedom
         C_matrix = np.zeros((dim, dim))
 
         C = self.e ** 2 / (2. * self.EC)
         CJ = self.e ** 2 / (2. * self.ECJ)
-        Cs = C + CJ
+        C_phi = 2*CJ
+        C_theta = 2*(C + CJ)
 
-        C_matrix[0, 0] = CJ
-        C_matrix[1, 1] = Cs
+        C_matrix[0, 0] = C_phi
+        C_matrix[1, 1] = C_theta
 
         return C_matrix
 
     def build_EC_matrix(self):
         C_matrix = self.build_capacitance_matrix()
         return 0.5 * self.e**2 * inv(C_matrix)
-
-    def number_degrees_freedom(self):
-        return 2
-
-    def number_periodic_degrees_freedom(self):
-        return 1
 
     def _check_if_new_minima(self, result, minima_holder):
         """
@@ -89,36 +113,6 @@ class ZeroPiVCHOSFunctions(VCHOSMinimaFinder):
             minima_holder = self._append_new_minima(result_negative_pi, minima_holder)
         return minima_holder
 
-
-class ZeroPiVCHOS(ZeroPiVCHOSFunctions, VCHOS):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, kmax, num_exc, dEJ=0, dCJ=0, truncated_dim=None):
-        VCHOS.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux, kmax, num_exc)
-        ZeroPiVCHOSFunctions.__init__(self, EJ, EL, ECJ, EC, ng, flux)
-        self.dEJ = dEJ
-        self.dCJ = dCJ
-        self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-
-    @staticmethod
-    def default_params():
-        return {
-            'EJ': 10.0,
-            'EL': 0.04,
-            'ECJ': 20.0,
-            'EC': 0.04,
-            'dEJ': 0.0,
-            'dCJ': 0.0,
-            'ng': 0.1,
-            'flux': 0.23,
-            'num_exc': 5,
-            'truncated_dim': 10
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['ng', 'flux', 'num_exc', 'truncated_dim']
-
     def potential(self, phi_theta_array):
         phi = phi_theta_array[0]
         theta = phi_theta_array[1]
@@ -127,7 +121,7 @@ class ZeroPiVCHOS(ZeroPiVCHOSFunctions, VCHOS):
                 + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
 
     def build_gamma_matrix(self, i):
-        dim = self.number_degrees_freedom()
+        dim = self.number_degrees_freedom
         gamma_matrix = np.zeros((dim, dim))
         min_loc = self.sorted_minima()[i]
         phi_location = min_loc[0]
@@ -140,14 +134,14 @@ class ZeroPiVCHOS(ZeroPiVCHOSFunctions, VCHOS):
 
     def _BCH_factor(self, j):
         Xi = self.Xi_matrix()
-        dim = self.number_degrees_freedom()
+        dim = self.number_degrees_freedom
         boundary_coeffs = np.array([(-1)**j, 1])
         return np.exp(-0.25 * np.sum([boundary_coeffs[j]*boundary_coeffs[k]*np.dot(Xi[j, :], Xi.T[:, k])
                                       for j in range(dim) for k in range(dim)]))
 
     def _build_single_exp_i_phi_j_operator(self, j):
         Xi = self.Xi_matrix()
-        dim = self.number_degrees_freedom()
+        dim = self.number_degrees_freedom
         boundary_coeffs = np.array([(-1)**j, 1])
         exp_i_phi_theta_a_component = expm(np.sum([1j*boundary_coeffs[i]*Xi[i, k]*self.a_operator(k)/np.sqrt(2.0)
                                                    for i in range(dim) for k in range(dim)], axis=0))
@@ -158,7 +152,7 @@ class ZeroPiVCHOS(ZeroPiVCHOSFunctions, VCHOS):
         return exp_i_phi_theta
 
     def _harmonic_contribution_to_potential(self, premultiplied_a_and_a_dagger, phi_bar, Xi):
-        dim = self.number_degrees_freedom()
+        dim = self.number_degrees_freedom
         a, a_a, a_dagger_a = premultiplied_a_and_a_dagger
         harmonic_contribution = np.sum([0.5*self.EL*Xi[0, i]*Xi.T[i, 0]*(a_a[i] + a_a[i].T
                                                                          + 2.0*a_dagger_a[i] + self.identity())
@@ -169,7 +163,7 @@ class ZeroPiVCHOS(ZeroPiVCHOSFunctions, VCHOS):
 
     def _potential_contribution_to_hamiltonian(self, exp_i_phi_list, premultiplied_a_and_a_dagger, Xi):
         def _inner_potential_c_t_h(delta_phi, phi_bar):
-            dim = self.number_degrees_freedom()
+            dim = self.number_degrees_freedom
             potential_matrix = self._harmonic_contribution_to_potential(premultiplied_a_and_a_dagger, phi_bar, Xi)
             for j in range(dim):
                 boundary_coeffs = np.array([(-1)**j, 1])
@@ -181,15 +175,12 @@ class ZeroPiVCHOS(ZeroPiVCHOSFunctions, VCHOS):
         return _inner_potential_c_t_h
 
 
-class ZeroPiVCHOSGlobal(ZeroPiVCHOSFunctions, VCHOSGlobal):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, kmax, num_exc, dEJ=0, dCJ=0, truncated_dim=None):
-        VCHOSGlobal.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux, kmax, num_exc)
-        ZeroPiVCHOSFunctions.__init__(self, EJ, EL, ECJ, EC, ng, flux)
-        self.dEJ = dEJ
-        self.dCJ = dCJ
-        self.truncated_dim = truncated_dim
+class ZeroPiVCHOSGlobal(Hashing, ZeroPiVCHOS, base.QubitBaseClass, serializers.Serializable):
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, kmax, global_exc, dEJ=0, dCJ=0, truncated_dim=None):
+        Hashing.__init__(self, global_exc, number_degrees_freedom=2)
+        ZeroPiVCHOS.__init__(self, EJ, EL, ECJ, EC, ng, flux, kmax, num_exc=None,
+                             dEJ=dEJ, dCJ=dCJ, truncated_dim=truncated_dim)
         self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
 
     @staticmethod
     def default_params():

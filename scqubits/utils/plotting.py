@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import functools
 import operator
+from scipy.special import gamma, eval_hermite
 
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -519,3 +520,46 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
         axes.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)
     return fig, axes
+
+def harm_osc_wavefunction(n, x):
+    """For given quantum number n=0,1,2,... return the value of the harmonic oscillator wave function
+    :math:`\\psi_n(x) = N H_n(x) \\exp(-x^2/2)`, N being the proper normalization factor. It is assumed
+    that the harmonic length has already been accounted for. Therefore that portion of the normalization
+    factor must be accounted for outside the function.
+
+    Parameters
+    ----------
+    n: int
+        index of wave function, n=0 is ground state
+    x: float or ndarray
+        coordinate(s) where wave function is evaluated
+
+    Returns
+    -------
+    float or ndarray
+        value(s) of harmonic oscillator wave function
+    """
+    return (2.0 ** n * gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) * eval_hermite(n, x) * np.exp(-x ** 2 / 2.)
+
+
+def harm_osc_outer_product(n, x1, x2):
+    """Return the function :math:`\\psi_n(x1, x2) = N H_n(x1+x2) \\exp(-(x1+x2)^2/2)`,
+    for use with two dimensional wavefunction plotting
+
+    Parameters
+    ----------
+    n: int
+        index of wave function, n=0 is ground state
+    x1: float or ndarray
+        coordinate(s) where wave function is evaluated
+    x2: float or ndarray
+        coordinate(s) where wave function is evaluated
+
+    Returns
+    -------
+    ndarray
+    """
+    return harm_osc_wavefunction(n, np.add.outer(x1, x2))
+
+def multiply_two_harm_osc_functions(n1, n2, x11, x12, x21, x22):
+    return

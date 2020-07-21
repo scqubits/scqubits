@@ -30,7 +30,7 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 class FluxQubitFunctions:
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                 ECJ3, ECg1, ECg2, ng1, ng2, flux,):
+                 ECJ3, ECg1, ECg2, ng1, ng2, flux):
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
         self.EJ1 = EJ1
         self.EJ2 = EJ2
@@ -43,6 +43,7 @@ class FluxQubitFunctions:
         self.ng1 = ng1
         self.ng2 = ng2
         self.flux = flux
+        self.number_degrees_freedom = 2
 
     def build_capacitance_matrix(self):
         C_matrix = np.zeros((2, 2))
@@ -64,11 +65,15 @@ class FluxQubitFunctions:
         C_matrix = self.build_capacitance_matrix()
         return 0.5 * self.e ** 2 * sp.linalg.inv(C_matrix)
 
-    def number_degrees_freedom(self):
-        return 2
+    def potential(self, phi_array):
+        """Return value of the potential energy at phi1 and phi2, disregarding constants."""
+        phi1 = phi_array[0]
+        phi2 = phi_array[1]
+        return (-self.EJ1 * np.cos(phi1) - self.EJ2 * np.cos(phi2)
+                - self.EJ3 * np.cos(2.0 * np.pi * self.flux + phi1 - phi2))
 
 
-class FluxQubit(base.QubitBaseClass, serializers.Serializable, FluxQubitFunctions):
+class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializable):
     r"""Flux Qubit
 
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
@@ -172,11 +177,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, FluxQubitFunction
     def hilbertdim(self):
         """Return Hilbert space dimension."""
         return (2 * self.ncut + 1) ** 2
-
-    def potential(self, phi1, phi2):
-        """Return value of the potential energy at phi1 and phi2, disregarding constants."""
-        return (-self.EJ1 * np.cos(phi1) - self.EJ2 * np.cos(phi2)
-                - self.EJ3 * np.cos(2.0 * np.pi * self.flux + phi1 - phi2))
 
     def kineticmat(self):
         """Return the kinetic energy matrix."""

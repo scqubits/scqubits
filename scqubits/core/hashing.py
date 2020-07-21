@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.special import comb
 import math
+
+import scqubits.utils.plotting as plot
 # Helper class for efficiently constructing raising and lowering operators
 # using a global excitation cutoff scheme, as opposed to the more commonly used
 # number of excitations per mode cutoff, which can be easily constructed 
@@ -10,7 +12,7 @@ import math
 
 
 class Hashing:
-    def __init__(self):
+    def __init__(self, global_exc, number_degrees_freedom):
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
                                     29, 31, 37, 41, 43, 47, 53, 59,
                                     61, 67, 71, 73, 79, 83, 89, 97, 
@@ -38,7 +40,37 @@ class Hashing:
                                     881, 883, 887, 907, 911, 919, 
                                     929, 937, 941, 947, 953, 967, 
                                     971, 977, 983, 991, 997])
-        self.global_exc = 0
+        self.global_exc = global_exc
+        self.number_degrees_freedom = number_degrees_freedom
+
+    def a_operator(self, i):
+        """
+        This method for defining the a_operator is based on
+        J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
+        We ask the question, for each basis vector, what is the action of a_i
+        on it? In this way, we can define a_i using a single for loop.
+        """
+        basis_vecs = self._gen_basis_vecs()
+        tags, index_array = self._gen_tags(basis_vecs)
+        dim = self.number_states_per_minimum()
+        a = np.zeros((dim, dim), dtype=np.complex_)
+        for w, vec in enumerate(basis_vecs):
+            if vec[i] >= 1:
+                temp_vec = np.copy(vec)
+                temp_vec[i] = vec[i] - 1
+                temp_coeff = np.sqrt(vec[i])
+                temp_vec_tag = self._hash(temp_vec)
+                index = np.searchsorted(tags, temp_vec_tag)
+                basis_index = index_array[index]
+                a[basis_index, w] = temp_coeff
+        return a
+
+    def number_states_per_minimum(self):
+        """
+        Using the global excitation scheme the total number of states
+        per minimum is given by the hockey-stick identity
+        """
+        return int(comb(self.global_exc + self.number_degrees_freedom, self.number_degrees_freedom))
 
     def _hash(self, vec):
         dim = len(vec)
@@ -52,7 +84,7 @@ class Hashing:
         return tag_list, index_array
     
     def _gen_basis_vecs(self):
-        sites = self.number_degrees_freedom()
+        sites = self.number_degrees_freedom
         vec_list = [np.zeros(sites)]
         for total_exc in range(1, self.global_exc+1):  # No excitation number conservation as in [1]
             prev_vec = np.zeros(sites)
@@ -93,5 +125,24 @@ class Hashing:
             if vec[num] != 0:
                 return num
 
-    def number_degrees_freedom(self):
-        return 0
+    def state_amplitudes_function(self, i, evecs, which):
+        total_num_states = self.number_states_per_minimum()
+        return np.real(evecs[i * total_num_states: (i + 1) * total_num_states, which])
+
+    def _multiply_two_ho_functions(self, s1, s2, phi_1_vec, phi_2_vec, phi_offset, Xi_inv):
+        return np.multiply(plot.harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0, 0]*(phi_1_vec + phi_offset[0]),
+                                                                       Xi_inv[0, 1]*(phi_2_vec + phi_offset[1]))),
+                           plot.harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1, 0]*(phi_1_vec + phi_offset[0]),
+                                                                       Xi_inv[1, 1]*(phi_2_vec + phi_offset[1]))))
+
+    def wavefunc_amplitudes_function(self, state_amplitudes, phi_1_vec, phi_2_vec, phi_offset, Xi_inv):
+        total_num_states = self.number_states_per_minimum()
+        basis_vecs = self._gen_basis_vecs()
+        wavefunc_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec)).T
+        for j in range(total_num_states):
+            basis_vec = basis_vecs[j]
+            s1 = int(basis_vec[0])
+            s2 = int(basis_vec[1])
+            ho_2d = self._multiply_two_ho_functions(s1, s2, phi_1_vec, phi_2_vec, phi_offset, Xi_inv)
+            wavefunc_amplitudes += state_amplitudes[j] * ho_2d.T
+        return wavefunc_amplitudes

@@ -3,24 +3,64 @@ import os
 import numpy as np
 from scipy.optimize import minimize
 
-import scqubits.core.discretization as discretization
 from scqubits.core import descriptors
 from scqubits.core.flux_qubit import FluxQubitFunctions
-from scqubits.core.vchos import VCHOS, VCHOSMinimaFinder, VCHOSGlobal
+from scqubits.core.hashing import Hashing
+from scqubits.core.vchos import VCHOS
+import scqubits.core.qubit_base as base
+import scqubits.io_utils.fileio_serializers as serializers
 
 
 # Flux Qubit using VCHOS
 
-class FluxQubitVCHOSFunctions(FluxQubitFunctions, VCHOSMinimaFinder):
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                 ECJ3, ECg1, ECg2, ng1, ng2, flux):
+class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
+    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    kmax = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2,
+                 flux, kmax, num_exc, truncated_dim=None):
         FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
                                     ECJ3, ECg1, ECg2, ng1, ng2, flux)
+        EJlist = np.array([EJ1, EJ2, EJ3])
+        nglist = np.array([ng1, ng2])
+        VCHOS.__init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=2,
+                       number_periodic_degrees_freedom=2, num_exc=num_exc)
+        self.truncated_dim = truncated_dim
+        self._sys_type = type(self).__name__
+        self._evec_dtype = np.complex_
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            'qubit_pngs/fluxqubitvchos.png')
         # final term in potential is cos[(+1)\phi_1+(-1)\phi_2-2pi f]
         self.boundary_coeffs = np.array([+1, -1])
 
-    def number_periodic_degrees_freedom(self):
-        return self.number_degrees_freedom()
+    @staticmethod
+    def default_params():
+        return {
+            'ECJ': 1.0 / 10.0,
+            'ECg': 5.0,
+            'EJlist': np.array([1.0, 1.0, 0.8]),
+            'alpha': 0.8,
+            'nglist': np.array(2 * [0.0]),
+            'flux': 0.46,
+            'kmax': 1,
+            'num_exc': 4,
+            'truncated_dim': 6
+        }
+
+    @staticmethod
+    def nonfit_params():
+        return ['alpha', 'nglist', 'kmax', 'num_exc', 'squeezing', 'truncated_dim']
 
     def _ramp(self, k, minima_holder):
         """
@@ -54,101 +94,19 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions, VCHOSMinimaFinder):
                 break
         return minima_holder
 
-    def potential(self, phi_array):
-        """
-        Potential evaluated at the location specified by phi_array
 
-        Parameters
-        ----------
-        phi_array: ndarray
-            float value of the phase variable `phi`
-
-        Returns
-        -------
-        float
-        """
-        EJlist = np.array([self.EJ1, self.EJ2, self.EJ3])
-        dim = self.number_degrees_freedom()
-        pot_sum = np.sum([- EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
-        pot_sum += (- EJlist[-1] * np.cos(np.sum([self.boundary_coeffs[i] * phi_array[i]
-                                                  for i in range(dim)]) + 2 * np.pi * self.flux))
-        return pot_sum
-
-
-class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS):
-    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    kmax = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                 ECJ3, ECg1, ECg2, ng1, ng2, flux, kmax, num_exc, truncated_dim=None):
-        EJlist = np.array([EJ1, EJ2, EJ3])
-        nglist = np.array([ng1, ng2])
-        VCHOS.__init__(self, EJlist, nglist, flux, kmax, num_exc)
-        FluxQubitVCHOSFunctions.__init__(EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                                         ECJ3, ECg1, ECg2, ng1, ng2,
-                                         flux, kmax)
-        self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-        self._default_grid = discretization.Grid1d(-6.5 * np.pi, 6.5 * np.pi, 651)  # for plotting in phi_j basis
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxqubitvchos.png')
-
-    @staticmethod
-    def default_params():
-        return {
-            'ECJ': 1.0 / 10.0,
-            'ECg': 5.0,
-            'EJlist': np.array([1.0, 1.0, 0.8]),
-            'alpha': 0.8,
-            'nglist': np.array(2 * [0.0]),
-            'flux': 0.46,
-            'kmax': 1,
-            'num_exc': 4,
-            'truncated_dim': 6
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['alpha', 'nglist', 'kmax', 'num_exc', 'squeezing', 'truncated_dim']
-
-
-class FluxQubitVCHOSGlobal(FluxQubitVCHOSFunctions, VCHOSGlobal):
-    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    kmax = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS, base.QubitBaseClass, serializers.Serializable):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
                  ECJ3, ECg1, ECg2, ng1, ng2, flux, kmax,
                  global_exc, truncated_dim=None):
-        EJlist = np.array([EJ1, EJ2, EJ3])
-        nglist = np.array([ng1, ng2])
-        VCHOSGlobal.__init__(self, EJlist, nglist, flux, kmax, global_exc)
-        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                                         ECJ3, ECg1, ECg2, ng1, ng2, flux)
+        Hashing.__init__(self, global_exc, number_degrees_freedom=2)
+        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2,
+                                flux, kmax, num_exc=None, truncated_dim=truncated_dim)
         self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-        self.truncated_dim = truncated_dim
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            'qubit_pngs/fluxqubitvchosglobal.png')
 
     @staticmethod
     def default_params():

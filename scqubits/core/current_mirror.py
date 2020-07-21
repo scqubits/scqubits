@@ -16,6 +16,7 @@ class CurrentMirrorFunctions:
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux):
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
         self.N = N
+        self.number_degrees_freedom = 2*N - 1
         self.ECB = ECB
         self.ECJ = ECJ
         self.ECg = ECg
@@ -54,9 +55,6 @@ class CurrentMirrorFunctions:
         V_m += np.diagflat([1 for _ in range(2 * N - 1)], 1)
         V_m[-1] = np.array([1 for _ in range(2 * N)])
         return V_m
-
-    def number_degrees_freedom(self):
-        return 2*self.N - 1
 
 
 class CurrentMirror(base.QubitBaseClass, serializers.Serializable, CurrentMirrorFunctions):
@@ -106,10 +104,10 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, CurrentMirror
         return evals, evecs
     
     def hilbertdim(self):
-        return (2*self.ncut+1)**self.number_degrees_freedom()
+        return (2*self.ncut+1)**self.number_degrees_freedom
 
     def hamiltonian(self):
-        no_node = self.number_degrees_freedom()
+        no_node = self.number_degrees_freedom
         ECmat, E_j_npl, n_gd_npl = self.build_EC_matrix(), self.EJlist, self.nglist
         phi = 2*np.pi*self.flux
         n_o, g_o, g_o_dg, i_o, i_o_list = self._basic_operators(np.complex_)
@@ -136,7 +134,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, CurrentMirror
         return H
     
     def _basic_operators(self, operator_dtype):
-        no_node = self.number_degrees_freedom()
+        no_node = self.number_degrees_freedom
         cutoff = self.ncut
         nstate_s = 2 * cutoff + 1
         cutoff_range = [j for j in range(-cutoff, cutoff + 1, 1)]
