@@ -321,7 +321,13 @@ class VCHOS(ABC):
         ndarray
             Returns the Hamiltonian matrix
         """
-        return self.kinetic_matrix() + self.potential_matrix()
+        nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
+        exp_i_phi_list = self._build_all_exp_i_phi_j_operators()
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        Xi = self.Xi_matrix()
+        hamiltonian_function = partial(self._local_contribution_to_hamiltonian, exp_i_phi_list,
+                                       premultiplied_a_and_a_dagger, Xi, inv(Xi))
+        return self._periodic_continuation_for_operator(hamiltonian_function, nearest_neighbors=nearest_neighbors)
 
     def kinetic_matrix(self):
         """
@@ -334,8 +340,7 @@ class VCHOS(ABC):
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
         kinetic_function = partial(self._local_kinetic_contribution_to_hamiltonian,
                                    premultiplied_a_and_a_dagger, inv(self.Xi_matrix()))
-        return self._periodic_continuation_for_operator(kinetic_function,
-                                                        nearest_neighbors=nearest_neighbors)
+        return self._periodic_continuation_for_operator(kinetic_function, nearest_neighbors=nearest_neighbors)
 
     def potential_matrix(self):
         """
@@ -349,8 +354,7 @@ class VCHOS(ABC):
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
         potential_function = partial(self._local_potential_contribution_to_hamiltonian, exp_i_phi_list,
                                      premultiplied_a_and_a_dagger, self.Xi_matrix())
-        return self._periodic_continuation_for_operator(potential_function,
-                                                        nearest_neighbors=nearest_neighbors)
+        return self._periodic_continuation_for_operator(potential_function, nearest_neighbors=nearest_neighbors)
 
     def _local_kinetic_contribution_to_hamiltonian(self, premultiplied_a_and_a_dagger, Xi_inv,
                                                    phi_neighbor, minima_m, minima_p):
@@ -367,8 +371,7 @@ class VCHOS(ABC):
                                  * EC_mat_transformed[i, i]
                                  for i in range(self.number_degrees_freedom)], axis=0)
         identity_coefficient = 0.5*4*np.trace(EC_mat_transformed)
-        identity_coefficient += -0.25*4*np.matmul(delta_phi_rotated,
-                                                  np.matmul(EC_mat_transformed, delta_phi_rotated))
+        identity_coefficient += -0.25*4*np.matmul(delta_phi_rotated, np.matmul(EC_mat_transformed, delta_phi_rotated))
         kinetic_matrix += identity_coefficient*self.identity()
         return kinetic_matrix
 
