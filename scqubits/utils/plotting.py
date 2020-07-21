@@ -542,24 +542,5 @@ def harm_osc_wavefunction(n, x):
     return (2.0 ** n * gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) * eval_hermite(n, x) * np.exp(-x ** 2 / 2.)
 
 
-def harm_osc_outer_product(n, x1, x2):
-    """Return the function :math:`\\psi_n(x1, x2) = N H_n(x1+x2) \\exp(-(x1+x2)^2/2)`,
-    for use with two dimensional wavefunction plotting
-
-    Parameters
-    ----------
-    n: int
-        index of wave function, n=0 is ground state
-    x1: float or ndarray
-        coordinate(s) where wave function is evaluated
-    x2: float or ndarray
-        coordinate(s) where wave function is evaluated
-
-    Returns
-    -------
-    ndarray
-    """
-    return harm_osc_wavefunction(n, np.add.outer(x1, x2))
-
-def multiply_two_harm_osc_functions(n1, n2, x11, x12, x21, x22):
-    return
+def multiply_two_harm_osc_functions(n1, n2, x1, x2):
+    return np.multiply(harm_osc_wavefunction(n1, x1), harm_osc_wavefunction(n2, x2))

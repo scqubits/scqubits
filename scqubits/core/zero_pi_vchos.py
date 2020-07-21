@@ -136,43 +136,47 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         Xi = self.Xi_matrix()
         dim = self.number_degrees_freedom
         boundary_coeffs = np.array([(-1)**j, 1])
-        return np.exp(-0.25 * np.sum([boundary_coeffs[j]*boundary_coeffs[k]*np.dot(Xi[j, :], Xi.T[:, k])
-                                      for j in range(dim) for k in range(dim)]))
+        return np.exp(-0.25 * np.sum([boundary_coeffs[i]*boundary_coeffs[k]*np.dot(Xi[i, :], Xi.T[:, k])
+                                      for i in range(dim) for k in range(dim)]))
 
     def _build_single_exp_i_phi_j_operator(self, j):
         Xi = self.Xi_matrix()
         dim = self.number_degrees_freedom
         boundary_coeffs = np.array([(-1)**j, 1])
-        exp_i_phi_theta_a_component = expm(np.sum([1j*boundary_coeffs[i]*Xi[i, k]*self.a_operator(k)/np.sqrt(2.0)
+        exp_i_phi_theta_a_component = expm(np.sum([1j * boundary_coeffs[i] * Xi[i, k]
+                                                   * self.a_operator(k) / np.sqrt(2.0)
                                                    for i in range(dim) for k in range(dim)], axis=0))
         exp_i_phi_theta_a_dagger_component = exp_i_phi_theta_a_component.T
         exp_i_phi_theta = np.matmul(exp_i_phi_theta_a_dagger_component, exp_i_phi_theta_a_component)
-        exp_i_phi_theta *= np.exp((-1)**(j+1)*1j*np.pi*self.flux)
+        exp_i_phi_theta *= np.exp((-1)**(j+1) * 1j * np.pi * self.flux)
         exp_i_phi_theta *= self._BCH_factor(j)
         return exp_i_phi_theta
 
-    def _harmonic_contribution_to_potential(self, premultiplied_a_and_a_dagger, phi_bar, Xi):
+    def _build_all_exp_i_phi_j_operators(self):
+        return np.array([self._build_single_exp_i_phi_j_operator(j) for j in range(self.number_degrees_freedom)])
+
+    def _harmonic_contribution_to_potential(self, premultiplied_a_and_a_dagger, Xi, phi_bar):
         dim = self.number_degrees_freedom
         a, a_a, a_dagger_a = premultiplied_a_and_a_dagger
         harmonic_contribution = np.sum([0.5*self.EL*Xi[0, i]*Xi.T[i, 0]*(a_a[i] + a_a[i].T
                                                                          + 2.0*a_dagger_a[i] + self.identity())
                                         + np.sqrt(2.0)*self.EL*Xi[0, i]*(a[i] + a[i].T)*phi_bar[0]
                                         for i in range(dim)], axis=0)
-        harmonic_contribution += self.EL*phi_bar[0]**2*self.identity()
+        harmonic_contribution += self.EL * phi_bar[0]**2 * self.identity()
         return harmonic_contribution
 
-    def _potential_contribution_to_hamiltonian(self, exp_i_phi_list, premultiplied_a_and_a_dagger, Xi):
-        def _inner_potential_c_t_h(delta_phi, phi_bar):
-            dim = self.number_degrees_freedom
-            potential_matrix = self._harmonic_contribution_to_potential(premultiplied_a_and_a_dagger, phi_bar, Xi)
-            for j in range(dim):
-                boundary_coeffs = np.array([(-1)**j, 1])
-                exp_i_phi_theta = exp_i_phi_list[j]*np.prod([np.exp(1j*boundary_coeffs[i]*phi_bar[i])
-                                                             for i in range(dim)])
-                potential_matrix += -0.5*self.EJ*(exp_i_phi_theta + exp_i_phi_theta.conjugate())
-            potential_matrix += 2*self.EJ*self.identity()
-            return potential_matrix
-        return _inner_potential_c_t_h
+    def _local_potential_contribution_to_hamiltonian(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
+                                                     Xi, phi_neighbor, minima_m, minima_p):
+        dim = self.number_degrees_freedom
+        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        potential_matrix = self._harmonic_contribution_to_potential(premultiplied_a_and_a_dagger, Xi, phi_bar)
+        for j in range(dim):
+            boundary_coeffs = np.array([(-1)**j, 1])
+            exp_i_phi_theta = exp_i_phi_list[j]*np.prod([np.exp(1j*boundary_coeffs[i]*phi_bar[i])
+                                                         for i in range(dim)])
+            potential_matrix += -0.5*self.EJ*(exp_i_phi_theta + exp_i_phi_theta.conjugate())
+        potential_matrix += 2*self.EJ*self.identity()
+        return potential_matrix
 
 
 class ZeroPiVCHOSGlobal(Hashing, ZeroPiVCHOS, base.QubitBaseClass, serializers.Serializable):

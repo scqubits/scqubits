@@ -9,7 +9,7 @@ import scqubits.core.qubit_base as base
 import scqubits.core.descriptors as descriptors
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.utils.spectrum_utils import order_eigensystem
-from scqubits.utils.misc import full_o
+from scqubits.core.operators import operator_in_full_Hilbert_space
 
 
 class CurrentMirrorFunctions:
@@ -112,24 +112,28 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, CurrentMirror
         phi = 2*np.pi*self.flux
         n_o, g_o, g_o_dg, i_o, i_o_list = self._basic_operators(np.complex_)
         
-        H = 0.*full_o([], [], i_o_list)
+        H = 0.*operator_in_full_Hilbert_space([], [], i_o_list, sparse=True)
         for j, k in itertools.product(range(no_node), range(no_node)):
             if j != k:
-                H += 4 * ECmat[j, k] * full_o([n_o - n_gd_npl[j] * i_o,
-                                               n_o - n_gd_npl[k] * i_o], [j, k], i_o_list)
+                H += 4 * ECmat[j, k] * operator_in_full_Hilbert_space([n_o - n_gd_npl[j] * i_o,
+                                                                       n_o - n_gd_npl[k] * i_o],
+                                                                      [j, k], i_o_list, sparse=True)
             else:
-                H += 4 * ECmat[j, j] * full_o([(n_o - n_gd_npl[j] * i_o)
-                                              .dot(n_o - n_gd_npl[j] * i_o)], [j], i_o_list)
+                H += 4 * ECmat[j, j] * operator_in_full_Hilbert_space([(n_o - n_gd_npl[j] * i_o)
+                                                                      .dot(n_o - n_gd_npl[j] * i_o)],
+                                                                      [j], i_o_list, sparse=True)
         
         for j in range(no_node):
-            H += ((-E_j_npl[j] / 2.) * full_o([g_o], [j], i_o_list))
-            H += ((-E_j_npl[j] / 2.) * full_o([g_o_dg], [j], i_o_list))
-            H += E_j_npl[j]*full_o([], [], i_o_list)
+            H += (-E_j_npl[j] / 2.) * operator_in_full_Hilbert_space([g_o], [j], i_o_list, sparse=True)
+            H += (-E_j_npl[j] / 2.) * operator_in_full_Hilbert_space([g_o_dg], [j], i_o_list, sparse=True)
+            H += E_j_npl[j]*operator_in_full_Hilbert_space([], [], i_o_list, sparse=True)
         H += ((-E_j_npl[-1] / 2.) * np.exp(phi * 1j)
-              * full_o([g_o for _ in range(no_node)], [j for j in range(no_node)], i_o_list))
+              * operator_in_full_Hilbert_space([g_o for _ in range(no_node)],
+                                               [j for j in range(no_node)], i_o_list, sparse=True))
         H += ((-E_j_npl[-1] / 2.) * np.exp(-phi * 1j)
-              * full_o([g_o_dg for _ in range(no_node)], [j for j in range(no_node)], i_o_list))
-        H += E_j_npl[-1]*full_o([], [], i_o_list)
+              * operator_in_full_Hilbert_space([g_o_dg for _ in range(no_node)],
+                                               [j for j in range(no_node)], i_o_list, sparse=True))
+        H += E_j_npl[-1]*operator_in_full_Hilbert_space([], [], i_o_list, sparse=True)
         
         return H
     

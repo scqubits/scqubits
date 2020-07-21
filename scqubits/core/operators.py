@@ -11,14 +11,16 @@
 
 import numpy as np
 import scipy as sp
+import scipy.sparse as sps
 
 
-def annihilation(dimension):
+def annihilation(dimension, dtype=None):
     """
     Returns a dense matrix of size dimension x dimension representing the annihilation operator in number basis.
 
     Parameters
     ----------
+    dtype: dtype
     dimension: int
 
     Returns
@@ -26,16 +28,17 @@ def annihilation(dimension):
     ndarray
         annihilation operator matrix, size dimension x dimension
     """
-    offdiag_elements = np.sqrt(range(1, dimension))
+    offdiag_elements = np.sqrt(range(1, dimension), dtype=dtype)
     return np.diagflat(offdiag_elements, 1)
 
 
-def creation(dimension):
+def creation(dimension, dtype=None):
     """
     Returns a dense matrix of size dimension x dimension representing the creation operator in number basis.
 
     Parameters
     ----------
+    dtype: dtype
     dimension: int
 
     Returns
@@ -44,7 +47,7 @@ def creation(dimension):
         creation operator matrix, size dimension x dimension
 
     """
-    return annihilation(dimension).T
+    return annihilation(dimension, dtype=dtype).T
 
 
 def number(dimension, prefactor=None):
@@ -140,3 +143,50 @@ def hubbard_sparse(j1, j2, dimension):
     hubbardmat = sp.sparse.dok_matrix((dimension, dimension), dtype=np.float_)
     hubbardmat[j1, j2] = 1.0
     return hubbardmat.asformat('csc')
+
+
+def operator_in_full_Hilbert_space(operators, indices, identity_operator_list, sparse=False):
+    """Return operator in the full Hilbert space
+
+    Parameters
+    ----------
+    operators: List[ndarray]
+        list of operators, each operator defined in the Hilbert space of its subsystem
+    indices: List[int]
+        list of ints, corresponding to which degree of freedom is
+        associated with which operator. Order matters, so the i^th element of
+        indices corresponds to the i^th operator in operators. Additionally it
+        is assumed that the list of ints increases monotonically: i.e. indices=[0, 2, 3]
+        is valid as input (assuming there are at least 4 d.o.f.) but indices=[2, 0, 3] is not.
+    identity_operator_list: List[ndarray]
+        list of identity operators, one for each d.o.f.
+    sparse: Bool
+        whether or not the resulting matrix should be sparse
+
+    Returns
+    -------
+    ndarray
+    """
+    if sparse:
+        kron_function = kron_sparse_matrix_list
+    else:
+        kron_function = kron_matrix_list
+    product_list = np.copy(identity_operator_list)
+    for (index, op) in zip(indices, operators):
+        product_list[index] = op
+    full_op = kron_function(product_list)
+    return full_op
+
+
+def kron_matrix_list(matrix_list):
+    output = matrix_list[0]
+    for matrix in matrix_list[1:]:
+        output = np.kron(output, matrix)
+    return output
+
+
+def kron_sparse_matrix_list(sparse_list):
+    output = sparse_list[0]
+    for matrix in sparse_list[1:]:
+        output = sps.kron(output, matrix, format="csr")
+    return output

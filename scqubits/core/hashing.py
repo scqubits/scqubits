@@ -129,20 +129,14 @@ class Hashing:
         total_num_states = self.number_states_per_minimum()
         return np.real(evecs[i * total_num_states: (i + 1) * total_num_states, which])
 
-    def _multiply_two_ho_functions(self, s1, s2, phi_1_vec, phi_2_vec, phi_offset, Xi_inv):
-        return np.multiply(plot.harm_osc_wavefunction(s1, np.add.outer(Xi_inv[0, 0]*(phi_1_vec + phi_offset[0]),
-                                                                       Xi_inv[0, 1]*(phi_2_vec + phi_offset[1]))),
-                           plot.harm_osc_wavefunction(s2, np.add.outer(Xi_inv[1, 0]*(phi_1_vec + phi_offset[0]),
-                                                                       Xi_inv[1, 1]*(phi_2_vec + phi_offset[1]))))
-
-    def wavefunc_amplitudes_function(self, state_amplitudes, phi_1_vec, phi_2_vec, phi_offset, Xi_inv):
+    def wavefunc_amplitudes_function(self, state_amplitudes, normal_mode_1, normal_mode_2):
         total_num_states = self.number_states_per_minimum()
         basis_vecs = self._gen_basis_vecs()
-        wavefunc_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec)).T
+        wavefunc_amplitudes = np.zeros_like(normal_mode_1).T
         for j in range(total_num_states):
             basis_vec = basis_vecs[j]
             s1 = int(basis_vec[0])
             s2 = int(basis_vec[1])
-            ho_2d = self._multiply_two_ho_functions(s1, s2, phi_1_vec, phi_2_vec, phi_offset, Xi_inv)
+            ho_2d = plot.multiply_two_harm_osc_functions(s1, s2, normal_mode_1, normal_mode_2)
             wavefunc_amplitudes += state_amplitudes[j] * ho_2d.T
         return wavefunc_amplitudes
