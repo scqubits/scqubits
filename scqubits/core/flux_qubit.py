@@ -281,7 +281,7 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
         x_vals = y_vals = phi_grid.make_linspace()
         if 'figsize' not in kwargs:
             kwargs['figsize'] = (5, 5)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
+        return plot.contours(x_vals, y_vals, lambda x, y: self.potential([x, y]), contour_vals=contour_vals, **kwargs)
 
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """

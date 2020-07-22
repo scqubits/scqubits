@@ -80,9 +80,11 @@ class BaseTest:
                                                                  subtract_ground=False, get_eigenstates=True,
                                                                  num_cpus=num_cpus)
         calculated_spectrum.filewrite(filename=self.tmpdir + 'test.' + io_type)
+        evecs_reference = np.abs(evecs_reference)
+        calculated_evecs = np.abs(calculated_spectrum.state_table)
 
         assert np.allclose(evals_reference, calculated_spectrum.energy_table)
-        assert np.allclose(np.abs(evecs_reference), np.abs(calculated_spectrum.state_table), atol=1e-07)
+        assert np.allclose(evecs_reference, calculated_evecs, atol=1e-07)
 
     def matrixelement_table(self, io_type, op, matelem_reference):
         evals_count = len(matelem_reference)

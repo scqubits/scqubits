@@ -76,7 +76,7 @@ mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
 
 # set matplotlib defaults
 mpl.rcParams['font.family'] = "sans-serif"
-mpl.rcParams['font.sans-serif'] = "Helvetica Neue, Helvetica, Arial"
+mpl.rcParams['font.sans-serif'] = "Arial, Helvetica Neue, Helvetica"
 mpl.rcParams['figure.dpi'] = 150
 mpl.rcParams['font.size'] = 11
 mpl.rcParams['axes.labelsize'] = 11

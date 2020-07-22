@@ -98,7 +98,8 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         guess = np.array([0.01, 0.01])
         result = minimize(self.potential, guess)
         minima_holder.append(result.x)
-        for m in range(1, 10):
+        # TODO this needs to be fixed to not loop over a static number of m
+        for m in range(1, 13):
             guess_positive_0 = np.array([np.pi * m, 0.0])
             guess_negative_0 = np.array([-np.pi * m, 0.0])
             guess_positive_pi = np.array([np.pi * m, np.pi])

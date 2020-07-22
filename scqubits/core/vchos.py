@@ -590,7 +590,7 @@ class VCHOS(ABC):
             phi_1_grid = self.extended_grid
             phi_1_vec = phi_1_grid.make_linspace()
 
-        wavefunc_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec)).T
+        wavefunc_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec), dtype=np.complex_).T
 
         for i, minimum in enumerate(minima_list):
             klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=dim_periodic)

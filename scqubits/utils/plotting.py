@@ -521,6 +521,7 @@ def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)
     return fig, axes
 
+
 def harm_osc_wavefunction(n, x):
     """For given quantum number n=0,1,2,... return the value of the harmonic oscillator wave function
     :math:`\\psi_n(x) = N H_n(x) \\exp(-x^2/2)`, N being the proper normalization factor. It is assumed
@@ -543,4 +544,6 @@ def harm_osc_wavefunction(n, x):
 
 
 def multiply_two_harm_osc_functions(n1, n2, x1, x2):
+    """Useful for plotting 2D wavefunctions using harmonic oscillator states. Assumes x1 and x2
+    are arrays with the same dimensionality"""
     return np.multiply(harm_osc_wavefunction(n1, x1), harm_osc_wavefunction(n2, x2))
