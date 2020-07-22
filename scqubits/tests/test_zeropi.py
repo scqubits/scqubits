@@ -28,3 +28,5 @@ class TestZeroPi(StandardTests):
         cls.op2_str = 'i_d_dphi_operator'
         cls.param_name = 'flux'
         cls.param_list = np.linspace(0, 0.5, 15)
+        cls.compare_qbt_type = None
+        cls.compare_file_str = ''

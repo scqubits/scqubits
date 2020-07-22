@@ -30,12 +30,12 @@ class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2,
                  flux, kmax, num_exc, truncated_dim=None):
-        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                                    ECJ3, ECg1, ECg2, ng1, ng2, flux)
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         VCHOS.__init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=2,
                        number_periodic_degrees_freedom=2, num_exc=num_exc)
+        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                                    ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_

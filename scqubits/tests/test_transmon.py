@@ -28,6 +28,8 @@ class TestTransmon(StandardTests):
         cls.op2_str = 'n_operator'
         cls.param_name = 'ng'
         cls.param_list = np.linspace(-1, 1, 100)
+        cls.compare_qbt_type = None
+        cls.compare_file_str = ''
 
     def test_plot_n_wavefunction(self):
         self.qbt = Transmon(EJ=1.0, EC=1.0, ng=0.0, ncut=10)

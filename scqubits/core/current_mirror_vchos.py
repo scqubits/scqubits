@@ -29,9 +29,9 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, num_exc, truncated_dim=None):
+        VCHOS.__init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=2 * N - 1,
+                       number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc)
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
-        VCHOS.__init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=2*N - 1,
-                       number_periodic_degrees_freedom=2*N - 1, num_exc=num_exc)
         self.boundary_coeffs = np.ones(2 * N - 1)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_

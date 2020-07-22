@@ -21,8 +21,7 @@ class CurrentMirrorFunctions:
         self.ECJ = ECJ
         self.ECg = ECg
         self.EJlist = EJlist
-        V_m = self._build_V_m()
-        self.nglist = np.dot(sp.linalg.inv(V_m).T, nglist)[0:-1]
+        self.nglist = nglist
         self.flux = flux
 
     def build_capacitance_matrix(self):
@@ -107,46 +106,59 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, CurrentMirror
         return (2*self.ncut+1)**self.number_degrees_freedom
 
     def hamiltonian(self):
-        no_node = self.number_degrees_freedom
-        ECmat, E_j_npl, n_gd_npl = self.build_EC_matrix(), self.EJlist, self.nglist
+        dim = self.number_degrees_freedom
+        ECmat, E_j_npl = self.build_EC_matrix(), self.EJlist,
         phi = 2*np.pi*self.flux
-        n_o, g_o, g_o_dg, i_o, i_o_list = self._basic_operators(np.complex_)
+        number_op = self._charge_number_operator()
+        identity_op = self._identity_operator()
+        identity_operator_list = self._identity_operator_list()
         
-        H = 0.*operator_in_full_Hilbert_space([], [], i_o_list, sparse=True)
-        for j, k in itertools.product(range(no_node), range(no_node)):
+        H = 0.*operator_in_full_Hilbert_space([], [], identity_operator_list, sparse=True)
+        for j, k in itertools.product(range(dim), range(dim)):
             if j != k:
-                H += 4 * ECmat[j, k] * operator_in_full_Hilbert_space([n_o - n_gd_npl[j] * i_o,
-                                                                       n_o - n_gd_npl[k] * i_o],
-                                                                      [j, k], i_o_list, sparse=True)
+                H += 4 * ECmat[j, k] * operator_in_full_Hilbert_space([number_op - self.nglist[j] * identity_op,
+                                                                       number_op - self.nglist[k] * identity_op],
+                                                                      [j, k], identity_operator_list, sparse=True)
             else:
-                H += 4 * ECmat[j, j] * operator_in_full_Hilbert_space([(n_o - n_gd_npl[j] * i_o)
-                                                                      .dot(n_o - n_gd_npl[j] * i_o)],
-                                                                      [j], i_o_list, sparse=True)
-        
-        for j in range(no_node):
-            H += (-E_j_npl[j] / 2.) * operator_in_full_Hilbert_space([g_o], [j], i_o_list, sparse=True)
-            H += (-E_j_npl[j] / 2.) * operator_in_full_Hilbert_space([g_o_dg], [j], i_o_list, sparse=True)
-            H += E_j_npl[j]*operator_in_full_Hilbert_space([], [], i_o_list, sparse=True)
-        H += ((-E_j_npl[-1] / 2.) * np.exp(phi * 1j)
-              * operator_in_full_Hilbert_space([g_o for _ in range(no_node)],
-                                               [j for j in range(no_node)], i_o_list, sparse=True))
-        H += ((-E_j_npl[-1] / 2.) * np.exp(-phi * 1j)
-              * operator_in_full_Hilbert_space([g_o_dg for _ in range(no_node)],
-                                               [j for j in range(no_node)], i_o_list, sparse=True))
-        H += E_j_npl[-1]*operator_in_full_Hilbert_space([], [], i_o_list, sparse=True)
+                H += 4 * ECmat[j, j] * operator_in_full_Hilbert_space([(number_op - self.nglist[j] * identity_op)
+                                                                      .dot(number_op - self.nglist[j] * identity_op)],
+                                                                      [j], identity_operator_list, sparse=True)
+        for j in range(dim):
+            H += (-E_j_npl[j] / 2.) * self.exp_i_phi_j_operator(j)
+            H += (-E_j_npl[j] / 2.) * self.exp_i_phi_j_operator(j).T
+            H += E_j_npl[j]*self.identity_operator()
+        H += (-E_j_npl[-1] / 2.) * np.exp(phi * 1j) * self.exp_i_phi_boundary_term()
+        H += (-E_j_npl[-1] / 2.) * np.exp(-phi * 1j) * self.exp_i_phi_boundary_term().T
+        H += E_j_npl[-1]*self.identity_operator()
         
         return H
-    
-    def _basic_operators(self, operator_dtype):
-        no_node = self.number_degrees_freedom
-        cutoff = self.ncut
-        nstate_s = 2 * cutoff + 1
-        cutoff_range = [j for j in range(-cutoff, cutoff + 1, 1)]
-        n_o = sps.diags(
-            [j for j in cutoff_range], offsets=0,
-            format="csr", dtype=operator_dtype)
-        g_o = sps.eye(nstate_s, k=1, format="csr", dtype=operator_dtype)
-        g_o_dg = sps.eye(nstate_s, k=-1, format="csr", dtype=operator_dtype)
-        i_o = sps.eye(nstate_s, k=0, format="csr", dtype=operator_dtype)
-        i_o_list = [i_o for _ in range(no_node)]
-        return n_o, g_o, g_o_dg, i_o, i_o_list
+
+    def _identity_operator(self):
+        return sps.eye(2 * self.ncut + 1, k=0, format="csr", dtype=np.complex_)
+
+    def _identity_operator_list(self):
+        return [self._identity_operator() for _ in range(self.number_degrees_freedom)]
+
+    def identity_operator(self):
+        return operator_in_full_Hilbert_space([], [], self._identity_operator_list(), sparse=True)
+
+    def _charge_number_operator(self):
+        return sps.diags([i for i in range(-self.ncut, self.ncut + 1, 1)], offsets=0, format="csr", dtype=np.complex_)
+
+    def charge_number_operator(self, j=0):
+        number_operator = self._charge_number_operator()
+        return operator_in_full_Hilbert_space([number_operator], [j], self._identity_operator_list(), sparse=True)
+
+    def _exp_i_phi_j_operator(self):
+        return sps.eye(2*self.ncut + 1, k=-1, format="csr", dtype=np.complex_)
+
+    def exp_i_phi_j_operator(self, j=0):
+        exp_i_phi_j = self._exp_i_phi_j_operator()
+        return operator_in_full_Hilbert_space([exp_i_phi_j], [j], self._identity_operator_list(), sparse=True)
+
+    def exp_i_phi_boundary_term(self):
+        dim = self.number_degrees_freedom
+        exp_i_phi_op = self._exp_i_phi_j_operator()
+        identity_operator_list = self._identity_operator_list()
+        return operator_in_full_Hilbert_space([exp_i_phi_op for _ in range(dim)],
+                                              [j for j in range(dim)], identity_operator_list, sparse=True)

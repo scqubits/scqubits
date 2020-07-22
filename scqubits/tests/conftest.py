@@ -115,6 +115,8 @@ class StandardTests(BaseTest):
         cls.op2_str = ''
         cls.param_name = ''
         cls.param_list = None
+        cls.compare_qbt_type = None
+        cls.compare_file_str = ''
 
     def test_hamiltonian_is_hermitean(self, io_type):
         testname = self.file_str + '_1.' + io_type
@@ -187,7 +189,7 @@ class StandardTests(BaseTest):
                                        select_elems=[(0, 0), (1, 4), (1, 0)])
 
     def test_plot_potential(self, io_type):
-        testname = self.file_str + '_1.hdf5'
+        testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
         if 'plot_potential' not in dir(self.qbt):
