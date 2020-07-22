@@ -38,3 +38,6 @@ class TestCurrentMirrorVCHOSGlobal(VCHOSTestFunctions):
 
     def initialize_vchos_qbt(self, system_params):
         return self.qbt_type(**system_params, kmax=1, global_exc=5)
+
+    def test_plot_wavefunction(self, io_type):
+        pytest.skip('not relevant for current mirror')

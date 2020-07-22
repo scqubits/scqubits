@@ -35,7 +35,7 @@ class VCHOSTestFunctions(StandardTests):
 
         assert np.allclose(evals_reference, calculated_spectrum.energy_table, atol=1e-3)
 
-    def _initialize_vchos_qbt(self, system_params):
+    def initialize_vchos_qbt(self, system_params):
         return self.qbt_type(**system_params, kmax=1, num_exc=4)
 
     def test_matrixelement_table(self, io_type):

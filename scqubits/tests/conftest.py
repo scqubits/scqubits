@@ -182,6 +182,7 @@ class StandardTests(BaseTest):
         self.print_matrixelements(self.op2_str)
 
     def test_plot_matelem_vs_paramvals(self, num_cpus, io_type):
+        # TODO should this be '_4.' instead of '_1.'?
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
