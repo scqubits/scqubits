@@ -107,29 +107,27 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, CurrentMirror
 
     def hamiltonian(self):
         dim = self.number_degrees_freedom
-        ECmat, E_j_npl = self.build_EC_matrix(), self.EJlist,
-        phi = 2*np.pi*self.flux
+        EC_matrix = self.build_EC_matrix()
         number_op = self._charge_number_operator()
         identity_op = self._identity_operator()
         identity_operator_list = self._identity_operator_list()
         
-        H = 0.*operator_in_full_Hilbert_space([], [], identity_operator_list, sparse=True)
+        H = 0.*self.identity_operator()
         for j, k in itertools.product(range(dim), range(dim)):
             if j != k:
-                H += 4 * ECmat[j, k] * operator_in_full_Hilbert_space([number_op - self.nglist[j] * identity_op,
-                                                                       number_op - self.nglist[k] * identity_op],
+                H += 4*EC_matrix[j, k]*operator_in_full_Hilbert_space([number_op - self.nglist[j]*identity_op,
+                                                                       number_op - self.nglist[k]*identity_op],
                                                                       [j, k], identity_operator_list, sparse=True)
             else:
-                H += 4 * ECmat[j, j] * operator_in_full_Hilbert_space([(number_op - self.nglist[j] * identity_op)
-                                                                      .dot(number_op - self.nglist[j] * identity_op)],
-                                                                      [j], identity_operator_list, sparse=True)
+                n_squared = (number_op - self.nglist[j]*identity_op).dot(number_op - self.nglist[j]*identity_op)
+                H += 4 * EC_matrix[j, j] * operator_in_full_Hilbert_space([n_squared], [j],
+                                                                          identity_operator_list, sparse=True)
         for j in range(dim):
-            H += (-E_j_npl[j] / 2.) * self.exp_i_phi_j_operator(j)
-            H += (-E_j_npl[j] / 2.) * self.exp_i_phi_j_operator(j).T
-            H += E_j_npl[j]*self.identity_operator()
-        H += (-E_j_npl[-1] / 2.) * np.exp(phi * 1j) * self.exp_i_phi_boundary_term()
-        H += (-E_j_npl[-1] / 2.) * np.exp(-phi * 1j) * self.exp_i_phi_boundary_term().T
-        H += E_j_npl[-1]*self.identity_operator()
+            H += (-self.EJlist[j]/2.)*(self.exp_i_phi_j_operator(j) + self.exp_i_phi_j_operator(j).T)
+            H += self.EJlist[j]*self.identity_operator()
+        H += (-self.EJlist[-1] / 2.) * np.exp(1j*2*np.pi*self.flux) * self.exp_i_phi_boundary_term().T
+        H += (-self.EJlist[-1] / 2.) * np.exp(-1j*2*np.pi*self.flux) * self.exp_i_phi_boundary_term()
+        H += self.EJlist[-1]*self.identity_operator()
         
         return H
 
