@@ -215,7 +215,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         operator_matrix = getattr(self, operator)()
         table = get_matrixelement_table(operator_matrix, evecs)
         if filename:
-            specdata = SpectrumData(energy_table=None, system_params=self.get_initdata(), matrixelem_table=table)
+            specdata = SpectrumData(energy_table=np.array([]), system_params=self.get_initdata(),
+                                    matrixelem_table=table)
             specdata.filewrite(filename)
         return table
 
