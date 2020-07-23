@@ -20,7 +20,7 @@ import scqubits.io_utils.fileio_serializers as io_serializers
 
 def serialize(the_object):
     """
-    Turn the given Python object in an IOData object, needed for writing data to file.
+    Turn the given Python object into an IOData object, needed for writing data to file.
 
     Parameters
     ----------
