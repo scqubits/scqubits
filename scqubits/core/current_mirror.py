@@ -26,16 +26,15 @@ class CurrentMirrorFunctions:
 
     def build_capacitance_matrix(self):
         N = self.N
-        CB = self.e ** 2 / (2. * self.ECB)
-        CJ = self.e ** 2 / (2. * self.ECJ)
-        Cg = self.e ** 2 / (2. * self.ECg)
+        CB = self.e**2 / (2.*self.ECB)
+        CJ = self.e**2 / (2.*self.ECJ)
+        Cg = self.e**2 / (2.*self.ECg)
 
-        C_matrix = np.diagflat(
-            [Cg + 2 * CJ + CB for _ in range(2 * N)], 0)
-        C_matrix += np.diagflat([- CJ for _ in range(2 * N - 1)], +1)
-        C_matrix += np.diagflat([- CJ for _ in range(2 * N - 1)], -1)
-        C_matrix += np.diagflat([- CB for _ in range(N)], +N)
-        C_matrix += np.diagflat([- CB for _ in range(N)], -N)
+        C_matrix = np.diagflat([Cg + 2*CJ + CB for _ in range(2*N)], 0)
+        C_matrix += np.diagflat([-CJ for _ in range(2*N - 1)], +1)
+        C_matrix += np.diagflat([-CJ for _ in range(2*N - 1)], -1)
+        C_matrix += np.diagflat([-CB for _ in range(N)], +N)
+        C_matrix += np.diagflat([-CB for _ in range(N)], -N)
         C_matrix[0, -1] = C_matrix[-1, 0] = - CJ
 
         V_m_inv = sp.linalg.inv(self._build_V_m())
@@ -50,9 +49,9 @@ class CurrentMirrorFunctions:
 
     def _build_V_m(self):
         N = self.N
-        V_m = np.diagflat([-1 for _ in range(2 * N)], 0)
-        V_m += np.diagflat([1 for _ in range(2 * N - 1)], 1)
-        V_m[-1] = np.array([1 for _ in range(2 * N)])
+        V_m = np.diagflat([-1 for _ in range(2*N)], 0)
+        V_m += np.diagflat([1 for _ in range(2*N - 1)], 1)
+        V_m[-1] = np.array([1 for _ in range(2*N)])
         return V_m
 
 
