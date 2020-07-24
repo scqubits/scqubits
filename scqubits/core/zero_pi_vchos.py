@@ -51,11 +51,10 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
 
         C = self.e ** 2 / (2. * self.EC)
         CJ = self.e ** 2 / (2. * self.ECJ)
-        C_phi = 2*CJ
-        C_theta = 2*(C + CJ)
 
-        C_matrix[0, 0] = C_phi
-        C_matrix[1, 1] = C_theta
+        C_matrix[0, 0] = 2*CJ
+        C_matrix[1, 1] = 2*(C + CJ)
+        C_matrix[0, 1] = C_matrix[1, 0] = 2*self.dCJ
 
         return C_matrix
 

@@ -14,7 +14,9 @@ class VCHOSTestFunctions(StandardTests):
         system_params = exact_specdata.system_params
         system_params.pop('ncut')
         self.qbt = self.initialize_vchos_qbt(system_params)
-        self.eigenvals(io_type=io_type, evals_reference=evals_reference)
+        evals_count = len(evals_reference)
+        evals_tst = self.qbt.eigenvals(evals_count=evals_count, filename=self.tmpdir + 'test.' + io_type)
+        assert np.allclose(evals_reference, evals_tst, rtol=1e-3)
 
     def test_compare_spectrum_vs_paramvals_with_Qubit(self, io_type):
         num_compare = 3
@@ -33,7 +35,7 @@ class VCHOSTestFunctions(StandardTests):
                                                                  subtract_ground=False, get_eigenstates=False)
         calculated_spectrum.filewrite(filename=self.tmpdir + 'test.' + io_type)
 
-        assert np.allclose(evals_reference, calculated_spectrum.energy_table, atol=1e-2, rtol=1e-1)
+        assert np.allclose(evals_reference, calculated_spectrum.energy_table, rtol=1e-2)
 
     def initialize_vchos_qbt(self, system_params):
         return self.qbt_type(**system_params, kmax=1, num_exc=4)
