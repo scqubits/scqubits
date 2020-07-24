@@ -26,4 +26,3 @@ class TestFluxQubit(StandardTests):
         cls.op2_str = 'n_2_operator'
         cls.param_name = 'flux'
         cls.param_list = np.linspace(0.45, 0.55, 50)
-        cls.compare_file_str = ''

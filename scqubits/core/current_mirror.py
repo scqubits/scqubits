@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import scipy as sp
 import scipy.sparse as sps
@@ -55,7 +57,7 @@ class CurrentMirrorFunctions:
         return V_m
 
 
-class CurrentMirror(base.QubitBaseClass, serializers.Serializable, CurrentMirrorFunctions):
+class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Serializable):
     N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ECB = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -70,8 +72,10 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, CurrentMirror
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self.ncut = ncut
         self.truncated_dim = truncated_dim
+        self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
-        
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/currentmirror.png')
+
     @staticmethod
     def default_params():
         return {

@@ -120,7 +120,7 @@ class VCHOS(ABC):
         omega_squared, _ = self.eigensystem_normal_modes(i)
         return np.diag(np.sqrt(omega_squared))
 
-    def oscillator_lengths(self, i):
+    def harmonic_lengths(self, i):
         """Return oscillator lengths of the mode frequencies for a given minimum
 
         Parameters
@@ -132,17 +132,8 @@ class VCHOS(ABC):
         -------
         ndarray
         """
-        dim = self.number_degrees_freedom
-        omega_squared, normal_mode_eigenvectors = self.eigensystem_normal_modes(i)
-        omega = np.sqrt(omega_squared)
-        diag_norm = np.matmul(normal_mode_eigenvectors.T, normal_mode_eigenvectors)
-        normalized_eigenvectors = np.array([normal_mode_eigenvectors[:, mu]
-                                            / np.sqrt(diag_norm[mu, mu]) for mu in range(dim)]).T
-        C_matrix = self.build_capacitance_matrix()
-        C_matrix_diagonal = np.matmul(normalized_eigenvectors.T, np.matmul(C_matrix, normalized_eigenvectors))
-        EC_matrix_diagonal = 0.5 * self.e**2 * np.diag(C_matrix_diagonal)**(-1)
-        oscillator_lengths = np.array([np.sqrt(8 * EC_matrix_diagonal[mu] / omega[mu]) for mu in range(len(omega))])
-        return oscillator_lengths
+        omega_squared, _ = self.eigensystem_normal_modes(i)
+        return np.sqrt(1./self.Z0) * omega_squared**(-1/4)
 
     def Xi_matrix(self):
         """
@@ -154,8 +145,8 @@ class VCHOS(ABC):
         """
         omega_squared, normal_mode_eigenvectors = self.eigensystem_normal_modes(0)
         # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
-        Xi_matrix = np.array([normal_mode_eigenvectors[:, i] * (omega_squared[i])**(-1 / 4)
-                              * np.sqrt(1. / self.Z0) for i in range(len(omega_squared))]).T
+        Xi_matrix = np.array([normal_mode_eigenvectors[:, i] * (omega_squared[i])**(-1/4)
+                              * np.sqrt(1./self.Z0) for i in range(len(omega_squared))]).T
         return Xi_matrix
 
     def a_operator(self, mu):
