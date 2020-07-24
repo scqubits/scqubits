@@ -87,8 +87,8 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
 
     .. math::
 
-       H=&\sum_{i, j=1}^{2*N-1}(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
-        -\sum_{i=1}^{2*N-1}&E_{Ji}\cos\phi_{i}-E_{J2N}\cos(\sum_{i=1}^{2*N-1}\phi_{i}+2\pi f),
+       H=&\sum_{i, j=1}^{2N-1}(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
+        -\sum_{i=1}^{2N-1}&E_{Ji}\cos\phi_{i}-E_{J2N}\cos(\sum_{i=1}^{2N-1}\phi_{i}+2\pi f),
 
     where the charging energy matrix is solved for numerically by inverting the capacitance matrix.
     Initialize with, for example::

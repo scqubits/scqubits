@@ -70,3 +70,14 @@ Oscillator
 .. autoclass:: scqubits.Oscillator
     :members:
     :inherited-members:
+
+----------------------------------
+
+.. _classes-currentmirror:
+
+CurrentMirror
+--------------
+
+.. autoclass:: scqubits.CurrentMirror
+    :members:
+    :inherited-members:

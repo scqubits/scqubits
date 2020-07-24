@@ -14,3 +14,4 @@ Bibliography
 .. [Dempster2014] Dempster et al., Phys. Rev. B 90, 094518 (2014), https://link.aps.org/doi/10.1103/PhysRevB.90.094518
 .. [Groszkowski2018] Groszkowski et al., New J. Phys. 20, 043053 (2018), https://doi.org/10.1088/1367-2630/aab7cd
 .. [Orlando1999] Orlando et al., Phys. Rev. B 60, 15398 (1999), https://link.aps.org/doi/10.1103/PhysRevB.60.15398
+.. [Kitaev2006] A. Kitaev, arXiv:cond-mat/0609441, https://arxiv.org/abs/cond-mat/0609441
