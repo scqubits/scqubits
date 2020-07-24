@@ -84,7 +84,7 @@ class BaseTest:
         calculated_evecs = np.abs(calculated_spectrum.state_table)
 
         assert np.allclose(evals_reference, calculated_spectrum.energy_table)
-        assert np.allclose(evecs_reference, calculated_evecs, atol=1e-07)
+        assert np.allclose(evecs_reference, calculated_evecs, atol=1e-06)
 
     def matrixelement_table(self, io_type, op, matelem_reference):
         evals_count = len(matelem_reference)
