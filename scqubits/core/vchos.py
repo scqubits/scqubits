@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from functools import partial
 
 import numpy as np
+from numpy.linalg import norm
 from scipy.linalg import LinAlgError, expm, inv, eigh
 import scipy.constants as const
 from numpy.linalg import matrix_power
@@ -120,20 +121,15 @@ class VCHOS(ABC):
         omega_squared, _ = self.eigensystem_normal_modes(i)
         return np.diag(np.sqrt(omega_squared))
 
-    def harmonic_lengths(self, i):
-        """Return oscillator lengths of the mode frequencies for a given minimum
-
-        Parameters
-        ----------
-        i: int
-            integer specifying which minimum to linearize around, 0<=i<= total number of minima
-
+    def harmonic_lengths(self):
+        """
         Returns
         -------
         ndarray
+            oscillator lengths of the mode frequencies about the global minimum
         """
-        omega_squared, _ = self.eigensystem_normal_modes(i)
-        return np.sqrt(1./self.Z0) * omega_squared**(-1/4)
+        Xi_inv = inv(self.Xi_matrix())
+        return np.array([norm(Xi_inv[mu, :])**(-1) for mu in range(self.number_degrees_freedom)])
 
     def Xi_matrix(self):
         """
@@ -568,7 +564,7 @@ class VCHOS(ABC):
 
         Xi = self.Xi_matrix()
         Xi_inv = inv(Xi)
-        norm = np.sqrt(np.abs(np.linalg.det(Xi)))**(-1)
+        normalization = np.sqrt(np.abs(np.linalg.det(Xi))) ** (-1)
 
         dim_extended = self.number_extended_degrees_freedom
         dim_periodic = self.number_periodic_degrees_freedom
@@ -596,7 +592,7 @@ class VCHOS(ABC):
                 normal_mode_2 = np.add.outer(Xi_inv[1, 0]*phi_1_with_offset, Xi_inv[1, 1]*phi_2_with_offset)
                 wavefunc_amplitudes += (self.wavefunc_amplitudes_function(state_amplitudes,
                                                                           normal_mode_1, normal_mode_2)
-                                        * norm * np.exp(-1j * np.dot(self.nglist, phi_offset)))
+                                        * normalization * np.exp(-1j * np.dot(self.nglist, phi_offset)))
                 neighbor = next(klist, -1)
 
         grid2d = discretization.GridSpec(np.asarray([[phi_1_grid.min_val, phi_1_grid.max_val, phi_1_grid.pt_count],
