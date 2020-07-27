@@ -126,10 +126,15 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         min_loc = self.sorted_minima()[i]
         phi_location = min_loc[0]
         theta_location = min_loc[1]
-        gamma_matrix[0, 0] = 2*self.EL + 2*self.EJ*np.cos(phi_location - np.pi*self.flux)*np.cos(theta_location)
-        gamma_matrix[1, 1] = 2*self.EJ*np.cos(phi_location - np.pi*self.flux)*np.cos(theta_location)
-        gamma_matrix[1, 0] = gamma_matrix[0, 1] = (-2*self.EJ*np.sin(phi_location - np.pi*self.flux)
-                                                   * np.sin(theta_location) + 2*self.EL*phi_location)
+        gamma_matrix[0, 0] = (2*self.EL + 2*self.EJ*np.cos(phi_location - np.pi*self.flux)*np.cos(theta_location)
+                              - 2*self.dEJ*np.sin(theta_location)*np.sin(phi_location - np.pi*self.flux))
+        gamma_matrix[1, 1] = (2*self.EJ*np.cos(phi_location - np.pi*self.flux)*np.cos(theta_location)
+                              - 2*self.dEJ*np.sin(theta_location)*np.sin(phi_location - np.pi*self.flux))
+        off_diagonal_term = (-2*self.EJ*np.sin(phi_location - np.pi*self.flux) * np.sin(theta_location)
+                             + 2*self.EL*phi_location
+                             + 2*self.dEJ*np.cos(theta_location)*np.cos(phi_location - np.pi*self.flux))
+        gamma_matrix[1, 0] = off_diagonal_term
+        gamma_matrix[0, 1] = off_diagonal_term
         return gamma_matrix/self.Phi0**2
 
     def _BCH_factor(self, j):
