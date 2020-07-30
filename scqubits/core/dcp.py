@@ -201,6 +201,9 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             Returns the oscillator strength of :math:`theta' degree of freedom."""
         return (4 * self._dis_ec() * self.x / self._dis_el()) ** 0.25
 
+    def theta_osc_full(self):
+        return (4 * self._dis_ec() * (self.x + 0.5) / self._dis_el()) ** 0.25
+
     def phi_plasma(self):
         """
         Returns
@@ -218,6 +221,9 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             Returns the plasma oscillation frequency of :math:`theta' degree of freedom.
         """
         return math.sqrt(16.0 * self.x * self._dis_el() * self._dis_ec())
+
+    def theta_plasma_full(self):
+        return math.sqrt(16.0 * (self.x + 0.5) * self._dis_el() * self._dis_ec())
 
     def _phi_operator(self):
         """
@@ -981,8 +987,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         varphi_grid = discretization.Grid1d(0, 2 * np.pi, 500)
         n_varphi_list = np.arange(-7, 8)
 
-        wavefunc_0= self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
-                                     which=0)
+        wavefunc_0 = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
+                                       which=0)
         varphi_grid_list = varphi_grid.make_linspace()
         phi_varphi_amplitudes_0 = spec_utils.standardize_phases(
             wavefunc_0.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
@@ -1286,68 +1292,67 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
     def q_cap(self, energy):
         """Frequency dependent quality factor of capacitance"""
         q_cap_0 = 1 * 1e6
-        return q_cap_0 * (2 * np.pi * 6 / energy) ** 0.7
+        return q_cap_0 * (6 / energy) ** 0.7
 
-    # TODO: test purpose
-    def t1_cap_loss(self, dl_list):
-        """Return the 1/T1 due to capcitive loss"""
-        """
-        calculate 1/T1 due to inductive loss
-
-        Parameters
-        ----------
-        dL_list: ndarray
-            list of inductive disorder
-
-        Returns
-        -------
-        ndarray
-        """
-        eng_obj = self.get_spectrum_vs_paramvals('dL', dl_list, evals_count=2, subtract_ground=True)
-        eng = eng_obj.energy_table[:, 1]
-
-        matele_obj_1 = self.get_matelements_vs_paramvals('N_1_operator', 'dL', dl_list, evals_count=2)
-        matele_1 = matele_obj_1.matrixelem_table[:, 0, 1]
-        matele_obj_2 = self.get_matelements_vs_paramvals('N_2_operator', 'dL', dl_list, evals_count=2)
-        matele_2 = matele_obj_2.matrixelem_table[:, 0, 1]
-
-        s_vv_1 = 2 * 8 * self.EC / (1 - self.dC) / self.q_cap(eng) / np.tanh(eng / 2.0 / self.kbt)
-        s_vv_2 = 2 * 8 * self.EC / (1 + self.dC) / self.q_cap(eng) / np.tanh(eng / 2.0 / self.kbt)
-
-        t1_cap_1 = np.abs(matele_1) ** 2 * s_vv_1
-        t1_cap_2 = np.abs(matele_2) ** 2 * s_vv_2
-
-        fig, axs = plt.subplots(3, 2, figsize=(10, 12))
-        axs[0, 0].plot(dl_list, s_vv_1)
-        axs[0, 0].set_xlabel('dL')
-        axs[0, 0].set_ylabel('$S_1(\omega)$')
-
-        axs[0, 1].plot(dl_list, s_vv_2)
-        axs[0, 1].set_xlabel('dL')
-        axs[0, 1].set_ylabel('$S_2(\omega)$')
-
-        axs[1, 0].plot(dl_list, np.abs(matele_1) ** 2)
-        axs[1, 0].set_xlabel('dL')
-        axs[1, 0].set_ylabel(r'$|\langle 0 | \phi_1 | 1 \rangle|^2 $')
-
-        axs[1, 1].plot(dl_list, np.abs(matele_2) ** 2)
-        axs[1, 1].set_xlabel('dL')
-        axs[1, 1].set_ylabel(r'$|\langle 0 | \phi_2 | 1 \rangle|^2 $')
-
-        axs[2, 0].plot(dl_list, eng)
-        axs[2, 0].set_xlabel('dL')
-        axs[2, 0].set_ylabel('$\Delta E$')
-
-        axs[2, 1].plot(dl_list, 1 / (t1_cap_1 + t1_cap_2))
-        axs[2, 1].plot(dl_list, 1 / t1_cap_1)
-        axs[2, 1].plot(dl_list, 1 / t1_cap_2)
-        axs[2, 1].set_xlabel('dL')
-        axs[2, 1].set_ylabel('$T_1$')
-        axs[2, 1].legend(['total', '$J_1$', '$J_2$'])
-        axs[2, 1].set_yscale('log')
-        axs[2, 1].set_ylim((1e3, 1e12))
-
-        return 1 / (t1_cap_1 + t1_cap_2)
+    # def t1_cap_loss(self, dl_list):
+    #     """Return the 1/T1 due to capcitive loss"""
+    #     """
+    #     calculate 1/T1 due to inductive loss
+    #
+    #     Parameters
+    #     ----------
+    #     dL_list: ndarray
+    #         list of inductive disorder
+    #
+    #     Returns
+    #     -------
+    #     ndarray
+    #     """
+    #     eng_obj = self.get_spectrum_vs_paramvals('dL', dl_list, evals_count=2, subtract_ground=True)
+    #     eng = eng_obj.energy_table[:, 1]
+    #
+    #     matele_obj_1 = self.get_matelements_vs_paramvals('N_1_operator', 'dL', dl_list, evals_count=2)
+    #     matele_1 = matele_obj_1.matrixelem_table[:, 0, 1]
+    #     matele_obj_2 = self.get_matelements_vs_paramvals('N_2_operator', 'dL', dl_list, evals_count=2)
+    #     matele_2 = matele_obj_2.matrixelem_table[:, 0, 1]
+    #
+    #     s_vv_1 = 2 * 8 * self.EC / (1 - self.dC) / self.q_cap(eng) / np.tanh(eng / 2.0 / self.kbt)
+    #     s_vv_2 = 2 * 8 * self.EC / (1 + self.dC) / self.q_cap(eng) / np.tanh(eng / 2.0 / self.kbt)
+    #
+    #     t1_cap_1 = np.abs(matele_1) ** 2 * s_vv_1
+    #     t1_cap_2 = np.abs(matele_2) ** 2 * s_vv_2
+    #
+    #     fig, axs = plt.subplots(3, 2, figsize=(10, 12))
+    #     axs[0, 0].plot(dl_list, s_vv_1)
+    #     axs[0, 0].set_xlabel('dL')
+    #     axs[0, 0].set_ylabel('$S_1(\omega)$')
+    #
+    #     axs[0, 1].plot(dl_list, s_vv_2)
+    #     axs[0, 1].set_xlabel('dL')
+    #     axs[0, 1].set_ylabel('$S_2(\omega)$')
+    #
+    #     axs[1, 0].plot(dl_list, np.abs(matele_1) ** 2)
+    #     axs[1, 0].set_xlabel('dL')
+    #     axs[1, 0].set_ylabel(r'$|\langle 0 | \phi_1 | 1 \rangle|^2 $')
+    #
+    #     axs[1, 1].plot(dl_list, np.abs(matele_2) ** 2)
+    #     axs[1, 1].set_xlabel('dL')
+    #     axs[1, 1].set_ylabel(r'$|\langle 0 | \phi_2 | 1 \rangle|^2 $')
+    #
+    #     axs[2, 0].plot(dl_list, eng)
+    #     axs[2, 0].set_xlabel('dL')
+    #     axs[2, 0].set_ylabel('$\Delta E$')
+    #
+    #     axs[2, 1].plot(dl_list, 1 / (t1_cap_1 + t1_cap_2))
+    #     axs[2, 1].plot(dl_list, 1 / t1_cap_1)
+    #     axs[2, 1].plot(dl_list, 1 / t1_cap_2)
+    #     axs[2, 1].set_xlabel('dL')
+    #     axs[2, 1].set_ylabel('$T_1$')
+    #     axs[2, 1].legend(['total', '$J_1$', '$J_2$'])
+    #     axs[2, 1].set_yscale('log')
+    #     axs[2, 1].set_ylim((1e3, 1e12))
+    #
+    #     return 1 / (t1_cap_1 + t1_cap_2)
 
     def get_t1_capacitive_loss(self, para_name, para_vals):
         energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
@@ -1361,6 +1366,15 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         gamma1_cap_1 = np.abs(matele_1) ** 2 * s_vv_1
         gamma1_cap_2 = np.abs(matele_2) ** 2 * s_vv_2
         return 1 / (gamma1_cap_1 + gamma1_cap_2) * 1e-6
+
+    def get_t1_purcell(self, para_name, para_vals):
+        energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
+                 :, 1]
+        matele = self.get_matelements_vs_paramvals('n_theta_operator', para_name, para_vals,
+                                                   evals_count=2).matrixelem_table[:, 0, 1]
+        s_vv = 2 * np.pi * 16 * self.EC * self.x / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
+        gamma1_purcell = np.abs(matele) ** 2 * s_vv
+        return 1 / gamma1_purcell * 1e-6
 
     def get_t1_inductive_loss(self, para_name, para_vals):
         energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
@@ -1433,7 +1447,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         return phi_osc_mat + cross_kinetic_mat + junction_mat
 
     def _dispersive_shift(self, ratio_plot=False):
-        evals_count = 10
+        evals_count = 14
         hamiltonian_mat = self._flux_charge_hamiltonian()
         evals, evecs = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, sigma=0.0, which='LM')
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
@@ -1443,30 +1457,44 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
             self._identity_phi(), self._identity_varphi()) * self.Ng
         phi_mat = self._kron2(self._phi_operator(), self._identity_varphi())
         coupling_operator = 4 * self._dis_ec() * n_varphi_ng_mat / np.sqrt(
-            2) / self.theta_osc() * 1j - self._dis_el() * self.dL * phi_mat * self.theta_osc() / np.sqrt(
+            2) / self.theta_osc_full() * 1j - self._dis_el() * self.dL * phi_mat * self.theta_osc_full() / np.sqrt(
             2)
 
         detuning_mat = np.zeros((evals_count, evals_count))
         for i in np.arange(evals_count):
             for j in np.arange(evals_count):
-                detuning_mat[i, j] = evals[i] - evals[j] - self.theta_plasma()
+                detuning_mat[i, j] = evals[i] - evals[j] - self.theta_plasma_full()
 
         coupling_mat = np.zeros((evals_count, evals_count), dtype=np.complex_)
         for i in np.arange(evals_count):
             for j in np.arange(evals_count):
                 coupling_mat[i, j] = matrix_element(evecs[:, i], coupling_operator, evecs[:, j])
 
+        # if ratio_plot is True:
+        #     ratio = np.abs(coupling_mat / detuning_mat)
+        #     imshow_minval = np.log10(np.min(ratio))
+        #     imshow_maxval = np.log10(np.max(ratio))
+        #     fig, axes = plt.subplots(figsize=(4, 4))
+        #     im = axes.imshow(np.log10(ratio), extent=[0, evals_count - 1, 0, evals_count - 1],
+        #                      cmap=plt.cm.viridis, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
+        #     divider = make_axes_locatable(axes)
+        #     cax = divider.append_axes("right", size="2%", pad=0.05)
+        #     fig.colorbar(im, cax=cax)
+        #     axes.set_title(r'$\log(|g_{ij}/\Delta_{ij}|)$')
+        #     axes.set_xlabel('i')
+        #     axes.set_ylabel('j')
+
         if ratio_plot is True:
             ratio = np.abs(coupling_mat / detuning_mat)
-            imshow_minval = np.log10(np.min(ratio))
-            imshow_maxval = np.log10(np.max(ratio))
+            imshow_minval = np.min(ratio)
+            imshow_maxval = np.max(ratio)
             fig, axes = plt.subplots(figsize=(4, 4))
-            im = axes.imshow(np.log10(ratio), extent=[0, evals_count - 1, 0, evals_count - 1],
-                             cmap=plt.cm.viridis, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
+            im = axes.imshow(ratio, extent=[0, evals_count - 1, 0, evals_count - 1],
+                             cmap=plt.cm.viridis, vmin=0.01, vmax=1, origin='lower', aspect='auto')
             divider = make_axes_locatable(axes)
             cax = divider.append_axes("right", size="2%", pad=0.05)
             fig.colorbar(im, cax=cax)
-            axes.set_title(r'$\log(|g_{ij}/\Delta_{ij}|)$')
+            axes.set_title(r'$|g_{ij}/\Delta_{ij}|$')
             axes.set_xlabel('i')
             axes.set_ylabel('j')
 
@@ -1498,6 +1526,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         t2_current = self.get_t2_current_noise(para_name, para_vals)
         t2_shot = self.get_t2_shot_noise(para_name, para_vals)
         t1_cap = self.get_t1_capacitive_loss(para_name, para_vals)
+        t1_purcell = self.get_t1_purcell(para_name, para_vals)
         t1_ind = self.get_t1_inductive_loss(para_name, para_vals)
 
         plt.figure(figsize=(4, 4))
@@ -1506,8 +1535,9 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         plt.plot(para_vals, t2_flux, '--')
         plt.plot(para_vals, t2_shot, '--')
         plt.plot(para_vals, t1_cap)
+        plt.plot(para_vals, t1_purcell)
         plt.plot(para_vals, t1_ind)
-        plt.legend(['T2_charge', 'T2_current', 'T2_flux', 'T2_shot', 'T1_cap', 'T1_ind'])
+        plt.legend(['T2_charge', 'T2_current', 'T2_flux', 'T2_shot', 'T1_cap', 'T1_Purcell', 'T1_ind'])
         plt.xlabel(para_name)
         plt.ylabel('T1, T2 (ms)')
         plt.yscale('log')
@@ -1518,10 +1548,12 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         t2_flux = self.get_t2_flux_noise('dC', np.array([0]))
         t2_shot = self.get_t2_shot_noise('dC', np.array([0]))
         t1_cap = self.get_t1_capacitive_loss('dC', np.array([0]))
+        t1_purcell = self.get_t1_purcell('dC', np.array([0]))
         t1_ind = self.get_t1_inductive_loss('dC', np.array([0]))
         return print(' T2_charge =', t2_charge, ' ms', '\n T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
                      ' ms', '\n T2_shot =', t2_shot, ' ms', '\n T1_cap =',
-                     t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms')
+                     t1_cap, ' ms', '\n T1_Purcell =',
+                     t1_purcell, ' ms', '\n T1_ind =', t1_ind, ' ms')
 
     def get_noise_analysis_2d(self, func, para_name_1, para_vals_1, para_name_2, para_vals_2):
         noise = np.zeros((para_vals_1.size, para_vals_2.size))
