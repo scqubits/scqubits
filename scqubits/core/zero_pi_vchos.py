@@ -179,7 +179,8 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
             boundary_coeffs = np.array([(-1)**j, 1])
             exp_i_phi_theta = exp_i_phi_list[j]*np.prod([np.exp(1j*boundary_coeffs[i]*phi_bar[i])
                                                          for i in range(dim)])
-            potential_matrix += -0.5*self.EJ*(exp_i_phi_theta + exp_i_phi_theta.conjugate())
+            potential_matrix += (-0.5*self.EJ + (-1)**(j+1)*0.5*self.dEJ)*(exp_i_phi_theta
+                                                                           + exp_i_phi_theta.conjugate())
         potential_matrix += 2*self.EJ*self.identity()
         return potential_matrix
 
