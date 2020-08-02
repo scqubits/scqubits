@@ -1,13 +1,20 @@
 .DS_Store
 .idea/
 
+# Byte compiled
+./scqubits/io_utils/__pycache__
+./scqubits/utils/__pycache__
+./scqubits/core/__pycache__
+./scqubits/ui/__pycache__
+./scqubits/__pycache__
+*.py[cod]
+
 # Packages
 *.egg
 *.egg-info
 
 *.pdf
 
-*.py[cod]
 
 /docs/build/
 /examples/.ipynb_checkpoints/
