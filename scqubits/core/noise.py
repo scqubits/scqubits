@@ -63,6 +63,12 @@ NOISE_PARAMS = {
 
 class NoisySystem:
 
+    def effective_noise_channels(self):
+        """Return a list of noise channels that are used when calculating the effective noise 
+        (i.e. via `t1_effective` and `t2_effective`. 
+        """
+        return self.supported_noise_channels()
+
     def plot_coherence_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
@@ -105,7 +111,8 @@ class NoisySystem:
         # otherwise the plotting routine below, will fail
         fig, axes = kwargs.get('fig_ax') or plt.subplots(*plot_grid, figsize=figsize)
 
-        plotting_options = {'xlabel': units.get_units_time_label(),
+        plotting_options = {'ylabel': units.get_units_time_label(),
+                            'xlabel': param_name,
                             'yscale': 'log',
                             'grid': True,
                             }
@@ -162,9 +169,9 @@ class NoisySystem:
     def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
 
-       # If we're not given channels to consider, just use the supported list that
+       # If we're not given channels to consider, just use the effective noise channel list that
         # correspond to t1 processes
-        noise_channels = [channel for channel in self.supported_noise_channels()
+        noise_channels = [channel for channel in self.effective_noise_channels()
                           if channel.startswith('t1')] if noise_channels is None else noise_channels
 
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
@@ -201,7 +208,8 @@ class NoisySystem:
 
         plotting_options = {'fig_ax': plt.subplots(1),
                           'title': 't1_effective',
-                          'xlabel': units.get_units_time_label(),
+                          'ylabel': units.get_units_time_label(),
+                          'xlabel': param_name,
                           'yscale': 'log',
                           'grid': True,
                             }
@@ -212,12 +220,12 @@ class NoisySystem:
 
         return fig, axes
 
-    def plot_tphi_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
+    def plot_t2_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
 
-        # If we're not given channels to consider, just use ones fromthe supported list
+        # If we're not given channels to consider, just use ones from the effective noise channel list
         noise_channels = [channel for
-                channel in self.supported_noise_channels()] if noise_channels is None else noise_channels
+                channel in self.effective_noise_channels()] if noise_channels is None else noise_channels
 
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
@@ -241,7 +249,7 @@ class NoisySystem:
         current_val = getattr(self, param_name)
 
         # calculate the noise over the full param span in param_vals
-        noise_vals = [scale * self.set_and_return(param_name, v).tphi_effective(
+        noise_vals = [scale * self.set_and_return(param_name, v).t2_effective(
             noise_channels=noise_channels,
             common_noise_options=common_noise_options,
             esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i])
@@ -252,8 +260,9 @@ class NoisySystem:
         setattr(self, param_name, current_val)
 
         plotting_options = {'fig_ax': plt.subplots(1),
-                          'title': 'tphi_effective',
-                          'xlabel': units.get_units_time_label(),
+                          'title': 't2_effective',
+                          'ylabel': units.get_units_time_label(),
+                          'xlabel': param_name,
                           'yscale': 'log',
                           'grid': True,
                             }
@@ -266,7 +275,7 @@ class NoisySystem:
 
     def _effective_rate(self, noise_channels, common_noise_options, esys, noise_type):
         """
-        Helper method used when calculating the effective rates related to t1_effective and tphi_effecive.
+        Helper method used when calculating the effective rates related to t1_effective and t2_effecive.
         """
         rate = 0.0
 
@@ -275,10 +284,10 @@ class NoisySystem:
             # noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
 
-                # If dealing with a tphi noise type, the contribution of a t1 process to the dephasing rate its halved.
-                scale_factor = 0.5 if noise_type == 'tphi' and noise_channel.startswith("t1") else 1
-
                 noise_channel_method = noise_channel
+
+                # If dealing with a tphi noise type, the contribution of a t1 process to the dephasing rate its halved.
+                scale_factor = 0.5 if noise_type == 'tphi' and noise_channel_method.startswith("t1") else 1
 
                 options = common_noise_options.copy()
                 # We need to make sure we calculate a rate
@@ -290,10 +299,10 @@ class NoisySystem:
             # noise_channel is a tuple representing the noise method and default options
             elif isinstance(noise_channel, tuple):
 
-                # If dealing with a tphi noise type, the contribution of a t1 process to the dephasing rate its halved.
-                scale_factor = 0.5 if noise_type == 'tphi' and noise_channel.startswith("t1") else 1
-
                 noise_channel_method = noise_channel[0]
+
+                # If dealing with a tphi noise type, the contribution of a t1 process to the dephasing rate its halved.
+                scale_factor = 0.5 if noise_type == 'tphi' and noise_channel_method.startswith("t1") else 1
 
                 options = common_noise_options.copy()
                 # Some of the channel-specific options may be in conflict with the common options options.
@@ -321,9 +330,9 @@ class NoisySystem:
             noise channels that should contribute to t1_effective
 
         """
-        # If we're not given channels to consider, just use the supported list that
+        # If we're not given channels to consider, just use the effective noise channel list that
         # correspond to t1 processes
-        noise_channels = [channel for channel in self.supported_noise_channels()
+        noise_channels = [channel for channel in self.effective_noise_channels()
                           if channel.startswith('t1')] if noise_channels is None else noise_channels
 
         # If we're given only a single channel as a string, make it a one entry list
@@ -356,9 +365,9 @@ class NoisySystem:
         else:
             return 1/rate if rate != 0 else np.inf
 
-    def tphi_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
+    def t2_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
         r"""
-        Calculate the effective tphi time (or rate). 
+        Calculate the effective dephasing time (or rate). 
 
         Parameters
         ----------
@@ -367,9 +376,9 @@ class NoisySystem:
 
         """
 
-        # If we're not given channels to consider, just use ones fromthe supported list
+        # If we're not given channels to consider, just use ones from the effective noise channels list
         noise_channels = [channel for
-                channel in self.supported_noise_channels()] if noise_channels is None else noise_channels
+                channel in self.effective_noise_channels()] if noise_channels is None else noise_channels
 
         # If we're given only a single channel as a string, make it a one entry list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
@@ -833,7 +842,6 @@ class NoisySystem:
             y_qp_fun = Y_qp
         else:  # Y_qp is given as a number
             def y_qp_fun(omega): return Y_qp
-
         def spectral_density(omega, Y_qp=Y_qp):
             """
             Our definitions assume that the noise_op is dH/dflux.

@@ -82,6 +82,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                 't1_charge_impedance', 
                 ]
 
+    def effective_noise_channels(self):
+        """Return a default list of channels used when calculating effective t1 and t2 nosie."""
+        noise_channels=self.supported_noise_channels()
+        noise_channels.remove('t1_charge_impedance')
+        return noise_channels
+
+
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
