@@ -51,6 +51,7 @@ A more detailed discussion of each of the supporting noise channels is shown bel
 
    noise/dephasing.rst
    noise/depolarization.rst
+   noise/effective_noise.rst
    noise/ipynb/visualization.ipynb
 
 
