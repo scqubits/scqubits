@@ -426,14 +426,25 @@ class QubitBaseClass(QuantumSystem, ABC):
     def set_and_return(self, attr_name, value):
         """
         Allows to set an attribute after which self is returned. This is useful for doing 
-        something like:
+        something like example::
 
             qubit.set_and_return('flux', 0.23).some_method()
     
-        instead of:
+        instead of example::
 
             qubit.flux=0.23
             qubit.some_method()
+
+        Parameters
+        ----------
+        attr_name: str
+            name of class attribute in string form
+        value: any
+            value that the attribute is to be set to
+
+        Returns
+        -------
+        self
 
         """
         setattr(self, attr_name, value)

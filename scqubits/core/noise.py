@@ -72,11 +72,29 @@ class NoisySystem:
     def plot_coherence_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
-        Show plots of various noise channels supported by the qubit.  
+        Show plots of coherence for various channels supported by the qubit as they vary as a function of a
+        changing parameter.
 
         Parameters
         ----------
-        noise_channels: str or list(str) or list(tuple(str, dict))
+        param_name: str
+            name of parameter to be varied
+        param_vals: ndarray
+            parameter values to be plugged in
+        noise_channels: None or str or list(str) or list(tuple(str, dict))
+            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+        common_noise_options: dict
+            common options used when calculating coherence times
+        spec_data: SpectrumData
+            spectral data used during noise calculations 
+        scale: float
+            a number that all data is multiplied by before being plotted
+        num_cpus: int
+            number of cores to be used for computation
+
+        Returns
+        -------
+        fig, axes
 
         """
         # if we're not told what channels to consider, just use the supported list
@@ -168,8 +186,33 @@ class NoisySystem:
 
     def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+        r"""
+        Plot effective t1 coherence as it varies as a function of changing parameter.
 
-       # If we're not given channels to consider, just use the effective noise channel list that
+        Parameters
+        ----------
+        param_name: str
+            name of parameter to be varied
+        param_vals: ndarray
+            parameter values to be plugged in
+        noise_channels: None or str or list(str) or list(tuple(str, dict))
+            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+        common_noise_options: dict
+            common options used when calculating coherence times
+        spec_data: SpectrumData
+            spectral data used during noise calculations 
+        scale: float
+            a number that all data is multiplied by before being plotted
+        num_cpus: int
+            number of cores to be used for computation
+
+        Returns
+        -------
+        fig, axes
+
+        """
+
+        # If we're not given channels to consider, just use the effective noise channel list that
         # correspond to t1 processes
         noise_channels = [channel for channel in self.effective_noise_channels()
                           if channel.startswith('t1')] if noise_channels is None else noise_channels
@@ -222,6 +265,31 @@ class NoisySystem:
 
     def plot_t2_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+        r"""
+        Plot effective t2 coherence as it varies as a function of changing parameter.
+
+        Parameters
+        ----------
+        param_name: str
+            name of parameter to be varied
+        param_vals: ndarray
+            parameter values to be plugged in
+        noise_channels: None or str or list(str) or list(tuple(str, dict))
+            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+        common_noise_options: dict
+            common options used when calculating coherence times
+        spec_data: SpectrumData
+            spectral data used during noise calculations 
+        scale: float
+            a number that all data is multiplied by before being plotted
+        num_cpus: int
+            number of cores to be used for computation
+
+        Returns
+        -------
+        fig, axes
+
+        """
 
         # If we're not given channels to consider, just use ones from the effective noise channel list
         noise_channels = [channel for
@@ -275,7 +343,8 @@ class NoisySystem:
 
     def _effective_rate(self, noise_channels, common_noise_options, esys, noise_type):
         """
-        Helper method used when calculating the effective rates related to t1_effective and t2_effecive.
+        Helper method used when calculating the effective rates by methods `t1_effective` and `t2_effecive`.
+
         """
         rate = 0.0
 
@@ -326,8 +395,20 @@ class NoisySystem:
 
         Parameters
         ----------
-        noise_channels: str or list(str) or list(tuple(str, dict))
-            noise channels that should contribute to t1_effective
+        param_name: str
+        noise_channels: None or str or list(str) or list(tuple(str, dict))
+            noise channels to be used to obtain an effective t1 
+        common_noise_options: dict
+            common options used when calculating coherence times
+        esys: tuple(evals, evecs)
+            spectral data used during noise calculations 
+        get_rage: bool
+            determines if a rate or time should be returned
+
+
+        Returns
+        -------
+        float
 
         """
         # If we're not given channels to consider, just use the effective noise channel list that
@@ -366,6 +447,28 @@ class NoisySystem:
             return 1/rate if rate != 0 else np.inf
 
     def t2_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
+        r"""
+        Calculate the effective t2 time (or rate). 
+
+        Parameters
+        ----------
+        param_name: str
+        noise_channels: None or str or list(str) or list(tuple(str, dict))
+            noise channels to be used to obtain an effective t2
+        common_noise_options: dict
+            common options used when calculating coherence times
+        esys: tuple(evals, evecs)
+            spectral data used during noise calculations 
+        get_rage: bool
+            determines if a rate or time should be returned
+
+
+        Returns
+        -------
+        float
+
+        """
+
         r"""
         Calculate the effective dephasing time (or rate). 
 
