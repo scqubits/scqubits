@@ -73,7 +73,15 @@ class NoisySystem:
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Show plots of coherence for various channels supported by the qubit as they vary as a function of a
-        changing parameter.
+        changing parameter. 
+
+        For example, assuming `qubit` is a qubit class with `flux` being one of its parameters, one can 
+        see how coherence due to various noise channels vary as the `flux` changes::
+
+            qubit.plot_coherence_vs_paramvals(param_name='flux', 
+                                              param_vals=np.linspace(-0.5, 0.5, 100), 
+                                              scale=1e-3, ylabel=r"$\mu s$");
+
 
         Parameters
         ----------
@@ -187,7 +195,24 @@ class NoisySystem:
     def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
-        Plot effective t1 coherence as it varies as a function of changing parameter.
+        Plot effective :math:`T_1` coherence as it varies as a function of changing parameter.
+
+        The effective :math:`T_1` is calculated by considering a variety of depolarizing noise channels, 
+        according to the formula:
+
+        .. math::
+            \frac{1}{T_{1}^{\rm eff}} = \frac{1}{2} \sum_k \frac{1}{T_{1}^{k}}
+
+        where :math:`k` runs over the channels that can contribute to the effective noise. 
+        By default all the depolarizing noise channels given by the method `effective_noise_channels` are 
+        included.
+
+        For example, assuming `qubit` is a qubit class with `flux` being one of its parameters, one can 
+        see how the effective :math:`T_1` varies as the `flux` changes::
+
+            qubit.plot_t1_effective_vs_paramvals(param_name='flux', 
+                                                 param_vals=np.linspace(-0.5, 0.5, 100), 
+                                                );
 
         Parameters
         ----------
@@ -266,7 +291,24 @@ class NoisySystem:
     def plot_t2_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
             spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
-        Plot effective t2 coherence as it varies as a function of changing parameter.
+        Plot effective :math:`T_2` coherence as it varies as a function of changing parameter.
+
+        The effective :math:`T_2` is calculated from both pure dephasing channels, as well as 
+        depolarization channels, according to the formula:
+
+        .. math::
+            \frac{1}{T_{2}^{\rm eff}} = \sum_k \frac{1}{T_{\phi}^{k}} +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}}
+
+        where :math:`k` (:math:`j`) run over the relevant pure dephasing (depolariztion) channels that 
+        can contribute to the effective noise. 
+        By default all noise channels given by the method `effective_noise_channels` are included.
+
+        For example, assuming `qubit` is a qubit class with `flux` being one of its parameters, one can 
+        see how the effective :math:`T_2` varies as the `flux` changes::
+
+            qubit.plot_t2_effective_vs_paramvals(param_name='flux', 
+                                                 param_vals=np.linspace(-0.5, 0.5, 100), 
+                                                );
 
         Parameters
         ----------
@@ -391,13 +433,13 @@ class NoisySystem:
 
     def t1_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
         r"""
-        Calculate the effective t1 time (or rate). 
+        Calculate the effective :math:`T_1` time (or rate). 
 
         Parameters
         ----------
         param_name: str
         noise_channels: None or str or list(str) or list(tuple(str, dict))
-            noise channels to be used to obtain an effective t1 
+            noise channels to be used to obtain an effective :math:`T_1`
         common_noise_options: dict
             common options used when calculating coherence times
         esys: tuple(evals, evecs)
