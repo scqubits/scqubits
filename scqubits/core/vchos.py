@@ -121,15 +121,33 @@ class VCHOS(ABC):
         omega_squared, _ = self.eigensystem_normal_modes(i)
         return np.diag(np.sqrt(omega_squared))
 
-    def harmonic_lengths(self):
+    def compare_harmonic_lengths_with_minima_separations(self):
         """
         Returns
         -------
         ndarray
             oscillator lengths of the mode frequencies about the global minimum
         """
+        sorted_minima = self.sorted_minima()
+        periodic_vecs = self._find_relevant_periodic_continuation_vectors()
+        all_minima_pairs = list(itertools.combinations_with_replacement(sorted_minima, 2))
+        comparison = np.array([self._find_closest_periodic_minimum(minima_pair, periodic_vecs[i])
+                               for i, minima_pair in enumerate(all_minima_pairs)])
+        return comparison
+
+    def _find_closest_periodic_minimum(self, minima_pair, periodic_vecs):
         Xi_inv = inv(self.Xi_matrix())
-        return np.array([norm(Xi_inv[mu, :])**(-1) for mu in range(self.number_degrees_freedom)])
+        delta_inv = Xi_inv.T @ Xi_inv
+        if np.allclose(minima_pair[1], minima_pair[0]):  # Do not include equivalent minima in the same unit cell
+            periodic_vecs = np.array([vec for vec in periodic_vecs
+                                      if not np.allclose(vec, np.zeros_like(minima_pair[0]))])
+        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_pair[1] - minima_pair[0]))
+                                     for vec in periodic_vecs])
+        minima_vectors = np.array([2.0*np.pi*vec + (minima_pair[1] - minima_pair[0])
+                                   for i, vec in enumerate(periodic_vecs)])
+        minima_unit_vectors = np.array([minima_vectors[i] / minima_distances[i] for i in range(len(minima_distances))])
+        harmonic_lengths = np.array([(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
+        return np.max(harmonic_lengths / minima_distances)
 
     def Xi_matrix(self):
         """
@@ -230,15 +248,15 @@ class VCHOS(ABC):
         Assumption is that extended degrees of freedom precede the periodic d.o.f.
         """
         phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom), neighbor))
-        dpkX = np.matmul(Xi_inv, phi_neighbor + minima_diff)
+        dpkX = Xi_inv @ (phi_neighbor + minima_diff)
         prod = np.dot(dpkX, dpkX)
         return prod > self.nearest_neighbor_cutoff
 
     def _build_premultiplied_a_and_a_dagger(self):
         dim = self.number_degrees_freedom
         a = np.array([self.a_operator(i) for i in range(dim)])
-        a_a = np.array([np.matmul(self.a_operator(i), self.a_operator(i)) for i in range(dim)])
-        a_dagger_a = np.array([np.matmul(self.a_operator(i).T, self.a_operator(i)) for i in range(dim)])
+        a_a = np.array([self.a_operator(i) @ self.a_operator(i) for i in range(dim)])
+        a_dagger_a = np.array([self.a_operator(i).T @ self.a_operator(i) for i in range(dim)])
         return a, a_a, a_dagger_a
 
     def _build_single_exp_i_phi_j_operator(self, j):
@@ -254,7 +272,7 @@ class VCHOS(ABC):
                                                    for k in range(dim)], axis=0))
             BCH_factor = self._BCH_factor_for_junction(j)
         exp_i_phi_j_a_dagger_component = exp_i_phi_j_a_component.T
-        return BCH_factor*np.matmul(exp_i_phi_j_a_dagger_component, exp_i_phi_j_a_component)
+        return BCH_factor * exp_i_phi_j_a_dagger_component @ exp_i_phi_j_a_component
 
     def _build_all_exp_i_phi_j_operators(self):
         return np.array([self._build_single_exp_i_phi_j_operator(j) for j in range(self.number_degrees_freedom + 1)])
@@ -275,19 +293,18 @@ class VCHOS(ABC):
         translation_op_a_dagger = self.identity()
         translation_op_a = self.identity()
         for j in range(dim):
-            translation_op_a_dagger = np.matmul(translation_op_a_dagger, matrix_power(exp_a_list[j].T, neighbor[j]))
+            translation_op_a_dagger = translation_op_a_dagger @ matrix_power(exp_a_list[j].T, neighbor[j])
         for j in range(dim):
-            translation_op_a = np.matmul(translation_op_a, matrix_power(exp_a_list[j], -neighbor[j]))
-        translation_op_a_dagger = np.matmul(exp_a_minima_difference.T, translation_op_a_dagger)
-        translation_op_a = np.matmul(translation_op_a, inv(exp_a_minima_difference))
+            translation_op_a = translation_op_a @ matrix_power(exp_a_list[j], -neighbor[j])
+        translation_op_a_dagger = exp_a_minima_difference.T @ translation_op_a_dagger
+        translation_op_a = translation_op_a @ inv(exp_a_minima_difference)
         return translation_op_a_dagger, translation_op_a
 
     def _exp_product_coefficient(self, delta_phi, Xi_inv):
         """Overall multiplicative factor, including offset charge, Gaussian suppression BCH factor
         from the periodic continuation operators"""
-        delta_phi_rotated = np.matmul(Xi_inv, delta_phi)
-        return (np.exp(-1j * np.dot(self.nglist, delta_phi))
-                * np.exp(-0.25 * np.dot(delta_phi_rotated, delta_phi_rotated)))
+        delta_phi_rotated = Xi_inv @ delta_phi
+        return np.exp(-1j * self.nglist @ delta_phi) * np.exp(-0.25 * delta_phi_rotated @ delta_phi_rotated)
 
     def _BCH_factor_for_potential_boundary(self):
         """BCH factor obtained from the last potential operator"""
@@ -349,17 +366,17 @@ class VCHOS(ABC):
         as well as repeatedly calculating Xi (or Xi_inv) which is why they are
         passed to this function in this way rather than calculated below"""
         a, a_a, a_dagger_a = premultiplied_a_and_a_dagger
-        EC_mat_transformed = np.matmul(Xi_inv, np.matmul(self.build_EC_matrix(), Xi_inv.T))
+        EC_mat_transformed = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
         minima_diff = minima_p - minima_m
         delta_phi = phi_neighbor + minima_diff
-        delta_phi_rotated = np.matmul(Xi_inv, delta_phi)
+        delta_phi_rotated = Xi_inv @ delta_phi
         kinetic_matrix = np.sum([(-0.5*4*a_a[i] - 0.5*4*a_a[i].T + 0.5*8*a_dagger_a[i]
                                   - 4*(a[i] - a[i].T)*delta_phi_rotated[i]/np.sqrt(2.0))
                                  * EC_mat_transformed[i, i]
                                  for i in range(self.number_degrees_freedom)], axis=0)
-        identity_coefficient = 0.5*4*np.trace(EC_mat_transformed)
-        identity_coefficient += -0.25*4*np.matmul(delta_phi_rotated, np.matmul(EC_mat_transformed, delta_phi_rotated))
-        kinetic_matrix += identity_coefficient*self.identity()
+        identity_coefficient = 0.5 * 4 * np.trace(EC_mat_transformed)
+        identity_coefficient += -0.25 * 4 * delta_phi_rotated @ EC_mat_transformed @ delta_phi_rotated
+        kinetic_matrix += identity_coefficient * self.identity()
         return kinetic_matrix
 
     def _local_potential_contribution_to_hamiltonian(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
@@ -444,7 +461,7 @@ class VCHOS(ABC):
                     exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor + minima_diff, Xi_inv)
                     exp_a_dagger, exp_a = self._translation_operator_builder(exp_a_list_and_minima_difference, neighbor)
                     matrix_element = exp_prod_coefficient*func(phi_neighbor, minima_m, minima_p)
-                    matrix_element = np.matmul(exp_a_dagger, np.matmul(matrix_element, exp_a))
+                    matrix_element = exp_a_dagger @ matrix_element @ exp_a
                     operator_matrix[m*num_states_min: (m + 1)*num_states_min,
                                     p*num_states_min: (p + 1)*num_states_min] += matrix_element
                 counter += 1
