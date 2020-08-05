@@ -75,7 +75,7 @@ class NoisySystem:
         Show plots of coherence for various channels supported by the qubit as they vary as a function of a
         changing parameter. 
 
-        For example, assuming `qubit` is a qubit class with `flux` being one of its parameters, one can 
+        For example, assuming `qubit` is a qubit object with `flux` being one of its parameters, one can 
         see how coherence due to various noise channels vary as the `flux` changes::
 
             qubit.plot_coherence_vs_paramvals(param_name='flux', 
@@ -207,7 +207,7 @@ class NoisySystem:
         By default all the depolarizing noise channels given by the method `effective_noise_channels` are 
         included.
 
-        For example, assuming `qubit` is a qubit class with `flux` being one of its parameters, one can 
+        For example, assuming `qubit` is a qubit object with `flux` being one of its parameters, one can 
         see how the effective :math:`T_1` varies as the `flux` changes::
 
             qubit.plot_t1_effective_vs_paramvals(param_name='flux', 
@@ -303,7 +303,7 @@ class NoisySystem:
         can contribute to the effective noise. 
         By default all noise channels given by the method `effective_noise_channels` are included.
 
-        For example, assuming `qubit` is a qubit class with `flux` being one of its parameters, one can 
+        For example, assuming `qubit` is a qubit object with `flux` being one of its parameters, one can 
         see how the effective :math:`T_2` varies as the `flux` changes::
 
             qubit.plot_t2_effective_vs_paramvals(param_name='flux', 
@@ -385,7 +385,22 @@ class NoisySystem:
 
     def _effective_rate(self, noise_channels, common_noise_options, esys, noise_type):
         """
-        Helper method used when calculating the effective rates by methods `t1_effective` and `t2_effecive`.
+        Helper method used when calculating the effective rates by methods `t1_effective` and `t2_effective`.
+
+        Parameters
+        ----------
+        noise_channels: None or str or list(str) or list(tuple(str, dict))
+            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+        common_noise_options: dict
+            common options used when calculating coherence times
+        esys: tuple(evals, evecs)
+            spectral data used during noise calculations 
+        noise_type: str
+            type of noise, one of 'tphi' or 't1'
+
+        Returns
+        -------
+        float
 
         """
         rate = 0.0
@@ -435,22 +450,37 @@ class NoisySystem:
         r"""
         Calculate the effective :math:`T_1` time (or rate). 
 
+        The effective :math:`T_1` is calculated by considering a variety of depolarizing noise channels, 
+        according to the formula:
+
+        .. math::
+            \frac{1}{T_{1}^{\rm eff}} = \frac{1}{2} \sum_k \frac{1}{T_{1}^{k}}
+
+        where :math:`k` runs over the channels that can contribute to the effective noise. 
+        By default all the depolarizing noise channels given by the method `effective_noise_channels` are 
+        included. Users can also provide specific noise channels, with selected options, to be included 
+        in the effective :math:`T_1` calculation. For example, assuming `qubit` is a qubit object, can can execute:: 
+
+            tune_tmon.t1_effective(noise_channels=['t1_charge_impedance', 't1_flux_bias_line'], 
+                           common_noise_options=dict(T=0.050))
+
         Parameters
         ----------
-        param_name: str
         noise_channels: None or str or list(str) or list(tuple(str, dict))
-            noise channels to be used to obtain an effective :math:`T_1`
+            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
         common_noise_options: dict
             common options used when calculating coherence times
         esys: tuple(evals, evecs)
             spectral data used during noise calculations 
-        get_rage: bool
-            determines if a rate or time should be returned
+        get_rate: bool
+            get rate or time
 
 
         Returns
         -------
-        float
+        :math:`T_1` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
 
         """
         # If we're not given channels to consider, just use the effective noise channel list that
@@ -490,34 +520,39 @@ class NoisySystem:
 
     def t2_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
         r"""
-        Calculate the effective t2 time (or rate). 
+        Calculate the effective :math:`T_2` time (or rate). 
+
+        The effective :math:`T_2` is calculated by considering a variety of pure dephasing and depolarizing 
+        noise channels, according to the formula:
+
+        .. math::
+            \frac{1}{T_{2}^{\rm eff}} = \sum_k \frac{1}{T_{\phi}^{k}} +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}}, 
+
+        where :math:`k` (:math:`j`) run over the relevant pure dephasing (depolariztion) channels that can contribute to 
+        the effective noise. By default all the noise channels given by the method 
+        `effective_noise_channels` are included. Users can also provide specific noise channels, with 
+        selected options, to be included in the effective :math:`T_2` calculation. For example, assuming 
+        `qubit` is a qubit object, can can execute:: 
+
+            qubit.t2_effective(noise_channels=['t1_flux_bias_line', 't1_capacitive_loss',
+                                               ('tphi_1_over_f_flux', dict(A_noise=3e-6))], 
+                               common_noise_options=dict(T=0.050))
 
         Parameters
         ----------
-        param_name: str
         noise_channels: None or str or list(str) or list(tuple(str, dict))
-            noise channels to be used to obtain an effective t2
+            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
         common_noise_options: dict
             common options used when calculating coherence times
         esys: tuple(evals, evecs)
             spectral data used during noise calculations 
-        get_rage: bool
-            determines if a rate or time should be returned
-
+        get_rate: bool
+            get rate or time
 
         Returns
         -------
-        float
-
-        """
-
-        r"""
-        Calculate the effective dephasing time (or rate). 
-
-        Parameters
-        ----------
-        noise_channels: str or list(str) or list(tuple(str, dict))
-            noise channels that should contribute to t1_effective
+        :math:`T_2` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
 
@@ -552,7 +587,7 @@ class NoisySystem:
 
     def tphi_1_over_f(self, A_noise, i, j, noise_op, esys=None, get_rate=False, **params):
         r"""
-        Calculate the 1/f dephasing time (or rate) due to arbitrary noise source. 
+        Calculate the 1/f dephasing time (or rate) due to  arbitrary noise source. 
 
         We assume that the qubit energies (or the passed in eigenspectrum) has units 
         of frequency (and *not* angular frequency). 
@@ -574,7 +609,10 @@ class NoisySystem:
 
         Returns
         -------
-        float
+        :math:`T_{\phi}` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
+
         """
         # Sanity check
         if i == j or i < 0 or j < 0:
@@ -623,7 +661,9 @@ class NoisySystem:
 
         Returns
         -------
-        float
+        :math:`T_{\phi}` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
         """
 
         if 'tphi_1_over_f_flux' not in self.supported_noise_channels():
@@ -651,7 +691,9 @@ class NoisySystem:
 
         Returns
         -------
-        float
+        :math:`T_{\phi}` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
         """
 
         if 'tphi_1_over_f_cc' not in self.supported_noise_channels():
@@ -677,9 +719,12 @@ class NoisySystem:
         get_rate: bool
             get rate or time
 
+
         Returns
         -------
-        float
+        :math:`T_{\phi}` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
         """
         if 'tphi_1_over_f_ng' not in self.supported_noise_channels():
             raise RuntimeError("Charge noise channel 'tphi_1_over_f_ng' is not supported in this system.")
@@ -699,6 +744,9 @@ class NoisySystem:
         We assume that the qubit energies (or the passed in eigenspectrum) has units 
         of frequency (and *not* angular frequency). 
 
+        The `spectral_density` argument should be a callable object (typically a function) of one argument, 
+        which is assumed to be an angular frequency (in the units currently set as system units. 
+
         Parameters
         ----------
         i: int >=0
@@ -717,10 +765,12 @@ class NoisySystem:
         get_rate: bool
             get rate or time
 
+
         Returns
         -------
-        decay rate or time: float
-            decay rate in units of `2\pi * <system units>`. Alternatively, 1/rate can be returned. 
+        :math:`T_1` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
 
         """
         # Sanity check
@@ -774,10 +824,12 @@ class NoisySystem:
         get_rate: bool
             get rate or time
 
+
         Returns
         -------
-        decay rate or time: float
-            decay rate in units of `2\pi * <system units>`. Alternatively, 1/rate can be returned. 
+        :math:`T_1` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
         """
 
         if 't1_capacitive_loss' not in self.supported_noise_channels():
@@ -836,8 +888,10 @@ class NoisySystem:
 
         Returns
         -------
-        decay rate or time: float
-            decay rate in units of `2\pi * <system units>`. Alternatively, 1/rate can be returned. 
+        :math:`T_1` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
+
         """
 
         if 't1_inductive_loss' not in self.supported_noise_channels():
@@ -890,8 +944,9 @@ class NoisySystem:
 
         Returns
         -------
-        decay rate or time: float
-            decay rate in units of `2\pi * <system units>`. Alternatively, 1/rate can be returned. 
+        :math:`T_1` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
         """
 
         if 't1_charge_impedance' not in self.supported_noise_channels():
@@ -913,7 +968,7 @@ class NoisySystem:
 
     def t1_flux_bias_line(self, i=1, j=0, M=NOISE_PARAMS['M'],  Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
                           total=True,  esys=None, get_rate=False, **params):
-        r"""Noise due to a bias flux line.
+        r"""Noise due to a bias flux line. 
         
         Parameters
         ----------
@@ -922,9 +977,9 @@ class NoisySystem:
         j: int >=0
             state index that along with i defines a transition (i->j)
         M: float
-            Impedance in units of \Phi_0 / Ampere
-        Z: float or callable
-            potentially complex impedance; a fixed value or function of `omega`
+            Inductance in units of \Phi_0 / Ampere
+        Z: complex, float or callable
+            A complex impedance; a fixed value or function of `omega`
         T: float
             temperature in Kelvin
         total: bool
@@ -935,10 +990,12 @@ class NoisySystem:
         get_rate: bool
             get rate or time
 
+
         Returns
         -------
-        decay rate or time: float
-            decay rate in units of `2\pi * <system units>`. Alternatively, 1/rate can be returned. 
+        :math:`T_1` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
         """
 
         if 't1_flux_bias_line' not in self.supported_noise_channels():
@@ -974,6 +1031,12 @@ class NoisySystem:
         TODO 
             - Careful about correctness/applicability of this. Seems this strongly depends on admitance each junction sees.
             - Need to check the factor of 1/2 in the operator
+
+        Returns
+        -------
+        :math:`T_1` time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
         """
 
         if 't1_quasiparticle_tunneling' not in self.supported_noise_channels():
