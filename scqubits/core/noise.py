@@ -102,7 +102,7 @@ class NoisySystem:
 
         Returns
         -------
-        fig, axes
+        Figure, Axes
 
         """
         # if we're not told what channels to consider, just use the supported list
@@ -233,7 +233,7 @@ class NoisySystem:
 
         Returns
         -------
-        fig, axes
+        Figure, Axes
 
         """
 
@@ -329,7 +329,7 @@ class NoisySystem:
 
         Returns
         -------
-        fig, axes
+        Figure, Axes
 
         """
 
@@ -400,7 +400,7 @@ class NoisySystem:
 
         Returns
         -------
-        float
+        coherence rate: float
 
         """
         rate = 0.0
@@ -478,7 +478,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_1` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
 
@@ -551,7 +551,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_2` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -585,7 +585,7 @@ class NoisySystem:
         else:
             return 1/rate if rate != 0 else np.inf
 
-    def tphi_1_over_f(self, A_noise, i, j, noise_op, esys=None, get_rate=False, **params):
+    def tphi_1_over_f(self, A_noise, i, j, noise_op, esys=None, get_rate=False, **kwargs):
         r"""
         Calculate the 1/f dephasing time (or rate) due to  arbitrary noise source. 
 
@@ -609,7 +609,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_{\phi}` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
 
@@ -642,7 +642,7 @@ class NoisySystem:
         else:
             return 1/rate if rate != 0 else np.inf
 
-    def tphi_1_over_f_flux(self, A_noise=NOISE_PARAMS['A_flux'], i=0, j=1, esys=None, get_rate=False, **params):
+    def tphi_1_over_f_flux(self, A_noise=NOISE_PARAMS['A_flux'], i=0, j=1, esys=None, get_rate=False, **kwargs):
         r"""
         Calculate the 1/f dephasing time (or rate) due to flux noise.
 
@@ -661,7 +661,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_{\phi}` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -670,10 +670,10 @@ class NoisySystem:
             raise RuntimeError("Flux noise channel 'tphi_1_over_f_flux' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_flux(),
-                                  esys=esys, get_rate=get_rate, **params)
+                                  esys=esys, get_rate=get_rate, **kwargs)
 
-    def tphi_1_over_f_cc(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
-        """
+    def tphi_1_over_f_cc(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **kwargs):
+        r"""
         Calculate the 1/f dephasing time (or rate) due to critical current noise.
 
         Parameters
@@ -691,7 +691,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_{\phi}` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -700,9 +700,9 @@ class NoisySystem:
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ(),
-                                  esys=esys, get_rate=get_rate, **params)
+                                  esys=esys, get_rate=get_rate, **kwargs)
 
-    def tphi_1_over_f_ng(self, A_noise=NOISE_PARAMS['A_ng'], i=0, j=1, esys=None, get_rate=False, **params):
+    def tphi_1_over_f_ng(self, A_noise=NOISE_PARAMS['A_ng'], i=0, j=1, esys=None, get_rate=False, **kwargs):
         r"""
         Calculate the 1/f dephasing time (or rate) due to charge noise.
 
@@ -722,7 +722,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_{\phi}` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -730,9 +730,9 @@ class NoisySystem:
             raise RuntimeError("Charge noise channel 'tphi_1_over_f_ng' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_ng(),
-                                  esys=esys, get_rate=get_rate, **params)
+                                  esys=esys, get_rate=get_rate, **kwargs)
 
-    def t1(self, i, j, noise_op, spectral_density, total=True, esys=None, get_rate=False, **params):
+    def t1(self, i, j, noise_op, spectral_density, total=True, esys=None, get_rate=False, **kwargs):
         r"""
         Calculate the transition time (or rate) using Fermi's Golden Rule due to a noise channel with
         a spectral density `spectral_density` and system noise operator `noise_op`. Mathematically, it reads:
@@ -768,7 +768,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_1` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
 
@@ -798,7 +798,7 @@ class NoisySystem:
             return 1/rate if rate != 0 else np.inf
 
     def t1_capacitive_loss(self, i=1, j=0, EC=None, Q_cap=None, T=NOISE_PARAMS['T'],  total=True,
-                           esys=None, get_rate=False, **params):
+                           esys=None, get_rate=False, **kwargs):
         r"""
         Loss due to dielectric dissipation in the Jesephson junction capacitances. 
 
@@ -824,10 +824,9 @@ class NoisySystem:
         get_rate: bool
             get rate or time
 
-
         Returns
         -------
-        :math:`T_1` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -854,10 +853,10 @@ class NoisySystem:
         noise_op = self.n_operator()
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
-                       esys=esys, get_rate=get_rate, **params)
+                       esys=esys, get_rate=get_rate, **kwargs)
 
     def t1_inductive_loss(self, i=1, j=0, EL=None, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
-                          esys=None, get_rate=False, **params):
+                          esys=None, get_rate=False, **kwargs):
         r"""
         Loss due to inductive dissipation in a superinductor.  
 
@@ -888,7 +887,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_1` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
 
@@ -916,10 +915,10 @@ class NoisySystem:
         noise_op = self.phi_operator()
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
-                       esys=esys, get_rate=get_rate, **params)
+                       esys=esys, get_rate=get_rate, **kwargs)
 
     def t1_charge_impedance(self, i=1, j=0, Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=True,
-                            esys=None, get_rate=False, **params):
+                            esys=None, get_rate=False, **kwargs):
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
         References: Clerk et al (2010), also Zhang et al (2020) - note different definition of R_k (i.e. their R_q)
@@ -944,7 +943,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_1` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -964,10 +963,10 @@ class NoisySystem:
         noise_op = self.n_operator()
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total, esys=esys,
-                       get_rate=get_rate, **params)
+                       get_rate=get_rate, **kwargs)
 
     def t1_flux_bias_line(self, i=1, j=0, M=NOISE_PARAMS['M'],  Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
-                          total=True,  esys=None, get_rate=False, **params):
+                          total=True,  esys=None, get_rate=False, **kwargs):
         r"""Noise due to a bias flux line. 
         
         Parameters
@@ -993,7 +992,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_1` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -1020,11 +1019,11 @@ class NoisySystem:
         noise_op = self.d_hamiltonian_d_flux()
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total, esys=esys,
-                       get_rate=get_rate, **params)
+                       get_rate=get_rate, **kwargs)
 
     def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, Delta=NOISE_PARAMS['Delta'], x_qp=NOISE_PARAMS['x_qp'],
-                                   T=NOISE_PARAMS['T'], total=True,  esys=None, get_rate=False, **params):
-        """Noise due quasiparticle tunneling across a Josephson junction.
+                                   T=NOISE_PARAMS['T'], total=True,  esys=None, get_rate=False, **kwargs):
+        r"""Noise due quasiparticle tunneling across a Josephson junction.
 
         References: Smith et al (2020)
 
@@ -1034,7 +1033,7 @@ class NoisySystem:
 
         Returns
         -------
-        :math:`T_1` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -1063,4 +1062,4 @@ class NoisySystem:
         noise_op = self.sin_phi_operator(alpha=0.5)
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density,  total=total,
-                       esys=esys, get_rate=get_rate, **params)
+                       esys=esys, get_rate=get_rate, **kwargs)

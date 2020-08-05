@@ -29,8 +29,8 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 class NoisyFluxQubit(NoisySystem):
 
-    def tphi_1_over_f_cc1(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
-        """
+    def tphi_1_over_f_cc1(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **kwargs):
+        r"""
         Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
         Josephson energy :math:`EJ1`.
 
@@ -49,7 +49,7 @@ class NoisyFluxQubit(NoisySystem):
 
         Returns
         -------
-        :math:`T_{\phi}` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -57,10 +57,10 @@ class NoisyFluxQubit(NoisySystem):
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc1' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ1(),
-                                            esys=esys, get_rate=get_rate, **params)
+                                            esys=esys, get_rate=get_rate, **kwargs)
 
-    def tphi_1_over_f_cc2(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
-        """
+    def tphi_1_over_f_cc2(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **kwargs):
+        r"""
         Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
         Josephson energy :math:`EJ2`.
 
@@ -88,10 +88,10 @@ class NoisyFluxQubit(NoisySystem):
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc2' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ2(),
-                                            esys=esys, get_rate=get_rate, **params)
+                                            esys=esys, get_rate=get_rate, **kwargs)
 
-    def tphi_1_over_f_cc3(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
-        """
+    def tphi_1_over_f_cc3(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **kwargs):
+        r"""
         Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
         Josephson energy :math:`EJ3`.
 
@@ -110,7 +110,7 @@ class NoisyFluxQubit(NoisySystem):
 
         Returns
         -------
-        :math:`T_{\phi}` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -119,16 +119,17 @@ class NoisyFluxQubit(NoisySystem):
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc3' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ3(),
-                                            esys=esys, get_rate=get_rate, **params)
+                                            esys=esys, get_rate=get_rate, **kwargs)
 
-    def tphi_1_over_f_cc(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **params):
+    def tphi_1_over_f_cc(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **kwargs):
         """
         Calculate the 1/f dephasing time (or rate) due to critical current noise from all three Josephson junctions
         :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The combined noise is calculated by summing the rates from the 
         individual contributions.
 
+
         Parameters
-        ----------
+        -----------
         A_noise: float
             noise strength
         i: int >=0
@@ -140,9 +141,10 @@ class NoisyFluxQubit(NoisySystem):
         get_rate: bool
             get rate or time
 
+
         Returns
         -------
-        :math:`T_{\phi}` time or rate: float
+        time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
@@ -150,9 +152,9 @@ class NoisyFluxQubit(NoisySystem):
         if 'tphi_1_over_f_cc' not in self.supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system.")
 
-        rate =  self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
-        rate += self.tphi_1_over_f_cc2(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
-        rate += self.tphi_1_over_f_cc3(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **params)
+        rate =  self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
+        rate += self.tphi_1_over_f_cc2(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
+        rate += self.tphi_1_over_f_cc3(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
 
         if get_rate:
             return rate
