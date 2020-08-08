@@ -18,7 +18,7 @@ User Guide
    ./ipynb/explorer.ipynb
    guide-plot-options.rst
    guide-units.rst
-   guide-io.rst
+   ./ipynb/storage.ipynb
    ./ipynb/parallel.ipynb
    guide-example-ipynb.rst
    guide-settings.rst
