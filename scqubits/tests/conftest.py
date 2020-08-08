@@ -68,7 +68,7 @@ class BaseTest:
     def eigenvecs(self, io_type, evecs_reference):
         evals_count = evecs_reference.shape[1]
         _, evecs_tst = self.qbt.eigensys(evals_count=evals_count, filename=self.tmpdir + 'test.' + io_type)
-        assert np.allclose(np.abs(evecs_reference), np.abs(evecs_tst))
+        assert np.allclose(np.abs(evecs_reference), np.abs(evecs_tst), atol=1e-06)
 
     def plot_evals_vs_paramvals(self, num_cpus, param_name, param_list):
         self.qbt.plot_evals_vs_paramvals(param_name, param_list, evals_count=5, subtract_ground=True,
@@ -80,11 +80,8 @@ class BaseTest:
                                                                  subtract_ground=False, get_eigenstates=True,
                                                                  num_cpus=num_cpus)
         calculated_spectrum.filewrite(filename=self.tmpdir + 'test.' + io_type)
-        evecs_reference = np.abs(evecs_reference)
-        calculated_evecs = np.abs(calculated_spectrum.state_table)
-
         assert np.allclose(evals_reference, calculated_spectrum.energy_table)
-        assert np.allclose(evecs_reference, calculated_evecs, atol=1e-06)
+        assert np.allclose(np.abs(evecs_reference), np.abs(calculated_spectrum.state_table), atol=1e-06)
 
     def matrixelement_table(self, io_type, op, matelem_reference):
         evals_count = len(matelem_reference)
@@ -182,7 +179,6 @@ class StandardTests(BaseTest):
         self.print_matrixelements(self.op2_str)
 
     def test_plot_matelem_vs_paramvals(self, num_cpus, io_type):
-        # TODO should this be '_4.' instead of '_1.'?
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)

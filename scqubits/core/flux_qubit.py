@@ -66,11 +66,12 @@ class FluxQubitFunctions:
         return 0.5 * self.e ** 2 * sp.linalg.inv(C_matrix)
 
     def potential(self, phi_array):
-        """Return value of the potential energy at phi1 and phi2, disregarding constants."""
+        """Return value of the potential energy at phi1 and phi2."""
         phi1 = phi_array[0]
         phi2 = phi_array[1]
         return (-self.EJ1 * np.cos(phi1) - self.EJ2 * np.cos(phi2)
-                - self.EJ3 * np.cos(2.0 * np.pi * self.flux + phi1 - phi2))
+                - self.EJ3 * np.cos(2.0 * np.pi * self.flux + phi1 - phi2)
+                + self.EJ1 + self.EJ2 + self.EJ3)
 
 
 class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializable):

@@ -92,8 +92,9 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
         """
         dim = self.number_degrees_freedom
         pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
-        pot_sum += (- self.EJlist[-1] * np.cos(np.sum([self.boundary_coeffs[i] * phi_array[i]
-                                                       for i in range(dim)]) + 2 * np.pi * self.flux))
+        pot_sum += (-self.EJlist[-1] * np.cos(np.sum([self.boundary_coeffs[i]*phi_array[i]
+                                                      for i in range(dim)]) + 2*np.pi*self.flux))
+        pot_sum += np.sum(self.EJlist)
         return pot_sum
 
 

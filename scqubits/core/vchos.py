@@ -6,6 +6,7 @@ from functools import partial
 import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import LinAlgError, expm, inv, eigh
+from scipy.integrate import quad
 import scipy.constants as const
 from numpy.linalg import matrix_power
 
@@ -119,7 +120,71 @@ class VCHOS(ABC):
         ndarray
         """
         omega_squared, _ = self.eigensystem_normal_modes(i)
-        return np.diag(np.sqrt(omega_squared))
+        return np.sqrt(omega_squared)
+
+    def _S0_integrand(self, m, min_loc_1, min_loc_2, t):
+        line_of_sight_vec = t*(min_loc_2 - min_loc_1) + min_loc_1
+        return np.sqrt(2.0*m*(self.potential(line_of_sight_vec) - self.potential(min_loc_1)))
+
+    def _A_integrand(self, m, omega, min_loc_1, min_loc_2, t):
+        line_of_sight_vec = t*(min_loc_2 - min_loc_1) + min_loc_1
+        return (m*omega/np.sqrt(2*m*(self.potential(line_of_sight_vec) - self.potential(min_loc_1)))
+                - 1/np.linalg.norm(min_loc_2 - line_of_sight_vec))
+
+    def _S_integrand(self, m, min_loc_1, min_loc_2, t):
+        line_of_sight_vec = t * (min_loc_2 - min_loc_1) + min_loc_1
+        return np.sqrt(2*m*(self.potential(line_of_sight_vec)-self.potential(min_loc_1)))
+
+    def compute_action_integrals(self, m, omega, min_loc_1, min_loc_2):
+        S0_func = partial(self._S0_integrand, m, min_loc_1, min_loc_2)
+        A_func = partial(self._A_integrand, m, omega, min_loc_1, min_loc_2)
+        S0 = quad(S0_func, 0.0, 1.0)
+        A = quad(A_func, 0.0, 1.0)
+        return A[0], S0[0]
+
+    def compute_action_integral_orlando(self, m, min_loc_1, min_loc_2):
+        S_func = partial(self._S_integrand, m, min_loc_1, min_loc_2)
+        S = quad(S_func, 0.0, 1.0)
+        return S[0]
+
+    def compute_delta(self, min_loc_1, min_loc_2):
+        C_matrix = self.build_capacitance_matrix() * self.Phi0 ** 2
+        U_matrix = self.build_gamma_matrix(0) * self.Phi0 ** 2
+        vec_mag = np.linalg.norm(min_loc_2-min_loc_1)
+        unit_vec = (min_loc_2 - min_loc_1)/vec_mag
+        a = vec_mag/2.0
+        effective_mass = unit_vec @ C_matrix @ unit_vec
+        effective_potential = unit_vec @ U_matrix @ unit_vec
+        escape_frequency = np.sqrt(effective_potential/effective_mass)
+        prefactor = 2.0*escape_frequency*np.sqrt(effective_mass*escape_frequency*a**2/np.pi)
+        A, S0 = self.compute_action_integrals(effective_mass, escape_frequency, min_loc_1, min_loc_2)
+        return prefactor * np.exp(A) * np.exp(-S0)
+
+    def compute_delta_orlando(self, min_loc_1, min_loc_2):
+        C_matrix = self.build_capacitance_matrix() * self.Phi0 ** 2
+        U_matrix = self.build_gamma_matrix(0) * self.Phi0 ** 2
+        vec_mag = np.linalg.norm(min_loc_2 - min_loc_1)
+        unit_vec = (min_loc_2 - min_loc_1) / vec_mag
+        effective_mass = unit_vec @ C_matrix @ unit_vec
+        effective_potential = unit_vec @ U_matrix @ unit_vec
+        escape_frequency = np.sqrt(effective_potential / effective_mass)
+        prefactor = escape_frequency/(2.0*np.sqrt(np.pi*np.exp(1)))
+        S = self.compute_action_integral_orlando(effective_mass, min_loc_1, min_loc_2)
+        return prefactor * np.exp(-S)
+
+    def numerical_orlando(self):
+        alpha = 0.8
+        phi_m_star = np.arccos(1.0/(2.0*alpha))
+        S1 = np.sqrt(4.0*alpha*(1+2*alpha+0.02)/self.ECJ1)*(np.sin(phi_m_star)-phi_m_star/(2*alpha))
+        omega_m = np.sqrt(4*(4*alpha**2-1)/(alpha*(1+2*alpha+0.02)/self.ECJ1))
+        return (omega_m/(2.0*np.pi)) * np.exp(-S1)
+
+    def numerical_danny(self):
+        alpha = 0.8
+        zeta_1_star = 2.0*np.arccos(1.0/(2.0*alpha))
+        S1 = np.sqrt(4*alpha*(1+2*alpha+0.02)/self.ECJ1)*(np.sin(zeta_1_star/2.0)-zeta_1_star/(4*alpha))
+        omega_m = np.sqrt(4 * (4 * alpha ** 2 - 1) / (alpha * (1 + 2 * alpha + 0.02) / self.ECJ1))
+        return (omega_m/(2.0*np.pi)) * np.exp(-S1)
 
     def compare_harmonic_lengths_with_minima_separations(self):
         """
@@ -141,12 +206,17 @@ class VCHOS(ABC):
         if np.allclose(minima_pair[1], minima_pair[0]):  # Do not include equivalent minima in the same unit cell
             periodic_vecs = np.array([vec for vec in periodic_vecs
                                       if not np.allclose(vec, np.zeros_like(minima_pair[0]))])
-        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_pair[1] - minima_pair[0]))
+        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_pair[1] - minima_pair[0]))/2.0
                                      for vec in periodic_vecs])
         minima_vectors = np.array([2.0*np.pi*vec + (minima_pair[1] - minima_pair[0])
                                    for i, vec in enumerate(periodic_vecs)])
         minima_unit_vectors = np.array([minima_vectors[i] / minima_distances[i] for i in range(len(minima_distances))])
-        harmonic_lengths = np.array([(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
+        harmonic_lengths = np.array([4.0*(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
+        C_matrix = self.build_capacitance_matrix()*self.Phi0**2
+        U_matrix = self.build_gamma_matrix(0)*self.Phi0**2
+        effective_mass = np.array([unit_vec @ C_matrix @ unit_vec for unit_vec in minima_unit_vectors])
+        effective_potential = np.array([unit_vec @ U_matrix @ unit_vec for unit_vec in minima_unit_vectors])
+        harmonic_lengths_from_tensors = np.array([4.0*1.0/(effective_mass*effective_potential)**(1/4)])
         return np.max(harmonic_lengths / minima_distances)
 
     def Xi_matrix(self):
@@ -518,21 +588,21 @@ class VCHOS(ABC):
                                                                         evals_count, eigvals_only=False)
         return evals, evecs
 
+    def sorted_potential_values_and_minima(self):
+        minima_holder = np.array(self.find_minima())
+        value_of_potential = np.array([self.potential(minima) for minima in minima_holder])
+        sorted_indices = np.argsort(value_of_potential)
+        return value_of_potential[sorted_indices], minima_holder[sorted_indices, :]
+
     def sorted_minima(self):
         """Sort the minima based on the value of the potential at the minima """
-        minima_holder = self.find_minima()
-        value_of_potential = np.array([self.potential(minima_holder[x])
-                                       for x in range(len(minima_holder))])
-        sorted_value_holder = np.array([x for x, _ in
-                                        sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
-        sorted_minima_holder = np.array([x for _, x in
-                                         sorted(zip(value_of_potential, minima_holder), key=lambda x: x[0])])
+        sorted_value_of_potential, sorted_minima_holder = self.sorted_potential_values_and_minima()
         # For efficiency purposes, don't want to displace states into minima
         # that are too high energy. Arbitrarily set a 40 GHz cutoff
-        global_min = sorted_value_holder[0]
+        global_min = sorted_value_of_potential[0]
         dim = len(sorted_minima_holder)
         sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
-                                         if sorted_value_holder[i] < global_min + 40.0])
+                                         if sorted_value_of_potential[i] < global_min + 40.0])
         return sorted_minima_holder
 
     def _check_if_new_minima(self, new_minima, minima_holder):
@@ -541,8 +611,6 @@ class VCHOS(ABC):
         indeed a minimum and is already represented in minima_holder. If so,
         _check_if_new_minima returns False.
         """
-        if -self.potential(new_minima) <= 0:  # maximum or saddle point then, not a minimum
-            return False
         new_minima_bool = True
         for minima in minima_holder:
             diff_array = minima - new_minima
