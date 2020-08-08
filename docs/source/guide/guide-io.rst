@@ -28,9 +28,9 @@ Many of the computational routines for spectral data and parameter sweeps return
 
 
     import numpy as np
-    import scqubits
+    import scqubits as scq
 
-    transmon = scqubits.Transmon(...init parameters...)
+    transmon = scq.Transmon(...init parameters...)
 
     ng_list = np.linspace(-2, 2, 220)
     specdata = transmon.get_spectrum_vs_paramvals('ng', ng_list, get_eigenstates=True)
@@ -50,6 +50,13 @@ When using h5 files, data can also be read back from disk into a ``SpectrumData`
 
 
    newspecdata = SpectrumData.create_from_file('output.h5')
+
+
+or, even simpler by::
+
+   newspecdata = scq.read('output.h5')
+
+which automatically recognizes the object type as ``SpectrumData``.
 
 The following table lists the classes that can be saved to disk and read back from disk via
 ``<class>.filewrite(<filename>)`` and ``scqubits.read(<filename>)`` when using the `.h5` file format.

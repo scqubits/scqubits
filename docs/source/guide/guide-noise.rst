@@ -3,17 +3,17 @@
 
 .. _guide_noise:
 
-******
-Noise
-******
+**************************
+Estimating Coherence Times
+**************************
 
-scqubits implements noise calculations for estimating depolarization and pure dephasing times for a majority of the
-qubits implemented. For each qubit a variety of noise channels can be considered, ranging from ubiquitous channels
+scqubits implements noise calculations for estimating depolarization and pure-dephasing times for a majority of the
+qubits implemented. For each qubit, a variety of noise channels can be considered, ranging from ubiquitous channels
 affecting most circuits to more specialized ones applicable only to the qubit of interest.
 
 A list of the channels supported by a given qubit can be obtained by calling the ``supported_noise_channels()`` method.
 Each entry in the returned list represents a method that can be directly called on the qubit object.
-For example, in the case of  the ``TunableTransmon`` qubit, this could take this form::
+For example, in the case of  the ``TunableTransmon`` qubit, this could take the form::
 
     tune_tmon = scq.TunableTransmon(
         EJmax=20.0,
@@ -35,16 +35,16 @@ By default, all noise methods return a decay time (:math:`T_1` in the case of a 
 one can obtain the corresponding rate instead.
 
 The units of the returned decoherence times reflect the global units settings. For example, if the global units are set
-to ``GHz`` (default), then the resulting decay and dephasing times will be given in ``ns``. See the :ref:`guide_units`
-section for more information on how global units can be set.
+to ``GHz`` (default), then the resulting decay and dephasing times will be given in ``1/GHz = ns``.
+See the :ref:`guide_units` section for more information on how to set global units.
 
 By default, all noise calculations assume that the qubit Hilbert space is reduced to the lowest two energy levels.
-If needed, the user can provide different energy levels as arguments in order to redefine the relevant subspace.
+If needed, the user can provide different energy levels as arguments in order to extend the relevant subspace.
 
-A set of examples that show how many of the noise estimations can be calculated are presented in
-this `jupyter notebook <https://nbviewer.jupyter.org/github/scqubits/scqubits/blob/master/examples/demo_noise.ipynb>`_
+A set of examples that show how to perform a variety of cohrence-times estimates is presented in
+this `jupyter notebook <https://nbviewer.jupyter.org/github/scqubits/scqubits/blob/master/examples/demo_noise.ipynb>`_ .
 
-A more detailed discussion of each of the supporting noise channels is shown below.  
+More detailed discussions of the individual supported noise channels can be found in the following subsections.
 
 .. toctree::
    :maxdepth: 3
