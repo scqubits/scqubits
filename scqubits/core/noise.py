@@ -22,7 +22,7 @@ import scqubits.settings as settings
 
 
 def calc_therm_ratio(omega, T):
-    """Returns the ratio 
+    r"""Returns the ratio
     
     :math:`\beta \omega = \frac{\hbar \omega}{k_B T}`
 
@@ -35,8 +35,8 @@ def calc_therm_ratio(omega, T):
     T: float 
         temperature in Kelvin
 
-    Parameters
-    ----------
+    Returns
+    -------
     float
 
     """
@@ -70,7 +70,7 @@ class NoisySystem:
         return self.supported_noise_channels()
 
     def plot_coherence_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
-            spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+                                    spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Show plots of coherence for various channels supported by the qubit as they vary as a function of a
         changing parameter. 
@@ -78,7 +78,7 @@ class NoisySystem:
         For example, assuming `qubit` is a qubit object with `flux` being one of its parameters, one can 
         see how coherence due to various noise channels vary as the `flux` changes::
 
-            qubit.plot_coherence_vs_paramvals(param_name='flux', 
+            qubit.plot_coherence_vs_paramvals(param_name='flux',
                                               param_vals=np.linspace(-0.5, 0.5, 100), 
                                               scale=1e-3, ylabel=r"$\mu s$");
 
@@ -113,8 +113,8 @@ class NoisySystem:
 
         if spec_data is None:
 
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
-            # from the diagonalization.
+            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
+            # need from the diagonalization.
             # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
             max_level = max(common_noise_options.get('i', 1), common_noise_options.get('j', 1))
             for noise_channel in noise_channels:
@@ -123,8 +123,8 @@ class NoisySystem:
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
 
             spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
-                                                   subtract_ground=True, get_eigenstates=True, filename=None,
-                                                   num_cpus=num_cpus)
+                                                       subtract_ground=True, get_eigenstates=True, filename=None,
+                                                       num_cpus=num_cpus)
 
         # figure out how many plots we need to produce
         plot_grid = (1, 1) if len(noise_channels) == 1 else (math.ceil(len(noise_channels)/2), 2)
@@ -193,7 +193,7 @@ class NoisySystem:
         return fig, axes
 
     def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
-            spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+                                       spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Plot effective :math:`T_1` coherence as it varies as a function of changing parameter.
 
@@ -210,7 +210,7 @@ class NoisySystem:
         For example, assuming `qubit` is a qubit object with `flux` being one of its parameters, one can 
         see how the effective :math:`T_1` varies as the `flux` changes::
 
-            qubit.plot_t1_effective_vs_paramvals(param_name='flux', 
+            qubit.plot_t1_effective_vs_paramvals(param_name='flux',
                                                  param_vals=np.linspace(-0.5, 0.5, 100), 
                                                 );
 
@@ -247,8 +247,8 @@ class NoisySystem:
 
         if spec_data is None:
 
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
-            # from the diagonalization.
+            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
+            # need from the diagonalization.
             # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
             max_level = max(common_noise_options.get('i', 1), common_noise_options.get('j', 1))
             for noise_channel in noise_channels:
@@ -257,8 +257,8 @@ class NoisySystem:
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
 
             spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
-                                                   subtract_ground=True, get_eigenstates=True, filename=None,
-                                                   num_cpus=num_cpus)
+                                                       subtract_ground=True, get_eigenstates=True, filename=None,
+                                                       num_cpus=num_cpus)
 
         # remember current value of param_name
         current_val = getattr(self, param_name)
@@ -275,11 +275,11 @@ class NoisySystem:
         setattr(self, param_name, current_val)
 
         plotting_options = {'fig_ax': plt.subplots(1),
-                          'title': 't1_effective',
-                          'ylabel': units.get_units_time_label(),
-                          'xlabel': param_name,
-                          'yscale': 'log',
-                          'grid': True,
+                            'title': 't1_effective',
+                            'ylabel': units.get_units_time_label(),
+                            'xlabel': param_name,
+                            'yscale': 'log',
+                            'grid': True,
                             }
         plotting_options.update(kwargs)
         fig, axes = plotting.data_vs_paramvals(param_vals, noise_vals, **plotting_options)
@@ -289,7 +289,7 @@ class NoisySystem:
         return fig, axes
 
     def plot_t2_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
-            spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+                                       spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Plot effective :math:`T_2` coherence as it varies as a function of changing parameter.
 
@@ -306,7 +306,7 @@ class NoisySystem:
         For example, assuming `qubit` is a qubit object with `flux` being one of its parameters, one can 
         see how the effective :math:`T_2` varies as the `flux` changes::
 
-            qubit.plot_t2_effective_vs_paramvals(param_name='flux', 
+            qubit.plot_t2_effective_vs_paramvals(param_name='flux',
                                                  param_vals=np.linspace(-0.5, 0.5, 100), 
                                                 );
 
@@ -335,15 +335,15 @@ class NoisySystem:
 
         # If we're not given channels to consider, just use ones from the effective noise channel list
         noise_channels = [channel for
-                channel in self.effective_noise_channels()] if noise_channels is None else noise_channels
+                          channel in self.effective_noise_channels()] if noise_channels is None else noise_channels
 
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
         if spec_data is None:
 
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
-            # from the diagonalization.
+            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
+            # need from the diagonalization.
             # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
             max_level = max(common_noise_options.get('i', 1), common_noise_options.get('j', 1))
             for noise_channel in noise_channels:
@@ -352,8 +352,8 @@ class NoisySystem:
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
 
             spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
-                                                   subtract_ground=True, get_eigenstates=True, filename=None,
-                                                   num_cpus=num_cpus)
+                                                       subtract_ground=True, get_eigenstates=True, filename=None,
+                                                       num_cpus=num_cpus)
 
         # remember current value of param_name
         current_val = getattr(self, param_name)
@@ -370,11 +370,11 @@ class NoisySystem:
         setattr(self, param_name, current_val)
 
         plotting_options = {'fig_ax': plt.subplots(1),
-                          'title': 't2_effective',
-                          'ylabel': units.get_units_time_label(),
-                          'xlabel': param_name,
-                          'yscale': 'log',
-                          'grid': True,
+                            'title': 't2_effective',
+                            'ylabel': units.get_units_time_label(),
+                            'xlabel': param_name,
+                            'yscale': 'log',
+                            'grid': True,
                             }
         plotting_options.update(kwargs)
         fig, axes = plotting.data_vs_paramvals(param_vals, noise_vals, **plotting_options)
@@ -498,8 +498,8 @@ class NoisySystem:
                 raise ValueError("Only t1 channels can contribute to effective t1 noise.")
 
         if esys is None:
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
-            # from the diagonalization.
+            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
+            # need from the diagonalization.
             # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
             max_level = max(common_noise_options.get('i', 1), common_noise_options.get('j', 1))
             for noise_channel in noise_channels:
@@ -509,10 +509,8 @@ class NoisySystem:
 
             esys = self.eigensys(evals_count=max_level+1)
 
-        rate = self._effective_rate(noise_channels=noise_channels,
-                                            common_noise_options=common_noise_options,
-                                            esys=esys,
-                                            noise_type='t1')
+        rate = self._effective_rate(noise_channels=noise_channels, common_noise_options=common_noise_options, esys=esys,
+                                    noise_type='t1')
         if get_rate:
             return rate
         else:
@@ -558,7 +556,7 @@ class NoisySystem:
 
         # If we're not given channels to consider, just use ones from the effective noise channels list
         noise_channels = [channel for
-                channel in self.effective_noise_channels()] if noise_channels is None else noise_channels
+                          channel in self.effective_noise_channels()] if noise_channels is None else noise_channels
 
         # If we're given only a single channel as a string, make it a one entry list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
@@ -575,10 +573,8 @@ class NoisySystem:
 
             esys = self.eigensys(evals_count=max_level+1)
 
-        rate = self._effective_rate(noise_channels=noise_channels,
-                                            common_noise_options=common_noise_options,
-                                            esys=esys,
-                                            noise_type='tphi')
+        rate = self._effective_rate(noise_channels=noise_channels, common_noise_options=common_noise_options, esys=esys,
+                                    noise_type='tphi')
 
         if get_rate:
             return rate
@@ -602,8 +598,8 @@ class NoisySystem:
             state index that along with i defines a qubit
         noise_op: operator (ndarray)
             noise operator, typically Hamiltonian derivative w.r.t. noisy parameter
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -654,8 +650,8 @@ class NoisySystem:
             state index that along with j defines a qubit
         j: int >=0
             state index that along with i defines a qubit
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -684,8 +680,8 @@ class NoisySystem:
             state index that along with j defines a qubit
         j: int >=0
             state index that along with i defines a qubit
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -714,8 +710,8 @@ class NoisySystem:
             state index that along with j defines a qubit
         j: int >=0
             state index that along with i defines a qubit
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -756,12 +752,13 @@ class NoisySystem:
         noise_op: operator (ndarray)
             noise operator
         spectral_density: callable object 
-            defines a spectral density, must take one argument: `omega` (assumed to be in units of `2 \pi * <system units>`)
+            defines a spectral density, must take one argument: `omega`
+            (assumed to be in units of `2 \pi * <system units>`)
         total: bool
             if False return a time/rate associated with a transition from state i to state j.
             if True return a time/rate associated with both i to j and j to i transitions
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -819,8 +816,8 @@ class NoisySystem:
         total: bool
             if False return a time/rate associated with a transition from state i to state j.
             if True return a time/rate associated with both i to j and j to i transitions
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -880,8 +877,8 @@ class NoisySystem:
         total: bool
             if False return a time/rate associated with a transition from state i to state j.
             if True return a time/rate associated with both i to j and j to i transitions
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -936,8 +933,8 @@ class NoisySystem:
         total: bool
             if False return a time/rate associated with a transition from state i to state j.
             if True return a time/rate associated with both i to j and j to i transitions
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -984,8 +981,8 @@ class NoisySystem:
         total: bool
             if False return a time/rate associated with a transition from state i to state j.
             if True return a time/rate associated with both i to j and j to i transitions
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -1028,7 +1025,7 @@ class NoisySystem:
         References: Smith et al (2020)
 
         TODO 
-            - Careful about correctness/applicability of this. Seems this strongly depends on admitance each junction sees.
+            - Careful about correctness/applicability of this. Seems this strongly depends on admittance each junction sees.
             - Need to check the factor of 1/2 in the operator
 
         Returns
@@ -1049,6 +1046,7 @@ class NoisySystem:
             y_qp_fun = Y_qp
         else:  # Y_qp is given as a number
             def y_qp_fun(omega): return Y_qp
+
         def spectral_density(omega, Y_qp=Y_qp):
             """
             Our definitions assume that the noise_op is dH/dflux.
