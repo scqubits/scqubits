@@ -25,10 +25,12 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
 
+
 # - ZeroPi noise class
 
 class NoisyFullZeroPi(NoisySystem):
     pass
+
 
 class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
@@ -273,7 +275,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_EJ(),
                                                       zeropi_evecs=zeropi_evecs)
 
-
     def d_hamiltonian_d_ng(self):
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
@@ -284,7 +285,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             matrix representing the derivative of the Hamiltonian
         """
         return -8 * self.EC * self.n_theta_operator()
-
 
     def _zeropi_operator_in_product_basis(self, zeropi_operator, zeropi_evecs=None):
         """Helper method that converts a zeropi operator into one in the product basis.

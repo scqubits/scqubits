@@ -270,12 +270,12 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     basis,
     :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{h.c.})`,
     Here, the effective Josephson energy is flux-tunable:
-     :math:`\mathcal{E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(\pi\Phi/\Phi_0)}`
+    :math:`\mathcal{E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(\pi\Phi/\Phi_0)}`
     and :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes th junction asymmetry.
 
     Initialize with, for example::
 
-        Transmon2J(EJmax=1.0, d=0.1, EC=2.0, flux=0.3, ng=0.2, ncut=30)
+        TunableTransmon(EJmax=1.0, d=0.1, EC=2.0, flux=0.3, ng=0.2, ncut=30)
 
     Parameters
     ----------

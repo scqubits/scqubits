@@ -151,7 +151,6 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         exp_matrix = self.exp_i_phi_operator(alpha, beta)
         return 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
-
     def sin_phi_operator(self, alpha=1, beta=0):
         """
         Returns
@@ -188,13 +187,12 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         return - self.cos_phi_operator(1,  2 * np.pi * self.flux)
 
-
     def d_hamiltonian_d_flux(self):
         """Returns operator representing a derivittive of the Hamiltonian with respect to `flux`.
 
         TODO How do we group the flux here? At the moment keep what's done in the Hamiltonian
         """
-        return  - 2 * np.pi * self.EJ * self.sin_phi_operator(1,  2 * np.pi * self.flux)
+        return -2 * np.pi * self.EJ * self.sin_phi_operator(1,  2 * np.pi * self.flux)
 
     def hilbertdim(self):
         """

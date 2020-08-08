@@ -43,6 +43,7 @@ else:
 # To facilitate warnings in set_units, introduce a counter keeping track of the number of QuantumSystem instances
 _QUANTUMSYSTEM_COUNTER = 0
 
+
 # —Generic quantum system container and Qubit base class—————————————————————————————————
 
 class QuantumSystem(DispatchClient, ABC):
