@@ -69,8 +69,8 @@ class NoisySystem:
         """
         return self.supported_noise_channels()
 
-    def plot_coherence_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
-            spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+    def plot_coherence_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options=None,
+            spectrum_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Show plots of coherence for various channels supported by the qubit as they vary as a function of a
         changing parameter. 
@@ -93,7 +93,7 @@ class NoisySystem:
             channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
         common_noise_options: dict
             common options used when calculating coherence times
-        spec_data: SpectrumData
+        spectrum_data: SpectrumData
             spectral data used during noise calculations 
         scale: float
             a number that all data is multiplied by before being plotted
@@ -105,13 +105,15 @@ class NoisySystem:
         Figure, Axes
 
         """
+        common_noise_options = {} if common_noise_options is None else common_noise_options
+
         # if we're not told what channels to consider, just use the supported list
         noise_channels = self.supported_noise_channels() if noise_channels is None else noise_channels
 
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
-        if spec_data is None:
+        if spectrum_data is None:
 
             # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
             # from the diagonalization.
@@ -122,7 +124,7 @@ class NoisySystem:
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
 
-            spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
+            spectrum_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
                                                    subtract_ground=True, get_eigenstates=True, filename=None,
                                                    num_cpus=num_cpus)
 
@@ -156,7 +158,7 @@ class NoisySystem:
 
                 # calculate the noise over the full param span in param_vals
                 noise_vals = [scale * getattr(self.set_and_return(param_name, v), noise_channel_method)(
-                    esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]),
+                    esys=(spectrum_data.energy_table[v_i, :], spectrum_data.state_table[v_i]),
                     **common_noise_options)
                     for v_i, v in enumerate(param_vals)]
 
@@ -172,7 +174,7 @@ class NoisySystem:
 
                 # calculate the noise over the full param span in param_vals
                 noise_vals = [scale * getattr(self.set_and_return(param_name, v), noise_channel_method)(
-                              esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i]),
+                              esys=(spectrum_data.energy_table[v_i, :], spectrum_data.state_table[v_i]),
                               **options)
                               for v_i, v in enumerate(param_vals)]
 
@@ -192,8 +194,8 @@ class NoisySystem:
 
         return fig, axes
 
-    def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
-            spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+    def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options=None,
+            spectrum_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Plot effective :math:`T_1` coherence as it varies as a function of changing parameter.
 
@@ -224,7 +226,7 @@ class NoisySystem:
             channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
         common_noise_options: dict
             common options used when calculating coherence times
-        spec_data: SpectrumData
+        spectrum_data: SpectrumData
             spectral data used during noise calculations 
         scale: float
             a number that all data is multiplied by before being plotted
@@ -236,6 +238,7 @@ class NoisySystem:
         Figure, Axes
 
         """
+        common_noise_options = {} if common_noise_options is None else common_noise_options
 
         # If we're not given channels to consider, just use the effective noise channel list that
         # correspond to t1 processes
@@ -245,7 +248,7 @@ class NoisySystem:
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
-        if spec_data is None:
+        if spectrum_data is None:
 
             # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
             # from the diagonalization.
@@ -256,7 +259,7 @@ class NoisySystem:
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
 
-            spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
+            spectrum_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
                                                    subtract_ground=True, get_eigenstates=True, filename=None,
                                                    num_cpus=num_cpus)
 
@@ -267,7 +270,7 @@ class NoisySystem:
         noise_vals = [scale * self.set_and_return(param_name, v).t1_effective(
             noise_channels=noise_channels,
             common_noise_options=common_noise_options,
-            esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i])
+            esys=(spectrum_data.energy_table[v_i, :], spectrum_data.state_table[v_i])
         )
             for v_i, v in enumerate(param_vals)]
 
@@ -288,8 +291,8 @@ class NoisySystem:
 
         return fig, axes
 
-    def plot_t2_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options={},
-            spec_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+    def plot_t2_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options=None,
+            spectrum_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Plot effective :math:`T_2` coherence as it varies as a function of changing parameter.
 
@@ -320,7 +323,7 @@ class NoisySystem:
             channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
         common_noise_options: dict
             common options used when calculating coherence times
-        spec_data: SpectrumData
+        spectrum_data: SpectrumData
             spectral data used during noise calculations 
         scale: float
             a number that all data is multiplied by before being plotted
@@ -332,6 +335,7 @@ class NoisySystem:
         Figure, Axes
 
         """
+        common_noise_options = {} if common_noise_options is None else common_noise_options
 
         # If we're not given channels to consider, just use ones from the effective noise channel list
         noise_channels = [channel for
@@ -340,7 +344,7 @@ class NoisySystem:
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
-        if spec_data is None:
+        if spectrum_data is None:
 
             # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
             # from the diagonalization.
@@ -351,7 +355,7 @@ class NoisySystem:
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
 
-            spec_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
+            spectrum_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
                                                    subtract_ground=True, get_eigenstates=True, filename=None,
                                                    num_cpus=num_cpus)
 
@@ -362,7 +366,7 @@ class NoisySystem:
         noise_vals = [scale * self.set_and_return(param_name, v).t2_effective(
             noise_channels=noise_channels,
             common_noise_options=common_noise_options,
-            esys=(spec_data.energy_table[v_i, :], spec_data.state_table[v_i])
+            esys=(spectrum_data.energy_table[v_i, :], spectrum_data.state_table[v_i])
         )
             for v_i, v in enumerate(param_vals)]
 
@@ -446,7 +450,7 @@ class NoisySystem:
 
         return rate
 
-    def t1_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
+    def t1_effective(self, noise_channels=None, common_noise_options=None, esys=None, get_rate=False, **kwargs):
         r"""
         Calculate the effective :math:`T_1` time (or rate). 
 
@@ -483,6 +487,8 @@ class NoisySystem:
 
 
         """
+        common_noise_options = {} if common_noise_options is None else common_noise_options
+
         # If we're not given channels to consider, just use the effective noise channel list that
         # correspond to t1 processes
         noise_channels = [channel for channel in self.effective_noise_channels()
@@ -518,7 +524,7 @@ class NoisySystem:
         else:
             return 1/rate if rate != 0 else np.inf
 
-    def t2_effective(self, noise_channels=None, common_noise_options={}, esys=None, get_rate=False, **kwargs):
+    def t2_effective(self, noise_channels=None, common_noise_options=None, esys=None, get_rate=False, **kwargs):
         r"""
         Calculate the effective :math:`T_2` time (or rate). 
 
@@ -555,6 +561,7 @@ class NoisySystem:
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
+        common_noise_options = {} if common_noise_options is None else common_noise_options
 
         # If we're not given channels to consider, just use ones from the effective noise channels list
         noise_channels = [channel for
@@ -619,7 +626,7 @@ class NoisySystem:
             raise ValueError("Level indices 'i' and 'j' must be different, and i,j>=0")
 
         p = {key: NOISE_PARAMS[key] for key in ['omega_low', 'omega_high', 't_exp']}
-        p.update(params)
+        p.update(kwargs)
 
         evals, evecs = self.eigensys(evals_count=max(j, i)+1) if esys is None else esys
 
