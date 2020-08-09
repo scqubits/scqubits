@@ -43,6 +43,7 @@ else:
 # To facilitate warnings in set_units, introduce a counter keeping track of the number of QuantumSystem instances
 _QUANTUMSYSTEM_COUNTER = 0
 
+
 # —Generic quantum system container and Qubit base class—————————————————————————————————
 
 class QuantumSystem(DispatchClient, ABC):
@@ -153,7 +154,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def eigenvals(self, evals_count=6, filename=None):
+    def eigenvals(self, evals_count=6, filename=None, return_spectrumdata=False):
         """Calculates eigenvalues using `scipy.linalg.eigh`, returns numpy array of eigenvalues.
 
         Parameters
@@ -162,18 +163,22 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of desired eigenvalues/eigenstates (default value = 6)
         filename: str, optional
             path and filename without suffix, if file output desired (default value = None)
+        return_spectrumdata: bool, optional
+            if set to true, the returned data is provided as a SpectrumData object (default value = False)
 
         Returns
         -------
-        ndarray
+        ndarray or SpectrumData
+            eigenvalues as ndarray or in form of a SpectrumData object
         """
         evals = self._evals_calc(evals_count)
-        if filename:
+        if filename or return_spectrumdata:
             specdata = SpectrumData(energy_table=evals, system_params=self.get_initdata())
+        if filename:
             specdata.filewrite(filename)
-        return evals
+        return specdata if return_spectrumdata else evals
 
-    def eigensys(self, evals_count=6, filename=None):
+    def eigensys(self, evals_count=6, filename=None, return_spectrumdata=False):
         """Calculates eigenvalues and corresponding eigenvectors using `scipy.linalg.eigh`. Returns
         two numpy arrays containing the eigenvalues and eigenvectors, respectively.
 
@@ -183,19 +188,22 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of desired eigenvalues/eigenstates (default value = 6)
         filename: str, optional
             path and filename without suffix, if file output desired (default value = None)
+        return_spectrumdata: bool, optional
+            if set to true, the returned data is provided as a SpectrumData object (default value = False)
 
         Returns
         -------
-        ndarray, ndarray
-            eigenvalues, eigenvectors
+        tuple(ndarray, ndarray) or SpectrumData
+            eigenvalues, eigenvectors as numpy arrays or in form of a SpectrumData object
         """
         evals, evecs = self._esys_calc(evals_count)
-        if filename:
+        if filename or return_spectrumdata:
             specdata = SpectrumData(energy_table=evals, system_params=self.get_initdata(), state_table=evecs)
+        if filename:
             specdata.filewrite(filename)
-        return evals, evecs
+        return specdata if return_spectrumdata else (evals, evecs)
 
-    def matrixelement_table(self, operator, evecs=None, evals_count=6, filename=None):
+    def matrixelement_table(self, operator, evecs=None, evals_count=6, filename=None, return_datastore=False):
         """Returns table of matrix elements for `operator` with respect to the eigenstates of the qubit.
         The operator is given as a string matching a class method returning an operator matrix.
         E.g., for an instance `trm` of Transmon,  the matrix element table for the charge operator is given by
@@ -212,6 +220,8 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of desired matrix elements, starting with ground state (default value = 6)
         filename: str, optional
             output file name
+        return_datastore: bool, optional
+            if set to true, the returned data is provided as a DataStore object (default value = False)
 
         Returns
         -------
@@ -221,10 +231,11 @@ class QubitBaseClass(QuantumSystem, ABC):
             _, evecs = self.eigensys(evals_count=evals_count)
         operator_matrix = getattr(self, operator)()
         table = get_matrixelement_table(operator_matrix, evecs)
+        if filename or return_datastore:
+            data_store = DataStore(system_params=self.get_initdata(), matrixelem_table=table)
         if filename:
-            specdata = DataStore(system_params=self.get_initdata(), matrixelem_table=table)
-            specdata.filewrite(filename)
-        return table
+            data_store.filewrite(filename)
+        return data_store if return_datastore else table
 
     def _esys_for_paramval(self, paramval, param_name, evals_count):
         setattr(self, param_name, paramval)

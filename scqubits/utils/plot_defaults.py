@@ -15,7 +15,6 @@ import numpy as np
 import scqubits
 import scqubits.core.constants as constants
 import scqubits.core.units as units
-import scqubits.settings as settings
 
 
 NAME_REPLACEMENTS = {

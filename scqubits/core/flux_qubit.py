@@ -42,8 +42,8 @@ class NoisyFluxQubit(NoisySystem):
             state index that along with j defines a qubit
         j: int >=0
             state index that along with i defines a qubit
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -57,7 +57,7 @@ class NoisyFluxQubit(NoisySystem):
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc1' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ1(),
-                                            esys=esys, get_rate=get_rate, **kwargs)
+                                  esys=esys, get_rate=get_rate, **kwargs)
 
     def tphi_1_over_f_cc2(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **kwargs):
         r"""
@@ -72,8 +72,8 @@ class NoisyFluxQubit(NoisySystem):
             state index that along with j defines a qubit
         j: int >=0
             state index that along with i defines a qubit
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -88,7 +88,7 @@ class NoisyFluxQubit(NoisySystem):
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc2' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ2(),
-                                            esys=esys, get_rate=get_rate, **kwargs)
+                                  esys=esys, get_rate=get_rate, **kwargs)
 
     def tphi_1_over_f_cc3(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **kwargs):
         r"""
@@ -103,8 +103,8 @@ class NoisyFluxQubit(NoisySystem):
             state index that along with j defines a qubit
         j: int >=0
             state index that along with i defines a qubit
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
 
@@ -112,21 +112,18 @@ class NoisyFluxQubit(NoisySystem):
         -------
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
-
         """
 
         if 'tphi_1_over_f_cc3' not in self.supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc3' is not supported in this system.")
 
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_EJ3(),
-                                            esys=esys, get_rate=get_rate, **kwargs)
+                                  esys=esys, get_rate=get_rate, **kwargs)
 
     def tphi_1_over_f_cc(self, A_noise=NOISE_PARAMS['A_cc'], i=0, j=1, esys=None, get_rate=False, **kwargs):
-        """
-        Calculate the 1/f dephasing time (or rate) due to critical current noise from all three Josephson junctions
+        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise from all three Josephson junctions
         :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The combined noise is calculated by summing the rates from the 
         individual contributions.
-
 
         Parameters
         -----------
@@ -136,26 +133,24 @@ class NoisyFluxQubit(NoisySystem):
             state index that along with j defines a qubit
         j: int >=0
             state index that along with i defines a qubit
-        esys: tupple(ndarray, ndarray)
-            evals, evecs tupple
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
         get_rate: bool
             get rate or time
-
 
         Returns
         -------
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
-
         """
 
         if 'tphi_1_over_f_cc' not in self.supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system.")
 
-        rate =  self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
+        rate = self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
         rate += self.tphi_1_over_f_cc2(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
         rate += self.tphi_1_over_f_cc3(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
-
+        # TODO: MISSING
         if get_rate:
             return rate
         else:
@@ -184,7 +179,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
         EJ = 35.0
         alpha = 0.6
-        flux_qubit = qubit.FluxQubit(EJ1 = EJ, EJ2 = EJ, EJ3 = alpha*EJ,
+        flux_qubit = scq.FluxQubit(EJ1 = EJ, EJ2 = EJ, EJ3 = alpha*EJ,
                                      ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0/alpha,
                                      ECg1 = 50.0, ECg2 = 50.0, ng1 = 0.0, ng2 = 0.0,
                                      flux = 0.5, ncut = 10)
@@ -338,8 +333,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     def d_hamiltonian_d_EJ1(self):
         """Returns operator representing a derivittive of the Hamiltonian with respect to EJ1."""
-        return -0.5 * np.kron(self._exp_i_phi_operator() + self._exp_i_phi_operator().T,
-                                                  self._identity())
+        return -0.5 * np.kron(self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity())
 
     def d_hamiltonian_d_EJ2(self):
         """Returns operator representing a derivittive of the Hamiltonian with respect to EJ2."""

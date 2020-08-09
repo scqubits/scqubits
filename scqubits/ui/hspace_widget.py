@@ -97,7 +97,7 @@ class HilbertSpaceUi:
         ])
         self.interact_box.layout.display = 'none'
 
-        # == Central run button, status output field ====================================================================
+        # == Central run button, status output field ===================================================================
         self.run_button = ipywidgets.Button(description='Create HilbertSpace object',
                                             layout=ipywidgets.Layout(width='200px'))
         self.status_output = ipywidgets.Output()

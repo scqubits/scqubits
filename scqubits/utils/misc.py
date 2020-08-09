@@ -137,7 +137,8 @@ def qt_ket_to_ndarray(qobj_ket):
     # Qutip's `.eigenstates()` returns an object-valued ndarray, each entry of which is a Qobj ket.
     return np.asarray(qobj_ket.data.todense())
 
-def numeric_der(y,x):
+
+def numeric_der(y, x):
     """
     First derivative using central difference calculation. 
     Works with arbitrary x-spacing between points. 

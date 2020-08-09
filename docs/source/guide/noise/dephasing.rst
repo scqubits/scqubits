@@ -4,24 +4,26 @@
 Dephasing
 ==============
 
-Dephasing noise leads to loss of coherence associated with relative phases between different levels of a quantum system.
+Dephasing noise leads to loss of coherence, i.e., the relative phases associated with superpositions of multiple states
+are lost over time.
 
 
 1/f noise
 ---------------
 
-One of the most important noise channels that affects superconducting qubits is 1/f dephasing noise. The spectral
+One of the most important noise channels affecting superconducting qubits is 1/f noise. The spectral
 density function characterizing this noise is given by
 
 .. math::
 
    S(\omega) = \frac{2 \pi A_{\lambda}^{2} }{|\omega|}.
 
-It typically leads to slow fluctuations of the energy level spacing, resulting in dephasing [Ithier2005]_.
-In the above expression, :math:`A_{\lambda}` corresponds to a strength of a particular noise channel :math:`\lambda`.
-scqubits provides sensible defaults, for this quantity. Alternative values can also be set by the user.
+1/f noise typically leads to slow fluctuations of the energy-level spacing, resulting in dephasing [Ithier2005]_.
+In the above expression, :math:`A_{\lambda}` corresponds to the amplitude or strength of the particular noise
+channel :math:`\lambda`. scqubits uses sensible default values for this quantity based on the literature. Alternative
+values can be set by the user.
 
-The resulting dephasing time is given by 
+The resulting dephasing time (away from sweet spots) is given by
 
 .. math::
 
@@ -40,10 +42,10 @@ with the following parameters:
 
 The frequency derivatives in the above expressions are calculated from matrix elements of :math:`\partial_\lambda H`. 
 
-The most general method that can be used to calculate 1/f dephasing noise from an arbitrary noise channel
-is given by ``tphi_1_over_f()``. However, assuming a given qubit supports it, each of the common 1/f noise channels
-has its own predefined method, with appropriately set defaults (such as the noise strength :math:`A_{\lambda}`
-as well as the correct noise operator :math:`\partial_\lambda H`).
+The general-purpose scqubits method for calculating 1/f dephasing times due to an arbitrary noise channel
+is given by ``tphi_1_over_f()``. Depending on the qubit of interest, more specific methods for the different kinds
+of 1/f noise channels are available. These set appropriate defaults for noise strength :math:`A_{\lambda}`,
+the correct noise operator :math:`\partial_\lambda H`, etc.
 
 
 See the API for method signatures. 
@@ -87,7 +89,9 @@ Qubits that support this noise channel include: ``Transmon``, ``TunableTransmon`
 
 1/f criticial current noise
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The critical current noise is suspected to arise from trapping and de-trapping of charges at defect sites of Josephson junctions. These trapped charges then may drop the tunneling through some regions of the junction, leading to current fluctuations.   
+Critical-current noise is suspected to arise from trapping and de-trapping of charges at defect sites inside Josephson
+junctions. These trapped charges then may locally suppress or enhance the tunneling across the junction, leading to
+fluctuations of the critical current.
 
 .. autosummary::
 

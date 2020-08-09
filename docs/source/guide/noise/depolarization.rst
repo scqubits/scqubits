@@ -4,8 +4,9 @@
 Depolarization
 ================
 
-Depolarization noise captures spontaneous transitions between eigenstates. scqubits uses the standard perturbative
-approach (Fermi's Golden Rule) to approximate the resulting transition rates due to different noise channels.
+Noise may cause depolarization of the qubit by inducing spontaneous transitions among eigenstates. scqubits uses the
+standard perturbative approach (Fermi's Golden Rule) to approximate the resulting transition rates due to different
+noise channels.
 
 The rate of a transition from state :math:`i` to state :math:`j` can be expressed as
 
@@ -14,9 +15,9 @@ The rate of a transition from state :math:`i` to state :math:`j` can be expresse
    \Gamma_{ij} = \frac{1}{\hbar^2} |\langle i| A_{\lambda} |j \rangle|^2 S(\omega_{ij}),
 
 where :math:`A_\lambda` is the noise operator, and :math:`S(\omega_{ij})` the spectral density function evaluated at
-the angular frequency :math:`\omega_{ij} = \omega_{j} - \omega_{i}`. A positive :math:`\omega_{ij}` corresponds to a
-decay (the system emits energy to the bath), while a negative :math:`\omega_{ij}` implies an excitation of the system
-(the system absorbs energy from the bath).
+the angular frequency associated with the transition frequeny, :math:`\omega_{ij} = \omega_{j} - \omega_{i}`.
+:math:`\omega_{ij}` is positive in the case of  decay (the qubit emits energy to the bath), and negative in case of
+excitations (the qubit absorbs energy from the bath).
 
 Unless stated otherwise, it is assumed that the depolarizing noise channels satisfy detailed balanced. This implies
 
