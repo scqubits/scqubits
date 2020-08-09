@@ -15,6 +15,7 @@ User Guide
    guide-qubits.rst
    guide-noise.rst
    ./ipynb/hilbertspace.ipynb
+   ./ipynb/paramsweep.ipynb
    ./ipynb/explorer.ipynb
    guide-plot-options.rst
    guide-units.rst
