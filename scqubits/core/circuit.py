@@ -563,9 +563,10 @@ class Circuit(base.QubitBaseClass):
         Up = self.phase_potential.ravel()*state_vector
         Tp = np.fft.ifftshift(np.fft.ifftn(np.fft.ifftshift(self.charge_potential*phi))).ravel()
         if self.real_mode is False:
-            return Up + Tp
+            Hp = Up + Tp
         else:
-            return np.real(Up + Tp)
+            Hp = np.real(Up + Tp)
+        return Hp
 
     def capacitance_matrix(self, symbolic=False):
         """
