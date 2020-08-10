@@ -73,8 +73,12 @@ class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers
         result = minimize(self.potential, guess)
         new_minima = self._check_if_new_minima(result.x, minima_holder)
         if new_minima:
-            minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result.x]))
+            minima_holder.append(self.normalize_minimum_inside_pi_range(result.x))
         return minima_holder, new_minima
+
+    def normalize_minimum_inside_pi_range(self, minimum):
+        minimum = np.array([np.mod(elem, 2*np.pi) for elem in minimum])
+        return np.array([elem - 2*np.pi if elem > np.pi else elem for elem in minimum])
 
     def find_minima(self):
         """
@@ -86,7 +90,7 @@ class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers
         else:
             guess = np.array([0.0, 0.0])
         result = minimize(self.potential, guess)
-        minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result.x]))
+        minima_holder.append(self.normalize_minimum_inside_pi_range(result.x))
         for k in range(1, 4):
             (minima_holder, new_minima_positive) = self._ramp(k, minima_holder)
             (minima_holder, new_minima_negative) = self._ramp(-k, minima_holder)

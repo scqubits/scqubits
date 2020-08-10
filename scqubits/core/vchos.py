@@ -122,70 +122,6 @@ class VCHOS(ABC):
         omega_squared, _ = self.eigensystem_normal_modes(i)
         return np.sqrt(omega_squared)
 
-    def _S0_integrand(self, m, min_loc_1, min_loc_2, t):
-        line_of_sight_vec = t*(min_loc_2 - min_loc_1) + min_loc_1
-        return np.sqrt(2.0*m*(self.potential(line_of_sight_vec) - self.potential(min_loc_1)))
-
-    def _A_integrand(self, m, omega, min_loc_1, min_loc_2, t):
-        line_of_sight_vec = t*(min_loc_2 - min_loc_1) + min_loc_1
-        return (m*omega/np.sqrt(2*m*(self.potential(line_of_sight_vec) - self.potential(min_loc_1)))
-                - 1/np.linalg.norm(min_loc_2 - line_of_sight_vec))
-
-    def _S_integrand(self, m, min_loc_1, min_loc_2, t):
-        line_of_sight_vec = t * (min_loc_2 - min_loc_1) + min_loc_1
-        return np.sqrt(2*m*(self.potential(line_of_sight_vec)-self.potential(min_loc_1)))
-
-    def compute_action_integrals(self, m, omega, min_loc_1, min_loc_2):
-        S0_func = partial(self._S0_integrand, m, min_loc_1, min_loc_2)
-        A_func = partial(self._A_integrand, m, omega, min_loc_1, min_loc_2)
-        S0 = quad(S0_func, 0.0, 1.0)
-        A = quad(A_func, 0.0, 1.0)
-        return A[0], S0[0]
-
-    def compute_action_integral_orlando(self, m, min_loc_1, min_loc_2):
-        S_func = partial(self._S_integrand, m, min_loc_1, min_loc_2)
-        S = quad(S_func, 0.0, 1.0)
-        return S[0]
-
-    def compute_delta(self, min_loc_1, min_loc_2):
-        C_matrix = self.build_capacitance_matrix() * self.Phi0 ** 2
-        U_matrix = self.build_gamma_matrix(0) * self.Phi0 ** 2
-        vec_mag = np.linalg.norm(min_loc_2-min_loc_1)
-        unit_vec = (min_loc_2 - min_loc_1)/vec_mag
-        a = vec_mag/2.0
-        effective_mass = unit_vec @ C_matrix @ unit_vec
-        effective_potential = unit_vec @ U_matrix @ unit_vec
-        escape_frequency = np.sqrt(effective_potential/effective_mass)
-        prefactor = 2.0*escape_frequency*np.sqrt(effective_mass*escape_frequency*a**2/np.pi)
-        A, S0 = self.compute_action_integrals(effective_mass, escape_frequency, min_loc_1, min_loc_2)
-        return prefactor * np.exp(A) * np.exp(-S0)
-
-    def compute_delta_orlando(self, min_loc_1, min_loc_2):
-        C_matrix = self.build_capacitance_matrix() * self.Phi0 ** 2
-        U_matrix = self.build_gamma_matrix(0) * self.Phi0 ** 2
-        vec_mag = np.linalg.norm(min_loc_2 - min_loc_1)
-        unit_vec = (min_loc_2 - min_loc_1) / vec_mag
-        effective_mass = unit_vec @ C_matrix @ unit_vec
-        effective_potential = unit_vec @ U_matrix @ unit_vec
-        escape_frequency = np.sqrt(effective_potential / effective_mass)
-        prefactor = escape_frequency/(2.0*np.sqrt(np.pi*np.exp(1)))
-        S = self.compute_action_integral_orlando(effective_mass, min_loc_1, min_loc_2)
-        return prefactor * np.exp(-S)
-
-    def numerical_orlando(self):
-        alpha = 0.8
-        phi_m_star = np.arccos(1.0/(2.0*alpha))
-        S1 = np.sqrt(4.0*alpha*(1+2*alpha+0.02)/self.ECJ1)*(np.sin(phi_m_star)-phi_m_star/(2*alpha))
-        omega_m = np.sqrt(4*(4*alpha**2-1)/(alpha*(1+2*alpha+0.02)/self.ECJ1))
-        return (omega_m/(2.0*np.pi)) * np.exp(-S1)
-
-    def numerical_danny(self):
-        alpha = 0.8
-        zeta_1_star = 2.0*np.arccos(1.0/(2.0*alpha))
-        S1 = np.sqrt(4*alpha*(1+2*alpha+0.02)/self.ECJ1)*(np.sin(zeta_1_star/2.0)-zeta_1_star/(4*alpha))
-        omega_m = np.sqrt(4 * (4 * alpha ** 2 - 1) / (alpha * (1 + 2 * alpha + 0.02) / self.ECJ1))
-        return (omega_m/(2.0*np.pi)) * np.exp(-S1)
-
     def compare_harmonic_lengths_with_minima_separations(self):
         """
         Returns
@@ -193,19 +129,80 @@ class VCHOS(ABC):
         ndarray
             oscillator lengths of the mode frequencies about the global minimum
         """
+        return self._wrapper_for_functions_comparing_minima(self._find_closest_periodic_minimum)
+
+    def compute_tunneling_amplitudes(self):
+        return self._wrapper_for_functions_comparing_minima(self._compute_tunneling_amplitude_for_pair)
+
+    def _wrapper_for_functions_comparing_minima(self, function):
         sorted_minima = self.sorted_minima()
         periodic_vecs = self._find_relevant_periodic_continuation_vectors()
         all_minima_pairs = list(itertools.combinations_with_replacement(sorted_minima, 2))
-        comparison = np.array([self._find_closest_periodic_minimum(minima_pair, periodic_vecs[i])
-                               for i, minima_pair in enumerate(all_minima_pairs)])
-        return comparison
+        return np.array([function(minima_pair, periodic_vecs[i]) for i, minima_pair in enumerate(all_minima_pairs)])
+
+    def _S_integrand(self, m, minima_pair, t):
+        line_of_sight_vec = t * (minima_pair[1] - minima_pair[0]) + minima_pair[0]
+        drdt = minima_pair[1] - minima_pair[0]
+        return np.sqrt(2*m*(drdt[0]**2 + drdt[1]**2)
+                       * (self.potential(line_of_sight_vec)-self.potential(minima_pair[0])))
+
+    def _compute_action_integral(self, m, minima_pair):
+        S_func = partial(self._S_integrand, m, minima_pair)
+        S = quad(S_func, 0.0, 1.0)
+        return S[0]
+
+    def compute_delta(self, minima_pair):
+        escape_frequency = self._compute_escape_frequency(minima_pair)
+        unit_vec = self._unit_vec_between_minima(minima_pair)
+        effective_mass = self._compute_effective_mass(unit_vec)
+        prefactor = escape_frequency/(2.0*np.sqrt(np.pi*np.exp(1)))
+        S = self._compute_action_integral(effective_mass, minima_pair)
+        return prefactor * np.exp(-S)
+
+    def _unit_vec_between_minima(self, minima_pair):
+        vec_mag = np.linalg.norm(minima_pair[1] - minima_pair[0])
+        return (minima_pair[1] - minima_pair[0]) / vec_mag
+
+    def _compute_escape_frequency(self, minima_pair):
+        unit_vec = self._unit_vec_between_minima(minima_pair)
+        effective_mass = self._compute_effective_mass(unit_vec)
+        effective_potential = self._compute_effective_potential(unit_vec)
+        return np.sqrt(effective_potential / effective_mass)
+
+    def _compute_effective_mass(self, unit_vec):
+        C_matrix = self.build_capacitance_matrix() * self.Phi0 ** 2
+        return unit_vec @ C_matrix @ unit_vec
+
+    def _compute_effective_potential(self, unit_vec):
+        U_matrix = self.build_gamma_matrix(0) * self.Phi0 ** 2
+        return unit_vec @ U_matrix @ unit_vec
+
+    def _eliminate_zero_vector(self, periodic_vecs):
+        return np.array([vec for vec in periodic_vecs if not np.allclose(vec, np.zeros_like(vec))])
+
+    def _check_if_potential_minima_is_multiple_of_freq(self, minima_pair):
+        minima_1_pot_val = self.potential(minima_pair[0])
+        minima_2_pot_val = self.potential(minima_pair[1])
+        escape_freq = self._compute_escape_frequency(minima_pair)
+        n_omega = np.array([n * escape_freq for n in range(0, 50)])
+        potential_difference = np.abs(minima_2_pot_val - minima_1_pot_val)*np.ones_like(n_omega)
+        comparison = np.round(np.abs(n_omega - potential_difference), decimals=3)
+        return not np.all(comparison)
+
+    def _compute_tunneling_amplitude_for_pair(self, minima_pair, periodic_vecs):
+        if np.allclose(minima_pair[1], minima_pair[0]):
+            periodic_vecs = self._eliminate_zero_vector(periodic_vecs)
+        elif not self._check_if_potential_minima_is_multiple_of_freq(minima_pair):
+            return 0.0
+        tunneling_values = np.array([self.compute_delta(np.array([minima_pair[0], 2.0*np.pi*vec+minima_pair[1]]))
+                                     for vec in periodic_vecs])
+        return np.sum(tunneling_values)
 
     def _find_closest_periodic_minimum(self, minima_pair, periodic_vecs):
         Xi_inv = inv(self.Xi_matrix())
         delta_inv = Xi_inv.T @ Xi_inv
         if np.allclose(minima_pair[1], minima_pair[0]):  # Do not include equivalent minima in the same unit cell
-            periodic_vecs = np.array([vec for vec in periodic_vecs
-                                      if not np.allclose(vec, np.zeros_like(minima_pair[0]))])
+            periodic_vecs = self._eliminate_zero_vector(periodic_vecs)
         minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_pair[1] - minima_pair[0]))/2.0
                                      for vec in periodic_vecs])
         minima_vectors = np.array([2.0*np.pi*vec + (minima_pair[1] - minima_pair[0])
