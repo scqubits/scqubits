@@ -38,9 +38,24 @@ def calc_therm_ratio(omega, T):
     Returns
     -------
     float
-
     """
     return (sp.constants.hbar * units.to_standard_units(omega)) / (sp.constants.k * T)
+
+def convert_eV_to_Hz(val):
+    r"""
+    Convert a value in electron volts to Hz.
+
+    Parameters
+    ----------
+    val: number 
+        number in electron volts
+
+    Returns
+    -------
+    float
+        number in Hz
+    """
+    return val * sp.constants.e / sp.constants.h
 
 
 # Default values of various noise constants and parameters.
@@ -51,7 +66,7 @@ NOISE_PARAMS = {
     'omega_low': 1e-9 * 2 * np.pi,   # Low frequency cutoff. Units: 2pi GHz
     'omega_high': 3 * 2 * np.pi,     # High frequency cutoff. Units: 2pi GHz
     'Delta': 3.4e-4,  # Superconducting gap for aluminum (at T=0). Units: eV
-    'x_qp': 1e-8,     # Quasiparticles density. # TODO add reference
+    'x_qp': 4e-7,     # Quasiparticles densit (see for example Pol et al 2014)
     't_exp': 1e4,     # Measurement time. Units: ns
     'R_0': 50,        # Characteristic impedance of a transmission line. Units: Ohms
     'T': 0.015,       # Typical temperature for a superconducting circuit experiment. Units: K
@@ -59,6 +74,8 @@ NOISE_PARAMS = {
     'R_k': sp.constants.h / sp.constants.e**2.0,  # Superconducting quantum resistance, aka Klitzing constant.
                                                   # Note, in some papers quantum resistance is defined as: h/(2e)^2
 }
+
+
 
 
 class NoisySystem:
@@ -801,7 +818,7 @@ class NoisySystem:
         else:
             return 1/rate if rate != 0 else np.inf
 
-    def t1_capacitive_loss(self, i=1, j=0, EC=None, Q_cap=None, T=NOISE_PARAMS['T'],  total=True,
+    def t1_capacitive_loss(self, i=1, j=0, Q_cap=None, T=NOISE_PARAMS['T'],  total=True,
                            esys=None, get_rate=False, **kwargs):
         r"""
         Loss due to dielectric dissipation in the Jesephson junction capacitances. 
@@ -814,8 +831,6 @@ class NoisySystem:
             state index that along with j defines a transition (i->j)
         j: int >=0
             state index that along with i defines a transition (i->j)
-        EC: float
-            capacitive energy (in frequency units)
         Q_cap: numeric or callable
             capacitive quality factor; a fixed value or function of `omega`
         T: float
@@ -838,8 +853,6 @@ class NoisySystem:
         if 't1_capacitive_loss' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_capacitive_loss' is not supported in this system.")
 
-        EC = self.EC if EC is None else EC
-
         if Q_cap is None:
             # See Smith et al (2020)
             def q_cap_fun(omega): return 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7
@@ -850,7 +863,7 @@ class NoisySystem:
 
         def spectral_density(omega):
             therm_ratio = calc_therm_ratio(omega, T)
-            s = 2 * 8 * EC / q_cap_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s = 2 * 8 * self.EC / q_cap_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
             s *= 2 * np.pi  # We assume that system energies are given in units of frequency
             return s
 
@@ -859,7 +872,7 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
 
-    def t1_inductive_loss(self, i=1, j=0, EL=None, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
+    def t1_inductive_loss(self, i=1, j=0, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
                           esys=None, get_rate=False, **kwargs):
         r"""
         Loss due to inductive dissipation in a superinductor.  
@@ -875,8 +888,6 @@ class NoisySystem:
             state index that along with j defines a transition (i->j)
         j: int >=0
             state index that along with i defines a transition (i->j)
-        EL: float
-            inductive energy (in frequency units)
         Q_ind: float or callable
             inductive quality factor; a fixed value or function of `omega`
         T: float
@@ -894,13 +905,10 @@ class NoisySystem:
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
-
         """
 
         if 't1_inductive_loss' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_inductive_loss' is not supported in this system.")
-
-        EL = self.EL if EL is None else EL
 
         if Q_ind is None:
             # See Smith et al (2020)
@@ -908,11 +916,11 @@ class NoisySystem:
         elif callable(Q_ind):  # Q_ind is a function of omega
             q_ind_fun = Q_ind
         else:  # Q_ind is given as a number
-            def q_ind_fun(omega): return Q_cap
+            def q_ind_fun(omega): return Q_ind
 
         def spectral_density(omega):
             therm_ratio = calc_therm_ratio(omega, T)
-            s = 2 * EL / q_ind_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s = 2 * self.EL / q_ind_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
             s *= 2 * np.pi  # We assume that system energies are given in units of frequency
             return s
 
@@ -934,7 +942,7 @@ class NoisySystem:
         j: int >=0
             state index that along with i defines a transition (i->j)
         Z: float or callable
-            potentially complex impedance; a fixed value or function of `omega`
+            impedance; a fixed value or function of `omega`
         T: float
             temperature in Kelvin
         total: bool
@@ -1026,45 +1034,58 @@ class NoisySystem:
                        get_rate=get_rate, **kwargs)
 
     def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, Delta=NOISE_PARAMS['Delta'], x_qp=NOISE_PARAMS['x_qp'],
-                                   T=NOISE_PARAMS['T'], total=True,  esys=None, get_rate=False, **kwargs):
-        r"""Noise due quasiparticle tunneling across a Josephson junction.
+                                   total=True,  esys=None, get_rate=False, **kwargs):
+        r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
-        References: Smith et al (2020)
+        References: Catelani et al (2011), Pop et al (2014), Smith et al (2020)
 
-        TODO 
-            - Careful about correctness/applicability of this. Seems this strongly depends on admittance each junction sees.
-            - Need to check the factor of 1/2 in the operator
+        Parameters
+        ----------
+        i: int >=0
+            state index that along with j defines a transition (i->j)
+        j: int >=0
+            state index that along with i defines a transition (i->j)
+        Y_qp float or callable
+            complex admittance; a fixed value or function of `omega`
+        Delta: float 
+            superconducting gap (in units of eV)
+        x_qp: float 
+            quasiparticle density 
+        total: bool
+            if False return a time/rate associated with a transition from state i to state j.
+            if True return a time/rate associated with both i to j and j to i transitions
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
+        get_rate: bool
+            get rate or time
 
         Returns
         -------
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
-
         """
 
         if 't1_quasiparticle_tunneling' not in self.supported_noise_channels():
             raise RuntimeError("Noise channel 't1_quasiparticle_tunneling' is not supported in this system.")
 
         if Y_qp is None:
-            # TODO implement a fancy omega-dependent function; how does it differ for different qubits?
-            # Namely, should we calculate based on each qubit's topology (i.e. how is are the junctions shunted)?
-            def y_qp_fun(omega): return 1000  # dummy for now
+            def y_qp_fun(omega): 
+                return (8 * x_qp * self.EJ) / (omega * NOISE_PARAMS['R_k'] * sp.constants.hbar) \
+                        * np.sqrt(2 * convert_eV_to_Hz(Delta) / (sp.constants.hbar * units.to_standard_units(omega)))
+
         elif callable(Y_qp):  # Y_qp is a function of omega
             y_qp_fun = Y_qp
+
         else:  # Y_qp is given as a number
             def y_qp_fun(omega): return Y_qp
 
-        def spectral_density(omega, Y_qp=Y_qp):
-            """
-            Our definitions assume that the noise_op is dH/dflux.
-            TODO finish this
-            """
-            therm_ratio = calc_therm_ratio(omega, T)
-            s = NOISE_PARAMS['R_k'] * y_qp_fun(omega) * omega / np.pi * \
-                                               (1/np.tanh(0.5*therm_ratio)) / (1 + np.exp(-therm_ratio))
+        def spectral_density(omega):
+            s = omega * NOISE_PARAMS['R_k'] / np.pi * complex(y_qp_fun(omega)).real 
             return s
 
         noise_op = self.sin_phi_operator(alpha=0.5)
 
-        return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density,  total=total,
+        return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
+        
+

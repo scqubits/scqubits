@@ -23,11 +23,11 @@ as well as depolarization channels. This total :math:`T_{2}` time is defined as
 
 where :math:`k` (:math:`j`) runs over all relevant pure-dephasing (depolarization) channels.
 
-scqubits can enables the evaluation of these effective coherence times. By default, the included noise channels are
+scqubits enables the evaluation of these effective coherence times. By default, the included noise channels are
 the ones returned by the ``effective_noise_channels`` method for each qubit. A different list of noise channels can
 be selected by the user.
 
-TODO: Name the methods for obtaining the effective coherence times.
+Calculating :math:`T_1` and :math:`T_2` can be done via a methods ``t1_effective`` and ``t2_effective`` respectively. 
 
 For more information on the method signatures, see the 
 :ref:`API documentation <apidoc>`
