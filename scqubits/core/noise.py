@@ -21,7 +21,7 @@ import scqubits.settings as settings
 # Helpers for units conversion
 
 
-def calc_therm_ratio(omega, T):
+def calc_therm_ratio(omega, T, convert_omega=True):
     r"""Returns the ratio
     
     :math:`\beta \omega = \frac{\hbar \omega}{k_B T}`
@@ -34,12 +34,16 @@ def calc_therm_ratio(omega, T):
         angular frequency in system units
     T: float 
         temperature in Kelvin
+    convert_omega: bool 
+        should we convert omega to standard units
 
     Returns
     -------
     float
     """
-    return (sp.constants.hbar * units.to_standard_units(omega)) / (sp.constants.k * T)
+    omega = units.to_standard_units(omega) if convert_omega else omega
+    return (sp.constants.hbar * omega) / (sp.constants.k * T)
+
 
 def convert_eV_to_Hz(val):
     r"""
@@ -74,8 +78,6 @@ NOISE_PARAMS = {
     'R_k': sp.constants.h / sp.constants.e**2.0,  # Superconducting quantum resistance, aka Klitzing constant.
                                                   # Note, in some papers quantum resistance is defined as: h/(2e)^2
 }
-
-
 
 
 class NoisySystem:
@@ -1033,7 +1035,7 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total, esys=esys,
                        get_rate=get_rate, **kwargs)
 
-    def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, Delta=NOISE_PARAMS['Delta'], x_qp=NOISE_PARAMS['x_qp'],
+    def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, T=NOISE_PARAMS['T'], Delta=NOISE_PARAMS['Delta'],
                                    total=True,  esys=None, get_rate=False, **kwargs):
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
@@ -1047,10 +1049,10 @@ class NoisySystem:
             state index that along with i defines a transition (i->j)
         Y_qp float or callable
             complex admittance; a fixed value or function of `omega`
+        T: float
+            temperature in Kelvin
         Delta: float 
             superconducting gap (in units of eV)
-        x_qp: float 
-            quasiparticle density 
         total: bool
             if False return a time/rate associated with a transition from state i to state j.
             if True return a time/rate associated with both i to j and j to i transitions
@@ -1069,23 +1071,30 @@ class NoisySystem:
             raise RuntimeError("Noise channel 't1_quasiparticle_tunneling' is not supported in this system.")
 
         if Y_qp is None:
-            def y_qp_fun(omega): 
-                return (8 * x_qp * self.EJ) / (omega * NOISE_PARAMS['R_k'] * sp.constants.hbar) \
-                        * np.sqrt(2 * convert_eV_to_Hz(Delta) / (sp.constants.hbar * units.to_standard_units(omega)))
-
+            y_qp_fun = None
         elif callable(Y_qp):  # Y_qp is a function of omega
             y_qp_fun = Y_qp
-
         else:  # Y_qp is given as a number
             def y_qp_fun(omega): return Y_qp
 
-        def spectral_density(omega):
-            s = omega * NOISE_PARAMS['R_k'] / np.pi * complex(y_qp_fun(omega)).real 
-            return s
+        if y_qp_fun is None: 
+            def spectral_density(omega):
+                """Eq. 35 in Catalani et al (2011). """
+                therm_ratio = calc_therm_ratio(omega, T)
+                Delta_over_T = calc_therm_ratio(2 * np.pi * convert_eV_to_Hz(Delta), T, convert_omega=False)
+                s = (16 * ( 2 * np.pi *  self.EJ) / np.pi) * np.exp(- Delta_over_T) \
+                        * np.exp(0.5 * therm_ratio) * sp.special.kv(0, 0.5*abs(therm_ratio))
+                return s
+        else: # define the spectral density in terms of the omega-dependent admittance function 
+            def spectral_density(omega):
+                """Eq. 38 in Catalani et al (2011). """
+                therm_ratio = calc_therm_ratio(omega, T)
+                s = omega * NOISE_PARAMS['R_k'] / np.pi * complex(y_qp_fun(omega)).real  \
+                        * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+                return s
 
         noise_op = self.sin_phi_operator(alpha=0.5)
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
-        
 

@@ -15,7 +15,8 @@ A list containing these possible choices can be shown with the ``show_supported_
 
 The current units setting can be obtained with the ``get_units`` function. A new setting can be established with the
 ``set_units`` function::
-
+    
+    import scqubits as scq
     scq.get_units()
     scq.set_units('MHz')
 
