@@ -241,6 +241,8 @@ class Circuit(base.QubitBaseClass):
         Default constructor.
         :param tolerance: capacitances below this value are considered to be computational errors when determining the inverse capacitance matrix.
         :type tolerance: float
+        :real_mode - Be carefull. This mode should be used when you are sure that the hamiltonian is definitely real!!!
+        In this mode wavefunctions would be "real".
         """
         self.nodes = [CircuitNode('GND')]
         self.elements = []
