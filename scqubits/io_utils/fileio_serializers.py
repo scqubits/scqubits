@@ -209,12 +209,13 @@ def dict_deserialize(iodata):
 
 def list_deserialize(iodata):
     """Turn IOData instance back into a list"""
-    return list(iodata.as_kwargs().values())
+    dict_data = iodata.as_kwargs()
+    return [dict_data[key] for key in sorted(dict_data, key=int)]
 
 
 def tuple_deserialize(iodata):
     """Turn IOData instance back into a tuple"""
-    return tuple(iodata.as_kwargs().values())
+    return tuple(list_deserialize(iodata))
 
 
 def get_init_params(obj):
