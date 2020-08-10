@@ -562,7 +562,7 @@ class Circuit(base.QubitBaseClass):
         phi = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(psi)))
         Up = self.phase_potential.ravel()*state_vector
         Tp = np.fft.ifftshift(np.fft.ifftn(np.fft.ifftshift(self.charge_potential*phi))).ravel()
-        if self.real_mode == False:
+        if self.real_mode is False:
             return Up + Tp
         else:
             return np.real(Up + Tp)
