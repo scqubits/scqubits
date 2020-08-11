@@ -71,10 +71,10 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
             result_neg = minimize(self.potential, guess_neg)
             new_minimum_pos = self._check_if_new_minima(result_pos.x, minima_holder)
             if new_minimum_pos and result_pos.success:
-                minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result_pos.x]))
+                minima_holder.append(self.normalize_minimum_inside_pi_range(result_pos.x))
             new_minimum_neg = self._check_if_new_minima(result_neg.x, minima_holder)
             if new_minimum_neg and result_neg.success:
-                minima_holder.append(np.array([np.mod(elem, 2 * np.pi) for elem in result_neg.x]))
+                minima_holder.append(self.normalize_minimum_inside_pi_range(result_neg.x))
         return minima_holder
 
     def potential(self, phi_array):

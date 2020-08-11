@@ -127,11 +127,17 @@ class VCHOS(ABC):
         Returns
         -------
         ndarray
-            oscillator lengths of the mode frequencies about the global minimum
+            ratio of harmonic lengths to minima separations
         """
         return self._wrapper_for_functions_comparing_minima(self._find_closest_periodic_minimum)
 
     def compute_tunneling_amplitudes(self):
+        """
+        Returns
+        -------
+        ndarray
+            tunnel splitting between two minima
+        """
         return self._wrapper_for_functions_comparing_minima(self._compute_tunneling_amplitude_for_pair)
 
     def _wrapper_for_functions_comparing_minima(self, function):
@@ -142,20 +148,24 @@ class VCHOS(ABC):
 
     def _S_integrand(self, m, minima_pair, t):
         line_of_sight_vec = t * (minima_pair[1] - minima_pair[0]) + minima_pair[0]
-        drdt = minima_pair[1] - minima_pair[0]
-        return np.sqrt(2*m*(drdt[0]**2 + drdt[1]**2)
-                       * (self.potential(line_of_sight_vec)-self.potential(minima_pair[0])))
+        integrand = np.sqrt(2*m*(self.potential(line_of_sight_vec) - self.potential(minima_pair[0])))
+        integrand *= self._ds_for_integral(minima_pair[1] - minima_pair[0])
+        return integrand
+
+    def _ds_for_integral(self, derivatives):
+        return np.sqrt(np.sum([deriv**2 for deriv in derivatives]))
 
     def _compute_action_integral(self, m, minima_pair):
         S_func = partial(self._S_integrand, m, minima_pair)
         S = quad(S_func, 0.0, 1.0)
+        assert(np.abs(S[1]) < 1e-7)
         return S[0]
 
-    def compute_delta(self, minima_pair):
+    def _compute_minima_splitting(self, minima_pair):
         escape_frequency = self._compute_escape_frequency(minima_pair)
         unit_vec = self._unit_vec_between_minima(minima_pair)
         effective_mass = self._compute_effective_mass(unit_vec)
-        prefactor = escape_frequency/(2.0*np.sqrt(np.pi*np.exp(1)))
+        prefactor = escape_frequency/(2.0*np.sqrt(np.pi*np.exp(1)))  # See Eq. (1.1) of A. Garg, AJP 68, 430 (2000)
         S = self._compute_action_integral(effective_mass, minima_pair)
         return prefactor * np.exp(-S)
 
@@ -194,7 +204,8 @@ class VCHOS(ABC):
             periodic_vecs = self._eliminate_zero_vector(periodic_vecs)
         elif not self._check_if_potential_minima_is_multiple_of_freq(minima_pair):
             return 0.0
-        tunneling_values = np.array([self.compute_delta(np.array([minima_pair[0], 2.0*np.pi*vec+minima_pair[1]]))
+        tunneling_values = np.array([self._compute_minima_splitting(np.array([minima_pair[0],
+                                                                             2.0*np.pi*vec + minima_pair[1]]))
                                      for vec in periodic_vecs])
         return np.sum(tunneling_values)
 
@@ -209,11 +220,6 @@ class VCHOS(ABC):
                                    for i, vec in enumerate(periodic_vecs)])
         minima_unit_vectors = np.array([minima_vectors[i] / minima_distances[i] for i in range(len(minima_distances))])
         harmonic_lengths = np.array([4.0*(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
-        C_matrix = self.build_capacitance_matrix()*self.Phi0**2
-        U_matrix = self.build_gamma_matrix(0)*self.Phi0**2
-        effective_mass = np.array([unit_vec @ C_matrix @ unit_vec for unit_vec in minima_unit_vectors])
-        effective_potential = np.array([unit_vec @ U_matrix @ unit_vec for unit_vec in minima_unit_vectors])
-        harmonic_lengths_from_tensors = np.array([4.0*1.0/(effective_mass*effective_potential)**(1/4)])
         return np.max(harmonic_lengths / minima_distances)
 
     def Xi_matrix(self):
@@ -601,6 +607,10 @@ class VCHOS(ABC):
         sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
                                          if sorted_value_of_potential[i] < global_min + 40.0])
         return sorted_minima_holder
+
+    def normalize_minimum_inside_pi_range(self, minimum):
+        minimum = np.array([np.mod(elem, 2*np.pi) for elem in minimum])
+        return np.array([elem - 2*np.pi if elem > np.pi else elem for elem in minimum])
 
     def _check_if_new_minima(self, new_minima, minima_holder):
         """

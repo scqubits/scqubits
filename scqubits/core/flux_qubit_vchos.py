@@ -76,10 +76,6 @@ class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers
             minima_holder.append(self.normalize_minimum_inside_pi_range(result.x))
         return minima_holder, new_minima
 
-    def normalize_minimum_inside_pi_range(self, minimum):
-        minimum = np.array([np.mod(elem, 2*np.pi) for elem in minimum])
-        return np.array([elem - 2*np.pi if elem > np.pi else elem for elem in minimum])
-
     def find_minima(self):
         """
         Index all minima in the variable space of phi1 and phi2
