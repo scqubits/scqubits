@@ -344,3 +344,15 @@ def solve_generalized_eigenvalue_problem_with_QZ(hamiltonian, inner_product, eva
         return evals
     else:
         return evals, evecs
+
+
+def compare_spectra_nnz(qbt_type, specdata, specdata_exact, num_compare):
+    """Compare exact spectrum to spectrum obtained via another method"""
+    qbt = qbt_type(**specdata.system_params)
+    test_energies = specdata.energy_table[:, 0:num_compare]
+    exact_energies = specdata_exact.energy_table[:, 0:num_compare]
+    relative_deviation = np.abs(test_energies-exact_energies)/exact_energies
+    maximum_rel_dev = np.max(relative_deviation)
+    number_nonzero_elements = np.count_nonzero(qbt.hamiltonian())
+    return maximum_rel_dev, number_nonzero_elements
+
