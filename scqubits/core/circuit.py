@@ -540,7 +540,7 @@ class Circuit(base.QubitBaseClass):
         :param name type - str
         :returns: the :math:`\\cos \\phi` operator in phase basis.
         """
-        if var_name != None:
+        if var_name is not None:
             for variable_id, variable in enumerate(self.variables):
                 if variable.name == var_name:
                     index = variable_id
@@ -702,9 +702,7 @@ class Circuit(base.QubitBaseClass):
         variable_idx, node_idx = np.meshgrid(variable_ids, node_ids)
         self.linear_coordinate_transform = np.zeros(coefficients.shape, coefficients.dtype)
         self.linear_coordinate_transform[node_idx, variable_idx] = coefficients
-        """
-        External fluxes and(/or) charges checking.
-        """
+        """ External fluxes and(/or) charges checking. """
         for element_id, element in enumerate(self.elements):
             if element.is_external():  # Check is only for external flux/charge variables
                 counter = 0
