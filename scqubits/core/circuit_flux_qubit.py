@@ -27,6 +27,7 @@ import scqubits.core.circuit as circuit # import Circuit, CircuitElement, Circui
 
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
 
+
 class CircuitFluxQubit(circuit.Circuit):
     r"""Flux Qubit
 
@@ -133,9 +134,9 @@ class CircuitFluxQubit(circuit.Circuit):
         self.add_element(circuit.Capacitance('CJ1'), ['GND', '1'])
         self.add_element(circuit.Capacitance('CJ2'), ['GND', '2'])
         self.add_element(circuit.Capacitance('CJ3'), ['1', '3'])
-        self.add_element(circuit.JosephsonJunction('J1'), ['GND', '1'])
-        self.add_element(circuit.JosephsonJunction('J2'), ['GND', '2'])
-        self.add_element(circuit.JosephsonJunction('J3'), ['1', '3'])
+        self.add_element(circuit.JosephsonJunction('J1', use_offset=False), ['GND', '1'])
+        self.add_element(circuit.JosephsonJunction('J2', use_offset=False), ['GND', '2'])
+        self.add_element(circuit.JosephsonJunction('J3', use_offset=False), ['1', '3'])
 
         self.phi1 = circuit.Variable('\\phi_1')
         self.phi2 = circuit.Variable('\\phi_2')
@@ -158,9 +159,11 @@ class CircuitFluxQubit(circuit.Circuit):
                                           [0, 0, 0, 1, 0],
                                           [0, 0, 0, 0, 1]]))
 
+        self.set_parameters()
+
     def set_parameters(self):
-        self.phi1.set_variable(self.ncut, 1)  # 21 charge states, 2pi wavefunction periodicity
-        self.phi2.set_variable(self.ncut, 1)  # 21 charge states, 2pi wavefunction periodicity
+        self.phi1.set_variable(self.ncut * 2 + 1, 1)  # 2pi wavefunction periodicity
+        self.phi2.set_variable(self.ncut * 2 + 1, 1)  # 2pi wavefunction periodicity
         self.f.set_parameter(self.flux * 2 * np.pi, 0)  # external flux: 0.4 quantum, external voltage: 0
         self.g1.set_parameter(0, self.ng1*self.ECg1/8)  # external flux: 0 quanta, external voltage: 0
         self.g2.set_parameter(0, self.ng2*self.ECg2/8)  # external flux: 0 quanta, external voltage: 0
@@ -173,22 +176,6 @@ class CircuitFluxQubit(circuit.Circuit):
         self.find_element('CJ3').set_capacitance(1 / (8 * self.ECJ3))
         self.find_element('Cg1').set_capacitance(1 / (8 * self.ECg1))
         self.find_element('Cg2').set_capacitance(1 / (8 * self.ECg2))
-
-    def EC_matrix(self):
-        """Return the charging energy matrix"""
-        Cmat = np.zeros((2, 2))
-        CJ1 = 1. / (2 * self.ECJ1)  # capacitances in units where e is set to 1
-        CJ2 = 1. / (2 * self.ECJ2)
-        CJ3 = 1. / (2 * self.ECJ3)
-        Cg1 = 1. / (2 * self.ECg1)
-        Cg2 = 1. / (2 * self.ECg2)
-
-        Cmat[0, 0] = CJ1 + CJ3 + Cg1
-        Cmat[1, 1] = CJ2 + CJ3 + Cg2
-        Cmat[0, 1] = -CJ3
-        Cmat[1, 0] = -CJ3
-
-        return np.linalg.inv(Cmat) / 2.
 
     def _n_operator(self):
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
@@ -243,6 +230,14 @@ class CircuitFluxQubit(circuit.Circuit):
         sin_op = -1j * 0.5 * self.exp_i_phi_2_operator()
         sin_op += sin_op.conj().T
         return sin_op
+
+    def potential(self, *args):
+        self.set_parameters()
+        return super().potential(*args)
+
+    def hamiltonian(self):
+        self.set_parameters()
+        return super().hamiltonian()
 
     def wavefunction(self, esys=None, which=0, phi_grid=None):
         """
