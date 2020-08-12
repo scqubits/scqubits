@@ -17,67 +17,82 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
+
 class CircuitNode:
     def __init__(self, name):
         self.name = name
 
 
-class Variable:
+class Variable(discretization.Grid1d):
     """
     Represents a variable of the circuit wavefunction or an constant external bias flux or voltage.
     """
     
     def __init__(self, name):
         self.variable_type = 'parameter'
-        self.phase_grid = np.asarray([0])
-        self.charge_grid = np.asarray([0])
-        self.phase_step = np.inf
-        self.charge_step = np.inf
-        self.nodeNo = 1
+        super().__init__(0, 0, 1)
         self.name = name
+        self.offset_charge = 0
 
-    def create_grid(self, nodeNo, phase_periods, centre=0):
-        """
-        Creates a discrete grid for wavefunction variables.
-        :param nodeNo: number of discrete points on the grid
-        :param phase_periods: number of 2pi intervals in the grid
+    def set_variable(self, pt_count, periods, center=0):
+        """Creates a discrete grid for phase wavefunction variables.
+
+        Parameters
+        ----------
+        pt_count: int
+            number of grid points
+        periods: float
+            number of 2pi intervals in the grid
+        center: float
+            phase grid centering
         """
         self.variable_type = 'variable'
-        min_node = np.round(-nodeNo/2)
-        max_node = np.round(nodeNo/2)
-        self.phase_grid = np.linspace(-np.pi*phase_periods+centre, np.pi*phase_periods+centre, nodeNo, endpoint=False)
-        self.charge_grid = np.linspace(min_node/phase_periods, max_node/phase_periods, nodeNo, endpoint=False)
-        self.phase_step = 2*np.pi*phase_periods/nodeNo
-        self.charge_step = 1.0/phase_periods
-        self.nodeNo = nodeNo
+        self.pt_count = pt_count
+
+        self.min_val = -np.pi * periods + center
+        self.max_val = self.min_val + 2 * np.pi * periods * (self.pt_count - 1) / self.pt_count
+        self.offset_charge = 0 # set offset charge in variable to 0
 
     def set_parameter(self, phase_value, voltage_value):
-        """
-        Sets an external flux and/or charge bias.
-        :param phase_value: external flux bias in flux quanta/(2pi)
-        :param charge_value: external charge bias in cooper pairs
+        """Makes the parameter an external flux and/or charge bias.
+
+        Parameters
+        ----------
+        phase_value: float
+            external flux bias in flux quanta/(2pi)
+        voltage_value: float
+            external voltage bias
         """
         self.variable_type = 'parameter'
-        self.phase_grid = np.asarray([phase_value])
-        self.charge_grid = np.asarray([voltage_value])
-        self.phase_step = np.inf
-        self.charge_step = np.inf
-        self.nodeNo = 1
+        self.pt_count = 1
+
+        self.min_val = phase_value
+        self.max_val = phase_value
+        self.offset_charge = voltage_value
 
     def get_phase_grid(self):
-        return self.phase_grid
+        """Returns a numpy array of the grid points in phase representation
+
+        Returns
+        -------
+        ndarray
+        """
+        return self.make_linspace()
 
     def get_charge_grid(self):
-        return self.charge_grid
+        """Returns a numpy array of the grid points in cooper pair number representation
 
-    def get_phase_step(self):
-        return self.phase_step
-
-    def get_charge_step(self):
-        return self.charge_step
-
-    def get_nodeNo(self):
-        return self.nodeNo
+        Returns
+        -------
+        ndarray
+        """
+        range = (self.max_val - self.min_val) * self.pt_count / (self.pt_count - 1)
+        delta_n = 2*np.pi/range
+        grid = np.arange(0, delta_n*self.pt_count, delta_n)
+        grid += self.offset_charge
+        if self.pt_count % 2:
+            grid -= 0.5
+        return grid
 
 
 class CircuitElement:
@@ -133,6 +148,7 @@ class Capacitance(CircuitElement):
 
     def symbolic_energy_term(self, node_phases, node_charges):
         return None
+
 
 class JosephsonJunction(CircuitElement):
     """
