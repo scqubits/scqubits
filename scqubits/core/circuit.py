@@ -250,7 +250,7 @@ class Circuit(base.QubitBaseClass):
     """
     The class containing references to nodes, elements, variables, variable-to-node mappings.
     """
-    def __init__(self, tolerance=1e-18):
+    def __init__(self, tolerance: float = 1e-18):
         """
         Default constructor.
         :param tolerance: capacitances below this value are considered to be computational errors when determining the inverse capacitance matrix.
@@ -266,7 +266,7 @@ class Circuit(base.QubitBaseClass):
         self.best_permutation_cache = {}
         self.phase_potential = None
         self.charge_potential = None
-        self.nodes_graph=[]
+        self.nodes_graph = []
 
     # TODO: add something
     @staticmethod

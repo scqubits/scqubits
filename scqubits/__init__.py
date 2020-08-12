@@ -30,7 +30,9 @@ from scqubits.core.storage import SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
+# arbitrary circuit stuff
 from scqubits.core.circuit import Circuit, CircuitElement, CircuitNode, Capacitance, Inductance, JosephsonJunction, Variable
+from scqubits.core.circuit_flux_qubit import CircuitFluxQubit
 # file IO
 from scqubits.io_utils.fileio import read, write
 

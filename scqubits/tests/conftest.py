@@ -118,8 +118,9 @@ class StandardTests(BaseTest):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
-        hamiltonian = self.qbt.hamiltonian()
-        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.conj().T)), 0.0)
+        if hasattr(self.qbt, 'hamiltonian'):
+            hamiltonian = self.qbt.hamiltonian()
+            assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.conj().T)), 0.0)
 
     def test_eigenvals(self, io_type):
         testname = self.file_str + '_1.' + io_type
