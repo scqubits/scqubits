@@ -756,7 +756,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                                                           element_node_ids[0], element.name))
                 element_var_list = np.zeros(len(variable_ids), coefficients.dtype)
                 element_var_list[var_id] = 1
-                if (var_list == element_var_list).any():
+                if not (var_list == element_var_list).all():
                     raise Exception('ExternalVariableError',
                                     'For variable list: {0}, external flux(charge) {1} between nodes {2} and {3} '
                                     'should be equal {4}, but it equals {5}.'.format(self.variables, element.name,
