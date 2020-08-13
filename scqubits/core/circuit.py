@@ -24,63 +24,80 @@ class CircuitNode:
         self.name = name
 
 
-class Variable:
+class Variable(discretization.Grid1d):
     """
     Represents a variable of the circuit wavefunction or an constant external bias flux or voltage.
     """
 
     def __init__(self, name):
         self.variable_type = 'parameter'
-        self.phase_grid = np.asarray([0])
-        self.charge_grid = np.asarray([0])
-        self.phase_step = np.inf
-        self.charge_step = np.inf
-        self.nodeNo = 1
+        super().__init__(0, 0, 1)
         self.name = name
+        self.offset_charge = 0
 
-    def create_grid(self, nodeNo, phase_periods, centre=0):
-        """
-        Creates a discrete grid for wavefunction variables.
-        :param nodeNo: number of discrete points on the grid
-        :param phase_periods: number of 2pi intervals in the grid
+    def set_variable(self, pt_count, periods, center=0):
+        """Creates a discrete grid for phase wavefunction variables.
+
+        Parameters
+        ----------
+        pt_count: int
+            number of grid points
+        periods: float
+            number of 2pi intervals in the grid
+        center: float
+            phase grid centering
         """
         self.variable_type = 'variable'
-        min_node = np.round(-nodeNo / 2)
-        max_node = np.round(nodeNo / 2)
-        self.phase_grid = np.linspace(-np.pi * phase_periods + centre, np.pi * phase_periods + centre, nodeNo,
-                                      endpoint=False)
-        self.charge_grid = np.linspace(min_node / phase_periods, max_node / phase_periods, nodeNo, endpoint=False)
-        self.phase_step = 2 * np.pi * phase_periods / nodeNo
-        self.charge_step = 1.0 / phase_periods
-        self.nodeNo = nodeNo
+        self.pt_count = pt_count
+
+        self.min_val = -np.pi * periods + center
+        self.max_val = self.min_val + 2 * np.pi * periods * (self.pt_count - 1) / self.pt_count
+        self.offset_charge = 0 # set offset charge in variable to 0
 
     def set_parameter(self, phase_value, voltage_value):
-        """
-        Sets an external flux and/or charge bias.
-        :param phase_value: external flux bias in flux quanta/(2pi)
-        :param voltage_value: external charge bias in cooper pairs
+        """Makes the parameter an external flux and/or charge bias.
+
+        Parameters
+        ----------
+        phase_value: float
+            external flux bias in flux quanta/(2pi)
+        voltage_value: float
+            external voltage bias
         """
         self.variable_type = 'parameter'
-        self.phase_grid = np.asarray([phase_value])
-        self.charge_grid = np.asarray([voltage_value])
-        self.phase_step = np.inf
-        self.charge_step = np.inf
-        self.nodeNo = 1
+        self.pt_count = 1
+
+        self.min_val = phase_value
+        self.max_val = phase_value
+        self.offset_charge = voltage_value
 
     def get_phase_grid(self):
-        return self.phase_grid
+        """Returns a numpy array of the grid points in phase representation
+
+        Returns
+        -------
+        ndarray
+        """
+        return self.make_linspace()
 
     def get_charge_grid(self):
-        return self.charge_grid
+        """Returns a numpy array of the grid points in cooper pair number representation
 
-    def get_phase_step(self):
-        return self.phase_step
-
-    def get_charge_step(self):
-        return self.charge_step
-
-    def get_nodeNo(self):
-        return self.nodeNo
+        Returns
+        -------
+        ndarray
+        """
+        if self.pt_count >1:
+            range = (self.max_val - self.min_val) * self.pt_count / (self.pt_count - 1)
+            delta_n = 2*np.pi/range
+            grid = np.arange(0, delta_n*self.pt_count, delta_n)
+        else:
+            grid = np.asarray([0.0])
+        grid -= np.mean(grid)
+        grid += self.offset_charge
+        if self.pt_count % 2 == 0:
+            grid -= 0.5
+        return grid
 
 
 class CircuitElement:
@@ -115,7 +132,7 @@ class CircuitElement:
         return None
 
 
-class QExternal_flux(QCircuitElement):
+class QExternalFlux(QCircuitElement):
     """
     Circuit element representing a capacitor.
     """
@@ -146,7 +163,7 @@ class QExternal_flux(QCircuitElement):
         return None
 
 
-class QExternal_charge(QCircuitElement):
+class QExternalCharge(QCircuitElement):
     """
     Circuit element representing a capacitor.
     """
@@ -212,10 +229,10 @@ class JosephsonJunction(CircuitElement):
     """
     Circuit element representing a Josephson junction.
     """
-
-    def __init__(self, name, critical_current=0):
+    def __init__(self, name, critical_current=0, use_offset=True):
         super().__init__(name)
         self.critical_current = critical_current
+        self.use_offset = use_offset
 
     def set_critical_current(self, critical_current):
         self.critical_current = critical_current
@@ -226,19 +243,20 @@ class JosephsonJunction(CircuitElement):
     def energy_term(self, node_phases, node_charges):
         if len(node_phases) != 2:
             raise Exception('ConnectionError',
-                            'Josephson junction {0} has {1} nodes connected instead of 2.'.format(self.name,
-                                                                                                  len(node_phases)))
-        return self.critical_current * (1 - np.cos(node_phases[0] - node_phases[1]))
+                            'Josephson junction {0} has {1} nodes connected instead of 2.'.format(self.name, len(node_phases)))
+        if self.use_offset:
+            return self.critical_current * (1 - np.cos(node_phases[0] - node_phases[1]))
+        else:
+            return self.critical_current * (-np.cos(node_phases[0] - node_phases[1]))
 
     def symbolic_energy_term(self, node_phases, node_charges):
         if len(node_phases) != 2:
             raise Exception('ConnectionError',
-                            'Josephson junction {0} has {1} nodes connected instead of 2.'.format(self.name,
-                                                                                                  len(node_phases)))
-        return self.critical_current * (1 - sympy.cos(node_phases[0] - node_phases[1]))
-
-    def is_external(self):
-        return False
+                            'Josephson junction {0} has {1} nodes connected instead of 2.'.format(self.name, len(node_phases)))
+        if self.use_offset:
+            return self.critical_current * (1 - sympy.cos(node_phases[0] - node_phases[1]))
+        else:
+            return self.critical_current * (-sympy.cos(node_phases[0] - node_phases[1]))
 
     def is_phase(self):
         return True
@@ -319,7 +337,7 @@ class LagrangianCurrentSource(CircuitElement):
         return False
 
 
-class Circuit(base.QubitBaseClass):
+class Circuit(base.QubitBaseClass, serializers.Serializable):
     """
     The class containing references to nodes, elements, variables, variable-to-node mappings.
     """
@@ -329,7 +347,7 @@ class Circuit(base.QubitBaseClass):
         Default constructor.
         :param tolerance: capacitances below this value are considered to be computational errors when determining the inverse capacitance matrix.
         :type tolerance: float
-        :real_mode - Be carefull. This mode should be used when you are sure that the hamiltonian is definitely real!!!
+        :real_mode - Be careful. This mode should be used when you are sure that the hamiltonian is definitely real!!!
         In this mode wavefunctions would be "real".
         """
         self.nodes = [CircuitNode('GND')]
@@ -381,7 +399,7 @@ class Circuit(base.QubitBaseClass):
             if variable.variable_type == 'variable':
                 phase_values.append(variable_values.__next__())
             else:
-                phase_values.append(variable.phase_grid[0])
+                phase_values.append(variable.get_phase_grid()[0])
 
         energy = 0
         for element in self.elements:
@@ -748,7 +766,8 @@ class Circuit(base.QubitBaseClass):
         self.invalidation_flag = True
 
     def grid_shape(self):
-        return tuple([v.get_nodeNo() for v in self.variables])
+        return tuple([v.pt_count for v in self.variables])
+    
 
     def create_phase_grid(self):
         """
@@ -892,8 +911,8 @@ class Circuit(base.QubitBaseClass):
         if (n - 1) % 2 > 0:
             raise Exception('ValueError', 'dscheme length is even')
 
-        self.ndiagonal_operator = np.zeros(tuple(n * np.ones((len(self.variables),), dtype=int)) + self.grid_shape())
-        slice_diagonal = [(n - 1) / 2 for v in self.variables] + [slice(0, v.get_nodeNo(), 1) for v in self.variables]
+        self.ndiagonal_operator = np.zeros(tuple(n*np.ones((len(self.variables),), dtype=int))+self.grid_shape())
+        slice_diagonal = [(n-1)/2 for v in self.variables]+[slice(0, v.pt_count, 1) for v in self.variables]
 
         ECmat = -0.5 * self.capacitance_matrix_legendre_transform()
         # d^2/dxi^2 type elements (C*_ii)
@@ -1079,3 +1098,34 @@ class Circuit(base.QubitBaseClass):
                                     element_node_phases.append(sympy.nsimplify(node.phase_symbol))
                     potential_energy += element.symbolic_energy_term(element_node_phases, 0)
         return kinetic_energy + potential_energy
+
+    def plot_potential(self, phi_grid=None, contour_vals=None, **kwargs):
+        """
+        Visualize the potential energy.
+
+        Parameters
+        ----------
+        phi_grid: Grid1d, optional
+            used for setting a custom grid for phi; if None use self._default_grid
+        contour_vals: list of float, optional
+            specific contours to draw
+        **kwargs:
+            plot options
+        """
+        num_variables = 0
+        for v in self.variables:
+            if v.variable_type == 'variable':
+                num_variables += 1
+
+        phi_grid = phi_grid or self._default_grid
+        if 'figsize' not in kwargs:
+            kwargs['figsize'] = (5, 5)
+        x_vals = phi_grid.make_linspace()
+
+        if num_variables == 1:
+            return plot.plot(x_vals, self.potential(x_vals), **kwargs)
+        elif num_variables == 2:
+            y_vals = phi_grid.make_linspace()
+            return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
+        elif num_variables == 3:
+            raise ValueError('Dimension of potential higher than 2, plot_potential failed')

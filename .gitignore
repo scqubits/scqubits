@@ -1,6 +1,9 @@
 .DS_Store
 .idea/
 
+# pycache
+*.pyc
+
 # Packages
 *.egg
 *.egg-info

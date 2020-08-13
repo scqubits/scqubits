@@ -24,7 +24,7 @@ Contributors
 ============
 
 
-
+| **Elam Blackwell** (Northwestern University) - Bug hunter
 | **Farid Hassani** (IST Austria) - Bug hunter
 | **Ziwen Huang** (Northwestern University) - Bug hunter
 | **Nicholas Irons** - Code contributor
