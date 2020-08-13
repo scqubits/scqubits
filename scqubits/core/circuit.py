@@ -132,7 +132,7 @@ class CircuitElement:
         return None
 
 
-class QExternalFlux(QCircuitElement):
+class ExternalFlux(CircuitElement):
     """
     Circuit element representing a capacitor.
     """
@@ -163,7 +163,7 @@ class QExternalFlux(QCircuitElement):
         return None
 
 
-class QExternalCharge(QCircuitElement):
+class ExternalCharge(CircuitElement):
     """
     Circuit element representing a capacitor.
     """
@@ -668,11 +668,11 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 self.wires.append((element.name, node_name))
         if element.is_external():
             if element.is_phase:
-                self.ext_flux.append(QVariable(element.name))
-                self.add_variable(QVariable(element.name))
+                self.ext_flux.append(Variable(element.name))
+                self.add_variable(Variable(element.name))
             if element.is_charge():
-                self.ext_charge.append(QVariable(element.name))
-                self.add_variable(QVariable(element.name))
+                self.ext_charge.append(Variable(element.name))
+                self.add_variable(Variable(element.name))
         self.invalidation_flag = True
 
     def add_variable(self, variable):
@@ -839,7 +839,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def capacitance_matrix_variables(self, symbolic=False):
         """
-        Calculates the capacitance matrix for the energy term of the qubit Lagrangian in the variable respresentation.
+        Calculates the capacitance matrix for the energy term of the qubit Lagrangian in the variable representation.
         """
 
         if symbolic:
