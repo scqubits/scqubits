@@ -1291,8 +1291,16 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
 
     def q_cap(self, energy):
         """Frequency dependent quality factor of capacitance"""
-        q_cap_0 = 1 * 1e6
-        return q_cap_0 * (6 / energy) ** 0.7
+        # Devoret paper
+        # q_cap_0 = 1 * 1e6
+        # return q_cap_0 * (6 / energy) ** 0.7
+
+        # Schuster paper
+        # return 1 / (8e-6)
+
+        # Vlad paper
+        q_cap_0 = 1/ (3 * 1e-6 )
+        return q_cap_0 * (6 / energy) ** 0.15
 
     # def t1_cap_loss(self, dl_list):
     #     """Return the 1/T1 due to capcitive loss"""
@@ -1401,20 +1409,42 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         epsilon = np.abs(energy_ng_5 - energy_ng_0)
         return 1.49734 / epsilon * 1e-6  # unit in ms
 
+    #TODO: noise calculated by derivative of energy
     def get_t2_flux_noise(self, para_name, para_vals):
+        # orginal_flux = getattr(self, 'flux')
+        # delta = 1e-7
+        # pts = 11
+        # flux_list = np.linspace(0.5 - delta, 0.5 + delta, pts)
+        # energy = np.zeros((pts, para_vals.size))
+        # for i in range(pts):
+        #     setattr(self, 'flux', flux_list[i])
+        #     energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
+        #                                                   subtract_ground=True).energy_table[:, 1]
+        # second_derivative = np.gradient(np.gradient(energy, flux_list, axis=0), flux_list, axis=0)[
+        #                     int(np.round(pts / 2)), :]
+        # setattr(self, 'flux', orginal_flux)
+        # return np.abs(1 / (9e-12 * second_derivative) * 1e-6) / (2 * np.pi)  # unit in ms
+
         orginal_flux = getattr(self, 'flux')
-        delta = 1e-7
-        pts = 11
-        flux_list = np.linspace(0.5 - delta, 0.5 + delta, pts)
+        delta = 1e-6
+        pts = 51
+        flux_list = np.linspace(orginal_flux - delta, orginal_flux + delta, pts)
         energy = np.zeros((pts, para_vals.size))
         for i in range(pts):
             setattr(self, 'flux', flux_list[i])
             energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
                                                           subtract_ground=True).energy_table[:, 1]
+        first_derivative = np.gradient(energy, flux_list, axis=0)[int(np.round(pts / 2)), :]
         second_derivative = np.gradient(np.gradient(energy, flux_list, axis=0), flux_list, axis=0)[
                             int(np.round(pts / 2)), :]
         setattr(self, 'flux', orginal_flux)
-        return np.abs(1 / (9e-12 * second_derivative) * 1e-6) / (2 * np.pi)  # unit in ms
+
+        first_order = 3e-6 * first_derivative
+        second_order = 9e-12 * second_derivative
+        # print(first_order)
+        # print(second_order)
+        # print(first_derivative)
+        return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
 
     def get_t2_current_noise(self, para_name, para_vals):
         orginal_ej = self.EJ
@@ -1429,6 +1459,38 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         first_derivative = np.gradient(energy, ej_list, axis=0)[int(np.round(pts / 2)), :]
         self.EJ = orginal_ej
         return np.abs(1 / (5e-7 * orginal_ej * first_derivative) * 1e-6) / (2 * np.pi)  # unit in ms
+
+
+    # #TODO: noise calculated by derivative of Hamiltonian
+    # def _flux_noise_opertor(self):
+    #     phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
+    #         self.flux * np.pi)
+    #     junction_mat = 1 / 2 * self.EJ * self._kron3(phi_flux_term, self._identity_theta(),
+    #                                               self._cos_varphi_operator()) + 2 * self.EJ * self.total_identity()
+    #     return junction_mat
+    #
+    # def _current_noise_opertor(self):
+    #     phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
+    #         self.flux * np.pi)
+    #     junction_mat = - 2 * self._kron3(phi_flux_term, self._identity_theta(),
+    #                                               self._cos_varphi_operator()) + 2 * self.EJ * self.total_identity()
+    #     return junction_mat
+    #
+    # def get_t2_flux_noise(self, para_name, para_vals):
+    #     matele_0 = self.get_matelements_vs_paramvals('_flux_noise_opertor', para_name, para_vals,
+    #                                                  evals_count=2).matrixelem_table[:, 0, 0]
+    #     matele_1 = self.get_matelements_vs_paramvals('_flux_noise_opertor', para_name, para_vals,
+    #                                                  evals_count=2).matrixelem_table[:, 1, 1]
+    #     matele = np.abs(matele_0 - matele_1)
+    #     return np.abs(1 / (9e-12 * matele) * 1e-6) / (2 * np.pi)  # unit in ms
+    #
+    # def get_t2_current_noise(self, para_name, para_vals):
+    #     matele_0 = self.get_matelements_vs_paramvals('_current_noise_opertor', para_name, para_vals,
+    #                                                  evals_count=2).matrixelem_table[:, 0, 0]
+    #     matele_1 = self.get_matelements_vs_paramvals('_current_noise_opertor', para_name, para_vals,
+    #                                                  evals_count=2).matrixelem_table[:, 1, 1]
+    #     matele = np.abs(matele_0 - matele_1)
+    #     return np.abs(1 / (5e-7 * self.EJ * matele) * 1e-6) / (2 * np.pi)  # unit in ms
 
     def _kron2(self, mat1, mat2):
         return sparse.kron(mat1, mat2, format='csc')
@@ -1542,6 +1604,8 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         plt.ylabel('T1, T2 (ms)')
         plt.yscale('log')
 
+        return para_vals, t2_charge, t2_current, t2_flux, t2_shot, t1_cap, t1_purcell, t1_ind
+
     def print_noise(self):
         t2_charge = self.get_t2_charge_noise('dC', np.array([0]))
         t2_current = self.get_t2_current_noise('dC', np.array([0]))
@@ -1550,10 +1614,13 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         t1_cap = self.get_t1_capacitive_loss('dC', np.array([0]))
         t1_purcell = self.get_t1_purcell('dC', np.array([0]))
         t1_ind = self.get_t1_inductive_loss('dC', np.array([0]))
+        t1_tot = 1/ (1/t1_cap + 1/t1_ind + 1/t1_purcell)
+        t2_tot = 1/ (1/t2_current + 1/t2_charge + 1/t2_flux + 1/t2_shot + 1/t1_tot/2)
+
         return print(' T2_charge =', t2_charge, ' ms', '\n T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
                      ' ms', '\n T2_shot =', t2_shot, ' ms', '\n T1_cap =',
                      t1_cap, ' ms', '\n T1_Purcell =',
-                     t1_purcell, ' ms', '\n T1_ind =', t1_ind, ' ms')
+                     t1_purcell, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1 =', t1_tot, ' ms', '\n T2 =', t2_tot, ' ms')
 
     def get_noise_analysis_2d(self, func, para_name_1, para_vals_1, para_name_2, para_vals_2):
         noise = np.zeros((para_vals_1.size, para_vals_2.size))
@@ -1591,6 +1658,9 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
         fig, axes = self.get_noise_analysis_2d(self.get_t1_capacitive_loss, para_name_1, para_vals_1, para_name_2,
                                                para_vals_2)
         axes.set_title('T1 capacitive loss (log) (ms)')
+        fig, axes = self.get_noise_analysis_2d(self.get_t1_purcell, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
+        axes.set_title('T1 Purcell (log) (ms)')
         fig, axes = self.get_noise_analysis_2d(self.get_t1_inductive_loss, para_name_1, para_vals_1, para_name_2,
                                                para_vals_2)
         axes.set_title('T1 inductive loss (log) (ms)')
