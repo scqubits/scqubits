@@ -220,18 +220,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         """
         pt_count = self.grid.pt_count
         dim_theta = 2 * self.ncut + 1
-        identity_phi = sparse.identity(pt_count, format='csc', dtype=np.complex_)
-        identity_theta = sparse.identity(dim_theta, format='csc', dtype=np.complex_)
-
+        identity_phi = sparse.identity(pt_count, format='csc')
+        identity_theta = sparse.identity(dim_theta, format='csc')
         kinetic_matrix_phi = self.grid.second_derivative_matrix(prefactor=-2.0 * self.ECJ)
-
         diag_elements = 2.0 * self.ECS * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
-
         kinetic_matrix = (sparse.kron(kinetic_matrix_phi, identity_theta, format='csc')
                           + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc'))
+        if self.dCJ != 0:
+            kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
 
-        kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
         return kinetic_matrix
 
     def sparse_potential_mat(self):
@@ -261,8 +259,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         potential_mat = (sparse.kron(phi_cos_potential, theta_cos_potential, format='csc')
                          + sparse.kron(phi_inductive_potential, self._identity_theta(), format='csc')
                          + 2 * self.EJ * sparse.kron(self._identity_phi(), self._identity_theta(), format='csc'))
-        potential_mat += (self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')
-                          * self.sin_theta_operator())
+        if self.dEJ != 0:
+            potential_mat += (self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')
+                              * self.sin_theta_operator())
         return potential_mat
 
     def hamiltonian(self):
@@ -352,7 +351,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         """
         pt_count = self.grid.pt_count
 
-        phi_matrix = sparse.dia_matrix((pt_count, pt_count), dtype=np.complex_)
+        phi_matrix = sparse.dia_matrix((pt_count, pt_count))
         diag_elements = self.grid.make_linspace()
         phi_matrix.setdiag(diag_elements)
         return phi_matrix
