@@ -108,7 +108,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         delta_x = (self.max_val - self.min_val) / self.pt_count
         diag = prefactor * 30.0 / (12.0 * delta_x**2)
         first_off_diag = prefactor * 16 / (12.0 * delta_x**2)
-        second_off_diag = prefactor / (12.0 * delta_x)
+        second_off_diag = prefactor / (12.0 * delta_x**2)
 
         derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=dtp)
         derivative_matrix.setdiag(diag, k=0)
