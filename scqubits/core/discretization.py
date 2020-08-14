@@ -77,6 +77,54 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         """
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
+    def first_derivative_matrix_five_pt_stencil(self, prefactor=1.0, periodic=False):
+        if isinstance(prefactor, complex):
+            dtp = np.complex_
+        else:
+            dtp = np.float_
+        delta_x = (self.max_val - self.min_val) / self.pt_count
+        first_off_diag = prefactor * 8 / (12.0 * delta_x)
+        second_off_diag = prefactor / (12.0 * delta_x)
+
+        derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=dtp)
+        derivative_matrix.setdiag(-second_off_diag, k=2)
+        derivative_matrix.setdiag(first_off_diag, k=1)
+        derivative_matrix.setdiag(-first_off_diag, k=-1)
+        derivative_matrix.setdiag(second_off_diag, k=-2)
+
+        if periodic:
+            derivative_matrix.setdiag(first_off_diag, k=-self.pt_count + 1)
+            derivative_matrix.setdiag(-second_off_diag, k=-self.pt_count + 2)
+            derivative_matrix.setdiag(-first_off_diag, k=self.pt_count - 1)
+            derivative_matrix.setdiag(second_off_diag, k=self.pt_count - 2)
+
+        return derivative_matrix
+
+    def second_derivative_matrix_five_pt_stencil(self, prefactor=1.0, periodic=False):
+        if isinstance(prefactor, complex):
+            dtp = np.complex_
+        else:
+            dtp = np.float_
+        delta_x = (self.max_val - self.min_val) / self.pt_count
+        diag = prefactor * 30.0 / (12.0 * delta_x**2)
+        first_off_diag = prefactor * 16 / (12.0 * delta_x**2)
+        second_off_diag = prefactor / (12.0 * delta_x)
+
+        derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=dtp)
+        derivative_matrix.setdiag(diag, k=0)
+        derivative_matrix.setdiag(-second_off_diag, k=2)
+        derivative_matrix.setdiag(first_off_diag, k=1)
+        derivative_matrix.setdiag(first_off_diag, k=-1)
+        derivative_matrix.setdiag(-second_off_diag, k=-2)
+
+        if periodic:
+            derivative_matrix.setdiag(first_off_diag, k=-self.pt_count + 1)
+            derivative_matrix.setdiag(-second_off_diag, k=-self.pt_count + 2)
+            derivative_matrix.setdiag(first_off_diag, k=self.pt_count - 1)
+            derivative_matrix.setdiag(-second_off_diag, k=self.pt_count - 2)
+
+        return derivative_matrix
+
     def first_derivative_matrix(self, prefactor=1.0, periodic=False):
         """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
         Uses :math:`f'(x) \\approx [f(x+h) - f(x-h)]/2h`.

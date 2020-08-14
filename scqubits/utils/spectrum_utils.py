@@ -13,6 +13,7 @@ import cmath
 
 import numpy as np
 import qutip as qt
+import scipy as sp
 from scipy.linalg import ordqz
 
 
@@ -353,6 +354,9 @@ def compare_spectra_nnz(qbt_type, specdata, specdata_exact, num_compare):
     exact_energies = specdata_exact.energy_table[:, 0:num_compare]
     relative_deviation = np.abs(test_energies-exact_energies)/exact_energies
     maximum_rel_dev = np.max(relative_deviation)
-    number_nonzero_elements = np.count_nonzero(qbt.hamiltonian())
+    ham = qbt.hamiltonian()
+    if sp.sparse.issparse(ham):
+        number_nonzero_elements = ham.nnz
+    else:
+        number_nonzero_elements = np.count_nonzero(ham)
     return maximum_rel_dev, number_nonzero_elements
-

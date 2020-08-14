@@ -46,7 +46,7 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
             'ECB': 0.2,
             'ECJ': 20.0 / 2.7,
             'ECg': 20.0,
-            'EJlist': np.array(5 * [18.95]),
+            'EJlist': np.array(6 * [18.95]),
             'nglist': np.array(5 * [0.0]),
             'flux': 0.0,
             'kmax': 1,

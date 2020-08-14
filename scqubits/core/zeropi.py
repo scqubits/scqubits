@@ -223,7 +223,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         identity_phi = sparse.identity(pt_count, format='csc', dtype=np.complex_)
         identity_theta = sparse.identity(dim_theta, format='csc', dtype=np.complex_)
 
-        kinetic_matrix_phi = self.grid.second_derivative_matrix(prefactor=-2.0 * self.ECJ)
+        kinetic_matrix_phi = self.grid.second_derivative_matrix_five_pt_stencil(prefactor=-2.0 * self.ECJ)
 
         diag_elements = 2.0 * self.ECS * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
