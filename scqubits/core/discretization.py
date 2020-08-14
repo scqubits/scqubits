@@ -111,7 +111,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         second_off_diag = prefactor / (12.0 * delta_x**2)
 
         derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=dtp)
-        derivative_matrix.setdiag(diag, k=0)
+        derivative_matrix.setdiag(-diag, k=0)
         derivative_matrix.setdiag(-second_off_diag, k=2)
         derivative_matrix.setdiag(first_off_diag, k=1)
         derivative_matrix.setdiag(first_off_diag, k=-1)
