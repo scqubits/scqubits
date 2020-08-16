@@ -12,9 +12,9 @@ The rate of a transition from state :math:`i` to state :math:`j` can be expresse
 
 .. math::
 
-   \Gamma_{ij} = \frac{1}{\hbar^2} |\langle i| A_{\lambda} |j \rangle|^2 S(\omega_{ij}),
+   \Gamma_{ij} = \frac{1}{\hbar^2} |\langle i| B_{\lambda} |j \rangle|^2 S(\omega_{ij}),
 
-where :math:`A_\lambda` is the noise operator, and :math:`S(\omega_{ij})` the spectral density function evaluated at
+where :math:`B_\lambda` is the noise operator, and :math:`S(\omega_{ij})` the spectral density function evaluated at
 the angular frequency associated with the transition frequeny, :math:`\omega_{ij} = \omega_{j} - \omega_{i}`.
 :math:`\omega_{ij}` is positive in the case of  decay (the qubit emits energy to the bath), and negative in case of
 excitations (the qubit absorbs energy from the bath).
@@ -34,7 +34,7 @@ Capacitive noise
 +--------------------------------------------+-----------------------------------------+
 | Method name                                | ``t1_capacitive_loss``                  |
 +--------------------------------------------+-----------------------------------------+
-| :math:`A_\lambda`                          | :math:`n_g` (charge)                    |
+| :math:`B_\lambda`                          | :math:`n_g` (charge)                    |
 +--------------------------------------------+-----------------------------------------+
 
 The spectral density of this noise channel is [Smith2020]_:
@@ -57,7 +57,7 @@ Inductive noise
 +--------------------------------------------+-----------------------------------------+
 | Method name                                | ``t1_inductive_loss``                   |
 +--------------------------------------------+-----------------------------------------+
-| :math:`A_\lambda`                          | :math:`\phi` (phase)                    |
+| :math:`B_\lambda`                          | :math:`\phi` (phase)                    |
 +--------------------------------------------+-----------------------------------------+
 
 The spectral density of this noise channel is [Smith2020]_:

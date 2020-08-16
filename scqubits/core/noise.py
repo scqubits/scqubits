@@ -21,7 +21,7 @@ import scqubits.settings as settings
 # Helpers for units conversion
 
 
-def calc_therm_ratio(omega, T, convert_omega=True):
+def calc_therm_ratio(omega, T, omega_in_standard_units=False):
     r"""Returns the ratio
     
     :math:`\beta \omega = \frac{\hbar \omega}{k_B T}`
@@ -34,14 +34,14 @@ def calc_therm_ratio(omega, T, convert_omega=True):
         angular frequency in system units
     T: float 
         temperature in Kelvin
-    convert_omega: bool 
-        should we convert omega to standard units
+    omega_in_standard_units: bool 
+        is omega given in standard units (i.e. Hz)
 
     Returns
     -------
     float
     """
-    omega = units.to_standard_units(omega) if convert_omega else omega
+    omega = units.to_standard_units(omega) if not omega_in_standard_units else omega
     return (sp.constants.hbar * omega) / (sp.constants.k * T)
 
 
@@ -75,8 +75,9 @@ NOISE_PARAMS = {
     'R_0': 50,        # Characteristic impedance of a transmission line. Units: Ohms
     'T': 0.015,       # Typical temperature for a superconducting circuit experiment. Units: K
     'M': 400,         # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Ampere
-    'R_k': sp.constants.h / sp.constants.e**2.0,  # Superconducting quantum resistance, aka Klitzing constant.
-                                                  # Note, in some papers quantum resistance is defined as: h/(2e)^2
+    'R_k': sp.constants.h / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
+                                                  # Note, in some papers a superconducting quantum
+                                                  # resistance is used, and defined as: h/(2e)^2
 }
 
 
@@ -89,7 +90,7 @@ class NoisySystem:
         return self.supported_noise_channels()
 
     def plot_coherence_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options=None,
-            spectrum_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+                                    spectrum_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Show plots of coherence for various channels supported by the qubit as they vary as a function of a
         changing parameter. 
@@ -144,8 +145,8 @@ class NoisySystem:
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
 
             spectrum_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
-                                                   subtract_ground=True, get_eigenstates=True, filename=None,
-                                                   num_cpus=num_cpus)
+                                                           subtract_ground=True, get_eigenstates=True, filename=None,
+                                                           num_cpus=num_cpus)
 
         # figure out how many plots we need to produce
         plot_grid = (1, 1) if len(noise_channels) == 1 else (math.ceil(len(noise_channels)/2), 2)
@@ -214,7 +215,7 @@ class NoisySystem:
         return fig, axes
 
     def plot_t1_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options=None,
-            spectrum_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+                                       spectrum_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Plot effective :math:`T_1` coherence as it varies as a function of changing parameter.
 
@@ -279,8 +280,8 @@ class NoisySystem:
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
 
             spectrum_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
-                                                   subtract_ground=True, get_eigenstates=True, filename=None,
-                                                   num_cpus=num_cpus)
+                                                           subtract_ground=True, get_eigenstates=True, filename=None,
+                                                           num_cpus=num_cpus)
 
         # remember current value of param_name
         current_val = getattr(self, param_name)
@@ -311,7 +312,7 @@ class NoisySystem:
         return fig, axes
 
     def plot_t2_effective_vs_paramvals(self, param_name, param_vals, noise_channels=None, common_noise_options=None,
-            spectrum_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
+                                       spectrum_data=None, scale=1, num_cpus=settings.NUM_CPUS, **kwargs):
         r"""
         Plot effective :math:`T_2` coherence as it varies as a function of changing parameter.
 
@@ -375,8 +376,8 @@ class NoisySystem:
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
 
             spectrum_data = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=max_level+1,
-                                                   subtract_ground=True, get_eigenstates=True, filename=None,
-                                                   num_cpus=num_cpus)
+                                                           subtract_ground=True, get_eigenstates=True, filename=None,
+                                                           num_cpus=num_cpus)
 
         # remember current value of param_name
         current_val = getattr(self, param_name)
@@ -874,63 +875,6 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
 
-    def t1_inductive_loss(self, i=1, j=0, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
-                          esys=None, get_rate=False, **kwargs):
-        r"""
-        Loss due to inductive dissipation in a superinductor.  
-
-        TODO check factor of 1/2 definition in EL; should be the same in all qubits, otherwise we'll get this wrong.
-            In that case, could overwrite it for some qubits. 
-
-        References: Smith et al (2020)
-
-        Parameters
-        ----------
-        i: int >=0
-            state index that along with j defines a transition (i->j)
-        j: int >=0
-            state index that along with i defines a transition (i->j)
-        Q_ind: float or callable
-            inductive quality factor; a fixed value or function of `omega`
-        T: float
-            temperature in Kelvin
-        total: bool
-            if False return a time/rate associated with a transition from state i to state j.
-            if True return a time/rate associated with both i to j and j to i transitions
-        esys: tuple(ndarray, ndarray)
-            evals, evecs tuple
-        get_rate: bool
-            get rate or time
-
-        Returns
-        -------
-        time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
-
-        """
-
-        if 't1_inductive_loss' not in self.supported_noise_channels():
-            raise RuntimeError("Noise channel 't1_inductive_loss' is not supported in this system.")
-
-        if Q_ind is None:
-            # See Smith et al (2020)
-            def q_ind_fun(omega): return 500e6
-        elif callable(Q_ind):  # Q_ind is a function of omega
-            q_ind_fun = Q_ind
-        else:  # Q_ind is given as a number
-            def q_ind_fun(omega): return Q_ind
-
-        def spectral_density(omega):
-            therm_ratio = calc_therm_ratio(omega, T)
-            s = 2 * self.EL / q_ind_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
-            s *= 2 * np.pi  # We assume that system energies are given in units of frequency
-            return s
-
-        noise_op = self.phi_operator()
-
-        return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
-                       esys=esys, get_rate=get_rate, **kwargs)
-
     def t1_charge_impedance(self, i=1, j=0, Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=True,
                             esys=None, get_rate=False, **kwargs):
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
@@ -1035,11 +979,75 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total, esys=esys,
                        get_rate=get_rate, **kwargs)
 
-    def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, T=NOISE_PARAMS['T'], Delta=NOISE_PARAMS['Delta'],
+    def t1_inductive_loss(self, i=1, j=0, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
+                          esys=None, get_rate=False, **kwargs):
+        r"""
+        Loss due to inductive dissipation in a superinductor.  
+
+        TODO check factor of 1/2 definition in EL; should be the same in all qubits, otherwise we'll get this wrong.
+            In that case, could overwrite it for some qubits. 
+
+        References: Smith et al (2020)
+
+        Parameters
+        ----------
+        i: int >=0
+            state index that along with j defines a transition (i->j)
+        j: int >=0
+            state index that along with i defines a transition (i->j)
+        Q_ind: float or callable
+            inductive quality factor; a fixed value or function of `omega`
+        T: float
+            temperature in Kelvin
+        total: bool
+            if False return a time/rate associated with a transition from state i to state j.
+            if True return a time/rate associated with both i to j and j to i transitions
+        esys: tuple(ndarray, ndarray)
+            evals, evecs tuple
+        get_rate: bool
+            get rate or time
+
+        Returns
+        -------
+        time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
+        """
+
+        if 't1_inductive_loss' not in self.supported_noise_channels():
+            raise RuntimeError("Noise channel 't1_inductive_loss' is not supported in this system.")
+
+        if Q_ind is None:
+            # See Smith et al (2020)
+            def q_ind_fun(omega):
+                therm_ratio = abs(calc_therm_ratio(omega, T))
+                therm_ratio_500MHz = calc_therm_ratio(2 * np.pi * 500e6, T, omega_in_standard_units=True)
+                return 500e6 * (sp.special.kv(0, 1/2 * therm_ratio_500MHz) * np.sinh(1/2 * therm_ratio_500MHz)) \
+                    / (sp.special.kv(0, 1/2 * therm_ratio) * np.sinh(1/2 * therm_ratio))   \
+
+        elif callable(Q_ind):  # Q_ind is a function of omega
+            q_ind_fun = Q_ind
+
+        else:  # Q_ind is given as a number
+            def q_ind_fun(omega): return Q_ind
+
+        def spectral_density(omega):
+            therm_ratio = calc_therm_ratio(omega, T)
+            s = 2 * self.EL / q_ind_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s *= 2 * np.pi  # We assume that system energies are given in units of frequency
+            return s
+
+        noise_op = self.phi_operator()
+
+        return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
+                       esys=esys, get_rate=get_rate, **kwargs)
+
+    def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, x_qp=NOISE_PARAMS['x_qp'], T=NOISE_PARAMS['T'], Delta=NOISE_PARAMS['Delta'],
                                    total=True,  esys=None, get_rate=False, **kwargs):
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
-        References: Catelani et al (2011), Pop et al (2014), Smith et al (2020)
+        References: Smith et al (2020), Catelani et al (2011), Pop et al (2014). 
+
 
         Parameters
         ----------
@@ -1049,6 +1057,8 @@ class NoisySystem:
             state index that along with i defines a transition (i->j)
         Y_qp float or callable
             complex admittance; a fixed value or function of `omega`
+        x_qp: float
+            quasiparticle density (in units of eV)
         T: float
             temperature in Kelvin
         Delta: float 
@@ -1071,30 +1081,39 @@ class NoisySystem:
             raise RuntimeError("Noise channel 't1_quasiparticle_tunneling' is not supported in this system.")
 
         if Y_qp is None:
-            y_qp_fun = None
+            def y_qp_fun(omega):
+
+                # Note that y_qp_fun is always symmetric in omega, i.e. In Smith et al 2020, 
+                # we essentially have something proportional to sinh(omega)/omega
+                omega = abs(omega)
+
+                Delta_in_Hz = convert_eV_to_Hz(Delta)
+                omega_in_Hz = units.to_standard_units(omega) / (2*np.pi)
+                EJ_in_Hz = units.to_standard_units(self.EJ)
+
+                therm_ratio = calc_therm_ratio(omega, T)
+                Delta_over_T = calc_therm_ratio(2 * np.pi * Delta_in_Hz, T, omega_in_standard_units=True)
+
+                re_y_qp = np.sqrt(2/np.pi) * (8 / NOISE_PARAMS['R_k']) * (EJ_in_Hz / Delta_in_Hz)  \
+                    * (2 * Delta_in_Hz/omega_in_Hz)**(3/2) * x_qp * np.sqrt(1/2 * therm_ratio) \
+                    * sp.special.kv(0, 1/2 * abs(therm_ratio)) * np.sinh(1/2 * therm_ratio)
+
+                return re_y_qp
+
         elif callable(Y_qp):  # Y_qp is a function of omega
             y_qp_fun = Y_qp
+
         else:  # Y_qp is given as a number
             def y_qp_fun(omega): return Y_qp
 
-        if y_qp_fun is None: 
-            def spectral_density(omega):
-                """Eq. 35 in Catalani et al (2011). """
-                therm_ratio = calc_therm_ratio(omega, T)
-                Delta_over_T = calc_therm_ratio(2 * np.pi * convert_eV_to_Hz(Delta), T, convert_omega=False)
-                s = (16 * ( 2 * np.pi *  self.EJ) / np.pi) * np.exp(- Delta_over_T) \
-                        * np.exp(0.5 * therm_ratio) * sp.special.kv(0, 0.5*abs(therm_ratio))
-                return s
-        else: # define the spectral density in terms of the omega-dependent admittance function 
-            def spectral_density(omega):
-                """Eq. 38 in Catalani et al (2011). """
-                therm_ratio = calc_therm_ratio(omega, T)
-                s = omega * NOISE_PARAMS['R_k'] / np.pi * complex(y_qp_fun(omega)).real  \
-                        * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
-                return s
+        def spectral_density(omega):
+            """Eq. 38 in Catalani et al (2011). """
+            therm_ratio = calc_therm_ratio(omega, T)
+            s = omega * NOISE_PARAMS['R_k'] / np.pi * complex(y_qp_fun(omega)).real  \
+                * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            return s
 
         noise_op = self.sin_phi_operator(alpha=0.5)
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
-
