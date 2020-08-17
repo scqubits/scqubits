@@ -2,6 +2,7 @@ import itertools
 import warnings
 from abc import ABC, abstractmethod
 from functools import partial
+from typing import Callable
 
 import numpy as np
 from numpy.linalg import norm
@@ -718,8 +719,10 @@ class VCHOS(ABC):
 
 
 class OptimizeHarmonicLength:
-    def __init__(self):
-        pass
+    number_degrees_freedom: int
+    Xi_matrix: Callable[[np.ndarray], np.ndarray]
+    _find_relevant_periodic_continuation_vectors: Callable[[np.ndarray], np.ndarray]
+    transfer_matrix_and_inner_product: Callable[..., np.ndarray]
 
     def optimize_Xi_variational(self):
         """
