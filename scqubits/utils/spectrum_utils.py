@@ -354,7 +354,7 @@ def compare_spectra_nnz(qbt_type, specdata, specdata_exact, num_compare):
     exact_energies = specdata_exact.energy_table[:, 0:num_compare]
     relative_deviation = np.abs(test_energies-exact_energies)/exact_energies
     maximum_rel_dev = np.max(relative_deviation)
-    ham = qbt.hamiltonian()
+    ham = qbt.transfer_matrix()
     if sp.sparse.issparse(ham):
         number_nonzero_elements = ham.nnz
     else:

@@ -6,7 +6,6 @@ from functools import partial
 import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import LinAlgError, expm, inv, eigh
-from scipy.integrate import quad
 from scipy.optimize import minimize
 import scipy.constants as const
 from numpy.linalg import matrix_power
@@ -123,98 +122,27 @@ class VCHOS(ABC):
         omega_squared, _ = self.eigensystem_normal_modes(i)
         return np.sqrt(omega_squared)
 
-    def compare_harmonic_lengths_with_minima_separations(self):
+    def compare_harmonic_lengths_with_minima_separations(self, optimized_lengths=None):
         """
         Returns
         -------
         ndarray
             ratio of harmonic lengths to minima separations
         """
-        return self._wrapper_for_functions_comparing_minima(self._find_closest_periodic_minimum)
+        Xi = self.Xi_matrix(optimized_lengths)
+        return self._wrapper_for_functions_comparing_minima(self._find_closest_periodic_minimum, Xi)
 
-    def compute_tunneling_amplitudes(self):
-        """
-        Returns
-        -------
-        ndarray
-            tunnel splitting between two minima
-        """
-        return self._wrapper_for_functions_comparing_minima(self._compute_tunneling_amplitude_for_pair)
-
-    def _wrapper_for_functions_comparing_minima(self, function):
+    def _wrapper_for_functions_comparing_minima(self, function, Xi):
         sorted_minima = self.sorted_minima()
-        periodic_vecs = self._find_relevant_periodic_continuation_vectors()
+        periodic_vecs = self._find_relevant_periodic_continuation_vectors(Xi)
         all_minima_pairs = list(itertools.combinations_with_replacement(sorted_minima, 2))
-        return np.array([function(minima_pair, periodic_vecs[i]) for i, minima_pair in enumerate(all_minima_pairs)])
+        return np.array([function(minima_pair, periodic_vecs[i], Xi) for i, minima_pair in enumerate(all_minima_pairs)])
 
-    def _S_integrand(self, m, minima_pair, t):
-        line_of_sight_vec = t * (minima_pair[1] - minima_pair[0]) + minima_pair[0]
-        integrand = np.sqrt(2*m*(self.potential(line_of_sight_vec) - self.potential(minima_pair[0])))
-        integrand *= self._ds_for_integral(minima_pair[1] - minima_pair[0])
-        return integrand
-
-    def _ds_for_integral(self, derivatives):
-        return np.sqrt(np.sum([deriv**2 for deriv in derivatives]))
-
-    def _compute_action_integral(self, m, minima_pair):
-        S_func = partial(self._S_integrand, m, minima_pair)
-        S = quad(S_func, 0.0, 1.0)
-        assert(np.abs(S[1]) < 1e-7)
-        return S[0]
-
-    def _compute_minima_splitting(self, minima_pair):
-        escape_frequency = self._compute_escape_frequency(minima_pair)
-        unit_vec = self._unit_vec_between_minima(minima_pair)
-        effective_mass = self._compute_effective_mass(unit_vec)
-        prefactor = escape_frequency/(2.0*np.sqrt(np.pi*np.exp(1)))  # See Eq. (1.1) of A. Garg, AJP 68, 430 (2000)
-        S = self._compute_action_integral(effective_mass, minima_pair)
-        return prefactor * np.exp(-S)
-
-    def _unit_vec_between_minima(self, minima_pair):
-        vec_mag = np.linalg.norm(minima_pair[1] - minima_pair[0])
-        return (minima_pair[1] - minima_pair[0]) / vec_mag
-
-    def _compute_escape_frequency(self, minima_pair):
-        unit_vec = self._unit_vec_between_minima(minima_pair)
-        effective_mass = self._compute_effective_mass(unit_vec)
-        effective_potential = self._compute_effective_potential(unit_vec)
-        return np.sqrt(effective_potential / effective_mass)
-
-    def _compute_effective_mass(self, unit_vec):
-        C_matrix = self.build_capacitance_matrix() * self.Phi0 ** 2
-        return unit_vec @ C_matrix @ unit_vec
-
-    def _compute_effective_potential(self, unit_vec):
-        U_matrix = self.build_gamma_matrix(0) * self.Phi0 ** 2
-        return unit_vec @ U_matrix @ unit_vec
-
-    def _eliminate_zero_vector(self, periodic_vecs):
-        return np.array([vec for vec in periodic_vecs if not np.allclose(vec, np.zeros_like(vec))])
-
-    def _check_if_potential_minima_is_multiple_of_freq(self, minima_pair):
-        minima_1_pot_val = self.potential(minima_pair[0])
-        minima_2_pot_val = self.potential(minima_pair[1])
-        escape_freq = self._compute_escape_frequency(minima_pair)
-        n_omega = np.array([n * escape_freq for n in range(0, 50)])
-        potential_difference = np.abs(minima_2_pot_val - minima_1_pot_val)*np.ones_like(n_omega)
-        comparison = np.round(np.abs(n_omega - potential_difference), decimals=3)
-        return not np.all(comparison)
-
-    def _compute_tunneling_amplitude_for_pair(self, minima_pair, periodic_vecs):
-        if np.allclose(minima_pair[1], minima_pair[0]):
-            periodic_vecs = self._eliminate_zero_vector(periodic_vecs)
-        elif not self._check_if_potential_minima_is_multiple_of_freq(minima_pair):
-            return 0.0
-        tunneling_values = np.array([self._compute_minima_splitting(np.array([minima_pair[0],
-                                                                             2.0*np.pi*vec + minima_pair[1]]))
-                                     for vec in periodic_vecs])
-        return np.sum(tunneling_values)
-
-    def _find_closest_periodic_minimum(self, minima_pair, periodic_vecs):
-        Xi_inv = inv(self.Xi_matrix())
+    def _find_closest_periodic_minimum(self, minima_pair, periodic_vecs, Xi):
+        Xi_inv = inv(Xi)
         delta_inv = Xi_inv.T @ Xi_inv
         if np.allclose(minima_pair[1], minima_pair[0]):  # Do not include equivalent minima in the same unit cell
-            periodic_vecs = self._eliminate_zero_vector(periodic_vecs)
+            periodic_vecs = np.array([vec for vec in periodic_vecs if not np.allclose(vec, np.zeros_like(vec))])
         minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_pair[1] - minima_pair[0]))/2.0
                                      for vec in periodic_vecs])
         minima_vectors = np.array([2.0*np.pi*vec + (minima_pair[1] - minima_pair[0])
@@ -223,7 +151,7 @@ class VCHOS(ABC):
         harmonic_lengths = np.array([4.0*(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
         return np.max(harmonic_lengths / minima_distances)
 
-    def Xi_matrix(self):
+    def Xi_matrix(self, optimized_lengths=None):
         """
         Returns
         -------
@@ -231,11 +159,56 @@ class VCHOS(ABC):
             Xi matrix of the normal mode eigenvectors normalized
             to encode the harmonic length
         """
+        if optimized_lengths is None:
+            optimized_lengths = np.ones(self.number_degrees_freedom)
         omega_squared, normal_mode_eigenvectors = self.eigensystem_normal_modes(0)
         # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
-        Xi_matrix = np.array([normal_mode_eigenvectors[:, i] * (omega_squared[i])**(-1/4)
-                              * np.sqrt(1./self.Z0) for i in range(len(omega_squared))]).T
+        Xi_matrix = np.array([normal_mode_eigenvectors[:, i] * optimized_lengths[i] * omega**(-1/4)
+                              * np.sqrt(1./self.Z0) for i, omega in enumerate(omega_squared)]).T
         return Xi_matrix
+
+    def variationally_optimize_Xi_independent(self):
+        original_lengths = np.ones(self.number_degrees_freedom)
+        optimized_lengths = []
+        for i, opt_length in enumerate(original_lengths):
+            evals_func = partial(self._evals_calc_variation_optimize_independent, i)
+            result = minimize(evals_func, opt_length)
+            optimized_lengths.append(result.x)
+        return optimized_lengths
+
+    def _evals_calc_variation_optimize_independent(self, i, opt_length):
+        optimized_lengths = np.ones(self.number_degrees_freedom)
+        optimized_lengths[i] = opt_length
+        transfer_matrix, inner_product_matrix = self.transfer_matrix_and_inner_product(optimized_lengths)
+        evals = eigh(transfer_matrix, b=inner_product_matrix, eigvals_only=True, eigvals=(0, 2))
+        return evals[0]
+
+    def _transfer_matrix_and_inner_product_variation(self, nearest_neighbors, optimized_lengths):
+        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(optimized_lengths)
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        Xi = self.Xi_matrix(optimized_lengths)
+        Xi_inv = inv(Xi)
+        transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
+                                           premultiplied_a_and_a_dagger, Xi, Xi_inv)
+        transfer_matrix = self._periodic_continuation(transfer_matrix_function, optimized_lengths,
+                                                      nearest_neighbors=nearest_neighbors)
+        inner_product_matrix = self._periodic_continuation(self._inner_product_operator, optimized_lengths,
+                                                           nearest_neighbors=nearest_neighbors)
+        return transfer_matrix, inner_product_matrix
+
+    def variationally_optimize_Xi(self):
+        optimized_lengths = np.ones(self.number_degrees_freedom)
+        Xi = self.Xi_matrix(optimized_lengths)
+        nearest_neighbors = self._find_relevant_periodic_continuation_vectors(Xi)
+        evals_func = partial(self._evals_calc_variation_optimize, nearest_neighbors)
+        result = minimize(evals_func, optimized_lengths)
+        return result.x
+
+    def _evals_calc_variation_optimize(self, nearest_neighbors, optimized_lengths):
+        transfer_matrix, inner_product_matrix = self._transfer_matrix_and_inner_product_variation(nearest_neighbors,
+                                                                                                  optimized_lengths)
+        evals = eigh(transfer_matrix, b=inner_product_matrix, eigvals_only=True, eigvals=(0, 2))
+        return evals[0]
 
     def a_operator(self, mu):
         """Return the lowering operator associated with the mu^th d.o.f. in the full Hilbert space
@@ -281,7 +254,7 @@ class VCHOS(ABC):
         """
         return int(len(self.sorted_minima()) * self.number_states_per_minimum())
 
-    def _find_relevant_periodic_continuation_vectors(self):
+    def _find_relevant_periodic_continuation_vectors(self, Xi):
         """
         We have found that specifically this part of the code is quite slow, that
         is finding the relevant nearest neighbor, next nearest neighbor, etc. lattice vectors
@@ -290,7 +263,7 @@ class VCHOS(ABC):
         the results were the same for all three matrices. This helper function allows us to only
         do it once.
         """
-        Xi_inv = inv(self.Xi_matrix())
+        Xi_inv = inv(Xi)
         minima_list = self.sorted_minima()
         nearest_neighbors = []
         nearest_neighbors_single_minimum = []
@@ -314,7 +287,7 @@ class VCHOS(ABC):
     def _filter_neighbors(self, neighbor, minima_diff, Xi_inv):
         """
         Want to eliminate periodic continuation terms that are irrelevant, i.e.,
-        they add nothing to the Hamiltonian. These can be identified as each term
+        they add nothing to the transfer matrix. These can be identified as each term
         is suppressed by a gaussian exponential factor. If the argument np.dot(dpkX, dpkX)
         of the exponential is greater than 180.0, this results in a suppression of ~10**(-20),
         and so can be safely neglected.
@@ -333,45 +306,48 @@ class VCHOS(ABC):
         a_dagger_a = np.array([self.a_operator(i).T @ self.a_operator(i) for i in range(dim)])
         return a, a_a, a_dagger_a
 
-    def _build_single_exp_i_phi_j_operator(self, j):
-        Xi = self.Xi_matrix()
+    def _build_single_exp_i_phi_j_operator(self, j, Xi):
         dim = self.number_degrees_freedom
         if j == dim:
             exp_i_phi_j_a_component = expm(np.sum([self.boundary_coeffs[i]
                                                    * 1j * Xi[i, k] * self.a_operator(k) / np.sqrt(2.0)
                                                    for i in range(dim) for k in range(dim)], axis=0))
-            BCH_factor = self._BCH_factor_for_potential_boundary()
+            BCH_factor = self._BCH_factor_for_potential_boundary(Xi)
         else:
             exp_i_phi_j_a_component = expm(np.sum([1j * Xi[j, k] * self.a_operator(k) / np.sqrt(2.0)
                                                    for k in range(dim)], axis=0))
-            BCH_factor = self._BCH_factor_for_junction(j)
+            BCH_factor = np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j]))
         exp_i_phi_j_a_dagger_component = exp_i_phi_j_a_component.T
         return BCH_factor * exp_i_phi_j_a_dagger_component @ exp_i_phi_j_a_component
 
-    def _build_all_exp_i_phi_j_operators(self):
-        return np.array([self._build_single_exp_i_phi_j_operator(j) for j in range(self.number_degrees_freedom + 1)])
+    def _build_all_exp_i_phi_j_operators(self, Xi):
+        return np.array([self._build_single_exp_i_phi_j_operator(j, Xi)
+                         for j in range(self.number_degrees_freedom + 1)])
 
-    def _build_exponentiated_translation_operators(self, minima_diff, Xi_inv):
-        """In general this is the costliest part of the code (expm is quite slow)"""
+    def _build_general_exponentiated_translation_operators(self, Xi_inv):
         dim = self.number_degrees_freedom
         exp_a_list = np.array([expm(np.sum([2.0 * np.pi * Xi_inv.T[i, j] * self.a_operator(j) / np.sqrt(2.0)
                                             for j in range(dim)], axis=0)) for i in range(dim)])
+        return exp_a_list
+
+    def _build_minima_dependent_exponentiated_translation_operators(self, minima_diff, Xi_inv):
+        """In general this is a costly part of the code (expm is quite slow)"""
+        dim = self.number_degrees_freedom
         exp_a_minima_difference = expm(np.sum([minima_diff[i] * Xi_inv.T[i, j] * self.a_operator(j) / np.sqrt(2.0)
                                                for i in range(dim) for j in range(dim)], axis=0))
-        return exp_a_list, exp_a_minima_difference
+        return exp_a_minima_difference
 
-    def _translation_operator_builder(self, exp_a_list_and_minima_difference, neighbor):
+    def _translation_operator_builder(self, exp_a_list, exp_minima_difference, neighbor):
         """Build translation operators using matrix_power rather than the more costly expm"""
         dim = self.number_degrees_freedom
-        exp_a_list, exp_a_minima_difference = exp_a_list_and_minima_difference
         translation_op_a_dagger = self.identity()
         translation_op_a = self.identity()
         for j in range(dim):
             translation_op_a_dagger = translation_op_a_dagger @ matrix_power(exp_a_list[j].T, neighbor[j])
         for j in range(dim):
             translation_op_a = translation_op_a @ matrix_power(exp_a_list[j], -neighbor[j])
-        translation_op_a_dagger = exp_a_minima_difference.T @ translation_op_a_dagger
-        translation_op_a = translation_op_a @ inv(exp_a_minima_difference)
+        translation_op_a_dagger = exp_minima_difference.T @ translation_op_a_dagger
+        translation_op_a = translation_op_a @ inv(exp_minima_difference)
         return translation_op_a_dagger, translation_op_a
 
     def _exp_product_coefficient(self, delta_phi, Xi_inv):
@@ -380,62 +356,85 @@ class VCHOS(ABC):
         delta_phi_rotated = Xi_inv @ delta_phi
         return np.exp(-1j * self.nglist @ delta_phi) * np.exp(-0.25 * delta_phi_rotated @ delta_phi_rotated)
 
-    def _BCH_factor_for_potential_boundary(self):
+    def _BCH_factor_for_potential_boundary(self, Xi):
         """BCH factor obtained from the last potential operator"""
-        Xi = self.Xi_matrix()
         dim = self.number_degrees_freedom
         return np.exp(-0.25*np.sum([self.boundary_coeffs[j]*self.boundary_coeffs[k]
                                     * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim) for k in range(dim)]))
 
-    def _BCH_factor_for_junction(self, j):
-        """BCH factor from potential operators of a single variable"""
-        Xi = self.Xi_matrix()
-        return np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j]))
-
     def hamiltonian(self):
-        """
-        Returns
-        -------
-        ndarray
-            Returns the Hamiltonian matrix
-        """
-        nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators()
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
-        Xi = self.Xi_matrix()
-        hamiltonian_function = partial(self._local_contribution_to_hamiltonian, exp_i_phi_list,
-                                       premultiplied_a_and_a_dagger, Xi, inv(Xi))
-        return self._periodic_continuation_for_operator(hamiltonian_function, nearest_neighbors=nearest_neighbors)
+        pass
 
-    def kinetic_matrix(self):
+    def kinetic_matrix(self, optimized_lengths=None):
         """
         Returns
         -------
         ndarray
             Returns the kinetic energy matrix
         """
-        nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
+        Xi = self.Xi_matrix(optimized_lengths)
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
-        kinetic_function = partial(self._local_kinetic_contribution_to_hamiltonian,
-                                   premultiplied_a_and_a_dagger, inv(self.Xi_matrix()))
-        return self._periodic_continuation_for_operator(kinetic_function, nearest_neighbors=nearest_neighbors)
+        kinetic_function = partial(self._local_kinetic_contribution_to_transfer_matrix,
+                                   premultiplied_a_and_a_dagger, inv(Xi))
+        return self._periodic_continuation(kinetic_function, Xi)
 
-    def potential_matrix(self):
+    def potential_matrix(self, optimized_lengths=None):
         """
         Returns
         -------
         ndarray
             Returns the potential energy matrix
         """
-        nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators()
+        Xi = self.Xi_matrix(optimized_lengths)
+        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi)
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
-        potential_function = partial(self._local_potential_contribution_to_hamiltonian, exp_i_phi_list,
-                                     premultiplied_a_and_a_dagger, self.Xi_matrix())
-        return self._periodic_continuation_for_operator(potential_function, nearest_neighbors=nearest_neighbors)
+        potential_function = partial(self._local_potential_contribution_to_transfer_matrix, exp_i_phi_list,
+                                     premultiplied_a_and_a_dagger, Xi)
+        return self._periodic_continuation(potential_function, Xi)
 
-    def _local_kinetic_contribution_to_hamiltonian(self, premultiplied_a_and_a_dagger, Xi_inv,
-                                                   phi_neighbor, minima_m, minima_p):
+    def transfer_matrix(self, optimized_lengths=None):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the transfer matrix
+        """
+        Xi = self.Xi_matrix(optimized_lengths)
+        nearest_neighbors = self._find_relevant_periodic_continuation_vectors(Xi)
+        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi)
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
+                                           premultiplied_a_and_a_dagger, Xi, inv(Xi))
+        return self._periodic_continuation(transfer_matrix_function, Xi, nearest_neighbors=nearest_neighbors)
+
+    def inner_product_matrix(self, optimized_lengths=None):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the inner product matrix
+        """
+        Xi = self.Xi_matrix(optimized_lengths)
+        return self._periodic_continuation(self._inner_product_operator, Xi)
+
+    def transfer_matrix_and_inner_product(self, optimized_lengths=None):
+        Xi = self.Xi_matrix(optimized_lengths)
+        Xi_inv = inv(Xi)
+        nearest_neighbors = self._find_relevant_periodic_continuation_vectors(Xi)
+        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi)
+        exp_a_list = self._build_general_exponentiated_translation_operators(Xi_inv)
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+
+        transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
+                                           premultiplied_a_and_a_dagger, Xi, Xi_inv)
+        transfer_matrix = self._periodic_continuation(transfer_matrix_function, Xi, exp_a_list=exp_a_list,
+                                                      nearest_neighbors=nearest_neighbors)
+        inner_product_matrix = self._periodic_continuation(self._inner_product_operator, Xi, exp_a_list=exp_a_list,
+                                                           nearest_neighbors=nearest_neighbors)
+        return transfer_matrix, inner_product_matrix
+
+    def _local_kinetic_contribution_to_transfer_matrix(self, premultiplied_a_and_a_dagger, Xi_inv,
+                                                       phi_neighbor, minima_m, minima_p):
         """Calculating products of a, a_dagger operators is costly,
         as well as repeatedly calculating Xi (or Xi_inv) which is why they are
         passed to this function in this way rather than calculated below"""
@@ -453,8 +452,8 @@ class VCHOS(ABC):
         kinetic_matrix += identity_coefficient * self.identity()
         return kinetic_matrix
 
-    def _local_potential_contribution_to_hamiltonian(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
-                                                     Xi, phi_neighbor, minima_m, minima_p):
+    def _local_potential_contribution_to_transfer_matrix(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
+                                                         Xi, phi_neighbor, minima_m, minima_p):
         """Calculating exp_i_phi operators is costly, which is why it is
         passed to this function in this way rather than calculated below"""
         dim = self.number_degrees_freedom
@@ -471,23 +470,12 @@ class VCHOS(ABC):
         potential_matrix += np.sum(self.EJlist) * self.identity()
         return potential_matrix
 
-    def _local_contribution_to_hamiltonian(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
-                                           Xi, Xi_inv, phi_neighbor, minima_m, minima_p):
-        return (self._local_kinetic_contribution_to_hamiltonian(premultiplied_a_and_a_dagger, Xi_inv,
-                                                                phi_neighbor, minima_m, minima_p)
-                + self._local_potential_contribution_to_hamiltonian(exp_i_phi_list, premultiplied_a_and_a_dagger,
-                                                                    Xi, phi_neighbor, minima_m, minima_p))
-
-    def inner_product_matrix(self):
-        """
-        Returns
-        -------
-        ndarray
-            Returns the inner product matrix
-        """
-        nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
-        return self._periodic_continuation_for_operator(self._inner_product_operator,
-                                                        nearest_neighbors=nearest_neighbors)
+    def _local_contribution_to_transfer_matrix(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
+                                               Xi, Xi_inv, phi_neighbor, minima_m, minima_p):
+        return (self._local_kinetic_contribution_to_transfer_matrix(premultiplied_a_and_a_dagger, Xi_inv,
+                                                                    phi_neighbor, minima_m, minima_p)
+                + self._local_potential_contribution_to_transfer_matrix(exp_i_phi_list, premultiplied_a_and_a_dagger,
+                                                                        Xi, phi_neighbor, minima_m, minima_p))
 
     def _inner_product_operator(self, phi_neighbor, minima_m, minima_p):
         """The three arguments need to be passed in order to match the signature of
@@ -496,9 +484,9 @@ class VCHOS(ABC):
         as the minima where the states in question are located."""
         return self.identity()
 
-    def _periodic_continuation_for_operator(self, func, nearest_neighbors=None):
+    def _periodic_continuation(self, func, Xi, exp_a_list=None, nearest_neighbors=None):
         """This function is the meat of the VCHOS method. Any operator whose matrix
-        elements we want (the Hamiltonian and inner product matrices are obvious examples)
+        elements we want (the transfer matrix and inner product matrix are obvious examples)
         can be passed to this function, and the matrix elements of that operator
         will be returned.
 
@@ -517,9 +505,11 @@ class VCHOS(ABC):
         -------
         ndarray
         """
+        Xi_inv = inv(Xi)
+        if exp_a_list is None:
+            exp_a_list = self._build_general_exponentiated_translation_operators(Xi_inv)
         if nearest_neighbors is None:
-            nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
-        Xi_inv = inv(self.Xi_matrix())
+            nearest_neighbors = self._find_relevant_periodic_continuation_vectors(Xi)
         minima_list = self.sorted_minima()
         hilbertdim = self.hilbertdim()
         num_states_min = self.number_states_per_minimum()
@@ -529,11 +519,13 @@ class VCHOS(ABC):
             for p in range(m, len(minima_list)):
                 minima_p = minima_list[p]
                 minima_diff = minima_list[p] - minima_m
-                exp_a_list_and_minima_difference = self._build_exponentiated_translation_operators(minima_diff, Xi_inv)
+                exp_minima_difference = self._build_minima_dependent_exponentiated_translation_operators(minima_diff,
+                                                                                                         Xi_inv)
                 for neighbor in nearest_neighbors[counter]:
                     phi_neighbor = 2.0 * np.pi * np.array(neighbor)
                     exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor + minima_diff, Xi_inv)
-                    exp_a_dagger, exp_a = self._translation_operator_builder(exp_a_list_and_minima_difference, neighbor)
+                    exp_a_dagger, exp_a = self._translation_operator_builder(exp_a_list, exp_minima_difference,
+                                                                             neighbor)
                     matrix_element = exp_prod_coefficient*func(phi_neighbor, minima_m, minima_p)
                     matrix_element = exp_a_dagger @ matrix_element @ exp_a
                     operator_matrix[m*num_states_min: (m + 1)*num_states_min,
@@ -555,40 +547,26 @@ class VCHOS(ABC):
                     m*num_states_min: (m + 1)*num_states_min] += matrix_element.conjugate().T
         return mat
 
-    def _construct_hamiltonian_and_inner_product(self):
-        nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators()
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
-        Xi = self.Xi_matrix()
-        Xi_inv = inv(Xi)
-        hamiltonian_function = partial(self._local_contribution_to_hamiltonian, exp_i_phi_list,
-                                       premultiplied_a_and_a_dagger, Xi, Xi_inv)
-        hamiltonian_matrix = self._periodic_continuation_for_operator(hamiltonian_function,
-                                                                      nearest_neighbors=nearest_neighbors)
-        inner_product_matrix = self._periodic_continuation_for_operator(self._inner_product_operator,
-                                                                        nearest_neighbors=nearest_neighbors)
-        return hamiltonian_matrix, inner_product_matrix
-
     def _evals_calc(self, evals_count):
-        hamiltonian_matrix, inner_product_matrix = self._construct_hamiltonian_and_inner_product()
+        transfer_matrix, inner_product_matrix = self.transfer_matrix_and_inner_product()
         try:
-            evals = eigh(hamiltonian_matrix, b=inner_product_matrix,
+            evals = eigh(transfer_matrix, b=inner_product_matrix,
                          eigvals_only=True, eigvals=(0, evals_count - 1))
         except LinAlgError:
             warnings.warn("Singular inner product. Attempt QZ algorithm")
-            evals = solve_generalized_eigenvalue_problem_with_QZ(hamiltonian_matrix, inner_product_matrix,
+            evals = solve_generalized_eigenvalue_problem_with_QZ(transfer_matrix, inner_product_matrix,
                                                                  evals_count, eigvals_only=True)
         return evals
 
     def _esys_calc(self, evals_count):
-        hamiltonian_matrix, inner_product_matrix = self._construct_hamiltonian_and_inner_product()
+        transfer_matrix, inner_product_matrix = self.transfer_matrix_and_inner_product()
         try:
-            evals, evecs = eigh(hamiltonian_matrix, b=inner_product_matrix,
+            evals, evecs = eigh(transfer_matrix, b=inner_product_matrix,
                                 eigvals_only=False, eigvals=(0, evals_count - 1))
             evals, evecs = order_eigensystem(evals, evecs)
         except LinAlgError:
             warnings.warn("Singular inner product. Attempt QZ algorithm")
-            evals, evecs = solve_generalized_eigenvalue_problem_with_QZ(hamiltonian_matrix, inner_product_matrix,
+            evals, evecs = solve_generalized_eigenvalue_problem_with_QZ(transfer_matrix, inner_product_matrix,
                                                                         evals_count, eigvals_only=False)
         return evals, evecs
 
@@ -610,8 +588,11 @@ class VCHOS(ABC):
         return sorted_minima_holder
 
     def normalize_minimum_inside_pi_range(self, minimum):
-        minimum = np.array([np.mod(elem, 2*np.pi) for elem in minimum])
-        return np.array([elem - 2*np.pi if elem > np.pi else elem for elem in minimum])
+        num_extended = self.number_extended_degrees_freedom
+        extended_coordinates = minimum[0:num_extended]
+        periodic_coordinates = np.mod(minimum, 2*np.pi*np.ones_like(minimum))[num_extended:]
+        periodic_coordinates = np.array([elem - 2*np.pi if elem > np.pi else elem for elem in periodic_coordinates])
+        return np.concatenate((extended_coordinates, periodic_coordinates))
 
     def _check_if_new_minima(self, new_minima, minima_holder):
         """
@@ -676,7 +657,7 @@ class VCHOS(ABC):
             _, evecs = esys
         minima_list = self.sorted_minima()
 
-        Xi = self.Xi_matrix()
+        Xi = self.Xi_matrix(None)
         Xi_inv = inv(Xi)
         normalization = np.sqrt(np.abs(np.linalg.det(Xi))) ** (-1)
 
@@ -766,4 +747,3 @@ class VCHOS(ABC):
     @abstractmethod
     def build_EC_matrix(self):
         """builds the charging energy matrix"""
-

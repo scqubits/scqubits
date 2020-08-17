@@ -86,7 +86,7 @@ class VCHOSSqueezing(VCHOS):
         """Return the charge operator associated with the j^th node, neglecting squeezing"""
         if wrapper_klist is None:
             wrapper_klist = self._find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix()
+        Xi = self.Xi_matrix(None)
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
         num_exc_tot = a_op_list[0].shape[0]
@@ -154,7 +154,7 @@ class VCHOSSqueezing(VCHOS):
 
         if wrapper_klist is None:
             wrapper_klist = self._find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix()
+        Xi = self.Xi_matrix(None)
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
         num_exc_tot = a_op_list[0].shape[0]
@@ -452,7 +452,7 @@ class VCHOSSqueezing(VCHOS):
         """Return the kinetic part of the hamiltonian"""
         if wrapper_klist is None:
             wrapper_klist = self._find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix()
+        Xi = self.Xi_matrix(None)
         Xi_inv = sp.linalg.inv(Xi)
         EC_mat = self.build_EC_matrix()
         a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
@@ -549,7 +549,7 @@ class VCHOSSqueezing(VCHOS):
         """Return the potential part of the hamiltonian"""
         if wrapper_klist is None:
             wrapper_klist = self._find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix()
+        Xi = self.Xi_matrix(None)
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
         num_exc_tot = a_op_list[0].shape[0]
@@ -640,7 +640,7 @@ class VCHOSSqueezing(VCHOS):
 
         return potential_mat
 
-    def hamiltonian(self):
+    def transfer_matrix(self):
         """Construct the Hamiltonian"""
         wrapper_klist = self._find_relevant_periodic_continuation_vectors()
         return self.kineticmat(wrapper_klist) + self.potentialmat(wrapper_klist)
@@ -649,7 +649,7 @@ class VCHOSSqueezing(VCHOS):
         """Return the inner product matrix, which is nontrivial with tight-binding states"""
         if wrapper_klist is None:
             wrapper_klist = self._find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix()
+        Xi = self.Xi_matrix(None)
         Xi_inv = sp.linalg.inv(Xi)
         a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
         num_exc_tot = a_op_list[0].shape[0]

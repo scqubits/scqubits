@@ -123,15 +123,13 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         gamma_matrix[0, 1] = off_diagonal_term
         return gamma_matrix/self.Phi0**2
 
-    def _BCH_factor(self, j):
-        Xi = self.Xi_matrix()
+    def _BCH_factor(self, j, Xi):
         dim = self.number_degrees_freedom
         boundary_coeffs = np.array([(-1)**j, 1])
         return np.exp(-0.25 * np.sum([boundary_coeffs[i]*boundary_coeffs[k]*np.dot(Xi[i, :], Xi.T[:, k])
                                       for i in range(dim) for k in range(dim)]))
 
-    def _build_single_exp_i_phi_j_operator(self, j):
-        Xi = self.Xi_matrix()
+    def _build_single_exp_i_phi_j_operator(self, j, Xi):
         dim = self.number_degrees_freedom
         boundary_coeffs = np.array([(-1)**j, 1])
         exp_i_phi_theta_a_component = expm(np.sum([1j * boundary_coeffs[i] * Xi[i, k]
@@ -140,11 +138,11 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         exp_i_phi_theta_a_dagger_component = exp_i_phi_theta_a_component.T
         exp_i_phi_theta = np.matmul(exp_i_phi_theta_a_dagger_component, exp_i_phi_theta_a_component)
         exp_i_phi_theta *= np.exp((-1)**(j+1) * 1j * np.pi * self.flux)
-        exp_i_phi_theta *= self._BCH_factor(j)
+        exp_i_phi_theta *= self._BCH_factor(j, Xi)
         return exp_i_phi_theta
 
-    def _build_all_exp_i_phi_j_operators(self):
-        return np.array([self._build_single_exp_i_phi_j_operator(j) for j in range(self.number_degrees_freedom)])
+    def _build_all_exp_i_phi_j_operators(self, Xi):
+        return np.array([self._build_single_exp_i_phi_j_operator(j, Xi) for j in range(self.number_degrees_freedom)])
 
     def _harmonic_contribution_to_potential(self, premultiplied_a_and_a_dagger, Xi, phi_bar):
         dim = self.number_degrees_freedom
@@ -156,8 +154,8 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         harmonic_contribution += self.EL * phi_bar[0]**2 * self.identity()
         return harmonic_contribution
 
-    def _local_potential_contribution_to_hamiltonian(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
-                                                     Xi, phi_neighbor, minima_m, minima_p):
+    def _local_potential_contribution_to_transfer_matrix(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
+                                                         Xi, phi_neighbor, minima_m, minima_p):
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
         potential_matrix = self._harmonic_contribution_to_potential(premultiplied_a_and_a_dagger, Xi, phi_bar)
