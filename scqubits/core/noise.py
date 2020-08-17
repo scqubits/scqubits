@@ -70,7 +70,7 @@ NOISE_PARAMS = {
     'omega_low': 1e-9 * 2 * np.pi,   # Low frequency cutoff. Units: 2pi GHz
     'omega_high': 3 * 2 * np.pi,     # High frequency cutoff. Units: 2pi GHz
     'Delta': 3.4e-4,  # Superconducting gap for aluminum (at T=0). Units: eV
-    'x_qp': 4e-7,     # Quasiparticles densit (see for example Pol et al 2014)
+    'x_qp': 3e-6,     # Quasiparticles density (see for example Pol et al 2014)
     't_exp': 1e4,     # Measurement time. Units: ns
     'R_0': 50,        # Characteristic impedance of a transmission line. Units: Ohms
     'T': 0.015,       # Typical temperature for a superconducting circuit experiment. Units: K
@@ -1109,11 +1109,12 @@ class NoisySystem:
         def spectral_density(omega):
             """Eq. 38 in Catalani et al (2011). """
             therm_ratio = calc_therm_ratio(omega, T)
-            s = omega * NOISE_PARAMS['R_k'] / np.pi * complex(y_qp_fun(omega)).real  \
+            return omega * NOISE_PARAMS['R_k'] / np.pi * complex(y_qp_fun(omega)).real  \
                 * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
-            return s
 
         noise_op = self.sin_phi_operator(alpha=0.5)
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
+
+

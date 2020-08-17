@@ -17,40 +17,46 @@ from scqubits import Fluxonium, FluxQubit, Grid1d, Transmon, TunableTransmon, Ze
 
 data = {}
 
-data['Transmon'] = np.array([1.33428506e+07, 3.77005675e+00, 2.16683864e+06, 5.02320540e+02,
+data['Transmon']=np.array([1.33428506e+07, 3.77005675e+00, 2.16683864e+06, 5.02320540e+02,
        2.16683864e+06, 3.77005240e+00])
-data['TunableTransmon'] = np.array([2.03732888e+04, 1.60438006e+06, 9.42324266e+05, 1.50547341e+04,
-       4.39536861e+17, 1.86529682e-01, 1.50547341e+04, 1.19075232e+04])
-data['Fluxonium'] = np.array([4.32535846e+06, 1.50856659e+17, 1.09436102e+08, 5.48954061e+06,
-       5.09223418e+06, 8.71690601e+02, 8.71396124e+02, 1.74209032e+03])
-data['FluxQubit'] = np.array([44697811.55375044, 44697796.19976017,  1822725.05439263,
+data['TunableTransmon']=np.array([2.03732888e+04, 1.60438006e+06, 9.42324266e+05, 1.50547341e+04,
+                  np.inf, 1.86529682e-01, 1.50547341e+04, 1.19075232e+04])
+data['Fluxonium']=np.array([4.32535846e+06,            np.inf, 5.48954061e+06, 8.71690601e+02,
+       1.09436102e+08, 5.18435915e+06, 2.37656072e+02, 1.86729458e+02,
+       3.73426673e+02])
+data['FluxQubit']=np.array([44697811.55375044, 44697796.19976017,  1822725.05439263,
         1685277.68169801,               np.inf,   842638.84084901])
-data['ZeroPi'] = np.array([3.80336265e+06, 4.06065024e+07, 1.49416281e+37, 1.17269763e+33,
-       1.17738691e+33, 3.47763395e+06])
+data['ZeroPi']=np.array([ 3803362.64526874, 40606502.43980733,               np.inf,
+                     np.inf,               np.inf,  3477633.94999531])
 
+
+def calc_coherence(qubit, noise_methods=None):
+    if noise_methods is None:
+        noise_methods = qubit.supported_noise_channels()+['t1_effective', 't2_effective']
+
+    def cap_coherence(time): 
+        return np.inf if time>1e14 else time
+
+    return np.array([cap_coherence(getattr(qubit, m)()) for m in noise_methods])
+
+def compare_coherence_to_reference(qubit, qubit_name):
+    noise = calc_coherence(qubit)
+    print("comparison:\n", [(noise[i], data[qubit_name][i]) for i, _ in enumerate(noise)])
+    return np.allclose(noise, data[qubit_name], equal_nan=True)
 
 class TestNoise:
 
-    def _calc_coherence(self, qubit, noise_methods=None):
-        if noise_methods is None:
-            noise_methods = qubit.supported_noise_channels()+['t1_effective', 't2_effective']
-        return np.array([getattr(qubit, m)() for m in noise_methods])
-
-    def _compare_coherence_to_reference(self, qubit, qubit_name):
-        noise = self._calc_coherence(qubit)
-        return np.allclose(noise, data[qubit_name], equal_nan=True)
-
     def test_Transmon(self):
         qubit = Transmon(EJ=0.5, EC=12.0, ng=0.3, ncut=150)
-        assert self._compare_coherence_to_reference(qubit, 'Transmon')
+        assert compare_coherence_to_reference(qubit, 'Transmon')
 
     def test_TunableTransmon(self):
         qubit = TunableTransmon(EJmax=20.0, EC=0.5, d=0.00, flux=0.04, ng=0.3, ncut=150)
-        assert self._compare_coherence_to_reference(qubit, 'TunableTransmon')
+        assert compare_coherence_to_reference(qubit, 'TunableTransmon')
 
     def test_Fluxonium(self):
         qubit = Fluxonium(EJ=8.9, EC=2.5, EL=0.5, cutoff=150, flux=0.5)
-        assert self._compare_coherence_to_reference(qubit, 'Fluxonium')
+        assert compare_coherence_to_reference(qubit, 'Fluxonium')
 
     def test_FluxQubit(self):
         RATIO = 60.0
@@ -69,7 +75,7 @@ class TestNoise:
             flux=0.4,
             ncut=10,
         )
-        assert self._compare_coherence_to_reference(qubit, 'FluxQubit')
+        assert compare_coherence_to_reference(qubit, 'FluxQubit')
 
     def test_ZeroPi(self):
         phi_grid = Grid1d(-6*np.pi, 6*np.pi, 200)
@@ -85,4 +91,6 @@ class TestNoise:
             flux=0.23,
             ncut=30
         )
-        assert self._compare_coherence_to_reference(qubit, 'ZeroPi')
+        assert compare_coherence_to_reference(qubit, 'ZeroPi')
+
+
