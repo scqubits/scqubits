@@ -738,7 +738,7 @@ class OptimizeHarmonicLength:
         optimized_lengths = minimize(evals_func, default_lengths, tol=1e-2)
         assert optimized_lengths.success
         self.optimized_lengths = optimized_lengths.x
-        return optimized_lengths.x
+        return optimized_lengths.x, nearest_neighbors
 
     def _evals_calc_variational(self, nearest_neighbors, optimized_lengths):
         transfer_matrix, inner_product = self.transfer_matrix_and_inner_product(nearest_neighbors=nearest_neighbors,
@@ -747,8 +747,9 @@ class OptimizeHarmonicLength:
         return evals
 
     def _evals_calc(self, evals_count):
-        optimized_lengths = self.optimize_Xi_variational()
-        transfer_matrix, inner_product = self.transfer_matrix_and_inner_product(optimized_lengths=optimized_lengths)
+        optimized_lengths, nearest_neighbors = self.optimize_Xi_variational()
+        transfer_matrix, inner_product = self.transfer_matrix_and_inner_product(optimized_lengths=optimized_lengths,
+                                                                                nearest_neighbors=nearest_neighbors)
         try:
             evals = eigh(transfer_matrix, b=inner_product,
                          eigvals_only=True, eigvals=(0, evals_count - 1))
@@ -759,8 +760,9 @@ class OptimizeHarmonicLength:
         return evals
 
     def _esys_calc(self, evals_count):
-        optimized_lengths = self.optimize_Xi_variational()
-        transfer_matrix, inner_product = self.transfer_matrix_and_inner_product(optimized_lengths=optimized_lengths)
+        optimized_lengths, nearest_neighbors = self.optimize_Xi_variational()
+        transfer_matrix, inner_product = self.transfer_matrix_and_inner_product(optimized_lengths=optimized_lengths,
+                                                                                nearest_neighbors=nearest_neighbors)
         try:
             evals, evecs = eigh(transfer_matrix, b=inner_product,
                                 eigvals_only=False, eigvals=(0, evals_count - 1))
