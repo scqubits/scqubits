@@ -7,7 +7,7 @@ from scipy.optimize import minimize
 import scqubits.core.descriptors as descriptors
 from scqubits.core.current_mirror import CurrentMirrorFunctions
 from scqubits.core.hashing import Hashing
-from scqubits.core.vchos import VCHOS
+from scqubits.core.vchos import VCHOS, OptimizeHarmonicLength
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
@@ -32,7 +32,7 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
         VCHOS.__init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=2 * N - 1,
                        number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc)
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
-        self.boundary_coeffs = np.ones(2 * N - 1)
+        self.boundary_coefficients = np.ones(2 * N - 1)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self.truncated_dim = truncated_dim
@@ -92,10 +92,13 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
         """
         dim = self.number_degrees_freedom
         pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
-        pot_sum += (-self.EJlist[-1] * np.cos(np.sum([self.boundary_coeffs[i]*phi_array[i]
+        pot_sum += (-self.EJlist[-1] * np.cos(np.sum([self.boundary_coefficients[i]*phi_array[i]
                                                       for i in range(dim)]) + 2*np.pi*self.flux))
         pot_sum += np.sum(self.EJlist)
         return pot_sum
+
+    def villain_potential(self, phi_array, m_list):
+        pass
 
 
 class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOS, base.QubitBaseClass, serializers.Serializable):
@@ -127,3 +130,14 @@ class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOS, base.QubitBaseClass,
     @staticmethod
     def nonfit_params():
         return ['N', 'nglist', 'flux', 'kmax', 'global_exc', 'truncated_dim']
+
+
+class CurrentMirrorVCHOSGlobalOptimize(OptimizeHarmonicLength, CurrentMirrorVCHOSGlobal):
+
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, global_exc, truncated_dim=None):
+        OptimizeHarmonicLength.__init__(self)
+        CurrentMirrorVCHOSGlobal.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist,
+                                          flux, kmax, global_exc, truncated_dim=truncated_dim)
+        self._sys_type = type(self).__name__
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            'qubit_pngs/currentmirrorvchosglobaloptimize.png')

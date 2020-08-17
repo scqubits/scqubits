@@ -1,5 +1,4 @@
 import os
-from functools import partial
 
 import numpy as np
 from scipy.optimize import minimize
@@ -43,7 +42,7 @@ class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                             'qubit_pngs/fluxqubitvchos.png')
         # final term in potential is cos[(+1)\phi_1+(-1)\phi_2-2pi f]
-        self.boundary_coeffs = np.array([+1, -1])
+        self.boundary_coefficients = np.array([+1, -1])
 
     @staticmethod
     def default_params():
