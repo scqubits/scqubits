@@ -1,4 +1,5 @@
 import os
+from functools import partial
 
 import numpy as np
 from scipy.optimize import minimize
@@ -93,6 +94,14 @@ class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers
             if not (new_minima_positive and new_minima_negative):
                 break
         return minima_holder
+
+    def villain_potential(self, m_list, phi_array):
+        """Harmonic approximation of the potential with Villain shifts"""
+        phi1 = phi_array[0]
+        phi2 = phi_array[1]
+        return (0.5*self.EJ1*(phi1-2*np.pi*m_list[0])**2 + 0.5*self.EJ2*(phi2-2*np.pi*m_list[1])**2
+                + 0.5*self.EJ3*(2.0*np.pi*self.flux + phi1 - phi2 - 2.0*np.pi*m_list[2])**2
+                + self.EJ1 + self.EJ2 + self.EJ3)
 
 
 class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS, base.QubitBaseClass, serializers.Serializable):

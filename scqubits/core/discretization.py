@@ -78,6 +78,20 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
     def first_derivative_matrix_five_pt_stencil(self, prefactor=1.0, periodic=False):
+        """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
+        Uses a five point stencil :math:`f'(x) \\approx [-f(x+2h) + 8f(x+h) - 8f(x-h) + f(x-2h)]/12h`.
+
+        Parameters
+        ----------
+        prefactor: float or complex, optional
+            prefactor of the derivative matrix (default value: 1.0)
+        periodic: bool, optional
+            set to True if variable is a periodic variable
+
+        Returns
+        -------
+        sparse matrix in `dia` format
+        """
         if isinstance(prefactor, complex):
             dtp = np.complex_
         else:
@@ -101,6 +115,20 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return derivative_matrix
 
     def second_derivative_matrix_five_pt_stencil(self, prefactor=1.0, periodic=False):
+        """Generate sparse matrix for second derivative of the form :math:`\\partial^2_{x_i}`.
+        Uses a five point stencil :math:`f'(x) \\approx [-f(x+2h) + 16f(x+h) - 30f(x) + 16f(x-h) - f(x-2h)]/12h^2`.
+
+        Parameters
+        ----------
+        prefactor: float or complex, optional
+            prefactor of the derivative matrix (default value: 1.0)
+        periodic: bool, optional
+            set to True if variable is a periodic variable
+
+        Returns
+        -------
+        sparse matrix in `dia` format
+        """
         if isinstance(prefactor, complex):
             dtp = np.complex_
         else:

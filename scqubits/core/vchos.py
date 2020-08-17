@@ -7,6 +7,7 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import LinAlgError, expm, inv, eigh
 from scipy.integrate import quad
+from scipy.optimize import minimize
 import scipy.constants as const
 from numpy.linalg import matrix_power
 
@@ -615,22 +616,43 @@ class VCHOS(ABC):
     def _check_if_new_minima(self, new_minima, minima_holder):
         """
         Helper function for find_minima, checking if new_minima is
-        indeed a minimum and is already represented in minima_holder. If so,
+        already represented in minima_holder. If so,
         _check_if_new_minima returns False.
         """
-        new_minima_bool = True
+        num_extended = self.number_extended_degrees_freedom
         for minima in minima_holder:
-            diff_array = minima - new_minima
-            diff_array_reduced = np.array([np.mod(x, 2*np.pi) for x in diff_array])
-            elem_bool = True
-            for elem in diff_array_reduced:
-                # if every element is zero or 2pi, then we have a repeated minima
-                elem_bool = elem_bool and (np.allclose(elem, 0.0, atol=1e-3)
-                                           or np.allclose(elem, 2*np.pi, atol=1e-3))
-            if elem_bool:
-                new_minima_bool = False
-                break
-        return new_minima_bool
+            extended_coordinates = np.array(minima[0:num_extended] - new_minima[0:num_extended])
+            periodic_coordinates = np.mod(minima - new_minima, 2*np.pi*np.ones_like(minima))[num_extended:]
+            diff_array_bool_extended = [True if np.allclose(elem, 0.0, atol=1e-3) else False
+                                        for elem in extended_coordinates]
+            diff_array_bool_periodic = [True if (np.allclose(elem, 0.0, atol=1e-3)
+                                                 or np.allclose(elem, 2*np.pi, atol=1e-3))
+                                        else False for elem in periodic_coordinates]
+            if np.all(diff_array_bool_extended) and np.all(diff_array_bool_periodic):
+                return False
+        return True
+
+    def _filter_repeated_minima(self, minima_holder):
+        filtered_minima_holder = [minima_holder[0]]
+        for minima in minima_holder:
+            if self._check_if_new_minima(minima, filtered_minima_holder):
+                filtered_minima_holder.append(minima)
+        return filtered_minima_holder
+
+    def villain_minima_finder(self):
+        result_holder = []
+        for junction in range(len(self.EJlist)):
+            for m in range(-5, 5, 1):
+                m_list = 0.0*np.ones_like(self.EJlist)
+                m_list[junction] = m
+                villain_func = partial(self.villain_potential, m_list)
+                villain_result = minimize(villain_func, np.array([0.0, 0.0]))
+                result = minimize(self.potential, villain_result.x)
+                mod_result = np.mod(result.x, 2.0*np.pi*np.ones_like(result.x))
+                if result.success:
+                    result_holder.append(np.mod(result.x, 2.0*np.pi*np.ones_like(result.x)))
+        result_holder = self._filter_repeated_minima(result_holder)
+        return result_holder
 
     def wavefunction(self, esys=None, which=0):
         """
@@ -744,3 +766,4 @@ class VCHOS(ABC):
     @abstractmethod
     def build_EC_matrix(self):
         """builds the charging energy matrix"""
+

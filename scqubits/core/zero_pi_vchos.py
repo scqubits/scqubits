@@ -62,27 +62,6 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         C_matrix = self.build_capacitance_matrix()
         return 0.5 * self.e**2 * inv(C_matrix)
 
-    def _check_if_new_minima(self, result, minima_holder):
-        """
-        Helper function for find_minima, checking if new_minima is
-        indeed a minimum and is already represented in minima_holder. If so,
-        _check_if_new_minima returns False.
-        """
-        if not self._check_second_derivative_positive(result.x[0], result.x[1]):
-            return False
-        if self.potential(result.x) > 20.0 + self.potential(minima_holder[0]):
-            return False
-        new_minima_bool = True
-        for minima in minima_holder:
-            diff_array = minima - result.x
-            diff_array_reduced = np.array([diff_array[0], np.mod(diff_array[1], 2 * np.pi)])
-            if (np.allclose(diff_array_reduced[1], 0.0, atol=1e-3)
-                    or np.allclose(diff_array_reduced[1], 2 * np.pi, atol=1e-3)):
-                if np.allclose(diff_array_reduced[0], 0.0, atol=1e-3):
-                    new_minima_bool = False
-                    break
-        return new_minima_bool
-
     def _check_second_derivative_positive(self, phi, theta):
         return (self.EL + 2 * self.EJ * np.cos(theta) * np.cos(phi - np.pi * self.flux)) > 0
 
@@ -119,6 +98,13 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
                 + self.EL * phi ** 2 + 2.0 * self.EJ
                 + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
+    def villain_potential(self, phi_theta_array, m_list):
+        phi = phi_theta_array[0]
+        theta = phi_theta_array[1]
+        return (0.5*self.EJ*(theta - phi + np.pi*self.flux - 2.0*np.pi*m_list[0])**2
+                + 0.5*self.EJ*(theta + phi - np.pi*self.flux - 2.0*np.pi*m_list[1])**2
+                + self.EL * phi ** 2 + 2.0 * self.EJ)
 
     def build_gamma_matrix(self, i):
         dim = self.number_degrees_freedom
