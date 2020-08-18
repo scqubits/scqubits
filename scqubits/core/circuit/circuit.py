@@ -94,16 +94,16 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         energy = 0
         for element in self.elements:
-            if not element.is_external():
-                if element.is_phase():
-                    element_node_ids = []
-                    for wire in self.wires:
-                        if wire[0] == element.name:
-                            for node_id, node in enumerate(self.nodes):
-                                if wire[1] == node.name:
-                                    element_node_ids.append(node_id)
-                    energy += element.energy_term(np.asarray(self.linear_coordinate_transform)[
-                                                  element_node_ids, :] @ phase_values, None)
+            if not element.is_external() and element.is_phase():
+                element_node_ids = []
+                for wire in self.wires:
+                    if wire[0] == element.name:
+                        for node_id, node in enumerate(self.nodes):
+                            if wire[1] == node.name:
+                                element_node_ids.append(node_id)
+                for variable_id in range(len(self.variables)):
+                    energy += element.energy_term(np.tensordot(np.asarray(self.linear_coordinate_transform)[
+                                              element_node_ids, variable_id], phase_values[variable_id], axes=0), None)
         return energy
 
     def phase_operator(self, index=0, var_name=None):
