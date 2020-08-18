@@ -175,5 +175,5 @@ class DispatchClient:
         # exit. (`logging` and `CENTRAL_DISPATCH` may have already been removed.)
         if logging:
             logging.debug("Unregistering {}. au revoir.".format(type(self).__name__))
-        if CENTRAL_DISPATCH:
-            CENTRAL_DISPATCH.unregister_object(self)
+        # if CENTRAL_DISPATCH:
+        #     CENTRAL_DISPATCH.unregister_object(self)
