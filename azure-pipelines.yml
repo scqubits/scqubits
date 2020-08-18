@@ -89,7 +89,8 @@ jobs:
       conda install --yes --quiet --name myEnvironment pytest
       pip install -r requirements.txt
       pip install -r optional-requirements.txt
-    displayName: Install dependencies
+      pip install .
+    displayName: Install dependencies & scqubits
 #  - script: |
 #      python -m pip install --upgrade pip
 #    displayName: 'Upgrade pip'
@@ -103,10 +104,10 @@ jobs:
 #      pip install -r requirements.txt
 #      pip install -r optional-requirements.txt
 #    displayName: 'Install dependencies'
-  - script: |
-      call activate myEnvironment
-      pip install .
-    displayName: 'Install scqubits'
+#  - script: |
+#      call activate myEnvironment
+#      pip install .
+#    displayName: 'Install scqubits'
   - script: |
       call activate myEnvironment
       pytest -v --pyargs scqubits
