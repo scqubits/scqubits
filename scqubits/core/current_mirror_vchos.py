@@ -7,7 +7,7 @@ from scipy.optimize import minimize
 import scqubits.core.descriptors as descriptors
 from scqubits.core.current_mirror import CurrentMirrorFunctions
 from scqubits.core.hashing import Hashing
-from scqubits.core.vchos import VCHOS, OptimizeHarmonicLength
+from scqubits.core.vchos import VCHOS
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
@@ -28,9 +28,10 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, num_exc, truncated_dim=None):
-        VCHOS.__init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=2 * N - 1,
-                       number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc)
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, optimized_lengths=None,
+                 num_exc=0, truncated_dim=None):
+        VCHOS.__init__(self, EJlist, nglist, flux, kmax, optimized_lengths=optimized_lengths,
+                       number_degrees_freedom=2 * N - 1, number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc)
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self.boundary_coefficients = np.ones(2 * N - 1)
         self._sys_type = type(self).__name__
@@ -104,10 +105,11 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
 class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOS, base.QubitBaseClass, serializers.Serializable):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, global_exc, truncated_dim=None):
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, optimized_lengths, global_exc, truncated_dim=None):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
         CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux,
-                                    kmax, num_exc=None, truncated_dim=truncated_dim)
+                                    kmax, optimized_lengths=optimized_lengths,
+                                    num_exc=0, truncated_dim=truncated_dim)
         self._sys_type = type(self).__name__
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                             'qubit_pngs/currentmirrorvchosglobal.png')
@@ -130,14 +132,3 @@ class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOS, base.QubitBaseClass,
     @staticmethod
     def nonfit_params():
         return ['N', 'nglist', 'flux', 'kmax', 'global_exc', 'truncated_dim']
-
-
-class CurrentMirrorVCHOSGlobalOptimize(OptimizeHarmonicLength, CurrentMirrorVCHOSGlobal):
-
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, global_exc, truncated_dim=None):
-        OptimizeHarmonicLength.__init__(self)
-        CurrentMirrorVCHOSGlobal.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist,
-                                          flux, kmax, global_exc, truncated_dim=truncated_dim)
-        self._sys_type = type(self).__name__
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/currentmirrorvchosglobaloptimize.png')
