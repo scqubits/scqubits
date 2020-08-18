@@ -87,7 +87,7 @@ jobs:
       pip install -r optional-requirements.txt
     displayName: 'Install dependencies'
   - script: |
-      pip install pytest pytest-azurepipelines
+      pip install pytest
       pip install pathos
       pip install .
     displayName: 'Install scqubits'
@@ -141,14 +141,15 @@ jobs:
     displayName: 'Install scqubits'
   - script: |
       export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
-      pytest -v --pyargs scqubits.tests.test_explorer
-      pytest -v --pyargs scqubits.tests.test_fluxonium
-      pytest -v --pyargs scqubits.tests.test_fluxqubit
-      pytest -v --pyargs scqubits.tests.test_fullzeropi
-      pytest -v --pyargs scqubits.tests.test_hilbertspace
-      pytest -v --pyargs scqubits.tests.test_spectrumlookup
-      pytest -v --pyargs scqubits.tests.test_transmon
-      pytest -v --pyargs scqubits.tests.test_zeropi
+      pytest -v --pyargs scqubits
+#      pytest -v --pyargs scqubits.tests.test_explorer
+#      pytest -v --pyargs scqubits.tests.test_fluxonium
+#      pytest -v --pyargs scqubits.tests.test_fluxqubit
+#      pytest -v --pyargs scqubits.tests.test_fullzeropi
+#      pytest -v --pyargs scqubits.tests.test_hilbertspace
+#      pytest -v --pyargs scqubits.tests.test_spectrumlookup
+#      pytest -v --pyargs scqubits.tests.test_transmon
+#      pytest -v --pyargs scqubits.tests.test_zeropi
     displayName: 'Pytest: single-core'
   - script: |
       export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
@@ -157,13 +158,13 @@ jobs:
       export MKL_NUM_THREADS=1
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
-      export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
-      cd $(python -c "import scqubits.tests.test_hilbertspace as tst; import os; print(os.path.dirname(tst.__file__))")
-      pytest -v test_explorer.py --num_cpus=2
-      pytest -v test_fluxonium.py --num_cpus=2
-      pytest -v test_fluxqubit.py --num_cpus=2
-      pytest -v test_hilbertspace.py --num_cpus=2
-      pytest -v test_spectrumlookup.py --num_cpus=2
-      pytest -v test_transmon.py --num_cpus=2
-      pytest -v test_zeropi.py --num_cpus=2
+      pytest -v --pyargs scqubits --num_cpus=4
+#      cd $(python -c "import scqubits.tests.test_hilbertspace as tst; import os; print(os.path.dirname(tst.__file__))")
+#      pytest -v test_explorer.py --num_cpus=2
+#      pytest -v test_fluxonium.py --num_cpus=2
+#      pytest -v test_fluxqubit.py --num_cpus=2
+#      pytest -v test_hilbertspace.py --num_cpus=2
+#      pytest -v test_spectrumlookup.py --num_cpus=2
+#      pytest -v test_transmon.py --num_cpus=2
+#      pytest -v test_zeropi.py --num_cpus=2
     displayName: 'Pytest: multiprocessing'
