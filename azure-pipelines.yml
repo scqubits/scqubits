@@ -90,7 +90,16 @@ jobs:
       pip install -r requirements.txt
       pip install -r optional-requirements.txt
       pip install .
-    displayName: Install dependencies & scqubits
+#
+      pytest -v --pyargs scqubits
+#
+      set OMP_NUM_THREADS=1
+      set OPENBLAS_NUM_THREADS=1
+      set MKL_NUM_THREADS=1
+      set VECLIB_MAXIMUM_THREADS=1
+      set NUMEXPR_NUM_THREADS=1
+      pytest -v --pyargs scqubits --num_cpus=4
+    displayName: Install dependencies, scqubits & pytest
 #  - script: |
 #      python -m pip install --upgrade pip
 #    displayName: 'Upgrade pip'
@@ -108,19 +117,19 @@ jobs:
 #      call activate myEnvironment
 #      pip install .
 #    displayName: 'Install scqubits'
-  - script: |
-      call activate myEnvironment
-      pytest -v --pyargs scqubits
-    displayName: 'Pytest: single-core'
-  - script: |
-      call activate myEnvironment
-      set OMP_NUM_THREADS=1
-      set OPENBLAS_NUM_THREADS=1
-      set MKL_NUM_THREADS=1
-      set VECLIB_MAXIMUM_THREADS=1
-      set NUMEXPR_NUM_THREADS=1
-      pytest -v --pyargs scqubits --num_cpus=4
-    displayName: 'Pytest: multiprocessing'
+#  - script: |
+#      call activate myEnvironment
+#      pytest -v --pyargs scqubits
+#    displayName: 'Pytest: single-core'
+#  - script: |
+#      call activate myEnvironment
+#      set OMP_NUM_THREADS=1
+#      set OPENBLAS_NUM_THREADS=1
+#      set MKL_NUM_THREADS=1
+#      set VECLIB_MAXIMUM_THREADS=1
+#      set NUMEXPR_NUM_THREADS=1
+#      pytest -v --pyargs scqubits --num_cpus=4
+#    displayName: 'Pytest: multiprocessing'
 #
 #
 - job: macOS
