@@ -81,12 +81,12 @@ jobs:
     displayName: Create Anaconda environment
   - script: |
       call activate myEnvironment
-      conda install --yes --quiet --name myEnvironment cython
-      conda install --yes --quiet --name myEnvironment numpy
-      conda install --yes --quiet --name myEnvironment scipy
-      conda install --yes --quiet --name myEnvironment qutip
-      conda install --yes --quiet --name myEnvironment pathos
-      conda install --yes --quiet --name myEnvironment pytest
+      conda install --yes cython
+      conda install --yes numpy
+      conda install --yes scipy
+      conda install --yes qutip
+      conda install --yes pathos
+      conda install --yes pytest
       pip install -r requirements.txt
       pip install -r optional-requirements.txt
       pip install .
