@@ -73,22 +73,40 @@ jobs:
     inputs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
+  - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
+    displayName: Add conda to PATH
   - script: |
-      python -m pip install --upgrade pip
-    displayName: 'Upgrade pip'
+      conda create --yes --quiet --name myEnvironment
+      conda config --add channels conda-forge
+    displayName: Create Anaconda environment
   - script: |
-      pip install wheel
-      pip install --upgrade cython
-      pip install --upgrade numpy
-      pip install --upgrade scipy
-    displayName: 'Install/upgrade cython, numpy, scipy'
-  - script: |
+      call activate myEnvironment
+      conda install --yes --quiet --name myEnvironment cython
+      conda install --yes --quiet --name myEnvironment numpy
+      conda install --yes --quiet --name myEnvironment scipy
+      conda install --yes --quiet --name myEnvironment qutip
+      conda install --yes --quiet --name myEnvironment pathos
+      conda install --yes --quiet --name myEnvironment pytest
       pip install -r requirements.txt
       pip install -r optional-requirements.txt
-    displayName: 'Install dependencies'
+    displayName: Install dependencies
+#
+#  - script: |
+#      python -m pip install --upgrade pip
+#    displayName: 'Upgrade pip'
+#  - script: |
+#      pip install wheel
+#      pip install --upgrade cython
+#      pip install --upgrade numpy
+#      pip install --upgrade scipy
+#    displayName: 'Install/upgrade cython, numpy, scipy'
+#  - script: |
+#      pip install -r requirements.txt
+#      pip install -r optional-requirements.txt
+#    displayName: 'Install dependencies'
   - script: |
-      pip install pytest
-      pip install pathos
+#      pip install pytest
+#      pip install pathos
       pip install .
     displayName: 'Install scqubits'
   - script: |
@@ -142,14 +160,6 @@ jobs:
   - script: |
       export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
       pytest -v --pyargs scqubits
-#      pytest -v --pyargs scqubits.tests.test_explorer
-#      pytest -v --pyargs scqubits.tests.test_fluxonium
-#      pytest -v --pyargs scqubits.tests.test_fluxqubit
-#      pytest -v --pyargs scqubits.tests.test_fullzeropi
-#      pytest -v --pyargs scqubits.tests.test_hilbertspace
-#      pytest -v --pyargs scqubits.tests.test_spectrumlookup
-#      pytest -v --pyargs scqubits.tests.test_transmon
-#      pytest -v --pyargs scqubits.tests.test_zeropi
     displayName: 'Pytest: single-core'
   - script: |
       export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
@@ -159,12 +169,4 @@ jobs:
       export VECLIB_MAXIMUM_THREADS=1
       export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
-#      cd $(python -c "import scqubits.tests.test_hilbertspace as tst; import os; print(os.path.dirname(tst.__file__))")
-#      pytest -v test_explorer.py --num_cpus=2
-#      pytest -v test_fluxonium.py --num_cpus=2
-#      pytest -v test_fluxqubit.py --num_cpus=2
-#      pytest -v test_hilbertspace.py --num_cpus=2
-#      pytest -v test_spectrumlookup.py --num_cpus=2
-#      pytest -v test_transmon.py --num_cpus=2
-#      pytest -v test_zeropi.py --num_cpus=2
     displayName: 'Pytest: multiprocessing'
