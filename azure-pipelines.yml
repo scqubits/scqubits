@@ -73,57 +73,26 @@ jobs:
     inputs:
       versionSpec: '$(python.version)'
     displayName: 'Use Python $(python.version)'
-  - powershell: Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
-    displayName: Add conda to PATH
   - script: |
-      conda create --yes --quiet --name myEnvironment
-      conda config --add channels conda-forge
-    displayName: Create Anaconda environment
-#  - script: |
-#      call activate myEnvironment
-#      conda install --yes cython
-#      conda install --yes numpy
-#      conda install --yes scipy
-#      conda install --yes qutip
-#      conda install --yes pathos
-#      conda install --yes pytest
-#      pip install -r requirements.txt
-#      pip install -r optional-requirements.txt
-#      pip install .
-#      pytest -v --pyargs scqubits
-#      set OMP_NUM_THREADS=1
-#      set OPENBLAS_NUM_THREADS=1
-#      set MKL_NUM_THREADS=1
-#      set VECLIB_MAXIMUM_THREADS=1
-#      set NUMEXPR_NUM_THREADS=1
-#      pytest -v --pyargs scqubits --num_cpus=4
-#    displayName: Install dependencies, scqubits & pytest
-  - script: |
-      call activate myEnvironment
       python -m pip install --upgrade pip
     displayName: 'Upgrade pip'
   - script: |
-      call activate myEnvironment
       pip install wheel
       pip install --upgrade cython
       pip install --upgrade numpy
       pip install --upgrade scipy
     displayName: 'Install/upgrade cython, numpy, scipy'
   - script: |
-      call activate myEnvironment
       pip install -r requirements.txt
       pip install -r optional-requirements.txt
     displayName: 'Install dependencies'
   - script: |
-      call activate myEnvironment
       pip install .
     displayName: 'Install scqubits'
   - script: |
-      call activate myEnvironment
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
   - script: |
-      call activate myEnvironment
       set OMP_NUM_THREADS=1
       set OPENBLAS_NUM_THREADS=1
       set MKL_NUM_THREADS=1
