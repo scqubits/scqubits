@@ -46,7 +46,7 @@ TQDM_KWARGS = {'disable': PROGRESSBAR_DISABLED,
 AUTORUN_SWEEP = True
 
 # enable/disable the CENTRAL_DISPATCH system
-DISPATCH_ENABLED = False
+DISPATCH_ENABLED = True
 
 # For parallel processing ----------------------------------------------------------------------------------------------
 # store processing pool once generated
