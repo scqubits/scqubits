@@ -90,9 +90,7 @@ jobs:
       pip install -r requirements.txt
       pip install -r optional-requirements.txt
       pip install .
-#
       pytest -v --pyargs scqubits
-#
       set OMP_NUM_THREADS=1
       set OPENBLAS_NUM_THREADS=1
       set MKL_NUM_THREADS=1
