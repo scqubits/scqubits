@@ -104,12 +104,15 @@ jobs:
 #      pip install -r optional-requirements.txt
 #    displayName: 'Install dependencies'
   - script: |
+      call activate myEnvironment
       pip install .
     displayName: 'Install scqubits'
   - script: |
+      call activate myEnvironment
       pytest -v --pyargs scqubits
     displayName: 'Pytest: single-core'
   - script: |
+      call activate myEnvironment
       set OMP_NUM_THREADS=1
       set OPENBLAS_NUM_THREADS=1
       set MKL_NUM_THREADS=1
