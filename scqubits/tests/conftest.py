@@ -114,12 +114,12 @@ class StandardTests(BaseTest):
         cls.param_name = ''
         cls.param_list = None
 
-    # def test_hamiltonian_is_hermitean(self, io_type):
-    #     testname = self.file_str + '_1.' + io_type
-    #     specdata = SpectrumData.create_from_file(DATADIR + testname)
-    #     self.qbt = self.qbt_type(**specdata.system_params)
-    #     hamiltonian = self.qbt.hamiltonian()
-    #     assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.conj().T)), 0.0)
+    def test_hamiltonian_is_hermitean(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        hamiltonian = self.qbt.hamiltonian()
+        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.conj().T)), 0.0)
 
     def test_eigenvals(self, io_type):
         testname = self.file_str + '_1.' + io_type
@@ -184,10 +184,10 @@ class StandardTests(BaseTest):
         self.plot_matelem_vs_paramvals(num_cpus, self.op1_str, self.param_name, self.param_list,
                                        select_elems=[(0, 0), (1, 4), (1, 0)])
 
-    # def test_plot_potential(self, io_type):
-    #     testname = self.file_str + '_1.hdf5'
-    #     specdata = SpectrumData.create_from_file(DATADIR + testname)
-    #     self.qbt = self.qbt_type(**specdata.system_params)
-    #     if 'plot_potential' not in dir(self.qbt):
-    #         pytest.skip('This is expected, no reason for concern.')
-    #     self.qbt.plot_potential()
+    def test_plot_potential(self, io_type):
+        testname = self.file_str + '_1.hdf5'
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        if 'plot_potential' not in dir(self.qbt):
+            pytest.skip('This is expected, no reason for concern.')
+        self.qbt.plot_potential()
