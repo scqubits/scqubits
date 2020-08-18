@@ -11,330 +11,18 @@ import logging
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
-import scqubits.core.discretization as discretization
+
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
+from scqubits.core.circuit.variable import Variable
 
 class CircuitNode:
     def __init__(self, name):
         self.name = name
-
-
-class Variable(discretization.Grid1d):
-    """
-    Represents a variable of the circuit wavefunction or an constant external bias flux or voltage.
-    """
-
-    def __init__(self, name):
-        self.variable_type = 'parameter'
-        super().__init__(0, 0, 1)
-        self.name = name
-        self.offset_charge = 0
-
-    def set_variable(self, pt_count, periods, center=0):
-        """Creates a discrete grid for phase wavefunction variables.
-
-        Parameters
-        ----------
-        pt_count: int
-            number of grid points
-        periods: float
-            number of 2pi intervals in the grid
-        center: float
-            phase grid centering
-        """
-        self.variable_type = 'variable'
-        self.pt_count = pt_count
-
-        self.min_val = -np.pi * periods + center
-        self.max_val = self.min_val + 2 * np.pi * periods * (self.pt_count - 1) / self.pt_count
-        self.offset_charge = 0 # set offset charge in variable to 0
-
-    def set_parameter(self, phase_value, voltage_value):
-        """Makes the parameter an external flux and/or charge bias.
-
-        Parameters
-        ----------
-        phase_value: float
-            external flux bias in flux quanta/(2pi)
-        voltage_value: float
-            external voltage bias
-        """
-        self.variable_type = 'parameter'
-        self.pt_count = 1
-
-        self.min_val = phase_value
-        self.max_val = phase_value
-        self.offset_charge = voltage_value
-
-    def get_phase_grid(self):
-        """Returns a numpy array of the grid points in phase representation
-
-        Returns
-        -------
-        ndarray
-        """
-        return self.make_linspace()
-
-    def get_charge_grid(self):
-        """Returns a numpy array of the grid points in cooper pair number representation
-
-        Returns
-        -------
-        ndarray
-        """
-        if self.pt_count >1:
-            range = (self.max_val - self.min_val) * self.pt_count / (self.pt_count - 1)
-            delta_n = 2*np.pi/range
-            grid = np.arange(0, delta_n*self.pt_count, delta_n)
-        else:
-            grid = np.asarray([0.0])
-        grid -= np.mean(grid)
-        grid += self.offset_charge
-        if self.pt_count % 2 == 0:
-            grid -= 0.5
-        return grid
-
-
-class CircuitElement:
-    """
-    Abstract class for circuit elements.
-    All circuit elements defined in the QCircuit library derive from this base class.
-    """
-
-    __metaclass__ = ABCMeta
-
-    def __init__(self, name):
-        self.name = name
-
-    @abstractmethod
-    def is_external(self):
-        pass
-
-    @abstractmethod
-    def is_phase(self):
-        pass
-
-    @abstractmethod
-    def is_charge(self):
-        pass
-
-    @abstractmethod
-    def energy_term(self, node_phases, node_charges):
-        return None
-
-    @abstractmethod
-    def symbolic_energy_term(self, node_phases, node_charges):
-        return None
-
-
-class ExternalFlux(CircuitElement):
-    """
-    Circuit element representing a capacitor.
-    """
-
-    def __init__(self, name, flux_value=0):
-        self.name = name
-        self.flux_value = flux_value
-
-    def set_flux_value(self, flux_value):
-        self.flux_value = flux_value
-
-    def get_flux_value(self):
-        return self.flux_value
-
-    def is_external(self):
-        return True
-
-    def is_phase(self):
-        return True
-
-    def is_charge(self):
-        return False
-
-    def energy_term(self, node_phases, node_charges):
-        return None
-
-    def symbolic_energy_term(self, node_phases, node_charges):
-        return None
-
-
-class ExternalCharge(CircuitElement):
-    """
-    Circuit element representing a capacitor.
-    """
-
-    def __init__(self, name, charge_value=0):
-        self.name = name
-        self.charge_value = charge_value
-
-    def set_charge_value(self, charge_value):
-        self.charge_value = charge_value
-
-    def get_charge_value(self):
-        return self.flux_value
-
-    def is_external(self):
-        return True
-
-    def is_phase(self):
-        return False
-
-    def is_charge(self):
-        return True
-
-    def energy_term(self, node_phases, node_charges):
-        return None
-
-    def symbolic_energy_term(self, node_phases, node_charges):
-        return None
-
-
-class Capacitance(CircuitElement):
-    """
-    Circuit element representing a capacitor.
-    """
-
-    def __init__(self, name, capacitance=0):
-        super().__init__(name)
-        self.capacitance = capacitance
-
-    def set_capacitance(self, capacitance):
-        self.capacitance = capacitance
-
-    def get_capacitance(self):
-        return self.capacitance
-
-    def is_external(self):
-        return False
-
-    def is_phase(self):
-        return False
-
-    def is_charge(self):
-        return True
-
-    def energy_term(self, node_phases, node_charges):
-        return None
-
-    def symbolic_energy_term(self, node_phases, node_charges):
-        return None
-
-
-class JosephsonJunction(CircuitElement):
-    """
-    Circuit element representing a Josephson junction.
-    """
-    def __init__(self, name, critical_current=0, use_offset=True):
-        super().__init__(name)
-        self.critical_current = critical_current
-        self.use_offset = use_offset
-
-    def set_critical_current(self, critical_current):
-        self.critical_current = critical_current
-
-    def get_critical_current(self):
-        return self.critical_current
-
-    def energy_term(self, node_phases, node_charges):
-        if len(node_phases) != 2:
-            raise Exception('ConnectionError',
-                            'Josephson junction {0} has {1} nodes connected instead of 2.'.format(self.name, len(node_phases)))
-        if self.use_offset:
-            return self.critical_current * (1 - np.cos(node_phases[0] - node_phases[1]))
-        else:
-            return self.critical_current * (-np.cos(node_phases[0] - node_phases[1]))
-
-    def symbolic_energy_term(self, node_phases, node_charges):
-        if len(node_phases) != 2:
-            raise Exception('ConnectionError',
-                            'Josephson junction {0} has {1} nodes connected instead of 2.'.format(self.name, len(node_phases)))
-        if self.use_offset:
-            return self.critical_current * (1 - sympy.cos(node_phases[0] - node_phases[1]))
-        else:
-            return self.critical_current * (-sympy.cos(node_phases[0] - node_phases[1]))
-
-    def is_phase(self):
-        return True
-
-    def is_charge(self):
-        return False
-
-
-class Inductance(CircuitElement):
-    """
-    Circuit element representing a linear inductor.
-    """
-
-    def __init__(self, name, inductance=0):
-        super().__init__(name)
-        self.inductance = inductance
-
-    def set_inductance(self, inductance):
-        self.inductance = inductance
-
-    def get_inductance(self):
-        return self.inductance
-
-    def energy_term(self, node_phases, node_charges):
-        if len(node_phases) != 2:
-            raise Exception('ConnectionError',
-                            'Inductance {0} has {1} nodes connected instead of 2.'.format(self.name, len(node_phases)))
-        return (node_phases[0] - node_phases[1]) ** 2 / (2 * self.inductance)
-
-    def symbolic_energy_term(self, node_phases, node_charges):
-        if len(node_phases) != 2:
-            raise Exception('ConnectionError',
-                            'Inductance {0} has {1} nodes connected instead of 2.'.format(self.name, len(node_phases)))
-        return (node_phases[0] - node_phases[1]) ** 2 / (2 * self.inductance)
-
-    def is_external(self):
-        return False
-
-    def is_phase(self):
-        return True
-
-    def is_charge(self):
-        return False
-
-
-class LagrangianCurrentSource(CircuitElement):
-    """
-    Circuit element representing a Josephson junction.
-    """
-
-    def __init__(self, name, current=0):
-        super().__init__(name)
-        self.current = current
-
-    def set_current(self, current):
-        self.current = current
-
-    def get_current(self):
-        return self.current
-
-    def energy_term(self, node_phases, node_charges):
-        if len(node_phases) != 2:
-            raise Exception('ConnectionError',
-                            'Lagrangian current source {0} has {1} nodes connected instead of 2.'.format(self.name, len(
-                                node_phases)))
-        return self.current * (node_phases[0] - node_phases[1])
-
-    def symbolic_energy_term(self, node_phases, node_charges):
-        return self.energy_term(node_phases, node_charges)
-
-    def is_external(self):
-        return False
-
-    def is_phase(self):
-        return True
-
-    def is_charge(self):
-        return False
 
 
 class Circuit(base.QubitBaseClass, serializers.Serializable):
@@ -375,6 +63,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     @staticmethod
     def nonfit_params():
         return []
+
+    def grid_shape(self):
+        return tuple([v.pt_count for v in self.variables])
 
     def hilbertdim(self):
         """Returns Hilbert space dimension"""
@@ -499,16 +190,16 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         charge_wave = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(state_vector)))
         w = np.fft.ifftshift(np.fft.ifftn(np.fft.ifftshift(self.charge_operator(index=index) * charge_wave)))
         # It can also be done in charge basis as 
-        # w_charge = self.charge_operator(index)*self.wave_function_charge(state_vector, index)
+        # w_charge = self.charge_operator(index)*self.wavefunction_charge(state_vector, index)
         return np.reshape(w, shape)
 
-    def wave_function_charge(self, state_vector, index=0, var_name=None):
+    def wavefunction_charge(self, state_vector, index=0, var_name=None):
         """
         Returns
         -------
         ndarray
 
-        Returns wave_function in charge basis. You need to enter variable name or index in self.variables list.
+        Returns wavefunction in charge basis. You need to enter variable name or index in self.variables list.
         :param state_vector: wavefunction in phase representation
         :param index - charge variable (default index=0)
         :param index type - int
@@ -764,10 +455,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                                                                                      element_node_ids[0],
                                                                                      element_var_list, var_list))
         self.invalidation_flag = True
-
-    def grid_shape(self):
-        return tuple([v.pt_count for v in self.variables])
-    
 
     def create_phase_grid(self):
         """
