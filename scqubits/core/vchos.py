@@ -224,7 +224,7 @@ class VCHOS(ABC):
     def _evals_calc_variational(self, optimized_lengths):
         self.optimized_lengths = optimized_lengths
         transfer_matrix, inner_product = self.transfer_matrix_and_inner_product()
-        return transfer_matrix[0, 0] / inner_product[0, 0]
+        return np.real(transfer_matrix[0, 0] / inner_product[0, 0])
 
     def Xi_matrix(self):
         """
