@@ -28,10 +28,11 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, optimized_lengths=None,
-                 num_exc=0, truncated_dim=None):
-        VCHOS.__init__(self, EJlist, nglist, flux, kmax, optimized_lengths=optimized_lengths,
-                       number_degrees_freedom=2 * N - 1, number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc)
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax,
+                 num_exc=0, optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
+        VCHOS.__init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=2 * N - 1,
+                       number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc,
+                       optimized_lengths=optimized_lengths, nearest_neighbors=nearest_neighbors)
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self.boundary_coefficients = np.ones(2 * N - 1)
         self._sys_type = type(self).__name__
@@ -105,11 +106,12 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
 class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOS, base.QubitBaseClass, serializers.Serializable):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, optimized_lengths, global_exc, truncated_dim=None):
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, global_exc,
+                 optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux,
-                                    kmax, optimized_lengths=optimized_lengths,
-                                    num_exc=0, truncated_dim=truncated_dim)
+        CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax,
+                                    num_exc=0, optimized_lengths=optimized_lengths,
+                                    nearest_neighbors=nearest_neighbors, truncated_dim=truncated_dim)
         self._sys_type = type(self).__name__
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                             'qubit_pngs/currentmirrorvchosglobal.png')

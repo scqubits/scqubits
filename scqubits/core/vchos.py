@@ -33,8 +33,8 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 
 
 class VCHOS(ABC):
-    def __init__(self, EJlist, nglist, flux, kmax, optimized_lengths=None, number_degrees_freedom=0,
-                 number_periodic_degrees_freedom=0, num_exc=None, nearest_neighbors=None):
+    def __init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=0,
+                 number_periodic_degrees_freedom=0, num_exc=None, optimized_lengths=None, nearest_neighbors=None):
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2 * self.e)**2
         self.Phi0 = 1. / (2 * self.e)
@@ -166,20 +166,22 @@ class VCHOS(ABC):
         P_0i_vecs = np.array([(row_i + P_0_vec) / 2.0 for row_i in P_i_vecs])
         return P_0_vec, P_i_vecs, P_ij_vecs, P_0i_vecs
 
-    def _evaluate_evals_func_for_P_vectors(self, evals_func, P_vecs):
-        return np.array([evals_func(vec) for vec in P_vecs])
-
     def optimize_Xi_variational_harmonic(self, trial_value):
         """
         We would like to optimize the harmonic length of each column of the Xi
         matrix such that the ground state energy is minimized. The method used here
         assumes that the default harmonic lengths (all unity) are near the optimal
         values (that is that the harmonic approximation to the minimum is not bad),
-        and assumes that we are in the vicinty of the minimum such that the
+        and assumes that we are in the vicinity of the minimum such that the
         landscape can be well approximated by a quadratic form. This assumption
         minimizes the number of function calls required, which scales as D^2, where
         D is the dimensionality. Any black-box minimizer for example from scipy in general
         requires more function evaluations, which are costly.
+
+        Notation is from the references
+        [1] Nelder, J.A. and Mead, R. (1965) Computer Journal, 7, 308-313. http://dx.doi.org/10.1093/comjnl/7.4.308
+        [2] W. Spendley , G. R. Hext & F. R. Himsworth (1962) Technometrics, 4:4, 441-461
+            https://doi.org/10.1080/00401706.1962.10490033
         Parameters
         ----------
         trial_value: float
@@ -188,9 +190,9 @@ class VCHOS(ABC):
         dim = self.number_degrees_freedom
         P_0_vec, P_i_vecs, P_ij_vecs, P_0i_vecs = self._generate_vectors_for_harmonic_approx(trial_value)
         y_0_vec = self._evals_calc_variational(P_0_vec)
-        y_i_vecs = self._evaluate_evals_func_for_P_vectors(self._evals_calc_variational, P_i_vecs)
-        y_ij_vecs = self._evaluate_evals_func_for_P_vectors(self._evals_calc_variational, P_ij_vecs)
-        y_0i_vecs = self._evaluate_evals_func_for_P_vectors(self._evals_calc_variational, P_0i_vecs)
+        y_i_vecs = np.array([self._evals_calc_variational(vec) for vec in P_i_vecs])
+        y_ij_vecs = np.array([self._evals_calc_variational(vec) for vec in P_ij_vecs])
+        y_0i_vecs = np.array([self._evals_calc_variational(vec) for vec in P_0i_vecs])
         a_vector = np.array([2*y_0i_vecs[i] - (y_i_vecs[i] + 3.0*y_0_vec)/2.0 for i in range(dim)])
         b_matrix = np.zeros((dim, dim))
         b_diag = 2.0*np.array([y_i_vecs[i] + y_0_vec - 2.0*y_0i_vecs[i] for i in range(dim)])
@@ -198,7 +200,9 @@ class VCHOS(ABC):
         counter = 0
         for i in range(dim):
             for j in range(i+1, dim):
-                b_matrix[i, j] += 2.0*(y_ij_vecs[counter] + y_0_vec - y_0i_vecs[i] - y_0i_vecs[j])
+                b_ij = 2.0*(y_ij_vecs[counter] + y_0_vec - y_0i_vecs[i] - y_0i_vecs[j])
+                b_matrix[i, j] += b_ij
+                b_matrix[j, i] += b_ij
                 counter += 1
         b_inv = inv(b_matrix)
         Q = np.array([row_i - P_0_vec for row_i in P_i_vecs]).T
@@ -651,7 +655,6 @@ class VCHOS(ABC):
                 villain_func = partial(self.villain_potential, m_list)
                 villain_result = minimize(villain_func, np.array([0.0, 0.0]))
                 result = minimize(self.potential, villain_result.x)
-                mod_result = np.mod(result.x, 2.0*np.pi*np.ones_like(result.x))
                 if result.success:
                     result_holder.append(np.mod(result.x, 2.0*np.pi*np.ones_like(result.x)))
         result_holder = self._filter_repeated_minima(result_holder)
@@ -697,11 +700,11 @@ class VCHOS(ABC):
         wavefunction_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec), dtype=np.complex_).T
 
         for i, minimum in enumerate(minima_list):
-            klist = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=dim_periodic)
-            neighbor = next(klist, -1)
+            neighbors = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=dim_periodic)
+            neighbor = next(neighbors, -1)
             while neighbor != -1:
-                phik = 2.0 * np.pi * np.concatenate((np.zeros(dim_extended), neighbor))
-                phi_offset = phik - minimum
+                phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(dim_extended), neighbor))
+                phi_offset = phi_neighbor - minimum
                 state_amplitudes = self.state_amplitudes_function(i, evecs, which)
                 phi_1_with_offset = phi_1_vec + phi_offset[0]
                 phi_2_with_offset = phi_2_vec + phi_offset[1]
@@ -710,7 +713,7 @@ class VCHOS(ABC):
                 wavefunction_amplitudes += (self.wavefunction_amplitudes_function(state_amplitudes,
                                                                                   normal_mode_1, normal_mode_2)
                                             * normalization * np.exp(-1j * np.dot(self.nglist, phi_offset)))
-                neighbor = next(klist, -1)
+                neighbor = next(neighbors, -1)
 
         grid2d = discretization.GridSpec(np.asarray([[phi_1_grid.min_val, phi_1_grid.max_val, phi_1_grid.pt_count],
                                                      [phi_2_grid.min_val, phi_2_grid.max_val, phi_2_grid.pt_count]]))
