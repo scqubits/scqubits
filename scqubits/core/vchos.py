@@ -34,7 +34,7 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 
 class VCHOS(ABC):
     def __init__(self, EJlist, nglist, flux, kmax, optimized_lengths=None, number_degrees_freedom=0,
-                 number_periodic_degrees_freedom=0, num_exc=None):
+                 number_periodic_degrees_freedom=0, num_exc=None, nearest_neighbors=None):
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2 * self.e)**2
         self.Phi0 = 1. / (2 * self.e)
@@ -51,6 +51,7 @@ class VCHOS(ABC):
         self.number_periodic_degrees_freedom = number_periodic_degrees_freedom
         self.number_extended_degrees_freedom = number_degrees_freedom - number_periodic_degrees_freedom
         self.num_exc = num_exc
+        self.nearest_neighbors = nearest_neighbors
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.extended_grid = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
         # This must be set in the individual qubit class and
@@ -136,41 +137,89 @@ class VCHOS(ABC):
 
     def _wrapper_for_functions_comparing_minima(self, function):
         sorted_minima = self.sorted_minima()
-        periodic_vectors = self._find_relevant_periodic_continuation_vectors()
+        if not self.nearest_neighbors:
+            self.find_relevant_periodic_continuation_vectors()
+        nearest_neighbors = self.nearest_neighbors
         all_minima_pairs = list(itertools.combinations_with_replacement(sorted_minima, 2))
-        return np.array([function(minima_pair, periodic_vectors[i])
+        return np.array([function(minima_pair, nearest_neighbors[i])
                          for i, minima_pair in enumerate(all_minima_pairs)])
 
-    def _find_closest_periodic_minimum(self, minima_pair, periodic_vectors):
+    def _find_closest_periodic_minimum(self, minima_pair, nearest_neighbors):
         Xi_inv = inv(self.Xi_matrix())
         delta_inv = Xi_inv.T @ Xi_inv
         if np.allclose(minima_pair[1], minima_pair[0]):  # Do not include equivalent minima in the same unit cell
-            periodic_vectors = np.array([vec for vec in periodic_vectors if not np.allclose(vec, np.zeros_like(vec))])
+            nearest_neighbors = np.array([vec for vec in nearest_neighbors if not np.allclose(vec, np.zeros_like(vec))])
         minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_pair[1] - minima_pair[0])) / 2.0
-                                     for vec in periodic_vectors])
+                                     for vec in nearest_neighbors])
         minima_vectors = np.array([2.0 * np.pi * vec + (minima_pair[1] - minima_pair[0])
-                                   for i, vec in enumerate(periodic_vectors)])
+                                   for i, vec in enumerate(nearest_neighbors)])
         minima_unit_vectors = np.array([minima_vectors[i] / minima_distances[i] for i in range(len(minima_distances))])
         harmonic_lengths = np.array([4.0*(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
         return np.max(harmonic_lengths / minima_distances)
 
+    def _generate_vectors_for_harmonic_approx(self, trial_value):
+        dim = self.number_degrees_freedom
+        P_0_vec = np.ones(self.number_degrees_freedom)
+        P_i_vecs = trial_value*np.identity(self.number_degrees_freedom) + np.ones((dim, dim))
+        P_ij_vecs = np.array([(row_i + P_i_vecs[j]) / 2.0 for i, row_i in enumerate(P_i_vecs)
+                              for j in range(i + 1, len(P_i_vecs))])
+        P_0i_vecs = np.array([(row_i + P_0_vec) / 2.0 for row_i in P_i_vecs])
+        return P_0_vec, P_i_vecs, P_ij_vecs, P_0i_vecs
+
+    def _evaluate_evals_func_for_P_vectors(self, evals_func, P_vecs):
+        return np.array([evals_func(vec) for vec in P_vecs])
+
+    def optimize_Xi_variational_harmonic(self, trial_value):
+        """
+        We would like to optimize the harmonic length of each column of the Xi
+        matrix such that the ground state energy is minimized. The method used here
+        assumes that the default harmonic lengths (all unity) are near the optimal
+        values (that is that the harmonic approximation to the minimum is not bad),
+        and assumes that we are in the vicinty of the minimum such that the
+        landscape can be well approximated by a quadratic form. This assumption
+        minimizes the number of function calls required, which scales as D^2, where
+        D is the dimensionality. Any black-box minimizer for example from scipy in general
+        requires more function evaluations, which are costly.
+        Parameters
+        ----------
+        trial_value: float
+            How far out to search in the vicinity of the default value. Small values i.e. 0.3 work well generally
+        """
+        dim = self.number_degrees_freedom
+        P_0_vec, P_i_vecs, P_ij_vecs, P_0i_vecs = self._generate_vectors_for_harmonic_approx(trial_value)
+        y_0_vec = self._evals_calc_variational(P_0_vec)
+        y_i_vecs = self._evaluate_evals_func_for_P_vectors(self._evals_calc_variational, P_i_vecs)
+        y_ij_vecs = self._evaluate_evals_func_for_P_vectors(self._evals_calc_variational, P_ij_vecs)
+        y_0i_vecs = self._evaluate_evals_func_for_P_vectors(self._evals_calc_variational, P_0i_vecs)
+        a_vector = np.array([2*y_0i_vecs[i] - (y_i_vecs[i] + 3.0*y_0_vec)/2.0 for i in range(dim)])
+        b_matrix = np.zeros((dim, dim))
+        b_diag = 2.0*np.array([y_i_vecs[i] + y_0_vec - 2.0*y_0i_vecs[i] for i in range(dim)])
+        b_matrix = b_matrix + np.diag(b_diag)
+        counter = 0
+        for i in range(dim):
+            for j in range(i+1, dim):
+                b_matrix[i, j] += 2.0*(y_ij_vecs[counter] + y_0_vec - y_0i_vecs[i] - y_0i_vecs[j])
+                counter += 1
+        b_inv = inv(b_matrix)
+        Q = np.array([row_i - P_0_vec for row_i in P_i_vecs]).T
+        self.optimized_lengths = P_0_vec - Q @ b_inv @ a_vector
+
     def optimize_Xi_variational(self):
         """
-        Returns
-        -------
-        ndarray
-            Returns a list of integers representing the optimal scaling factor for each mode to minimize the g.s.e.
+        We would like to optimize the harmonic length of each column of the Xi
+        matrix such that the ground state energy is minimized. Here we use
+        the BFGS minimization algorithm as implemented in scipy which performs
+        well, but which generally requires more function evaluations than the harmonic
+        approximation algorithm, with similar results.
         """
-        default_lengths = self.optimized_lengths
-        nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
-        evals_func = partial(self._evals_calc_variational, nearest_neighbors)
-        optimized_lengths = minimize(evals_func, default_lengths, tol=1e-1)
+        default_lengths = np.ones(self.number_degrees_freedom)
+        optimized_lengths = minimize(self._evals_calc_variational, default_lengths, tol=1e-2)
         assert optimized_lengths.success
         self.optimized_lengths = optimized_lengths.x
 
-    def _evals_calc_variational(self, nearest_neighbors, optimized_lengths):
+    def _evals_calc_variational(self, optimized_lengths):
         self.optimized_lengths = optimized_lengths
-        transfer_matrix, inner_product = self.transfer_matrix_and_inner_product(nearest_neighbors=nearest_neighbors)
+        transfer_matrix, inner_product = self.transfer_matrix_and_inner_product()
         return transfer_matrix[0, 0] / inner_product[0, 0]
 
     def Xi_matrix(self):
@@ -231,7 +280,7 @@ class VCHOS(ABC):
         """
         return int(len(self.sorted_minima()) * self.number_states_per_minimum())
 
-    def _find_relevant_periodic_continuation_vectors(self):
+    def find_relevant_periodic_continuation_vectors(self):
         """
         We have found that specifically this part of the code is quite slow, that
         is finding the relevant nearest neighbor, next nearest neighbor, etc. lattice vectors
@@ -259,7 +308,7 @@ class VCHOS(ABC):
                     neighbor = next(filtered_neighbors, -1)
                 nearest_neighbors.append(nearest_neighbors_single_minimum)
                 nearest_neighbors_single_minimum = []
-        return nearest_neighbors
+        self.nearest_neighbors = nearest_neighbors
 
     def _filter_neighbors(self, neighbor, minima_diff, Xi_inv):
         """
@@ -380,13 +429,12 @@ class VCHOS(ABC):
         """
         Xi = self.Xi_matrix()
         Xi_inv = inv(Xi)
-        nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
         exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi)
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
         transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
                                            premultiplied_a_and_a_dagger, EC_mat_t, Xi, Xi_inv)
-        return self._periodic_continuation(transfer_matrix_function, nearest_neighbors=nearest_neighbors)
+        return self._periodic_continuation(transfer_matrix_function)
 
     def inner_product_matrix(self):
         """
@@ -397,11 +445,9 @@ class VCHOS(ABC):
         """
         return self._periodic_continuation(self._inner_product_operator)
 
-    def transfer_matrix_and_inner_product(self, nearest_neighbors=None):
+    def transfer_matrix_and_inner_product(self):
         Xi = self.Xi_matrix()
         Xi_inv = inv(Xi)
-        if nearest_neighbors is None:
-            nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
         exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi)
         exp_a_list = self._build_general_exponentiated_translation_operators(Xi_inv)
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
@@ -409,10 +455,8 @@ class VCHOS(ABC):
 
         transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
                                            premultiplied_a_and_a_dagger, EC_mat_t, Xi, Xi_inv)
-        transfer_matrix = self._periodic_continuation(transfer_matrix_function, exp_a_list=exp_a_list,
-                                                      nearest_neighbors=nearest_neighbors)
-        inner_product_matrix = self._periodic_continuation(self._inner_product_operator, exp_a_list=exp_a_list,
-                                                           nearest_neighbors=nearest_neighbors)
+        transfer_matrix = self._periodic_continuation(transfer_matrix_function, exp_a_list=exp_a_list)
+        inner_product_matrix = self._periodic_continuation(self._inner_product_operator, exp_a_list=exp_a_list)
         return transfer_matrix, inner_product_matrix
 
     def _local_kinetic_contribution_to_transfer_matrix(self, premultiplied_a_and_a_dagger, EC_mat_t, Xi_inv,
@@ -465,7 +509,7 @@ class VCHOS(ABC):
         as the minima where the states in question are located."""
         return self.identity()
 
-    def _periodic_continuation(self, func, exp_a_list=None, nearest_neighbors=None):
+    def _periodic_continuation(self, func, exp_a_list=None):
         """This function is the meat of the VCHOS method. Any operator whose matrix
         elements we want (the transfer matrix and inner product matrix are obvious examples)
         can be passed to this function, and the matrix elements of that operator
@@ -478,9 +522,6 @@ class VCHOS(ABC):
             relevant operator with dimension NxN, where N is the number of states
             displaced into each minimum. For instance to find the inner product matrix,
             we use the function self._inner_product_operator(phi_neighbor, minima_m, minima_p) -> self.identity
-        nearest_neighbors: _find_relevant_periodic_continuation_vectors()
-            list that encodes the nearest neighbors relevant when examining matrix elements
-            between states in inequivalent minima.
 
         Returns
         -------
@@ -489,8 +530,8 @@ class VCHOS(ABC):
         Xi_inv = inv(self.Xi_matrix())
         if exp_a_list is None:
             exp_a_list = self._build_general_exponentiated_translation_operators(Xi_inv)
-        if nearest_neighbors is None:
-            nearest_neighbors = self._find_relevant_periodic_continuation_vectors()
+        if not self.nearest_neighbors:
+            self.find_relevant_periodic_continuation_vectors()
         minima_list = self.sorted_minima()
         hilbertdim = self.hilbertdim()
         num_states_min = self.number_states_per_minimum()
@@ -502,7 +543,7 @@ class VCHOS(ABC):
                 minima_diff = minima_list[p] - minima_m
                 exp_minima_difference = self._build_minima_dependent_exponentiated_translation_operators(minima_diff,
                                                                                                          Xi_inv)
-                for neighbor in nearest_neighbors[counter]:
+                for neighbor in self.nearest_neighbors[counter]:
                     phi_neighbor = 2.0 * np.pi * np.array(neighbor)
                     exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor + minima_diff, Xi_inv)
                     exp_a_dagger, exp_a = self._translation_operator_builder(exp_a_list, exp_minima_difference,
