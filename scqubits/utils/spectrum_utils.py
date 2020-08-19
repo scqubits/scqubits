@@ -354,6 +354,7 @@ def compare_spectra_nnz(qbt_type, specdata, specdata_exact, num_compare):
     exact_energies = specdata_exact.energy_table[:, 0:num_compare]
     relative_deviation = np.abs(test_energies-exact_energies)/exact_energies
     maximum_rel_dev = np.max(relative_deviation)
+    setattr(qbt, specdata.param_name, specdata.param_vals[0])
     try:
         ham = qbt.transfer_matrix()
     except AttributeError:
