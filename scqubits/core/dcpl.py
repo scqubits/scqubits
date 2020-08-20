@@ -92,9 +92,9 @@ class Dcpl(base.QubitBaseClass, serializers.Serializable):
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
-        self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
+        self._default_phi_grid = discretization.Grid1d(-10 * np.pi, 10 * np.pi, 400)
         self._default_theta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
-        self._default_varphi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
+        self._default_varphi_grid = discretization.Grid1d(-2 * np.pi, 3 * np.pi, 100)
         # TODO change the picture here
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxonium.png')
 

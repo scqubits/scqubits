@@ -15,6 +15,9 @@ import os
 
 import numpy as np
 import scipy as sp
+from scipy.special import kn
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -24,6 +27,8 @@ import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.spectrum_utils as spec_utils
+import scqubits.utils.plotting as plot
 
 
 # —Fluxonium qubit ————————————————————————
@@ -57,16 +62,18 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EC, EL, flux, cutoff, truncated_dim=None):
+    def __init__(self, EJ, EC, EL, dC, flux, cutoff, kbt, truncated_dim=None):
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
+        self.dC = dC
         self.flux = flux
         self.cutoff = cutoff
+        self.kbt = kbt * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # temperature unit mK
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
-        self._default_grid = discretization.Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
+        self._default_grid = discretization.Grid1d(-4.5 * np.pi, 4.5 * np.pi, 151)
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxonium.png')
 
     @staticmethod
@@ -154,6 +161,17 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         sin_phi_op += sin_phi_op.conjugate().T
         return sin_phi_op
 
+    def _identity(self):
+        """
+        Identity operator acting only on the :math:`\varphi` Hilbert subspace.
+
+        Returns
+        -------
+            scipy.sparse.csc_mat
+        """
+        dimension = self.hilbertdim()
+        return np.identity(dimension)
+
     def hamiltonian(self):  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu et al., PRB 87, 024510 (2013)
 
@@ -171,6 +189,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
         return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential,
         # fluxonium Hamiltonian in harm. osc. basis is real-valued
+
+    def current_noise_operator(self):
+        dimension = self.hilbertdim()
+
+        exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
+        cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+
+        hamiltonian_mat = - cos_matrix
+        return np.real(hamiltonian_mat)
 
     def hilbertdim(self):
         """
@@ -252,3 +279,169 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
             ymax = max(1.8 * self.EJ, evals[-1] + 0.1 * (evals[-1] - evals[0]))
             options['ylim'] = (ymin, ymax)
         return options
+
+    def ft_wavefunction(self, esys=None, which=0, mode='abs', **kwargs):
+        phi_grid = discretization.Grid1d(-10 * np.pi, 10 * np.pi, 1501)
+        wfnc = self.wavefunction(esys=esys, which=which, phi_grid=phi_grid)
+        phi_amplitudes = wfnc.amplitudes
+        d_phi = phi_grid.make_linspace()[1] - phi_grid.make_linspace()[0]
+        n_phi_list = np.sort(np.fft.fftfreq(phi_grid.pt_count, d_phi)) * 2 * np.pi
+        n_phi_amplitudes = np.fft.ifft(phi_amplitudes) * d_phi * phi_grid.pt_count
+        n_phi_amplitudes = np.fft.fftshift(n_phi_amplitudes)
+        n_phi_wavefunction = storage.WaveFunction(basis_labels=n_phi_list, amplitudes=n_phi_amplitudes)
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        n_phi_wavefunction.amplitudes = amplitude_modifier(spec_utils.standardize_phases(n_phi_wavefunction.amplitudes))
+        return plot.wavefunction1d(n_phi_wavefunction, **kwargs)
+
+    def q_cap(self, energy):
+        # Devoret paper
+        # q_cap_0 = 1 * 1e6
+        # return q_cap_0 * (6 / energy) ** 0.7
+
+        # Schuster paper
+        # return 1 / (8e-6)
+
+        # Vlad paper
+        q_cap_0 = 1 / (3 * 1e-6)
+        return q_cap_0 * (6 / energy) ** 0.15
+
+    def get_t1_capacitive_loss(self, para_name, para_vals):
+        energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
+                 :, 1]
+        matele = self.get_matelements_vs_paramvals('n_operator', para_name, para_vals,
+                                                   evals_count=2).matrixelem_table[:, 0, 1]
+        s_vv = 2 * np.pi * 16 * self.EC / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
+        gamma1_cap = np.abs(matele) ** 2 * s_vv
+        return 1 / (gamma1_cap) * 1e-6
+
+    def q_ind(self, energy):
+        """Frequency dependent quality factor of inductance"""
+        q_ind_0 = 500 * 1e6
+        return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt) * np.sinh(0.5 / 2.0 / self.kbt) / kn(0,
+                                                                                          energy / 2.0 / self.kbt) / np.sinh(
+            energy / 2.0 / self.kbt)
+
+    def get_t1_inductive_loss(self, para_name, para_vals):
+        energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
+                 :, 1]
+        matele = self.get_matelements_vs_paramvals('phi_operator', para_name, para_vals,
+                                                   evals_count=2).matrixelem_table[:, 0, 1]
+        s_ii = 2 * np.pi * 2 * self.EL / self.q_ind(energy) / np.tanh(energy / 2.0 / self.kbt)
+        gamma1_ind = np.abs(matele) ** 2 * s_ii
+        return 1 / (gamma1_ind) * 1e-6
+
+    def get_t1(self, para_name, para_vals):
+        inductive = self.get_t1_inductive_loss(para_name, para_vals)
+        capacitive = self.get_t1_capacitive_loss(para_name, para_vals)
+        return 1 / (1 / inductive + 1 / capacitive)
+
+    def get_t2_flux_noise(self, para_name, para_vals):
+        orginal_flux = getattr(self, 'flux')
+        delta = 1e-6
+        pts = 51
+        flux_list = np.linspace(orginal_flux - delta, orginal_flux + delta, pts)
+        energy = np.zeros((pts, para_vals.size))
+        for i in range(pts):
+            setattr(self, 'flux', flux_list[i])
+            energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
+                                                          subtract_ground=True).energy_table[:, 1]
+        first_derivative = np.gradient(energy, flux_list, axis=0)[int(np.round(pts / 2)), :]
+        second_derivative = np.gradient(np.gradient(energy, flux_list, axis=0), flux_list, axis=0)[int(np.round(pts / 2)), :]
+        setattr(self, 'flux', orginal_flux)
+
+        first_order = 3e-6 * first_derivative
+        second_order = 9e-12 * second_derivative
+        # print(first_order)
+        # print(second_order)
+        # print(first_derivative)
+        return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
+
+    def get_t2_current_noise(self, para_name, para_vals):
+        orginal_ej = self.EJ
+        delta = 1e-5
+        pts = 51
+        ej_list = np.linspace(orginal_ej - delta, orginal_ej + delta, pts)
+        energy = np.zeros((pts, para_vals.size))
+        for i in range(pts):
+            self.EJ = ej_list[i]
+            energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
+                                                          subtract_ground=True).energy_table[:, 1]
+        first_derivative = np.gradient(energy, ej_list, axis=0)[int(np.round(pts / 2)), :]
+        self.EJ = orginal_ej
+        # print(first_derivative)
+        return np.abs(1 / (5e-7 * orginal_ej * first_derivative) * 1e-6) / (2 * np.pi)  # unit in ms
+
+    def print_noise(self):
+        t1_cap = self.get_t1_capacitive_loss('dC', np.array([0]))
+        t1_ind = self.get_t1_inductive_loss('dC', np.array([0]))
+        t2_current = self.get_t2_current_noise('dC', np.array([0]))
+        t2_flux = self.get_t2_flux_noise('dC', np.array([0]))
+        return print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
+                     ' ms', '\n Tphi_tot =', 1 / (1 / t2_flux + 1 / t2_current), ' ms', '\n T1_cap =',
+                     t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1 =', 1 / (1 / t1_ind + 1 / t1_cap), ' ms',
+                     '\n T2 =',
+                     1 / (1 / t2_flux + 1 / t2_current + (1 / t1_ind + 1 / t1_cap) / 2), ' ms')
+
+    def get_noise_analysis_2d(self, func, para_name_1, para_vals_1, para_name_2, para_vals_2):
+        noise = np.zeros((para_vals_1.size, para_vals_2.size))
+        original_para_val = getattr(self, para_name_1)
+        for n in range(para_vals_1.size):
+            setattr(self, para_name_1, para_vals_1[n])
+            noise[n, :] = func(para_name_2, para_vals_2)
+        setattr(self, para_name_1, original_para_val)
+
+        # imshow_minval = np.log10(np.min(noise))
+        # imshow_maxval = np.log10(np.max(noise))
+        # fig, axes = plt.subplots(figsize=(4, 4))
+        # im = axes.imshow(np.log10(noise), extent=[para_vals_2[0], para_vals_2[-1], para_vals_1[0], para_vals_1[-1]],
+        #                  cmap=plt.cm.viridis, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
+
+        imshow_minval = (np.min(noise))
+        imshow_maxval = (np.max(noise))
+        fig, axes = plt.subplots(figsize=(4, 4))
+        im = axes.imshow((noise), extent=[para_vals_2[0], para_vals_2[-1], para_vals_1[0], para_vals_1[-1]],
+                         cmap=plt.cm.viridis, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
+
+        divider = make_axes_locatable(axes)
+        cax = divider.append_axes("right", size="2%", pad=0.05)
+        fig.colorbar(im, cax=cax)
+        axes.set_xlabel(para_name_2)
+        axes.set_ylabel(para_name_1)
+        return fig, axes
+
+    def noise_analysis_2d(self, para_name_1, para_vals_1, para_name_2, para_vals_2):
+        fig, axes = self.get_noise_analysis_2d(self.get_t1_capacitive_loss, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
+        axes.set_title('T1 capacitive loss (ms)')
+        fig, axes = self.get_noise_analysis_2d(self.get_t1_inductive_loss, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
+        axes.set_title('T1 inductive loss (ms)')
+        fig, axes = self.get_noise_analysis_2d(self.get_t1, para_name_1, para_vals_1, para_name_2,
+                                               para_vals_2)
+        axes.set_title('T1 (ms)')
+
+    def noise_analysis(self, para_name, para_vals):
+        t1_cap = self.get_t1_capacitive_loss(para_name, para_vals)
+        t1_ind = self.get_t1_inductive_loss(para_name, para_vals)
+
+        plt.figure(figsize=(4, 4))
+        plt.plot(para_vals, t1_cap)
+        plt.plot(para_vals, t1_ind)
+        plt.plot(para_vals, 1 / (1 / t1_ind + 1 / t1_cap), '--')
+        plt.legend(['T1_cap', 'T1_ind', 'T1_tot'])
+        plt.xlabel(para_name)
+        plt.ylabel('T1ms)')
+        plt.yscale('log')
+
+    def noise_analysis_t2(self, para_name, para_vals):
+        t2_flux = self.get_t2_flux_noise(para_name, para_vals)
+        t2_current = self.get_t2_current_noise(para_name, para_vals)
+
+        plt.figure(figsize=(4, 4))
+        plt.plot(para_vals, t2_flux)
+        plt.plot(para_vals, t2_current)
+        plt.plot(para_vals, 1 / (1 / t2_flux + 1 / t2_current), '--')
+        plt.legend(['T2_flux', 'T2_current', 'T2_tot'])
+        plt.xlabel(para_name)
+        plt.ylabel('T2 (ms)')
+        plt.yscale('log')

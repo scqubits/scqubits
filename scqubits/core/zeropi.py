@@ -556,3 +556,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
         wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+
+    def get_t2_flux_noise(self, init_state):
+        delta = 1e-6
+        pts = 21
+        flux_list = np.linspace(self.flux - delta, self.flux + delta, pts)
+        energy = self.get_spectrum_vs_paramvals('flux', flux_list, evals_count=init_state + 2,
+                                                subtract_ground=True).energy_table[:, init_state]
+        first_derivative = np.gradient(energy, flux_list)[int(np.round(pts / 2))]
+        second_derivative = np.gradient(np.gradient(energy, flux_list), flux_list)[int(np.round(pts / 2))]
+
+        first_order = 3e-6 * first_derivative
+        second_order = 9e-12 * second_derivative
+        return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms

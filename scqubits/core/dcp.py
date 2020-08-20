@@ -1380,6 +1380,7 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
                  :, 1]
         matele = self.get_matelements_vs_paramvals('n_theta_operator', para_name, para_vals,
                                                    evals_count=2).matrixelem_table[:, 0, 1]
+        # note here only matters the shunt capacitance, so EC*x
         s_vv = 2 * np.pi * 16 * self.EC * self.x / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
         gamma1_purcell = np.abs(matele) ** 2 * s_vv
         return 1 / gamma1_purcell * 1e-6

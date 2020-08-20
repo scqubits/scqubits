@@ -34,7 +34,7 @@ from scqubits.utils.spectrum_utils import matrix_element
 
 
 # —Double Cooper pair tunneling qubit ————————————————————————
-class Dcpd(base.QubitBaseClass, serializers.Serializable):
+class Dcpi(base.QubitBaseClass, serializers.Serializable):
     r"""double Cooper pair tunneling qubit
 
     | [1] Smith et al., NPJ Quantum Inf. 6, 8 (2020) http://www.nature.com/articles/s41534-019-0231-2
@@ -91,22 +91,16 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
     q0 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     p0 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EC, EL, ELA, x, dL, dC, dJ, flux, fluxa, kbt, truncated_dim=None):
+    def __init__(self, EJ, EC, EL, ELA, flux, fluxa, kbt, truncated_dim=None):
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
         self.ELA = ELA
-        self.x = x
-        self.dL = dL
-        self.dC = dC
-        self.dJ = dJ
         self.flux = flux
         self.fluxa = fluxa
         self.kbt = kbt * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # temperature unit mK
         self.phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.varphi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
-        self.theta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
-        self.theta_cut = 5
         self.ph = 0
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -139,14 +133,6 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
             Returns the Hilbert space dimension of :math:`phi' degree of freedom."""
         return self.phi_grid.pt_count
 
-    def dim_theta(self):
-        """
-        Returns
-        -------
-        int
-            Returns the Hilbert space dimension of :math:`theta' degree of freedom."""
-        return self.theta_cut
-
     def dim_varphi(self):
         """
         Returns
@@ -161,7 +147,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         -------
         int
             Returns the total Hilbert space dimension."""
-        return self.dim_phi() * self.dim_theta() * self.dim_varphi()
+        return self.dim_phi() * self.dim_varphi()
 
     def _dis_el(self):
         """
@@ -169,7 +155,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         -------
         float
             Returns the inductive energy renormalized by with disorder."""
-        return self.EL / (1 - self.dL ** 2)
+        return self.EL
 
     def _dis_ec(self):
         """
@@ -177,7 +163,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         -------
         float
             Returns the capacitance energy renormalized by with disorder."""
-        return self.EC / (1 - self.dC ** 2)
+        return self.EC
 
     def phi_osc(self):
         """
@@ -186,14 +172,6 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         float
             Returns the oscillator strength of :math:`phi' degree of freedom."""
         return (32 * self._dis_ec() / self._dis_el()) ** 0.25
-
-    def theta_osc(self):
-        """
-        Returns
-        -------
-        float
-            Returns the oscillator strength of :math:`theta' degree of freedom."""
-        return (8 * self._dis_ec() * self.x / (2 * self._dis_el() + self.ELA)) ** 0.25
 
     def varphi_osc(self):
         """Return the oscillator strength of varphi degree of freedom"""
@@ -207,15 +185,6 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
             Returns the plasma oscillation frequency of :math:`phi' degree of freedom.
         """
         return math.sqrt(8.0 * self._dis_el() * self._dis_ec())
-
-    def theta_plasma(self):
-        """
-        Returns
-        -------
-        float
-            Returns the plasma oscillation frequency of :math:`theta' degree of freedom.
-        """
-        return math.sqrt(8.0 * self.x * self._dis_ec() * (2 * self._dis_el() + self.ELA))
 
     def varphi_plasma(self):
         """
@@ -236,7 +205,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`phi' operator in total Hilbert space
         """
-        return self._kron3(self._phi_operator(), self._identity_theta(), self._identity_varphi())
+        return self._kron2(self._phi_operator(), self._identity_varphi())
 
     def _n_phi_operator(self):
         """
@@ -254,46 +223,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`n_phi' operator in total Hilbert space
         """
-        return self._kron3(self._n_phi_operator(), self._identity_theta(), self._identity_varphi())
-
-    def _theta_operator(self):
-        """
-        Returns
-        -------
-        ndarray
-            Returns the :math:`theta' operator in the LC harmonic oscillator basis
-        """
-        dimension = self.dim_theta()
-        return (op.creation_sparse(dimension) + op.annihilation_sparse(dimension)) * self.theta_osc() / math.sqrt(2)
-
-    def theta_operator(self):
-        """
-        Returns
-        -------
-        ndarray
-            Returns the :math:`theta' operator in total Hilbert space
-        """
-        return self._kron3(self._identity_phi(), self._theta_operator(), self._identity_varphi())
-
-    def _n_theta_operator(self):
-        """
-        Returns
-        -------
-        ndarray
-            Returns the :math:`n_\theta = - i d/d\\theta` operator in the LC harmonic oscillator basis
-        """
-        dimension = self.dim_theta()
-        return 1j * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension)) / (
-                self.theta_osc() * math.sqrt(2))
-
-    def n_theta_operator(self):
-        """
-        Returns
-        -------
-        ndarray
-            Returns the :math:`n_theta' operator in total Hilbert space
-        """
-        return self._kron3(self._identity_phi(), self._n_theta_operator(), self._identity_varphi())
+        return self._kron2(self._n_phi_operator(), self._identity_varphi())
 
     def _cos_phi_div_operator(self, div):
         """
@@ -315,38 +245,6 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         sin_phi_div_vals = np.sin(self.phi_grid.make_linspace() / div)
         return sparse.dia_matrix((sin_phi_div_vals, [0]), shape=(self.dim_phi(), self.dim_phi())).tocsc()
 
-    def _exp_i_theta_operator(self):
-        """
-        Returns
-        -------
-        ndarray
-            Returns the :math:`e^{i\\theta}` operator in the LC harmonic oscillator basis
-        """
-        exponent = 1j * self._theta_operator()
-        return expm(exponent)
-
-    def _cos_theta_operator(self):
-        """
-        Returns
-        -------
-        ndarray
-            Returns the :math:`\\cos \\theta` operator in the LC harmonic oscillator basis
-        """
-        cos_theta_op = 0.5 * self._exp_i_theta_operator()
-        cos_theta_op += cos_theta_op.conj().T
-        return np.real(cos_theta_op)
-
-    def _sin_theta_operator(self):
-        """
-        Returns
-        -------
-        ndarray
-            Returns the :math:`\\sin \\theta` operator in the LC harmonic oscillator basis
-        """
-        sin_theta_op = -1j * 0.5 * self._exp_i_theta_operator()
-        sin_theta_op += sin_theta_op.conj().T
-        return np.real(sin_theta_op)
-
     def _varphi_operator(self):
         return sparse.dia_matrix((self.varphi_grid.make_linspace(), [0]),
                                  shape=(self.dim_varphi(), self.dim_varphi())).tocsc()
@@ -358,7 +256,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`varphi' operator in total Hilbert space
         """
-        return self._kron3(self._identity_phi(), self._identity_theta(), self._varphi_operator())
+        return self._kron2(self._identity_phi(),  self._varphi_operator())
 
     def _n_varphi_operator(self):
         """
@@ -376,7 +274,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns charge operator :math:`\\n_varphi` in the total Hilbert space
         """
-        return self._kron3(self._identity_phi(), self._identity_theta(), self._n_varphi_operator())
+        return self._kron2(self._identity_phi(), self._n_varphi_operator())
 
     def _cos_varphi_div_operator(self, div):
         """
@@ -398,16 +296,6 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         sin_varphi_div_vals = np.sin(self.varphi_grid.make_linspace() / div)
         return sparse.dia_matrix((sin_varphi_div_vals, [0]), shape=(self.dim_varphi(), self.dim_varphi())).tocsc()
 
-    def _kron3(self, mat1, mat2, mat3):
-        """
-        Kronecker product of three matrices
-
-        Returns
-        -------
-            scipy.sparse.csc_mat
-        """
-        return sparse.kron(sparse.kron(mat1, mat2, format='csc'), mat3, format='csc')
-
     def _kron2(self, mat1, mat2):
         return sparse.kron(mat1, mat2, format='csc')
 
@@ -420,16 +308,6 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
             scipy.sparse.csc_mat
         """
         return sparse.identity(self.dim_phi(), format='csc', dtype=np.complex_)
-
-    def _identity_theta(self):
-        """
-        Identity operator acting only on the :math:`\theta` Hilbert subspace.
-
-        Returns
-        -------
-            scipy.sparse.csc_mat
-        """
-        return sparse.identity(self.dim_theta(), format='csc', dtype=np.complex_)
 
     def _identity_varphi(self):
         """
@@ -449,7 +327,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         -------
             scipy.sparse.csc_mat
         """
-        return self._kron3(self._identity_phi(), self._identity_theta(), self._identity_varphi())
+        return self._kron2(self._identity_phi(), self._identity_varphi())
 
     def hamiltonian(self):
         # TODO: why not equal?
@@ -457,48 +335,19 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
 
         phi_term = self.phi_grid.second_derivative_matrix(prefactor=- 8.0 * self._dis_ec())
         varphi_term = self.varphi_grid.second_derivative_matrix(prefactor=- 2.0 * self._dis_ec())
-        kinetic_mat = self._kron3(phi_term, self._identity_theta(), self._identity_varphi()) + self._kron3(
-            self._identity_phi(), self._identity_theta(), varphi_term)
-
-        cross_mat = - 4 * self._dis_ec() * self.n_theta_operator() * self.n_varphi_operator()
-
-        theta_osc_mat = self._kron3(self._identity_phi(), op.number_sparse(self.dim_theta(), self.theta_plasma()),
-                                    self._identity_varphi()) + 2 * self._dis_ec() * self.n_theta_operator() ** 2
+        kinetic_mat = self._kron2(phi_term,self._identity_varphi()) + self._kron2(
+            self._identity_phi(), varphi_term)
 
         phi_inductive_mat = 0.25 * self._dis_el() * self.phi_operator() ** 2
         varphi_inductive_mat = 0.5 * self.ELA * self.varphi_operator() ** 2
-        add_inductive_mat = self.ELA * (
-                self.varphi_operator() * self.theta_operator() + 2 * np.pi * (self.flux / 2.0 + self.fluxa) * (
-                self.theta_operator() + self.varphi_operator()))
+
+        add_inductive_mat = self.ELA * 2 * np.pi * (self.flux / 2.0 + self.fluxa) * self.varphi_operator()
         phi_flux_term = self._cos_phi_div_operator(2.0) * np.cos(np.pi * self.flux) - self._sin_phi_div_operator(
             2.0) * np.sin(np.pi * self.flux)
-        junction_mat = - 2 * self.EJ * self._kron3(phi_flux_term, self._identity_theta(),
-                                                   self._cos_varphi_div_operator(
-                                                       1.0)) + 2 * self.EJ * self.total_identity()
+        junction_mat = - 2 * self.EJ * self._kron2(phi_flux_term, self._cos_varphi_div_operator(
+            1.0)) + 2 * self.EJ * self.total_identity()
 
-        return theta_osc_mat + kinetic_mat + cross_mat + phi_inductive_mat + varphi_inductive_mat + add_inductive_mat + junction_mat
-
-    def disorder(self):
-        """
-        Return disorder Hamiltonian
-
-        Returns
-        -------
-        ndarray
-        """
-        disorder_l = - self._dis_el() * self.dL * self._kron3(self._phi_operator(), self._theta_operator(),
-                                                              self._identity_varphi())
-
-        phi_flux_term = self._sin_phi_div_operator(2.0) * np.cos(self.flux * np.pi) + self._cos_phi_div_operator(
-            2.0) * np.sin(
-            self.flux * np.pi)
-        disorder_j = 2 * self.EJ * self.dJ * self._kron3(phi_flux_term, self._identity_theta(),
-                                                         self._sin_varphi_div_operator(1.0))
-
-        disorder_c = -8 * self._dis_ec() * self.dC * self.n_phi_operator() * (
-                    self.n_varphi_operator() - self.n_theta_operator())
-
-        return disorder_l + disorder_j + disorder_c
+        return  kinetic_mat + phi_inductive_mat + varphi_inductive_mat + add_inductive_mat + junction_mat
 
     def potential(self, varphi, phi):
         """
@@ -516,7 +365,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         float or ndarray
         """
         return self.EL * (0.25 * phi * phi) - 2 * self.EJ * np.cos(varphi) * np.cos(
-            phi * 0.5 + np.pi * self.flux) + 0.5 * self.ELA * (2 * np.pi * (self.flux / 2.0 + self.fluxa) + varphi) ** 2 + 2 * self.EJ
+            phi * 0.5 + np.pi * self.flux) + 0.5 * self.ELA * (2 * np.pi * (self.flux / 2.0 + self.fluxa) + varphi) ** 2
 
     def plot_potential(self, phi_grid=None, varphi_grid=None, contour_vals=None, **kwargs):
         """
@@ -542,18 +391,17 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
     def _evals_calc(self, evals_count):
-        hamiltonian_mat = self.hamiltonian() + self.disorder()
+        hamiltonian_mat = self.hamiltonian()
         evals = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, sigma=0.0, which='LM')
-        # evals = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
-        hamiltonian_mat = self.hamiltonian() + self.disorder()
+        hamiltonian_mat = self.hamiltonian()
         evals, evecs = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, sigma=0.0, which='LM')
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def wavefunction(self, esys=None, which=0, phi_grid=None, theta_grid=None, varphi_grid=None):
+    def wavefunction(self, esys=None, which=0, phi_grid=None, varphi_grid=None):
         evals_count = max(which + 1, 3)
         if esys is None:
             _, evecs = self.eigensys(evals_count)
@@ -561,23 +409,15 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
             _, evecs = esys
 
         phi_grid = phi_grid or self.phi_grid
-        theta_grid = theta_grid or self.theta_grid
         varphi_grid = varphi_grid or self.varphi_grid
 
-        state_amplitudes = evecs[:, which].reshape(self.dim_phi(), self.dim_theta(), self.dim_varphi())
-
-        theta_osc_amplitudes = np.zeros((self.dim_theta(), theta_grid.pt_count), dtype=np.complex_)
-        for i in range(self.dim_theta()):
-            theta_osc_amplitudes[i, :] = osc.harm_osc_wavefunction(i, theta_grid.make_linspace(), self.theta_osc())
-
-        wavefunc_amplitudes = np.swapaxes(np.tensordot(theta_osc_amplitudes, state_amplitudes, axes=([0], [1])), 0, 1)
+        wavefunc_amplitudes = evecs[:, which].reshape(self.dim_phi(), self.dim_varphi())
         wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
 
-        grid3d = discretization.GridSpec(
+        grid2d = discretization.GridSpec(
             np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
-                        [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
                         [varphi_grid.min_val, varphi_grid.max_val, varphi_grid.pt_count]]))
-        return storage.WaveFunctionOnGrid(grid3d, wavefunc_amplitudes)
+        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
     def plot_phi_varphi_wavefunction(self, esys=None, which=0, phi_grid=None, varphi_grid=None, mode='abs',
                                      zero_calibrate=True,
@@ -607,12 +447,10 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         Figure, Axes
         """
         phi_grid = phi_grid or self.phi_grid
-        theta_grid = discretization.Grid1d(0, 0, 1)
         varphi_grid = varphi_grid or self.varphi_grid
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
-                                     which=which)
+        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, varphi_grid=varphi_grid,which=which)
 
         wavefunc.gridspec = discretization.GridSpec(np.asarray(
             [[varphi_grid.min_val, varphi_grid.max_val, varphi_grid.pt_count],
@@ -620,38 +458,6 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         wavefunc.amplitudes = amplitude_modifier(
             spec_utils.standardize_phases(wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count)))
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
-
-    def plot_n_phi_n_varphi_wavefunction(self, esys=None, mode='real', which=0, zero_calibrate=True, **kwargs):
-        phi_grid = self.phi_grid
-        theta_grid = discretization.Grid1d(0, 0, 1)
-        varphi_grid = self.varphi_grid
-
-        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, theta_grid=theta_grid, varphi_grid=varphi_grid,
-                                     which=which)
-
-        amplitudes = spec_utils.standardize_phases(
-            wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count))
-
-        d_phi = phi_grid.make_linspace()[1] - phi_grid.make_linspace()[0]
-        n_phi_list = np.sort(np.fft.fftfreq(phi_grid.pt_count, d_phi)) * 2 * np.pi
-        n_phi_grid = discretization.Grid1d(n_phi_list[0], n_phi_list[-1], n_phi_list.size)
-
-        d_varphi = varphi_grid.make_linspace()[1] - varphi_grid.make_linspace()[0]
-        n_varphi_list = np.sort(np.fft.fftfreq(varphi_grid.pt_count, d_varphi)) * 2 * np.pi
-        n_varphi_grid = discretization.Grid1d(n_varphi_list[0], n_varphi_list[-1], n_varphi_list.size)
-
-        n_phi_n_varphi_amplitudes = np.fft.ifft2(amplitudes) * d_phi * phi_grid.pt_count * d_varphi * varphi_grid.pt_count
-        n_phi_n_varphi_amplitudes = np.fft.fftshift(n_phi_n_varphi_amplitudes)
-
-        grid2d = discretization.GridSpec(np.asarray([
-            [n_phi_grid.min_val, n_phi_grid.max_val, n_phi_grid.pt_count],
-            [n_varphi_grid.min_val, n_varphi_grid.max_val, n_varphi_grid.pt_count]]))
-
-        n_phi_n_varphi_wavefunction = storage.WaveFunctionOnGrid(grid2d, n_phi_n_varphi_amplitudes)
-        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        n_phi_n_varphi_wavefunction.amplitudes = amplitude_modifier(spec_utils.standardize_phases(n_phi_n_varphi_wavefunction.amplitudes))
-
-        return plot.wavefunction2d(n_phi_n_varphi_wavefunction, zero_calibrate=zero_calibrate, **kwargs)
 
     def phi_1_operator(self):
         """
@@ -727,8 +533,10 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
                     init_state, :]
         matelem_2 = np.delete(matelem_2, init_state)
 
-        s_vv_1 = 2 * np.pi * 16 * self.EC / (1 - self.dC ** 2) / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_vv_2 = 2 * np.pi * 16 * self.EC / (1 + self.dC ** 2) / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_vv_1 = 2 * np.pi * 16 * self.EC / (1 - self.dC) / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        s_vv_2 = 2 * np.pi * 16 * self.EC / (1 + self.dC) / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
 
         gamma1_cap_1 = np.abs(matelem_1) ** 2 * s_vv_1
         gamma1_cap_2 = np.abs(matelem_2) ** 2 * s_vv_2
@@ -773,8 +581,10 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
                     0, init_state, :]
         matelem_a = np.delete(matelem_a, init_state)
 
-        s_ii_1 = 2 * np.pi * 2 * self.EL / (1 - self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_ii_2 = 2 * np.pi * 2 * self.EL / (1 + self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_ii_1 = 2 * np.pi * 2 * self.EL / (1 - self.dL) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        s_ii_2 = 2 * np.pi * 2 * self.EL / (1 + self.dL) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
         s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
 
         gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
@@ -783,35 +593,6 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
 
         gamma1_ind_tot = np.sum(gamma1_ind_1) + np.sum(gamma1_ind_2) + np.sum(gamma1_ind_a)
         return 1 / (gamma1_ind_tot) * 1e-6
-
-    def get_t1_inductive_loss_channel(self, init_state):
-        """T1 inductive loss of one particular state"""
-        cutoff = init_state + 6
-        energy = self._evals_calc(cutoff)
-        energy_diff = energy[init_state] - energy
-        energy_diff = np.delete(energy_diff, init_state)
-
-        matelem_1 = self.get_matelements_vs_paramvals('phi_1_operator', 'ph', [0], evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
-        matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('phi_2_operator', 'ph', [0], evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
-        matelem_2 = np.delete(matelem_2, init_state)
-        matelem_a = self.get_matelements_vs_paramvals('phi_a_operator', 'ph', [0], evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
-        matelem_a = np.delete(matelem_a, init_state)
-
-        s_ii_1 = 2 * np.pi * 2 * self.EL / (1 - self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_ii_2 = 2 * np.pi * 2 * self.EL / (1 + self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-
-        gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
-        gamma1_ind_2 = np.abs(matelem_2) ** 2 * s_ii_2
-        gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
-
-        gamma1_ind_tot = np.sum(gamma1_ind_1) + np.sum(gamma1_ind_2) + np.sum(gamma1_ind_a)
-        gamma_channel = gamma1_ind_1 + gamma1_ind_2 + gamma1_ind_a
-        return 1 / gamma_channel * 1e-6
 
     def get_t2_flux_noise(self, init_state):
         delta = 1e-6
