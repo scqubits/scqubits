@@ -145,6 +145,8 @@ class VCHOS(ABC):
                          for i, minima_pair in enumerate(all_minima_pairs)])
 
     def _find_closest_periodic_minimum(self, minima_pair, nearest_neighbors):
+        if not nearest_neighbors:
+            return 0.0
         Xi_inv = inv(self.Xi_matrix())
         delta_inv = Xi_inv.T @ Xi_inv
         if np.allclose(minima_pair[1], minima_pair[0]):  # Do not include equivalent minima in the same unit cell
@@ -156,15 +158,6 @@ class VCHOS(ABC):
         minima_unit_vectors = np.array([minima_vectors[i] / minima_distances[i] for i in range(len(minima_distances))])
         harmonic_lengths = np.array([4.0*(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
         return np.max(harmonic_lengths / minima_distances)
-
-    def _generate_vectors_for_harmonic_approx(self, trial_value):
-        dim = self.number_degrees_freedom
-        P_0_vec = np.ones(self.number_degrees_freedom)
-        P_i_vecs = trial_value*np.identity(self.number_degrees_freedom) + np.ones((dim, dim))
-        P_ij_vecs = np.array([(row_i + P_i_vecs[j]) / 2.0 for i, row_i in enumerate(P_i_vecs)
-                              for j in range(i + 1, len(P_i_vecs))])
-        P_0i_vecs = np.array([(row_i + P_0_vec) / 2.0 for row_i in P_i_vecs])
-        return P_0_vec, P_i_vecs, P_ij_vecs, P_0i_vecs
 
     def optimize_Xi_variational(self):
         """
