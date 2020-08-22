@@ -106,7 +106,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         self.phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.varphi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.theta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
-        self.theta_cut = 5
+        self.theta_cut = 3
         self.ph = 0
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -117,13 +117,17 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJ': 5.0,
-            'EC': 1.7,
+            'EJ': 4.5,
+            'EC': 1.05,
             'EL': 0.1,
             'ELA': 0.1,
-            'x': 1,
+            'x': 10,
+            'dL': 0,
+            'dC': 0,
+            'dJ': 0,
             'flux': 0,
             'fluxa': 0.5,
+            'theta_cut': 3,
             'truncated_dim': 10
         }
 
@@ -496,7 +500,7 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
                                                          self._sin_varphi_div_operator(1.0))
 
         disorder_c = -8 * self._dis_ec() * self.dC * self.n_phi_operator() * (
-                    self.n_varphi_operator() - self.n_theta_operator())
+                self.n_varphi_operator() - self.n_theta_operator())
 
         return disorder_l + disorder_j + disorder_c
 
@@ -516,7 +520,8 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         float or ndarray
         """
         return self.EL * (0.25 * phi * phi) - 2 * self.EJ * np.cos(varphi) * np.cos(
-            phi * 0.5 + np.pi * self.flux) + 0.5 * self.ELA * (2 * np.pi * (self.flux / 2.0 + self.fluxa) + varphi) ** 2 + 2 * self.EJ
+            phi * 0.5 + np.pi * self.flux) + 0.5 * self.ELA * (
+                       2 * np.pi * (self.flux / 2.0 + self.fluxa) + varphi) ** 2 + 2 * self.EJ
 
     def plot_potential(self, phi_grid=None, varphi_grid=None, contour_vals=None, **kwargs):
         """
@@ -640,7 +645,8 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         n_varphi_list = np.sort(np.fft.fftfreq(varphi_grid.pt_count, d_varphi)) * 2 * np.pi
         n_varphi_grid = discretization.Grid1d(n_varphi_list[0], n_varphi_list[-1], n_varphi_list.size)
 
-        n_phi_n_varphi_amplitudes = np.fft.ifft2(amplitudes) * d_phi * phi_grid.pt_count * d_varphi * varphi_grid.pt_count
+        n_phi_n_varphi_amplitudes = np.fft.ifft2(
+            amplitudes) * d_phi * phi_grid.pt_count * d_varphi * varphi_grid.pt_count
         n_phi_n_varphi_amplitudes = np.fft.fftshift(n_phi_n_varphi_amplitudes)
 
         grid2d = discretization.GridSpec(np.asarray([
@@ -649,7 +655,8 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
 
         n_phi_n_varphi_wavefunction = storage.WaveFunctionOnGrid(grid2d, n_phi_n_varphi_amplitudes)
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        n_phi_n_varphi_wavefunction.amplitudes = amplitude_modifier(spec_utils.standardize_phases(n_phi_n_varphi_wavefunction.amplitudes))
+        n_phi_n_varphi_wavefunction.amplitudes = amplitude_modifier(
+            spec_utils.standardize_phases(n_phi_n_varphi_wavefunction.amplitudes))
 
         return plot.wavefunction2d(n_phi_n_varphi_wavefunction, zero_calibrate=zero_calibrate, **kwargs)
 
@@ -695,6 +702,31 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         """
         return self.n_phi_operator() - 0.5 * (self.n_varphi_operator() - self.n_theta_operator())
 
+    def sin_varphi_1_2_operator(self):
+        """sin(\varphi_1/2)"""
+        cos_phi_4 = self._kron3(self._cos_phi_div_operator(4.0), self._identity_theta(), self._identity_varphi())
+        sin_phi_4 = self._kron3(self._sin_phi_div_operator(4.0), self._identity_theta(), self._identity_varphi())
+        cos_varphi_2 = self._kron3(self._identity_phi(), self._identity_theta(), self._cos_varphi_div_operator(2.0))
+        sin_varphi_2 = self._kron3(self._identity_phi(), self._identity_theta(), self._sin_varphi_div_operator(2.0))
+
+        return sin_phi_4 * cos_varphi_2 + cos_phi_4 * sin_varphi_2
+
+    def sin_varphi_2_2_operator(self):
+        """sin(\varphi_2/2)"""
+        cos_phi_4 = self._kron3(self._cos_phi_div_operator(4.0), self._identity_theta(), self._identity_varphi())
+        sin_phi_4 = self._kron3(self._sin_phi_div_operator(4.0), self._identity_theta(), self._identity_varphi())
+        cos_varphi_2 = self._kron3(self._identity_phi(), self._identity_theta(), self._cos_varphi_div_operator(2.0))
+        sin_varphi_2 = self._kron3(self._identity_phi(), self._identity_theta(), self._sin_varphi_div_operator(2.0))
+
+        return sin_phi_4 * cos_varphi_2 - cos_phi_4 * sin_varphi_2
+
+    def y_qp(self, energy):
+        """frequency dependent addimitance for quasiparticle"""
+        gap = 80.0
+        xqp = 1e-8
+        return 16 * np.pi * np.sqrt(2 / np.pi) / gap * energy * (2 * gap / energy) ** 1.5 * xqp * np.sqrt(
+            energy / 2 / self.kbt) * kn(0, energy / 2 / self.kbt) * np.sinh(energy / 2 / self.kbt)
+
     def q_cap(self, energy):
         """Frequency dependent quality factor of capacitance"""
 
@@ -727,8 +759,10 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
                     init_state, :]
         matelem_2 = np.delete(matelem_2, init_state)
 
-        s_vv_1 = 2 * np.pi * 16 * self.EC / (1 - self.dC ** 2) / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_vv_2 = 2 * np.pi * 16 * self.EC / (1 + self.dC ** 2) / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_vv_1 = 2 * np.pi * 16 * self.EC / (1 - self.dC ** 2) / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        s_vv_2 = 2 * np.pi * 16 * self.EC / (1 + self.dC ** 2) / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
 
         gamma1_cap_1 = np.abs(matelem_1) ** 2 * s_vv_1
         gamma1_cap_2 = np.abs(matelem_2) ** 2 * s_vv_2
@@ -773,8 +807,10 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
                     0, init_state, :]
         matelem_a = np.delete(matelem_a, init_state)
 
-        s_ii_1 = 2 * np.pi * 2 * self.EL / (1 - self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_ii_2 = 2 * np.pi * 2 * self.EL / (1 + self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_ii_1 = 2 * np.pi * 2 * self.EL / (1 - self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        s_ii_2 = 2 * np.pi * 2 * self.EL / (1 + self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
         s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
 
         gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
@@ -801,8 +837,10 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
                     0, init_state, :]
         matelem_a = np.delete(matelem_a, init_state)
 
-        s_ii_1 = 2 * np.pi * 2 * self.EL / (1 - self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_ii_2 = 2 * np.pi * 2 * self.EL / (1 + self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_ii_1 = 2 * np.pi * 2 * self.EL / (1 - self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        s_ii_2 = 2 * np.pi * 2 * self.EL / (1 + self.dL ** 2) / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
         s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
 
         gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
@@ -812,6 +850,31 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         gamma1_ind_tot = np.sum(gamma1_ind_1) + np.sum(gamma1_ind_2) + np.sum(gamma1_ind_a)
         gamma_channel = gamma1_ind_1 + gamma1_ind_2 + gamma1_ind_a
         return 1 / gamma_channel * 1e-6
+
+    def get_t1_qp_loss(self, init_state):
+        """T1 quasiparticle loss of one particular state"""
+        cutoff = init_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[init_state] - energy
+        energy_diff = np.delete(energy_diff, init_state)
+
+        matelem_1 = self.get_matelements_vs_paramvals('sin_varphi_1_2_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[
+                    0, init_state, :]
+        matelem_1 = np.delete(matelem_1, init_state)
+        matelem_2 = self.get_matelements_vs_paramvals('sin_varphi_2_2_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[
+                    0, init_state, :]
+        matelem_2 = np.delete(matelem_2, init_state)
+
+        s_qp_1 = self.EJ * (1 - self.dJ) * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_qp_2 = self.EJ * (1 + self.dJ) * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+
+        gamma1_qp_1 = np.abs(matelem_1) ** 2 * s_qp_1
+        gamma1_qp_2 = np.abs(matelem_2) ** 2 * s_qp_2
+
+        gamma1_ind_tot = np.sum(gamma1_qp_1) + np.sum(gamma1_qp_2)
+        return 1 / (gamma1_ind_tot) * 1e-6
 
     def get_t2_flux_noise(self, init_state):
         delta = 1e-6
@@ -855,13 +918,23 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         t2_fluxa = self.get_t2_fluxa_noise(e_state)
         t1_cap = 1 / (1 / self.get_t1_capacitive_loss(g_state) + 1 / self.get_t1_capacitive_loss(e_state))
         t1_ind = 1 / (1 / self.get_t1_inductive_loss(g_state) + 1 / self.get_t1_inductive_loss(e_state))
+        t1_qp = 1 / (1 / self.get_t1_qp_loss(g_state) + 1 / self.get_t1_qp_loss(e_state))
         t1_purcell = 1 / (1 / self.get_t1_purcell(g_state) + 1 / self.get_t1_purcell(e_state))
-        t1_tot = 1 / (1 / t1_cap + 1 / t1_ind + 1 / t1_purcell)
+        t1_tot = 1 / (1 / t1_cap + 1 / t1_ind + 1 / t1_purcell + 1 / t1_qp)
         t2_tot = 1 / (1 / t2_current + 1 / t2_flux + 1 / t2_fluxa + 1 / t1_tot / 2)
 
         return print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
                      ' ms', '\n T2_flux_a =', t2_fluxa,
                      ' ms', '\n T1_cap =',
                      t1_cap, ' ms', '\n T1_Purcell =',
-                     t1_purcell, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1 =', t1_tot, ' ms', '\n T2 =', t2_tot,
+                     t1_purcell, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1_qp =', t1_qp, ' ms', '\n T1 =', t1_tot,
+                     ' ms', '\n T2 =', t2_tot,
                      ' ms')
+
+    def d_ham_d_flux_operator(self):
+        return - self.EL * (0.5 * (self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux) + (
+                self.theta_operator() - self.total_identity() * 2 * np.pi * (self.flux / 2.0 + self.fluxa)))
+
+    def d_ham_d_fluxa_operator(self):
+        return - self.EL * 2.0 * (
+                    self.theta_operator() - self.total_identity() * 2 * np.pi * (self.flux / 2.0 + self.fluxa))
