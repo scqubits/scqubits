@@ -166,48 +166,6 @@ class VCHOS(ABC):
         P_0i_vecs = np.array([(row_i + P_0_vec) / 2.0 for row_i in P_i_vecs])
         return P_0_vec, P_i_vecs, P_ij_vecs, P_0i_vecs
 
-    def optimize_Xi_variational_harmonic(self, trial_value):
-        """
-        We would like to optimize the harmonic length of each column of the Xi
-        matrix such that the ground state energy is minimized. The method used here
-        assumes that the default harmonic lengths (all unity) are near the optimal
-        values (that is that the harmonic approximation to the minimum is not bad),
-        and assumes that we are in the vicinity of the minimum such that the
-        landscape can be well approximated by a quadratic form. This assumption
-        minimizes the number of function calls required, which scales as D^2, where
-        D is the dimensionality. Any black-box minimizer for example from scipy in general
-        requires more function evaluations, which are costly.
-
-        Notation is from the references
-        [1] Nelder, J.A. and Mead, R. (1965) Computer Journal, 7, 308-313. http://dx.doi.org/10.1093/comjnl/7.4.308
-        [2] W. Spendley , G. R. Hext & F. R. Himsworth (1962) Technometrics, 4:4, 441-461
-            https://doi.org/10.1080/00401706.1962.10490033
-        Parameters
-        ----------
-        trial_value: float
-            How far out to search in the vicinity of the default value. Small values i.e. 0.3 work well generally
-        """
-        dim = self.number_degrees_freedom
-        P_0_vec, P_i_vecs, P_ij_vecs, P_0i_vecs = self._generate_vectors_for_harmonic_approx(trial_value)
-        y_0_vec = self._evals_calc_variational(P_0_vec)
-        y_i_vecs = np.array([self._evals_calc_variational(vec) for vec in P_i_vecs])
-        y_ij_vecs = np.array([self._evals_calc_variational(vec) for vec in P_ij_vecs])
-        y_0i_vecs = np.array([self._evals_calc_variational(vec) for vec in P_0i_vecs])
-        a_vector = np.array([2*y_0i_vecs[i] - (y_i_vecs[i] + 3.0*y_0_vec)/2.0 for i in range(dim)])
-        b_matrix = np.zeros((dim, dim))
-        b_diag = 2.0*np.array([y_i_vecs[i] + y_0_vec - 2.0*y_0i_vecs[i] for i in range(dim)])
-        b_matrix = b_matrix + np.diag(b_diag)
-        counter = 0
-        for i in range(dim):
-            for j in range(i+1, dim):
-                b_ij = 2.0*(y_ij_vecs[counter] + y_0_vec - y_0i_vecs[i] - y_0i_vecs[j])
-                b_matrix[i, j] += b_ij
-                b_matrix[j, i] += b_ij
-                counter += 1
-        b_inv = inv(b_matrix)
-        Q = np.array([row_i - P_0_vec for row_i in P_i_vecs]).T
-        self.optimized_lengths = P_0_vec - Q @ b_inv @ a_vector
-
     def optimize_Xi_variational(self):
         """
         We would like to optimize the harmonic length of each column of the Xi
@@ -216,14 +174,26 @@ class VCHOS(ABC):
         well, but which generally requires more function evaluations than the harmonic
         approximation algorithm, with similar results.
         """
-        default_lengths = np.ones(self.number_degrees_freedom)
-        optimized_lengths = minimize(self._evals_calc_variational, default_lengths, tol=1e-2)
+        self.optimized_lengths = np.ones(self.number_degrees_freedom)
+        self.default_Xi = self.Xi_matrix()
+        default_lengths = self.optimized_lengths
+        global_minimum = self.sorted_minima()[0]
+        evals_function = partial(self._evals_calc_variational, global_minimum)
+        optimized_lengths = minimize(evals_function, default_lengths, tol=1e-1)
         assert optimized_lengths.success
         self.optimized_lengths = optimized_lengths.x
 
-    def _evals_calc_variational(self, optimized_lengths):
+    def _update_Xi(self):
+        return np.array([row * self.optimized_lengths[i] for i, row in enumerate(self.default_Xi.T)]).T
+
+    def _evals_calc_variational(self, global_minimum, optimized_lengths):
         self.optimized_lengths = optimized_lengths
-        return self._helper_function_for_Xi_optimization()
+        Xi = self._update_Xi()
+        Xi_inv = inv(Xi)
+        exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
+        EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
+        transfer, inner = self._helper_function_for_Xi_optimization(Xi_inv, global_minimum, EC_mat_t, exp_i_phi_j)
+        return np.real(transfer / inner)
 
     def Xi_matrix(self):
         """
@@ -255,6 +225,9 @@ class VCHOS(ABC):
         identity_operator_list = np.array([identity_operator for _ in range(self.number_degrees_freedom)])
         return operator_in_full_Hilbert_space(np.array([annihilation(self.num_exc + 1, dtype=np.complex_)]),
                                               np.array([mu]), identity_operator_list, sparse=False)
+
+    def a_operator_list(self):
+        return np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
 
     def _gen_periodic_continuation_vectors_in_hypersphere(self):
         sites = self.number_periodic_degrees_freedom
@@ -361,42 +334,46 @@ class VCHOS(ABC):
         prod = np.dot(dpkX, dpkX)
         return np.exp(-prod) < self.nearest_neighbor_cutoff
 
-    def _build_premultiplied_a_and_a_dagger(self):
+    def _build_premultiplied_a_and_a_dagger(self, a_operator_list):
         dim = self.number_degrees_freedom
-        a = np.array([self.a_operator(i) for i in range(dim)])
-        a_a = np.array([self.a_operator(i) @ self.a_operator(i) for i in range(dim)])
-        a_dagger_a = np.array([self.a_operator(i).T @ self.a_operator(i) for i in range(dim)])
-        return a, a_a, a_dagger_a
+        a_a = np.array([a_operator_list[i] @ a_operator_list[i] for i in range(dim)])
+        a_dagger_a = np.array([a_operator_list[i].T @ a_operator_list[i] for i in range(dim)])
+        return a_operator_list, a_a, a_dagger_a
 
-    def _build_single_exp_i_phi_j_operator(self, j, Xi):
+    def _build_single_exp_i_phi_j_operator(self, j, Xi, a_operator_list):
         dim = self.number_degrees_freedom
         if j == dim:
             exp_i_phi_j_a_component = expm(np.sum(np.array([self.boundary_coefficients[i]
-                                                  * 1j * Xi[i, k] * self.a_operator(k) / np.sqrt(2.0)
+                                                  * 1j * Xi[i, k] * a_operator_list[k] / np.sqrt(2.0)
                                                   for i in range(dim) for k in range(dim)]), axis=0))
             BCH_factor = self._BCH_factor_for_potential_boundary(Xi)
         else:
-            exp_i_phi_j_a_component = expm(np.sum(np.array([1j * Xi[j, k] * self.a_operator(k) / np.sqrt(2.0)
+            exp_i_phi_j_a_component = expm(np.sum(np.array([1j * Xi[j, k] * a_operator_list[k] / np.sqrt(2.0)
                                                   for k in range(dim)]), axis=0))
             BCH_factor = np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j]))
         exp_i_phi_j_a_dagger_component = exp_i_phi_j_a_component.T
         return BCH_factor * exp_i_phi_j_a_dagger_component @ exp_i_phi_j_a_component
 
-    def _build_all_exp_i_phi_j_operators(self, Xi):
-        return np.array([self._build_single_exp_i_phi_j_operator(j, Xi)
+    def _one_state_exp_i_phi_j_operators(self, Xi):
+        dim = self.number_degrees_freedom
+        exp_factors = np.array([np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j])) for j in range(dim)])
+        return np.append(exp_factors, self._BCH_factor_for_potential_boundary(Xi))
+
+    def _build_all_exp_i_phi_j_operators(self, Xi, a_operator_list):
+        return np.array([self._build_single_exp_i_phi_j_operator(j, Xi, a_operator_list)
                          for j in range(self.number_degrees_freedom + 1)])
 
-    def _build_general_translation_operators(self, Xi_inv):
+    def _build_general_translation_operators(self, Xi_inv, a_operator_list):
         dim = self.number_degrees_freedom
-        exp_a_list = np.array([expm(np.sum(np.array([2.0 * np.pi * Xi_inv.T[i, j] * self.a_operator(j) / np.sqrt(2.0)
+        exp_a_list = np.array([expm(np.sum(np.array([2.0 * np.pi * Xi_inv.T[i, j] * a_operator_list[j] / np.sqrt(2.0)
                                            for j in range(dim)]), axis=0)) for i in range(dim)])
         return exp_a_list
 
-    def _build_minima_dependent_translation_operators(self, minima_diff, Xi_inv):
+    def _build_minima_dependent_translation_operators(self, minima_diff, Xi_inv, a_operator_list):
         """In general this is a costly part of the code (expm is quite slow)"""
         dim = self.number_degrees_freedom
         exp_a_minima_difference = expm(np.sum(np.array([minima_diff[i] * Xi_inv.T[i, j]
-                                                        * self.a_operator(j) / np.sqrt(2.0)
+                                                        * a_operator_list[j] / np.sqrt(2.0)
                                               for i in range(dim) for j in range(dim)]), axis=0))
         return exp_a_minima_difference
 
@@ -436,7 +413,8 @@ class VCHOS(ABC):
             Returns the kinetic energy matrix
         """
         Xi_inv = inv(self.Xi_matrix())
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        a_operator_list = self.a_operator_list()
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
         kinetic_function = partial(self._local_kinetic_contribution_to_transfer_matrix,
                                    premultiplied_a_and_a_dagger, EC_mat_t, Xi_inv)
@@ -450,8 +428,9 @@ class VCHOS(ABC):
             Returns the potential energy matrix
         """
         Xi = self.Xi_matrix()
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi)
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        a_operator_list = self.a_operator_list()
+        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
         potential_function = partial(self._local_potential_contribution_to_transfer_matrix, exp_i_phi_list,
                                      premultiplied_a_and_a_dagger, Xi)
         return self._periodic_continuation(potential_function)
@@ -465,8 +444,9 @@ class VCHOS(ABC):
         """
         Xi = self.Xi_matrix()
         Xi_inv = inv(Xi)
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi)
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        a_operator_list = self.a_operator_list()
+        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
         transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
                                            premultiplied_a_and_a_dagger, EC_mat_t, Xi, Xi_inv)
@@ -484,15 +464,42 @@ class VCHOS(ABC):
     def transfer_matrix_and_inner_product(self):
         Xi = self.Xi_matrix()
         Xi_inv = inv(Xi)
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi)
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
+        a_operator_list = self.a_operator_list()
+        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
+        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
         transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
                                            premultiplied_a_and_a_dagger, EC_mat_t, Xi, Xi_inv)
-        exp_a_list = self._build_general_translation_operators(Xi_inv)
+        exp_a_list = self._build_general_translation_operators(Xi_inv, a_operator_list)
         transfer_matrix = self._periodic_continuation(transfer_matrix_function, exp_a_list=exp_a_list)
         inner_product_matrix = self._periodic_continuation(self._inner_product_function, exp_a_list=exp_a_list)
         return transfer_matrix, inner_product_matrix
+
+    def one_state_transfer_and_inner(self):
+        Xi = self.Xi_matrix()
+        Xi_inv = inv(Xi)
+        exp_i_phi_list = self._one_state_exp_i_phi_j_operators(Xi)
+        EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
+        global_minimum = self.sorted_minima()[0]
+        if not self.nearest_neighbors:
+            self.find_relevant_periodic_continuation_vectors()
+        nearest_neighbors = self.nearest_neighbors[0]
+        transfer_function = partial(self._one_state_local_transfer, exp_i_phi_list, EC_mat_t, Xi_inv)
+        transfer_matrix = self._one_state_periodic_continuation(global_minimum, nearest_neighbors,
+                                                                transfer_function, Xi_inv)
+        inner_product_matrix = self._one_state_periodic_continuation(global_minimum, nearest_neighbors,
+                                                                     self._inner_product_function, Xi_inv)
+        return transfer_matrix, inner_product_matrix
+
+    def _helper_function_for_Xi_optimization(self, Xi_inv, global_minimum, EC_mat_t, exp_i_phi_j):
+        if not self.nearest_neighbors:
+            self.find_relevant_periodic_continuation_vectors()
+        transfer_function = partial(self._one_state_local_transfer, exp_i_phi_j, EC_mat_t, Xi_inv)
+        transfer = self._one_state_periodic_continuation(global_minimum, self.nearest_neighbors[0],
+                                                         transfer_function, Xi_inv)
+        inner_product = self._one_state_periodic_continuation(global_minimum, self.nearest_neighbors[0],
+                                                              lambda x, y, z: 1.0+0j, Xi_inv)
+        return transfer, inner_product
 
     def _local_kinetic_contribution_to_transfer_matrix(self, premultiplied_a_and_a_dagger, EC_mat_t, Xi_inv,
                                                        phi_neighbor, minima_m, minima_p):
@@ -511,8 +518,34 @@ class VCHOS(ABC):
         kinetic_matrix = kinetic_matrix + identity_coefficient*self.identity()
         return kinetic_matrix
 
-    def _local_potential_contribution_to_transfer_matrix(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
-                                                         Xi, phi_neighbor, minima_m, minima_p):
+    @staticmethod
+    def _one_state_local_kinetic(EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p):
+        minima_diff = minima_p - minima_m
+        delta_phi = phi_neighbor + minima_diff
+        delta_phi_rotated = Xi_inv @ delta_phi
+        identity_coefficient = 0.5 * 4 * np.trace(EC_mat_t)
+        return identity_coefficient - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
+
+    def _one_state_local_potential(self, exp_i_phi_j, phi_neighbor, minima_m, minima_p):
+        dim = self.number_degrees_freedom
+        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        exp_i_phi_list_without_boundary = np.array([exp_i_phi_j[i] * np.exp(1j * phi_bar[i]) for i in range(dim)])
+        exp_i_sum_phi = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
+                         * np.prod([np.exp(1j * self.boundary_coefficients[i] * phi_bar[i])
+                                    for i in range(dim)]))
+        potential = np.sum([-0.5 * self.EJlist[junction] * (exp_i_phi_list_without_boundary[junction]
+                                                            + exp_i_phi_list_without_boundary[junction].conjugate())
+                            for junction in range(dim)])
+        potential = potential - 0.5 * self.EJlist[-1] * (exp_i_sum_phi + exp_i_sum_phi.conjugate())
+        potential = potential + np.sum(self.EJlist)
+        return potential
+
+    def _one_state_local_transfer(self, exp_i_phi_j, EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p):
+        return (self._one_state_local_kinetic(EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p)
+                + self._one_state_local_potential(exp_i_phi_j, phi_neighbor, minima_m, minima_p))
+
+    def _local_potential_contribution_to_transfer_matrix(self, exp_i_phi_list, premultiplied_a_and_a_dagger, Xi,
+                                                         phi_neighbor, minima_m, minima_p):
         """Calculating exp_i_phi operators is costly, which is why it is
         passed to this function in this way rather than calculated below"""
         dim = self.number_degrees_freedom
@@ -563,8 +596,9 @@ class VCHOS(ABC):
         ndarray
         """
         Xi_inv = inv(self.Xi_matrix())
+        a_operator_list = self.a_operator_list()
         if exp_a_list is None:
-            exp_a_list = self._build_general_translation_operators(Xi_inv)
+            exp_a_list = self._build_general_translation_operators(Xi_inv, a_operator_list)
         if not self.nearest_neighbors:
             self.find_relevant_periodic_continuation_vectors()
         minima_list = self.sorted_minima()
@@ -576,16 +610,17 @@ class VCHOS(ABC):
             for p in range(m, len(minima_list)):
                 matrix_element = self._periodic_continuation_for_minima_pair(minima_m, minima_list[p],
                                                                              self.nearest_neighbors[counter],
-                                                                             func, exp_a_list, Xi_inv)
+                                                                             func, exp_a_list, Xi_inv, a_operator_list)
                 operator_matrix[m*num_states_min: (m + 1)*num_states_min,
                                 p*num_states_min: (p + 1)*num_states_min] += matrix_element
                 counter += 1
         operator_matrix = self._populate_hermitean_matrix(operator_matrix)
         return operator_matrix
 
-    def _periodic_continuation_for_minima_pair(self, minima_m, minima_p, nearest_neighbors, func, exp_a_list, Xi_inv):
+    def _periodic_continuation_for_minima_pair(self, minima_m, minima_p, nearest_neighbors,
+                                               func, exp_a_list, Xi_inv, a_operator_list):
         minima_diff = minima_p - minima_m
-        exp_minima_difference = self._build_minima_dependent_translation_operators(minima_diff, Xi_inv)
+        exp_minima_difference = self._build_minima_dependent_translation_operators(minima_diff, Xi_inv, a_operator_list)
         dim = int(self.number_states_per_minimum())
         matrix_element = np.zeros((dim, dim), dtype=np.complex_)
         for neighbor in nearest_neighbors:
@@ -597,27 +632,14 @@ class VCHOS(ABC):
             matrix_element += exp_a_dagger @ neighbor_matrix_element @ exp_a
         return matrix_element
 
-    def _helper_function_for_Xi_optimization(self):
-        Xi = self.Xi_matrix()
-        Xi_inv = inv(Xi)
-        exp_a_list = self._build_general_translation_operators(Xi_inv)
-        if not self.nearest_neighbors:
-            self.find_relevant_periodic_continuation_vectors()
-        global_minimum = self.sorted_minima()[0]
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi)
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger()
-        EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
-        transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
-                                           premultiplied_a_and_a_dagger, EC_mat_t, Xi, Xi_inv)
-        transfer_matrix = self._periodic_continuation_for_minima_pair(global_minimum, global_minimum,
-                                                                      self.nearest_neighbors[0],
-                                                                      transfer_matrix_function,
-                                                                      exp_a_list, Xi_inv)
-        inner_product_matrix = self._periodic_continuation_for_minima_pair(global_minimum, global_minimum,
-                                                                           self.nearest_neighbors[0],
-                                                                           self._inner_product_function,
-                                                                           exp_a_list, Xi_inv)
-        return np.real(transfer_matrix[0, 0] / inner_product_matrix[0, 0])
+    def _one_state_periodic_continuation(self, global_min, nearest_neighbors, func, Xi_inv):
+        matrix_element = 0.0+0j
+        for neighbor in nearest_neighbors:
+            phi_neighbor = 2.0 * np.pi * np.array(neighbor)
+            exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor, Xi_inv)
+            neighbor_matrix_element = exp_prod_coefficient * func(phi_neighbor, global_min, global_min)
+            matrix_element += neighbor_matrix_element
+        return matrix_element
 
     def _populate_hermitean_matrix(self, mat):
         """Return a fully Hermitean matrix, assuming that the input matrix has been
