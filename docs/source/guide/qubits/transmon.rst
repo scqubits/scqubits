@@ -15,7 +15,7 @@ The transmon qubit [Koch2007]_ is described by the Hamiltonian
 
 .. math::
 
-   H=4E_\text{C}(\hat{n}-n_g)^2+\frac{1}{2}E_\text{J}\sum_n(|n\rangle\langle n+1|+\text{h.c.}),
+   H=4E_\text{C}(\hat{n}-n_g)^2-\frac{1}{2}E_\text{J}\sum_n(|n\rangle\langle n+1|+\text{h.c.}),
 
 expressed in discrete charge basis. :math:`E_C` is the charging energy, :math:`E_J` the Josephson energy, and
 :math:`n_g` the offset charge. Within the ``Transmon`` class, charge-basis representation is employed with a
