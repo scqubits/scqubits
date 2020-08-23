@@ -235,7 +235,6 @@ class VCHOS(ABC):
                 next_vec[0:k] = prev_vec[0:k]
                 next_vec[k] = prev_vec[k]-1
                 next_vec[k+1] = radius-np.sum([next_vec[i] for i in range(k+1)])
-                vec_list.append(next_vec)
                 self._append_reflected_vectors(next_vec, vec_list)
                 prev_vec = next_vec
         return np.array(vec_list)
@@ -247,9 +246,8 @@ class VCHOS(ABC):
         multiplicative_factors = itertools.product(np.array([1, -1]), repeat=len(nonzero_vec))
         for mult_factor in multiplicative_factors:
             vec_copy = np.copy(vec)
-            if not np.allclose(mult_factor, np.ones_like(mult_factor)):
-                np.put(vec_copy, nonzero_indices, np.multiply(nonzero_vec, mult_factor))
-                vec_list.append(vec_copy)
+            np.put(vec_copy, nonzero_indices, np.multiply(nonzero_vec, mult_factor))
+            vec_list.append(vec_copy)
 
     @staticmethod
     def _find_k(vec):
@@ -303,8 +301,7 @@ class VCHOS(ABC):
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_diff = minima_list[p] - minima_m
-                filtered_neighbors = itertools.filterfalse(lambda e: self._filter_neighbors(e, minima_diff, Xi_inv),
-                                                           all_neighbors)
+                filtered_neighbors = filter(lambda e: self._filter_neighbors(e, minima_diff, Xi_inv), all_neighbors)
                 for neighbor in filtered_neighbors:
                     nearest_neighbors_single_minimum.append(np.concatenate((np.zeros(dim_extended, dtype=int),
                                                                             neighbor)))
@@ -324,8 +321,8 @@ class VCHOS(ABC):
         """
         phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom), neighbor))
         dpkX = Xi_inv @ (phi_neighbor + minima_diff)
-        prod = np.dot(dpkX, dpkX)
-        return np.exp(-prod) < self.nearest_neighbor_cutoff
+        prod = np.exp(-0.25*np.dot(dpkX, dpkX))
+        return prod > self.nearest_neighbor_cutoff
 
     def _build_premultiplied_a_and_a_dagger(self, a_operator_list):
         dim = self.number_degrees_freedom
