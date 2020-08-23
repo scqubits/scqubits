@@ -47,17 +47,13 @@ is given by ``tphi_1_over_f()``. Depending on the qubit of interest, more specif
 of 1/f noise channels are available. These set appropriate defaults for noise strength :math:`A_{\lambda}`,
 the correct noise operator :math:`\partial_\lambda H`, etc.
 
-
 See the API for method signatures. 
 
 1/f flux noise
 ^^^^^^^^^^^^^^^^^^^^^
 
-.. autosummary::
-
-    scqubits.core.noise.NoisySystem.tphi_1_over_f_flux
-
-
++--------------------------------------------+-----------------------------------------+
+| Method name                                | ``tphi_1_over_f_flux``                  |
 +--------------------------------------------+-----------------------------------------+
 | Noise operator                             | :math:`\partial H/\partial \Phi_{x}`    |
 +--------------------------------------------+-----------------------------------------+
@@ -66,26 +62,29 @@ See the API for method signatures.
 
 
 Qubits that support this noise channel include: 
-:ref:`TunableTransmon <qubit_tunable_transmon>`, 
 :ref:`Fluxonium <qubit_fluxonium>`, 
+:ref:`FluxQubit <qubit_flux_qubit>`, 
 :ref:`FullZeroPi <qubit_fullzeropi>`, 
+:ref:`TunableTransmon <qubit_tunable_transmon>`, 
 :ref:`ZeroPi <qubit_zeropi>`.
 
 1/f charge noise
 ^^^^^^^^^^^^^^^^^^^^^
 
-.. autosummary::
-
-    scqubits.core.noise.NoisySystem.tphi_1_over_f_ng
-
-
++--------------------------------------------+-----------------------------------------+
+| Method name                                | ``tphi_1_over_f_ng``                    |
 +--------------------------------------------+-----------------------------------------+
 | Noise operator                             | :math:`\partial H/\partial n_g`         |
 +--------------------------------------------+-----------------------------------------+
 | Default value of  :math:`A_{\lambda}`      |  :math:`10^{-4} e`                      |
 +--------------------------------------------+-----------------------------------------+
 
-Qubits that support this noise channel include: ``Transmon``, ``TunableTransmon``, ``ZeroPi``, ``FullZeroPi``.
+Qubits that support this noise channel include: 
+:ref:`FluxQubit <qubit_flux_qubit>`, 
+:ref:`FullZeroPi <qubit_fullzeropi>`, 
+:ref:`Transmon <qubit_transmon>`, 
+:ref:`TunableTransmon <qubit_tunable_transmon>`, 
+:ref:`ZeroPi <qubit_zeropi>`.
 
 1/f criticial current noise
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -93,11 +92,9 @@ Critical-current noise is suspected to arise from trapping and de-trapping of ch
 junctions. These trapped charges then may locally suppress or enhance the tunneling across the junction, leading to
 fluctuations of the critical current.
 
-.. autosummary::
 
-    scqubits.core.noise.NoisySystem.tphi_1_over_f_cc
-
-
++--------------------------------------------+-----------------------------------------+
+| Method name                                | ``tphi_1_over_f_cc``                    |
 +--------------------------------------------+-----------------------------------------+
 | Noise operator                             | :math:`\partial H/\partial I_{c}`       |
 +--------------------------------------------+-----------------------------------------+
@@ -105,7 +102,13 @@ fluctuations of the critical current.
 +--------------------------------------------+-----------------------------------------+
 
 
-Qubits that support this noise channel include: ``Transmon``, ``TunableTransmon``, ``Fluxonium``, ``ZeroPi``, ``FullZeroPi``.
+Qubits that support this noise channel include: 
+:ref:`Fluxonium <qubit_fluxonium>`, 
+:ref:`FluxQubit <qubit_flux_qubit>`, 
+:ref:`FullZeroPi <qubit_fullzeropi>`, 
+:ref:`Transmon <qubit_transmon>`, 
+:ref:`TunableTransmon <qubit_tunable_transmon>`, 
+:ref:`ZeroPi <qubit_zeropi>`.
 
 Shot noise
 ---------------
