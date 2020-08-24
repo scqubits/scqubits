@@ -37,20 +37,21 @@ Capacitive noise
 +--------------------------------------------+-----------------------------------------+
 | Method name                                | ``t1_capacitive_loss``                  |
 +--------------------------------------------+-----------------------------------------+
-| :math:`B_\lambda`                          | :math:`\hat{n}` (charge)                |
+| :math:`B_\lambda`                          | :math:`2e \hat{n}`                      |
 +--------------------------------------------+-----------------------------------------+
 
+Capacitive noise corresponds to noise coming from a lossy capacitance. The assumed spectral density reads
 
 .. math::
 
-    S(\omega) = \frac{2 \hbar}{C_J Q_{\rm cap}(\omega)} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
+    S(\omega) = \frac{\omega \hbar}{|\omega| C_J Q_{\rm cap}(\omega)} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
 
 where :math:`C_J` is the relevant capacitance, and :math:`Q_{\rm cap}` the corresponding capacitive quality factor.
-The default value of the frequency-dependent quality is assumed to be
+The default value of the frequency-dependent quality factor is assumed to be
 
 .. math::
 
-    Q_{\rm cap}(\omega) =  10^{6}  \left( \frac{2 \pi \times 6 {\rm GHz} }{ |\omega|} \right)^{0.7}
+    Q_{\rm cap}(\omega) =  10^{6}  \left( \frac{2 \pi \times 6 {\rm GHz} }{ |\omega|} \right)^{0.7}. 
 
 
 Qubits that support this noise channel include: 
@@ -62,29 +63,28 @@ Qubits that support this noise channel include:
 Inductive noise
 -----------------------
 
-Inductive noise 
-
 +--------------------------------------------+-----------------------------------------+
 | Method name                                | ``t1_inductive_loss``                   |
 +--------------------------------------------+-----------------------------------------+
-| :math:`B_\lambda`                          | :math:`\hat{\phi}` (phase)              |
+| :math:`B_\lambda`                          | :math:`\frac{\Phi_0}{2\pi} \hat{\phi}`  |
 +--------------------------------------------+-----------------------------------------+
 
-The spectral density of this noise channel is [Smith2020]_:
+Inductive noise due to lossy inductance. The assumed spectral density reads
 
 .. math::
 
-    S(\omega) = \frac{2 \hbar}{L_{J} Q_{\rm ind}(\omega)} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
+    S(\omega) = \frac{\omega \hbar}{|\omega| L_{J} Q_{\rm ind}(\omega)} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
 
-where :math:`L_J` (with :math:`E_J = \phi_0^2/L_J` ) is the relevant inductance or superinductance, and :math:`Q_{\rm ind}` the corresponding inductive
+where :math:`L_J` is the relevant inductance or superinductance, and :math:`Q_{\rm ind}` the corresponding inductive
 quality factor. The default value of the frequency-dependent quality factor is assumed to be
 
 .. math::
 
     Q_{\rm ind}(\omega) =  500 \times 10^{6} \frac{ K_{0} \left( \frac{h \times 0.5 {\rm GHz}}{2 k_B T} \right) 
     \sinh \left( \frac{\hbar |\omega| }{2 k_B T} \right)}{K_{0} \left( \frac{\hbar |\omega|}{2 k_B T} \right)\
-    \sinh \left( \frac{\hbar |\omega| }{2 k_B T} \right)} 
+    \sinh \left( \frac{\hbar |\omega| }{2 k_B T} \right)},
 
+where :math:`K_0` is the Bessel function of the second kind. 
 
 Qubits that support this noise channel include: 
 :ref:`Fluxonium <qubit_fluxonium>`.
@@ -96,14 +96,16 @@ Charge-coupled impedance noise
 +--------------------------------------------+-----------------------------------------+
 | Method name                                | ``t1_charge_impedance``                 |
 +--------------------------------------------+-----------------------------------------+
-| :math:`B_\lambda`                          | :math:`\hat{n}` (charge)                |
+| :math:`B_\lambda`                          | :math:`2e \hat{n}`                      |
 +--------------------------------------------+-----------------------------------------+
+
+Noise from a charge coupling to an impedance :math:`Z(\omega)`. The assumed spectral density reads
 
 .. math::
 
     S(\omega) = \frac{\hbar \omega}{{\rm Re} Z(\omega)} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right).
 
-By default we assume the qubit couples to a transmission line, which leads to 
+By default we assume the qubit couples to a infinite transmission line, which leads to 
 
 .. math::
 
@@ -114,24 +116,24 @@ Qubits that support this noise channel include:
 :ref:`TunableTransmon <qubit_tunable_transmon>`, 
 :ref:`Fluxonium <qubit_fluxonium>`, 
 :ref:`FullZeroPi <qubit_fullzeropi>`, 
-:ref:`ZeroPi <qubit_zeropi>`.
 
 
 Flux-bias line noise
 -------------------------
 
-+--------------------------------------------+-----------------------------------------+
-| Method name                                | ``t1_flux_bias_line``                   |
-+--------------------------------------------+-----------------------------------------+
-| :math:`B_\lambda`                          | :math:`\hat{\phi}` (phase)              | 
-+--------------------------------------------+-----------------------------------------+
++--------------------------------------------+--------------------------------------------------------------+
+| Method name                                | ``t1_flux_bias_line``                                        |
++--------------------------------------------+--------------------------------------------------------------+
+| :math:`B_\lambda`                          | :math:`\frac{\partial \hat{H}}{\partial \Phi_x}`             | 
++--------------------------------------------+--------------------------------------------------------------+
+
+Noise due to current noisy biasing current coupled to the qubit via flux. The assumed spectral density reads
 
 .. math::
 
-    S(\omega) = \hbar \omega {\rm Re} Y_{\rm qp}(\omega) \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
+    S(\omega) = \frac{M^{2} \omega \hbar}{R} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
 
-.. math::
-
+where :math:`M` is the mutual inductance between qubit and the flux line.
 
 Qubits that support this noise channel include: 
 :ref:`TunableTransmon <qubit_tunable_transmon>`, 
@@ -147,6 +149,8 @@ Quasiparticle-tunneling noise
 +--------------------------------------------+-----------------------------------------+
 | :math:`B_\lambda`                          | :math:`\sin(\hat{\phi}/2)`              |
 +--------------------------------------------+-----------------------------------------+
+
+Noise due to quasiparticle tunelling. The assumed spectral density reads
 
 .. math::
 
@@ -181,7 +185,7 @@ User-defined noise
 | :math:`B_\lambda`                          | user defined                            |
 +--------------------------------------------+-----------------------------------------+
 
-All qubits support user defined noise. 
+All qubits support user defined noise, where both the noise operator as well as an arbitrary spectral density can be provided. 
 
 
 Qubits that support this noise channel include: 

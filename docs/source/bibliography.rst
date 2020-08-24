@@ -16,6 +16,7 @@ Bibliography
 .. [Manucharyan2009] Manucharyan et al., Science 326, 113-116 (2009), https://doi.org/10.1126/science.1175552
 .. [Orlando1999] Orlando et al., Phys. Rev. B 60, 15398 (1999), https://link.aps.org/doi/10.1103/PhysRevB.60.15398
 .. [Pop2014] Pop et al, Nature, 508 (7496) (2014), https://www.nature.com/articles/nature13017/
+.. [Schoelkopf2003] Schoelkopf et al, Quantum noise in mesoscopic physics, pp. 175-203. (2003), https://link.springer.com/chapter/10.1007/978-94-010-0089-5_9
 .. [Smith2020] Smith et al., npj Quantum Information 6.1 (2020), https://www.nature.com/articles/s41534-019-0231-2
 .. [Zhu2013] Zhu et al., PRB 87, 024510 (2013), https://link.aps.org/doi/10.1103/PhysRevB.87.024510
 
