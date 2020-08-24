@@ -633,6 +633,7 @@ class VCHOS(ABC):
         return mat
 
     def _evals_calc(self, evals_count):
+        self.optimize_Xi_variational()
         transfer_matrix = self.transfer_matrix()
         inner_product_matrix = self.inner_product_matrix()
         try:
@@ -645,6 +646,7 @@ class VCHOS(ABC):
         return evals
 
     def _esys_calc(self, evals_count):
+        self.optimize_Xi_variational()
         transfer_matrix = self.transfer_matrix()
         inner_product_matrix = self.inner_product_matrix()
         try:
