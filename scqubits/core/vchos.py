@@ -168,25 +168,25 @@ class VCHOS(ABC):
         approximation algorithm, with similar results.
         """
         self.optimized_lengths = np.ones(self.number_degrees_freedom)
-        self.default_Xi = self.Xi_matrix()
+        default_Xi = self.Xi_matrix()
         default_lengths = self.optimized_lengths
         global_minimum = self.sorted_minima()[0]
-        evals_function = partial(self._evals_calc_variational, global_minimum)
-        optimized_lengths = minimize(evals_function, default_lengths, tol=1e-1)
+        optimized_lengths = minimize(self._evals_calc_variational, default_lengths,
+                                     args=(global_minimum, default_Xi), tol=1e-1)
         assert optimized_lengths.success
         self.optimized_lengths = optimized_lengths.x
 
-    def _update_Xi(self):
-        return np.array([row * self.optimized_lengths[i] for i, row in enumerate(self.default_Xi.T)]).T
+    def _update_Xi(self, default_Xi):
+        return np.array([row * self.optimized_lengths[i] for i, row in enumerate(default_Xi.T)]).T
 
-    def _evals_calc_variational(self, global_minimum, optimized_lengths):
+    def _evals_calc_variational(self, optimized_lengths, global_minimum, default_Xi):
         self.optimized_lengths = optimized_lengths
-        Xi = self._update_Xi()
+        Xi = self._update_Xi(default_Xi)
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
         transfer, inner = self._helper_function_for_Xi_optimization(Xi_inv, global_minimum, EC_mat_t, exp_i_phi_j)
-        return np.real(transfer / inner)
+        return np.real([transfer / inner])
 
     def Xi_matrix(self):
         """
@@ -222,10 +222,9 @@ class VCHOS(ABC):
     def a_operator_list(self):
         return np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
 
-    def _gen_periodic_continuation_vectors_in_hypersphere(self):
-        sites = self.number_periodic_degrees_freedom
+    def _generate_vectors_up_to_maximum_length(self, maximum_length, sites):
         vec_list = [np.zeros(sites, dtype=int)]
-        for radius in range(1, self.kmax+1):
+        for radius in range(1, maximum_length+1):
             prev_vec = np.zeros(sites, dtype=int)
             prev_vec[0] = radius
             vec_list.append(prev_vec)
@@ -235,12 +234,13 @@ class VCHOS(ABC):
                 next_vec[0:k] = prev_vec[0:k]
                 next_vec[k] = prev_vec[k]-1
                 next_vec[k+1] = radius-np.sum([next_vec[i] for i in range(k+1)])
-                self._append_reflected_vectors(next_vec, vec_list)
+                self._append_relevant_vectors(next_vec, vec_list)
                 prev_vec = next_vec
         return np.array(vec_list)
 
     @staticmethod
-    def _append_reflected_vectors(vec, vec_list):
+    def _append_relevant_vectors(vec, vec_list):
+        """Need to account for all reflected vectors in hypersphere"""
         nonzero_indices = np.nonzero(vec)
         nonzero_vec = vec[nonzero_indices]
         multiplicative_factors = itertools.product(np.array([1, -1]), repeat=len(nonzero_vec))
@@ -297,7 +297,7 @@ class VCHOS(ABC):
         nearest_neighbors = []
         nearest_neighbors_single_minimum = []
         dim_extended = self.number_extended_degrees_freedom
-        all_neighbors = self._gen_periodic_continuation_vectors_in_hypersphere()
+        all_neighbors = self._generate_vectors_up_to_maximum_length(self.kmax, self.number_periodic_degrees_freedom)
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_diff = minima_list[p] - minima_m
@@ -451,20 +451,6 @@ class VCHOS(ABC):
         """
         return self._periodic_continuation(self._inner_product_function)
 
-    def transfer_matrix_and_inner_product(self):
-        Xi = self.Xi_matrix()
-        Xi_inv = inv(Xi)
-        a_operator_list = self.a_operator_list()
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
-        EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
-        transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
-                                           premultiplied_a_and_a_dagger, EC_mat_t, Xi, Xi_inv)
-        exp_a_list = self._build_general_translation_operators(Xi_inv, a_operator_list)
-        transfer_matrix = self._periodic_continuation(transfer_matrix_function, exp_a_list=exp_a_list)
-        inner_product_matrix = self._periodic_continuation(self._inner_product_function, exp_a_list=exp_a_list)
-        return transfer_matrix, inner_product_matrix
-
     def one_state_transfer_and_inner(self):
         Xi = self.Xi_matrix()
         Xi_inv = inv(Xi)
@@ -567,7 +553,7 @@ class VCHOS(ABC):
         as the minima where the states in question are located."""
         return self.identity()
 
-    def _periodic_continuation(self, func, exp_a_list=None):
+    def _periodic_continuation(self, func):
         """This function is the meat of the VCHOS method. Any operator whose matrix
         elements we want (the transfer matrix and inner product matrix are obvious examples)
         can be passed to this function, and the matrix elements of that operator
@@ -585,12 +571,11 @@ class VCHOS(ABC):
         -------
         ndarray
         """
-        Xi_inv = inv(self.Xi_matrix())
-        a_operator_list = self.a_operator_list()
-        if exp_a_list is None:
-            exp_a_list = self._build_general_translation_operators(Xi_inv, a_operator_list)
         if not self.nearest_neighbors:
             self.find_relevant_periodic_continuation_vectors()
+        Xi_inv = inv(self.Xi_matrix())
+        a_operator_list = self.a_operator_list()
+        exp_a_list = self._build_general_translation_operators(Xi_inv, a_operator_list)
         minima_list = self.sorted_minima()
         hilbertdim = self.hilbertdim()
         num_states_min = self.number_states_per_minimum()
@@ -645,7 +630,8 @@ class VCHOS(ABC):
         return mat
 
     def _evals_calc(self, evals_count):
-        transfer_matrix, inner_product_matrix = self.transfer_matrix_and_inner_product()
+        transfer_matrix = self.transfer_matrix()
+        inner_product_matrix = self.inner_product_matrix()
         try:
             evals = eigh(transfer_matrix, b=inner_product_matrix,
                          eigvals_only=True, eigvals=(0, evals_count - 1))
@@ -656,7 +642,8 @@ class VCHOS(ABC):
         return evals
 
     def _esys_calc(self, evals_count):
-        transfer_matrix, inner_product_matrix = self.transfer_matrix_and_inner_product()
+        transfer_matrix = self.transfer_matrix()
+        inner_product_matrix = self.inner_product_matrix()
         try:
             evals, evecs = eigh(transfer_matrix, b=inner_product_matrix,
                                 eigvals_only=False, eigvals=(0, evals_count - 1))

@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import comb
 import math
+from typing import Callable
 
 import scqubits.utils.plotting as plot
 # Helper class for efficiently constructing raising and lowering operators
@@ -12,6 +13,8 @@ import scqubits.utils.plotting as plot
 
 
 class Hashing:
+    _generate_vectors_up_to_maximum_length: Callable
+
     def __init__(self, global_exc, number_degrees_freedom):
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
                                     29, 31, 37, 41, 43, 47, 53, 59,
@@ -50,7 +53,7 @@ class Hashing:
         We ask the question, for each basis vector, what is the action of a_i
         on it? In this way, we can define a_i using a single for loop.
         """
-        basis_vecs = self._gen_basis_vecs()
+        basis_vecs = self._generate_vectors_up_to_maximum_length(self.global_exc, self.number_degrees_freedom)
         tags, index_array = self._gen_tags(basis_vecs)
         dim = self.number_states_per_minimum()
         a = np.zeros((dim, dim), dtype=np.complex_)
@@ -82,26 +85,13 @@ class Hashing:
         index_array = np.argsort(tag_list)
         tag_list = tag_list[index_array]
         return tag_list, index_array
-    
-    def _gen_basis_vecs(self):
-        sites = self.number_degrees_freedom
-        vec_list = [np.zeros(sites)]
-        for total_exc in range(1, self.global_exc+1):  # No excitation number conservation as in [1]
-            prev_vec = np.zeros(sites)
-            prev_vec[0] = total_exc
-            vec_list.append(prev_vec)
-            while prev_vec[-1] != total_exc:  # step through until the last entry is total_exc
-                k = self._find_k(prev_vec)
-                next_vec = np.zeros(sites)
-                next_vec[0:k] = prev_vec[0:k]
-                next_vec[k] = prev_vec[k]-1
-                next_vec[k+1] = total_exc-np.sum([next_vec[i] for i in range(k+1)])
-                vec_list.append(next_vec)
-                prev_vec = next_vec
-        return np.array(vec_list)
+
+    @staticmethod
+    def _append_relevant_vectors(next_vec, vec_list):
+        vec_list.append(next_vec)
     
     def eigvec_population(self, eigvec):
-        basis_vecs = self._gen_basis_vecs()
+        basis_vecs = self._generate_vectors_up_to_maximum_length(self.global_exc, self.number_degrees_freedom)
         dim = len(basis_vecs)
         pop_list = []
         min_list = []
@@ -118,12 +108,6 @@ class Hashing:
         min_list = (np.array(min_list)[index_array])[::-1]
         vec_list = (np.array(vec_list)[index_array])[::-1]
         return pop_list, zip(min_list, vec_list)
-                
-    def _find_k(self, vec):
-        dim = len(vec)
-        for num in range(dim-2, -1, -1):
-            if vec[num] != 0:
-                return num
 
     def state_amplitudes_function(self, i, evecs, which):
         total_num_states = self.number_states_per_minimum()
@@ -131,7 +115,7 @@ class Hashing:
 
     def wavefunc_amplitudes_function(self, state_amplitudes, normal_mode_1, normal_mode_2):
         total_num_states = self.number_states_per_minimum()
-        basis_vecs = self._gen_basis_vecs()
+        basis_vecs = self._generate_vectors_up_to_maximum_length(self.global_exc, self.number_degrees_freedom)
         wavefunc_amplitudes = np.zeros_like(normal_mode_1).T
         for j in range(total_num_states):
             basis_vec = basis_vecs[j]
