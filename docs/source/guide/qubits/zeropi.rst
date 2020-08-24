@@ -103,3 +103,30 @@ Utility method for setting charging energies
 
     scqubits.ZeroPi.set_EC_via_ECS
 
+
+Utility method for setting charging energies
+--------------------------------------------
+
+.. autosummary::
+
+    scqubits.ZeroPi.set_EC_via_ECS
+
+
+Estimation of coherence times
+-----------------------------
+
+.. autosummary::
+
+    scqubits.ZeroPi.plot_coherence_vs_paramvals
+    scqubits.ZeroPi.plot_t1_effective_vs_paramvals
+    scqubits.ZeroPi.plot_t2_effective_vs_paramvals
+    scqubits.ZeroPi.t1
+    scqubits.ZeroPi.t1_effective
+    scqubits.ZeroPi.t1_flux_bias_line
+    scqubits.ZeroPi.t1_inductive_loss
+    scqubits.ZeroPi.t2_effective
+    scqubits.ZeroPi.tphi_1_over_f
+    scqubits.ZeroPi.tphi_1_over_f_cc
+    scqubits.ZeroPi.tphi_1_over_f_flux
+
+

@@ -89,3 +89,21 @@ Computation and visualization of matrix elements
     scqubits.TunableTransmon.plot_matelem_vs_paramvals
 
 
+Estimation of coherence times
+-----------------------------
+
+.. autosummary::
+
+    scqubits.TunableTransmon.plot_coherence_vs_paramvals
+    scqubits.TunableTransmon.plot_t1_effective_vs_paramvals
+    scqubits.TunableTransmon.plot_t2_effective_vs_paramvals
+    scqubits.TunableTransmon.t1
+    scqubits.TunableTransmon.t1_capacitive_loss
+    scqubits.TunableTransmon.t1_charge_impedance
+    scqubits.TunableTransmon.t1_effective
+    scqubits.TunableTransmon.t1_flux_bias_line
+    scqubits.TunableTransmon.t2_effective
+    scqubits.TunableTransmon.tphi_1_over_f
+    scqubits.TunableTransmon.tphi_1_over_f_cc
+    scqubits.TunableTransmon.tphi_1_over_f_flux
+
