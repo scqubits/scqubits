@@ -222,7 +222,7 @@ class VCHOS(ABC):
     def a_operator_list(self):
         return np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
 
-    def _generate_vectors_up_to_maximum_length(self, maximum_length, sites):
+    def _generate_vectors_up_to_maximum_length(self, maximum_length, sites, additional_vectors_function):
         vec_list = [np.zeros(sites, dtype=int)]
         for radius in range(1, maximum_length+1):
             prev_vec = np.zeros(sites, dtype=int)
@@ -234,12 +234,12 @@ class VCHOS(ABC):
                 next_vec[0:k] = prev_vec[0:k]
                 next_vec[k] = prev_vec[k]-1
                 next_vec[k+1] = radius-np.sum([next_vec[i] for i in range(k+1)])
-                self._append_relevant_vectors(next_vec, vec_list)
+                additional_vectors_function(next_vec, vec_list)
                 prev_vec = next_vec
         return np.array(vec_list)
 
     @staticmethod
-    def _append_relevant_vectors(vec, vec_list):
+    def _append_reflected_vectors(vec, vec_list):
         """Need to account for all reflected vectors in hypersphere"""
         nonzero_indices = np.nonzero(vec)
         nonzero_vec = vec[nonzero_indices]
@@ -297,11 +297,13 @@ class VCHOS(ABC):
         nearest_neighbors = []
         nearest_neighbors_single_minimum = []
         dim_extended = self.number_extended_degrees_freedom
-        all_neighbors = self._generate_vectors_up_to_maximum_length(self.kmax, self.number_periodic_degrees_freedom)
+        all_neighbors = self._generate_vectors_up_to_maximum_length(self.kmax, self.number_periodic_degrees_freedom,
+                                                                    self._append_reflected_vectors)
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_diff = minima_list[p] - minima_m
-                filtered_neighbors = filter(lambda e: self._filter_neighbors(e, minima_diff, Xi_inv), all_neighbors)
+                filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
+                filtered_neighbors = filter(filter_function, all_neighbors)
                 for neighbor in filtered_neighbors:
                     nearest_neighbors_single_minimum.append(np.concatenate((np.zeros(dim_extended, dtype=int),
                                                                             neighbor)))
@@ -309,7 +311,7 @@ class VCHOS(ABC):
                 nearest_neighbors_single_minimum = []
         self.nearest_neighbors = nearest_neighbors
 
-    def _filter_neighbors(self, neighbor, minima_diff, Xi_inv):
+    def _filter_neighbors(self, minima_diff, Xi_inv, neighbor):
         """
         Want to eliminate periodic continuation terms that are irrelevant, i.e.,
         they add nothing to the transfer matrix. These can be identified as each term
@@ -596,25 +598,26 @@ class VCHOS(ABC):
                                                func, exp_a_list, Xi_inv, a_operator_list):
         minima_diff = minima_p - minima_m
         exp_minima_difference = self._build_minima_dependent_translation_operators(minima_diff, Xi_inv, a_operator_list)
-        dim = int(self.number_states_per_minimum())
-        matrix_element = np.zeros((dim, dim), dtype=np.complex_)
-        for neighbor in nearest_neighbors:
-            phi_neighbor = 2.0 * np.pi * np.array(neighbor)
-            exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor + minima_diff, Xi_inv)
-            exp_a_dagger, exp_a = self._translation_operator_builder(exp_a_list, exp_minima_difference,
-                                                                     neighbor)
-            neighbor_matrix_element = exp_prod_coefficient * func(phi_neighbor, minima_m, minima_p)
-            matrix_element += exp_a_dagger @ neighbor_matrix_element @ exp_a
-        return matrix_element
+        return np.sum([self._neighbor_contribution(neighbor, func, minima_m, minima_p,
+                                                   exp_a_list, exp_minima_difference, Xi_inv)
+                       for neighbor in nearest_neighbors], axis=0)
+
+    def _neighbor_contribution(self, neighbor, func, minima_m, minima_p, exp_a_list, exp_minima_difference, Xi_inv):
+        phi_neighbor = 2.0 * np.pi * np.array(neighbor)
+        exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor + minima_p - minima_m, Xi_inv)
+        exp_a_dagger, exp_a = self._translation_operator_builder(exp_a_list, exp_minima_difference,
+                                                                 neighbor)
+        neighbor_matrix_element = exp_prod_coefficient * func(phi_neighbor, minima_m, minima_p)
+        return exp_a_dagger @ neighbor_matrix_element @ exp_a
 
     def _one_state_periodic_continuation(self, global_min, nearest_neighbors, func, Xi_inv):
-        matrix_element = 0.0+0j
-        for neighbor in nearest_neighbors:
-            phi_neighbor = 2.0 * np.pi * np.array(neighbor)
-            exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor, Xi_inv)
-            neighbor_matrix_element = exp_prod_coefficient * func(phi_neighbor, global_min, global_min)
-            matrix_element += neighbor_matrix_element
-        return matrix_element
+        return np.sum([self._one_state_neighbor_contribution(neighbor, func, global_min, Xi_inv)
+                       for neighbor in nearest_neighbors])
+
+    def _one_state_neighbor_contribution(self, neighbor, func, global_min, Xi_inv):
+        phi_neighbor = 2.0 * np.pi * np.array(neighbor)
+        exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor, Xi_inv)
+        return exp_prod_coefficient * func(phi_neighbor, global_min, global_min)
 
     def _populate_hermitean_matrix(self, mat):
         """Return a fully Hermitean matrix, assuming that the input matrix has been

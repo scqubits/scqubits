@@ -53,7 +53,8 @@ class Hashing:
         We ask the question, for each basis vector, what is the action of a_i
         on it? In this way, we can define a_i using a single for loop.
         """
-        basis_vecs = self._generate_vectors_up_to_maximum_length(self.global_exc, self.number_degrees_freedom)
+        basis_vecs = self._generate_vectors_up_to_maximum_length(self.global_exc, self.number_degrees_freedom,
+                                                                 lambda x, y: y.append(x))
         tags, index_array = self._gen_tags(basis_vecs)
         dim = self.number_states_per_minimum()
         a = np.zeros((dim, dim), dtype=np.complex_)
@@ -85,13 +86,10 @@ class Hashing:
         index_array = np.argsort(tag_list)
         tag_list = tag_list[index_array]
         return tag_list, index_array
-
-    @staticmethod
-    def _append_relevant_vectors(next_vec, vec_list):
-        vec_list.append(next_vec)
     
     def eigvec_population(self, eigvec):
-        basis_vecs = self._generate_vectors_up_to_maximum_length(self.global_exc, self.number_degrees_freedom)
+        basis_vecs = self._generate_vectors_up_to_maximum_length(self.global_exc, self.number_degrees_freedom,
+                                                                 lambda x, y: y.append(x))
         dim = len(basis_vecs)
         pop_list = []
         min_list = []
@@ -115,7 +113,8 @@ class Hashing:
 
     def wavefunc_amplitudes_function(self, state_amplitudes, normal_mode_1, normal_mode_2):
         total_num_states = self.number_states_per_minimum()
-        basis_vecs = self._generate_vectors_up_to_maximum_length(self.global_exc, self.number_degrees_freedom)
+        basis_vecs = self._generate_vectors_up_to_maximum_length(self.global_exc, self.number_degrees_freedom,
+                                                                 lambda x, y: y.append(x))
         wavefunc_amplitudes = np.zeros_like(normal_mode_1).T
         for j in range(total_num_states):
             basis_vec = basis_vecs[j]
