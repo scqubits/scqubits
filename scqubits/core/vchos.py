@@ -244,9 +244,9 @@ class VCHOS(ABC):
         nonzero_indices = np.nonzero(vec)
         nonzero_vec = vec[nonzero_indices]
         multiplicative_factors = itertools.product(np.array([1, -1]), repeat=len(nonzero_vec))
-        for mult_factor in multiplicative_factors:
+        for factor in multiplicative_factors:
             vec_copy = np.copy(vec)
-            np.put(vec_copy, nonzero_indices, np.multiply(nonzero_vec, mult_factor))
+            np.put(vec_copy, nonzero_indices, np.multiply(nonzero_vec, factor))
             vec_list.append(vec_copy)
 
     @staticmethod
@@ -303,13 +303,17 @@ class VCHOS(ABC):
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_diff = minima_list[p] - minima_m
-                filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
-                filtered_neighbors = filter(filter_function, all_neighbors)
-                for neighbor in filtered_neighbors:
-                    nearest_neighbors_single_minimum.append(np.concatenate((np.zeros(dim_extended, dtype=int),
-                                                                            neighbor)))
-                nearest_neighbors.append(nearest_neighbors_single_minimum)
-                nearest_neighbors_single_minimum = []
+                if (m == p) and (m != 0):  # vectors will be the same as m=p=0
+                    nearest_neighbors.append(nearest_neighbors[0])
+                else:
+                    filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
+                    filtered_neighbors = filter(filter_function, all_neighbors)
+                    for neighbor in filtered_neighbors:
+                        nearest_neighbors_single_minimum.append(np.concatenate((np.zeros(dim_extended, dtype=int),
+                                                                                neighbor)))
+                    nearest_neighbors.append(nearest_neighbors_single_minimum)
+                    nearest_neighbors_single_minimum = []
+        del all_neighbors
         self.nearest_neighbors = nearest_neighbors
 
     def _filter_neighbors(self, minima_diff, Xi_inv, neighbor):
