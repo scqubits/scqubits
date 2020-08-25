@@ -33,7 +33,7 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 
 
 class VCHOS(ABC):
-    def __init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=0,
+    def __init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=0,
                  number_periodic_degrees_freedom=0, num_exc=None, optimized_lengths=None, nearest_neighbors=None):
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2 * self.e)**2
@@ -42,7 +42,7 @@ class VCHOS(ABC):
         self.EJlist = EJlist
         self.nglist = nglist
         self.flux = flux
-        self.kmax = kmax
+        self.maximum_periodic_vector_length = maximum_periodic_vector_length
         if optimized_lengths is not None:
             self.optimized_lengths = optimized_lengths
         else:
@@ -297,7 +297,8 @@ class VCHOS(ABC):
         nearest_neighbors = []
         nearest_neighbors_single_minimum = []
         dim_extended = self.number_extended_degrees_freedom
-        all_neighbors = self._generate_vectors_up_to_maximum_length(self.kmax, self.number_periodic_degrees_freedom,
+        all_neighbors = self._generate_vectors_up_to_maximum_length(self.maximum_periodic_vector_length,
+                                                                    self.number_periodic_degrees_freedom,
                                                                     self._append_reflected_vectors)
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
@@ -451,7 +452,7 @@ class VCHOS(ABC):
         ndarray
             Returns the inner product matrix
         """
-        return self._periodic_continuation(self._inner_product_function)
+        return self._periodic_continuation(lambda x, y, z: self.identity())
 
     def one_state_transfer_and_inner(self):
         Xi = self.Xi_matrix()
@@ -466,7 +467,7 @@ class VCHOS(ABC):
         transfer_matrix = self._one_state_periodic_continuation(global_minimum, nearest_neighbors,
                                                                 transfer_function, Xi_inv)
         inner_product_matrix = self._one_state_periodic_continuation(global_minimum, nearest_neighbors,
-                                                                     self._inner_product_function, Xi_inv)
+                                                                     lambda x, y, z: self.identity(), Xi_inv)
         return transfer_matrix, inner_product_matrix
 
     def _helper_function_for_Xi_optimization(self, Xi_inv, global_minimum, EC_mat_t, exp_i_phi_j):
@@ -548,13 +549,6 @@ class VCHOS(ABC):
                 + self._local_potential_contribution_to_transfer_matrix(exp_i_phi_list, premultiplied_a_and_a_dagger,
                                                                         Xi, phi_neighbor, minima_m, minima_p))
 
-    def _inner_product_function(self, phi_neighbor, minima_m, minima_p):
-        """The three arguments need to be passed in order to match the signature of
-        operators that are functions of the raising and lowering operators, whose local
-        contributions depend on the periodic continuation vector `phi_neighbor` as well
-        as the minima where the states in question are located."""
-        return self.identity()
-
     def _periodic_continuation(self, func):
         """This function is the meat of the VCHOS method. Any operator whose matrix
         elements we want (the transfer matrix and inner product matrix are obvious examples)
@@ -591,7 +585,7 @@ class VCHOS(ABC):
                 operator_matrix[m*num_states_min: (m + 1)*num_states_min,
                                 p*num_states_min: (p + 1)*num_states_min] += matrix_element
                 counter += 1
-        operator_matrix = self._populate_hermitean_matrix(operator_matrix)
+        operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
 
     def _periodic_continuation_for_minima_pair(self, minima_m, minima_p, nearest_neighbors,
@@ -619,8 +613,8 @@ class VCHOS(ABC):
         exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor, Xi_inv)
         return exp_prod_coefficient * func(phi_neighbor, global_min, global_min)
 
-    def _populate_hermitean_matrix(self, mat):
-        """Return a fully Hermitean matrix, assuming that the input matrix has been
+    def _populate_hermitian_matrix(self, mat):
+        """Return a fully Hermitian matrix, assuming that the input matrix has been
         populated with the upper right blocks"""
         minima_list = self.sorted_minima()
         num_states_min = int(self.number_states_per_minimum())
@@ -709,20 +703,6 @@ class VCHOS(ABC):
                 filtered_minima_holder.append(minima)
         return filtered_minima_holder
 
-    def villain_minima_finder(self):
-        result_holder = []
-        for junction in range(len(self.EJlist)):
-            for m in range(-5, 5, 1):
-                m_list = 0.0*np.ones_like(self.EJlist)
-                m_list[junction] = m
-                villain_func = partial(self.villain_potential, m_list)
-                villain_result = minimize(villain_func, np.array([0.0, 0.0]))
-                result = minimize(self.potential, villain_result.x)
-                if result.success:
-                    result_holder.append(np.mod(result.x, 2.0*np.pi*np.ones_like(result.x)))
-        result_holder = self._filter_repeated_minima(result_holder)
-        return result_holder
-
     def wavefunction(self, esys=None, which=0):
         """
         Return a vchos wavefunction, assuming the qubit has 2 degrees of freedom
@@ -763,7 +743,8 @@ class VCHOS(ABC):
         wavefunction_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec), dtype=np.complex_).T
 
         for i, minimum in enumerate(minima_list):
-            neighbors = itertools.product(np.arange(-self.kmax, self.kmax + 1), repeat=dim_periodic)
+            neighbors = itertools.product(np.arange(-self.maximum_periodic_vector_length,
+                                                    self.maximum_periodic_vector_length + 1), repeat=dim_periodic)
             neighbor = next(neighbors, -1)
             while neighbor != -1:
                 phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(dim_extended), neighbor))
@@ -823,11 +804,6 @@ class VCHOS(ABC):
     @abstractmethod
     def potential(self, phi_array):
         """returns a float that is the value of the potential at the location specified by phi_array"""
-
-    @abstractmethod
-    def villain_potential(self, phi_array, m_list):
-        """returns a float that is the value of the linearized (harmonic) potential at the location
-        specified by phi_array with villain parameters specified by m_list"""
 
     @abstractmethod
     def find_minima(self):

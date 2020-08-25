@@ -10,8 +10,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 
 class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, kmax, num_exc, dEJ=0, dCJ=0, truncated_dim=None):
-        VCHOS.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux, kmax,
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length, num_exc, dEJ=0, dCJ=0, truncated_dim=None):
+        VCHOS.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux, maximum_periodic_vector_length,
                        number_degrees_freedom=2, number_periodic_degrees_freedom=1, num_exc=num_exc)
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
         self.EJ = EJ
@@ -170,9 +170,9 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
 
 
 class ZeroPiVCHOSGlobal(Hashing, ZeroPiVCHOS, base.QubitBaseClass, serializers.Serializable):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, kmax, global_exc, dEJ=0, dCJ=0, truncated_dim=None):
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length, global_exc, dEJ=0, dCJ=0, truncated_dim=None):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        ZeroPiVCHOS.__init__(self, EJ, EL, ECJ, EC, ng, flux, kmax, num_exc=None,
+        ZeroPiVCHOS.__init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length, num_exc=None,
                              dEJ=dEJ, dCJ=dCJ, truncated_dim=truncated_dim)
         self._sys_type = type(self).__name__
 

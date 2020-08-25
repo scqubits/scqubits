@@ -28,9 +28,9 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax,
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length,
                  num_exc=0, optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
-        VCHOS.__init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=2 * N - 1,
+        VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2 * N - 1,
                        number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc,
                        optimized_lengths=optimized_lengths, nearest_neighbors=nearest_neighbors)
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
@@ -51,14 +51,14 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
             'EJlist': np.array(6 * [18.95]),
             'nglist': np.array(5 * [0.0]),
             'flux': 0.0,
-            'kmax': 1,
+            'maximum_periodic_vector_length': 1,
             'num_exc': 2,
             'truncated_dim': 6
         }
 
     @staticmethod
     def nonfit_params():
-        return ['N', 'nglist', 'flux', 'kmax', 'num_exc', 'truncated_dim']
+        return ['N', 'nglist', 'flux', 'maximum_periodic_vector_length', 'num_exc', 'truncated_dim']
 
     def find_minima(self):
         """
@@ -106,10 +106,10 @@ class CurrentMirrorVCHOS(CurrentMirrorFunctions, VCHOS, base.QubitBaseClass, ser
 class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOS, base.QubitBaseClass, serializers.Serializable):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax, global_exc,
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length, global_exc,
                  optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, kmax,
+        CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length,
                                     num_exc=0, optimized_lengths=optimized_lengths,
                                     nearest_neighbors=nearest_neighbors, truncated_dim=truncated_dim)
         self._sys_type = type(self).__name__
@@ -126,11 +126,11 @@ class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOS, base.QubitBaseClass,
             'EJlist': np.array(5 * [18.95]),
             'nglist': np.array(5 * [0.0]),
             'flux': 0.0,
-            'kmax': 1,
+            'maximum_periodic_vector_length': 1,
             'global_exc': 2,
             'truncated_dim': 6
         }
 
     @staticmethod
     def nonfit_params():
-        return ['N', 'nglist', 'flux', 'kmax', 'global_exc', 'truncated_dim']
+        return ['N', 'nglist', 'flux', 'maximum_periodic_vector_length', 'global_exc', 'truncated_dim']

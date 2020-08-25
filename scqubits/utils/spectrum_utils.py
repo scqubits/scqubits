@@ -353,7 +353,6 @@ def compare_spectra_nnz(qbt_type, specdata, specdata_exact, num_compare):
     test_energies = specdata.energy_table[:, 0:num_compare]
     exact_energies = specdata_exact.energy_table[:, 0:num_compare]
     relative_deviation = np.abs(test_energies-exact_energies)/exact_energies
-    maximum_rel_dev = np.max(relative_deviation)
     setattr(qbt, specdata.param_name, specdata.param_vals[0])
     try:
         ham = qbt.transfer_matrix()
@@ -363,4 +362,4 @@ def compare_spectra_nnz(qbt_type, specdata, specdata_exact, num_compare):
         number_nonzero_elements = ham.nnz
     else:
         number_nonzero_elements = np.count_nonzero(ham)
-    return maximum_rel_dev, number_nonzero_elements
+    return relative_deviation, number_nonzero_elements

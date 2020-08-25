@@ -129,7 +129,7 @@ class VCHOSSqueezing(VCHOS):
                 counter += 1
 
         # fill in kinetic energy matrix according to hermiticity
-        n_op_mat = self._populate_hermitean_matrix(n_op_mat, minima_list, num_exc_tot)
+        n_op_mat = self._populate_hermitian_matrix(n_op_mat, minima_list, num_exc_tot)
 
         return n_op_mat
 
@@ -222,7 +222,7 @@ class VCHOSSqueezing(VCHOS):
 
                 counter += 1
 
-        cos_or_sin_phi_j_mat = self._populate_hermitean_matrix(cos_or_sin_phi_j_mat, minima_list, num_exc_tot)
+        cos_or_sin_phi_j_mat = self._populate_hermitian_matrix(cos_or_sin_phi_j_mat, minima_list, num_exc_tot)
 
         return cos_or_sin_phi_j_mat
 
@@ -535,7 +535,7 @@ class VCHOSSqueezing(VCHOS):
                 counter += 1
 
         # fill in kinetic energy matrix according to hermiticity
-        kinetic_mat = self._populate_hermitean_matrix(kinetic_mat, minima_list, num_exc_tot)
+        kinetic_mat = self._populate_hermitian_matrix(kinetic_mat, minima_list, num_exc_tot)
 
         return kinetic_mat
 
@@ -636,7 +636,7 @@ class VCHOSSqueezing(VCHOS):
 
                 counter += 1
 
-        potential_mat = self._populate_hermitean_matrix(potential_mat, minima_list, num_exc_tot)
+        potential_mat = self._populate_hermitian_matrix(potential_mat, minima_list, num_exc_tot)
 
         return potential_mat
 
@@ -689,6 +689,6 @@ class VCHOSSqueezing(VCHOS):
                                       p * num_exc_tot:p * num_exc_tot + num_exc_tot] += inner_temp
                 counter += 1
 
-        inner_product_mat = self._populate_hermitean_matrix(inner_product_mat, minima_list, num_exc_tot)
+        inner_product_mat = self._populate_hermitian_matrix(inner_product_mat, minima_list, num_exc_tot)
 
         return inner_product_mat

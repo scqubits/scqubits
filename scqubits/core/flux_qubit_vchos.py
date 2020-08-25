@@ -25,14 +25,14 @@ class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers
     ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    kmax = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2,
-                 flux, kmax, num_exc, truncated_dim=None):
+                 flux, maximum_periodic_vector_length, num_exc, truncated_dim=None):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
-        VCHOS.__init__(self, EJlist, nglist, flux, kmax, number_degrees_freedom=2,
+        VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
                        number_periodic_degrees_freedom=2, num_exc=num_exc)
         FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
                                     ECJ3, ECg1, ECg2, ng1, ng2, flux)
@@ -53,14 +53,14 @@ class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers
             'alpha': 0.8,
             'nglist': np.array(2 * [0.0]),
             'flux': 0.46,
-            'kmax': 1,
+            'maximum_periodic_vector_length': 1,
             'num_exc': 4,
             'truncated_dim': 6
         }
 
     @staticmethod
     def nonfit_params():
-        return ['alpha', 'nglist', 'kmax', 'num_exc', 'squeezing', 'truncated_dim']
+        return ['alpha', 'nglist', 'maximum_periodic_vector_length', 'num_exc', 'squeezing', 'truncated_dim']
 
     def _ramp(self, k, minima_holder):
         """
@@ -107,11 +107,11 @@ class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS, base.QubitBaseClass, seriali
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                 ECJ3, ECg1, ECg2, ng1, ng2, flux, kmax,
+                 ECJ3, ECg1, ECg2, ng1, ng2, flux, maximum_periodic_vector_length,
                  global_exc, truncated_dim=None):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
         FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2,
-                                flux, kmax, num_exc=None, truncated_dim=truncated_dim)
+                                flux, maximum_periodic_vector_length, num_exc=None, truncated_dim=truncated_dim)
         self._sys_type = type(self).__name__
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                             'qubit_pngs/fluxqubitvchosglobal.png')
@@ -125,11 +125,11 @@ class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS, base.QubitBaseClass, seriali
             'alpha': 0.8,
             'nglist': np.array(2 * [0.0]),
             'flux': 0.46,
-            'kmax': 1,
+            'maximum_periodic_vector_length': 1,
             'global_exc': 4,
             'truncated_dim': 6
         }
 
     @staticmethod
     def nonfit_params():
-        return ['alpha', 'nglist', 'kmax', 'global_exc', 'squeezing', 'truncated_dim']
+        return ['alpha', 'nglist', 'maximum_periodic_vector_length', 'global_exc', 'squeezing', 'truncated_dim']
