@@ -222,19 +222,22 @@ class VCHOS(ABC):
     def a_operator_list(self):
         return np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
 
-    def _generate_vectors_up_to_maximum_length(self, maximum_length, sites, additional_vectors_function):
+    def _generate_vectors_up_to_maximum_length(self, maximum_length, maximum_site_length,
+                                               sites, additional_vectors_function):
         vec_list = [np.zeros(sites, dtype=int)]
         for radius in range(1, maximum_length+1):
             prev_vec = np.zeros(sites, dtype=int)
             prev_vec[0] = radius
-            vec_list.append(prev_vec)
+            if radius <= maximum_site_length:
+                additional_vectors_function(prev_vec, vec_list)
             while prev_vec[-1] != radius:
                 k = self._find_k(prev_vec)
                 next_vec = np.zeros(sites)
                 next_vec[0:k] = prev_vec[0:k]
                 next_vec[k] = prev_vec[k]-1
                 next_vec[k+1] = radius-np.sum([next_vec[i] for i in range(k+1)])
-                additional_vectors_function(next_vec, vec_list)
+                if len(np.argwhere(next_vec > maximum_site_length)) == 0:
+                    additional_vectors_function(next_vec, vec_list)
                 prev_vec = next_vec
         return np.array(vec_list)
 
@@ -297,7 +300,7 @@ class VCHOS(ABC):
         nearest_neighbors = []
         nearest_neighbors_single_minimum = []
         dim_extended = self.number_extended_degrees_freedom
-        all_neighbors = self._generate_vectors_up_to_maximum_length(self.maximum_periodic_vector_length,
+        all_neighbors = self._generate_vectors_up_to_maximum_length(self.maximum_periodic_vector_length, 2,
                                                                     self.number_periodic_degrees_freedom,
                                                                     self._append_reflected_vectors)
         for m, minima_m in enumerate(minima_list):
