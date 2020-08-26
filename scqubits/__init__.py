@@ -23,11 +23,15 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
+
 from scqubits.core.dcp import Dcp
 from scqubits.core.dcpl import Dcpl
 from scqubits.core.dcpi import Dcpi
 from scqubits.core.dcpd import Dcpd
+from scqubits.core.dcpr import Dcpr
 from scqubits.core.rhombus import Rhombus
+
+
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep, StoredSweep
