@@ -6,6 +6,7 @@ from functools import partial
 import numpy as np
 from scipy.linalg import LinAlgError, expm, inv, eigh
 from scipy.optimize import minimize
+from scipy.special import comb
 import scipy.constants as const
 from numpy.linalg import matrix_power
 
@@ -222,27 +223,27 @@ class VCHOS(ABC):
     def a_operator_list(self):
         return np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
 
-    def _generate_vectors_up_to_maximum_length(self, maximum_length, maximum_site_length,
-                                               sites, additional_vectors_function):
-        vec_list = [np.zeros(sites, dtype=int)]
+    def _generate_vectors_up_to_maximum_length(self):
+        maximum_length = self.maximum_periodic_vector_length
+        sites = self.number_periodic_degrees_freedom
+        maximum_site_length = 2  # Anything bigger, and tight binding is on shaky ground
+        vec_list = np.zeros((self._count_periodic_vectors(), sites), dtype=int)
+        vec_list[0, :] = np.zeros(sites, dtype=int)
+        index = 1
         for radius in range(1, maximum_length+1):
             prev_vec = np.zeros(sites, dtype=int)
             prev_vec[0] = radius
             if radius <= maximum_site_length:
-                additional_vectors_function(prev_vec, vec_list)
+                vec_list, index = self._append_reflected_vectors(prev_vec, vec_list, index)
             while prev_vec[-1] != radius:
-                k = self._find_k(prev_vec)
-                next_vec = np.zeros(sites)
-                next_vec[0:k] = prev_vec[0:k]
-                next_vec[k] = prev_vec[k]-1
-                next_vec[k+1] = radius-np.sum([next_vec[i] for i in range(k+1)])
+                next_vec = self._generate_next_vec(prev_vec, radius)
                 if len(np.argwhere(next_vec > maximum_site_length)) == 0:
-                    additional_vectors_function(next_vec, vec_list)
+                    vec_list, index = self._append_reflected_vectors(next_vec, vec_list, index)
                 prev_vec = next_vec
-        return np.array(vec_list)
+        return vec_list
 
     @staticmethod
-    def _append_reflected_vectors(vec, vec_list):
+    def _append_reflected_vectors(vec, vec_list, index):
         """Need to account for all reflected vectors in hypersphere"""
         nonzero_indices = np.nonzero(vec)
         nonzero_vec = vec[nonzero_indices]
@@ -250,14 +251,33 @@ class VCHOS(ABC):
         for factor in multiplicative_factors:
             vec_copy = np.copy(vec)
             np.put(vec_copy, nonzero_indices, np.multiply(nonzero_vec, factor))
-            vec_list.append(vec_copy)
+            vec_list[index, :] = vec_copy
+            index += 1
+        return vec_list, index
 
     @staticmethod
-    def _find_k(vec):
-        dim = len(vec)
-        for num in range(dim-2, -1, -1):
-            if vec[num] != 0:
-                return num
+    def _generate_next_vec(prev_vec, radius):
+        for num in range(len(prev_vec) - 2, -1, -1):
+            if prev_vec[num] != 0:
+                k = num
+                break
+        next_vec = np.zeros_like(prev_vec)
+        next_vec[0:k] = prev_vec[0:k]
+        next_vec[k] = prev_vec[k] - 1
+        next_vec[k + 1] = radius - np.sum([next_vec[i] for i in range(k + 1)])
+        return next_vec
+
+    def _count_periodic_vectors(self):
+        maximum_length = self.maximum_periodic_vector_length
+        sites = self.number_periodic_degrees_freedom
+        total_vecs = 0
+        for length in range(0, maximum_length+1):
+            k = 0
+            while length - 2*k >= 0:
+                additional_vecs = 2**(length-k)*comb(sites-k, length-2*k)*comb(sites, k)
+                total_vecs += additional_vecs
+                k += 1
+        return int(total_vecs)
 
     def identity(self):
         """
@@ -300,9 +320,7 @@ class VCHOS(ABC):
         nearest_neighbors = []
         nearest_neighbors_single_minimum = []
         dim_extended = self.number_extended_degrees_freedom
-        all_neighbors = self._generate_vectors_up_to_maximum_length(self.maximum_periodic_vector_length, 2,
-                                                                    self.number_periodic_degrees_freedom,
-                                                                    self._append_reflected_vectors)
+        all_neighbors = self._generate_vectors_up_to_maximum_length()
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_diff = minima_list[p] - minima_m
