@@ -40,6 +40,7 @@ class VCHOS(ABC):
         self.Z0 = 1. / (2 * self.e)**2
         self.Phi0 = 1. / (2 * self.e)
         self.nearest_neighbor_cutoff = 1e-15
+        self.potential_minimum_cutoff = 60.0
         self.EJlist = EJlist
         self.nglist = nglist
         self.flux = flux
@@ -692,7 +693,7 @@ class VCHOS(ABC):
         global_min = sorted_value_of_potential[0]
         dim = len(sorted_minima_holder)
         sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
-                                         if sorted_value_of_potential[i] < global_min + 40.0])
+                                         if sorted_value_of_potential[i] < global_min + self.potential_minimum_cutoff])
         return sorted_minima_holder
 
     def normalize_minimum_inside_pi_range(self, minimum):
