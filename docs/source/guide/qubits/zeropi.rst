@@ -1,6 +1,8 @@
 .. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
+.. _qubit_zeropi:
+
 Zero-Pi Qubit  (decoupled from zeta mode)
 =========================================
 
@@ -15,7 +17,7 @@ The Zero-Pi qubit [Brooks2013]_ [Dempster2014]_, when decoupled from the zeta mo
    H &= -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
     +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta\\
      &\qquad -2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2+2E_\text{J}
-    + E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2)
+    + E_J dE_J \sin\theta\sin(\phi-\varphi_\text{ext}/2)
 
 expressed in phase basis. The definition of the relevant charging energies :math:`E_\text{CJ}`, :math:`E_{\text{C}\Sigma}`,
 Josephson energies :math:`E_\text{J}`, inductive energies :math:`E_\text{L}`, and relative amounts of disorder
@@ -100,4 +102,31 @@ Utility method for setting charging energies
 .. autosummary::
 
     scqubits.ZeroPi.set_EC_via_ECS
+
+
+Utility method for setting charging energies
+--------------------------------------------
+
+.. autosummary::
+
+    scqubits.ZeroPi.set_EC_via_ECS
+
+
+Estimation of coherence times
+-----------------------------
+
+.. autosummary::
+
+    scqubits.ZeroPi.plot_coherence_vs_paramvals
+    scqubits.ZeroPi.plot_t1_effective_vs_paramvals
+    scqubits.ZeroPi.plot_t2_effective_vs_paramvals
+    scqubits.ZeroPi.t1
+    scqubits.ZeroPi.t1_effective
+    scqubits.ZeroPi.t1_flux_bias_line
+    scqubits.ZeroPi.t1_inductive_loss
+    scqubits.ZeroPi.t2_effective
+    scqubits.ZeroPi.tphi_1_over_f
+    scqubits.ZeroPi.tphi_1_over_f_cc
+    scqubits.ZeroPi.tphi_1_over_f_flux
+
 

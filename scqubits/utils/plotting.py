@@ -35,7 +35,7 @@ except ImportError:
 # A dictionary of plotting options that are directly passed to specific matplotlib's
 # plot commands.
 _direct_plot_options = {
-        'plot': ('alpha', 'linestyle', 'linewidth', 'marker', 'markersize'),
+        'plot': ('alpha', 'color', 'linestyle', 'linewidth', 'marker', 'markersize'),
         'imshow': ('interpolation',),
         'contourf': tuple()  # empty for now
     }
@@ -97,7 +97,7 @@ def _process_options(figure, axes, opts=None, **kwargs):
         else:
             set_method = getattr(axes, 'set_' + key)
             set_method(value)
-
+ 
     filename = kwargs.get('filename')
     if filename:
         figure.savefig(os.path.splitext(filename)[0] + '.pdf')
@@ -136,6 +136,8 @@ def _process_special_option(figure, axes, key, value):
         axes.set_ylim(ymin, ymax)
     elif key == 'figsize':
         figure.set_size_inches(value)
+    elif key == 'grid':
+        axes.grid(**value) if isinstance(value, dict) else axes.grid(value)
 
 
 def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs):

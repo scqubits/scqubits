@@ -4,7 +4,7 @@
 .. _guide:
 
 *******************
-Users Guide
+User Guide
 *******************
 
 .. toctree::
@@ -13,10 +13,13 @@ Users Guide
    guide-overview.rst
    ./ipynb/basics.ipynb
    guide-qubits.rst
+   guide-noise.rst
    ./ipynb/hilbertspace.ipynb
+   ./ipynb/paramsweep.ipynb
    ./ipynb/explorer.ipynb
    guide-plot-options.rst
-   guide-io.rst
+   guide-units.rst
+   ./ipynb/storage.ipynb
    ./ipynb/parallel.ipynb
    guide-example-ipynb.rst
    guide-settings.rst

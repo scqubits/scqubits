@@ -19,6 +19,7 @@ import scqubits.core.central_dispatch as dispatch
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
+from scqubits.core.noise import NoisySystem, NOISE_PARAMS
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
@@ -27,9 +28,15 @@ import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 
 
+# - ZeroPi noise class
+
+class NoisyZeroPi(NoisySystem):
+    pass
+
+
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
 
-class ZeroPi(base.QubitBaseClass, serializers.Serializable):
+class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     r"""Zero-Pi Qubit
 
     | [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
@@ -111,7 +118,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         # for theta, needed for plotting wavefunction
         self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropi.png')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/zeropi.jpg')
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
     @staticmethod
@@ -129,10 +136,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
             'truncated_dim': 10
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['ng', 'flux', 'ncut', 'truncated_dim']
-
     @classmethod
     def create(cls):
         phi_grid = discretization.Grid1d(-19.0, 19.0, 200)
@@ -140,6 +143,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         zeropi = cls(**init_params, grid=phi_grid)
         zeropi.widget()
         return zeropi
+
+    def supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return [
+                'tphi_1_over_f_cc', 
+                'tphi_1_over_f_flux',
+                't1_flux_bias_line',
+                # 't1_capacitive_loss',
+                't1_inductive_loss',
+                ]
 
     def widget(self, params=None):
         init_params = params or self.get_initdata()
@@ -220,18 +233,16 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         """
         pt_count = self.grid.pt_count
         dim_theta = 2 * self.ncut + 1
-        identity_phi = sparse.identity(pt_count, format='csc', dtype=np.complex_)
-        identity_theta = sparse.identity(dim_theta, format='csc', dtype=np.complex_)
-
+        identity_phi = sparse.identity(pt_count, format='csc')
+        identity_theta = sparse.identity(dim_theta, format='csc')
         kinetic_matrix_phi = self.grid.second_derivative_matrix(prefactor=-2.0 * self.ECJ)
-
         diag_elements = 2.0 * self.ECS * np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng))
         kinetic_matrix_theta = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
-
         kinetic_matrix = (sparse.kron(kinetic_matrix_phi, identity_theta, format='csc')
                           + sparse.kron(identity_phi, kinetic_matrix_theta, format='csc'))
+        if self.dCJ != 0:
+            kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
 
-        kinetic_matrix -= 2.0 * self.ECS * self.dCJ * self.i_d_dphi_operator() * self.n_theta_operator()
         return kinetic_matrix
 
     def sparse_potential_mat(self):
@@ -261,8 +272,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         potential_mat = (sparse.kron(phi_cos_potential, theta_cos_potential, format='csc')
                          + sparse.kron(phi_inductive_potential, self._identity_theta(), format='csc')
                          + 2 * self.EJ * sparse.kron(self._identity_phi(), self._identity_theta(), format='csc'))
-        potential_mat += (self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')
-                          * self.sin_theta_operator())
+        if self.dEJ != 0:
+            potential_mat += (self.EJ * self.dEJ * sparse.kron(phi_sin_potential, self._identity_theta(), format='csc')
+                              * self.sin_theta_operator())
         return potential_mat
 
     def hamiltonian(self):
@@ -309,6 +321,41 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         """
         return self.sparse_d_potential_d_flux_mat()
 
+    def sparse_d_potential_d_EJ_mat(self):
+        r"""Calculates a of the potential energy w.r.t EJ.
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the potential energy
+        """
+        return - 2.0 * sparse.kron(self._cos_phi_operator(x=- 2.0 * np.pi * self.flux / 2.0),
+                                   self._cos_theta_operator(), format='csc')
+
+    def d_hamiltonian_d_EJ(self):
+        r"""Calculates a derivative of the Hamiltonian w.r.t EJ.
+        for calcu 
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the Hamiltonian
+        """
+        return self.sparse_d_potential_d_EJ_mat()
+
+
+    def d_hamiltonian_d_ng(self):
+        r"""Calculates a derivative of the Hamiltonian w.r.t ng.
+        as stored in the object.
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the Hamiltonian
+        """
+        return -8 * self.EC * self.n_theta_operator()
+
+
     def _identity_phi(self):
         r"""
         Identity operator acting only on the `\phi` Hilbert subspace.
@@ -333,7 +380,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
 
     def i_d_dphi_operator(self):
         r"""
-        Operator :math:`i d/d\varphi`.
+        Operator :math:`i d/d\phi`.
 
         Returns
         -------
@@ -343,7 +390,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
 
     def _phi_operator(self):
         r"""
-        Operator :math:`\varphi`, acting only on the `\varphi` Hilbert subspace.
+        Operator :math:`\phi`, acting only on the `\phi` Hilbert subspace.
 
 
         Returns
@@ -352,14 +399,14 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         """
         pt_count = self.grid.pt_count
 
-        phi_matrix = sparse.dia_matrix((pt_count, pt_count), dtype=np.complex_)
+        phi_matrix = sparse.dia_matrix((pt_count, pt_count))
         diag_elements = self.grid.make_linspace()
         phi_matrix.setdiag(diag_elements)
         return phi_matrix
 
     def phi_operator(self):
         r"""
-        Operator :math:`\varphi`.
+        Operator :math:`\phi`.
 
         Returns
         -------

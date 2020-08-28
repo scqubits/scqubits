@@ -4,6 +4,8 @@
 Flux Qubit
 ==============
 
+.. _qubit_flux_qubit:
+
 .. figure:: ../../graphics/fluxqubit.png
    :align: center
    :width: 4in
@@ -102,3 +104,16 @@ Computation and visualization of matrix elements
     scqubits.FluxQubit.plot_matelem_vs_paramvals
 
 
+Estimation of coherence times
+-----------------------------
+
+.. autosummary::
+
+    scqubits.FluxQubit.plot_coherence_vs_paramvals
+    scqubits.FluxQubit.plot_t1_effective_vs_paramvals
+    scqubits.FluxQubit.plot_t2_effective_vs_paramvals
+    scqubits.FluxQubit.t1
+    scqubits.FluxQubit.t1_effective
+    scqubits.FluxQubit.t2_effective
+    scqubits.FluxQubit.tphi_1_over_f
+    scqubits.FluxQubit.tphi_1_over_f_cc

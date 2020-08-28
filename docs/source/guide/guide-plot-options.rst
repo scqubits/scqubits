@@ -50,6 +50,8 @@ summarized here:
 A number of additional options falling in the ``Axes.set_xxx(...)`` category is available; consult the
 ``matplotlib.axes.Axes`` `API documentation`__ to see the complete list. 
 
+Matplotlib's option ``grid`` is also supported and appropriately handled by scqubits. An argument that reads ``grid=xxx`` which is passed to an scqubits plotting command, is internally processed as ``Axes.grid(**xxx)``, if the ``xxx`` is a python dictionary, or as ``Axes.grid(xxx)`` otherwise.
+
 There are also some plotting options that scqubits plotting routines directly pass to the appropriate Matplotlib plotting commands (such as ``plot`` or ``imshow``). In the case of standard x vs y types of plots, these include:
 
 +---------------------------------+-------------------------------------------------------+

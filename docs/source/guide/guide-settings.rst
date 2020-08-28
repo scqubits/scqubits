@@ -25,8 +25,6 @@ scqubits has a few internal parameters that can be changed by the user:
 +-------------------------+------------------------------+-------------------------------------------------------------------+
 | ``PROGRESSBAR_DISABLED``|  True / False                | Switches display of progressbar on/off.                           |
 +-------------------------+------------------------------+-------------------------------------------------------------------+
-| ``DEFAULT_ENERGY_UNIT`` |  `str` (default: GHz)        | Used in axes labels with plotting                                 |
-+-------------------------+------------------------------+-------------------------------------------------------------------+
 | ``AUTORUN_SWEEP``       | True / False (default: True) | Whether to generate ``ParameterSweep``                            |
 |                         |                              | immediately upon initialization                                   |
 +-------------------------+------------------------------+-------------------------------------------------------------------+
@@ -37,6 +35,10 @@ scqubits has a few internal parameters that can be changed by the user:
 | ``NUM_CPUS``            | int                          | number of cores to be used in parallelization (default: 1)        |
 +-------------------------+------------------------------+-------------------------------------------------------------------+
 
+Users can also setup units of the energy scales. This is discussed in the :ref:`guide_units` section of the user guide. 
+
+
+.. note:: The ``DEFAULT_ENERGY_UNIT`` setting is no longer used - see :ref:`guide_units` for information on how to set energy units. 
 
 
 .. _settings-usage:

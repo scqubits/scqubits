@@ -22,8 +22,17 @@ Matplotlib.
 #    LICENSE file in the root directory of this source tree.
 #######################################################################################################################
 
+import warnings
 import matplotlib as mpl
 from cycler import cycler
+
+
+# Set format for output of warnings
+def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
+    return "{}: {}\n {}: {}".format(category.__name__, message, filename, lineno)
+
+
+warnings.formatwarning = warning_on_one_line
 
 
 # a switch for displaying of progress bar; default: show only in ipython
@@ -34,9 +43,6 @@ try:
 except NameError:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
-
-# default energy units
-DEFAULT_ENERGY_UNITS = 'GHz'
 
 # define settings for tqdm progressbar
 TQDM_KWARGS = {'disable': PROGRESSBAR_DISABLED,

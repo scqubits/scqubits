@@ -1,6 +1,9 @@
 .. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
+
+.. _qubit_transmon:
+
 Transmon Qubit
 ==============
 
@@ -76,5 +79,22 @@ Computation and visualization of matrix elements
     scqubits.Transmon.plot_matrixelements
     scqubits.Transmon.get_matelements_vs_paramvals
     scqubits.Transmon.plot_matelem_vs_paramvals
+
+
+Estimation of coherence times
+-----------------------------
+
+.. autosummary::
+
+    scqubits.Transmon.plot_coherence_vs_paramvals
+    scqubits.Transmon.plot_t1_effective_vs_paramvals
+    scqubits.Transmon.plot_t2_effective_vs_paramvals
+    scqubits.Transmon.t1
+    scqubits.Transmon.t1_capacitive_loss
+    scqubits.Transmon.t1_charge_impedance
+    scqubits.Transmon.t1_effective
+    scqubits.Transmon.t2_effective
+    scqubits.Transmon.tphi_1_over_f
+    scqubits.Transmon.tphi_1_over_f_cc
 
 

@@ -115,3 +115,6 @@ todo_include_todos = True
 
 napoleon_numpy_docstring = True
 napoleon_use_admonition_for_notes = True
+
+# Do not print input/output cell numbers
+nbsphinx_prompt_width = '0ex'

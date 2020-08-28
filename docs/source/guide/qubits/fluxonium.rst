@@ -1,6 +1,7 @@
 .. scqubits
    Copyright (C) 2017 and later, Jens Koch & Peter Groszkowski
 
+.. _qubit_fluxonium:
 
 Fluxonium Qubit
 ===============
@@ -84,3 +85,22 @@ Computation and visualization of matrix elements
     scqubits.Fluxonium.plot_matelem_vs_paramvals
 
 
+Estimation of coherence times
+-----------------------------
+
+.. autosummary::
+
+    scqubits.Fluxonium.plot_coherence_vs_paramvals
+    scqubits.Fluxonium.plot_t1_effective_vs_paramvals
+    scqubits.Fluxonium.plot_t2_effective_vs_paramvals
+    scqubits.Fluxonium.t1
+    scqubits.Fluxonium.t1_capacitive_loss
+    scqubits.Fluxonium.t1_charge_impedance
+    scqubits.Fluxonium.t1_effective
+    scqubits.Fluxonium.t1_flux_bias_line
+    scqubits.Fluxonium.t1_inductive_loss
+    scqubits.Fluxonium.t1_quasiparticle_tunneling
+    scqubits.Fluxonium.t2_effective
+    scqubits.Fluxonium.tphi_1_over_f
+    scqubits.Fluxonium.tphi_1_over_f_cc
+    scqubits.Fluxonium.tphi_1_over_f_flux

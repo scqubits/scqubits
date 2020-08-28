@@ -148,20 +148,20 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         subsystems: list of QuantumSystems
 
         """
-        bad_indices=[i for i, sub_sys in enumerate(subsystems) if sub_sys.truncated_dim is None]
+        bad_indices = [i for i, sub_sys in enumerate(subsystems) if sub_sys.truncated_dim is None]
         
         if bad_indices:
-            s="Subsystems with indices '{}' do".format(", ".join([str(i) for i in bad_indices]))  \
-                if len(bad_indices)>1 else "Subsystem with index '{:d}' does".format(bad_indices[0])
+            msg = "Subsystems with indices '{}' do".format(", ".join([str(i) for i in bad_indices]))  \
+                if len(bad_indices) > 1 else "Subsystem with index '{:d}' does".format(bad_indices[0])
 
             raise RuntimeError("""{} not have `truncated_dim` set,
             which is required for `HilbertSpace` to operate correctly. This parameter can be
-            set at object creation time. For example:
+            set at object creation time, e.g.
 
             tmon = scqubits.Transmon(EJ=30.02, EC=1.2, ng=0.3, ncut=31, truncated_dim=4)
 
-            """.format(s))
-
+            or after the fact via tmon.truncated_dim = 4.
+            """.format(msg))
 
     def index(self, item):
         return self._subsystems.index(item)
