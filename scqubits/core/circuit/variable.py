@@ -49,7 +49,7 @@ class Variable(discretization.Grid1d):
         self.max_val = phase_value
         self.offset_charge = voltage_value
 
-    def get_phase_grid(self):
+    def get_phase_grid(self) -> np.ndarray:
         """Returns a numpy array of the grid points in phase representation
 
         Returns
@@ -58,7 +58,7 @@ class Variable(discretization.Grid1d):
         """
         return self.make_linspace()
 
-    def get_charge_grid(self):
+    def get_charge_grid(self) -> np.ndarray:
         """Returns a numpy array of the grid points in cooper pair number representation
 
         Returns

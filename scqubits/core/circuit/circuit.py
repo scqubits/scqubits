@@ -491,9 +491,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         -------
         tuple of ndarray
         """
-        axes = []
-        for variable in self.variables:
-            axes.append(variable.get_charge_grid())
+        axes = [variable.get_charge_grid() for variable in self.variables]
         return np.meshgrid(*tuple(axes), indexing='ij')
 
     def hamiltonian_phase_action(self, state_vector) -> np.ndarray:
