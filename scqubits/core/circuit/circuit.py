@@ -17,8 +17,12 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+from typing import Tuple, List, Union
+from .elements import CircuitElement
+from .variable import Variable
 
 from scqubits.core.circuit.variable import Variable
+
 
 class CircuitNode:
     def __init__(self, name):
@@ -30,13 +34,17 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     The class containing references to nodes, elements, variables, variable-to-node mappings.
     """
 
-    def __init__(self, tolerance=1e-18, real_mode=False):
+    def __init__(self, tolerance: float = 1e-18, real_mode: bool=False):
         """
-        Default constructor.
-        :param tolerance: capacitances below this value are considered to be computational errors when determining the inverse capacitance matrix.
-        :type tolerance: float
-        :real_mode - Be careful. This mode should be used when you are sure that the hamiltonian is definitely real!!!
-        In this mode wavefunctions would be "real".
+        Abritrary quantum circuit class.
+
+        Parameters
+        ----------
+        tolerance: float, optional
+            roundoff error tolerance  (default value = 1e-18)
+        real_mode: bool, optional
+            assume Hamiltonian is real-valued; yields real-valued wavefunctions where possible (default value = False)
+
         """
         self.nodes = [CircuitNode('GND')]
         self.elements = []
@@ -50,8 +58,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         self.charge_potential = None
         self.real_mode = real_mode
         self.nodes_graph = []
-        self.ext_flux = []
-        self.ext_charge = []
 
     # TODO: add something
     @staticmethod
@@ -64,14 +70,19 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def nonfit_params():
         return []
 
-    def grid_shape(self):
+    def grid_shape(self) -> Tuple[int, ...]:
+        """Returns Hilbert space dimension
+        Returns
+        -------
+        tuple of ints
+        """
         return tuple([v.pt_count for v in self.variables])
 
-    def hilbertdim(self):
+    def hilbertdim(self) -> int:
         """Returns Hilbert space dimension"""
-        return np.prod(self.grid_shape())
+        return int(np.prod(self.grid_shape()))
 
-    def potential(self, *args):
+    def potential(self, *args) -> np.ndarray:
         """Circuit phase-basis potential evaluated at `*args`, in order of `variables`. Variables of parameter type
         are skipped.
 
@@ -106,245 +117,235 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                                               element_node_ids, variable_id], phase_values[variable_id], axes=0), None)
         return energy
 
-    def phase_operator(self, index=0, var_name=None):
+    def get_variable_index(self, variable: Union[str, int]) -> int:
         """
+        Returns the variable index by name or id
+
+        Parameters
+        ----------
+        variable: str or int
+            variable name or id
+
+        Returns
+        -------
+        int
+        """
+        if type(variable) is not int:
+            for variable_id, variable_ in enumerate(self.variables):
+                if variable_.name == variable:
+                    return variable_id
+        return variable
+
+    def phase_operator(self, variable: Union[str, int]) -> np.ndarray:
+        """
+        Returns phi operator along given dimension in phi basis
+
+        Parameters
+        ----------
+        variable: str or int
+            variable name or id
+
+        Returns
+        -------
+            phi operator in Phi basis
+        """
+        return self.get_phase_grid()[self.get_variable_index(variable)]
+
+    def phase_operator_action(self, state_vector: np.ndarray, variable: Union[str, int]) -> np.ndarray:
+        """
+        Returns the action of the phase operator on the state vector describing the system in phase representation
+
+        Parameters
+        ----------
+        state_vector: ndarray
+            wavefunction to act upon
+        variable: str or int
+            variable name or id
+
         Returns
         -------
         ndarray
-
-        Returns the select phi operator in Phi basis. You need to enter variable name or index in self.variables list.
-        :param index - phase variable (default index=0)
-        :param index type - int
-        :param var_name - phase variable name (default var_name=None)
-        :param var_name type - str
-        :returns: phi operator in Phi basis
         """
-        if var_name is not None:
-            for variable_id, variable in enumerate(self.variables):
-                if variable.name == var_name:
-                    index = variable_id
-        return self.create_phase_grid()[index]
-
-    def phase_operator_action(self, state_vector, index=0, var_name=None):
-        """
-        Returns
-        -------
-        ndarray
-
-        Implements the action of the phase operator on the state vector describing the system in phase representation.
-        You need to enter variable name or index in self.variables list.
-        :param state_vector: wavefunction to act upon
-        :param index - phase variable (default index=0)
-        :param index type - int
-        :param var_name - phase variable name (default var_name=None)
-        :param var_name type - str
-        :returns: wavefunction after action of the hamiltonian
-        """
-        if var_name is not None:
-            for variable_id, variable in enumerate(self.variables):
-                if variable.name == var_name:
-                    index = variable_id
         shape = state_vector.shape
-        return np.reshape(self.phase_operator(index=index).ravel() * state_vector.ravel(), shape)
+        return np.reshape(self.phase_operator(variable).ravel() * state_vector.ravel(), shape)
 
-    def charge_operator(self, index=0, var_name=None):
+    def charge_operator(self, variable: Union[str, int]) -> np.ndarray:
         """
+        Returns the select charge operator along given dimension in charge basis
+
+        Parameters
+        ----------
+        variable: str or int
+            variable name or id
+
+        Returns
+        -------
+            charge operator in charge basis
+        """
+
+        return self.get_charge_grid()[self.get_variable_index(variable)]
+
+    def charge_operator_action(self, state_vector, variable: Union[str, int]) -> np.ndarray:
+        """
+        Returns the action of the charge operator on the state vector describing the system in phase representation
+
+        Parameters
+        ----------
+        state_vector: ndarray
+            wavefunction to act upon
+        variable: str or int
+            variable name or id
+
         Returns
         -------
         ndarray
-
-        Returns the select charge operator in charge basis.
-        You need to enter variable name or index in self.variables list.
-        index - charge variable (default index=0)
-        :param index type - int
-        :param var_name - phase variable name (default var_name=None)
-        :param var_name type - str
-        :returns: charge operator in charge basis
         """
-        if var_name is not None:
-            for variable_id, variable in enumerate(self.variables):
-                if variable.name == var_name:
-                    index = variable_id
-        return self.create_charge_grid()[index]
+        index = self.get_variable_index(variable)
+        charge_wave = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(state_vector, axes=index), axis=index), axes=index)
+        w = np.fft.ifftshift(np.fft.ifftn(np.fft.ifftshift(self.charge_operator(variable) * charge_wave, axes=index),
+                                          axis=index), axes=index)
+        return w
 
-    def charge_operator_action(self, state_vector, index=0, var_name=None):
+    def wavefunction_charge(self, state_vector) -> np.ndarray:
         """
+        Returns wavefunction in charge basis
+        Parameters
+        ----------
+        state_vector: ndarray
+            wavefunction in phase representation
+
         Returns
         -------
         ndarray
-
-        Implements the action of the charge operator on the state vector describing the system in phase representation.
-        You need to enter variable name or index in self.variables list.
-        :param state_vector: wavefunction to act upon
-        :param index - charge variable (default index=0)
-        :param index type - int
-        :param var_name - phase variable name (default var_name=None)
-        :param var_name type - str
-        :returns: wavefunction  in phase representation after action of the charge operator
         """
-        if var_name is not None:
-            for variable_id, variable in enumerate(self.variables):
-                if variable.name == var_name:
-                    index = variable_id
-        shape = state_vector.shape
-        charge_wave = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(state_vector)))
-        w = np.fft.ifftshift(np.fft.ifftn(np.fft.ifftshift(self.charge_operator(index=index) * charge_wave)))
-        # It can also be done in charge basis as 
-        # w_charge = self.charge_operator(index)*self.wavefunction_charge(state_vector, index)
-        return np.reshape(w, shape)
+        return np.fft.fftshift(np.fft.fft(np.fft.fftshift(state_vector), norm='ortho'))
 
-    def wavefunction_charge(self, state_vector, index=0, var_name=None):
+    def exp_i_phi_operator(self, variable: Union[str, int]) -> np.ndarray:
         """
+        Returns imaginary exponent of phi operator :math:`e^{i\\phi}` along given dimension in phi basis
+
+        Parameters
+        ----------
+        variable: str or int
+            variable name or id
+
         Returns
         -------
         ndarray
-
-        Returns wavefunction in charge basis. You need to enter variable name or index in self.variables list.
-        :param state_vector: wavefunction in phase representation
-        :param index - charge variable (default index=0)
-        :param index type - int
-        :param var_name - phase variable name (default var_name=None)
-        :param var_name type - str
-        :returns: wavefunction  in charge representation
         """
-        if var_name is not None:
-            for variable_id, variable in enumerate(self.variables):
-                if variable.name == var_name:
-                    index = variable_id
-        charge_wave = np.fft.fftshift(np.fft.fft(np.fft.fftshift(state_vector, axes=index),
-                                                 norm='ortho', axis=index), axes=index)
-        return charge_wave
+        return np.exp(1j * self.phase_operator(self.get_variable_index(variable)))
 
-    def exp_i_phi_operator(self, index=0, var_name=None):
+    def cos_phi_operator(self, variable: Union[str, int]) -> np.ndarray:
         """
+        Returns cosine of phi operator :math:`\\cos\\left(i\\phi\\right)` along given dimension in phi basis
+
+        Parameters
+        ----------
+        variable: str or int
+            variable name or id
+
         Returns
         -------
         ndarray
-
-        You need to enter variable name or index in self.variables list.
-        :param index - charge variable (default index=0)
-        :param index type - int
-        :param var_name - phase variable name (default var_name=None)
-        :param var_name type - str
-        :returns: the :math:`e^{i\\phi}` operator in phase basis.
         """
-        if var_name is not None:
-            for variable_id, variable in enumerate(self.variables):
-                if variable.name == var_name:
-                    index = variable_id
-        exponent = 1j * self.phase_operator(index=index)
-        # shape=exponent.shape
-        return np.exp(exponent)  # np.reshape(sp.linalg.expm(exponent.ravel()), shape)
+        return np.cos(self.phase_operator(self.get_variable_index(variable)))
 
-    def cos_phi_operator(self, index=0, var_name=None):
+    def sin_phi_operator(self, variable: Union[str, int]) -> np.ndarray:
         """
+        Returns sine of phi operator :math:`\\sin\\left(i\\phi\\right)` along given dimension in phi basis
+
+        Parameters
+        ----------
+        variable: str or int
+            variable name or id
+
         Returns
         -------
         ndarray
-
-        You need to enter variable name or index in self.variables list.
-        :param index - charge variable (default index=0)
-        :param index type - int
-        :param name - phase variable name (default var_name=None)
-        :param name type - str
-        :returns: the :math:`\\cos \\phi` operator in phase basis.
         """
-        if var_name is not None:
-            for variable_id, variable in enumerate(self.variables):
-                if variable.name == var_name:
-                    index = variable_id
-        # cos_phi_op = 0.5 * exp_i_phi_operator(index = index)
-        # cos_phi_op += cos_phi_op.conjugate()
-        cos_phi_op = np.cos(self.phase_operator(index=index))
-        return cos_phi_op
+        return np.sin(self.phase_operator(self.get_variable_index(variable)))
 
-    def sin_phi_operator(self, index=0, var_name=None):
+    def operator_matrix_elements(self, operator, state_vector1, state_vector2) -> Union[complex, float]:
         """
+        Returns the matrix element :math:`\\langle \\psi_2(\\phi) | O(\\phi) | \\psi_1(\\phi) \\rangle` for the
+        selected operator in phase representation.
+
+        Parameters
+        ----------
+        operator: ndarray
+            operator :math:`O(\\phi)` in phase representation
+        state_vector1: ndarray
+            ket vector :math:`\\psi_1(\\phi)` in phase representation
+        state_vector2: ndarray
+            bra vector :math:`\\psi_2(\\phi)` in phase representation
+
         Returns
         -------
-        ndarray
-
-        You need to enter variable name or index in self.variables list.
-        :param index - charge variable (default index=0)
-        :param index type - int
-        :param var_name=None - phase variable name (default var_name=None)
-        :param var_name=None type - str
-        :returns: the :math:`\\sin \\phi` operator in phase basis
+        complex or float
         """
-        if var_name is not None:
-            for variable_id, variable in enumerate(self.variables):
-                if variable.name == var_name:
-                    index = variable_id
-        # sin_phi_op = -1j * 0.5 * exp_i_phi_operator(index = index)
-        # sin_phi_op += sin_phi_op.conjugate()
-        sin_phi_op = np.sin(self.phase_operator(index=index))
-        return sin_phi_op
-
-    def operator_action_phase(self, operator, state_vector):
-        """
-        Returns
-        -------
-        number
-        
-        Implements the action of the selected operator on the state vector describing the system in phase representation.
-        
-        :param state_vector: wavefunction to act upon
-        :param operator: selected operator to act on state vector in phase representation
-        :returns: wavefunction after action of the operator
-        """
-        return operator * state_vector
-
-    def operator_matrix_elements(self, operator, state_vector1, state_vector2):
-        """
-        Returns
-        -------
-        number
-        
-        Calculation matrix elements for the selected operator in phase representation.
-        
-        :param state_vector1: wavefunction to act upon (ket)
-        :param operator: selected operator to act on state vector1 in phase representation
-        :param state_vector2: wavefunction (bra)
-        :returns: matrix element <state_vector2|operator|state_vector1>
-        """
-
         return np.sum(np.conj(state_vector2) * operator * state_vector1)
 
-    def hamiltonian(self):
-        """Returns Hamiltonian in charge basis"""
+    def hamiltonian(self) -> np.ndarray:
+        """
+        Returns Hamiltonian in charge basis.
+
+        Returns
+        -------
+        ndarray
+        """
         dim = len(self.variables)
-        phase_grid = np.reshape(self.create_phase_grid(), (dim, 1, -1))
-        charge_grid = np.reshape(self.create_charge_grid(), (dim, -1, 1))
+        phase_grid = np.reshape(self.get_phase_grid(), (dim, 1, -1))
+        charge_grid = np.reshape(self.get_charge_grid(), (dim, -1, 1))
         unitary = np.exp(1j * np.sum(phase_grid * charge_grid, axis=0)) / np.sqrt(self.hilbertdim())
         hamiltonian_mat = unitary @ np.diag(self.calculate_phase_potential().ravel()) @ np.conj(unitary.T)
         hamiltonian_mat += np.diag(self.calculate_charge_potential().ravel())
         return hamiltonian_mat
 
-    def find_element(self, element_name):
+    def find_element(self, element_name: str) -> CircuitElement:
         """
-        Find an element inside the circuit with the specified name.
-        :returns: the element, if found, else None
+        Returns an element inside the circuit with the specified name, if found.
+
+        Parameters
+        ----------
+        element_name: str
+
+        Returns
+        -------
+        CircuitElement object or None
         """
         for element in self.elements:
             if element.name == element_name:
                 return element
 
-    def find_variable(self, variable_name):
+    def find_variable(self, variable_name: str) -> Variable:
         """
-        Find a variable of the circuit with the specified name.
-        :returns: the variable, if found
+        Returns a variable of the circuit with the specified name, if found.
+        Parameters
+        ----------
+        variable_name: str
+
+        Returns
+        -------
+        Variable object or None
         """
         for variable in self.variables:
             if variable.name == variable_name:
                 return variable
 
-    def add_element(self, element, node_names):
+    def add_element(self, element: CircuitElement, node_names: List[str]):
         """
         Connect an element to the circuit.
-        :param element: circuit element to insert into the circuit
-        :type element: CircuitElement
-        :param node_names: list of names of the nodes to which the element should be connected
-        :type node_names: list of str
+
+        Parameters
+        ----------
+        element: CircuitElement object
+            circuit element to insert into the circuit
+        node_names: list of str
+            list of names of the nodes to which the element should be connected
+
+        Returns
+        -------
+        None
         """
         self.elements.append(element)
         self.nodes_graph.append(tuple(node_names))
@@ -358,19 +359,20 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 self.nodes.append(CircuitNode(node_name))
                 self.wires.append((element.name, node_name))
         if element.is_external():
-            if element.is_phase:
-                self.ext_flux.append(Variable(element.name))
-                self.add_variable(Variable(element.name))
-            if element.is_charge():
-                self.ext_charge.append(Variable(element.name))
+            if element.is_phase() or element.is_charge():
                 self.add_variable(Variable(element.name))
         self.invalidation_flag = True
 
     def add_variable(self, variable):
         """
         Add variable to circuit.
-        :param variable:
-        :type variable: Variable
+        Parameters
+        ----------
+        variable: Variable object
+
+        Returns
+        -------
+        None
         """
         counter = 0
         for var_id, var in enumerate(self.variables):
@@ -382,13 +384,23 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             self.variables.append(variable)
         self.invalidation_flag = True
 
-    def map_nodes_linear(self, node_names, variable_names, coefficients):
+    def map_nodes_linear(self, node_names: List[str], variable_names: List[str], coefficients: np.ndarray):
         """
-        Sets the value of node phases (and, respectively, their conjugate charges) as a linear combination of the circuit variables.
-        Checking for external fluxes and charges variables.
-        :param node_names: the names of the nodes to be expressed through the variables, in the order of the coefficient matrix rows.
-        :param variable_names: the variables to express the node phases through, in the order of the coefficient matrix columns.
-        :param coefficients: the transfrmation matrix
+        Sets the value of node phases (and, respectively, their conjugate charges) as a linear combination of the
+        circuit variables. Checks for external fluxes and charges variables.
+        Parameters
+        ----------
+        node_names: list of str
+            names of the nodes to be expressed through the variables, in the order of the coefficient matrix rows
+        variable_names: list of str
+            variables to express the node phases through, in the order of the coefficient matrix columns
+        coefficients: ndarray
+            transformation matrix
+
+
+        Returns
+        -------
+        None
         """
         node_ids = []
         variable_ids = []
@@ -456,50 +468,70 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                                                                                      element_var_list, var_list))
         self.invalidation_flag = True
 
-    def create_phase_grid(self):
+    def get_phase_grid(self) -> Tuple[np.ndarray, ...]:
         """
-        Creates a n-d grid of the phase variables, where n is the number of variables in the circuit, on which the circuit wavefunction depends.
-        :returns: tuple of numpy ndarray
+        Returns a tuple of n-d grids of the phase variables, where n is the number of variables in the circuit, on which
+        the circuit wavefunction depends.
+
+        Returns
+        -------
+        tuple of ndarray
         """
-        self.invalidation_flag = True
         axes = []
         for variable in self.variables:
             axes.append(variable.get_phase_grid())
         return np.meshgrid(*tuple(axes), indexing='ij')
 
-    def create_charge_grid(self):
+    def get_charge_grid(self) -> Tuple[np.ndarray, ...]:
         """
-        Creates a n-d grid of the charge variables, where n is the number of variables in the circuit, on which the circuit wavefunction, when transformed into charge representation, depends.
-        :returns: tuple of numpy ndarray
+        Returns a tuple of n-d grids of the charge variables, where n is the number of variables in the circuit, on
+        which the circuit wavefunction, when transformed into charge representation, depends.
+
+        Returns
+        -------
+        tuple of ndarray
         """
-        self.invalidation_flag = True
         axes = []
         for variable in self.variables:
             axes.append(variable.get_charge_grid())
         return np.meshgrid(*tuple(axes), indexing='ij')
 
-    def hamiltonian_phase_action(self, state_vector):
+    def hamiltonian_phase_action(self, state_vector) -> np.ndarray:
         """
-        Implements the action of the hamiltonian on the state vector describing the system in phase representation.
-        :param state_vector: wavefunction to act upon
-        :type state_vector: ndarray
-        :returns: wavefunction after action of the hamiltonian
+        Returns the action of the hamiltonian on the state vector describing the system in phase representation.
+
+        Parameters
+        ----------
+        state_vector: ndarray
+            wavefunction to act upon
+
+        Returns
+        -------
+        ndarray
         """
         psi = np.reshape(state_vector, self.charge_potential.shape)
         phi = np.fft.fftshift(np.fft.fftn(np.fft.fftshift(psi)))
-        Up = self.phase_potential.ravel() * state_vector
-        Tp = np.fft.ifftshift(np.fft.ifftn(np.fft.ifftshift(self.charge_potential * phi))).ravel()
-        if self.real_mode is False:
-            Hp = Up + Tp
-        else:
-            Hp = np.real(Up + Tp)
-        return Hp
+        u = self.phase_potential.ravel() * state_vector
+        t = np.fft.ifftshift(np.fft.ifftn(np.fft.ifftshift(self.charge_potential * phi))).ravel()
+        h = u + t
+        if self.real_mode:
+            h = np.real(h)
+        return h
 
-    def capacitance_matrix(self, symbolic=False):
+    def capacitance_matrix(self, symbolic: bool = False) -> Union[sympy.Matrix, np.ndarray]:
         """
-        Calculates the linear capacitance matrix of the circuit with respect 
-        to the circuit nodes from the capacitances between them.
-        :returns: the capacitance matrix with respect to the nodes, where the rows and columns are sorted accoring to the order in which the nodes are in the nodes attribute.
+        Returns the linear capacitance matrix of the circuit with respect to the circuit nodes from the capacitances
+        between them. The rows and columns are sorted according to the order in which the nodes are in the nodes
+        attribute.
+
+        Parameters
+        ----------
+        symbolic: bool (default value=False)
+            if true, return symbolic sympy matrix; otherwise return numpy ndarray
+
+        Returns
+        -------
+        sympy.Matrix or ndarray
         """
         if symbolic:
             capacitance_matrix = sympy.Matrix(np.zeros((len(self.nodes), len(self.nodes))))
@@ -660,7 +692,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         grid_shape = self.grid_shape()
         grid_size = np.prod(grid_shape)
-        phase_grid = self.create_phase_grid()
+        phase_grid = self.get_phase_grid()
         self.phase_potential = np.zeros(grid_shape)
         for element in self.elements:
             if not element.is_external():
@@ -685,7 +717,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         grid_shape = self.grid_shape()
         grid_size = np.prod(grid_shape)
-        charge_grid = np.reshape(np.asarray(self.create_charge_grid()), (len(self.variables), grid_size))
+        charge_grid = np.reshape(np.asarray(self.get_charge_grid()), (len(self.variables), grid_size))
         ECmat = 0.5 * self.capacitance_matrix_legendre_transform()
         self.charge_potential = np.einsum('ij,ik,kj->j', charge_grid, ECmat, charge_grid)
         self.charge_potential = np.reshape(self.charge_potential, grid_shape)
