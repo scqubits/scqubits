@@ -253,6 +253,7 @@ class VCHOS(ABC):
                         filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), zero_vec)))
                     nearest_neighbors_single = self._stack_filtered_vectors(filtered_vectors)
                     nearest_neighbors.append(nearest_neighbors_single)
+                print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
         self.nearest_neighbors = nearest_neighbors
 
     @staticmethod
