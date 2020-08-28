@@ -23,7 +23,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 
-import scqubits.core.circuit as circuit # import Circuit, CircuitElement, CircuitNode, Capacitance, Inductance, JosephsonJunction, Variable
+import scqubits.core.circuit as circuit
 
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
 
