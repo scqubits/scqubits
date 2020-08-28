@@ -8,6 +8,10 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
+import numpy as np
+import scipy as sp
+import array
+from scipy.sparse import csr_matrix
 
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
@@ -158,3 +162,35 @@ class SpectrumData(DataStore):
         """
         return plot.evals_vs_paramvals(self, which=which, subtract_ground=subtract_ground,
                                        label_list=label_list, **kwargs)
+
+
+# Credit: https://maciejkula.github.io/2015/02/22/incremental-construction-of-sparse-matrices/
+class ConstructCSRMatrixIncrementally(object):
+    def __init__(self, shape, dtype):
+        if dtype is np.int32:
+            type_flag = 'i'
+        elif dtype is np.float64:
+            type_flag = 'd'
+        else:
+            raise Exception('Dtype not supported.')
+
+        self.dtype = dtype
+        self.shape = shape
+
+        self.row_ptr = array.array('i')
+        self.row_ptr.append(0)
+        self.col_ind = array.array('i')
+        self.data = array.array(type_flag)
+
+    def append(self, vec):
+        for j, elem in enumerate(vec):
+            if elem != 0:
+                self.col_ind.append(j)
+                self.data.append(elem)
+        self.row_ptr.append(len(self.data))
+
+    def tocsr(self):
+        row_ptr = np.frombuffer(self.row_ptr, dtype=np.int32)
+        col_ind = np.frombuffer(self.col_ind, dtype=np.int32)
+        data = np.frombuffer(self.data, dtype=self.dtype)
+        return csr_matrix((data, col_ind, row_ptr), shape=self.shape)

@@ -6,7 +6,6 @@ from functools import partial
 import numpy as np
 from scipy.linalg import LinAlgError, expm, inv, eigh
 from scipy.optimize import minimize
-from scipy.special import comb
 import scipy.constants as const
 from numpy.linalg import matrix_power
 
@@ -14,6 +13,7 @@ from scqubits.core import discretization, storage
 import scqubits.core.constants as constants
 from scqubits.core.operators import annihilation, operator_in_full_Hilbert_space
 import scqubits.utils.plotting as plot
+from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ, \
     standardize_phases
 
@@ -45,6 +45,7 @@ class VCHOS(ABC):
         self.nglist = nglist
         self.flux = flux
         self.maximum_periodic_vector_length = maximum_periodic_vector_length
+        self.maximum_site_length = 2
         if optimized_lengths is not None:
             self.optimized_lengths = optimized_lengths
         else:
@@ -224,40 +225,93 @@ class VCHOS(ABC):
     def a_operator_list(self):
         return np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
 
-    def _generate_vectors_up_to_maximum_length(self):
-        maximum_length = self.maximum_periodic_vector_length
-        sites = self.number_periodic_degrees_freedom
-        maximum_site_length = 2  # Anything bigger, and tight binding is on shaky ground
-        vec_list = np.zeros((self._count_periodic_vectors(), sites), dtype=int)
-        vec_list[0, :] = np.zeros(sites, dtype=int)
-        index = 1
-        for radius in range(1, maximum_length+1):
-            prev_vec = np.zeros(sites, dtype=int)
-            prev_vec[0] = radius
-            if radius <= maximum_site_length:
-                vec_list, index = self._append_reflected_vectors(prev_vec, vec_list, index)
-            while prev_vec[-1] != radius:
-                next_vec = self._generate_next_vec(prev_vec, radius)
-                if len(np.argwhere(next_vec > maximum_site_length)) == 0:
-                    vec_list, index = self._append_reflected_vectors(next_vec, vec_list, index)
-                prev_vec = next_vec
-        return vec_list
+    def find_relevant_periodic_continuation_vectors(self, num_cpus=1):
+        """
+        We have found that specifically this part of the code is quite slow, that
+        is finding the relevant nearest neighbor, next nearest neighbor, etc. lattice vectors
+        that meaningfully contribute. This is a calculation that previously had to be done
+        for the kinetic, potential and inner product matrices separately, even though
+        the results were the same for all three matrices. This helper function allows us to only
+        do it once.
+        """
+        target_map = get_map_method(num_cpus)
+        Xi_inv = inv(self.Xi_matrix())
+        minima_list = self.sorted_minima()
+        nearest_neighbors = []
+        dim_extended = self.number_extended_degrees_freedom
+        for m, minima_m in enumerate(minima_list):
+            for p in range(m, len(minima_list)):
+                minima_diff = minima_list[p] - minima_m
+                if (m == p) and (m != 0):  # vectors will be the same as m=p=0
+                    nearest_neighbors.append(nearest_neighbors[0])
+                else:
+                    periodic_vector_lengths = np.array([i for i in range(1, self.maximum_periodic_vector_length + 1)])
+                    filter_function = partial(self._filter_periodic_vectors, minima_diff, Xi_inv)
+                    filtered_vectors = list(target_map(filter_function, periodic_vector_lengths))
+                    zero_vec = np.zeros(self.number_periodic_degrees_freedom)
+                    if self._filter_neighbors(minima_diff, Xi_inv, zero_vec):
+                        filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), zero_vec)))
+                    nearest_neighbors_single = self._stack_filtered_vectors(filtered_vectors)
+                    nearest_neighbors.append(nearest_neighbors_single)
+        self.nearest_neighbors = nearest_neighbors
 
     @staticmethod
-    def _append_reflected_vectors(vec, vec_list, index):
-        """Need to account for all reflected vectors in hypersphere"""
+    def _stack_filtered_vectors(filtered_vectors):
+        filtered_vectors = list(filter(lambda x: len(x) != 0, filtered_vectors))
+        return np.vstack(filtered_vectors)
+
+    def _filter_periodic_vectors(self, minima_diff, Xi_inv, periodic_vector_length):
+        sites = self.number_periodic_degrees_freedom
+        filtered_vectors = []
+        prev_vec = np.zeros(sites, dtype=int)
+        prev_vec[0] = periodic_vector_length
+        if periodic_vector_length <= self.maximum_site_length:
+            self._filter_reflected_vectors(minima_diff, Xi_inv, prev_vec, filtered_vectors)
+        while prev_vec[-1] != periodic_vector_length:
+            next_vec = self._generate_next_vec(prev_vec, periodic_vector_length)
+            if len(np.argwhere(next_vec > self.maximum_site_length)) == 0:
+                self._filter_reflected_vectors(minima_diff, Xi_inv, next_vec, filtered_vectors)
+            prev_vec = next_vec
+        return np.array(filtered_vectors)
+
+    def _filter_reflected_vectors(self, minima_diff, Xi_inv, vec, filtered_vectors):
+        dim_extended = self.number_extended_degrees_freedom
+        reflected_vecs = self._reflect_vecs(vec)
+        filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
+        new_vecs = filter(filter_function, reflected_vecs)
+        for filtered_vec in new_vecs:
+            filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), filtered_vec)))
+
+    @staticmethod
+    def _reflect_vecs(vec):
+        reflected_vec_list = []
         nonzero_indices = np.nonzero(vec)
         nonzero_vec = vec[nonzero_indices]
         multiplicative_factors = itertools.product(np.array([1, -1]), repeat=len(nonzero_vec))
         for factor in multiplicative_factors:
-            vec_copy = np.copy(vec)
-            np.put(vec_copy, nonzero_indices, np.multiply(nonzero_vec, factor))
-            vec_list[index, :] = vec_copy
-            index += 1
-        return vec_list, index
+            reflected_vec = np.copy(vec)
+            np.put(reflected_vec, nonzero_indices, np.multiply(nonzero_vec, factor))
+            reflected_vec_list.append(reflected_vec)
+        return reflected_vec_list
+
+    def _filter_neighbors(self, minima_diff, Xi_inv, neighbor):
+        """
+        Want to eliminate periodic continuation terms that are irrelevant, i.e.,
+        they add nothing to the transfer matrix. These can be identified as each term
+        is suppressed by a gaussian exponential factor. If the argument np.dot(dpkX, dpkX)
+        of the exponential is greater than 180.0, this results in a suppression of ~10**(-20),
+        and so can be safely neglected.
+
+        Assumption is that extended degrees of freedom precede the periodic d.o.f.
+        """
+        phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom), neighbor))
+        dpkX = Xi_inv @ (phi_neighbor + minima_diff)
+        prod = np.exp(-0.25*np.dot(dpkX, dpkX))
+        return prod > self.nearest_neighbor_cutoff
 
     @staticmethod
     def _generate_next_vec(prev_vec, radius):
+        k = 0
         for num in range(len(prev_vec) - 2, -1, -1):
             if prev_vec[num] != 0:
                 k = num
@@ -267,18 +321,6 @@ class VCHOS(ABC):
         next_vec[k] = prev_vec[k] - 1
         next_vec[k + 1] = radius - np.sum([next_vec[i] for i in range(k + 1)])
         return next_vec
-
-    def _count_periodic_vectors(self):
-        maximum_length = self.maximum_periodic_vector_length
-        sites = self.number_periodic_degrees_freedom
-        total_vecs = 0
-        for length in range(0, maximum_length+1):
-            k = 0
-            while length - 2*k >= 0:
-                additional_vecs = 2**(length-k)*comb(sites-k, length-2*k)*comb(sites, k)
-                total_vecs += additional_vecs
-                k += 1
-        return int(total_vecs)
 
     def identity(self):
         """
@@ -306,52 +348,6 @@ class VCHOS(ABC):
             Returns the Hilbert space dimension.
         """
         return int(len(self.sorted_minima()) * self.number_states_per_minimum())
-
-    def find_relevant_periodic_continuation_vectors(self):
-        """
-        We have found that specifically this part of the code is quite slow, that
-        is finding the relevant nearest neighbor, next nearest neighbor, etc. lattice vectors
-        that meaningfully contribute. This is a calculation that previously had to be done
-        for the kinetic, potential and inner product matrices separately, even though
-        the results were the same for all three matrices. This helper function allows us to only
-        do it once.
-        """
-        Xi_inv = inv(self.Xi_matrix())
-        minima_list = self.sorted_minima()
-        nearest_neighbors = []
-        nearest_neighbors_single_minimum = []
-        dim_extended = self.number_extended_degrees_freedom
-        all_neighbors = self._generate_vectors_up_to_maximum_length()
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m, len(minima_list)):
-                minima_diff = minima_list[p] - minima_m
-                if (m == p) and (m != 0):  # vectors will be the same as m=p=0
-                    nearest_neighbors.append(nearest_neighbors[0])
-                else:
-                    filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
-                    filtered_neighbors = filter(filter_function, all_neighbors)
-                    for neighbor in filtered_neighbors:
-                        nearest_neighbors_single_minimum.append(np.concatenate((np.zeros(dim_extended, dtype=int),
-                                                                                neighbor)))
-                    nearest_neighbors.append(nearest_neighbors_single_minimum)
-                    nearest_neighbors_single_minimum = []
-        del all_neighbors
-        self.nearest_neighbors = nearest_neighbors
-
-    def _filter_neighbors(self, minima_diff, Xi_inv, neighbor):
-        """
-        Want to eliminate periodic continuation terms that are irrelevant, i.e.,
-        they add nothing to the transfer matrix. These can be identified as each term
-        is suppressed by a gaussian exponential factor. If the argument np.dot(dpkX, dpkX)
-        of the exponential is greater than 180.0, this results in a suppression of ~10**(-20),
-        and so can be safely neglected.
-
-        Assumption is that extended degrees of freedom precede the periodic d.o.f.
-        """
-        phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom), neighbor))
-        dpkX = Xi_inv @ (phi_neighbor + minima_diff)
-        prod = np.exp(-0.25*np.dot(dpkX, dpkX))
-        return prod > self.nearest_neighbor_cutoff
 
     def _build_premultiplied_a_and_a_dagger(self, a_operator_list):
         dim = self.number_degrees_freedom

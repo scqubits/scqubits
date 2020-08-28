@@ -27,7 +27,7 @@ from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep, StoredSweep
-from scqubits.core.storage import SpectrumData
+from scqubits.core.storage import SpectrumData, ConstructCSRMatrixIncrementally
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
