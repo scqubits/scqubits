@@ -34,7 +34,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     The class containing references to nodes, elements, variables, variable-to-node mappings.
     """
 
-    def __init__(self, tolerance: float = 1e-18, real_mode: bool=False):
+    def __init__(self, tolerance: float = 1e-18, real_mode: bool = False):
         """
         Abritrary quantum circuit class.
 
@@ -427,13 +427,15 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         for element_id, element in enumerate(self.elements):
             if element.is_external():  # Check is only for external flux/charge variables
                 counter = 0
+                element_node_ids = []  # node ids for element.
+                var_id = None
+                var_list = np.zeros(len(variable_ids), coefficients.dtype)
                 for variable_id, variable in enumerate(self.variables):
                     if variable.name == element.name:
                         var_id = variable_id  # id for external variable corresponding ext_flux/charge in self.variables
                 for variable_name in variable_names:
                     if element.name == variable_name:
                         counter += 1  # counter for variables with the same name as element.name. It should be equal 1!
-                        element_node_ids = []  # node ids for element.
                         for wire in self.wires:
                             if wire[0] == element.name:
                                 for node_id, node in enumerate(self.nodes):
@@ -449,7 +451,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                                         'There is no variable {0} for external charge in variable list'.format(
                                             element.name))
                 else:
-                    var_list = np.zeros(len(variable_ids), coefficients.dtype)
                     var_list = self.linear_coordinate_transform[element_node_ids[1], :] - \
                                self.linear_coordinate_transform[element_node_ids[0], :]
                 if var_list[var_id] != 1:
