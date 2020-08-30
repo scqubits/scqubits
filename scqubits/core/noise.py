@@ -207,7 +207,7 @@ class NoisySystem:
             plotting_options['title'] = noise_channel_method
             plotting.data_vs_paramvals(param_vals, noise_vals, **plotting_options)
 
-        if len(noise_channels) % 2:
+        if len(noise_channels) > 1 and len(noise_channels) % 2:
             axes.ravel()[-1].set_axis_off()
 
         # Set the parameter we varied to its initial value

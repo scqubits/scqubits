@@ -36,7 +36,6 @@ where :math:`T` is the bath temperature, and :math:`k_B` Boltzmann's constant.
     cal also be changed by the user through providing their values as arguments) 
 
 
-
 Capacitive noise
 -----------------------
 
