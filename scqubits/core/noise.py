@@ -758,7 +758,7 @@ class NoisySystem:
         return self.tphi_1_over_f(A_noise=A_noise, i=i, j=j, noise_op=self.d_hamiltonian_d_ng(),
                                   esys=esys, get_rate=get_rate, **kwargs)
 
-    def t1(self, i, j, noise_op, spectral_density, total=False, esys=None, get_rate=False, **kwargs):
+    def t1(self, i, j, noise_op, spectral_density, total=True, esys=None, get_rate=False, **kwargs):
         r"""
         Calculate the transition time (or rate) using Fermi's Golden Rule due to a noise channel with
         a spectral density `spectral_density` and system noise operator `noise_op`. Mathematically, it reads:
@@ -824,7 +824,7 @@ class NoisySystem:
         else:
             return 1/rate if rate != 0 else np.inf
 
-    def t1_capacitive_loss(self, i=1, j=0, Q_cap=None, T=NOISE_PARAMS['T'],  total=False,
+    def t1_capacitive_loss(self, i=1, j=0, Q_cap=None, T=NOISE_PARAMS['T'],  total=True,
                            esys=None, get_rate=False, **kwargs):
         r"""
         Loss due to dielectric dissipation in the Jesephson junction capacitances. 
@@ -878,7 +878,7 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
 
-    def t1_charge_impedance(self, i=1, j=0, Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=False,
+    def t1_charge_impedance(self, i=1, j=0, Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'], total=True,
                             esys=None, get_rate=False, **kwargs):
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
@@ -927,7 +927,7 @@ class NoisySystem:
                        get_rate=get_rate, **kwargs)
 
     def t1_flux_bias_line(self, i=1, j=0, M=NOISE_PARAMS['M'],  Z=NOISE_PARAMS['R_0'], T=NOISE_PARAMS['T'],
-                          total=False,  esys=None, get_rate=False, **kwargs):
+                          total=True,  esys=None, get_rate=False, **kwargs):
         r"""Noise due to a bias flux line. 
         
         Parameters
@@ -982,7 +982,7 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total, esys=esys,
                        get_rate=get_rate, **kwargs)
 
-    def t1_inductive_loss(self, i=1, j=0, Q_ind=None, T=NOISE_PARAMS['T'],  total=False,
+    def t1_inductive_loss(self, i=1, j=0, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
                           esys=None, get_rate=False, **kwargs):
         r"""
         Loss due to inductive dissipation in a superinductor.  
@@ -1046,7 +1046,7 @@ class NoisySystem:
                        esys=esys, get_rate=get_rate, **kwargs)
 
     def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, x_qp=NOISE_PARAMS['x_qp'], T=NOISE_PARAMS['T'], Delta=NOISE_PARAMS['Delta'],
-                                   total=False,  esys=None, get_rate=False, **kwargs):
+                                   total=True,  esys=None, get_rate=False, **kwargs):
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
         References: Smith et al (2020), Catelani et al (2011), Pop et al (2014). 

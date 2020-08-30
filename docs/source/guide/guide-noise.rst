@@ -7,7 +7,7 @@
 Estimating Coherence Times
 **************************
 
-scqubits implements noise calculations for estimating depolarization and pure-dephasing times for a majority of the
+scqubits implements coherence time calculations for estimating depolarization and pure-dephasing times for a majority of the
 qubits implemented. For each qubit, a variety of noise channels can be considered, ranging from ubiquitous channels
 affecting most circuits to more specialized ones applicable only to the qubit of interest.
 
@@ -38,7 +38,7 @@ The units of the returned decoherence times reflect the global units settings. F
 to ``GHz`` (default), then the resulting decay and dephasing times will be given in ``1/GHz = ns``.
 See the :ref:`guide_units` section for more information on how to set global units.
 
-By default, all noise calculations assume that the qubit Hilbert space is reduced to the lowest two energy levels.
+By default, all coherence time calculations assume that the qubit Hilbert space is reduced to the lowest two energy levels.
 If needed, the user can provide different energy levels as arguments in order to extend the relevant subspace.
 
 A set of examples that show how to perform a variety of cohrence-times estimates is presented in
@@ -49,9 +49,9 @@ More detailed discussions of the individual supported noise channels can be foun
 .. toctree::
    :maxdepth: 3
 
+   noise/ipynb/visualization.ipynb
    noise/dephasing.rst
    noise/depolarization.rst
    noise/effective_noise.rst
-   noise/ipynb/visualization.ipynb
 
 

@@ -27,7 +27,13 @@ Unless stated otherwise, it is assumed that the depolarizing noise channels sati
 
 where :math:`T` is the bath temperature, and :math:`k_B` Boltzmann's constant.
 
-References where 
+
+.. note::
+
+    By default all :math:`t_1` methods estimate the coherence depolarization times from the sum of the upward and downard rates.  
+    This behavior is controlled by the arugment `total`, which can be modified by the user. For example, setting `total=False` 
+    will calculate only a single-directional transition rate from the state indexed `i` to the state indexed `j` (both of which
+    cal also be changed by the user through providing their values as arguments) 
 
 
 
