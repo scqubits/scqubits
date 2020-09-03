@@ -1,15 +1,11 @@
-import itertools
-import warnings
+from functools import partial
 
 import numpy as np
 import scipy as sp
-from scipy.linalg import LinAlgError
+from scipy.linalg import LinAlgError, inv, expm, logm, det
+from numpy.linalg import matrix_power
 from scipy.special import factorial
 
-import scqubits.core.qubit_base as base
-import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.utils.fix_heiberger import fixheiberger
-from scqubits.utils.spectrum_utils import order_eigensystem
 from scqubits.core.vchos import VCHOS
 
 
@@ -29,18 +25,13 @@ from scqubits.core.vchos import VCHOS
 # potential at that minimum), respectively. 
 
 class VCHOSSqueezing(VCHOS):
-    def __init__(self):
-        # All of these parameters will be set in the individual qubit class
-        self.e = 0.0
-        self.squeezing = False
-        self.kmax = 0
-        self.Phi0 = 0.0
-        self.num_exc = 0
-        self.Z0 = 0.0
-        self.flux = 0.0
-        self.boundary_coeffs = np.array([])
-        self.EJlist = np.array([])
-        self.nglist = np.array([])
+    def __init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=0,
+                 number_periodic_degrees_freedom=0, num_exc=None, optimized_lengths=None, nearest_neighbors=None):
+        VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length,
+                       number_degrees_freedom=number_degrees_freedom,
+                       number_periodic_degrees_freedom=number_periodic_degrees_freedom, num_exc=num_exc,
+                       optimized_lengths=optimized_lengths, nearest_neighbors=nearest_neighbors)
+        self.boundary_coefficients = np.array([])
 
     def _build_U_squeezing_operator(self, i, Xi):
         """
@@ -59,172 +50,26 @@ class VCHOSSqueezing(VCHOS):
         ndarray, ndarray, ndarray
         """
         uvmat = self._squeezing_M_builder(i, Xi)
-        dim = uvmat.shape[0]
-        u = uvmat[0: int(dim / 2), 0: int(dim / 2)]
-        v = uvmat[int(dim / 2): dim, 0: int(dim / 2)]
-        u_inv = sp.linalg.inv(u)
-        rho = np.matmul(u_inv, v)
-        sigma = sp.linalg.logm(u)
-        tau = np.matmul(v, u_inv)
+        dim = self.number_degrees_freedom
+        u = uvmat[0: dim, 0: dim]
+        v = uvmat[dim: 2*dim, 0: dim]
+        u_inv = inv(u)
+        rho = u_inv @ v
+        sigma = logm(u)
+        tau = v @ u_inv
         return rho, sigma, tau
 
-    def _define_squeezing_variables(self, rho, rhoprime, Xi):
+    def _helper_squeezing_matrices(self, rho, rhoprime, Xi):
         """Build variables helpful for constructing the Hamiltonian """
-        Xi_inv = sp.linalg.inv(Xi)
-        deltarhoprime = np.matmul(sp.linalg.inv(np.eye(self.number_degrees_freedom())
-                                                - np.matmul(rhoprime, rho)), rhoprime)
-        deltarho = np.matmul(sp.linalg.inv(np.eye(self.number_degrees_freedom())
-                                           - np.matmul(rho, rhoprime)), rho)
-        deltarhobar = sp.linalg.logm(sp.linalg.inv(np.eye(self.number_degrees_freedom()) - np.matmul(rhoprime, rho)))
-        z = 1j * np.transpose(Xi_inv) / np.sqrt(2.)
-        zp = (z + 0.5 * np.matmul(np.matmul(z, rhoprime), deltarho + deltarho.T)
-              + 0.5 * np.matmul(z, deltarho + deltarho.T))
-        zpp = np.matmul(z, rhoprime) + z
+        dim = self.number_degrees_freedom
+        Xi_inv = inv(Xi)
+        deltarhoprime = inv(np.eye(dim) - rhoprime @ rho) @ rhoprime
+        deltarho = inv(np.eye(dim) - rho @ rhoprime) @ rho
+        deltarhobar = logm(inv(np.eye(dim) - rhoprime @ rho))
+        z = 1j * Xi_inv.T / np.sqrt(2.)
+        zp = z + 0.5 * z @ rhoprime @ (deltarho + deltarho.T) + 0.5 * z @ (deltarho + deltarho.T)
+        zpp = z @ rhoprime + z
         return deltarho, deltarhoprime, deltarhobar, zp, zpp
-
-    def n_operator(self, j, wrapper_klist=None):
-        """Return the charge operator associated with the j^th node, neglecting squeezing"""
-        if wrapper_klist is None:
-            wrapper_klist = self.find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix(None)
-        Xi_inv = sp.linalg.inv(Xi)
-        a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
-        num_exc_tot = a_op_list[0].shape[0]
-        minima_list = self.sorted_minima()
-        dim = len(minima_list) * num_exc_tot
-        n_op_mat = np.zeros((dim, dim), dtype=np.complex128)
-        counter = 0
-        n_op = -1j * np.sum([np.transpose(Xi_inv)[j, mu] * (a_op_list[mu] - a_op_list[mu].T)
-                             for mu in range(self.number_degrees_freedom())], axis=0) / np.sqrt(2.)
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m, len(minima_list)):
-                minima_p = minima_list[p]
-                minima_diff = minima_p - minima_m
-                (exp_list, _, _, _, _, _, _, _, _) = self._build_squeezing_ops(m, p, minima_diff, Xi,
-                                                                               a_op_list, potential=False)
-                (exp_adag_adag, exp_a_a, exp_adag_a,
-                 exp_adag_list, exp_adag_mindiff,
-                 exp_a_list, exp_a_mindiff, _, _) = exp_list
-                id_op = np.copy(exp_a_a)
-                for jkvals in wrapper_klist[counter]:
-                    phik = 2.0 * np.pi * np.array(jkvals)
-                    delta_phi_kpm = phik + minima_diff
-                    dpkX = np.matmul(Xi_inv, delta_phi_kpm)
-                    exp_prod_coeff = (np.exp(-1j * np.dot(self.nglist, delta_phi_kpm))
-                                      * np.exp(-0.25 * np.dot(dpkX, dpkX)))
-
-                    epsilon = - (1j / 2.) * np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)) * id_op
-
-                    (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
-                    exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
-                    exp_adag = np.matmul(exp_adag_adag, exp_adag)
-                    exp_a = np.matmul(exp_a, exp_a_mindiff)
-                    exp_a = np.matmul(exp_a, exp_a_a)
-
-                    n_op_tmp = exp_prod_coeff * np.matmul(exp_adag, np.matmul(n_op + epsilon, exp_a))
-
-                    n_op_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
-                             p * num_exc_tot: p * num_exc_tot + num_exc_tot] += n_op_tmp
-
-                counter += 1
-
-        # fill in kinetic energy matrix according to hermiticity
-        n_op_mat = self._populate_hermitian_matrix(n_op_mat, minima_list, num_exc_tot)
-
-        return n_op_mat
-
-    def cos_or_sin_phi_operator(self, j, which='cos', wrapper_klist=None):
-        """Return the operator cos(\phi_j) or sin(\phi_j), or cos\sin(\sum_j \phi_j)
-        if j corresponds to the boundary
-
-        Parameters
-        ----------
-        j: int
-            integer corresponding to the junction, 1<=j<=self.num_deg_freedom+1
-        which: str
-            string corresponding to which operator is desired, cos or sin
-        wrapper_klist: ndarray
-            optional argument for speeding up calculations, if relevant
-            k vectors have been precomputed.
-
-        Returns
-        -------
-        ndarray corresponding to cos or sin operator
-        """
-
-        if wrapper_klist is None:
-            wrapper_klist = self.find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix(None)
-        Xi_inv = sp.linalg.inv(Xi)
-        a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
-        num_exc_tot = a_op_list[0].shape[0]
-        minima_list = self.sorted_minima()
-        dim = len(minima_list) * num_exc_tot
-        cos_or_sin_phi_j_mat = np.zeros((dim, dim), dtype=np.complex128)
-        exp_prod_boundary_coeff = self._BCH_factor_for_potential_boundary()
-        counter = 0
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m, len(minima_list)):
-                minima_p = minima_list[p]
-                minima_diff = minima_p - minima_m
-                (exp_list, rho, rhoprime, sigma, sigmaprime,
-                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi,
-                                                                             a_op_list, potential=True)
-                (exp_adag_adag, exp_a_a, exp_adag_a,
-                 exp_adag_list, exp_adag_mindiff,
-                 exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
-                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.number_degrees_freedom()) - np.matmul(rho, rhoprime)))
-                for jkvals in wrapper_klist[counter]:
-                    phik = 2.0 * np.pi * np.array(jkvals)
-                    delta_phi_kpm = phik + minima_diff
-                    phibar_kpm = 0.5 * (phik + (minima_m + minima_p))
-                    exp_prod_coeff = self._exp_product_coefficient(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
-
-                    (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
-                    exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
-                    exp_adag = np.matmul(exp_adag_adag, exp_adag)
-                    exp_a = np.matmul(exp_a, exp_a_mindiff)
-                    exp_a = np.matmul(exp_a, exp_a_a)
-
-                    if j == (self.number_degrees_freedom() + 1):
-                        exp_i_phi_op = (exp_i_sum * np.exp(1j * 2.0 * np.pi * self.flux)
-                                        * np.prod([np.exp(1j * self.boundary_coeffs[i] * phibar_kpm[i])
-                                                   for i in range(self.number_degrees_freedom())])
-                                        * exp_prod_boundary_coeff * exp_prod_coeff)
-                        x = (np.matmul(delta_phi_kpm, Xi_inv.T)
-                             + np.sum([1j * Xi[i, :] * self.boundary_coeffs[i]
-                                       for i in range(self.number_degrees_freedom())], axis=0)) / np.sqrt(2.)
-                        y = (- np.matmul(delta_phi_kpm, Xi_inv.T)
-                             + np.sum([1j * Xi[i, :] * self.boundary_coeffs[i]
-                                       for i in range(self.number_degrees_freedom())], axis=0)) / np.sqrt(2.)
-
-                    else:
-                        exp_i_phi_op = (exp_i_list[j-1] * np.exp(1j * phibar_kpm[j-1])
-                                        * np.exp(-.25 * np.dot(Xi[j - 1, :], np.transpose(Xi)[:, j - 1]))
-                                        * exp_prod_coeff)
-                        x = (np.matmul(delta_phi_kpm, Xi_inv.T) + 1j * Xi[j-1, :]) / np.sqrt(2.)
-                        y = (-np.matmul(delta_phi_kpm, Xi_inv.T) + 1j * Xi[j-1, :]) / np.sqrt(2.)
-
-                    alpha = scale * self._alpha_helper(x, y, rhoprime, deltarho)
-                    alpha_con = scale * self._alpha_helper(x.conjugate(), y.conjugate(),
-                                                           rhoprime, deltarho)
-                    if which is 'cos':
-                        cos_or_sin_phi_j = 0.5 * (alpha * exp_i_phi_op + alpha_con * exp_i_phi_op.conjugate())
-                    elif which is 'sin':
-                        cos_or_sin_phi_j = -1j*0.5*(alpha * exp_i_phi_op - alpha_con * exp_i_phi_op.conjugate())
-                    else:
-                        raise ValueError('which must be cos or sin')
-
-                    cos_or_sin_phi_j = np.matmul(exp_adag, np.matmul(cos_or_sin_phi_j, exp_a))
-
-                    cos_or_sin_phi_j_mat[m * num_exc_tot:m * num_exc_tot + num_exc_tot,
-                                         p * num_exc_tot:p * num_exc_tot + num_exc_tot] += cos_or_sin_phi_j
-
-                counter += 1
-
-        cos_or_sin_phi_j_mat = self._populate_hermitian_matrix(cos_or_sin_phi_j_mat, minima_list, num_exc_tot)
-
-        return cos_or_sin_phi_j_mat
 
     def _squeezing_M_builder(self, i, Xi):
         """
@@ -244,7 +89,7 @@ class VCHOSSqueezing(VCHOS):
         ndarray
         """
         gamma = self.build_gamma_matrix(i)
-        gamma_prime = np.matmul(Xi.T, np.matmul(gamma, Xi))
+        gamma_prime = Xi.T @ gamma @ Xi
         omegamat = self.omega_matrix(i)
         zeta = 0.25 * (self.Phi0 ** 2 * gamma_prime + omegamat)
         eta = 0.25 * (self.Phi0 ** 2 * gamma_prime - omegamat)
@@ -257,7 +102,8 @@ class VCHOSSqueezing(VCHOS):
         _, eigvec = self._normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
         return eigvec
 
-    def _order_eigensystem_squeezing(self, eigvals, eigvec):
+    @staticmethod
+    def _order_eigensystem_squeezing(eigvals, eigvec):
         """Order eigensystem to have positive eigenvalues followed by negative, in same order"""
         dim2 = int(len(eigvals) / 2)
         eigval_holder = np.zeros(dim2)
@@ -278,7 +124,7 @@ class VCHOSSqueezing(VCHOS):
                 evec_2 = eigvec_holder[:, k + 1]
                 mat = np.array([[evec_1[k], evec_1[k + 1]],  # Assume maximal elements are same as global min
                                 [evec_2[k], evec_2[k + 1]]])
-                sol = sp.linalg.inv(mat)  # Find linear transformation to get (1, 0) and (0, 1) vectors
+                sol = inv(mat)  # Find linear transformation to get (1, 0) and (0, 1) vectors
                 new_evec_1 = sol[0, 0] * evec_1 + sol[0, 1] * evec_2
                 new_evec_2 = sol[1, 0] * evec_1 + sol[1, 1] * evec_2
                 eigvec_holder[:, k] = new_evec_1
@@ -291,7 +137,8 @@ class VCHOSSqueezing(VCHOS):
         eigvec_holder[dim2: dim, dim2: dim] = u
         return eigval_holder, eigvec_holder
 
-    def _normalize_symplectic_eigensystem_squeezing(self, eigvals, eigvec):
+    @staticmethod
+    def _normalize_symplectic_eigensystem_squeezing(eigvals, eigvec):
         """Enforce commutation relations so that Bogoliubov transformation is symplectic """
         dim = eigvec.shape[0]
         dim2 = int(dim / 2)
@@ -313,345 +160,383 @@ class VCHOSSqueezing(VCHOS):
 
     def _normal_ordered_adag_a_exponential(self, x):
         """Return normal ordered exponential matrix of exp(a_{i}^{\dagger}x_{ij}a_{j})"""
-        expx = sp.linalg.expm(x)
-        dim = self.a_operator(0).shape[0]
-        result = np.eye(dim, dtype=np.complex128)
-        additionalterm = np.eye(dim, dtype=np.complex128)
-        a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
+        expx = expm(x)
+        num_states = self.number_states_per_minimum()
+        dim = self.number_degrees_freedom
+        result = np.eye(num_states, dtype=np.complex128)
+        additional_term = np.eye(num_states, dtype=np.complex128)
+        a_op_list = np.array([self.a_operator(i) for i in range(dim)])
         k = 1
-        while not np.allclose(additionalterm, np.zeros((dim, dim))):
-            additionalterm = np.sum([((expx - np.eye(self.number_degrees_freedom()))[i, j]) ** k
-                                     * (factorial(k)) ** (-1)
-                                     * np.matmul(np.linalg.matrix_power(a_op_list[i].T, k),
-                                                 np.linalg.matrix_power(a_op_list[j], k))
-                                     for i in range(self.number_degrees_freedom())
-                                     for j in range(self.number_degrees_freedom())], axis=0)
-            result += additionalterm
+        while not np.allclose(additional_term, np.zeros((num_states, num_states))):
+            additional_term = np.sum([((expx - np.eye(dim))[i, j]) ** k * (factorial(k)) ** (-1)
+                                     * matrix_power(a_op_list[i].T, k) @ matrix_power(a_op_list[j], k)
+                                     for i in range(dim) for j in range(dim)], axis=0)
+            result += additional_term
             k += 1
         return result
 
-    def _build_exponentiated_operators(self, m, p, minima_diff, Xi, a_op_list, potential=True):
+    def _build_rho_sigma_tau_matrices(self, m, p, Xi):
+        dim = self.number_degrees_freedom
+        if m == 0:  # At the global minimum, no squeezing required
+            rho = np.zeros((dim, dim))
+            sigma = np.zeros((dim, dim))
+            tau = np.zeros((dim, dim))
+        else:
+            rho, sigma, tau = self._build_U_squeezing_operator(m, Xi)
+        if p == 0:
+            rhoprime = np.zeros((dim, dim))
+            sigmaprime = np.zeros((dim, dim))
+            tauprime = np.zeros((dim, dim))
+        elif p == m:
+            rhoprime = np.copy(rho)
+            sigmaprime = np.copy(sigma)
+            tauprime = np.copy(tau)
+        else:
+            rhoprime, sigmaprime, tauprime = self._build_U_squeezing_operator(p, Xi)
+        return rho, rhoprime, sigma, sigmaprime, tau, tauprime
+
+    def _build_translation_operators(self, minima_diff, Xi, disentangled_squeezing_matrices, helper_squeezing_matrices):
+        dim = self.number_degrees_freedom
+        a_operator_list = self.a_operator_list()
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
+        prefactor_adag = (np.eye(dim) + rhoprime) @ expm(deltarhobar).T @ expm(-sigma)
+        a_temp_coeff = 0.5 * (np.eye(dim) + rhoprime) @ (deltarho + deltarho.T)
+        prefactor_a = (np.eye(dim) + a_temp_coeff) @ expm(-sigmaprime)
+        Xi_inv = inv(Xi)
+        exp_adag_list = np.array([expm(np.sum([2.0 * np.pi * (Xi_inv.T @ prefactor_adag)[j, i] * a_operator_list[i].T
+                                  for i in range(dim)], axis=0) / np.sqrt(2.0)) for j in range(dim)])
+        exp_adag_mindiff = expm(np.sum([minima_diff[x] * (Xi_inv.T @ prefactor_adag)[x, i] * a_operator_list[i].T
+                                        for x in range(dim) for i in range(dim)], axis=0) / np.sqrt(2.0))
+        exp_a_list = np.array([expm(np.sum([2.0 * np.pi * (Xi_inv.T @ prefactor_a)[j, i] * a_operator_list[i]
+                               for i in range(dim)], axis=0) / np.sqrt(2.0)) for j in range(dim)])
+        exp_a_mindiff = expm(np.sum([-minima_diff[x] * (Xi_inv.T @ prefactor_a)[x, i] * a_operator_list[i]
+                                     for x in range(dim) for i in range(dim)], axis=0) / np.sqrt(2.0))
+        return exp_adag_list, exp_adag_mindiff, exp_a_list, exp_a_mindiff
+
+    def _build_potential_operators(self, a_operator_list, Xi, exp_adag_a,
+                                   disentangled_squeezing_matrices, helper_squeezing_matrices):
+        exp_i_list = []
+        dim = self.number_degrees_freedom
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
+        prefactor_adag = (np.eye(dim) - rhoprime) @ expm(deltarhobar).T @ expm(-sigma)
+        a_temp_coeff = 0.5 * (np.eye(dim) - rhoprime) @ (deltarho + deltarho.T)
+        prefactor_a = (np.eye(dim) - a_temp_coeff) @ expm(-sigmaprime)
+
+        for j in range(dim):
+            exp_i_j_adag_part = expm(np.sum([1j * (Xi @ prefactor_adag)[j, i] * a_operator_list[i].T
+                                             for i in range(dim)], axis=0) / np.sqrt(2.0))
+            exp_i_j_a_part = expm(np.sum([1j * (Xi @ prefactor_a)[j, i] * a_operator_list[i]
+                                          for i in range(dim)], axis=0) / np.sqrt(2.0))
+            exp_i_j = exp_i_j_adag_part @ exp_adag_a @ exp_i_j_a_part
+            exp_i_list.append(exp_i_j)
+
+        exp_i_sum_adag_part = expm(np.sum([1j * self.boundary_coefficients[j]
+                                           * (Xi @ prefactor_adag)[j, i] * a_operator_list[i].T
+                                           for i in range(dim) for j in range(dim)], axis=0) / np.sqrt(2.0))
+        exp_i_sum_a_part = expm(np.sum([1j * self.boundary_coefficients[j]
+                                        * (Xi @ prefactor_a)[j, i] * a_operator_list[i]
+                                        for i in range(dim) for j in range(dim)], axis=0) / np.sqrt(2.0))
+        exp_i_sum = exp_i_sum_adag_part @ exp_adag_a @ exp_i_sum_a_part
+        return exp_i_list, exp_i_sum
+
+    def _build_squeezing_operators(self, a_operator_list, disentangled_squeezing_matrices, helper_squeezing_matrices):
         """
         Build all operators relevant for building the Hamiltonian. If there is no squeezing,
         this routine then just builds the translation operators necessary for periodic
         continuation, as well as the exp(i\phi_{j}) operators for the potential
         """
-        if self.squeezing:
-            if m == 0:  # At the global minimum, no squeezing required
-                rho = np.zeros((self.number_degrees_freedom(), self.number_degrees_freedom()))
-                sigma = np.zeros((self.number_degrees_freedom(), self.number_degrees_freedom()))
-                tau = np.zeros((self.number_degrees_freedom(), self.number_degrees_freedom()))
-            else:
-                rho, sigma, tau = self._build_U_squeezing_operator(m, Xi)
-            if p == 0:
-                rhoprime = np.zeros((self.number_degrees_freedom(), self.number_degrees_freedom()))
-                sigmaprime = np.zeros((self.number_degrees_freedom(), self.number_degrees_freedom()))
-                tauprime = np.zeros((self.number_degrees_freedom(), self.number_degrees_freedom()))
-            elif p == m:
-                rhoprime = np.copy(rho)
-                sigmaprime = np.copy(sigma)
-                tauprime = np.copy(tau)
-            else:
-                rhoprime, sigmaprime, tauprime = self._build_U_squeezing_operator(p, Xi)
+        dim = self.number_degrees_freedom
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
 
-            deltarho, deltarhoprime, deltarhobar, zp, zpp = self._define_squeezing_variables(rho, rhoprime, Xi)
+        prefactor_adag_adag = 0.5 * (tau.T - expm(-sigma).T @ deltarhoprime @ expm(-sigma))
+        prefactor_a_a = 0.5 * (tauprime - expm(-sigmaprime).T @ deltarho @ expm(-sigmaprime))
+        prefactor_adag_a = sp.linalg.logm(expm(-sigma).T @ expm(deltarhobar) @ expm(-sigmaprime))
 
-            expsigma = sp.linalg.expm(-sigma)
-            expsigmaprime = sp.linalg.expm(-sigmaprime)
-            expdeltarhobar = sp.linalg.expm(deltarhobar)
-            expdrbs = np.matmul(expdeltarhobar.T, expsigma)
+        exp_adag_adag = expm(np.sum([prefactor_adag_adag[i, j] * a_operator_list[i].T @ a_operator_list[j].T
+                                     for i in range(dim) for j in range(dim)], axis=0))
+        exp_a_a = expm(np.sum([prefactor_a_a[i, j] * a_operator_list[i] @ a_operator_list[j]
+                               for i in range(dim) for j in range(dim)], axis=0))
+        exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
+        return exp_adag_adag, exp_adag_a, exp_a_a
 
-            prefactor_adag_adag = 0.5 * (tau.T - np.matmul(expsigma.T, np.matmul(deltarhoprime, expsigma)))
-            prefactor_a_a = 0.5 * (tauprime - np.matmul(expsigmaprime.T, np.matmul(deltarho, expsigmaprime)))
-            prefactor_adag_a = sp.linalg.logm(np.matmul(expsigma.T, np.matmul(expdeltarhobar, expsigmaprime)))
+    def _translation_squeezing(self, exp_adag_list, exp_adag_mindiff,
+                               exp_a_list, exp_a_mindiff, exp_adag_adag,
+                               exp_a_a, neighbor):
+        """
+        Build translation operators using matrix_power rather than the
+        more costly expm
+        """
+        num_exc = self.number_states_per_minimum()
+        dim = self.number_degrees_freedom
+        translation_op_a_dag = np.eye(num_exc)
+        translation_op_a = np.eye(num_exc)
+        for j in range(dim):
+            translation_op_a_dag_for_direction = matrix_power(exp_adag_list[j], neighbor[j])
+            translation_op_a_dag = translation_op_a_dag @ translation_op_a_dag_for_direction
+        translation_op_a_dag = translation_op_a_dag @ exp_adag_mindiff @ exp_adag_adag
+        for j in range(dim):
+            translation_op_a_for_direction = matrix_power(exp_a_list[j], -neighbor[j])
+            translation_op_a = translation_op_a @ translation_op_a_for_direction
+        translation_op_a = translation_op_a @ exp_a_mindiff @ exp_a_a
+        return translation_op_a_dag, translation_op_a
 
-            exp_adag_adag = sp.linalg.expm(np.sum([prefactor_adag_adag[i, j]
-                                                   * np.matmul(a_op_list[i].T,
-                                                               a_op_list[j].T)
-                                                   for i in range(self.number_degrees_freedom())
-                                                   for j in range(self.number_degrees_freedom())], axis=0))
-            exp_a_a = sp.linalg.expm(np.sum([prefactor_a_a[i, j]
-                                             * np.matmul(a_op_list[i],
-                                                         a_op_list[j])
-                                             for i in range(self.number_degrees_freedom())
-                                             for j in range(self.number_degrees_freedom())], axis=0))
-            exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
-        else:
-            # We will call squeezing operators later, so must define them to be 0 or 1 where appropriate
-            N = self.number_degrees_freedom()
-            dim = a_op_list[0].shape[0]
-            rho, sigma, tau = np.zeros((N, N)), np.zeros((N, N)), np.zeros((N, N))
-            rhoprime, sigmaprime, tauprime = np.zeros((N, N)), np.zeros((N, N)), np.zeros((N, N))
-            deltarho, deltarhoprime, deltarhobar, zp, zpp = self._define_squeezing_variables(rho, rhoprime, Xi)
-            expsigma, expsigmaprime = np.eye(N), np.eye(N)
-            expdeltarhobar, expdrbs = np.eye(N), np.eye(N)
-
-            exp_adag_adag, exp_a_a, exp_adag_a = np.eye(dim), np.eye(dim), np.eye(dim)
-
-        Xi_inv = sp.linalg.inv(Xi)
-
-        # For the case of the translation operators
-        prefactor_adag = np.matmul(np.eye(self.number_degrees_freedom()) + rhoprime, expdrbs)
-        a_temp_coeff = 0.5 * np.matmul(np.eye(self.number_degrees_freedom()) + rhoprime, deltarho + deltarho.T)
-        prefactor_a = np.matmul(np.eye(self.number_degrees_freedom()) + a_temp_coeff, expsigmaprime)
-
-        exp_adag_list = []
-        for j in range(self.number_degrees_freedom()):
-            exp_adag_j = sp.linalg.expm(np.sum([2.0 * np.pi * (np.matmul(Xi_inv.T, prefactor_adag)[j, i] / np.sqrt(2.0))
-                                                * a_op_list[i].T for i in range(self.number_degrees_freedom())], axis=0))
-            exp_adag_list.append(exp_adag_j)
-
-        exp_adag_mindiff = sp.linalg.expm(np.sum([minima_diff[x] * np.matmul(Xi_inv.T, prefactor_adag)[x, i]
-                                                  * a_op_list[i].T for x in range(self.number_degrees_freedom())
-                                                  for i in range(self.number_degrees_freedom())], axis=0) / np.sqrt(2.0))
-        exp_a_list = []
-        for j in range(self.number_degrees_freedom()):
-            exp_a_j = sp.linalg.expm(np.sum([2.0 * np.pi * (np.matmul(Xi_inv.T, prefactor_a)[j, i] / np.sqrt(2.0))
-                                             * a_op_list[i] for i in range(self.number_degrees_freedom())], axis=0))
-            exp_a_list.append(exp_a_j)
-
-        exp_a_mindiff = sp.linalg.expm(np.sum([-minima_diff[x] * np.matmul(Xi_inv.T, prefactor_a)[x, i]
-                                               * a_op_list[i] for x in range(self.number_degrees_freedom())
-                                               for i in range(self.number_degrees_freedom())], axis=0) / np.sqrt(2.0))
-
-        # Now the potential operators
-        exp_i_list = []
-        exp_i_sum = 0.0
-        if potential:
-            prefactor_adag = np.matmul(np.eye(self.number_degrees_freedom()) - rhoprime, expdrbs)
-            a_temp_coeff = 0.5 * np.matmul(np.eye(self.number_degrees_freedom()) - rhoprime, deltarho + deltarho.T)
-            prefactor_a = np.matmul(np.eye(self.number_degrees_freedom()) - a_temp_coeff, expsigmaprime)
-
-            Xid = 1j * np.matmul(Xi, prefactor_adag) / np.sqrt(2.0)
-            Xia = 1j * np.matmul(Xi, prefactor_a) / np.sqrt(2.0)
-            for j in range(self.number_degrees_freedom()):
-                exp_i_j_adag_part = sp.linalg.expm(np.sum([Xid[j, i] * a_op_list[i].T
-                                                           for i in range(self.number_degrees_freedom())], axis=0))
-                exp_i_j_a_part = sp.linalg.expm(np.sum([Xia[j, i] * a_op_list[i]
-                                                        for i in range(self.number_degrees_freedom())], axis=0))
-                exp_i_j = np.matmul(exp_i_j_adag_part, np.matmul(exp_adag_a, exp_i_j_a_part))
-                exp_i_list.append(exp_i_j)
-
-            exp_i_sum_adag_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j] *
-                                                         Xid[j, i] * a_op_list[i].T
-                                                         for i in range(self.number_degrees_freedom())
-                                                         for j in range(self.number_degrees_freedom())], axis=0))
-            exp_i_sum_a_part = sp.linalg.expm(np.sum([self.boundary_coeffs[j] *
-                                                      Xia[j, i] * a_op_list[i]
-                                                      for i in range(self.number_degrees_freedom())
-                                                      for j in range(self.number_degrees_freedom())], axis=0))
-            exp_i_sum = np.matmul(exp_i_sum_adag_part, np.matmul(exp_adag_a, exp_i_sum_a_part))
-
-        exp_list = [exp_adag_adag, exp_a_a, exp_adag_a,
-                    exp_adag_list, exp_adag_mindiff,
-                    exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum]
-
-        return exp_list, rho, rhoprime, sigma, sigmaprime, deltarho, deltarhobar, zp, zpp
-
-    def kineticmat(self, wrapper_klist=None):
-        """Return the kinetic part of the hamiltonian"""
-        if wrapper_klist is None:
-            wrapper_klist = self.find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix(None)
-        Xi_inv = sp.linalg.inv(Xi)
-        EC_mat = self.build_EC_matrix()
-        a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
-        num_exc_tot = a_op_list[0].shape[0]
+    def _periodic_continuation_squeezing(self, minima_pair_func, local_func):
+        """See VCHOS for documentation. This function generalizes _periodic_continuation to allow for squeezing"""
+        if not self.nearest_neighbors:
+            self.find_relevant_periodic_continuation_vectors()
+        Xi = self.Xi_matrix()
+        Xi_inv = inv(Xi)
+        a_operator_list = self.a_operator_list()
         minima_list = self.sorted_minima()
-        dim = len(minima_list) * num_exc_tot
-        kinetic_mat = np.zeros((dim, dim), dtype=np.complex128)
+        hilbertdim = self.hilbertdim()
+        num_states_min = self.number_states_per_minimum()
+        operator_matrix = np.zeros((hilbertdim, hilbertdim), dtype=np.complex128)
         counter = 0
         for m, minima_m in enumerate(minima_list):
             for p in range(m, len(minima_list)):
                 minima_p = minima_list[p]
                 minima_diff = minima_p - minima_m
-                (exp_list, rho, rhoprime, sigma, sigmaprime,
-                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi,
-                                                                             a_op_list, potential=False)
-                (exp_adag_adag, exp_a_a, exp_adag_a,
-                 exp_adag_list, exp_adag_mindiff,
-                 exp_a_list, exp_a_mindiff, _, _) = exp_list
-                # Define all of these variables here and "premultiply" so that 
-                # it does not have to be done inside of the costly while loop
-                (xa, xaa, dxa, dx, ddx) = self._premultiplying_exp_adag_a_with_a(exp_adag_a, a_op_list)
-                expsdrb = np.matmul(sp.linalg.expm(-sigma).T, sp.linalg.expm(deltarhobar))
-                expsigmaprime = sp.linalg.expm(-sigmaprime)
-                zpexpsp = np.matmul(zp, expsigmaprime)
-                expsdrbzppT = np.matmul(expsdrb, zpp.T)
-                xaa_coeff = np.matmul(zpexpsp.T, np.matmul(EC_mat, zpexpsp))
-                dxa_coeff = np.matmul(expsdrbzppT, np.matmul(EC_mat, zpexpsp))
-                ddx_coeff = np.matmul(expsdrbzppT, np.matmul(EC_mat, expsdrbzppT.T))
-                x_coeff = np.matmul(zpp.T, np.matmul(EC_mat, zp))
-                xa_coeff = np.matmul(np.matmul(EC_mat, zp), expsigmaprime)
-                dx_coeff = np.matmul(np.matmul(EC_mat, zpp), expsdrb.T)
-                kinetic_temp_dpk_independent = np.sum([+4 * xaa[mu] * xaa_coeff[mu, mu]
-                                                       - 8 * dxa[mu] * dxa_coeff[mu, mu]
-                                                       + 4 * ddx[mu] * ddx_coeff[mu, mu]
-                                                       - 4 * exp_adag_a * x_coeff[mu, mu]
-                                                       for mu in range(self.number_degrees_freedom())], axis=0)
-                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.number_degrees_freedom()) - np.matmul(rho, rhoprime)))
-                for jkvals in wrapper_klist[counter]:
-                    phik = 2.0 * np.pi * np.array(jkvals)
-                    delta_phi_kpm = phik + minima_diff
-                    exp_prod_coeff = self._exp_product_coefficient(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
-
-                    # x is the vector that appears in exp(x_{i}a_{i}^{\dagger}) (Einstein summation)
-                    x = np.matmul(delta_phi_kpm, Xi_inv.T) / np.sqrt(2.)
-                    # y is the vector that appears in exp(y_{i}a_{i})
-                    y = -x
-                    z = 1j * Xi_inv.T / np.sqrt(2.)
-
-                    alpha = scale * self._alpha_helper(x, y, rhoprime, deltarho)
-                    yrhop = np.matmul(y, rhoprime)
-                    deltarhopp = 0.5 * np.matmul(x - yrhop, deltarho + deltarho.T)
-
-                    # offset present even in the absence of squeezing,
-                    # then equal to -i * 0.5 Xi^{-T} Xi^{-1} delta_phi_kpm
-                    epsilon = (-np.matmul(z, np.matmul(rhoprime, deltarhopp) - yrhop + deltarhopp)
-                               - (1j / 2.) * np.matmul(Xi_inv.T, np.matmul(Xi_inv, delta_phi_kpm)))
-                    e_xa_coeff = np.matmul(epsilon, xa_coeff)
-                    e_dx_coeff = np.matmul(epsilon, dx_coeff)
-
-                    # use pre-exponentiated matrices to build the translation operators, using
-                    # the (hopefully) less costly matrix power routines
-                    (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
-                    exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
-                    exp_adag = np.matmul(exp_adag_adag, exp_adag)
-                    exp_a = np.matmul(exp_a, exp_a_mindiff)
-                    exp_a = np.matmul(exp_a, exp_a_a)
-
-                    kinetic_temp = np.sum([-8 * xa[mu] * e_xa_coeff[mu] + 8 * dx[mu] * e_dx_coeff[mu]
-                                           for mu in range(self.number_degrees_freedom())], axis=0)
-                    kinetic_temp += kinetic_temp_dpk_independent
-
-                    kinetic_temp += 4 * exp_adag_a * np.matmul(epsilon, np.matmul(EC_mat, epsilon))
-
-                    kinetic_temp = (alpha * exp_prod_coeff
-                                    * np.matmul(exp_adag, np.matmul(kinetic_temp, exp_a)))
-
-                    kinetic_mat[m * num_exc_tot: m * num_exc_tot + num_exc_tot,
-                                p * num_exc_tot: p * num_exc_tot + num_exc_tot] += kinetic_temp
-
+                disentangled_squeezing_matrices = self._build_rho_sigma_tau_matrices(m, p, Xi)
+                rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+                helper_squeezing_matrices = self._helper_squeezing_matrices(rho, rhoprime, Xi)
+                exp_adag_adag, exp_adag_a, exp_a_a = self._build_squeezing_operators(a_operator_list,
+                                                                                     disentangled_squeezing_matrices,
+                                                                                     helper_squeezing_matrices)
+                exp_operators = self._build_translation_operators(minima_diff, Xi, disentangled_squeezing_matrices,
+                                                                  helper_squeezing_matrices)
+                exp_adag_list, exp_adag_mindiff, exp_a_list, exp_a_mindiff = exp_operators
+                minima_pair_results = minima_pair_func(m, p, minima_diff)
+                scale = 1. / np.sqrt(det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rhoprime)))
+                for neighbor in self.nearest_neighbors[counter]:
+                    phi_neighbor = 2.0 * np.pi * np.array(neighbor)
+                    translation_a_dag, translation_a = self._translation_squeezing(exp_adag_list, exp_adag_mindiff,
+                                                                                   exp_a_list, exp_a_mindiff,
+                                                                                   exp_adag_adag, exp_a_a, neighbor)
+                    exp_prod_coefficient = self._exp_product_coefficient_squeezing(phi_neighbor + minima_p - minima_m,
+                                                                                   Xi_inv, sigma, sigmaprime)
+                    matrix_element = (scale * exp_prod_coefficient * translation_a_dag
+                                      @ local_func(phi_neighbor, minima_m, minima_p,
+                                                   disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                                   exp_adag_a, minima_pair_results)
+                                      @ translation_a)
+                    operator_matrix[m * num_states_min: (m + 1) * num_states_min,
+                                    p * num_states_min: (p + 1) * num_states_min] += matrix_element
                 counter += 1
+        operator_matrix = self._populate_hermitian_matrix(operator_matrix)
+        return operator_matrix
+    
+    def _minima_pair_kinetic_function(self, EC_mat, a_operator_list, exp_adag_a,
+                                      disentangled_squeezing_matrices, helper_squeezing_matrices):
+        dim = self.number_degrees_freedom
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
+        (xa, xaa, dxa, dx, ddx) = self._premultiplying_exp_adag_a_with_a(exp_adag_a, a_operator_list)
+        xaa_coeff = zp @ expm(-sigmaprime).T @ EC_mat @ zp @ expm(-sigmaprime)
+        dxa_coeff = expm(-sigma).T @ expm(deltarhobar) @ zpp.T @ EC_mat @ zp @ expm(-sigmaprime)
+        ddx_coeff = expm(-sigma).T @ expm(deltarhobar) @ zpp.T @ EC_mat @ (expm(-sigma).T @ expm(deltarhobar) @ zpp.T).T
+        x_coeff = zpp.T @ EC_mat @ zp 
+        xa_coeff = EC_mat @ zp @ expm(-sigmaprime)
+        dx_coeff = EC_mat @ zpp @ expm(-sigma).T @ expm(deltarhobar).T
+        kinetic_matrix = np.sum([+4 * xaa[mu] * xaa_coeff[mu, mu] - 8 * dxa[mu] * dxa_coeff[mu, mu]
+                                 + 4 * ddx[mu] * ddx_coeff[mu, mu] - 4 * exp_adag_a * x_coeff[mu, mu]
+                                 for mu in range(dim)], axis=0)
+        return kinetic_matrix, xa, dx, xa_coeff, dx_coeff
 
-        # fill in kinetic energy matrix according to hermiticity
-        kinetic_mat = self._populate_hermitian_matrix(kinetic_mat, minima_list, num_exc_tot)
+    def _local_kinetic_squeezing_function(self, EC_mat, Xi_inv, phi_neighbor, minima_m, minima_p,
+                                          disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                          exp_adag_a, minima_pair_results):
+        dim = self.number_degrees_freedom
+        delta_phi = phi_neighbor + minima_p - minima_m
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
+        kinetic_matrix_minima_pair, xa, dx, xa_coeff, dx_coeff = minima_pair_results
+        arg_exp_a_dag = delta_phi @ Xi_inv.T / np.sqrt(2.)
+        arg_exp_a = -arg_exp_a_dag
 
-        return kinetic_mat
+        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rhoprime, deltarho)
+        deltarhopp = 0.5 * (arg_exp_a_dag - arg_exp_a @ rhoprime) @ (deltarho + deltarho.T)
+        epsilon = -(1j / np.sqrt(2.0)) * Xi_inv.T @ (rhoprime @ deltarhopp - arg_exp_a @ rhoprime + deltarhopp
+                                                     + Xi_inv @ delta_phi / np.sqrt(2.0))
+        e_xa_coeff = np.matmul(epsilon, xa_coeff)
+        e_dx_coeff = np.matmul(epsilon, dx_coeff)
+        kinetic_matrix = np.sum([-8 * xa[mu] * e_xa_coeff[mu] + 8 * dx[mu] * e_dx_coeff[mu]
+                                 for mu in range(dim)], axis=0)
+        kinetic_matrix += kinetic_matrix_minima_pair
+        kinetic_matrix += alpha * 4 * exp_adag_a * (epsilon @ EC_mat @ epsilon)
 
-    def _alpha_helper(self, x, y, rhoprime, deltarho):
+        return kinetic_matrix
+
+    def _premultiplying_exp_adag_a_with_a(self, exp_adag_a, a_op_list):
+        """
+        Helper function for building the kinetic part of the Hamiltonian.
+        Naming scheme is  x -> exp(A_{ij}a_{i}^{\dag}a_{j}) (for whatever matrix A is)
+                          a -> a_{i}
+                          d -> a_{i}^{\dag}
+        """
+        dim = self.number_degrees_freedom
+        xa = np.array([exp_adag_a @ a_op_list[mu] for mu in range(dim)])
+        xaa = np.array([xa[mu] @ a_op_list[mu] for mu in range(dim)])
+        dxa = np.array([a_op_list[mu].T @ xa[mu] for mu in range(dim)])
+        dx = np.array([a_op_list[mu].T @ exp_adag_a for mu in range(dim)])
+        ddx = np.array([a_op_list[mu].T @ dx[mu] for mu in range(dim)])
+        return xa, xaa, dxa, dx, ddx
+
+    @staticmethod
+    def _alpha_helper(x, y, rhoprime, deltarho):
         """Build the prefactor that arises due to squeezing. With no squeezing, alpha=1 (number, not matrix)"""
-        yrhop = np.matmul(y, rhoprime)
-        alpha = np.exp(-0.5 * np.matmul(y, yrhop) - 0.5 * np.matmul(x - yrhop, np.matmul(deltarho, x - yrhop)))
+        yrhop = y @ rhoprime
+        alpha = np.exp(-0.5 * y @ yrhop - 0.5 * (x - yrhop) @ deltarho @ (x - yrhop))
         return alpha
 
-    def potentialmat(self, wrapper_klist=None):
-        """Return the potential part of the hamiltonian"""
-        if wrapper_klist is None:
-            wrapper_klist = self.find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix(None)
-        Xi_inv = sp.linalg.inv(Xi)
-        a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
-        num_exc_tot = a_op_list[0].shape[0]
-        minima_list = self.sorted_minima()
-        dim = len(minima_list) * num_exc_tot
-        potential_mat = np.zeros((dim, dim), dtype=np.complex128)
-        EJlist = self.EJlist
-        exp_prod_boundary_coeff = self._BCH_factor_for_potential_boundary()
-        counter = 0
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m, len(minima_list)):
-                minima_p = minima_list[p]
-                minima_diff = minima_p - minima_m
-                (exp_list, rho, rhoprime, sigma, sigmaprime,
-                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi,
-                                                                             a_op_list, potential=True)
-                (exp_adag_adag, exp_a_a, exp_adag_a,
-                 exp_adag_list, exp_adag_mindiff,
-                 exp_a_list, exp_a_mindiff, exp_i_list, exp_i_sum) = exp_list
-                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.number_degrees_freedom()) - np.matmul(rho, rhoprime)))
-                for jkvals in wrapper_klist[counter]:
-                    phik = 2.0 * np.pi * np.array(jkvals)
-                    delta_phi_kpm = phik + minima_diff
-                    phibar_kpm = 0.5 * (phik + (minima_m + minima_p))
-                    exp_prod_coeff = self._exp_product_coefficient(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
+    def kinetic_matrix(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the kinetic energy matrix
+        """
+        Xi_inv = inv(self.Xi_matrix())
+        a_operator_list = self.a_operator_list()
+        EC_mat = self.build_EC_matrix()
+        minima_pair_kinetic_function = partial(self._minima_pair_kinetic_function, EC_mat, a_operator_list)
+        local_kinetic_function = partial(self._local_kinetic_squeezing_function, EC_mat, Xi_inv)
+        return self._periodic_continuation_squeezing(minima_pair_kinetic_function, local_kinetic_function)
 
-                    (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
-                    exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
-                    exp_adag = np.matmul(exp_adag_adag, exp_adag)
-                    exp_a = np.matmul(exp_a, exp_a_mindiff)
-                    exp_a = np.matmul(exp_a, exp_a_a)
+    def potential_matrix(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the potential energy matrix
+        """
+        Xi = self.Xi_matrix()
+        Xi_inv = inv(Xi)
+        a_operator_list = self.a_operator_list()
+        minima_pair_potential_function = partial(self._minima_pair_potential_function, a_operator_list, Xi)
+        local_potential_function = partial(self._local_potential_squeezing_function, Xi, Xi_inv)
+        return self._periodic_continuation_squeezing(minima_pair_potential_function, local_potential_function)
 
-                    exp_i_phi_list = np.array([exp_i_list[i] * np.exp(1j * phibar_kpm[i])
-                                               for i in range(self.number_degrees_freedom())])
-                    exp_i_phi_sum_op = (exp_i_sum * np.exp(1j * 2.0 * np.pi * self.flux)
-                                        * np.prod([np.exp(1j * self.boundary_coeffs[i] * phibar_kpm[i])
-                                                   for i in range(self.number_degrees_freedom())]))
+    def _local_potential_squeezing_function(self, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
+                                            disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                            exp_adag_a, minima_pair_results):
+        dim = self.number_degrees_freedom
+        delta_phi = phi_neighbor + minima_p - minima_m
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        phibar_kpm = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        exp_i_list, exp_i_sum = minima_pair_results
+        exp_i_phi_list = np.array([exp_i_list[i] * np.exp(1j * phibar_kpm[i]) for i in range(dim)])
+        exp_i_phi_sum_op = (exp_i_sum * np.exp(1j * 2.0 * np.pi * self.flux)
+                            * np.prod([np.exp(1j * self.boundary_coefficients[i] * phibar_kpm[i]) for i in range(dim)]))
+        exp_prod = self._exp_product_coefficient_squeezing(delta_phi, Xi_inv, sigma, sigmaprime)
+        exp_prod_boundary_coeff = self._exp_prod_boundary_coeff(Xi)
+        potential_matrix = np.sum([self._local_contribution_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
+                                                                                      disentangled_squeezing_matrices,
+                                                                                      helper_squeezing_matrices,
+                                                                                      exp_i_phi_list)
+                                   for j in range(dim)], axis=0) * exp_prod
+        potential_matrix += (self._local_contribution_boundary_squeezing(delta_phi, Xi, Xi_inv,
+                                                                         disentangled_squeezing_matrices,
+                                                                         helper_squeezing_matrices,
+                                                                         exp_i_phi_sum_op)
+                             * exp_prod_boundary_coeff * exp_prod)
+        potential_matrix += self._local_contribution_sum_junctions(delta_phi, Xi_inv,
+                                                                   disentangled_squeezing_matrices,
+                                                                   helper_squeezing_matrices,
+                                                                   exp_adag_a) * exp_prod
+        return potential_matrix
 
-                    for num in range(self.number_degrees_freedom()):  # summing over potential terms cos(\phi_x)
-                        x = (np.matmul(delta_phi_kpm, Xi_inv.T) + 1j * Xi[num, :]) / np.sqrt(2.)
-                        y = (-np.matmul(delta_phi_kpm, Xi_inv.T) + 1j * Xi[num, :]) / np.sqrt(2.)
+    def _local_contribution_boundary_squeezing(self, delta_phi, Xi, Xi_inv,
+                                               disentangled_squeezing_matrices,
+                                               helper_squeezing_matrices, exp_i_sum):
+        dim = self.number_degrees_freedom
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
+        delta_phi_rotated = delta_phi @ Xi_inv.T
+        arg_exp_a_dag = (delta_phi_rotated + np.sum([1j * Xi[i, :] * self.boundary_coefficients[i]
+                                                     for i in range(dim)], axis=0)) / np.sqrt(2.)
+        arg_exp_a = (- delta_phi_rotated + np.sum([1j * Xi[i, :] * self.boundary_coefficients[i]
+                                                   for i in range(dim)], axis=0)) / np.sqrt(2.)
+        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rhoprime, deltarho)
+        alpha_con = self._alpha_helper(arg_exp_a_dag.conjugate(), arg_exp_a.conjugate(), rhoprime, deltarho)
+        potential_matrix = -0.5 * self.EJlist[-1] * alpha * exp_i_sum
+        potential_matrix += -0.5 * self.EJlist[-1] * alpha_con * exp_i_sum.conjugate()
+        return potential_matrix
 
-                        alpha = scale * self._alpha_helper(x, y, rhoprime, deltarho)
-                        alpha_con = scale * self._alpha_helper(x.conjugate(), y.conjugate(),
-                                                               rhoprime, deltarho)
+    def _local_contribution_single_junction_squeezing(self, j, delta_phi, Xi, Xi_inv, disentangled_squeezing_matrices,
+                                                      helper_squeezing_matrices, exp_i_phi_list):
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
+        delta_phi_rotated = delta_phi @ Xi_inv.T
+        arg_exp_a_dag = (delta_phi_rotated + 1j * Xi[j, :]) / np.sqrt(2.)
+        arg_exp_a = (-delta_phi_rotated + 1j * Xi[j, :]) / np.sqrt(2.)
+        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rhoprime, deltarho)
+        alpha_conjugate = self._alpha_helper(arg_exp_a_dag.conjugate(), arg_exp_a.conjugate(), rhoprime, deltarho)
+        potential_matrix = -0.5 * self.EJlist[j] * alpha * exp_i_phi_list[j]
+        # No need to .T the h.c. term, all that is necessary is conjugation
+        potential_matrix += -0.5 * self.EJlist[j] * alpha_conjugate * exp_i_phi_list[j].conjugate()
+        potential_matrix *= np.exp(-.25 * np.dot(Xi[j, :], Xi.T[:, j]))
+        return potential_matrix
 
-                        potential_temp = -0.5 * EJlist[num] * alpha * exp_i_phi_list[num]
-                        # No need to .T the h.c. term, all that is necessary is conjugation
-                        potential_temp += -0.5 * EJlist[num] * alpha_con * exp_i_phi_list[num].conjugate()
-                        potential_temp = np.matmul(exp_adag, np.matmul(potential_temp, exp_a))
-                        potential_temp *= (np.exp(-.25 * np.dot(Xi[num, :], np.transpose(Xi)[:, num]))
-                                           * exp_prod_coeff)
+    def _local_contribution_sum_junctions(self, delta_phi, Xi_inv, disentangled_squeezing_matrices,
+                                          helper_squeezing_matrices, exp_adag_a):
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
+        arg_exp_a_dag = np.matmul(delta_phi, Xi_inv.T) / np.sqrt(2.)
+        arg_exp_a = -arg_exp_a_dag
+        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rhoprime, deltarho)
+        return alpha * np.sum(self.EJlist) * exp_adag_a
 
-                        potential_mat[m * num_exc_tot:m * num_exc_tot + num_exc_tot,
-                                      p * num_exc_tot:p * num_exc_tot + num_exc_tot] += potential_temp
+    def _minima_pair_potential_function(self, a_operator_list, Xi, exp_adag_a,
+                                        disentangled_squeezing_matrices, helper_squeezing_matrices):
+        return self._build_potential_operators(a_operator_list, Xi, exp_adag_a,
+                                               disentangled_squeezing_matrices, helper_squeezing_matrices)
 
-                    # cos(sum-2\pi f)
-                    x = (np.matmul(delta_phi_kpm, Xi_inv.T)
-                         + np.sum([1j * Xi[i, :] * self.boundary_coeffs[i]
-                                   for i in range(self.number_degrees_freedom())], axis=0)) / np.sqrt(2.)
-                    y = (- np.matmul(delta_phi_kpm, Xi_inv.T)
-                         + np.sum([1j * Xi[i, :] * self.boundary_coeffs[i]
-                                   for i in range(self.number_degrees_freedom())], axis=0)) / np.sqrt(2.)
-                    alpha = scale * self._alpha_helper(x, y, rhoprime, deltarho)
-                    alpha_con = scale * self._alpha_helper(x.conjugate(), y.conjugate(),
-                                                           rhoprime, deltarho)
+    def _local_contribution_identity(self, Xi_inv, delta_phi, disentangled_squeezing_matrices,
+                                     helper_squeezing_matrices, exp_adag_a):
+        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
+        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
+        arg_exp_a_dag = np.matmul(delta_phi, Xi_inv.T) / np.sqrt(2.)
+        arg_exp_a = -arg_exp_a_dag
+        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rhoprime, deltarho)
+        return alpha * exp_adag_a
 
-                    potential_temp = -0.5 * EJlist[-1] * alpha * exp_i_phi_sum_op
-                    potential_temp += -0.5 * EJlist[-1] * alpha_con * exp_i_phi_sum_op.conjugate()
-
-                    potential_temp = (np.matmul(exp_adag, np.matmul(potential_temp, exp_a))
-                                      * exp_prod_boundary_coeff * exp_prod_coeff)
-
-                    # Identity term
-                    x = np.matmul(delta_phi_kpm, Xi_inv.T) / np.sqrt(2.)
-                    y = -x
-                    alpha = scale * self._alpha_helper(x, y, rhoprime, deltarho)
-
-                    potential_temp += (alpha * np.sum(EJlist) * exp_prod_coeff
-                                       * np.matmul(exp_adag, np.matmul(exp_adag_a, exp_a)))
-
-                    potential_mat[m * num_exc_tot:m * num_exc_tot + num_exc_tot,
-                                  p * num_exc_tot:p * num_exc_tot + num_exc_tot] += potential_temp
-
-                counter += 1
-
-        potential_mat = self._populate_hermitian_matrix(potential_mat, minima_list, num_exc_tot)
-
-        return potential_mat
+    def inner_product_matrix(self):
+        local_identity_function = partial()
+        return self._periodic_continuation_squeezing(lambda x: None, )
 
     def transfer_matrix(self):
         """Construct the Hamiltonian"""
         wrapper_klist = self.find_relevant_periodic_continuation_vectors()
         return self.kineticmat(wrapper_klist) + self.potentialmat(wrapper_klist)
 
+    def _exp_product_coefficient_squeezing(self, delta_phi, Xi_inv, sigma, sigmaprime):
+        """
+        Overall multiplicative factor. Includes offset charge,
+        Gaussian suppression factor in the absence of squeezing. With squeezing,
+        also includes exponential of trace over sigma and sigmaprime, see Qin et. al
+        """
+        dpkX = np.matmul(Xi_inv, delta_phi)
+        nglist = self.nglist
+        return (np.exp(-1j * np.dot(nglist, delta_phi))
+                * np.exp(-0.5 * np.trace(sigma) - 0.5 * np.trace(sigmaprime))
+                * np.exp(-0.25 * np.dot(dpkX, dpkX)))
+
+    def _exp_prod_boundary_coeff(self, Xi):
+        dim = self.number_degrees_freedom
+        return np.exp(-0.25 * np.sum([self.boundary_coefficients[j] * self.boundary_coefficients[k]
+                                      * np.dot(Xi[j, :], np.transpose(Xi)[:, k])
+                                      for j in range(dim) for k in range(dim)]))
+
     def inner_product_matrix(self, wrapper_klist=None):
         """Return the inner product matrix, which is nontrivial with tight-binding states"""
         if wrapper_klist is None:
             wrapper_klist = self.find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix(None)
+        Xi = self.Xi_matrix()
         Xi_inv = sp.linalg.inv(Xi)
-        a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom())])
+        a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
         num_exc_tot = a_op_list[0].shape[0]
         minima_list = self.sorted_minima()
         dim = len(minima_list) * num_exc_tot
@@ -667,7 +552,7 @@ class VCHOSSqueezing(VCHOS):
                 (exp_adag_adag, exp_a_a, exp_adag_a,
                  exp_adag_list, exp_adag_mindiff,
                  exp_a_list, exp_a_mindiff, _, _) = exp_list
-                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.number_degrees_freedom()) - np.matmul(rho, rhoprime)))
+                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rhoprime)))
                 for jkvals in wrapper_klist[counter]:
                     phik = 2.0 * np.pi * np.array(jkvals)
                     delta_phi_kpm = phik + minima_diff
@@ -692,3 +577,15 @@ class VCHOSSqueezing(VCHOS):
         inner_product_mat = self._populate_hermitian_matrix(inner_product_mat, minima_list, num_exc_tot)
 
         return inner_product_mat
+
+    def potential(self, phi_array):
+        pass
+
+    def find_minima(self):
+        pass
+
+    def build_capacitance_matrix(self):
+        pass
+
+    def build_EC_matrix(self):
+        return np.array([])
