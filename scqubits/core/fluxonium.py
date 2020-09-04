@@ -295,15 +295,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
 
     def q_cap(self, energy):
         # Devoret paper
-        # q_cap_0 = 1 * 1e6
-        # return q_cap_0 * (6 / energy) ** 0.7
+        q_cap_0 = 1 * 1e6
+        return q_cap_0 * (6 / energy) ** 0.7
 
         # Schuster paper
         # return 1 / (8e-6)
 
         # Vlad paper
-        q_cap_0 = 1 / (3 * 1e-6)
-        return q_cap_0 * (6 / energy) ** 0.15
+        # q_cap_0 = 1 / (3 * 1e-6)
+        # return q_cap_0 * (6 / energy) ** 0.15
 
     def get_t1_capacitive_loss(self, para_name, para_vals):
         energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
@@ -400,25 +400,26 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         imshow_maxval = (np.max(noise))
         fig, axes = plt.subplots(figsize=(4, 4))
         im = axes.imshow((noise), extent=[para_vals_2[0], para_vals_2[-1], para_vals_1[0], para_vals_1[-1]],
-                         cmap=plt.cm.viridis, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
+                         cmap=plt.cm.bwr, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto')
 
         divider = make_axes_locatable(axes)
         cax = divider.append_axes("right", size="2%", pad=0.05)
         fig.colorbar(im, cax=cax)
         axes.set_xlabel(para_name_2)
         axes.set_ylabel(para_name_1)
-        return fig, axes
+        return fig, axes, noise
 
     def noise_analysis_2d(self, para_name_1, para_vals_1, para_name_2, para_vals_2):
-        fig, axes = self.get_noise_analysis_2d(self.get_t1_capacitive_loss, para_name_1, para_vals_1, para_name_2,
-                                               para_vals_2)
-        axes.set_title('T1 capacitive loss (ms)')
-        fig, axes = self.get_noise_analysis_2d(self.get_t1_inductive_loss, para_name_1, para_vals_1, para_name_2,
-                                               para_vals_2)
-        axes.set_title('T1 inductive loss (ms)')
-        fig, axes = self.get_noise_analysis_2d(self.get_t1, para_name_1, para_vals_1, para_name_2,
+        # fig, axes = self.get_noise_analysis_2d(self.get_t1_capacitive_loss, para_name_1, para_vals_1, para_name_2,
+        #                                        para_vals_2)
+        # axes.set_title('T1 capacitive loss (ms)')
+        # fig, axes = self.get_noise_analysis_2d(self.get_t1_inductive_loss, para_name_1, para_vals_1, para_name_2,
+        #                                        para_vals_2)
+        # axes.set_title('T1 inductive loss (ms)')
+        fig, axes, noise = self.get_noise_analysis_2d(self.get_t1, para_name_1, para_vals_1, para_name_2,
                                                para_vals_2)
         axes.set_title('T1 (ms)')
+        return noise
 
     def noise_analysis(self, para_name, para_vals):
         t1_cap = self.get_t1_capacitive_loss(para_name, para_vals)

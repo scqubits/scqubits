@@ -260,6 +260,18 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         """
         return self._kron3(self._n_phi_operator(), self._identity_theta(), self._identity_varphi())
 
+    def _n_phi_2_operator(self):
+        return self.phi_grid.second_derivative_matrix(prefactor=- 1)
+
+    def n_phi_2_operator(self):
+        return self._kron3(self._n_phi_2_operator(), self._identity_theta(), self._identity_varphi())
+
+    def _n_varphi_2_operator(self):
+        return self.varphi_grid.second_derivative_matrix(prefactor=- 1)
+
+    def n_varphi_2_operator(self):
+        return self._kron3(self._identity_phi(), self._identity_theta(), self._n_varphi_2_operator())
+
     def _theta_operator(self):
         """
         Returns
@@ -298,6 +310,9 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`n_theta' operator in total Hilbert space
         """
         return self._kron3(self._identity_phi(), self._n_theta_operator(), self._identity_varphi())
+
+    def n_theta_2_operator(self):
+        return self.n_theta_operator() ** 2
 
     def _cos_phi_div_operator(self, div):
         """

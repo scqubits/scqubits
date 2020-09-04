@@ -82,7 +82,7 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
 
-    def __init__(self, EJ, EC, EL, ELA, x, flux, fluxa, kbt, truncated_dim=None):
+    def __init__(self, EJ, EC, EL, ELA, x, flux, fluxa, kbt, truncated_dim=None, limit=False):
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
@@ -95,6 +95,10 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         self.varphi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.ph = 0
         self.truncated_dim = truncated_dim
+        if limit is False:
+            self.limit = 1
+        else:
+            self.limit = 0
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -281,10 +285,10 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
     def hamiltonian(self):
         phi_kin = self.phi_grid.second_derivative_matrix(prefactor=- 8.0 * self.EC)
         varphi_kin = self.varphi_grid.second_derivative_matrix(
-            prefactor=- 2.0 * self.EC * (1 - 1 / (self.x + 0.5)))
+            prefactor=- 2.0 * self.EC * (1 - self.limit *1 / (self.x + 0.5)))
         tot_kin = self._kron2(phi_kin, self._identity_varphi()) + self._kron2(self._identity_phi(), varphi_kin)
         phi_ind = 0.25 * self.EL * (self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux) ** 2
-        varphi_ind = self.EL / (1 + 2 * self.EL / self.ELA) * (
+        varphi_ind = self.EL / (1 + self.limit * 2 * self.EL / self.ELA) * (
                 self.varphi_operator() + self.total_identity() * 2 * np.pi * (self.flux / 2.0 + self.fluxa)) ** 2
 
         phi_varphi_junction = - 2 * self.EJ * self._kron2(self._cos_phi_div_operator(2.0),
@@ -637,7 +641,7 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
 
     def get_t2_flux_noise(self, init_state):
         delta = 1e-6
-        pts = 21
+        pts = 11
         flux_list = np.linspace(self.flux - delta, self.flux + delta, pts)
         energy = self.get_spectrum_vs_paramvals('flux', flux_list, evals_count=init_state + 2,
                                                 subtract_ground=True).energy_table[:, init_state]
@@ -650,7 +654,7 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
 
     def get_t2_fluxa_noise(self, init_state):
         delta = 1e-6
-        pts = 21
+        pts = 11
         flux_list = np.linspace(self.fluxa - delta, self.fluxa + delta, pts)
         energy = self.get_spectrum_vs_paramvals('fluxa', flux_list, evals_count=init_state + 2,
                                                 subtract_ground=True).energy_table[:, init_state]
@@ -663,7 +667,7 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
 
     def get_t2_current_noise(self, init_state):
         delta = 1e-7
-        pts = 21
+        pts = 11
         ej_list = np.linspace(self.EJ - delta, self.EJ + delta, pts)
         energy = self.get_spectrum_vs_paramvals('EJ', ej_list, evals_count=init_state + 2,
                                                 subtract_ground=True).energy_table[:, init_state]
@@ -681,9 +685,15 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         t1_tot = 1 / (1 / t1_cap + 1 / t1_ind + 1 / t1_qp)
         t2_tot = 1 / (1 / t2_current + 1 / t2_flux + 1 / t2_fluxa + 1 / t1_tot / 2)
 
-        return print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
+        print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
                      ' ms', '\n T2_flux_a =', t2_fluxa,
                      ' ms', '\n T1_cap =',
                      t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1_qp =', t1_qp, ' ms', '\n T1 =', t1_tot,
                      ' ms', '\n T2 =', t2_tot,
                      ' ms')
+
+        return np.array([t2_current, t2_flux, t2_fluxa, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot])
+
+    def set_by_flux_dc(self, flux_c, flux_d):
+        self.flux = flux_c * 2
+        self.fluxa = - flux_d - flux_c
