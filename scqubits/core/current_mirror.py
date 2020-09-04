@@ -15,6 +15,14 @@ from scqubits.core.operators import operator_in_full_Hilbert_space
 
 
 class CurrentMirrorFunctions:
+    N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECB = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux):
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
         self.N = N
@@ -124,13 +132,6 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
     truncated_dim: int, optional
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
-    N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECB = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, 

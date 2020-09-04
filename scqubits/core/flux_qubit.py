@@ -29,6 +29,18 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 
 class FluxQubitFunctions:
+    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
                  ECJ3, ECg1, ECg2, ng1, ng2, flux):
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
@@ -117,18 +129,6 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
     truncated_dim: int, optional
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
-
-    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, ncut,
