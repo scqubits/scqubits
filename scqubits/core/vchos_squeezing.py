@@ -53,10 +53,9 @@ class VCHOSSqueezing(VCHOS):
         dim = self.number_degrees_freedom
         u = uvmat[0: dim, 0: dim]
         v = uvmat[dim: 2*dim, 0: dim]
-        u_inv = inv(u)
-        rho = u_inv @ v
+        rho = inv(u) @ v
         sigma = logm(u)
-        tau = v @ u_inv
+        tau = v @ inv(u)
         return rho, sigma, tau
 
     def _helper_squeezing_matrices(self, rho, rhoprime, Xi):
@@ -91,8 +90,8 @@ class VCHOSSqueezing(VCHOS):
         gamma = self.build_gamma_matrix(i)
         gamma_prime = Xi.T @ gamma @ Xi
         omegamat = self.omega_matrix(i)
-        zeta = 0.25 * (self.Phi0 ** 2 * gamma_prime + omegamat)
-        eta = 0.25 * (self.Phi0 ** 2 * gamma_prime - omegamat)
+        zeta = 0.25 * (self.Phi0 ** 2 * gamma_prime + np.diag(omegamat))
+        eta = 0.25 * (self.Phi0 ** 2 * gamma_prime - np.diag(omegamat))
         hmat = np.block([[zeta, -eta],
                          [eta, -zeta]])
         eigvals, eigvec = sp.linalg.eig(hmat)
@@ -102,11 +101,10 @@ class VCHOSSqueezing(VCHOS):
         _, eigvec = self._normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
         return eigvec
 
-    @staticmethod
-    def _order_eigensystem_squeezing(eigvals, eigvec):
+    def _order_eigensystem_squeezing(self, eigvals, eigvec):
         """Order eigensystem to have positive eigenvalues followed by negative, in same order"""
-        dim2 = int(len(eigvals) / 2)
-        eigval_holder = np.zeros(dim2)
+        dim = self.number_degrees_freedom
+        eigval_holder = np.zeros(dim)
         eigvec_holder = np.zeros_like(eigvec)
         count = 0
         for k, eigval in enumerate(eigvals):
@@ -116,7 +114,7 @@ class VCHOSSqueezing(VCHOS):
                 count += 1
         index_array = np.argsort(eigval_holder)
         eigval_holder = eigval_holder[index_array]
-        eigvec_holder[:, 0: dim2] = eigvec_holder[:, index_array]
+        eigvec_holder[:, 0: dim] = eigvec_holder[:, index_array]
         # Now attempt to deal with degenerate modes
         for k in range(0, len(eigval_holder) - 1):
             if np.allclose(eigval_holder[k], eigval_holder[k + 1], atol=1e-6):
@@ -129,47 +127,42 @@ class VCHOSSqueezing(VCHOS):
                 new_evec_2 = sol[1, 0] * evec_1 + sol[1, 1] * evec_2
                 eigvec_holder[:, k] = new_evec_1
                 eigvec_holder[:, k + 1] = new_evec_2
-        dim = eigvec.shape[0]
-        dim2 = int(dim / 2)
-        u = eigvec_holder[0: dim2, 0: dim2]
-        v = eigvec_holder[dim2: dim, 0: dim2]
-        eigvec_holder[0: dim2, dim2: dim] = v
-        eigvec_holder[dim2: dim, dim2: dim] = u
+        u = eigvec_holder[0: dim, 0: dim]
+        v = eigvec_holder[dim: 2*dim, 0: dim]
+        eigvec_holder[0: dim, dim: 2*dim] = v
+        eigvec_holder[dim: 2*dim, dim: 2*dim] = u
         return eigval_holder, eigvec_holder
 
-    @staticmethod
-    def _normalize_symplectic_eigensystem_squeezing(eigvals, eigvec):
+    def _normalize_symplectic_eigensystem_squeezing(self, eigvals, eigvec):
         """Enforce commutation relations so that Bogoliubov transformation is symplectic """
-        dim = eigvec.shape[0]
-        dim2 = int(dim / 2)
-        for col in range(dim2):
-            a = np.sum([eigvec[row, col] for row in range(dim)])
+        dim = self.number_degrees_freedom
+        for col in range(dim):
+            a = np.sum([eigvec[row, col] for row in range(2*dim)])
             if a < 0.0:
                 eigvec[:, col] *= -1
-        A = eigvec[0: dim2, 0: dim2]
-        B = eigvec[dim2: dim, 0: dim2]
-        for vec in range(dim2):
+        A = eigvec[0: dim, 0: dim]
+        B = eigvec[dim: 2*dim, 0: dim]
+        for vec in range(dim):
             a = 1. / np.sqrt(np.sum([A[num, vec] * A[num, vec] - B[num, vec] * B[num, vec]
-                                     for num in range(dim2)]))
+                                     for num in range(dim)]))
             eigvec[:, vec] *= a
-        A = eigvec[0: dim2, 0: dim2]
-        B = eigvec[dim2: dim, 0: dim2]
-        eigvec[dim2: dim, dim2: dim] = A
-        eigvec[0: dim2, dim2: dim] = B
+        A = eigvec[0: dim, 0: dim]
+        B = eigvec[dim: 2*dim, 0: dim]
+        eigvec[dim: 2*dim, dim: 2*dim] = A
+        eigvec[0: dim, dim: 2*dim] = B
         return eigvals, eigvec
 
-    def _normal_ordered_adag_a_exponential(self, x):
+    def _normal_ordered_adag_a_exponential(self, x, a_operator_list):
         """Return normal ordered exponential matrix of exp(a_{i}^{\dagger}x_{ij}a_{j})"""
         expx = expm(x)
         num_states = self.number_states_per_minimum()
         dim = self.number_degrees_freedom
         result = np.eye(num_states, dtype=np.complex128)
         additional_term = np.eye(num_states, dtype=np.complex128)
-        a_op_list = np.array([self.a_operator(i) for i in range(dim)])
         k = 1
         while not np.allclose(additional_term, np.zeros((num_states, num_states))):
             additional_term = np.sum([((expx - np.eye(dim))[i, j]) ** k * (factorial(k)) ** (-1)
-                                     * matrix_power(a_op_list[i].T, k) @ matrix_power(a_op_list[j], k)
+                                     * matrix_power(a_operator_list[i].T, k) @ matrix_power(a_operator_list[j], k)
                                      for i in range(dim) for j in range(dim)], axis=0)
             result += additional_term
             k += 1
@@ -206,12 +199,12 @@ class VCHOSSqueezing(VCHOS):
         Xi_inv = inv(Xi)
         exp_adag_list = np.array([expm(np.sum([2.0 * np.pi * (Xi_inv.T @ prefactor_adag)[j, i] * a_operator_list[i].T
                                   for i in range(dim)], axis=0) / np.sqrt(2.0)) for j in range(dim)])
-        exp_adag_mindiff = expm(np.sum([minima_diff[x] * (Xi_inv.T @ prefactor_adag)[x, i] * a_operator_list[i].T
-                                        for x in range(dim) for i in range(dim)], axis=0) / np.sqrt(2.0))
+        exp_adag_mindiff = expm(np.sum([minima_diff[j] * (Xi_inv.T @ prefactor_adag)[j, i] * a_operator_list[i].T
+                                        for i in range(dim) for j in range(dim)], axis=0) / np.sqrt(2.0))
         exp_a_list = np.array([expm(np.sum([2.0 * np.pi * (Xi_inv.T @ prefactor_a)[j, i] * a_operator_list[i]
                                for i in range(dim)], axis=0) / np.sqrt(2.0)) for j in range(dim)])
-        exp_a_mindiff = expm(np.sum([-minima_diff[x] * (Xi_inv.T @ prefactor_a)[x, i] * a_operator_list[i]
-                                     for x in range(dim) for i in range(dim)], axis=0) / np.sqrt(2.0))
+        exp_a_mindiff = expm(np.sum([-minima_diff[j] * (Xi_inv.T @ prefactor_a)[j, i] * a_operator_list[i]
+                                     for i in range(dim) for j in range(dim)], axis=0) / np.sqrt(2.0))
         return exp_adag_list, exp_adag_mindiff, exp_a_list, exp_a_mindiff
 
     def _build_potential_operators(self, a_operator_list, Xi, exp_adag_a,
@@ -259,7 +252,7 @@ class VCHOSSqueezing(VCHOS):
                                      for i in range(dim) for j in range(dim)], axis=0))
         exp_a_a = expm(np.sum([prefactor_a_a[i, j] * a_operator_list[i] @ a_operator_list[j]
                                for i in range(dim) for j in range(dim)], axis=0))
-        exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a)
+        exp_adag_a = self._normal_ordered_adag_a_exponential(prefactor_adag_a, a_operator_list)
         return exp_adag_adag, exp_adag_a, exp_a_a
 
     def _translation_squeezing(self, exp_adag_list, exp_adag_mindiff,
@@ -274,11 +267,11 @@ class VCHOSSqueezing(VCHOS):
         translation_op_a_dag = np.eye(num_exc)
         translation_op_a = np.eye(num_exc)
         for j in range(dim):
-            translation_op_a_dag_for_direction = matrix_power(exp_adag_list[j], neighbor[j])
+            translation_op_a_dag_for_direction = matrix_power(exp_adag_list[j], int(neighbor[j]))
             translation_op_a_dag = translation_op_a_dag @ translation_op_a_dag_for_direction
         translation_op_a_dag = translation_op_a_dag @ exp_adag_mindiff @ exp_adag_adag
         for j in range(dim):
-            translation_op_a_for_direction = matrix_power(exp_a_list[j], -neighbor[j])
+            translation_op_a_for_direction = matrix_power(exp_a_list[j], -int(neighbor[j]))
             translation_op_a = translation_op_a @ translation_op_a_for_direction
         translation_op_a = translation_op_a @ exp_a_mindiff @ exp_a_a
         return translation_op_a_dag, translation_op_a
@@ -308,7 +301,8 @@ class VCHOSSqueezing(VCHOS):
                 exp_operators = self._build_translation_operators(minima_diff, Xi, disentangled_squeezing_matrices,
                                                                   helper_squeezing_matrices)
                 exp_adag_list, exp_adag_mindiff, exp_a_list, exp_a_mindiff = exp_operators
-                minima_pair_results = minima_pair_func(m, p, minima_diff)
+                minima_pair_results = minima_pair_func(exp_adag_a, disentangled_squeezing_matrices,
+                                                       helper_squeezing_matrices)
                 scale = 1. / np.sqrt(det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rhoprime)))
                 for neighbor in self.nearest_neighbors[counter]:
                     phi_neighbor = 2.0 * np.pi * np.array(neighbor)
@@ -334,12 +328,12 @@ class VCHOSSqueezing(VCHOS):
         rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
         deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
         (xa, xaa, dxa, dx, ddx) = self._premultiplying_exp_adag_a_with_a(exp_adag_a, a_operator_list)
-        xaa_coeff = zp @ expm(-sigmaprime).T @ EC_mat @ zp @ expm(-sigmaprime)
+        xaa_coeff = (zp @ expm(-sigmaprime)).T @ EC_mat @ zp @ expm(-sigmaprime)
         dxa_coeff = expm(-sigma).T @ expm(deltarhobar) @ zpp.T @ EC_mat @ zp @ expm(-sigmaprime)
         ddx_coeff = expm(-sigma).T @ expm(deltarhobar) @ zpp.T @ EC_mat @ (expm(-sigma).T @ expm(deltarhobar) @ zpp.T).T
         x_coeff = zpp.T @ EC_mat @ zp 
         xa_coeff = EC_mat @ zp @ expm(-sigmaprime)
-        dx_coeff = EC_mat @ zpp @ expm(-sigma).T @ expm(deltarhobar).T
+        dx_coeff = EC_mat @ zpp @ (expm(-sigma).T @ expm(deltarhobar)).T
         kinetic_matrix = np.sum([+4 * xaa[mu] * xaa_coeff[mu, mu] - 8 * dxa[mu] * dxa_coeff[mu, mu]
                                  + 4 * ddx[mu] * ddx_coeff[mu, mu] - 4 * exp_adag_a * x_coeff[mu, mu]
                                  for mu in range(dim)], axis=0)
@@ -360,12 +354,13 @@ class VCHOSSqueezing(VCHOS):
         deltarhopp = 0.5 * (arg_exp_a_dag - arg_exp_a @ rhoprime) @ (deltarho + deltarho.T)
         epsilon = -(1j / np.sqrt(2.0)) * Xi_inv.T @ (rhoprime @ deltarhopp - arg_exp_a @ rhoprime + deltarhopp
                                                      + Xi_inv @ delta_phi / np.sqrt(2.0))
-        e_xa_coeff = np.matmul(epsilon, xa_coeff)
-        e_dx_coeff = np.matmul(epsilon, dx_coeff)
+        e_xa_coeff = epsilon @ xa_coeff
+        e_dx_coeff = epsilon @ dx_coeff
         kinetic_matrix = np.sum([-8 * xa[mu] * e_xa_coeff[mu] + 8 * dx[mu] * e_dx_coeff[mu]
                                  for mu in range(dim)], axis=0)
         kinetic_matrix += kinetic_matrix_minima_pair
-        kinetic_matrix += alpha * 4 * exp_adag_a * (epsilon @ EC_mat @ epsilon)
+        kinetic_matrix += 4 * exp_adag_a * (epsilon @ EC_mat @ epsilon)
+        kinetic_matrix *= alpha
 
         return kinetic_matrix
 
@@ -385,10 +380,10 @@ class VCHOSSqueezing(VCHOS):
         return xa, xaa, dxa, dx, ddx
 
     @staticmethod
-    def _alpha_helper(x, y, rhoprime, deltarho):
+    def _alpha_helper(arg_exp_a_dag, arg_exp_a, rhoprime, deltarho):
         """Build the prefactor that arises due to squeezing. With no squeezing, alpha=1 (number, not matrix)"""
-        yrhop = y @ rhoprime
-        alpha = np.exp(-0.5 * y @ yrhop - 0.5 * (x - yrhop) @ deltarho @ (x - yrhop))
+        yrhop = np.matmul(arg_exp_a, rhoprime)
+        alpha = np.exp(-0.5 * arg_exp_a @ yrhop - 0.5 * (arg_exp_a_dag - yrhop) @ deltarho @ (arg_exp_a_dag - yrhop))
         return alpha
 
     def kinetic_matrix(self):
@@ -419,33 +414,33 @@ class VCHOSSqueezing(VCHOS):
         local_potential_function = partial(self._local_potential_squeezing_function, Xi, Xi_inv)
         return self._periodic_continuation_squeezing(minima_pair_potential_function, local_potential_function)
 
+    def transfer_matrix(self):
+        return self.kinetic_matrix() + self.potential_matrix()
+
     def _local_potential_squeezing_function(self, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
                                             disentangled_squeezing_matrices, helper_squeezing_matrices,
                                             exp_adag_a, minima_pair_results):
         dim = self.number_degrees_freedom
         delta_phi = phi_neighbor + minima_p - minima_m
-        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
         phibar_kpm = 0.5 * (phi_neighbor + (minima_m + minima_p))
         exp_i_list, exp_i_sum = minima_pair_results
         exp_i_phi_list = np.array([exp_i_list[i] * np.exp(1j * phibar_kpm[i]) for i in range(dim)])
         exp_i_phi_sum_op = (exp_i_sum * np.exp(1j * 2.0 * np.pi * self.flux)
                             * np.prod([np.exp(1j * self.boundary_coefficients[i] * phibar_kpm[i]) for i in range(dim)]))
-        exp_prod = self._exp_product_coefficient_squeezing(delta_phi, Xi_inv, sigma, sigmaprime)
-        exp_prod_boundary_coeff = self._exp_prod_boundary_coeff(Xi)
         potential_matrix = np.sum([self._local_contribution_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
                                                                                       disentangled_squeezing_matrices,
                                                                                       helper_squeezing_matrices,
                                                                                       exp_i_phi_list)
-                                   for j in range(dim)], axis=0) * exp_prod
-        potential_matrix += (self._local_contribution_boundary_squeezing(delta_phi, Xi, Xi_inv,
-                                                                         disentangled_squeezing_matrices,
-                                                                         helper_squeezing_matrices,
-                                                                         exp_i_phi_sum_op)
-                             * exp_prod_boundary_coeff * exp_prod)
-        potential_matrix += self._local_contribution_sum_junctions(delta_phi, Xi_inv,
-                                                                   disentangled_squeezing_matrices,
-                                                                   helper_squeezing_matrices,
-                                                                   exp_adag_a) * exp_prod
+                                   for j in range(dim)], axis=0)
+        potential_matrix += self._local_contribution_boundary_squeezing(delta_phi, Xi, Xi_inv,
+                                                                        disentangled_squeezing_matrices,
+                                                                        helper_squeezing_matrices,
+                                                                        exp_i_phi_sum_op)
+        potential_matrix += (self._local_contribution_identity(Xi_inv, phi_neighbor, minima_m, minima_p,
+                                                               disentangled_squeezing_matrices,
+                                                               helper_squeezing_matrices, exp_adag_a,
+                                                               minima_pair_results)
+                             * np.sum(self.EJlist))
         return potential_matrix
 
     def _local_contribution_boundary_squeezing(self, delta_phi, Xi, Xi_inv,
@@ -457,12 +452,11 @@ class VCHOSSqueezing(VCHOS):
         delta_phi_rotated = delta_phi @ Xi_inv.T
         arg_exp_a_dag = (delta_phi_rotated + np.sum([1j * Xi[i, :] * self.boundary_coefficients[i]
                                                      for i in range(dim)], axis=0)) / np.sqrt(2.)
-        arg_exp_a = (- delta_phi_rotated + np.sum([1j * Xi[i, :] * self.boundary_coefficients[i]
-                                                   for i in range(dim)], axis=0)) / np.sqrt(2.)
-        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rhoprime, deltarho)
-        alpha_con = self._alpha_helper(arg_exp_a_dag.conjugate(), arg_exp_a.conjugate(), rhoprime, deltarho)
+        alpha = self._alpha_helper(arg_exp_a_dag, -arg_exp_a_dag.conjugate(), rhoprime, deltarho)
+        alpha_conjugate = self._alpha_helper(arg_exp_a_dag.conjugate(), -arg_exp_a_dag, rhoprime, deltarho)
         potential_matrix = -0.5 * self.EJlist[-1] * alpha * exp_i_sum
-        potential_matrix += -0.5 * self.EJlist[-1] * alpha_con * exp_i_sum.conjugate()
+        potential_matrix += -0.5 * self.EJlist[-1] * alpha_conjugate * exp_i_sum.conjugate()
+        potential_matrix *= self._exp_prod_boundary_coeff(Xi)
         return potential_matrix
 
     def _local_contribution_single_junction_squeezing(self, j, delta_phi, Xi, Xi_inv, disentangled_squeezing_matrices,
@@ -471,31 +465,22 @@ class VCHOSSqueezing(VCHOS):
         deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
         delta_phi_rotated = delta_phi @ Xi_inv.T
         arg_exp_a_dag = (delta_phi_rotated + 1j * Xi[j, :]) / np.sqrt(2.)
-        arg_exp_a = (-delta_phi_rotated + 1j * Xi[j, :]) / np.sqrt(2.)
-        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rhoprime, deltarho)
-        alpha_conjugate = self._alpha_helper(arg_exp_a_dag.conjugate(), arg_exp_a.conjugate(), rhoprime, deltarho)
+        alpha = self._alpha_helper(arg_exp_a_dag, -arg_exp_a_dag.conjugate(), rhoprime, deltarho)
+        alpha_conjugate = self._alpha_helper(arg_exp_a_dag.conjugate(), -arg_exp_a_dag, rhoprime, deltarho)
         potential_matrix = -0.5 * self.EJlist[j] * alpha * exp_i_phi_list[j]
         # No need to .T the h.c. term, all that is necessary is conjugation
         potential_matrix += -0.5 * self.EJlist[j] * alpha_conjugate * exp_i_phi_list[j].conjugate()
         potential_matrix *= np.exp(-.25 * np.dot(Xi[j, :], Xi.T[:, j]))
         return potential_matrix
 
-    def _local_contribution_sum_junctions(self, delta_phi, Xi_inv, disentangled_squeezing_matrices,
-                                          helper_squeezing_matrices, exp_adag_a):
-        rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
-        deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
-        arg_exp_a_dag = np.matmul(delta_phi, Xi_inv.T) / np.sqrt(2.)
-        arg_exp_a = -arg_exp_a_dag
-        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rhoprime, deltarho)
-        return alpha * np.sum(self.EJlist) * exp_adag_a
-
     def _minima_pair_potential_function(self, a_operator_list, Xi, exp_adag_a,
                                         disentangled_squeezing_matrices, helper_squeezing_matrices):
         return self._build_potential_operators(a_operator_list, Xi, exp_adag_a,
                                                disentangled_squeezing_matrices, helper_squeezing_matrices)
 
-    def _local_contribution_identity(self, Xi_inv, delta_phi, disentangled_squeezing_matrices,
-                                     helper_squeezing_matrices, exp_adag_a):
+    def _local_contribution_identity(self, Xi_inv, phi_neighbor, minima_m, minima_p, disentangled_squeezing_matrices,
+                                     helper_squeezing_matrices, exp_adag_a, minima_pair_results):
+        delta_phi = phi_neighbor + minima_p - minima_m
         rho, rhoprime, sigma, sigmaprime, tau, tauprime = disentangled_squeezing_matrices
         deltarho, deltarhoprime, deltarhobar, zp, zpp = helper_squeezing_matrices
         arg_exp_a_dag = np.matmul(delta_phi, Xi_inv.T) / np.sqrt(2.)
@@ -504,13 +489,9 @@ class VCHOSSqueezing(VCHOS):
         return alpha * exp_adag_a
 
     def inner_product_matrix(self):
-        local_identity_function = partial()
-        return self._periodic_continuation_squeezing(lambda x: None, )
-
-    def transfer_matrix(self):
-        """Construct the Hamiltonian"""
-        wrapper_klist = self.find_relevant_periodic_continuation_vectors()
-        return self.kineticmat(wrapper_klist) + self.potentialmat(wrapper_klist)
+        Xi_inv = inv(self.Xi_matrix())
+        local_identity_function = partial(self._local_contribution_identity, Xi_inv)
+        return self._periodic_continuation_squeezing(lambda x, y, z: None, local_identity_function)
 
     def _exp_product_coefficient_squeezing(self, delta_phi, Xi_inv, sigma, sigmaprime):
         """
@@ -529,63 +510,3 @@ class VCHOSSqueezing(VCHOS):
         return np.exp(-0.25 * np.sum([self.boundary_coefficients[j] * self.boundary_coefficients[k]
                                       * np.dot(Xi[j, :], np.transpose(Xi)[:, k])
                                       for j in range(dim) for k in range(dim)]))
-
-    def inner_product_matrix(self, wrapper_klist=None):
-        """Return the inner product matrix, which is nontrivial with tight-binding states"""
-        if wrapper_klist is None:
-            wrapper_klist = self.find_relevant_periodic_continuation_vectors()
-        Xi = self.Xi_matrix()
-        Xi_inv = sp.linalg.inv(Xi)
-        a_op_list = np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
-        num_exc_tot = a_op_list[0].shape[0]
-        minima_list = self.sorted_minima()
-        dim = len(minima_list) * num_exc_tot
-        inner_product_mat = np.zeros((dim, dim), dtype=np.complex128)
-        counter = 0
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m, len(minima_list)):
-                minima_p = minima_list[p]
-                minima_diff = minima_p - minima_m
-                (exp_list, rho, rhoprime, sigma, sigmaprime,
-                 deltarho, deltarhobar, zp, zpp) = self._build_squeezing_ops(m, p, minima_diff, Xi,
-                                                                             a_op_list, potential=False)
-                (exp_adag_adag, exp_a_a, exp_adag_a,
-                 exp_adag_list, exp_adag_mindiff,
-                 exp_a_list, exp_a_mindiff, _, _) = exp_list
-                scale = 1. / np.sqrt(sp.linalg.det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rhoprime)))
-                for jkvals in wrapper_klist[counter]:
-                    phik = 2.0 * np.pi * np.array(jkvals)
-                    delta_phi_kpm = phik + minima_diff
-                    exp_prod_coeff = self._exp_product_coefficient(delta_phi_kpm, Xi_inv, sigma, sigmaprime)
-
-                    x = np.matmul(delta_phi_kpm, Xi_inv.T) / np.sqrt(2.)
-                    y = -x
-                    alpha = scale * self._alpha_helper(x, y, rhoprime, deltarho)
-
-                    (exp_adag, exp_a) = self._V_op_builder(exp_adag_list, exp_a_list, jkvals)
-                    exp_adag = np.matmul(exp_adag_mindiff, exp_adag)
-                    exp_adag = np.matmul(exp_adag_adag, exp_adag)
-                    exp_a = np.matmul(exp_a, exp_a_mindiff)
-                    exp_a = np.matmul(exp_a, exp_a_a)
-
-                    inner_temp = alpha * exp_prod_coeff * np.matmul(np.matmul(exp_adag, exp_adag_a), exp_a)
-
-                    inner_product_mat[m * num_exc_tot:m * num_exc_tot + num_exc_tot,
-                                      p * num_exc_tot:p * num_exc_tot + num_exc_tot] += inner_temp
-                counter += 1
-
-        inner_product_mat = self._populate_hermitian_matrix(inner_product_mat, minima_list, num_exc_tot)
-
-        return inner_product_mat
-
-    def potential(self, phi_array):
-        pass
-
-    def find_minima(self):
-        pass
-
-    def build_capacitance_matrix(self):
-        pass
-
-    def build_EC_matrix(self):
-        return np.array([])

@@ -7,6 +7,7 @@ from scqubits.core import descriptors
 from scqubits.core.flux_qubit import FluxQubitFunctions
 from scqubits.core.hashing import Hashing
 from scqubits.core.vchos import VCHOS
+from scqubits.core.vchos_squeezing import VCHOSSqueezing
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
@@ -103,6 +104,21 @@ class FluxQubitVCHOS(FluxQubitFunctions, VCHOS, base.QubitBaseClass, serializers
                 + self.EJ1 + self.EJ2 + self.EJ3)
 
 
+class FluxQubitVCHOSSqueezing(VCHOSSqueezing, FluxQubitVCHOS, base.QubitBaseClass, serializers.Serializable):
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                 ECJ3, ECg1, ECg2, ng1, ng2, flux, maximum_periodic_vector_length,
+                 num_exc, truncated_dim=None):
+        EJlist = np.array([EJ1, EJ2, EJ3])
+        nglist = np.array([ng1, ng2])
+        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
+                                number_periodic_degrees_freedom=2, num_exc=num_exc)
+        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2,
+                                flux, maximum_periodic_vector_length, num_exc=num_exc, truncated_dim=truncated_dim)
+        self._sys_type = type(self).__name__
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            'qubit_pngs/fluxqubitvchossqueezing.png')
+
+
 class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS, base.QubitBaseClass, serializers.Serializable):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
@@ -133,3 +149,19 @@ class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS, base.QubitBaseClass, seriali
     @staticmethod
     def nonfit_params():
         return ['alpha', 'nglist', 'maximum_periodic_vector_length', 'global_exc', 'squeezing', 'truncated_dim']
+
+
+class FluxQubitVCHOSGlobalSqueezing(VCHOSSqueezing, FluxQubitVCHOSGlobal):
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
+                 ECJ3, ECg1, ECg2, ng1, ng2, flux, maximum_periodic_vector_length,
+                 global_exc, truncated_dim=None):
+        EJlist = np.array([EJ1, EJ2, EJ3])
+        nglist = np.array([ng1, ng2])
+        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
+                                number_periodic_degrees_freedom=2, num_exc=None)
+        FluxQubitVCHOSGlobal.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2,
+                                      flux, maximum_periodic_vector_length, global_exc=global_exc,
+                                      truncated_dim=truncated_dim)
+        self._sys_type = type(self).__name__
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            'qubit_pngs/fluxqubitvchosglobalsqueezing.png')
