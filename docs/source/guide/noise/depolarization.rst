@@ -59,6 +59,27 @@ The default value of the frequency-dependent quality factor is assumed to be
     Q_{\rm cap}(\omega) =  10^{6}  \left( \frac{2 \pi \times 6 {\rm GHz} }{ |\omega|} \right)^{0.7}. 
 
 
+This method can be customized further through various noise related parameters shown below:
+
++----------------+-----------------------------+------------------------------------------------+
+| Parameter name | Default value               | Description                                    |
++================+=============================+================================================+
+| i              | 1                           | Initial state index                            |
++----------------+-----------------------------+------------------------------------------------+
+| j              | 0                           | Final state index                              |
++----------------+-----------------------------+------------------------------------------------+
+| Q_cap          | :math:`Q_{\rm cap}(\omega)` | Capacitive quality factor                      |
+|                |                             |                                                |
+|                |                             | Can be function of :math:`\omega`, or a number |
++----------------+-----------------------------+------------------------------------------------+
+| T              | 0.015                       | Temperature (in K)                             |
++----------------+-----------------------------+------------------------------------------------+
+| total          | False                       | Return both up and down rates                  |
++----------------+-----------------------------+------------------------------------------------+
+| get_rate       | False                       | Return rate instead of time                    |
++----------------+-----------------------------+------------------------------------------------+
+
+
 Qubits that support this noise channel include: 
 :ref:`TunableTransmon <qubit_tunable_transmon>`, 
 :ref:`Fluxonium <qubit_fluxonium>`, 
@@ -68,11 +89,11 @@ Qubits that support this noise channel include:
 Inductive noise
 -----------------------
 
-+--------------------------------------------+-----------------------------------------+
-| Method name                                | ``t1_inductive_loss``                   |
-+--------------------------------------------+-----------------------------------------+
-| :math:`B_\lambda`                          | :math:`\frac{\Phi_0}{2\pi} \hat{\phi}`  |
-+--------------------------------------------+-----------------------------------------+
++-------------------+----------------------------------------+
+| Method name       | ``t1_inductive_loss``                  |
++===================+========================================+
+| :math:`B_\lambda` | :math:`\frac{\Phi_0}{2\pi} \hat{\phi}` |
++-------------------+----------------------------------------+
 
 Inductive noise due to lossy inductance. The assumed spectral density reads
 
@@ -90,6 +111,27 @@ quality factor. The default value of the frequency-dependent quality factor is a
     \sinh \left( \frac{\hbar |\omega| }{2 k_B T} \right)},
 
 where :math:`K_0` is the Bessel function of the second kind. 
+
+This method can be customized further through various noise related parameters shown below:
+
++----------------+-----------------------------+------------------------------------------------+
+| Parameter name | Default value               | Description                                    |
++================+=============================+================================================+
+| i              | 1                           | Initial state index                            |
++----------------+-----------------------------+------------------------------------------------+
+| j              | 0                           | Final state index                              |
++----------------+-----------------------------+------------------------------------------------+
+| Q_ind          | :math:`Q_{\rm ind}(\omega)` | Inductive quality factor                       |
+|                |                             |                                                |
+|                |                             | Can be function of :math:`\omega`, or a number |
++----------------+-----------------------------+------------------------------------------------+
+| T              | 0.015                       | Temperature (in K)                             |
++----------------+-----------------------------+------------------------------------------------+
+| total          | False                       | Return both up and down rates                  |
++----------------+-----------------------------+------------------------------------------------+
+| get_rate       | False                       | Return rate instead of time                    |
++----------------+-----------------------------+------------------------------------------------+
+
 
 Qubits that support this noise channel include: 
 :ref:`Fluxonium <qubit_fluxonium>`.
@@ -116,6 +158,26 @@ By default we assume the qubit couples to a infinite transmission line, which le
 
    {\rm Re} Z(\omega) = 50 \Omega.
 
+This method can be customized further through various noise related parameters shown below:
+
++----------------+---------------+----------------------------------------------------+
+| Parameter name | Default value | Description                                        |
++================+===============+====================================================+
+| i              | 1             | Initial state index                                |
++----------------+---------------+----------------------------------------------------+
+| j              | 0             | Final state index                                  |
++----------------+---------------+----------------------------------------------------+
+| Z              | 50            | Complex Impedance of coupled line (:math:`\Omega`) |
+|                |               |                                                    |
+|                |               | Can be function of :math:`\omega`, or a number     |
++----------------+---------------+----------------------------------------------------+
+| T              | 0.015         | Temperature (in K)                                 |
++----------------+---------------+----------------------------------------------------+
+| total          | False         | Return both up and down rates                      |
++----------------+---------------+----------------------------------------------------+
+| get_rate       | False         | Return rate instead of time                        |
++----------------+---------------+----------------------------------------------------+
+
 
 Qubits that support this noise channel include: 
 :ref:`TunableTransmon <qubit_tunable_transmon>`, 
@@ -136,9 +198,35 @@ Noise due to current noisy biasing current coupled to the qubit via flux. The as
 
 .. math::
 
-    S(\omega) = \frac{M^{2} \omega \hbar}{R} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right)
+    S(\omega) = \frac{M^{2} \omega \hbar}{R} \left(1 + \coth \frac{\hbar |\omega|}{2 k_B T} \right),
 
 where :math:`M` is the mutual inductance between qubit and the flux line.
+
+This method can be customized further through various noise related parameters shown below:
+
+
+This method can be customized further through various noise related parameters shown below:
+
++----------------+---------------+---------------------------------------------------------------------+
+| Parameter name | Default value | Description                                                         |
++================+===============+=====================================================================+
+| i              | 1             | Initial state index                                                 |
++----------------+---------------+---------------------------------------------------------------------+
+| j              | 0             | Final state index                                                   |
++----------------+---------------+---------------------------------------------------------------------+
+| M              | 400           | Mutual inductance between qubit and flux line (in :math:`\Phi_0/A`) |
++----------------+---------------+---------------------------------------------------------------------+
+| Z              | 50            | Complex impedance of bias flux line (:math:`\Omega`)                |
+|                |               |                                                                     |
+|                |               | Can be function of :math:`\omega`, or a number                      |
++----------------+---------------+---------------------------------------------------------------------+
+| T              | 0.015         | Temperature (in K)                                                  |
++----------------+---------------+---------------------------------------------------------------------+
+| total          | False         | Return both up and down rates                                       |
++----------------+---------------+---------------------------------------------------------------------+
+| get_rate       | False         | Return rate instead of time                                         |
++----------------+---------------+---------------------------------------------------------------------+
+
 
 Qubits that support this noise channel include: 
 :ref:`TunableTransmon <qubit_tunable_transmon>`, 
@@ -164,13 +252,37 @@ Noise due to quasiparticle tunelling. The assumed spectral density reads
 where :math:`L_J` (with :math:`E_J = \phi_0^2/L_J` ) is the relevant inductance or superinductance, and :math:`Q_{\rm ind}` the corresponding inductive
 quality factor. The default value of the frequency-dependent quality factor is assumed to be
 
-The default real part of admitance is assumed to be 
+The default real part of admittance is assumed to be 
 
 .. math::
 
     {\rm Re} Y_{\rm qp}(\omega) = \sqrt{\frac{2}{\pi}} \frac{8 E_J}{R_k \Delta} \
     \left(\frac{2 \Delta}{\hbar \omega} \right)^{3/2}  x_{\rm qp} \
-    K_{0} \left( \frac{\hbar |\omega|}{2 k_B T} \right) \sinh \left( \frac{\hbar \omega }{2 k_B T} \right)
+    K_{0} \left( \frac{\hbar |\omega|}{2 k_B T} \right) \sinh \left( \frac{\hbar \omega }{2 k_B T} \right).
+
+This method can be customized further through various noise related parameters shown below:
+
++----------------+-------------------------------------+------------------------------------------------+
+| Parameter name | Default value                       | Description                                    |
++================+=====================================+================================================+
+| i              | 1                                   | Initial state index                            |
++----------------+-------------------------------------+------------------------------------------------+
+| j              | 0                                   | Final state index                              |
++----------------+-------------------------------------+------------------------------------------------+
+| Y_qp           | :math:`Y_{\rm qp}`                  | Complex admittance (:math:`\Omega`)            |
+|                |                                     |                                                |
+|                |                                     | Can be function of :math:`\omega`, or a number |
++----------------+-------------------------------------+------------------------------------------------+
+| x_qp           | :math:`3 \times 10^{-6}`            | Quasiparticle density                          |
++----------------+-------------------------------------+------------------------------------------------+
+| T              | 0.015                               | Temperature (in K)                             |
++----------------+-------------------------------------+------------------------------------------------+
+| Delta          | :math:`3.4 \times 10^{-4}` (for Al) | Superconducting gap (:math:`eV`)               |
++----------------+-------------------------------------+------------------------------------------------+
+| total          | False                               | Return both up and down rates                  |
++----------------+-------------------------------------+------------------------------------------------+
+| get_rate       | False                               | Return rate instead of time                    |
++----------------+-------------------------------------+------------------------------------------------+
 
 
 Qubits that support this noise channel include: 

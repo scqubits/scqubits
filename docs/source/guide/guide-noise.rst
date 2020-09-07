@@ -11,6 +11,11 @@ scqubits implements coherence time calculations for estimating depolarization an
 qubits implemented. For each qubit, a variety of noise channels can be considered, ranging from ubiquitous channels
 affecting most circuits to more specialized ones applicable only to the qubit of interest.
 
+.. note::
+
+    The coherence calculations in scqubits use standard approximation techiniqes discussed in the listed references. 
+    It is up to the user to ensure the assumptions are consistent with their parameter choices. 
+
 A list of the channels supported by a given qubit can be obtained by calling the ``supported_noise_channels()`` method.
 Each entry in the returned list represents a method that can be directly called on the qubit object.
 For example, in the case of  the ``TunableTransmon`` qubit, this could take the form::
