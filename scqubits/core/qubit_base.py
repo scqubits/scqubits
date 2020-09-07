@@ -27,7 +27,7 @@ import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData, DataStore
-from scqubits.settings import IN_IPYTHON, TQDM_KWARGS
+from scqubits.settings import IN_IPYTHON
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, drop_private_keys, process_which
 from scqubits.utils.plot_defaults import set_scaling
@@ -273,6 +273,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         SpectrumData object
         """
         previous_paramval = getattr(self, param_name)
+        tqdm_disable = num_cpus > 1 or settings.PROGRESSBAR_DISABLED
 
         target_map = get_map_method(num_cpus)
         if get_eigenstates:
@@ -281,13 +282,13 @@ class QubitBaseClass(QuantumSystem, ABC):
                 # Note that it is useful here that the outermost eigenstate object is a list, 
                 # as for certain applications the necessary hilbert space dimension can vary with paramvals
                 eigensystem_mapdata = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
-                                                                 disable=(num_cpus > 1))))
+                                                                 disable=tqdm_disable)))
             eigenvalue_table, eigenstate_table = recast_esys_mapdata(eigensystem_mapdata)
         else:
             func = functools.partial(self._evals_for_paramval, param_name=param_name, evals_count=evals_count)
             with InfoBar("Parallel computation of eigensystems [num_cpus={}]".format(num_cpus), num_cpus):
                 eigenvalue_table = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
-                                                              disable=(num_cpus > 1))))
+                                                              disable=tqdm_disable)))
             eigenvalue_table = np.asarray(eigenvalue_table)
             eigenstate_table = None
 
@@ -329,7 +330,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         paramvals_count = len(param_vals)
         matelem_table = np.empty(shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_)
 
-        for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), **TQDM_KWARGS):
+        for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), disable=settings.PROGRESSBAR_DISABLED,
+                                    leave=False):
             evecs = spectrumdata.state_table[index]
             matelem_table[index] = self.matrixelement_table(operator, evecs=evecs, evals_count=evals_count)
 

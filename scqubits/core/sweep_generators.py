@@ -39,7 +39,8 @@ def compute_custom_data_sweep(sweep, func, **kwargs):
     ndarray
     """
     return np.asarray([func(sweep, param_index, **kwargs)
-                       for param_index in tqdm(range(sweep.param_count), desc='data sweep', **settings.TQDM_KWARGS)])
+                       for param_index in tqdm(range(sweep.param_count), desc='data sweep', leave=False,
+                                               disable=settings.PROGRESSBAR_DISABLED)])
 
 
 def generate_chi_sweep(sweep):
@@ -108,7 +109,8 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
     evals_count = sweep.evals_count
     diff_eigenenergy_table = np.empty(shape=(param_count, evals_count))
 
-    for param_index in tqdm(range(param_count), desc="difference spectrum", **settings.TQDM_KWARGS):
+    for param_index in tqdm(range(param_count), desc="difference spectrum", leave=False,
+                            disable=settings.PROGRESSBAR_DISABLED):
         eigenenergies = sweep.dressed_specdata.energy_table[param_index]
         if isinstance(initial_state_ind, int):
             eigenenergy_index = initial_state_ind

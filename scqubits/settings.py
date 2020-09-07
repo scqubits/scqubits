@@ -44,10 +44,6 @@ except NameError:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
 
-# define settings for tqdm progressbar
-TQDM_KWARGS = {'disable': PROGRESSBAR_DISABLED,
-               'leave': False}
-
 # run ParameterSweep directly upon initialization
 AUTORUN_SWEEP = True
 
