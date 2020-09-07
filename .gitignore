@@ -16,9 +16,7 @@
 *.pdf
 
 
-/docs/build/
 /examples/.ipynb_checkpoints/
-/docs/source/guide/ipynb/.ipynb_checkpoints/
 /scqubits/.ipynb_checkpoints/
 /scqubits/version.py
 /scqubits.egg-info/
