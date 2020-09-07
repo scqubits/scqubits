@@ -16,7 +16,6 @@
 *.pdf
 
 
-/examples/.ipynb_checkpoints/
 /scqubits/.ipynb_checkpoints/
 /scqubits/version.py
 /scqubits.egg-info/
@@ -28,4 +27,3 @@
 /scratch/
 
 scqubits/tests/explorer_run.py
-/examples/demo_hilbertspace-DEBUG.ipynb
