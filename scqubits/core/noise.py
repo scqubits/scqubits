@@ -561,7 +561,7 @@ class NoisySystem:
         selected options, to be included in the effective :math:`T_2` calculation. For example, assuming 
         `qubit` is a qubit object, can can execute:: 
 
-            qubit.t2_effective(noise_channels=['t1_flux_bias_line', 't1_capacitive_loss',
+            qubit.t2_effective(noise_channels=['t1_flux_bias_line', 't1_capacitive',
                                                ('tphi_1_over_f_flux', dict(A_noise=3e-6))], 
                                common_noise_options=dict(T=0.050))
 
@@ -824,10 +824,10 @@ class NoisySystem:
         else:
             return 1/rate if rate != 0 else np.inf
 
-    def t1_capacitive_loss(self, i=1, j=0, Q_cap=None, T=NOISE_PARAMS['T'],  total=True,
+    def t1_capacitive(self, i=1, j=0, Q_cap=None, T=NOISE_PARAMS['T'],  total=True,
                            esys=None, get_rate=False, **kwargs):
         r"""
-        Loss due to dielectric dissipation in the Jesephson junction capacitances. 
+        :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances. 
 
         References: Smith et al (2020)
 
@@ -856,8 +856,8 @@ class NoisySystem:
 
         """
 
-        if 't1_capacitive_loss' not in self.supported_noise_channels():
-            raise RuntimeError("Noise channel 't1_capacitive_loss' is not supported in this system.")
+        if 't1_capacitive' not in self.supported_noise_channels():
+            raise RuntimeError("Noise channel 't1_capacitive' is not supported in this system.")
 
         if Q_cap is None:
             # See Smith et al (2020)
@@ -982,10 +982,10 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total, esys=esys,
                        get_rate=get_rate, **kwargs)
 
-    def t1_inductive_loss(self, i=1, j=0, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
+    def t1_inductive(self, i=1, j=0, Q_ind=None, T=NOISE_PARAMS['T'],  total=True,
                           esys=None, get_rate=False, **kwargs):
         r"""
-        Loss due to inductive dissipation in a superinductor.  
+        :math:`T_1` due to inductive dissipation in a superinductor.  
 
         TODO check factor of 1/2 definition in EL; should be the same in all qubits, otherwise we'll get this wrong.
             In that case, could overwrite it for some qubits. 
@@ -1017,8 +1017,8 @@ class NoisySystem:
 
         """
 
-        if 't1_inductive_loss' not in self.supported_noise_channels():
-            raise RuntimeError("Noise channel 't1_inductive_loss' is not supported in this system.")
+        if 't1_inductive' not in self.supported_noise_channels():
+            raise RuntimeError("Noise channel 't1_inductive' is not supported in this system.")
 
         if Q_ind is None:
             # See Smith et al (2020)

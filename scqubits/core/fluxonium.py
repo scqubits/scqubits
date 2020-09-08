@@ -85,10 +85,10 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """Return a list of supported noise channels"""
         return ['tphi_1_over_f_cc', 
                 'tphi_1_over_f_flux',
-                't1_capacitive_loss',
+                't1_capacitive',
                 't1_charge_impedance', 
                 't1_flux_bias_line',
-                't1_inductive_loss',
+                't1_inductive',
                 't1_quasiparticle_tunneling',
                 ]
 

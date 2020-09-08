@@ -150,8 +150,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
                 'tphi_1_over_f_cc', 
                 'tphi_1_over_f_flux',
                 't1_flux_bias_line',
-                # 't1_capacitive_loss',
-                't1_inductive_loss',
+                # 't1_capacitive',
+                't1_inductive',
                 ]
 
     def widget(self, params=None):

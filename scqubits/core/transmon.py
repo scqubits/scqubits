@@ -78,7 +78,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """Return a list of supported noise channels"""
         return ['tphi_1_over_f_cc', 
                 'tphi_1_over_f_ng',
-                't1_capacitive_loss',
+                't1_capacitive',
                 't1_charge_impedance', 
                 ]
 
@@ -336,7 +336,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         return ['tphi_1_over_f_flux', 
                 'tphi_1_over_f_cc', 
                 'tphi_1_over_f_ng',
-                't1_capacitive_loss',
+                't1_capacitive',
                 't1_flux_bias_line',
                 't1_charge_impedance', 
                 ]
