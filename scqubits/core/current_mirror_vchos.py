@@ -75,10 +75,9 @@ class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length,
-                 num_exc=0, optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
+                 num_exc=0, nearest_neighbors=None, truncated_dim=None):
         VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2 * N - 1,
-                       number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc,
-                       optimized_lengths=optimized_lengths, nearest_neighbors=nearest_neighbors)
+                       number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc, nearest_neighbors=nearest_neighbors)
         CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
@@ -112,11 +111,10 @@ class CurrentMirrorVCHOSSqueezing(CurrentMirrorVCHOSFunctions, VCHOSSqueezing,
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length,
-                 num_exc=0, optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
+                 num_exc=0, nearest_neighbors=None, truncated_dim=None):
         VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length,
                                 number_degrees_freedom=2 * N - 1, number_periodic_degrees_freedom=2 * N - 1,
-                                num_exc=num_exc, optimized_lengths=optimized_lengths,
-                                nearest_neighbors=nearest_neighbors)
+                                num_exc=num_exc, nearest_neighbors=nearest_neighbors)
         CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
@@ -150,11 +148,10 @@ class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOSFunctions, VCHOS,
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length, global_exc,
-                 optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
+                 nearest_neighbors=None, truncated_dim=None):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
         VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2 * N - 1,
-                       number_periodic_degrees_freedom=2 * N - 1, num_exc=None,
-                       optimized_lengths=optimized_lengths, nearest_neighbors=nearest_neighbors)
+                       number_periodic_degrees_freedom=2 * N - 1, num_exc=None, nearest_neighbors=nearest_neighbors)
         CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
@@ -188,12 +185,11 @@ class CurrentMirrorVCHOSGlobalSqueezing(Hashing, CurrentMirrorVCHOSFunctions, VC
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length, global_exc,
-                 optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
+                 nearest_neighbors=None, truncated_dim=None):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
         VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length,
                                 number_degrees_freedom=2 * N - 1, number_periodic_degrees_freedom=2 * N - 1,
-                                num_exc=None, optimized_lengths=optimized_lengths,
-                                nearest_neighbors=nearest_neighbors)
+                                num_exc=None, nearest_neighbors=nearest_neighbors)
         CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_

@@ -70,13 +70,12 @@ class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serial
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2,
-                 flux, maximum_periodic_vector_length, num_exc, optimized_lengths=None, nearest_neighbors=None,
+                 flux, maximum_periodic_vector_length, num_exc, nearest_neighbors=None,
                  truncated_dim=None):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
-                       number_periodic_degrees_freedom=2, num_exc=num_exc, optimized_lengths=optimized_lengths,
-                       nearest_neighbors=nearest_neighbors)
+                       number_periodic_degrees_freedom=2, num_exc=num_exc, nearest_neighbors=nearest_neighbors)
         FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -109,12 +108,11 @@ class FluxQubitVCHOSSqueezing(FluxQubitVCHOSFunctions, VCHOSSqueezing, base.Qubi
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
                  ECJ3, ECg1, ECg2, ng1, ng2, flux, maximum_periodic_vector_length,
-                 num_exc, optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
+                 num_exc, nearest_neighbors=None, truncated_dim=None):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
-                                number_periodic_degrees_freedom=2, num_exc=num_exc, optimized_lengths=optimized_lengths,
-                                nearest_neighbors=nearest_neighbors)
+                                number_periodic_degrees_freedom=2, num_exc=num_exc, nearest_neighbors=nearest_neighbors)
         FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -147,13 +145,12 @@ class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOSFunctions, VCHOS, base.QubitBa
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
                  ECJ3, ECg1, ECg2, ng1, ng2, flux, maximum_periodic_vector_length,
-                 global_exc, optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
+                 global_exc, nearest_neighbors=None, truncated_dim=None):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
         VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
-                       number_periodic_degrees_freedom=2, num_exc=None, optimized_lengths=optimized_lengths,
-                       nearest_neighbors=nearest_neighbors)
+                       number_periodic_degrees_freedom=2, num_exc=None, nearest_neighbors=nearest_neighbors)
         FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -187,13 +184,12 @@ class FluxQubitVCHOSGlobalSqueezing(Hashing, FluxQubitVCHOSFunctions, VCHOSSquee
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
                  ECJ3, ECg1, ECg2, ng1, ng2, flux, maximum_periodic_vector_length,
-                 global_exc, optimized_lengths=None, nearest_neighbors=None, truncated_dim=None):
+                 global_exc, nearest_neighbors=None, truncated_dim=None):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
         VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
-                                number_periodic_degrees_freedom=2, num_exc=None, optimized_lengths=optimized_lengths,
-                                nearest_neighbors=nearest_neighbors)
+                                number_periodic_degrees_freedom=2, num_exc=None, nearest_neighbors=nearest_neighbors)
         FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
