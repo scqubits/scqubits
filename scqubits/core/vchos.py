@@ -248,14 +248,14 @@ class VCHOS(ABC):
 
     def _filter_reflected_vectors(self, minima_diff, Xi_inv, vec, filtered_vectors):
         dim_extended = self.number_extended_degrees_freedom
-        reflected_vecs = self._reflect_vecs(vec)
+        reflected_vectors = self._reflect_vectors(vec)
         filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
-        new_vecs = filter(filter_function, reflected_vecs)
-        for filtered_vec in new_vecs:
+        new_vectors = filter(filter_function, reflected_vectors)
+        for filtered_vec in new_vectors:
             filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), filtered_vec)))
 
     @staticmethod
-    def _reflect_vecs(vec):
+    def _reflect_vectors(vec):
         reflected_vec_list = []
         nonzero_indices = np.nonzero(vec)
         nonzero_vec = vec[nonzero_indices]
