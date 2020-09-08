@@ -17,17 +17,19 @@ from scqubits import Fluxonium, FluxQubit, Grid1d, Transmon, TunableTransmon, Ze
 
 data = {}
 
+
 data['Transmon']=np.array([1.33428506e+07, 3.77005675e+00, 2.16683864e+06, 5.02320540e+02,
        2.16683864e+06, 3.77005240e+00])
 data['TunableTransmon']=np.array([2.03732888e+04, 1.60438006e+06, 9.42324266e+05, 1.50547341e+04,
                   np.inf, 1.86529682e-01, 1.50547341e+04, 1.19075232e+04])
 data['Fluxonium']=np.array([4.32535846e+06,            np.inf, 5.48954061e+06, 8.71690601e+02,
-       1.09436102e+08, 5.18435915e+06, 2.37656072e+02, 1.86729458e+02,
-       3.73426673e+02])
-data['FluxQubit']=np.array([44697811.55375044, 44697796.19976017,  1822725.05439263,
-        1685277.68169801,               np.inf,   842638.84084901])
-data['ZeroPi']=np.array([ 3803362.64526874, 40606502.43980733,               np.inf,
-                     np.inf,               np.inf,  3477633.94999531])
+       1.09436102e+08, 5.18435915e+06,            np.inf, 8.71398774e+02,
+       1.74209561e+03])
+data['FluxQubit']=np.array([44697811.55376147, 44697796.19977181,  1822725.05439266,
+        1685277.68169807,               np.inf,   842638.84084903])
+data['ZeroPi']=np.array([ 3803362.64526863, 40606502.43975895,               np.inf,
+                     np.inf,               np.inf,  3477633.94999513])
+
 
 
 def calc_coherence(qubit, noise_methods=None):
