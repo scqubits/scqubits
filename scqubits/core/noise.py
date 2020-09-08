@@ -829,7 +829,7 @@ class NoisySystem:
         r"""
         :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances. 
 
-        References: Smith et al (2020)
+        References:  Nguyen et al (2019), Smith et al (2020)
 
         Parameters
         ----------
@@ -882,7 +882,7 @@ class NoisySystem:
                             esys=None, get_rate=False, **kwargs):
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
-        References: Clerk et al (2010), also Zhang et al (2020) - note different definition of R_k (i.e. their R_q)
+        References: Schoelkopf et al (2003), Ithier et al (2005)
 
         Parameters
         ----------
@@ -930,6 +930,8 @@ class NoisySystem:
                           total=True,  esys=None, get_rate=False, **kwargs):
         r"""Noise due to a bias flux line. 
         
+        References: Koch et al (2007), Groszkowski et al (2018)
+
         Parameters
         ----------
         i: int >=0
@@ -973,7 +975,6 @@ class NoisySystem:
             # We assume that system energies are given in units of frequency
             # and that the noise operator to be used with this `spectral_density` is dH/dflux.
             # Hence we have to convert  2 powers of frequency to standard units
-            # (TODO this is ugly; what's a cleaner way to do this? )
             s *= (units.to_standard_units(1))**2.0
             return s
 
@@ -987,10 +988,7 @@ class NoisySystem:
         r"""
         :math:`T_1` due to inductive dissipation in a superinductor.  
 
-        TODO check factor of 1/2 definition in EL; should be the same in all qubits, otherwise we'll get this wrong.
-            In that case, could overwrite it for some qubits. 
-
-        References: Smith et al (2020)
+        References: Nguyen et al (2019), Smith et al (2020)
 
         Parameters
         ----------
@@ -1115,7 +1113,10 @@ class NoisySystem:
             return omega * NOISE_PARAMS['R_k'] / np.pi * complex(y_qp_fun(omega)).real  \
                 * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
 
-        noise_op = self.sin_phi_operator(alpha=0.5)
+        # In some literature the operator sin(phi/2) is used instead. 
+        # This depends on whether one groups the flux with the quadratic or the cos term 
+        # in the potential. 
+        noise_op = self.cos_phi_operator(alpha=0.5)
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
