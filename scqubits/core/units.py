@@ -117,7 +117,6 @@ def from_standard_units(value):
     return value / _units_factor[_current_units]
 
 
-# TODO must be a better name for this?!
 def units_scale_factor(units=None):
     """
     Return a numerical scaling factor that converts form Hz to `units`.

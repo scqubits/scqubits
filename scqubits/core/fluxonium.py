@@ -184,14 +184,14 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_EJ(self):
         """Returns operator representing a derivittive of the Hamiltonian with respect to `EJ`.
 
-        TODO How do we group the flux here? At the moment keep what's done in the Hamiltonian
+        The flux is grouped as in the Hamiltonian. 
         """
         return - self.cos_phi_operator(1,  2 * np.pi * self.flux)
 
     def d_hamiltonian_d_flux(self):
         """Returns operator representing a derivittive of the Hamiltonian with respect to `flux`.
 
-        TODO How do we group the flux here? At the moment keep what's done in the Hamiltonian
+        Flux is grouped as in the Hamiltonian. 
         """
         return -2 * np.pi * self.EJ * self.sin_phi_operator(1,  2 * np.pi * self.flux)
 

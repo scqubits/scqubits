@@ -150,7 +150,6 @@ class NoisyFluxQubit(NoisySystem):
         rate = self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
         rate += self.tphi_1_over_f_cc2(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
         rate += self.tphi_1_over_f_cc3(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
-        # TODO: MISSING
         if get_rate:
             return rate
         else:

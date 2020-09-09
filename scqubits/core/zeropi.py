@@ -224,7 +224,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def sparse_kinetic_mat(self):
         """
         Kinetic energy portion of the Hamiltonian.
-        TODO: update this method to use single-variable operator methods
 
         Returns
         -------
@@ -248,7 +247,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def sparse_potential_mat(self):
         """
         Potential energy portion of the Hamiltonian.
-        TODO: update this method to use single-variable operator methods
 
         Returns
         -------
