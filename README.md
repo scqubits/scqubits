@@ -13,11 +13,6 @@ Matplotlib.
 
 [![CodeFactor](https://www.codefactor.io/repository/github/scqubits/scqubits/badge)](https://www.codefactor.io/repository/github/scqubits/scqubits)
 
-News
-----
-
-(2020/06/18) We're in the process of adding coherence calculations to scqubits. 
-If you're interested in exploring and/or testing these additions, please install the `noise` branch.
 
 Download and Installation
 -------------------------
