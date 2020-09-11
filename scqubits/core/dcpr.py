@@ -407,7 +407,17 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
              [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
         wavefunc.amplitudes = amplitude_modifier(
             spec_utils.standardize_phases(wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count)))
-        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+
+        fig, axes = plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+        axes.set_xlim([-2 * np.pi, 2 * np.pi])
+        axes.set_ylim([-4 * np.pi, 4 * np.pi])
+        axes.set_ylabel(r'$\phi$')
+        axes.set_xlabel(r'$\varphi$')
+        axes.set_xticks([-np.pi, 0, np.pi, 2 * np.pi])
+        axes.set_xticklabels(['-$\pi$', '$0$', '$\pi$', '$2\pi$'])
+        axes.set_yticks([-2 * np.pi, 0, 2 * np.pi])
+        axes.set_yticklabels(['-$\pi$', '0', '$\pi$'])
+        return fig, axes
 
     def plot_n_phi_n_varphi_wavefunction(self, esys=None, mode='real', which=0, zero_calibrate=True, **kwargs):
         phi_grid = self.phi_grid
@@ -675,7 +685,7 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         # assume EJ here is the average EJ in the presence of disorder
         return np.abs(1 / (5e-7 * self.EJ * np.abs(first_derivative)) * 1e-6) / (2 * np.pi)  # unit in ms
 
-    def print_noise(self, g_state, e_state):
+    def print_noise(self, g_state, e_state, table=True):
         t2_current = self.get_t2_current_noise(e_state)
         t2_flux = self.get_t2_flux_noise(e_state)
         t2_fluxa = self.get_t2_fluxa_noise(e_state)
@@ -685,15 +695,16 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         t1_tot = 1 / (1 / t1_cap + 1 / t1_ind + 1 / t1_qp)
         t2_tot = 1 / (1 / t2_current + 1 / t2_flux + 1 / t2_fluxa + 1 / t1_tot / 2)
 
-        print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
-                     ' ms', '\n T2_flux_a =', t2_fluxa,
-                     ' ms', '\n T1_cap =',
-                     t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1_qp =', t1_qp, ' ms', '\n T1 =', t1_tot,
-                     ' ms', '\n T2 =', t2_tot,
-                     ' ms')
+        if table is True:
+            print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
+                         ' ms', '\n T2_flux_a =', t2_fluxa,
+                         ' ms', '\n T1_cap =',
+                         t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1_qp =', t1_qp, ' ms', '\n T1 =', t1_tot,
+                         ' ms', '\n T2 =', t2_tot,
+                         ' ms')
 
         return np.array([t2_current, t2_flux, t2_fluxa, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot])
 
-    def set_by_flux_dc(self, flux_c, flux_d):
+    def set_by_flux_cd(self, flux_c, flux_d):
         self.flux = flux_c * 2
         self.fluxa = - flux_d - flux_c

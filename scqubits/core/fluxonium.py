@@ -71,6 +71,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         self.cutoff = cutoff
         self.kbt = kbt * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # temperature unit mK
         self.truncated_dim = truncated_dim
+        self.ph = 0
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-4.5 * np.pi, 4.5 * np.pi, 151)
@@ -160,6 +161,38 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         sin_phi_op = -1j * 0.5 * self.exp_i_phi_operator()
         sin_phi_op += sin_phi_op.conjugate().T
         return sin_phi_op
+
+    def exp_i_phi_2_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`e^{i\\phi/2}` operator in the LC harmonic oscillator basis
+        """
+        exponent = 1j * self.phi_operator() * 0.5
+        return sp.linalg.expm(exponent)
+
+    def cos_phi_2_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`\\cos \\phi/2` operator in the LC harmonic oscillator basis
+        """
+        cos_phi_op = 0.5 * self.exp_i_phi_2_operator()
+        cos_phi_op += cos_phi_op.conj().T
+        return np.real(cos_phi_op)
+
+    def sin_phi_2_operator(self):
+        """
+        Returns
+        -------
+        ndarray
+            Returns the :math:`\\sin \\phi/2` operator in the LC harmonic oscillator basis
+        """
+        sin_phi_op = -1j * 0.5 * self.exp_i_phi_2_operator()
+        sin_phi_op += sin_phi_op.conj().T
+        return np.real(sin_phi_op)
 
     def _identity(self):
         """
@@ -295,15 +328,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
 
     def q_cap(self, energy):
         # Devoret paper
-        q_cap_0 = 1 * 1e6
-        return q_cap_0 * (6 / energy) ** 0.7
+        # q_cap_0 = 1 * 1e6
+        # return q_cap_0 * (6 / energy) ** 0.7
 
         # Schuster paper
         # return 1 / (8e-6)
 
         # Vlad paper
-        # q_cap_0 = 1 / (3 * 1e-6)
-        # return q_cap_0 * (6 / energy) ** 0.15
+        q_cap_0 = 1 / (3 * 1e-6)
+        return q_cap_0 * (6 / energy) ** 0.15
 
     def get_t1_capacitive_loss(self, para_name, para_vals):
         energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
@@ -446,3 +479,33 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         plt.xlabel(para_name)
         plt.ylabel('T2 (ms)')
         plt.yscale('log')
+
+    def y_qp(self, energy):
+        """frequency dependent addimitance for quasiparticle"""
+        gap = 80.0
+        xqp = 1e-8
+        return 16 * np.pi * np.sqrt(2 / np.pi) / gap * energy * (2 * gap / energy) ** 1.5 * xqp * np.sqrt(
+            energy / 2 / self.kbt) * kn(0, energy / 2 / self.kbt) * np.sinh(energy / 2 / self.kbt)
+
+    def get_t1_qp_loss(self, init_state):
+        """T1 quasiparticle loss of one particular state"""
+        cutoff = init_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[init_state] - energy
+        energy_diff = np.delete(energy_diff, init_state)
+
+        matelem_1 = self.get_matelements_vs_paramvals('sin_phi_2_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[
+                    0, init_state, :]
+        matelem_1 = np.delete(matelem_1, init_state)
+
+        s_qp_1 = self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+
+        gamma1_qp_1 = np.abs(matelem_1) ** 2 * s_qp_1
+
+        gamma1_ind_tot = np.sum(gamma1_qp_1)
+        return 1 / (gamma1_ind_tot) * 1e-6
+
+    def thermal_factor(self, energy):
+        return np.where(energy > 0, 0.5 * (1 / (np.tanh(energy / 2.0 / self.kbt)) + 1),
+                        0.5 * (1 / (np.tanh(- energy / 2.0 / self.kbt)) - 1))

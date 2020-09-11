@@ -29,6 +29,7 @@ from scqubits.core.dcpl import Dcpl
 from scqubits.core.dcpi import Dcpi
 from scqubits.core.dcpd import Dcpd
 from scqubits.core.dcpr import Dcpr
+from scqubits.core.protomon import Protomon
 from scqubits.core.dcpr_dc import Dcpr_dc
 from scqubits.core.rhombus import Rhombus
 
