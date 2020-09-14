@@ -40,7 +40,6 @@ class VCHOS(ABC):
         self.Z0 = 1. / (2 * self.e)**2
         self.Phi0 = 1. / (2 * self.e)
         self.nearest_neighbor_cutoff = 1e-15
-        self.potential_minimum_cutoff = 60.0
         self.EJlist = EJlist
         self.nglist = nglist
         self.flux = flux
@@ -133,30 +132,32 @@ class VCHOS(ABC):
         ndarray
             ratio of harmonic lengths to minima separations
         """
+        if not self.nearest_neighbors:
+            self.find_relevant_periodic_continuation_vectors()
         return self._wrapper_for_functions_comparing_minima(self._find_closest_periodic_minimum)
 
     def _wrapper_for_functions_comparing_minima(self, function):
-        sorted_minima = self.sorted_minima()
-        if not self.nearest_neighbors:
-            self.find_relevant_periodic_continuation_vectors()
-        nearest_neighbors = self.nearest_neighbors
-        all_minima_pairs = list(itertools.combinations_with_replacement(sorted_minima, 2))
-        return np.array([function(minima_pair, nearest_neighbors[i])
-                         for i, minima_pair in enumerate(all_minima_pairs)])
+        minima_list = self.sorted_minima()
+        minima_list_with_index = zip(minima_list, [m for m in range(len(minima_list))])
+        all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
+        return np.array([function(((minima_m, m), (minima_p, p)), self.nearest_neighbors[str(m)+str(p)])
+                         for (minima_m, m), (minima_p, p) in all_minima_pairs])
 
     def _find_closest_periodic_minimum(self, minima_pair, nearest_neighbors):
         if not nearest_neighbors:
             return 0.0
+        (minima_m, m), (minima_p, p) = minima_pair
         Xi_inv = inv(self.Xi_matrix())
         delta_inv = Xi_inv.T @ Xi_inv
-        if np.allclose(minima_pair[1], minima_pair[0]):  # Do not include equivalent minima in the same unit cell
+        if np.allclose(minima_p, minima_m):  # Do not include equivalent minima in the same unit cell
             nearest_neighbors = np.array([vec for vec in nearest_neighbors if not np.allclose(vec, np.zeros_like(vec))])
-        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_pair[1] - minima_pair[0])) / 2.0
+        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_p - minima_m)) / 2.0
                                      for vec in nearest_neighbors])
-        minima_vectors = np.array([2.0 * np.pi * vec + (minima_pair[1] - minima_pair[0])
+        minima_vectors = np.array([2.0 * np.pi * vec + (minima_p - minima_m)
                                    for i, vec in enumerate(nearest_neighbors)])
         minima_unit_vectors = np.array([minima_vectors[i] / minima_distances[i] for i in range(len(minima_distances))])
-        harmonic_lengths = np.array([4.0*(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
+        harmonic_lengths = np.array([4.0*(unit_vec @ delta_inv @ unit_vec)**(-1/2)
+                                     for unit_vec in minima_unit_vectors])
         return np.max(harmonic_lengths / minima_distances)
 
     def Xi_matrix(self, minimum=0):
@@ -205,27 +206,32 @@ class VCHOS(ABC):
         the results were the same for all three matrices. This helper function allows us to only
         do it once.
         """
-        target_map = get_map_method(num_cpus)
         Xi_inv = inv(self.Xi_matrix())
         minima_list = self.sorted_minima()
+        number_of_minima = len(minima_list)
         nearest_neighbors = {}
-        dim_extended = self.number_extended_degrees_freedom
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m, len(minima_list)):
-                minima_diff = minima_list[p] - minima_m
-                if (m == p) and (m != 0):  # vectors will be the same as m=p=0
-                    nearest_neighbors[str(m)+str(p)] = nearest_neighbors["00"]
-                else:
-                    periodic_vector_lengths = np.array([i for i in range(1, self.maximum_periodic_vector_length + 1)])
-                    filter_function = partial(self._filter_periodic_vectors, minima_diff, Xi_inv)
-                    filtered_vectors = list(target_map(filter_function, periodic_vector_lengths))
-                    zero_vec = np.zeros(self.number_periodic_degrees_freedom)
-                    if self._filter_neighbors(minima_diff, Xi_inv, zero_vec):
-                        filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), zero_vec)))
-                    nearest_neighbors_single = self._stack_filtered_vectors(filtered_vectors)
-                    nearest_neighbors[str(m)+str(p)] = nearest_neighbors_single
-                print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
+        minima_list_with_index = zip(minima_list, [m for m in range(number_of_minima)])
+        all_minima_pairs = itertools.combinations(minima_list_with_index, 2)
+        nearest_neighbors["00"] = self._filter_for_minima_pair(np.zeros_like(minima_list[0]), Xi_inv, num_cpus)
+        print("completed m={m}, p={p} minima pair computation".format(m=0, p=0))
+        for (minima_m, m), (minima_p, p) in all_minima_pairs:
+            minima_diff = Xi_inv @ (minima_list[p] - minima_m)
+            nearest_neighbors[str(m)+str(p)] = self._filter_for_minima_pair(minima_diff, Xi_inv, num_cpus)
+            print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
+        for m in range(number_of_minima):
+            nearest_neighbors[str(m) + str(m)] = nearest_neighbors["00"]
         self.nearest_neighbors = nearest_neighbors
+
+    def _filter_for_minima_pair(self, minima_diff, Xi_inv, num_cpus):
+        target_map = get_map_method(num_cpus)
+        dim_extended = self.number_extended_degrees_freedom
+        periodic_vector_lengths = np.array([i for i in range(1, self.maximum_periodic_vector_length + 1)])
+        filter_function = partial(self._filter_periodic_vectors, minima_diff, Xi_inv)
+        filtered_vectors = list(target_map(filter_function, periodic_vector_lengths))
+        zero_vec = np.zeros(self.number_periodic_degrees_freedom)
+        if self._filter_neighbors(minima_diff, Xi_inv, zero_vec):
+            filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), zero_vec)))
+        return self._stack_filtered_vectors(filtered_vectors)
 
     @staticmethod
     def _stack_filtered_vectors(filtered_vectors):
@@ -277,7 +283,7 @@ class VCHOS(ABC):
         Assumption is that extended degrees of freedom precede the periodic d.o.f.
         """
         phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom), neighbor))
-        dpkX = Xi_inv @ (phi_neighbor + minima_diff)
+        dpkX = Xi_inv @ phi_neighbor + minima_diff
         prod = np.exp(-0.25*np.dot(dpkX, dpkX))
         return prod > self.nearest_neighbor_cutoff
 
@@ -515,16 +521,16 @@ class VCHOS(ABC):
         a_operator_list = self.a_operator_list()
         exp_a_list = self._build_general_translation_operators(Xi_inv, a_operator_list)
         minima_list = self.sorted_minima()
-        hilbertdim = self.hilbertdim()
         num_states_min = self.number_states_per_minimum()
-        operator_matrix = np.zeros((hilbertdim, hilbertdim), dtype=np.complex128)
-        for m, minima_m in enumerate(minima_list):
-            for p in range(m, len(minima_list)):
-                matrix_element = self._periodic_continuation_for_minima_pair(minima_m, minima_list[p],
-                                                                             self.nearest_neighbors[str(m)+str(p)],
-                                                                             func, exp_a_list, Xi_inv, a_operator_list)
-                operator_matrix[m*num_states_min: (m + 1)*num_states_min,
-                                p*num_states_min: (p + 1)*num_states_min] += matrix_element
+        operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex128)
+        minima_list_with_index = zip(minima_list, [m for m in range(len(minima_list))])
+        all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
+        for (minima_m, m), (minima_p, p) in all_minima_pairs:
+            matrix_element = self._periodic_continuation_for_minima_pair(minima_m, minima_p,
+                                                                         self.nearest_neighbors[str(m)+str(p)],
+                                                                         func, exp_a_list, Xi_inv, a_operator_list)
+            operator_matrix[m*num_states_min: (m + 1)*num_states_min,
+                            p*num_states_min: (p + 1)*num_states_min] += matrix_element
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
 
@@ -591,14 +597,20 @@ class VCHOS(ABC):
         return value_of_potential[sorted_indices], minima_holder[sorted_indices, :]
 
     def sorted_minima(self):
-        """Sort the minima based on the value of the potential at the minima """
-        sorted_value_of_potential, sorted_minima_holder = self.sorted_potential_values_and_minima()
-        # For efficiency purposes, don't want to displace states into minima
-        # that are too high energy. Arbitrarily set a 40 GHz cutoff
-        global_min = sorted_value_of_potential[0]
-        dim = len(sorted_minima_holder)
-        sorted_minima_holder = np.array([sorted_minima_holder[i] for i in range(dim)
-                                         if sorted_value_of_potential[i] < global_min + self.potential_minimum_cutoff])
+        """
+        Sort the minima based on the value of the potential at the minima. Naively one
+        would expect that only states localized in the lowest energy minima contribute to
+        the low energy spectrum, and generally speaking that is true. Therefore it would stand to
+        reason that the highest energy local minima can be neglected, and this function is where
+        such an approximation would be made. However in some special cases high-energy minima
+        can non-trivially contribute to the low-energy spectrum, therefore it is safer
+        to keep all local minima found by the find_minima() function.
+        Returns
+        -------
+        ndarray
+            sorted array of the minima locations
+        """
+        _, sorted_minima_holder = self.sorted_potential_values_and_minima()
         return sorted_minima_holder
 
     def normalize_minimum_inside_pi_range(self, minimum):
@@ -732,12 +744,15 @@ class VCHOS(ABC):
         wavefunction.amplitudes = amplitude_modifier(wavefunction.amplitudes)
         return plot.wavefunction2d(wavefunction, zero_calibrate=zero_calibrate, **kwargs)
 
-    def optimize_Xi_variational_wrapper(self):
+    def optimize_Xi_variational_wrapper(self, num_cpus=1):
         minima_list = self.sorted_minima()
         self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
         self.optimize_Xi_variational(0, minima_list[0])
         for minimum, _ in enumerate(minima_list):
             self.optimized_lengths[minimum] = self.optimized_lengths[0]
+        # Now that we have adjusted the harmonic lengths, there may be
+        # periodic continuation vectors that are newly relevant
+        self.find_relevant_periodic_continuation_vectors(num_cpus=num_cpus)
 
     def optimize_Xi_variational(self, minimum=0, minimum_location=None):
         """
@@ -752,7 +767,9 @@ class VCHOS(ABC):
         optimized_lengths_result = minimize(self._evals_calc_variational, self.optimized_lengths[minimum],
                                             args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-1)
         assert optimized_lengths_result.success
-        optimized_lengths = np.minimum(optimized_lengths_result.x, np.array(self.number_degrees_freedom*[1.3]))
+        optimized_lengths = optimized_lengths_result.x
+#        optimized_lengths = np.minimum(optimized_lengths_result.x, np.array(self.number_degrees_freedom*[1.3]))
+        print("completed harmonic length optimization for the m={m} minimum".format(m=minimum))
         self.optimized_lengths[minimum] = optimized_lengths
 
     def _update_Xi(self, default_Xi, minimum):

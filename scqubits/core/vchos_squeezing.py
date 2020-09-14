@@ -1,3 +1,4 @@
+import itertools
 from functools import partial
 
 import numpy as np
@@ -22,7 +23,8 @@ from scqubits.core.vchos import VCHOS
 # which define the capacitance matrix, the charging energy matrix, the dimension
 # of the hilbert space according to the specific truncation scheme used, and 
 # a method to find and sort all inequivalent minima (based on the value of the
-# potential at that minimum), respectively. 
+# potential at that minimum), respectively.
+
 
 class VCHOSSqueezing(VCHOS):
     def __init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=0,
@@ -157,6 +159,27 @@ class VCHOSSqueezing(VCHOS):
         eigvec[0: dim, dim: 2*dim] = B
         return eigvals, eigvec
 
+    def _find_closest_periodic_minimum(self, minima_pair, nearest_neighbors):
+        if not nearest_neighbors:
+            return 0.0
+        (minima_m, m), (minima_p, p) = minima_pair
+        Xi_m_inv = inv(self.Xi_matrix(minimum=m))
+        Xi_p_inv = inv(self.Xi_matrix(minimum=p))
+        delta_m_inv = Xi_m_inv.T @ Xi_m_inv
+        delta_p_inv = Xi_p_inv.T @ Xi_p_inv
+        if np.allclose(minima_p, minima_m):  # Do not include equivalent minima in the same unit cell
+            nearest_neighbors = np.array([vec for vec in nearest_neighbors if not np.allclose(vec, np.zeros_like(vec))])
+        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_p - minima_m)) / 2.0
+                                     for vec in nearest_neighbors])
+        minima_vectors = np.array([2.0 * np.pi * vec + (minima_p - minima_m)
+                                   for i, vec in enumerate(nearest_neighbors)])
+        minima_unit_vectors = np.array([minima_vectors[i] / minima_distances[i] for i in range(len(minima_distances))])
+        harmonic_lengths_m = np.array([4.0*(unit_vec @ delta_m_inv @ unit_vec)**(-1/2)
+                                       for unit_vec in minima_unit_vectors])
+        harmonic_lengths_p = np.array([4.0*(unit_vec @ delta_p_inv @ unit_vec)**(-1/2)
+                                       for unit_vec in minima_unit_vectors])
+        return np.max(np.max(harmonic_lengths_p / minima_distances, harmonic_lengths_m / minima_distances))
+
     def _normal_ordered_a_dagger_a_exponential(self, x, a_operator_list):
         """Return normal ordered exponential matrix of exp(a_{i}^{\dagger}x_{ij}a_{j})"""
         expm_x = expm(x)
@@ -192,6 +215,27 @@ class VCHOSSqueezing(VCHOS):
         else:
             rho_prime, sigma_prime, tau_prime = self._build_U_squeezing_operator(p, Xi)
         return rho, rho_prime, sigma, sigma_prime, tau, tau_prime
+
+    def find_relevant_periodic_continuation_vectors(self, num_cpus=1):
+        """
+        We have found that specifically this part of the code is quite slow, that
+        is finding the relevant nearest neighbor, next nearest neighbor, etc. lattice vectors
+        that meaningfully contribute. This is a calculation that previously had to be done
+        for the kinetic, potential and inner product matrices separately, even though
+        the results were the same for all three matrices. This helper function allows us to only
+        do it once.
+        """
+        minima_list = self.sorted_minima()
+        number_of_minima = len(minima_list)
+        Xi_inv_list = np.array([inv(self.Xi_matrix(minimum=minimum)) for minimum, _ in enumerate(minima_list)])
+        nearest_neighbors = {}
+        minima_list_with_index = zip(minima_list, [m for m in range(number_of_minima)])
+        all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
+        for (minima_m, m), (minima_p, p) in all_minima_pairs:
+            minima_diff = Xi_inv_list[p] @ minima_p - Xi_inv_list[m] @ minima_m
+            nearest_neighbors[str(m)+str(p)] = self._filter_for_minima_pair(minima_diff, Xi_inv_list[p], num_cpus)
+            print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
+        self.nearest_neighbors = nearest_neighbors
 
     def _build_translation_operators(self, minima_diff, Xi, disentangled_squeezing_matrices, helper_squeezing_matrices):
         dim = self.number_degrees_freedom
@@ -559,11 +603,12 @@ class VCHOSSqueezing(VCHOS):
                                       * np.dot(Xi[j, :], np.transpose(Xi)[:, k])
                                       for j in range(dim) for k in range(dim)]))
 
-    def optimize_Xi_variational_wrapper(self):
+    def optimize_Xi_variational_wrapper(self, num_cpus=1):
         minima_list = self.sorted_minima()
         self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
         for minimum, minimum_location in enumerate(minima_list):
             self.optimize_Xi_variational(minimum, minimum_location)
+        self.find_relevant_periodic_continuation_vectors(num_cpus=num_cpus)
 
     def _one_state_periodic_continuation_squeezing(self, minimum_location, minimum, nearest_neighbors,
                                                    local_func, Xi, Xi_inv):

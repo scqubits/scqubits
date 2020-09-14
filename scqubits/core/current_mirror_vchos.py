@@ -38,13 +38,19 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
             guess_neg = np.array([np.pi * (-m + self.flux) / N for _ in range(self.number_degrees_freedom)])
             result_pos = minimize(self.potential, guess_pos)
             result_neg = minimize(self.potential, guess_neg)
-            new_minimum_pos = self._check_if_new_minima(result_pos.x, minima_holder)
+            new_minimum_pos = (self._check_if_new_minima(result_pos.x, minima_holder)
+                               and self._check_if_second_derivative_potential_positive(result_pos.x))
             if new_minimum_pos and result_pos.success:
                 minima_holder.append(self.normalize_minimum_inside_pi_range(result_pos.x))
-            new_minimum_neg = self._check_if_new_minima(result_neg.x, minima_holder)
+            new_minimum_neg = (self._check_if_new_minima(result_neg.x, minima_holder)
+                               and self._check_if_second_derivative_potential_positive(result_neg.x))
             if new_minimum_neg and result_neg.success:
                 minima_holder.append(self.normalize_minimum_inside_pi_range(result_neg.x))
         return minima_holder
+
+    def _check_if_second_derivative_potential_positive(self, phi_array):
+        second_derivative = np.round(-(self.potential(phi_array) - np.sum(self.EJlist)), decimals=3)
+        return second_derivative > 0.0
 
     def potential(self, phi_array):
         """
