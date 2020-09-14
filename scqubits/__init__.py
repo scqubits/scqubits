@@ -37,7 +37,6 @@ from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS, CurrentMirror
 from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOSSqueezing, CurrentMirrorVCHOSGlobalSqueezing
 from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS, FluxQubitVCHOSGlobal
 from scqubits.core.flux_qubit_vchos import FluxQubitVCHOSSqueezing, FluxQubitVCHOSGlobalSqueezing
-from scqubits.core.old_squeezing import CurrentMirrorVCHOSGlobalOld
 from scqubits.core.zero_pi_vchos import ZeroPiVCHOS, ZeroPiVCHOSGlobal
 from scqubits.core.transmon_vchos import TransmonVCHOS
 # file IO
