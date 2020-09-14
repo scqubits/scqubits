@@ -159,26 +159,11 @@ class VCHOSSqueezing(VCHOS):
         eigvec[0: dim, dim: 2*dim] = B
         return eigvals, eigvec
 
-    def _find_closest_periodic_minimum(self, minima_pair, nearest_neighbors):
-        if not nearest_neighbors:
-            return 0.0
+    def _find_closest_periodic_minimum(self, minima_pair):
         (minima_m, m), (minima_p, p) = minima_pair
-        Xi_m_inv = inv(self.Xi_matrix(minimum=m))
-        Xi_p_inv = inv(self.Xi_matrix(minimum=p))
-        delta_m_inv = Xi_m_inv.T @ Xi_m_inv
-        delta_p_inv = Xi_p_inv.T @ Xi_p_inv
-        if np.allclose(minima_p, minima_m):  # Do not include equivalent minima in the same unit cell
-            nearest_neighbors = np.array([vec for vec in nearest_neighbors if not np.allclose(vec, np.zeros_like(vec))])
-        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_p - minima_m)) / 2.0
-                                     for vec in nearest_neighbors])
-        minima_vectors = np.array([2.0 * np.pi * vec + (minima_p - minima_m)
-                                   for i, vec in enumerate(nearest_neighbors)])
-        minima_unit_vectors = np.array([minima_vectors[i] / minima_distances[i] for i in range(len(minima_distances))])
-        harmonic_lengths_m = np.array([4.0*(unit_vec @ delta_m_inv @ unit_vec)**(-1/2)
-                                       for unit_vec in minima_unit_vectors])
-        harmonic_lengths_p = np.array([4.0*(unit_vec @ delta_p_inv @ unit_vec)**(-1/2)
-                                       for unit_vec in minima_unit_vectors])
-        return np.max(np.max(harmonic_lengths_p / minima_distances, harmonic_lengths_m / minima_distances))
+        max_for_m = self._find_closest_periodic_minimum_for_given_minima(minima_pair, m)
+        max_for_p = self._find_closest_periodic_minimum_for_given_minima(minima_pair, p)
+        return np.max(max_for_m, max_for_p)
 
     def _normal_ordered_a_dagger_a_exponential(self, x, a_operator_list):
         """Return normal ordered exponential matrix of exp(a_{i}^{\dagger}x_{ij}a_{j})"""
