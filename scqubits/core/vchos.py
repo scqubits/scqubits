@@ -140,14 +140,15 @@ class VCHOS(ABC):
         minima_list = self.sorted_minima()
         minima_list_with_index = zip(minima_list, [m for m in range(len(minima_list))])
         all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
-        return np.array([function(((minima_m, m), (minima_p, p)), self.nearest_neighbors[str(m)+str(p)])
-                         for (minima_m, m), (minima_p, p) in all_minima_pairs])
+        return np.array([function(minima_pair) for minima_pair in all_minima_pairs])
 
-    def _find_closest_periodic_minimum(self, minima_pair, nearest_neighbors):
-        if not nearest_neighbors:
-            return 0.0
+    def _find_closest_periodic_minimum(self, minima_pair):
+        return self._find_closest_periodic_minimum_for_given_minima(minima_pair, 0)
+
+    def _find_closest_periodic_minimum_for_given_minima(self, minima_pair, minimum):
         (minima_m, m), (minima_p, p) = minima_pair
-        Xi_inv = inv(self.Xi_matrix())
+        nearest_neighbors = self.nearest_neighbors[str(m)+str(p)]
+        Xi_inv = inv(self.Xi_matrix(minimum=minimum))
         delta_inv = Xi_inv.T @ Xi_inv
         if np.allclose(minima_p, minima_m):  # Do not include equivalent minima in the same unit cell
             nearest_neighbors = np.array([vec for vec in nearest_neighbors if not np.allclose(vec, np.zeros_like(vec))])
