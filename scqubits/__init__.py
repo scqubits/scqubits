@@ -30,6 +30,7 @@ from scqubits.core.param_sweep import ParameterSweep, StoredSweep
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
+from scqubits.core.fluxonium_tunable_coupler import FluxoniumTunableCoupler
 
 from scqubits.core.vchos import VCHOS
 from scqubits.core.vchos_squeezing import VCHOSSqueezing
