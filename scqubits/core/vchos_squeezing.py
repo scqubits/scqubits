@@ -163,7 +163,7 @@ class VCHOSSqueezing(VCHOS):
         (minima_m, m), (minima_p, p) = minima_pair
         max_for_m = self._find_closest_periodic_minimum_for_given_minima(minima_pair, m)
         max_for_p = self._find_closest_periodic_minimum_for_given_minima(minima_pair, p)
-        return np.max(max_for_m, max_for_p)
+        return max(max_for_m, max_for_p)
 
     def _normal_ordered_a_dagger_a_exponential(self, x, a_operator_list):
         """Return normal ordered exponential matrix of exp(a_{i}^{\dagger}x_{ij}a_{j})"""
@@ -593,7 +593,6 @@ class VCHOSSqueezing(VCHOS):
         self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
         for minimum, minimum_location in enumerate(minima_list):
             self.optimize_Xi_variational(minimum, minimum_location)
-        self.find_relevant_periodic_continuation_vectors(num_cpus=num_cpus)
 
     def _one_state_periodic_continuation_squeezing(self, minimum_location, minimum, nearest_neighbors,
                                                    local_func, Xi, Xi_inv):

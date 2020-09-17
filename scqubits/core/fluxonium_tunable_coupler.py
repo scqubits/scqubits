@@ -122,16 +122,14 @@ class FluxoniumTunableCoupler(serializers.Serializable):
         hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
         effective_quantities = self.setup_effective_calculation()
         evals_a, evals_b, evals_minus, phi_a_mat, phi_b_mat, phi_minus_mat = effective_quantities
-        effective_hamiltonian = (sum([phi_a_mat[ell, ell_prime]
-                                      * hilbert_space.hubbard_operator(ell, ell_prime, fluxonium_a)
-                                      for ell in range(fluxonium_a.truncated_dim)
-                                      for ell_prime in range(fluxonium_a.truncated_dim)])
-                                 * (-0.5) * self.ELa * phi_minus_mat[0, 0])
-        effective_hamiltonian += (sum([phi_b_mat[m, m_prime]
-                                       * hilbert_space.hubbard_operator(m, m_prime, fluxonium_b)
-                                       for m in range(fluxonium_b.truncated_dim)
-                                       for m_prime in range(fluxonium_b.truncated_dim)])
-                                  * 0.5 * self.ELb * phi_minus_mat[0, 0])
+        effective_hamiltonian = -0.5 * self.ELa * (sum([phi_a_mat[ell, ell_prime] * phi_minus_mat[0, 0]
+                                                        * hilbert_space.hubbard_operator(ell, ell_prime, fluxonium_a)
+                                                        for ell in range(fluxonium_a.truncated_dim)
+                                                        for ell_prime in range(fluxonium_a.truncated_dim)]))
+        effective_hamiltonian += 0.5 * self.ELb * (sum([phi_b_mat[m, m_prime] * phi_minus_mat[0, 0]
+                                                   * hilbert_space.hubbard_operator(m, m_prime, fluxonium_b)
+                                                   for m in range(fluxonium_b.truncated_dim)
+                                                   for m_prime in range(fluxonium_b.truncated_dim)]))
         return effective_hamiltonian
 
     def second_order_effective_hamiltonian(self):
@@ -199,7 +197,8 @@ class FluxoniumTunableCoupler(serializers.Serializable):
                                                           evals_minus, phi_mat, phi_minus_mat)
                     * hilbert_space.hubbard_operator(ell, ell_prime_prime, subsys)
                     for ell in range(subsys.truncated_dim) for ell_prime_prime in range(subsys.truncated_dim)
-                    for ell_prime in range(subsys.truncated_dim) for n_prime in range(fluxonium_minus.truncated_dim)])
+                    for ell_prime in range(subsys.truncated_dim)
+                    for n_prime in range(1, fluxonium_minus.truncated_dim)])
 
     def _second_order_sum_over_states_minus_two_qubit(self, evals_subsys_a, evals_subsys_b, evals_minus,
                                                       phi_a_mat, phi_b_mat, phi_minus_mat, subsys_a,
@@ -212,7 +211,7 @@ class FluxoniumTunableCoupler(serializers.Serializable):
                     * hilbert_space.hubbard_operator(m, m_prime_prime, subsys_b)
                     for ell in range(subsys_a.truncated_dim) for ell_prime_prime in range(subsys_a.truncated_dim)
                     for m in range(subsys_b.truncated_dim) for m_prime_prime in range(subsys_b.truncated_dim)
-                    for n_prime in range(fluxonium_minus.truncated_dim)])
+                    for n_prime in range(1, fluxonium_minus.truncated_dim)])
 
     def _second_order_sum_over_states_plus_two_qubit(self, evals_subsys_a, evals_subsys_b,
                                                      phi_a_mat, phi_b_mat, subsys_a,
@@ -234,7 +233,7 @@ class FluxoniumTunableCoupler(serializers.Serializable):
                                             - evals_minus[n_prime]) ** (-1))
         E_denom_inverse_minus_b = 0.5 * ((evals_subsys_b[m] - evals_subsys_b[m_prime_prime]
                                           - evals_minus[n_prime]) ** (-1)
-                                         + (evals_subsys_b[m_prime_prime] - evals_subsys_a[m]
+                                         + (evals_subsys_b[m_prime_prime] - evals_subsys_b[m]
                                             - evals_minus[n_prime]) ** (-1))
         return ((E_denom_inverse_minus_a + E_denom_inverse_minus_b) * np.abs(phi_minus_mat[0, n_prime])**2
                 * phi_a_mat[ell, ell_prime_prime] * phi_b_mat[m, m_prime_prime])
@@ -247,7 +246,7 @@ class FluxoniumTunableCoupler(serializers.Serializable):
         E_denom_inverse_plus_a = 0.5*((evals_subsys_a[ell]-evals_subsys_a[ell_prime_prime]-omega_plus)**(-1)
                                       + (evals_subsys_a[ell_prime_prime]-evals_subsys_a[ell]-omega_plus)**(-1))
         E_denom_inverse_plus_b = 0.5*((evals_subsys_b[m]-evals_subsys_b[m_prime_prime]-omega_plus)**(-1)
-                                      + (evals_subsys_b[m_prime_prime]-evals_subsys_a[m]-omega_plus)**(-1))
+                                      + (evals_subsys_b[m_prime_prime]-evals_subsys_b[m]-omega_plus)**(-1))
         return ((E_denom_inverse_plus_a + E_denom_inverse_plus_b) * np.sqrt(4 * self.EC / EL_tilda)
                 * phi_a_mat[ell, ell_prime_prime] * phi_b_mat[m, m_prime_prime])
 

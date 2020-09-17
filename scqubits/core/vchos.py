@@ -564,10 +564,26 @@ class VCHOS(ABC):
                     m*num_states_min: (m + 1)*num_states_min] += matrix_element.conjugate().T
         return mat
 
-    def _evals_calc(self, evals_count):
-        self.optimize_Xi_variational_wrapper()
+    def _transfer_matrix_and_inner_product(self):
+        harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
+        if np.max(harmonic_length_minima_comparison) > 1.0:
+            warnings.warn("Large harmonic length compared to minima separation "
+                          "(largest is 3*l/(d/2) = {hlmc}). Avoid harmonic length optimization"
+                          .format(hlmc=np.max(harmonic_length_minima_comparison)))
+        else:
+            self.optimize_Xi_variational_wrapper()
+            harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
+            if np.max(harmonic_length_minima_comparison) > 1.0:
+                print("Largest harmonic length compared to minima separation "
+                      "is 3*l/(d/2) = {hlmc}. Consider redoing "
+                      "calculation without optimizing harmonic lengths"
+                      .format(hlmc=np.max(harmonic_length_minima_comparison)))
         transfer_matrix = self.transfer_matrix()
         inner_product_matrix = self.inner_product_matrix()
+        return transfer_matrix, inner_product_matrix
+
+    def _evals_calc(self, evals_count):
+        transfer_matrix, inner_product_matrix = self._transfer_matrix_and_inner_product()
         try:
             evals = eigh(transfer_matrix, b=inner_product_matrix,
                          eigvals_only=True, eigvals=(0, evals_count - 1))
@@ -578,9 +594,7 @@ class VCHOS(ABC):
         return evals
 
     def _esys_calc(self, evals_count):
-        self.optimize_Xi_variational_wrapper()
-        transfer_matrix = self.transfer_matrix()
-        inner_product_matrix = self.inner_product_matrix()
+        transfer_matrix, inner_product_matrix = self._transfer_matrix_and_inner_product()
         try:
             evals, evecs = eigh(transfer_matrix, b=inner_product_matrix,
                                 eigvals_only=False, eigvals=(0, evals_count - 1))
@@ -751,9 +765,6 @@ class VCHOS(ABC):
         self.optimize_Xi_variational(0, minima_list[0])
         for minimum, _ in enumerate(minima_list):
             self.optimized_lengths[minimum] = self.optimized_lengths[0]
-        # Now that we have adjusted the harmonic lengths, there may be
-        # periodic continuation vectors that are newly relevant
-        self.find_relevant_periodic_continuation_vectors(num_cpus=num_cpus)
 
     def optimize_Xi_variational(self, minimum=0, minimum_location=None):
         """
@@ -769,7 +780,6 @@ class VCHOS(ABC):
                                             args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-1)
         assert optimized_lengths_result.success
         optimized_lengths = optimized_lengths_result.x
-#        optimized_lengths = np.minimum(optimized_lengths_result.x, np.array(self.number_degrees_freedom*[1.3]))
         print("completed harmonic length optimization for the m={m} minimum".format(m=minimum))
         self.optimized_lengths[minimum] = optimized_lengths
 
