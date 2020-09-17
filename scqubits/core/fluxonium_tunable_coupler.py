@@ -170,10 +170,33 @@ class FluxoniumTunableCoupler(serializers.Serializable):
                                   * 0.5 * self.ELa * self.ELb)
         return effective_hamiltonian
 
+    def third_order_effective_hamiltonian(self):
+        fluxonium_a = self.fluxonium_a()
+        fluxonium_b = self.fluxonium_b()
+        hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
+        effective_quantities = self.setup_effective_calculation()
+        evals_a, evals_b, evals_minus, phi_a_mat, phi_b_mat, phi_minus_mat = effective_quantities
+        effective_hamiltonian = (self._third_order_sum_over_states_single_qubit(evals_a, evals_minus, phi_a_mat,
+                                                                                phi_minus_mat, fluxonium_a,
+                                                                                hilbert_space) * (-self.ELa**3/16.0))
+        effective_hamiltonian += (self._third_order_sum_over_states_single_qubit(evals_b, evals_minus, phi_b_mat,
+                                                                                 phi_minus_mat, fluxonium_b,
+                                                                                 hilbert_space) * (self.ELb**3/16.0))
+        effective_hamiltonian += (self._third_order_sum_over_states_two_qubit(evals_a, evals_b, evals_minus, phi_a_mat,
+                                                                              phi_b_mat, phi_minus_mat,
+                                                                              fluxonium_a, fluxonium_b, hilbert_space)
+                                  * self.ELb * self.ELa**2 / 16.0)
+        effective_hamiltonian += (self._third_order_sum_over_states_two_qubit(evals_b, evals_a, evals_minus, phi_b_mat,
+                                                                              phi_a_mat, phi_minus_mat,
+                                                                              fluxonium_b, fluxonium_a, hilbert_space)
+                                  * (-self.ELa * self.ELb**2 / 16.0))
+        return effective_hamiltonian
+
     def effective_hamiltonian(self):
         return (self.zeroth_order_effective_hamiltonian()
                 + self.first_order_effective_hamiltonian()
-                + self.second_order_effective_hamiltonian())
+                + self.second_order_effective_hamiltonian()
+                + self.third_order_effective_hamiltonian())
 
     def effective_eigenvals(self, evals_count=6):
         hamiltonian_mat = self.effective_hamiltonian()
@@ -222,6 +245,68 @@ class FluxoniumTunableCoupler(serializers.Serializable):
                     * hilbert_space.hubbard_operator(m, m_prime_prime, subsys_b)
                     for ell in range(subsys_a.truncated_dim) for ell_prime_prime in range(subsys_a.truncated_dim)
                     for m in range(subsys_b.truncated_dim) for m_prime_prime in range(subsys_b.truncated_dim)])
+
+    def _third_order_sum_over_states_single_qubit(self, evals, evals_minus, phi_mat, phi_minus_mat,
+                                                  subsys, hilbert_space):
+        fluxonium_minus = self.fluxonium_minus()
+        dim = subsys.truncated_dim
+        minus_dim = fluxonium_minus.truncated_dim
+        return sum([self._third_order_single_qubit(ell, ell_p1, ell_p2, ell_p3, n_p1, n_p2, evals,
+                                                   evals_minus, phi_mat, phi_minus_mat)
+                    * hilbert_space.hubbard_operator(ell, ell_p3, subsys)
+                    for ell in range(dim) for ell_p1 in range(dim) for ell_p2 in range(dim) for ell_p3 in range(dim)
+                    for n_p1 in range(1, minus_dim) for n_p2 in range(1, minus_dim)])
+
+    def _third_order_sum_over_states_two_qubit(self, evals_a, evals_b, evals_minus, phi_a_mat, phi_b_mat,
+                                               phi_minus_mat, subsys_a, subsys_b, hilbert_space):
+        fluxonium_minus = self.fluxonium_minus()
+        dim_a = subsys_a.truncated_dim
+        dim_b = subsys_b.truncated_dim
+        minus_dim = fluxonium_minus.truncated_dim
+        return sum([self._third_order_two_qubit(ell, ell_p1, ell_p2, m, m_p2, n_p1, n_p2, evals_a, evals_b,
+                                                evals_minus, phi_a_mat, phi_b_mat, phi_minus_mat)
+                    * hilbert_space.hubbard_operator(ell, ell_p2, subsys_a)
+                    * hilbert_space.hubbard_operator(m, m_p2, subsys_b)
+                    for ell in range(dim_a) for ell_p1 in range(dim_a) for ell_p2 in range(dim_a)
+                    for m in range(dim_b) for m_p2 in range(dim_b)
+                    for n_p1 in range(1, minus_dim) for n_p2 in range(1, minus_dim)])
+
+    @staticmethod
+    def _third_order_single_qubit(ell, ell_p1, ell_p2, ell_p3, n_p1, n_p2, evals,
+                                  evals_minus, phi_mat, phi_minus_mat):
+        E_denom_initial_state = ((evals[ell] - evals[ell_p1] - evals_minus[n_p1])
+                                 * (evals[ell] - evals[ell_p2] - evals_minus[n_p2]))
+        E_denom_final_state = ((evals[ell_p3] - evals[ell_p1] - evals_minus[n_p1])
+                               * (evals[ell_p3] - evals[ell_p2] - evals_minus[n_p2]))
+        E_denom_inv = E_denom_initial_state ** (-1) + E_denom_final_state ** (-1)
+        return (phi_mat[ell, ell_p1] * phi_mat[ell_p1, ell_p2] * phi_mat[ell_p2, ell_p3]
+                * phi_minus_mat[0, n_p1] * phi_minus_mat[n_p1, n_p2] * phi_minus_mat[n_p2, 0]
+                * E_denom_inv)
+
+    def _third_order_two_qubit(self, ell, ell_p1, ell_p2, m, m_p2, n_p1, n_p2,
+                               evals_a, evals_b, evals_minus, phi_a_mat, phi_b_mat, phi_minus_mat):
+        E_initial = evals_a[ell] + evals_b[m]
+        E_final = evals_a[ell_p2] + evals_b[m_p2]
+        E_intermediate_1_path_1 = evals_a[ell_p1] + evals_b[m] + evals_minus[n_p1]  # a -> a -> b
+        E_intermediate_2_path_1 = evals_a[ell_p2] + evals_b[m] + evals_minus[n_p2]
+        E_intermediate_1_path_2 = evals_a[ell_p1] + evals_b[m] + evals_minus[n_p1]  # a -> b -> a
+        E_intermediate_2_path_2 = evals_a[ell_p1] + evals_b[m_p2] + evals_minus[n_p2]
+        E_intermediate_1_path_3 = evals_a[ell] + evals_b[m_p2] + evals_minus[n_p1]  # b -> a -> a
+        E_intermediate_2_path_3 = evals_a[ell_p1] + evals_b[m_p2] + evals_minus[n_p2]
+
+        E_denom_inv_1 = (((E_initial - E_intermediate_1_path_1) * (E_initial - E_intermediate_2_path_1))**(-1)
+                         + ((E_final - E_intermediate_1_path_1) * (E_final - E_intermediate_2_path_1))**(-1))
+        E_denom_inv_2 = (((E_initial - E_intermediate_1_path_2) * (E_initial - E_intermediate_2_path_2)) ** (-1)
+                         + ((E_final - E_intermediate_1_path_2) * (E_final - E_intermediate_2_path_2)) ** (-1))
+        E_denom_inv_3 = (((E_initial - E_intermediate_1_path_3) * (E_initial - E_intermediate_2_path_3)) ** (-1)
+                         + ((E_final - E_intermediate_1_path_3) * (E_final - E_intermediate_2_path_3)) ** (-1))
+        E_denom_inv = E_denom_inv_1 + E_denom_inv_2 + E_denom_inv_3
+        return (phi_a_mat[ell, ell_p1] * phi_a_mat[ell_p1, ell_p2] * phi_b_mat[m, m_p2]
+                * phi_minus_mat[0, n_p1] * phi_minus_mat[n_p1, n_p2] * phi_minus_mat[n_p2, 0]
+                * E_denom_inv)
+
+
+
 
     @staticmethod
     def _second_order_minus_two_qubit(ell, ell_prime_prime, m, m_prime_prime, n_prime,
