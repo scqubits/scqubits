@@ -13,7 +13,7 @@ import os
 import warnings
 
 import numpy as np
-import scipy as sp
+from scipy.special import gamma, eval_hermite
 
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
@@ -38,8 +38,8 @@ def harm_osc_wavefunction(n, x, losc):
     float
         value of harmonic oscillator wave function
     """
-    return ((2.0 ** n * sp.special.gamma(n + 1.0) * losc) ** (-0.5) * np.pi ** (-0.25) *
-            sp.special.eval_hermite(n, x / losc) * np.exp(-(x * x) / (2 * losc * losc)))
+    return ((2.0 ** n * gamma(n + 1.0) * losc) ** (-0.5) * np.pi ** (-0.25) *
+            eval_hermite(n, x / losc) * np.exp(-(x * x) / (2 * losc * losc)))
 
 
 # —Oscillator class—————————————————————————————————————————————————————————————————————————————————————————————————————

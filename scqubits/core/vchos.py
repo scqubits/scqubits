@@ -35,7 +35,8 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 
 class VCHOS(ABC):
     def __init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=0,
-                 number_periodic_degrees_freedom=0, num_exc=None, nearest_neighbors=None):
+                 number_periodic_degrees_freedom=0, num_exc=None, nearest_neighbors=None,
+                 harmonic_length_optimization=0, optimize_all_minima=0):
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2 * self.e)**2
         self.Phi0 = 1. / (2 * self.e)
@@ -50,6 +51,8 @@ class VCHOS(ABC):
         self.number_extended_degrees_freedom = number_degrees_freedom - number_periodic_degrees_freedom
         self.num_exc = num_exc
         self.nearest_neighbors = nearest_neighbors
+        self.harmonic_length_optimization = harmonic_length_optimization
+        self.optimize_all_minima = optimize_all_minima
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.extended_grid = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
         # This must be set in the individual qubit class and
@@ -568,16 +571,9 @@ class VCHOS(ABC):
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
         if np.max(harmonic_length_minima_comparison) > 1.0:
             warnings.warn("Large harmonic length compared to minima separation "
-                          "(largest is 3*l/(d/2) = {hlmc}). Avoid harmonic length optimization"
-                          .format(hlmc=np.max(harmonic_length_minima_comparison)))
-        else:
+                          "(largest is 3*l/(d/2) = {hlmc})".format(hlmc=np.max(harmonic_length_minima_comparison)))
+        if self.harmonic_length_optimization:
             self.optimize_Xi_variational_wrapper()
-            harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
-            if np.max(harmonic_length_minima_comparison) > 1.0:
-                print("Largest harmonic length compared to minima separation "
-                      "is 3*l/(d/2) = {hlmc}. Consider redoing "
-                      "calculation without optimizing harmonic lengths"
-                      .format(hlmc=np.max(harmonic_length_minima_comparison)))
         transfer_matrix = self.transfer_matrix()
         inner_product_matrix = self.inner_product_matrix()
         return transfer_matrix, inner_product_matrix
@@ -758,6 +754,26 @@ class VCHOS(ABC):
         wavefunction = self.wavefunction(esys, which=which)
         wavefunction.amplitudes = amplitude_modifier(wavefunction.amplitudes)
         return plot.wavefunction2d(wavefunction, zero_calibrate=zero_calibrate, **kwargs)
+
+    def variational_method_flynn(self, num_varitional_states=3):
+        transfer_matrix = self.transfer_matrix()
+        inner_product_matrix = self.inner_product_matrix()
+        reduced_transfer_matrix = np.zeros((num_varitional_states, num_varitional_states))
+        reduced_inner_product = np.zeros_like(reduced_transfer_matrix)
+        state_list = np.zeros((num_varitional_states, self.hilbertdim()))
+        seed_state = np.zeros(self.hilbertdim())
+        seed_state[0] = 1.0
+        state_list[0, :] = seed_state
+        for n in range(num_varitional_states-1):
+            new_state = transfer_matrix @ state_list[n, :]
+            new_state = new_state / np.linalg.norm(new_state)
+            state_list[n + 1, :] = new_state
+        for i in range(num_varitional_states):
+            for j in range(num_varitional_states):
+                reduced_transfer_matrix[i, j] = state_list[i, :] @ transfer_matrix @ state_list[j, :]
+                reduced_inner_product[i, j] = state_list[i, :] @ inner_product_matrix @ state_list[j, :]
+        eigvals, evecs = eigh(reduced_transfer_matrix, reduced_inner_product)
+        return eigvals, evecs
 
     def optimize_Xi_variational_wrapper(self, num_cpus=1):
         minima_list = self.sorted_minima()

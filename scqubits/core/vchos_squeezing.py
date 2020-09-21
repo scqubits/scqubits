@@ -28,11 +28,13 @@ from scqubits.core.vchos import VCHOS
 
 class VCHOSSqueezing(VCHOS):
     def __init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=0,
-                 number_periodic_degrees_freedom=0, num_exc=None, nearest_neighbors=None):
+                 number_periodic_degrees_freedom=0, num_exc=None, nearest_neighbors=None,
+                 harmonic_length_optimization=0, optimize_all_minima=0):
         VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length,
                        number_degrees_freedom=number_degrees_freedom,
                        number_periodic_degrees_freedom=number_periodic_degrees_freedom, num_exc=num_exc,
-                       nearest_neighbors=nearest_neighbors)
+                       nearest_neighbors=nearest_neighbors, harmonic_length_optimization=harmonic_length_optimization,
+                       optimize_all_minima=optimize_all_minima)
         self.boundary_coefficients = np.array([])
 
     def _build_U_squeezing_operator(self, minimum, Xi):
@@ -591,8 +593,12 @@ class VCHOSSqueezing(VCHOS):
     def optimize_Xi_variational_wrapper(self, num_cpus=1):
         minima_list = self.sorted_minima()
         self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
+        self.optimize_Xi_variational(0, minima_list[0])
         for minimum, minimum_location in enumerate(minima_list):
-            self.optimize_Xi_variational(minimum, minimum_location)
+            if self.optimize_all_minima and minimum != 0:
+                self.optimize_Xi_variational(minimum, minimum_location)
+            else:
+                self.optimized_lengths[minimum] = self.optimized_lengths[0]
 
     def _one_state_periodic_continuation_squeezing(self, minimum_location, minimum, nearest_neighbors,
                                                    local_func, Xi, Xi_inv):
