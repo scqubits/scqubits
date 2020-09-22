@@ -1113,10 +1113,14 @@ class NoisySystem:
             return omega * NOISE_PARAMS['R_k'] / np.pi * complex(y_qp_fun(omega)).real  \
                 * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
 
-        # In some literature the operator sin(phi/2) is used instead. 
-        # This depends on whether one groups the flux with the quadratic or the cos term 
-        # in the potential. 
-        noise_op = self.cos_phi_operator(alpha=0.5)
+        # In some literature the operator sin(phi/2) is used, which assumes
+        # that the flux is grouped with the inductive term in the Hamiltonian.
+        # Here we assume a grouping with the cosine term, which requires us to 
+        # transform the operator using phi -> phi + 2*pi*flux 
+        noise_op = self.sin_phi_operator(alpha=0.5,  beta=0.5 * (2 * np.pi * self.flux))
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
+
+
+
