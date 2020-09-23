@@ -3,6 +3,7 @@ import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 
+from typing import Callable
 import numpy as np
 from scipy.linalg import LinAlgError, expm, inv, eigh
 from scipy.optimize import minimize
@@ -34,6 +35,8 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 
 
 class VCHOS(ABC):
+    potential: Callable
+
     def __init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=0,
                  number_periodic_degrees_freedom=0, num_exc=None, nearest_neighbors=None,
                  harmonic_length_optimization=0, optimize_all_minima=0):
@@ -173,7 +176,7 @@ class VCHOS(ABC):
             to encode the harmonic length
         """
         minima_list = self.sorted_minima()
-        if self.optimized_lengths.size == 0:
+        if self.optimized_lengths.size == 0 or self.harmonic_length_optimization == 0:
             self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
         omega_squared, normal_mode_eigenvectors = self.eigensystem_normal_modes(minimum)
         # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
@@ -857,10 +860,6 @@ class VCHOS(ABC):
         phi_neighbor = 2.0 * np.pi * np.array(neighbor)
         exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor, Xi_inv)
         return exp_prod_coefficient * func(phi_neighbor, minimum_location, minimum_location)
-
-    @abstractmethod
-    def potential(self, phi_array):
-        """returns a float that is the value of the potential at the location specified by phi_array"""
 
     @abstractmethod
     def find_minima(self):

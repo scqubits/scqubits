@@ -10,7 +10,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 
 class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length, num_exc, dEJ=0, dCJ=0, truncated_dim=None):
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length,
+                 num_exc, phi_extent=13, dEJ=0, dCJ=0, truncated_dim=None):
         VCHOS.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux, maximum_periodic_vector_length,
                        number_degrees_freedom=2, number_periodic_degrees_freedom=1, num_exc=num_exc)
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
@@ -20,6 +21,7 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         self.EC = EC
         self.ng = ng
         self.flux = flux
+        self.phi_extent = phi_extent
         self.dEJ = dEJ
         self.dCJ = dCJ
         self.truncated_dim = truncated_dim
@@ -65,10 +67,17 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
     def _check_second_derivative_positive(self, phi, theta):
         return (self.EL + 2 * self.EJ * np.cos(theta) * np.cos(phi - np.pi * self.flux)) > 0
 
+    def potential(self, phi_theta_array):
+        phi = phi_theta_array[0]
+        theta = phi_theta_array[1]
+        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
+                + self.EL * phi ** 2 + 2.0 * self.EJ
+                + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
     def _append_new_minima(self, result, minima_holder):
         new_minimum = self._check_if_new_minima(result, minima_holder)
-        if new_minimum and result.success:
-            minima_holder.append(np.array([result.x[0], np.mod(result.x[1], 2 * np.pi)]))
+        if new_minimum:
+            minima_holder.append(np.array([result[0], np.mod(result[1], 2 * np.pi)]))
         return minima_holder
 
     def find_minima(self):
@@ -76,8 +85,7 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         guess = np.array([0.01, 0.01])
         result = minimize(self.potential, guess)
         minima_holder.append(result.x)
-        # TODO this needs to be fixed to not loop over a static number of m
-        for m in range(1, 13):
+        for m in range(1, self.phi_extent):
             guess_positive_0 = np.array([np.pi * m, 0.0])
             guess_negative_0 = np.array([-np.pi * m, 0.0])
             guess_positive_pi = np.array([np.pi * m, np.pi])
@@ -86,30 +94,16 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
             result_negative_0 = minimize(self.potential, guess_negative_0)
             result_positive_pi = minimize(self.potential, guess_positive_pi)
             result_negative_pi = minimize(self.potential, guess_negative_pi)
-            minima_holder = self._append_new_minima(result_positive_0, minima_holder)
-            minima_holder = self._append_new_minima(result_negative_0, minima_holder)
-            minima_holder = self._append_new_minima(result_positive_pi, minima_holder)
-            minima_holder = self._append_new_minima(result_negative_pi, minima_holder)
+            minima_holder = self._append_new_minima(result_positive_0.x, minima_holder)
+            minima_holder = self._append_new_minima(result_negative_0.x, minima_holder)
+            minima_holder = self._append_new_minima(result_positive_pi.x, minima_holder)
+            minima_holder = self._append_new_minima(result_negative_pi.x, minima_holder)
         return minima_holder
 
-    def potential(self, phi_theta_array):
-        phi = phi_theta_array[0]
-        theta = phi_theta_array[1]
-        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
-                + self.EL * phi ** 2 + 2.0 * self.EJ
-                + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
-
-    def villain_potential(self, phi_theta_array, m_list):
-        phi = phi_theta_array[0]
-        theta = phi_theta_array[1]
-        return (0.5*self.EJ*(theta - phi + np.pi*self.flux - 2.0*np.pi*m_list[0])**2
-                + 0.5*self.EJ*(theta + phi - np.pi*self.flux - 2.0*np.pi*m_list[1])**2
-                + self.EL * phi ** 2 + 2.0 * self.EJ)
-
-    def build_gamma_matrix(self, i):
+    def build_gamma_matrix(self, minimum=0):
         dim = self.number_degrees_freedom
         gamma_matrix = np.zeros((dim, dim))
-        min_loc = self.sorted_minima()[i]
+        min_loc = self.sorted_minima()[minimum]
         phi_location = min_loc[0]
         theta_location = min_loc[1]
         gamma_matrix[0, 0] = (2*self.EL + 2*self.EJ*np.cos(phi_location - np.pi*self.flux)*np.cos(theta_location)
@@ -129,11 +123,11 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         return np.exp(-0.25 * np.sum([boundary_coeffs[i]*boundary_coeffs[k]*np.dot(Xi[i, :], Xi.T[:, k])
                                       for i in range(dim) for k in range(dim)]))
 
-    def _build_single_exp_i_phi_j_operator(self, j, Xi):
+    def _build_single_exp_i_phi_j_operator(self, j, Xi, a_operator_list):
         dim = self.number_degrees_freedom
         boundary_coeffs = np.array([(-1)**j, 1])
         exp_i_phi_theta_a_component = expm(np.sum([1j * boundary_coeffs[i] * Xi[i, k]
-                                                   * self.a_operator(k) / np.sqrt(2.0)
+                                                   * a_operator_list[k] / np.sqrt(2.0)
                                                    for i in range(dim) for k in range(dim)], axis=0))
         exp_i_phi_theta_a_dagger_component = exp_i_phi_theta_a_component.T
         exp_i_phi_theta = np.matmul(exp_i_phi_theta_a_dagger_component, exp_i_phi_theta_a_component)
@@ -141,8 +135,9 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         exp_i_phi_theta *= self._BCH_factor(j, Xi)
         return exp_i_phi_theta
 
-    def _build_all_exp_i_phi_j_operators(self, Xi):
-        return np.array([self._build_single_exp_i_phi_j_operator(j, Xi) for j in range(self.number_degrees_freedom)])
+    def _build_all_exp_i_phi_j_operators(self, Xi, a_operator_list):
+        return np.array([self._build_single_exp_i_phi_j_operator(j, Xi, a_operator_list)
+                         for j in range(self.number_degrees_freedom)])
 
     def _harmonic_contribution_to_potential(self, premultiplied_a_and_a_dagger, Xi, phi_bar):
         dim = self.number_degrees_freedom
@@ -170,7 +165,8 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
 
 
 class ZeroPiVCHOSGlobal(Hashing, ZeroPiVCHOS, base.QubitBaseClass, serializers.Serializable):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length, global_exc, dEJ=0, dCJ=0, truncated_dim=None):
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length,
+                 global_exc, dEJ=0, dCJ=0, truncated_dim=None):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
         ZeroPiVCHOS.__init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length, num_exc=None,
                              dEJ=dEJ, dCJ=dCJ, truncated_dim=truncated_dim)

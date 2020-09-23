@@ -72,9 +72,6 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
         pot_sum += np.sum(self.EJlist)
         return pot_sum
 
-    def villain_potential(self, phi_array, m_list):
-        pass
-
 
 class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')

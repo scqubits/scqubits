@@ -594,11 +594,17 @@ class VCHOSSqueezing(VCHOS):
         minima_list = self.sorted_minima()
         self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
         self.optimize_Xi_variational(0, minima_list[0])
+        Xi_global = self.Xi_matrix(minimum=0)
+        harmonic_lengths_global = np.array([np.linalg.norm(Xi_global[:, i])
+                                            for i in range(self.number_degrees_freedom)])
         for minimum, minimum_location in enumerate(minima_list):
             if self.optimize_all_minima and minimum != 0:
                 self.optimize_Xi_variational(minimum, minimum_location)
-            else:
-                self.optimized_lengths[minimum] = self.optimized_lengths[0]
+            elif minimum != 0:
+                Xi_local = self.Xi_matrix(minimum=minimum)
+                harmonic_lengths_local = np.array([np.linalg.norm(Xi_local[:, i])
+                                                   for i in range(self.number_degrees_freedom)])
+                self.optimized_lengths[minimum] = harmonic_lengths_global / harmonic_lengths_local
 
     def _one_state_periodic_continuation_squeezing(self, minimum_location, minimum, nearest_neighbors,
                                                    local_func, Xi, Xi_inv):
