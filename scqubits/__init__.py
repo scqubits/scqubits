@@ -32,6 +32,7 @@ from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
 from scqubits.core.fluxonium_tunable_coupler import FluxoniumTunableCoupler
 
+from scqubits.core.zeropi_nogrid import ZeroPiNoGrid
 from scqubits.core.vchos import VCHOS
 from scqubits.core.vchos_squeezing import VCHOSSqueezing
 from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS, CurrentMirrorVCHOSGlobal
