@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 from scipy.optimize import minimize
+from scipy.linalg import inv
 from typing import Callable
 
 import scqubits.core.descriptors as descriptors
@@ -26,6 +27,12 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux):
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self.boundary_coefficients = np.ones(2 * N - 1)
+
+    def convert_node_ng_to_junction_ng(self, node_nglist):
+        return inv(self._build_V_m()).T @ node_nglist.T
+
+    def convert_junction_ng_to_node_ng(self, junction_nglist):
+        return self._build_V_m().T @ junction_nglist.T
 
     def find_minima(self):
         """
