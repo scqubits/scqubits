@@ -87,10 +87,10 @@ class ZeroPiNoGrid(base.QubitBaseClass, serializers.Serializable):
         return self.phi_cutoff * (2 * self.ncut + 1)
 
     def E_phi_osc(self):
-        return np.sqrt(8.0 * self.ECJ * self.EL)  # since H_harm = 2E_{CJ}n_{\phi}^2 + E_{L}\phi^2
+        return np.sqrt(8.0 * self.ECJ * self.EL)  # since H_harm_phi = 2E_{CJ}n_{\phi}^2 + E_{L}\phi^2
 
     def phi_osc(self):
-        return (2.0 * self.ECJ / self.EL) ** 0.25  # since H_harm = 2E_{CJ}n_{\phi}^2 + E_{L}\phi^2
+        return (2.0 * self.ECJ / self.EL) ** 0.25  # since H_harm_phi = 2E_{CJ}n_{\phi}^2 + E_{L}\phi^2
 
     def phi_operator(self):
         dimension = self.phi_cutoff
@@ -121,7 +121,7 @@ class ZeroPiNoGrid(base.QubitBaseClass, serializers.Serializable):
         theta_kinetic = 2.0 * self.ECS * np.diag(np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng)))
 
         exp_i_phi = self.exp_i_phi_operator()
-        cos_phi = 0.5 * (np.exp(-1j*self.flux/2.) * exp_i_phi + np.exp(1j*self.flux/2.) * exp_i_phi.T)
+        cos_phi = 0.5 * (np.exp(-1j*self.flux/2.) * exp_i_phi + np.exp(1j*self.flux/2.) * exp_i_phi.conj().T)
         potential = 2. * self.EJ * (np.kron(identity_phi, identity_theta) - np.kron(cos_phi, self.cos_theta_operator()))
 
         hamiltonian = (np.kron(phi_harmonic, identity_theta) + np.kron(identity_phi, theta_kinetic)

@@ -154,6 +154,8 @@ class VCHOS(ABC):
     def _find_closest_periodic_minimum_for_given_minima(self, minima_pair, minimum):
         (minima_m, m), (minima_p, p) = minima_pair
         nearest_neighbors = self.nearest_neighbors[str(m)+str(p)]
+        if nearest_neighbors is None or np.allclose(nearest_neighbors, [np.zeros(self.number_degrees_freedom)]):
+            return 0.0
         Xi_inv = inv(self.Xi_matrix(minimum=minimum))
         delta_inv = Xi_inv.T @ Xi_inv
         if np.allclose(minima_p, minima_m):  # Do not include equivalent minima in the same unit cell
@@ -243,7 +245,10 @@ class VCHOS(ABC):
     @staticmethod
     def _stack_filtered_vectors(filtered_vectors):
         filtered_vectors = list(filter(lambda x: len(x) != 0, filtered_vectors))
-        return np.vstack(filtered_vectors)
+        if filtered_vectors:
+            return np.vstack(filtered_vectors)
+        else:
+            return None
 
     def _filter_periodic_vectors(self, minima_diff, Xi_inv, periodic_vector_length):
         sites = self.number_periodic_degrees_freedom
@@ -543,11 +548,15 @@ class VCHOS(ABC):
 
     def _periodic_continuation_for_minima_pair(self, minima_m, minima_p, nearest_neighbors,
                                                func, exp_a_list, Xi_inv, a_operator_list):
-        minima_diff = minima_p - minima_m
-        exp_minima_difference = self._build_minima_dependent_translation_operators(minima_diff, Xi_inv, a_operator_list)
-        return np.sum([self._neighbor_contribution(neighbor, func, minima_m, minima_p,
-                                                   exp_a_list, exp_minima_difference, Xi_inv)
-                       for neighbor in nearest_neighbors], axis=0)
+        if nearest_neighbors is not None:
+            minima_diff = minima_p - minima_m
+            exp_minima_difference = self._build_minima_dependent_translation_operators(minima_diff, Xi_inv,
+                                                                                       a_operator_list)
+            return np.sum([self._neighbor_contribution(neighbor, func, minima_m, minima_p,
+                                                       exp_a_list, exp_minima_difference, Xi_inv)
+                           for neighbor in nearest_neighbors], axis=0)
+        else:
+            return np.zeros((self.number_states_per_minimum(), self.number_states_per_minimum()), dtype=np.complex_)
 
     def _neighbor_contribution(self, neighbor, func, minima_m, minima_p, exp_a_list, exp_minima_difference, Xi_inv):
         phi_neighbor = 2.0 * np.pi * np.array(neighbor)
