@@ -41,8 +41,7 @@ class FluxQubitFunctions:
     ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                 ECJ3, ECg1, ECg2, ng1, ng2, flux):
+    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux):
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
         self.EJ1 = EJ1
         self.EJ2 = EJ2
@@ -131,10 +130,8 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
     """
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, ncut,
-                 truncated_dim=None):
-        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                                    ECJ3, ECg1, ECg2, ng1, ng2, flux)
+    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux, ncut, truncated_dim=None):
+        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux)
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__

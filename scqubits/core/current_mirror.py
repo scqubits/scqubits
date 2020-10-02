@@ -77,37 +77,6 @@ class CurrentMirrorFunctions:
         V_m[-1] = np.array([1 for _ in range(2*N)])
         return V_m
 
-    @staticmethod
-    def _generate_next_vec(prev_vec, radius):
-        k = 0
-        for num in range(len(prev_vec) - 2, -1, -1):
-            if prev_vec[num] != 0:
-                k = num
-                break
-        next_vec = np.zeros_like(prev_vec)
-        next_vec[0:k] = prev_vec[0:k]
-        next_vec[k] = prev_vec[k] - 1
-        next_vec[k + 1] = radius - np.sum([next_vec[i] for i in range(k + 1)])
-        return next_vec
-
-    def gen_harmonic_excitations(self, num_excitations = 2):
-        sites = self.number_degrees_freedom
-        vec_list = [np.zeros(sites)]
-        for total_exc in range(1, num_excitations + 1):  # No excitation number conservation as in [1]
-            prev_vec = np.zeros(sites)
-            prev_vec[0] = total_exc
-            vec_list.append(prev_vec)
-            while prev_vec[-1] != total_exc:  # step through until the last entry is total_exc
-                next_vec = self._generate_next_vec(prev_vec, total_exc)
-                vec_list.append(next_vec)
-                prev_vec = next_vec
-        return np.array(vec_list)
-
-    def harmonic_spectrum(self, num_excitations=2):
-        harmonic_excitations = self.gen_harmonic_excitations(num_excitations)
-        harmonic_modes = np.sort(self.harmonic_modes())
-        return np.sort(np.array([np.dot(excitation, harmonic_modes) for excitation in harmonic_excitations]))
-
     def harmonic_modes(self):
         CB = self.e ** 2 / (2. * self.ECB)
         CJ = self.e ** 2 / (2. * self.ECJ)

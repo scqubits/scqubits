@@ -1,6 +1,5 @@
 import itertools
 import warnings
-from abc import ABC, abstractmethod
 from functools import partial
 
 from typing import Callable
@@ -34,8 +33,12 @@ from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_e
 # a method to find and find all inequivalent minima, respectively.
 
 
-class VCHOS(ABC):
+class VCHOS:
     potential: Callable
+    find_minima: Callable
+    build_capacitance_matrix: Callable
+    build_EC_matrix: Callable
+    boundary_coefficients: np.ndarray
 
     def __init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=0,
                  number_periodic_degrees_freedom=0, num_exc=None, nearest_neighbors=None,
@@ -60,7 +63,6 @@ class VCHOS(ABC):
         self.extended_grid = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
         # This must be set in the individual qubit class and
         # specifies the structure of the boundary term
-        self.boundary_coefficients = np.array([])
         self.optimized_lengths = np.array([])
 
     def build_gamma_matrix(self, minimum=0):
@@ -582,8 +584,8 @@ class VCHOS(ABC):
     def _transfer_matrix_and_inner_product(self):
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
         if np.max(harmonic_length_minima_comparison) > 1.0:
-            warnings.warn("Large harmonic length compared to minima separation "
-                          "(largest is 3*l/(d/2) = {hlmc})".format(hlmc=np.max(harmonic_length_minima_comparison)))
+            print("Warning: large harmonic length compared to minima separation "
+                  "(largest is 3*l/(d/2) = {hlmc})".format(hlmc=np.max(harmonic_length_minima_comparison)))
         if self.harmonic_length_optimization:
             self.optimize_Xi_variational_wrapper()
         transfer_matrix = self.transfer_matrix()
@@ -869,15 +871,3 @@ class VCHOS(ABC):
         phi_neighbor = 2.0 * np.pi * np.array(neighbor)
         exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor, Xi_inv)
         return exp_prod_coefficient * func(phi_neighbor, minimum_location, minimum_location)
-
-    @abstractmethod
-    def find_minima(self):
-        """finds all minima in the potential energy landscape"""
-
-    @abstractmethod
-    def build_capacitance_matrix(self):
-        """builds the capacitance matrix"""
-
-    @abstractmethod
-    def build_EC_matrix(self):
-        """builds the charging energy matrix"""

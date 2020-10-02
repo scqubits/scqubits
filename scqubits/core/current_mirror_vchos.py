@@ -84,16 +84,19 @@ class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length,
-                 num_exc=0, nearest_neighbors=None, truncated_dim=None):
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim=None, maximum_periodic_vector_length=0,
+                 num_exc=0, nearest_neighbors=None, harmonic_length_optimization=0,
+                 optimize_all_minima=0):
         VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2 * N - 1,
-                       number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc, nearest_neighbors=nearest_neighbors)
+                       number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc, nearest_neighbors=nearest_neighbors,
+                       harmonic_length_optimization=harmonic_length_optimization,
+                       optimize_all_minima=optimize_all_minima)
         CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self.truncated_dim = truncated_dim
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/currentmirrorvchos.png')
+                                            'qubit_pngs/' + str(type(self).__name__) + '.png')
 
     @staticmethod
     def default_params():
@@ -115,113 +118,24 @@ class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass
         return ['N', 'nglist', 'flux', 'maximum_periodic_vector_length', 'num_exc', 'truncated_dim']
 
 
-class CurrentMirrorVCHOSSqueezing(CurrentMirrorVCHOSFunctions, VCHOSSqueezing,
-                                  base.QubitBaseClass, serializers.Serializable):
-    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length,
-                 num_exc=0, nearest_neighbors=None, truncated_dim=None):
-        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length,
-                                number_degrees_freedom=2 * N - 1, number_periodic_degrees_freedom=2 * N - 1,
-                                num_exc=num_exc, nearest_neighbors=nearest_neighbors)
-        CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-        self.truncated_dim = truncated_dim
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/currentmirrorvchossqueezing.png')
-
-    @staticmethod
-    def default_params():
-        return {
-            'N': 3,
-            'ECB': 0.2,
-            'ECJ': 20.0 / 2.7,
-            'ECg': 20.0,
-            'EJlist': np.array(6 * [18.95]),
-            'nglist': np.array(5 * [0.0]),
-            'flux': 0.0,
-            'maximum_periodic_vector_length': 1,
-            'num_exc': 2,
-            'truncated_dim': 6
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['N', 'nglist', 'flux', 'maximum_periodic_vector_length', 'num_exc', 'truncated_dim']
+class CurrentMirrorVCHOSSqueezing(VCHOSSqueezing, CurrentMirrorVCHOS):
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs):
+        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2 * N - 1,
+                                number_periodic_degrees_freedom=2 * N - 1, **kwargs)
+        CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)
 
 
-class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOSFunctions, VCHOS,
-                               base.QubitBaseClass, serializers.Serializable):
-    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOS):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length, global_exc,
-                 nearest_neighbors=None, truncated_dim=None):
+    def __init__(self, N, global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2 * N - 1,
-                       number_periodic_degrees_freedom=2 * N - 1, num_exc=None, nearest_neighbors=nearest_neighbors)
-        CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-        self.truncated_dim = truncated_dim
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/currentmirrorvchosglobal.png')
-
-    @staticmethod
-    def default_params():
-        return {
-            'N': 3,
-            'ECB': 0.2,
-            'ECJ': 20.0 / 2.7,
-            'ECg': 20.0,
-            'EJlist': np.array(5 * [18.95]),
-            'nglist': np.array(5 * [0.0]),
-            'flux': 0.0,
-            'maximum_periodic_vector_length': 1,
-            'global_exc': 2,
-            'truncated_dim': 6
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['N', 'nglist', 'flux', 'maximum_periodic_vector_length', 'global_exc', 'truncated_dim']
+        CurrentMirrorVCHOS.__init__(self, N, **kwargs)
 
 
-class CurrentMirrorVCHOSGlobalSqueezing(Hashing, CurrentMirrorVCHOSFunctions, VCHOSSqueezing,
-                                        base.QubitBaseClass, serializers.Serializable):
-    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+class CurrentMirrorVCHOSGlobalSqueezing(Hashing, CurrentMirrorVCHOSSqueezing):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, maximum_periodic_vector_length, global_exc,
-                 nearest_neighbors=None, truncated_dim=None):
+    def __init__(self, N, global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length,
-                                number_degrees_freedom=2 * N - 1, number_periodic_degrees_freedom=2 * N - 1,
-                                num_exc=None, nearest_neighbors=nearest_neighbors)
-        CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-        self.truncated_dim = truncated_dim
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/currentmirrorvchosglobalsqueezing.png')
-
-    @staticmethod
-    def default_params():
-        return {
-            'N': 3,
-            'ECB': 0.2,
-            'ECJ': 20.0 / 2.7,
-            'ECg': 20.0,
-            'EJlist': np.array(5 * [18.95]),
-            'nglist': np.array(5 * [0.0]),
-            'flux': 0.0,
-            'maximum_periodic_vector_length': 1,
-            'global_exc': 2,
-            'truncated_dim': 6
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['N', 'nglist', 'flux', 'maximum_periodic_vector_length', 'global_exc', 'truncated_dim']
+        CurrentMirrorVCHOSSqueezing.__init__(self, N, **kwargs)

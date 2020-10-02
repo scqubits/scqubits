@@ -35,7 +35,6 @@ class VCHOSSqueezing(VCHOS):
                        number_periodic_degrees_freedom=number_periodic_degrees_freedom, num_exc=num_exc,
                        nearest_neighbors=nearest_neighbors, harmonic_length_optimization=harmonic_length_optimization,
                        optimize_all_minima=optimize_all_minima)
-        self.boundary_coefficients = np.array([])
 
     def _build_U_squeezing_operator(self, minimum, Xi):
         """
@@ -695,15 +694,3 @@ class VCHOSSqueezing(VCHOS):
         inner_product = self._one_state_periodic_continuation_squeezing(minimum_location, minimum, nearest_neighbors,
                                                                         inner_product_function, Xi, Xi_inv)
         return transfer, inner_product
-
-    def potential(self, phi_array):
-        pass
-
-    def find_minima(self):
-        pass
-
-    def build_capacitance_matrix(self):
-        pass
-
-    def build_EC_matrix(self):
-        return np.array([])

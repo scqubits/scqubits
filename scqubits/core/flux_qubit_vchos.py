@@ -19,8 +19,8 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions):
     _check_if_new_minima: Callable
     normalize_minimum_inside_pi_range: Callable
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux):
-        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
+    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux):
+        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECg1, ECg2, ECJ1, ECJ2, ECJ3, flux)
         # final term in potential is cos[(+1)\phi_1+(-1)\phi_2-2pi f]
         self.boundary_coefficients = np.array([+1, -1])
 
@@ -56,32 +56,23 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions):
                 break
         return minima_holder
 
-    def villain_potential(self, m_list, phi_array):
-        """Harmonic approximation of the potential with Villain shifts"""
-        phi1 = phi_array[0]
-        phi2 = phi_array[1]
-        return (0.5*self.EJ1*(phi1-2*np.pi*m_list[0])**2 + 0.5*self.EJ2*(phi2-2*np.pi*m_list[1])**2
-                + 0.5*self.EJ3*(2.0*np.pi*self.flux + phi1 - phi2 - 2.0*np.pi*m_list[2])**2
-                + self.EJ1 + self.EJ2 + self.EJ3)
-
 
 class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2,
-                 flux, maximum_periodic_vector_length, num_exc, nearest_neighbors=None,
-                 truncated_dim=None):
+    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,
+                 flux, truncated_dim=None, maximum_periodic_vector_length=0, num_exc=0, nearest_neighbors=None):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
                        number_periodic_degrees_freedom=2, num_exc=num_exc, nearest_neighbors=nearest_neighbors)
-        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
+        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/fluxqubitvchos.png')
+                                            'qubit_pngs/'+str(type(self).__name__)+'.png')
 
     @staticmethod
     def default_params():
@@ -102,115 +93,27 @@ class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serial
         return ['alpha', 'nglist', 'maximum_periodic_vector_length', 'num_exc', 'squeezing', 'truncated_dim']
 
 
-class FluxQubitVCHOSSqueezing(FluxQubitVCHOSFunctions, VCHOSSqueezing, base.QubitBaseClass, serializers.Serializable):
-    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                 ECJ3, ECg1, ECg2, ng1, ng2, flux, maximum_periodic_vector_length,
-                 num_exc, nearest_neighbors=None, truncated_dim=None):
+class FluxQubitVCHOSSqueezing(VCHOSSqueezing, FluxQubitVCHOS):
+    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux, truncated_dim, **kwargs):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
-        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
-                                number_periodic_degrees_freedom=2, num_exc=num_exc, nearest_neighbors=nearest_neighbors)
-        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
-        self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/fluxqubitvchossqueezing.png')
-
-    @staticmethod
-    def default_params():
-        return {
-            'ECJ': 1.0 / 10.0,
-            'ECg': 5.0,
-            'EJlist': np.array([1.0, 1.0, 0.8]),
-            'alpha': 0.8,
-            'nglist': np.array(2 * [0.0]),
-            'flux': 0.46,
-            'maximum_periodic_vector_length': 1,
-            'num_exc': 4,
-            'truncated_dim': 6
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['alpha', 'nglist', 'maximum_periodic_vector_length', 'num_exc', 'squeezing', 'truncated_dim']
+        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2,
+                                number_periodic_degrees_freedom=2, **kwargs)
+        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux,
+                                truncated_dim, **kwargs)
 
 
-class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
-    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                 ECJ3, ECg1, ECg2, ng1, ng2, flux, maximum_periodic_vector_length,
-                 global_exc, nearest_neighbors=None, truncated_dim=None):
-        EJlist = np.array([EJ1, EJ2, EJ3])
-        nglist = np.array([ng1, ng2])
+    def __init__(self, global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
-                       number_periodic_degrees_freedom=2, num_exc=None, nearest_neighbors=nearest_neighbors)
-        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
-        self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/fluxqubitvchosglobal.png')
-
-    @staticmethod
-    def default_params():
-        return {
-            'ECJ': 1.0 / 10.0,
-            'ECg': 5.0,
-            'EJlist': np.array([1.0, 1.0, 0.8]),
-            'alpha': 0.8,
-            'nglist': np.array(2 * [0.0]),
-            'flux': 0.46,
-            'maximum_periodic_vector_length': 1,
-            'global_exc': 4,
-            'truncated_dim': 6
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['alpha', 'nglist', 'maximum_periodic_vector_length', 'global_exc', 'squeezing', 'truncated_dim']
+        FluxQubitVCHOS.__init__(self, **kwargs)
 
 
-class FluxQubitVCHOSGlobalSqueezing(Hashing, FluxQubitVCHOSFunctions, VCHOSSqueezing,
-                                    base.QubitBaseClass, serializers.Serializable):
-    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+class FluxQubitVCHOSGlobalSqueezing(Hashing, FluxQubitVCHOSSqueezing):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2,
-                 ECJ3, ECg1, ECg2, ng1, ng2, flux, maximum_periodic_vector_length,
-                 global_exc, nearest_neighbors=None, truncated_dim=None):
-        EJlist = np.array([EJ1, EJ2, EJ3])
-        nglist = np.array([ng1, ng2])
+    def __init__(self, global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
-                                number_periodic_degrees_freedom=2, num_exc=None, nearest_neighbors=nearest_neighbors)
-        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
-        self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/fluxqubitvchosglobalsqueezing.png')
-
-    @staticmethod
-    def default_params():
-        return {
-            'ECJ': 1.0 / 10.0,
-            'ECg': 5.0,
-            'EJlist': np.array([1.0, 1.0, 0.8]),
-            'alpha': 0.8,
-            'nglist': np.array(2 * [0.0]),
-            'flux': 0.46,
-            'maximum_periodic_vector_length': 1,
-            'global_exc': 4,
-            'truncated_dim': 6
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['alpha', 'nglist', 'maximum_periodic_vector_length', 'global_exc', 'squeezing', 'truncated_dim']
+        FluxQubitVCHOSSqueezing.__init__(self, **kwargs)

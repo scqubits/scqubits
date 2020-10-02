@@ -11,7 +11,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
     def __init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length,
-                 num_exc, phi_extent=13, dEJ=0, dCJ=0, truncated_dim=None):
+                 num_exc=0, phi_extent=13, dEJ=0, dCJ=0, truncated_dim=None):
         VCHOS.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux, maximum_periodic_vector_length,
                        number_degrees_freedom=2, number_periodic_degrees_freedom=1, num_exc=num_exc)
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
@@ -164,29 +164,7 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         return potential_matrix
 
 
-class ZeroPiVCHOSGlobal(Hashing, ZeroPiVCHOS, base.QubitBaseClass, serializers.Serializable):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length,
-                 global_exc, dEJ=0, dCJ=0, truncated_dim=None):
+class ZeroPiVCHOSGlobal(Hashing, ZeroPiVCHOS):
+    def __init__(self, global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        ZeroPiVCHOS.__init__(self, EJ, EL, ECJ, EC, ng, flux, maximum_periodic_vector_length, num_exc=None,
-                             dEJ=dEJ, dCJ=dCJ, truncated_dim=truncated_dim)
-        self._sys_type = type(self).__name__
-
-    @staticmethod
-    def default_params():
-        return {
-            'EJ': 10.0,
-            'EL': 0.04,
-            'ECJ': 20.0,
-            'EC': 0.04,
-            'dEJ': 0.0,
-            'dCJ': 0.0,
-            'ng': 0.1,
-            'flux': 0.23,
-            'global_exc': 5,
-            'truncated_dim': 10
-        }
-
-    @staticmethod
-    def nonfit_params():
-        return ['ng', 'flux', 'global_exc', 'truncated_dim']
+        ZeroPiVCHOS.__init__(self, **kwargs)
