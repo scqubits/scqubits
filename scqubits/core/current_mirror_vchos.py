@@ -15,28 +15,30 @@ import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
 
-# Current Mirror using VCHOS. Truncation scheme used is defining a cutoff num_exc
-# of the number of excitations kept for each mode. The dimension of the hilbert space
-# is then m*(num_exc+1)**(2*N - 1), where m is the number of inequivalent minima in 
-# the first unit cell and N is the number of big capacitors.
-
 class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
+    """Helper class for defining functions for VCHOS relevant to the Current Mirror"""
     _check_if_new_minima: Callable
-    normalize_minimum_inside_pi_range: Callable
+    _normalize_minimum_inside_pi_range: Callable
 
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux):
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self.boundary_coefficients = np.ones(2 * N - 1)
 
     def convert_node_ng_to_junction_ng(self, node_nglist):
+        """Convert offset charge from node variables to junction variables."""
         return inv(self._build_V_m()).T @ node_nglist.T
 
     def convert_junction_ng_to_node_ng(self, junction_nglist):
+        """Convert offset charge from junction variables to node variables."""
         return self._build_V_m().T @ junction_nglist.T
 
     def find_minima(self):
-        """
-        Index all minima
+        """Find all minima in the potential energy landscape of the current mirror.
+
+        Returns
+        -------
+        ndarray
+            Location of all minima, unsorted
         """
         minima_holder = []
         N = self.N
@@ -48,20 +50,20 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
             new_minimum_pos = (self._check_if_new_minima(result_pos.x, minima_holder)
                                and self._check_if_second_derivative_potential_positive(result_pos.x))
             if new_minimum_pos and result_pos.success:
-                minima_holder.append(self.normalize_minimum_inside_pi_range(result_pos.x))
+                minima_holder.append(self._normalize_minimum_inside_pi_range(result_pos.x))
             new_minimum_neg = (self._check_if_new_minima(result_neg.x, minima_holder)
                                and self._check_if_second_derivative_potential_positive(result_neg.x))
             if new_minimum_neg and result_neg.success:
-                minima_holder.append(self.normalize_minimum_inside_pi_range(result_neg.x))
+                minima_holder.append(self._normalize_minimum_inside_pi_range(result_neg.x))
         return minima_holder
 
     def _check_if_second_derivative_potential_positive(self, phi_array):
+        """Helper method for determining whether the location specified by `phi_array` is a minimum."""
         second_derivative = np.round(-(self.potential(phi_array) - np.sum(self.EJlist)), decimals=3)
         return second_derivative > 0.0
 
     def potential(self, phi_array):
-        """
-        Potential evaluated at the location specified by phi_array
+        """Potential evaluated at the location specified by phi_array.
 
         Parameters
         ----------
@@ -81,16 +83,19 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
 
 
 class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
+    r""" Current Mirror using VCHOS
+
+    See class CurrentMirror for documentation on the qubit itself.
+
+    Initialize in the same way as for CurrentMirror, however now `num_exc` and `maximum_periodic_vector_length`
+    must be set. See VCHOS for explanation.
+    """
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim=None, maximum_periodic_vector_length=0,
-                 num_exc=0, nearest_neighbors=None, harmonic_length_optimization=0,
-                 optimize_all_minima=0):
-        VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2 * N - 1,
-                       number_periodic_degrees_freedom=2 * N - 1, num_exc=num_exc, nearest_neighbors=nearest_neighbors,
-                       harmonic_length_optimization=harmonic_length_optimization,
-                       optimize_all_minima=optimize_all_minima)
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim=None, **kwargs):
+        VCHOS.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2 * N - 1,
+                       number_periodic_degrees_freedom=2 * N - 1, **kwargs)
         CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
@@ -120,8 +125,8 @@ class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass
 
 class CurrentMirrorVCHOSSqueezing(VCHOSSqueezing, CurrentMirrorVCHOS):
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs):
-        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2 * N - 1,
-                                number_periodic_degrees_freedom=2 * N - 1, **kwargs)
+        VCHOSSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux, number_degrees_freedom=2*N - 1,
+                                number_periodic_degrees_freedom=2*N - 1, **kwargs)
         CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)
 
 

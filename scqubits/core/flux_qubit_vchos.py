@@ -13,11 +13,10 @@ import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
 
-# Flux Qubit using VCHOS
-
 class FluxQubitVCHOSFunctions(FluxQubitFunctions):
+    """Helper class for defining functions for VCHOS relevant to the Flux Qubit"""
     _check_if_new_minima: Callable
-    normalize_minimum_inside_pi_range: Callable
+    _normalize_minimum_inside_pi_range: Callable
 
     def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux):
         FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECg1, ECg2, ECJ1, ECJ2, ECJ3, flux)
@@ -35,7 +34,7 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions):
         result = minimize(self.potential, guess)
         new_minima = self._check_if_new_minima(result.x, minima_holder)
         if new_minima:
-            minima_holder.append(self.normalize_minimum_inside_pi_range(result.x))
+            minima_holder.append(self._normalize_minimum_inside_pi_range(result.x))
         return minima_holder, new_minima
 
     def find_minima(self):
@@ -48,7 +47,7 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions):
         else:
             guess = np.array([0.0, 0.0])
         result = minimize(self.potential, guess)
-        minima_holder.append(self.normalize_minimum_inside_pi_range(result.x))
+        minima_holder.append(self._normalize_minimum_inside_pi_range(result.x))
         for k in range(1, 4):
             (minima_holder, new_minima_positive) = self._ramp(k, minima_holder)
             (minima_holder, new_minima_negative) = self._ramp(-k, minima_holder)
@@ -58,15 +57,22 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions):
 
 
 class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
+    r""" Flux Qubit using VCHOS
+
+    See class FluxQubit for documentation on the qubit itself.
+
+    Initialize in the same way as for FluxQubit, however now `num_exc` and `maximum_periodic_vector_length`
+    must be set. See VCHOS for explanation.
+    """
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,
-                 flux, truncated_dim=None, maximum_periodic_vector_length=0, num_exc=0, nearest_neighbors=None):
+                 flux, truncated_dim=None, **kwargs):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
-        VCHOS.__init__(self, EJlist, nglist, flux, maximum_periodic_vector_length, number_degrees_freedom=2,
-                       number_periodic_degrees_freedom=2, num_exc=num_exc, nearest_neighbors=nearest_neighbors)
+        VCHOS.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2,
+                       number_periodic_degrees_freedom=2, **kwargs)
         FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -97,7 +103,7 @@ class FluxQubitVCHOSSqueezing(VCHOSSqueezing, FluxQubitVCHOS):
     def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux, truncated_dim, **kwargs):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
-        VCHOSSqueezing.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2,
+        VCHOSSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux, number_degrees_freedom=2,
                                 number_periodic_degrees_freedom=2, **kwargs)
         FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux,
                                 truncated_dim, **kwargs)

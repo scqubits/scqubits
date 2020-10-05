@@ -78,6 +78,12 @@ class CurrentMirrorFunctions:
         return V_m
 
     def harmonic_modes(self):
+        """Returns the harmonic modes associated with the linearized current mirror Hamiltonian.
+
+        Returns
+        -------
+        ndarray
+        """
         CB = self.e ** 2 / (2. * self.ECB)
         CJ = self.e ** 2 / (2. * self.ECJ)
         Cg = self.e ** 2 / (2. * self.ECg)
