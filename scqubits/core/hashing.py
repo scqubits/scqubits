@@ -1,19 +1,18 @@
 import numpy as np
 from scipy.special import comb
-import math
 from typing import Callable
 
 import scqubits.utils.plotting as plot
-# Helper class for efficiently constructing raising and lowering operators
-# using a global excitation cutoff scheme, as opposed to the more commonly used
-# number of excitations per mode cutoff, which can be easily constructed 
-# using kronecker product. The ideas herein are based on the excellent 
-# paper 
-# [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
 
 
 class Hashing:
-    _generate_next_vec: Callable
+    """Helper class for efficiently constructing raising and lowering operators
+    using a global excitation cutoff scheme, as opposed to the more commonly used
+    number of excitations per mode cutoff, which can be easily constructed
+    using kronecker product. The ideas herein are based on the excellent
+    paper
+    [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010)."""
+    _generate_next_vector: Callable
 
     def __init__(self, global_exc, number_degrees_freedom):
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
@@ -46,90 +45,79 @@ class Hashing:
         self.global_exc = global_exc
         self.number_degrees_freedom = number_degrees_freedom
 
-    def _gen_basis_vecs(self):
+    def _gen_basis_vectors(self):
+        """Generate all basis vectors"""
         sites = self.number_degrees_freedom
-        vec_list = [np.zeros(sites)]
+        vector_list = [np.zeros(sites)]
         for total_exc in range(1, self.global_exc + 1):  # No excitation number conservation as in [1]
-            prev_vec = np.zeros(sites)
-            prev_vec[0] = total_exc
-            vec_list.append(prev_vec)
-            while prev_vec[-1] != total_exc:  # step through until the last entry is total_exc
-                next_vec = self._generate_next_vec(prev_vec, total_exc)
-                vec_list.append(next_vec)
-                prev_vec = next_vec
-        return np.array(vec_list)
+            previous_vector = np.zeros(sites)
+            previous_vector[0] = total_exc
+            vector_list.append(previous_vector)
+            while previous_vector[-1] != total_exc:  # step through until the last entry is total_exc
+                next_vector = self._generate_next_vector(previous_vector, total_exc)
+                vector_list.append(next_vector)
+                previous_vector = next_vector
+        return np.array(vector_list)
 
     def a_operator(self, i):
+        """ Construct the lowering operator for mode `i`.
+
+        Parameters
+        ----------
+        i: int
+            integer specifying the mode whose annihilation operator we would like to construct
+
+        Returns
+        -------
+        ndarray
         """
-        This method for defining the a_operator is based on
-        J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
-        We ask the question, for each basis vector, what is the action of a_i
-        on it? In this way, we can define a_i using a single for loop.
-        """
-        basis_vecs = self._gen_basis_vecs()
-        tags, index_array = self._gen_tags(basis_vecs)
+        basis_vectors = self._gen_basis_vectors()
+        tags, index_array = self._gen_tags(basis_vectors)
         dim = self.number_states_per_minimum()
         a = np.zeros((dim, dim), dtype=np.complex_)
-        for w, vec in enumerate(basis_vecs):
-            if vec[i] >= 1:
-                temp_vec = np.copy(vec)
-                temp_vec[i] = vec[i] - 1
-                temp_coeff = np.sqrt(vec[i])
-                temp_vec_tag = self._hash(temp_vec)
-                index = np.searchsorted(tags, temp_vec_tag)
+        for w, vector in enumerate(basis_vectors):
+            if vector[i] >= 1:
+                temp_vector = np.copy(vector)
+                temp_vector[i] = vector[i] - 1
+                temp_coefficient = np.sqrt(vector[i])
+                temp_vector_tag = self._hash(temp_vector)
+                index = np.searchsorted(tags, temp_vector_tag)
                 basis_index = index_array[index]
-                a[basis_index, w] = temp_coeff
+                a[basis_index, w] = temp_coefficient
         return a
 
     def number_states_per_minimum(self):
-        """
-        Using the global excitation scheme the total number of states
-        per minimum is given by the hockey-stick identity
-        """
+        """Using the global excitation scheme the total number of states
+        per minimum is given by the hockey-stick identity"""
         return int(comb(self.global_exc + self.number_degrees_freedom, self.number_degrees_freedom))
 
-    def _hash(self, vec):
-        dim = len(vec)
-        return np.sum([np.sqrt(self.prime_list[i])*vec[i] for i in range(dim)])
+    def _hash(self, vector):
+        """Generate the (unique) identifier for a given vector `vector`"""
+        dim = len(vector)
+        return np.sum([np.sqrt(self.prime_list[i]) * vector[i] for i in range(dim)])
     
-    def _gen_tags(self, basis_vecs):
-        dim = basis_vecs.shape[0]
-        tag_list = np.array([self._hash(basis_vecs[i, :]) for i in range(dim)])
+    def _gen_tags(self, basis_vectors):
+        """Generate the identifiers for all basis vectors `basis_vectors`"""
+        dim = basis_vectors.shape[0]
+        tag_list = np.array([self._hash(basis_vectors[i, :]) for i in range(dim)])
         index_array = np.argsort(tag_list)
         tag_list = tag_list[index_array]
         return tag_list, index_array
-    
-    def eigvec_population(self, eigvec):
-        basis_vecs = self._gen_basis_vecs()
-        dim = len(basis_vecs)
-        pop_list = []
-        min_list = []
-        vec_list = []
-        for k, elem in enumerate(eigvec):
-            if not np.allclose(elem, 0.0, atol=1e-4):
-                minimum = math.floor(k/dim)
-                pop_list.append(elem)
-                min_list.append(minimum)
-                vec_list.append(basis_vecs[np.mod(k, dim)])
-        pop_list = np.abs(pop_list)**2
-        index_array = np.argsort(np.abs(pop_list))
-        pop_list = (pop_list[index_array])[::-1]
-        min_list = (np.array(min_list)[index_array])[::-1]
-        vec_list = (np.array(vec_list)[index_array])[::-1]
-        return pop_list, zip(min_list, vec_list)
 
     def state_amplitudes_function(self, i, evecs, which):
+        """Overrides method in VCHOS, appropriate for the global excitation cutoff scheme."""
         total_num_states = self.number_states_per_minimum()
         return np.real(evecs[i * total_num_states: (i + 1) * total_num_states, which])
 
-    def wavefunc_amplitudes_function(self, state_amplitudes, normal_mode_1, normal_mode_2):
+    def wavefunction_amplitudes_function(self, state_amplitudes, normal_mode_1, normal_mode_2):
+        """Overrides method in VCHOS, appropriate for the global excitation cutoff scheme."""
         total_num_states = self.number_states_per_minimum()
-        basis_vecs = self._gen_basis_vecs()
-        wavefunc_amplitudes = np.zeros_like(normal_mode_1).T
+        basis_vectors = self._gen_basis_vectors()
+        wavefunction_amplitudes = np.zeros_like(normal_mode_1).T
         for j in range(total_num_states):
-            basis_vec = basis_vecs[j]
-            s1 = int(basis_vec[0])
-            s2 = int(basis_vec[1])
+            basis_vector = basis_vectors[j]
+            s1 = int(basis_vector[0])
+            s2 = int(basis_vector[1])
             ho_2d = plot.multiply_two_harm_osc_functions(s1, s2, normal_mode_1, normal_mode_2)
-            wavefunc_amplitudes += state_amplitudes[j] * ho_2d.T
-        return wavefunc_amplitudes
+            wavefunction_amplitudes += state_amplitudes[j] * ho_2d.T
+        return wavefunction_amplitudes

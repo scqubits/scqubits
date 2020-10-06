@@ -45,7 +45,7 @@ class VCHOS:
     EJlist: ndarray
         Josephson energies associated with each junction, which are allowed to vary.
     nglist: ndarray
-        offset charge associated with each dynamical degree of freedom. Must have size `2\cdot N - 1`
+        offset charge associated with each dynamical degree of freedom.
     flux: float
         magnetic flux through the circuit loop, measured in units of the flux quantum
     maximum_periodic_vector_length: int
@@ -303,7 +303,7 @@ class VCHOS:
         if periodic_vector_length <= self.maximum_site_length:
             self._filter_reflected_vectors(minima_diff, Xi_inv, prev_vec, filtered_vectors)
         while prev_vec[-1] != periodic_vector_length:
-            next_vec = self._generate_next_vec(prev_vec, periodic_vector_length)
+            next_vec = self._generate_next_vector(prev_vec, periodic_vector_length)
             if len(np.argwhere(next_vec > self.maximum_site_length)) == 0:
                 self._filter_reflected_vectors(minima_diff, Xi_inv, next_vec, filtered_vectors)
             prev_vec = next_vec
@@ -342,7 +342,7 @@ class VCHOS:
         return prod > self.nearest_neighbor_cutoff
 
     @staticmethod
-    def _generate_next_vec(prev_vec, radius):
+    def _generate_next_vector(prev_vec, radius):
         """Algorithm for generating all vectors with positive entries of a given Manhattan length, specified in
         [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010)"""
         k = 0
@@ -646,7 +646,7 @@ class VCHOS:
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
         if np.max(harmonic_length_minima_comparison) > 1.0:
             print("Warning: large harmonic length compared to minima separation "
-                  "(largest is 3*l/(d/2) = {hlmc})".format(hlmc=np.max(harmonic_length_minima_comparison)))
+                  "(largest is 3*l/(d/2) = {ratio})".format(ratio=np.max(harmonic_length_minima_comparison)))
         transfer_matrix = self.transfer_matrix()
         inner_product_matrix = self.inner_product_matrix()
         return transfer_matrix, inner_product_matrix
@@ -706,7 +706,7 @@ class VCHOS:
         return np.concatenate((extended_coordinates, periodic_coordinates))
 
     def _check_if_new_minima(self, new_minima, minima_holder):
-        """Helper thod for find_minima, checking if new_minima is already represented in minima_holder. If so,
+        """Helper method for find_minima, checking if new_minima is already represented in minima_holder. If so,
         _check_if_new_minima returns False.
         """
         num_extended = self.number_extended_degrees_freedom

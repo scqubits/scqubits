@@ -24,12 +24,7 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions):
         self.boundary_coefficients = np.array([+1, -1])
 
     def _ramp(self, k, minima_holder):
-        """
-        Helper function for find_minima, performing the ramp that
-        is described in Sec. III E of [0]
-
-        [0] PRB ...
-        """
+        """Helper function for find_minima"""
         guess = np.array([1.15 * 2.0 * np.pi * k / 3.0, 2.0 * np.pi * k / 3.0])
         result = minimize(self.potential, guess)
         new_minima = self._check_if_new_minima(result.x, minima_holder)
@@ -62,7 +57,7 @@ class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serial
     See class FluxQubit for documentation on the qubit itself.
 
     Initialize in the same way as for FluxQubit, however now `num_exc` and `maximum_periodic_vector_length`
-    must be set. See VCHOS for explanation.
+    must be set. See VCHOS for explanation of other kwargs.
     """
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')

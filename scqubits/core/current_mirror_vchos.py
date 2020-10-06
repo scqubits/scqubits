@@ -88,7 +88,7 @@ class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass
     See class CurrentMirror for documentation on the qubit itself.
 
     Initialize in the same way as for CurrentMirror, however now `num_exc` and `maximum_periodic_vector_length`
-    must be set. See VCHOS for explanation.
+    must be set. See VCHOS for explanation of other kwargs.
     """
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
