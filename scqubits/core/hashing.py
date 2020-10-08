@@ -1,8 +1,22 @@
 import numpy as np
 from scipy.special import comb
-from typing import Callable
 
 import scqubits.utils.plotting as plot
+
+
+def generate_next_vector(prev_vec, radius):
+    """Algorithm for generating all vectors with positive entries of a given Manhattan length, specified in
+    [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010)"""
+    k = 0
+    for num in range(len(prev_vec) - 2, -1, -1):
+        if prev_vec[num] != 0:
+            k = num
+            break
+    next_vec = np.zeros_like(prev_vec)
+    next_vec[0:k] = prev_vec[0:k]
+    next_vec[k] = prev_vec[k] - 1
+    next_vec[k + 1] = radius - np.sum([next_vec[i] for i in range(k + 1)])
+    return next_vec
 
 
 class Hashing:
@@ -12,7 +26,6 @@ class Hashing:
     using kronecker product. The ideas herein are based on the excellent
     paper
     [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010)."""
-    _generate_next_vector: Callable
 
     def __init__(self, global_exc, number_degrees_freedom):
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
@@ -45,19 +58,31 @@ class Hashing:
         self.global_exc = global_exc
         self.number_degrees_freedom = number_degrees_freedom
 
-    def _gen_basis_vectors(self):
+    def gen_basis_vectors(self):
         """Generate all basis vectors"""
+        return self._gen_basis_vectors(lambda x: x)
+
+    def _gen_basis_vectors(self, func):
+        """Generate basis vectors using Zhang algorithm. `func` allows for inclusion of other vectors,
+        such as those with negative entries (see CurrentMirrorGlobal)"""
         sites = self.number_degrees_freedom
         vector_list = [np.zeros(sites)]
         for total_exc in range(1, self.global_exc + 1):  # No excitation number conservation as in [1]
             previous_vector = np.zeros(sites)
             previous_vector[0] = total_exc
-            vector_list.append(previous_vector)
+            vector_list = self._append_similar_vectors(vector_list, previous_vector, func)
             while previous_vector[-1] != total_exc:  # step through until the last entry is total_exc
-                next_vector = self._generate_next_vector(previous_vector, total_exc)
-                vector_list.append(next_vector)
+                next_vector = generate_next_vector(previous_vector, total_exc)
+                vector_list = self._append_similar_vectors(vector_list, next_vector, func)
                 previous_vector = next_vector
         return np.array(vector_list)
+
+    @staticmethod
+    def _append_similar_vectors(vector_list, vector, func):
+        similar_vectors = func(vector)
+        for vector in similar_vectors:
+            vector_list.append(vector)
+        return vector_list
 
     def a_operator(self, i):
         """ Construct the lowering operator for mode `i`.
@@ -71,20 +96,24 @@ class Hashing:
         -------
         ndarray
         """
-        basis_vectors = self._gen_basis_vectors()
+        basis_vectors = self.gen_basis_vectors()
         tags, index_array = self._gen_tags(basis_vectors)
         dim = self.number_states_per_minimum()
         a = np.zeros((dim, dim), dtype=np.complex_)
         for w, vector in enumerate(basis_vectors):
             if vector[i] >= 1:
-                temp_vector = np.copy(vector)
-                temp_vector[i] = vector[i] - 1
                 temp_coefficient = np.sqrt(vector[i])
-                temp_vector_tag = self._hash(temp_vector)
-                index = np.searchsorted(tags, temp_vector_tag)
-                basis_index = index_array[index]
+                basis_index = self._find_lowered_vector(vector, i, tags, index_array)
                 a[basis_index, w] = temp_coefficient
         return a
+
+    def _find_lowered_vector(self, vector, i, tags, index_array):
+        temp_vector = np.copy(vector)
+        temp_vector[i] = vector[i] - 1
+        temp_vector_tag = self._hash(temp_vector)
+        index = np.searchsorted(tags, temp_vector_tag)
+        basis_index = index_array[index]
+        return basis_index
 
     def number_states_per_minimum(self):
         """Using the global excitation scheme the total number of states
@@ -112,7 +141,7 @@ class Hashing:
     def wavefunction_amplitudes_function(self, state_amplitudes, normal_mode_1, normal_mode_2):
         """Overrides method in VCHOS, appropriate for the global excitation cutoff scheme."""
         total_num_states = self.number_states_per_minimum()
-        basis_vectors = self._gen_basis_vectors()
+        basis_vectors = self.gen_basis_vectors()
         wavefunction_amplitudes = np.zeros_like(normal_mode_1).T
         for j in range(total_num_states):
             basis_vector = basis_vectors[j]

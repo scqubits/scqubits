@@ -1,5 +1,5 @@
 import itertools
-from functools import partial
+from functools import partial, reduce
 
 import numpy as np
 import scipy as sp
@@ -281,18 +281,12 @@ class VCHOSSqueezing(VCHOS):
                                exp_a_list, exp_a_minima_difference, exp_a_dagger_a_dagger,
                                exp_a_a, neighbor):
         """Build translation operators using matrix_power"""
-        num_exc = self.number_states_per_minimum()
         dim = self.number_degrees_freedom
-        translation_op_a_dag = np.eye(num_exc)
-        translation_op_a = np.eye(num_exc)
-        for j in range(dim):
-            translation_op_a_dag_for_direction = matrix_power(exp_a_dagger_list[j], int(neighbor[j]))
-            translation_op_a_dag = translation_op_a_dag @ translation_op_a_dag_for_direction
-        translation_op_a_dag = translation_op_a_dag @ exp_a_dagger_minima_difference @ exp_a_dagger_a_dagger
-        for j in range(dim):
-            translation_op_a_for_direction = matrix_power(exp_a_list[j], -int(neighbor[j]))
-            translation_op_a = translation_op_a @ translation_op_a_for_direction
-        translation_op_a = translation_op_a @ exp_a_minima_difference @ exp_a_a
+        individual_op_a_dagger = np.array([matrix_power(exp_a_dagger_list[j], int(neighbor[j])) for j in range(dim)])
+        individual_op_a = np.array([matrix_power(exp_a_list[j], -int(neighbor[j])) for j in range(dim)])
+        translation_op_a_dag = (reduce((lambda x, y: x @ y), individual_op_a_dagger)
+                                @ exp_a_dagger_minima_difference @ exp_a_dagger_a_dagger)
+        translation_op_a = reduce((lambda x, y: x @ y), individual_op_a) @ exp_a_minima_difference @ exp_a_a
         return translation_op_a_dag, translation_op_a
 
     def _periodic_continuation_squeezing(self, minima_pair_func, local_func):

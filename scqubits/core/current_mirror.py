@@ -10,6 +10,7 @@ import scipy.constants as const
 import scqubits.core.qubit_base as base
 import scqubits.core.descriptors as descriptors
 import scqubits.io_utils.fileio_serializers as serializers
+from scqubits.core.hashing_charge_basis import HashingChargeBasis
 from scqubits.utils.spectrum_utils import order_eigensystem
 from scqubits.core.operators import operator_in_full_Hilbert_space
 
@@ -203,20 +204,10 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
         """
         dim = self.number_degrees_freedom
         EC_matrix = self.build_EC_matrix()
-        number_op = self._charge_number_operator()
-        identity_op = self._identity_operator()
-        identity_operator_list = self._identity_operator_list()
-        
         H = 0.*self.identity_operator()
         for j, k in itertools.product(range(dim), range(dim)):
-            if j != k:
-                H += 4*EC_matrix[j, k]*operator_in_full_Hilbert_space([number_op - self.nglist[j]*identity_op,
-                                                                       number_op - self.nglist[k]*identity_op],
-                                                                      [j, k], identity_operator_list, sparse=True)
-            else:
-                n_squared = (number_op - self.nglist[j]*identity_op).dot(number_op - self.nglist[j]*identity_op)
-                H += 4 * EC_matrix[j, j] * operator_in_full_Hilbert_space([n_squared], [j],
-                                                                          identity_operator_list, sparse=True)
+            H += 4*EC_matrix[j, k]*((self.charge_number_operator(j) - self.nglist[j]*self.identity_operator())
+                                    @ (self.charge_number_operator(k) - self.nglist[k]*self.identity_operator()))
         for j in range(dim):
             H += (-self.EJlist[j]/2.)*(self.exp_i_phi_j_operator(j) + self.exp_i_phi_j_operator(j).T)
             H += self.EJlist[j]*self.identity_operator()
@@ -290,3 +281,10 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
         identity_operator_list = self._identity_operator_list()
         return operator_in_full_Hilbert_space([exp_i_phi_op for _ in range(dim)],
                                               [j for j in range(dim)], identity_operator_list, sparse=True)
+
+
+class CurrentMirrorGlobal(HashingChargeBasis, CurrentMirror):
+    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, global_exc, truncated_dim=None):
+        HashingChargeBasis.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
+        CurrentMirror.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=0, truncated_dim=truncated_dim)
+        self.global_exc = global_exc

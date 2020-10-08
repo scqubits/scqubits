@@ -1,6 +1,6 @@
 import itertools
 import warnings
-from functools import partial
+from functools import partial, reduce
 
 from typing import Callable
 import numpy as np
@@ -12,10 +12,24 @@ from numpy.linalg import matrix_power
 from scqubits.core import discretization, storage
 import scqubits.core.constants as constants
 from scqubits.core.operators import annihilation, operator_in_full_Hilbert_space
+from scqubits.core.hashing import generate_next_vector
 import scqubits.utils.plotting as plot
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ, \
     standardize_phases
+
+
+def reflect_vectors(vec):
+    """Helper function for generating all possible reflections of a given vector"""
+    reflected_vec_list = []
+    nonzero_indices = np.nonzero(vec)
+    nonzero_vec = vec[nonzero_indices]
+    multiplicative_factors = itertools.product(np.array([1, -1]), repeat=len(nonzero_vec))
+    for factor in multiplicative_factors:
+        reflected_vec = np.copy(vec)
+        np.put(reflected_vec, nonzero_indices, np.multiply(nonzero_vec, factor))
+        reflected_vec_list.append(reflected_vec)
+    return reflected_vec_list
 
 
 class VCHOS:
@@ -303,7 +317,7 @@ class VCHOS:
         if periodic_vector_length <= self.maximum_site_length:
             self._filter_reflected_vectors(minima_diff, Xi_inv, prev_vec, filtered_vectors)
         while prev_vec[-1] != periodic_vector_length:
-            next_vec = self._generate_next_vector(prev_vec, periodic_vector_length)
+            next_vec = generate_next_vector(prev_vec, periodic_vector_length)
             if len(np.argwhere(next_vec > self.maximum_site_length)) == 0:
                 self._filter_reflected_vectors(minima_diff, Xi_inv, next_vec, filtered_vectors)
             prev_vec = next_vec
@@ -312,24 +326,11 @@ class VCHOS:
     def _filter_reflected_vectors(self, minima_diff, Xi_inv, vec, filtered_vectors):
         """Helper function where given a specific vector, generate all possible reflections and filter those"""
         dim_extended = self.number_extended_degrees_freedom
-        reflected_vectors = self._reflect_vectors(vec)
+        reflected_vectors = reflect_vectors(vec)
         filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
         new_vectors = filter(filter_function, reflected_vectors)
         for filtered_vec in new_vectors:
             filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), filtered_vec)))
-
-    @staticmethod
-    def _reflect_vectors(vec):
-        """Helper function for generating all possible reflections of a given vector"""
-        reflected_vec_list = []
-        nonzero_indices = np.nonzero(vec)
-        nonzero_vec = vec[nonzero_indices]
-        multiplicative_factors = itertools.product(np.array([1, -1]), repeat=len(nonzero_vec))
-        for factor in multiplicative_factors:
-            reflected_vec = np.copy(vec)
-            np.put(reflected_vec, nonzero_indices, np.multiply(nonzero_vec, factor))
-            reflected_vec_list.append(reflected_vec)
-        return reflected_vec_list
 
     def _filter_neighbors(self, minima_diff, Xi_inv, neighbor):
         """Helper function that does the filtering. Matrix elements are suppressed by a
@@ -340,21 +341,6 @@ class VCHOS:
         dpkX = Xi_inv @ phi_neighbor + minima_diff
         prod = np.exp(-0.25*np.dot(dpkX, dpkX))
         return prod > self.nearest_neighbor_cutoff
-
-    @staticmethod
-    def _generate_next_vector(prev_vec, radius):
-        """Algorithm for generating all vectors with positive entries of a given Manhattan length, specified in
-        [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010)"""
-        k = 0
-        for num in range(len(prev_vec) - 2, -1, -1):
-            if prev_vec[num] != 0:
-                k = num
-                break
-        next_vec = np.zeros_like(prev_vec)
-        next_vec[0:k] = prev_vec[0:k]
-        next_vec[k] = prev_vec[k] - 1
-        next_vec[k + 1] = radius - np.sum([next_vec[i] for i in range(k + 1)])
-        return next_vec
 
     def identity(self):
         """
@@ -441,14 +427,10 @@ class VCHOS:
         """Helper method that builds translation operators using matrix_power and the pre-exponentiated
         translation operators that define 2pi translations."""
         dim = self.number_degrees_freedom
-        translation_op_a_dagger = self.identity()
-        translation_op_a = self.identity()
-        for j in range(dim):
-            translation_op_for_direction = matrix_power(exp_a_list[j].T, int(neighbor[j]))
-            translation_op_a_dagger = translation_op_a_dagger @ translation_op_for_direction
-            translation_op_a = translation_op_a @ inv(translation_op_for_direction.T)
-        translation_op_a_dagger = exp_minima_difference.T @ translation_op_a_dagger
-        translation_op_a = translation_op_a @ inv(exp_minima_difference)
+        individual_a_dagger_op = np.array([matrix_power(exp_a_list[j].T, int(neighbor[j])) for j in range(dim)])
+        individual_a_op = np.array([inv(a_dagger_op.T) for a_dagger_op in individual_a_dagger_op])
+        translation_op_a_dagger = reduce((lambda x, y: x @ y), individual_a_dagger_op) @ exp_minima_difference.T
+        translation_op_a = reduce((lambda x, y: x @ y), individual_a_op) @ inv(exp_minima_difference)
         return translation_op_a_dagger, translation_op_a
 
     def _exp_product_coefficient(self, delta_phi, Xi_inv):

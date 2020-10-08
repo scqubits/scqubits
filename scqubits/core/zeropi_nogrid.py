@@ -10,7 +10,6 @@
 ############################################################################
 
 import os
-import warnings
 
 import numpy as np
 import scipy as sp
@@ -23,19 +22,12 @@ import scqubits.io_utils.fileio_serializers as serializers
 # -Symmetric 0-pi qubit, phi harmonic oscillator, theta in charge basis------------------------------------------------
 
 class ZeroPiNoGrid(base.QubitBaseClass, serializers.Serializable):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, phi_cutoff, ncut, dEJ=0, dCJ=0, ECS=None, truncated_dim=None):
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, phi_cutoff, ncut, dEJ=0, dCJ=0, truncated_dim=None):
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
-
-        if EC is None and ECS is None:
-            raise ValueError("Argument missing: must either provide EC or ECS")
-        if EC and ECS:
-            raise ValueError("Argument error: can only provide either EC or ECS")
-        if EC:
-            self.EC = EC
-        else:
-            self.EC = 1 / (1 / ECS - 1 / self.ECJ)
+        self.EC = EC
+        self.ECS = 1 / (1 / EC + 1 / ECJ)
         self.dEJ = dEJ
         self.dCJ = dCJ
         self.ng = ng
@@ -46,7 +38,6 @@ class ZeroPiNoGrid(base.QubitBaseClass, serializers.Serializable):
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         # for theta, needed for plotting wavefunction
-        self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropi.png')
 
     @staticmethod
@@ -61,26 +52,13 @@ class ZeroPiNoGrid(base.QubitBaseClass, serializers.Serializable):
             'ng': 0.1,
             'flux': 0.23,
             'ncut': 30,
-            'phi_cutoff' : 100,
+            'phi_cutoff': 100,
             'truncated_dim': 10
         }
 
     @staticmethod
     def nonfit_params():
         return ['ng', 'flux', 'ncut', 'phi_cutoff', 'truncated_dim']
-
-    def get_ECS(self):
-        return 1 / (1 / self.EC + 1 / self.ECJ)
-
-    def set_ECS(self, value):
-        warnings.warn("It is not possible to directly set ECS (except in initialization). Instead, set EC or ECJ, "
-                      "or use set_EC_via_ECS() to update EC indirectly.", Warning)
-
-    ECS = property(get_ECS, set_ECS)
-
-    def set_EC_via_ECS(self, ECS):
-        """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
-        self.EC = 1 / (1 / ECS - 1 / self.ECJ)
 
     def hilbertdim(self):
         """Returns Hilbert space dimension"""
