@@ -18,9 +18,9 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions):
     _check_if_new_minima: Callable
     _normalize_minimum_inside_pi_range: Callable
 
-    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux):
-        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECg1, ECg2, ECJ1, ECJ2, ECJ3, flux)
-        # final term in potential is cos[(+1)\phi_1+(-1)\phi_2-2pi f]
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux):
+        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
+        # final term in potential is cos[(+1)\phi_1+(-1)\phi_2+2pi f]
         self.boundary_coefficients = np.array([+1, -1])
 
     def _ramp(self, k, minima_holder):
@@ -62,13 +62,12 @@ class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serial
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,
-                 flux, truncated_dim=None, **kwargs):
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, truncated_dim=None, **kwargs):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         VCHOS.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2,
                        number_periodic_degrees_freedom=2, **kwargs)
-        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux)
+        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
@@ -95,26 +94,26 @@ class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serial
 
 
 class FluxQubitVCHOSSqueezing(VCHOSSqueezing, FluxQubitVCHOS):
-    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux, truncated_dim, **kwargs):
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, truncated_dim, **kwargs):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         VCHOSSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux, number_degrees_freedom=2,
                                 number_periodic_degrees_freedom=2, **kwargs)
-        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2, flux,
+        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux,
                                 truncated_dim, **kwargs)
 
 
 class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux, global_exc=global_exc, **kwargs):
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, global_exc=global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux, **kwargs)
+        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, **kwargs)
 
 
 class FluxQubitVCHOSGlobalSqueezing(Hashing, FluxQubitVCHOSSqueezing):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux, global_exc=global_exc, **kwargs):
+    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, global_exc=global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVCHOSSqueezing.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux, **kwargs)
+        FluxQubitVCHOSSqueezing.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, **kwargs)
