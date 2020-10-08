@@ -37,7 +37,6 @@ class ZeroPiNoGrid(base.QubitBaseClass, serializers.Serializable):
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
-        # for theta, needed for plotting wavefunction
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropi.png')
 
     @staticmethod
@@ -89,7 +88,7 @@ class ZeroPiNoGrid(base.QubitBaseClass, serializers.Serializable):
         return exp_op
 
     def cos_theta_operator(self):
-        return 0.5 * (self.exp_i_theta_operator() + self.exp_i_theta_operator().T)
+        return 0.5 * (self.exp_i_theta_operator() + self.exp_i_theta_operator().conj().T)
 
     def hamiltonian(self):
         identity_phi = np.eye(self.phi_cutoff, dtype=np.complex_)
@@ -99,7 +98,8 @@ class ZeroPiNoGrid(base.QubitBaseClass, serializers.Serializable):
         theta_kinetic = 2.0 * self.ECS * np.diag(np.square(np.arange(-self.ncut + self.ng, self.ncut + 1 + self.ng)))
 
         exp_i_phi = self.exp_i_phi_operator()
-        cos_phi = 0.5 * (np.exp(-1j*self.flux/2.) * exp_i_phi + np.exp(1j*self.flux/2.) * exp_i_phi.conj().T)
+        cos_phi = 0.5 * (np.exp(-1j*2.0*np.pi*self.flux/2.) * exp_i_phi
+                         + np.exp(1j*2.0*np.pi*self.flux/2.) * exp_i_phi.conj().T)
         potential = 2. * self.EJ * (np.kron(identity_phi, identity_theta) - np.kron(cos_phi, self.cos_theta_operator()))
 
         hamiltonian = (np.kron(phi_harmonic, identity_theta) + np.kron(identity_phi, theta_kinetic)
