@@ -60,7 +60,7 @@ class Hashing:
 
     def gen_basis_vectors(self):
         """Generate all basis vectors"""
-        return self._gen_basis_vectors(lambda x: x)
+        return self._gen_basis_vectors(lambda x: [x])
 
     def _gen_basis_vectors(self, func):
         """Generate basis vectors using Zhang algorithm. `func` allows for inclusion of other vectors,
