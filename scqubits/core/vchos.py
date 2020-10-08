@@ -381,22 +381,15 @@ class VCHOS:
         based on the boundary coefficients."""
         dim = self.number_degrees_freedom
         if j == dim:
-            exp_i_phi_j_a_component = expm(np.sum(np.array([self.boundary_coefficients[i]
-                                                  * 1j * Xi[i, k] * a_operator_list[k] / np.sqrt(2.0)
-                                                  for i in range(dim) for k in range(dim)]), axis=0))
+            exp_i_phi_j_a_component = expm(np.sum([self.boundary_coefficients[i] * 1j * Xi[i, k] * a_operator_list[k]
+                                                  for i in range(dim) for k in range(dim)], axis=0) / np.sqrt(2.0))
             BCH_factor = self._BCH_factor_for_potential_boundary(Xi)
         else:
-            exp_i_phi_j_a_component = expm(np.sum(np.array([1j * Xi[j, k] * a_operator_list[k] / np.sqrt(2.0)
-                                                  for k in range(dim)]), axis=0))
+            exp_i_phi_j_a_component = expm(np.sum([1j * Xi[j, k] * a_operator_list[k]
+                                                  for k in range(dim)], axis=0) / np.sqrt(2.0))
             BCH_factor = np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j]))
         exp_i_phi_j_a_dagger_component = exp_i_phi_j_a_component.T
         return BCH_factor * exp_i_phi_j_a_dagger_component @ exp_i_phi_j_a_component
-
-    def _one_state_exp_i_phi_j_operators(self, Xi):
-        r"""Helper method for building :math:`\exp(i\phi_{j})` when no excitations are kept."""
-        dim = self.number_degrees_freedom
-        exp_factors = np.array([np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j])) for j in range(dim)])
-        return np.append(exp_factors, self._BCH_factor_for_potential_boundary(Xi))
 
     def _build_all_exp_i_phi_j_operators(self, Xi, a_operator_list):
         """Helper method for building all potential operators"""
@@ -409,28 +402,33 @@ class VCHOS:
         in each degree of freedom, so that any translation can be built from these by an appropriate
         call to np.matrix_power"""
         dim = self.number_degrees_freedom
-        exp_a_list = np.array([expm(np.sum(np.array([2.0 * np.pi * Xi_inv.T[i, j] * a_operator_list[j] / np.sqrt(2.0)
-                                           for j in range(dim)]), axis=0)) for i in range(dim)])
-        return exp_a_list
+        exp_a_list = np.array([expm(np.sum([2.0 * np.pi * Xi_inv.T[i, j] * a_operator_list[j] / np.sqrt(2.0)
+                                    for j in range(dim)], axis=0)) for i in range(dim)])
+        exp_a_dagger_list = np.array([expm(np.sum([2.0 * np.pi * Xi_inv.T[i, j] * a_operator_list[j].T / np.sqrt(2.0)
+                                      for j in range(dim)], axis=0)) for i in range(dim)])
+        return exp_a_list, exp_a_dagger_list
 
     def _build_minima_dependent_translation_operators(self, minima_diff, Xi_inv, a_operator_list):
         """Helper method that performs matrix exponentiation to aid in the
         future construction of translation operators. This part of the translation operator accounts
         for the differing location of minima within a single unit cell."""
         dim = self.number_degrees_freedom
-        exp_a_minima_difference = expm(np.sum(np.array([minima_diff[i] * Xi_inv.T[i, j]
-                                                        * a_operator_list[j] / np.sqrt(2.0)
-                                              for i in range(dim) for j in range(dim)]), axis=0))
-        return exp_a_minima_difference
+        exp_a_minima_difference = expm(np.sum([-minima_diff[i] * Xi_inv.T[i, j] * a_operator_list[j] / np.sqrt(2.0)
+                                               for i in range(dim) for j in range(dim)], axis=0))
+        exp_a_dagger_minima_difference = expm(np.sum([minima_diff[i] * Xi_inv.T[i, j] * a_operator_list[j].T
+                                              for i in range(dim) for j in range(dim)], axis=0) / np.sqrt(2.0))
+        return exp_a_minima_difference, exp_a_dagger_minima_difference
 
     def _build_local_translation_operators(self, exp_a_list, exp_minima_difference, neighbor):
         """Helper method that builds translation operators using matrix_power and the pre-exponentiated
         translation operators that define 2pi translations."""
         dim = self.number_degrees_freedom
-        individual_a_dagger_op = np.array([matrix_power(exp_a_list[j].T, int(neighbor[j])) for j in range(dim)])
-        individual_a_op = np.array([inv(a_dagger_op.T) for a_dagger_op in individual_a_dagger_op])
-        translation_op_a_dagger = reduce((lambda x, y: x @ y), individual_a_dagger_op) @ exp_minima_difference.T
-        translation_op_a = reduce((lambda x, y: x @ y), individual_a_op) @ inv(exp_minima_difference)
+        exp_a_list, exp_a_dagger_list = exp_a_list
+        exp_a_minima_difference, exp_a_dagger_minima_difference = exp_minima_difference
+        individual_a_dagger_op = np.array([matrix_power(exp_a_dagger_list[j], int(neighbor[j])) for j in range(dim)])
+        individual_a_op = np.array([matrix_power(exp_a_list[j], -int(neighbor[j])) for j in range(dim)])
+        translation_op_a_dagger = reduce((lambda x, y: x @ y), individual_a_dagger_op) @ exp_a_dagger_minima_difference
+        translation_op_a = reduce((lambda x, y: x @ y), individual_a_op) @ exp_a_minima_difference
         return translation_op_a_dagger, translation_op_a
 
     def _exp_product_coefficient(self, delta_phi, Xi_inv):
@@ -515,8 +513,7 @@ class VCHOS:
         kinetic_matrix = np.sum(np.array([EC_mat_t[i, i]*(-0.5*4*a_a[i] - 0.5*4*a_a[i].T + 0.5*8*a_dagger_a[i]
                                                           - 4*(a[i] - a[i].T)*delta_phi_rotated[i]/np.sqrt(2.0))
                                           for i in range(self.number_degrees_freedom)]), axis=0)
-        identity_coefficient = 0.5 * 4 * np.trace(EC_mat_t)
-        identity_coefficient = identity_coefficient - 0.25*4*delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
+        identity_coefficient = 0.5*4*np.trace(EC_mat_t) - 0.25*4*delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
         kinetic_matrix = kinetic_matrix + identity_coefficient*self.identity()
         return kinetic_matrix
 
@@ -754,6 +751,12 @@ class VCHOS:
         transfer, inner = self._one_state_construct_transfer_and_inner(Xi_inv, minimum_location, minimum,
                                                                        EC_mat_t, exp_i_phi_j)
         return np.real([transfer / inner])
+
+    def _one_state_exp_i_phi_j_operators(self, Xi):
+        r"""Helper method for building :math:`\exp(i\phi_{j})` when no excitations are kept."""
+        dim = self.number_degrees_freedom
+        exp_factors = np.array([np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j])) for j in range(dim)])
+        return np.append(exp_factors, self._BCH_factor_for_potential_boundary(Xi))
 
     @staticmethod
     def _one_state_local_kinetic(EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p):

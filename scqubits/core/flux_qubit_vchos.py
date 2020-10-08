@@ -107,14 +107,14 @@ class FluxQubitVCHOSSqueezing(VCHOSSqueezing, FluxQubitVCHOS):
 class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, global_exc, **kwargs):
+    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux, global_exc=global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVCHOS.__init__(self, **kwargs)
+        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux, **kwargs)
 
 
 class FluxQubitVCHOSGlobalSqueezing(Hashing, FluxQubitVCHOSSqueezing):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, global_exc, **kwargs):
+    def __init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux, global_exc=global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVCHOSSqueezing.__init__(self, **kwargs)
+        FluxQubitVCHOSSqueezing.__init__(self, EJ1, EJ2, EJ3, ng1, ng2, ECJ1, ECJ2, ECJ3, ECg1, ECg2,  flux, **kwargs)
