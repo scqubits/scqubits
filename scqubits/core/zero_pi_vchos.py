@@ -130,7 +130,6 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
                                                    for i in range(dim) for k in range(dim)], axis=0))
         exp_i_phi_theta_a_dagger_component = exp_i_phi_theta_a_component.T
         exp_i_phi_theta = np.matmul(exp_i_phi_theta_a_dagger_component, exp_i_phi_theta_a_component)
-        exp_i_phi_theta *= np.exp((-1)**(j+1) * 1j * np.pi * self.flux)
         exp_i_phi_theta *= self._BCH_factor(j, Xi)
         return exp_i_phi_theta
 
@@ -155,10 +154,10 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         potential_matrix = self._harmonic_contribution_to_potential(premultiplied_a_and_a_dagger, Xi, phi_bar)
         for j in range(dim):
             boundary_coeffs = np.array([(-1)**j, 1])
-            exp_i_phi_theta = exp_i_phi_list[j]*np.prod([np.exp(1j*boundary_coeffs[i]*phi_bar[i])
+            exp_i_phi_theta = (exp_i_phi_list[j]*np.prod([np.exp(1j*boundary_coeffs[i]*phi_bar[i])
                                                          for i in range(dim)])
-            potential_matrix += (-0.5*self.EJ + (-1)**(j+1)*0.5*self.dEJ)*(exp_i_phi_theta
-                                                                           + exp_i_phi_theta.conjugate())
+                               * np.exp((-1)**(j+1) * 1j * np.pi * self.flux))
+            potential_matrix += -0.5*self.EJ*(exp_i_phi_theta + exp_i_phi_theta.conjugate())
         potential_matrix += 2*self.EJ*self.identity()
         return potential_matrix
 
