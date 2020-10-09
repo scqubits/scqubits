@@ -87,7 +87,7 @@ class VCHOS:
 
     def __init__(self, EJlist, nglist, flux, maximum_periodic_vector_length=0, number_degrees_freedom=0,
                  number_periodic_degrees_freedom=0, num_exc=0, nearest_neighbors=None,
-                 harmonic_length_optimization=0, optimize_all_minima=0):
+                 harmonic_length_optimization=0, optimize_all_minima=0, quiet=False):
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2 * self.e)**2
         self.Phi0 = 1. / (2 * self.e)
@@ -104,6 +104,7 @@ class VCHOS:
         self.nearest_neighbors = nearest_neighbors
         self.harmonic_length_optimization = harmonic_length_optimization
         self.optimize_all_minima = optimize_all_minima
+        self.quiet = quiet
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.extended_grid = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
         self.optimized_lengths = np.array([])
@@ -278,11 +279,13 @@ class VCHOS:
         minima_list_with_index = zip(minima_list, [m for m in range(number_of_minima)])
         all_minima_pairs = itertools.combinations(minima_list_with_index, 2)
         nearest_neighbors["00"] = self._filter_for_minima_pair(np.zeros_like(minima_list[0]), Xi_inv, num_cpus)
-        print("completed m={m}, p={p} minima pair computation".format(m=0, p=0))
+        if not self.quiet:
+            print("completed m={m}, p={p} minima pair computation".format(m=0, p=0))
         for (minima_m, m), (minima_p, p) in all_minima_pairs:
             minima_diff = Xi_inv @ (minima_list[p] - minima_m)
             nearest_neighbors[str(m)+str(p)] = self._filter_for_minima_pair(minima_diff, Xi_inv, num_cpus)
-            print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
+            if not self.quiet:
+                print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
         for m in range(number_of_minima):
             nearest_neighbors[str(m) + str(m)] = nearest_neighbors["00"]
         self.nearest_neighbors = nearest_neighbors
@@ -620,10 +623,14 @@ class VCHOS:
     def _transfer_matrix_and_inner_product(self):
         """Helper method called by _esys_calc and _evals_calc that returns the transfer matrix and inner product
         matrix but warns the user if the system is in a regime where tight-binding has questionable validity."""
+        minima_list = self.sorted_minima()
+        # Either we haven't constructed nearest_neighbors yet or the number of minima has changed
+        if not self.nearest_neighbors or len(self.nearest_neighbors) != (len(minima_list)*(len(minima_list)+1))//2:
+            self.find_relevant_periodic_continuation_vectors()
         if self.harmonic_length_optimization:
             self.optimize_Xi_variational_wrapper()
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
-        if np.max(harmonic_length_minima_comparison) > 1.0:
+        if np.max(harmonic_length_minima_comparison) > 1.0 and not self.quiet:
             print("Warning: large harmonic length compared to minima separation "
                   "(largest is 3*l/(d/2) = {ratio})".format(ratio=np.max(harmonic_length_minima_comparison)))
         transfer_matrix = self.transfer_matrix()
@@ -733,7 +740,8 @@ class VCHOS:
                                             args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-1)
         assert optimized_lengths_result.success
         optimized_lengths = optimized_lengths_result.x
-        print("completed harmonic length optimization for the m={m} minimum".format(m=minimum))
+        if not self.quiet:
+            print("completed harmonic length optimization for the m={m} minimum".format(m=minimum))
         self.optimized_lengths[minimum] = optimized_lengths
 
     def _update_Xi(self, default_Xi, minimum):
