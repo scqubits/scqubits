@@ -83,7 +83,7 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         minima_holder = []
         guess = np.array([0.01, 0.01])
         result = minimize(self.potential, guess)
-        minima_holder.append(result.x)
+        minima_holder.append(np.array([result.x[0], np.mod(result.x[1], 2 * np.pi)]))
         for m in range(1, self.phi_extent):
             guess_positive_0 = np.array([np.pi * m, 0.0])
             guess_negative_0 = np.array([-np.pi * m, 0.0])
@@ -128,10 +128,7 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
         exp_i_phi_theta_a_component = expm(np.sum([1j * boundary_coeffs[i] * Xi[i, k]
                                                    * a_operator_list[k] / np.sqrt(2.0)
                                                    for i in range(dim) for k in range(dim)], axis=0))
-        exp_i_phi_theta_a_dagger_component = exp_i_phi_theta_a_component.T
-        exp_i_phi_theta = np.matmul(exp_i_phi_theta_a_dagger_component, exp_i_phi_theta_a_component)
-        exp_i_phi_theta *= self._BCH_factor(j, Xi)
-        return exp_i_phi_theta
+        return self._BCH_factor(j, Xi) * exp_i_phi_theta_a_component.T @ exp_i_phi_theta_a_component
 
     def _build_all_exp_i_phi_j_operators(self, Xi, a_operator_list):
         return np.array([self._build_single_exp_i_phi_j_operator(j, Xi, a_operator_list)

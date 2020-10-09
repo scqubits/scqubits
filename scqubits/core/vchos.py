@@ -529,14 +529,13 @@ class VCHOS:
         exp_i_phi_list_without_boundary = np.array([exp_i_phi_list[i] * np.exp(1j * phi_bar[i])
                                                     for i in range(dim)])
         exp_i_sum_phi = (exp_i_phi_list[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
-                         * np.prod(np.array([np.exp(1j * self.boundary_coefficients[i] * phi_bar[i])
-                                             for i in range(dim)])))
-        potential_matrix = np.sum(np.array([-0.5*self.EJlist[junction]
-                                  * (exp_i_phi_list_without_boundary[junction]
+                         * np.prod([np.exp(1j * self.boundary_coefficients[i] * phi_bar[i]) for i in range(dim)]))
+        potential_matrix = np.sum([-0.5*self.EJlist[junction]
+                                   * (exp_i_phi_list_without_boundary[junction]
                                       + exp_i_phi_list_without_boundary[junction].conjugate())
-                                   for junction in range(dim)]), axis=0)
+                                   for junction in range(dim)], axis=0)
         potential_matrix = potential_matrix - 0.5*self.EJlist[-1]*(exp_i_sum_phi + exp_i_sum_phi.conjugate())
-        potential_matrix = potential_matrix + np.sum(self.EJlist) * self.identity()
+        potential_matrix = potential_matrix + np.sum(self.EJlist)*self.identity()
         return potential_matrix
 
     def _local_contribution_to_transfer_matrix(self, exp_i_phi_list, premultiplied_a_and_a_dagger, EC_mat_t,
