@@ -523,10 +523,13 @@ class QubitBaseClass1d(QubitBaseClass):
         potential_vals = self.potential(phi_grid.make_linspace())
 
         evals_count = len(index_list)
-        if evals_count == 1:
-            scale = set_scaling(self, scaling, potential_vals)
+        if not scaling:
+            if evals_count == 1:
+                scale = set_scaling(self, scaling, potential_vals)
+            else:
+                scale = 0.75 * (evals[-1] - evals[0]) / evals_count
         else:
-            scale = 0.75 * (evals[-1] - evals[0]) / evals_count
+            scale = scaling
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         kwargs = {**self.wavefunction1d_defaults(mode, evals, wavefunc_count=len(index_list)), **kwargs}
