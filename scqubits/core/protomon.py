@@ -275,7 +275,7 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
           """
         phi_kinetic = self.phi_grid.second_derivative_matrix(prefactor=- 8.0 * self.EC)
         varphi_kinetic = self.varphi_grid.second_derivative_matrix(
-            prefactor=- 2.0 * self.EC * (1 - self.limit * 1 / (self.x + 0.5)))
+            prefactor=- 2.0 * self.EC * (1 - 0.5 * self.limit * 1 / (self.x + 0.5)))
         tot_kinetic = self._kron2(phi_kinetic, self._identity_varphi()) + self._kron2(self._identity_phi(),
                                                                                       varphi_kinetic)
 

@@ -285,7 +285,7 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
     def hamiltonian(self):
         phi_kin = self.phi_grid.second_derivative_matrix(prefactor=- 8.0 * self.EC)
         varphi_kin = self.varphi_grid.second_derivative_matrix(
-            prefactor=- 2.0 * self.EC * (1 - self.limit *1 / (self.x + 0.5)))
+            prefactor=- 2.0 * self.EC * (1 - 0.5 * self.limit * 1 / (self.x + 0.5)))
         tot_kin = self._kron2(phi_kin, self._identity_varphi()) + self._kron2(self._identity_phi(), varphi_kin)
         phi_ind = 0.25 * self.EL * (self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux) ** 2
         varphi_ind = self.EL / (1 + self.limit * 2 * self.EL / self.ELA) * (
@@ -450,7 +450,16 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         n_phi_n_varphi_wavefunction.amplitudes = amplitude_modifier(
             spec_utils.standardize_phases(n_phi_n_varphi_wavefunction.amplitudes))
 
-        return plot.wavefunction2d(n_phi_n_varphi_wavefunction, zero_calibrate=zero_calibrate, **kwargs)
+        fig, axes = plot.wavefunction2d(n_phi_n_varphi_wavefunction, zero_calibrate=zero_calibrate, **kwargs)
+        axes.set_xlim([-2, 2])
+        axes.set_ylim([-4, 4])
+        axes.set_ylabel(r'$n_{\phi}$')
+        axes.set_xlabel(r'$n_{\varphi}$')
+        axes.set_xticks([-2, -1, 0, 1, 2])
+        axes.set_xticklabels(['-2', '-1', '0', '1', '2'])
+        axes.set_yticks([-4, -2, 0, 2, 4])
+        axes.set_yticklabels(['-2', '-1', '0', '1', '2'])
+        return fig, axes
 
     def phi_1_operator(self):
         """
@@ -562,6 +571,31 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         gamma1_cap_tot = np.sum(gamma1_cap_1) + np.sum(gamma1_cap_2)
         return 1 / (gamma1_cap_tot) * 1e-6
 
+    def get_t1_capacitive_loss_channel(self, init_state):
+        """T1 capacitive loss of one particular state"""
+        cutoff = init_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[init_state] - energy
+        energy_diff = np.delete(energy_diff, init_state)
+
+        matelem_1 = self.get_matelements_vs_paramvals('N_1_operator', 'ph', [0], evals_count=cutoff).matrixelem_table[0,
+                    init_state, :]
+        matelem_1 = np.delete(matelem_1, init_state)
+        matelem_2 = self.get_matelements_vs_paramvals('N_2_operator', 'ph', [0], evals_count=cutoff).matrixelem_table[0,
+                    init_state, :]
+        matelem_2 = np.delete(matelem_2, init_state)
+
+        s_vv_1 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        s_vv_2 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+
+        gamma1_cap_1 = np.abs(matelem_1) ** 2 * s_vv_1
+        gamma1_cap_2 = np.abs(matelem_2) ** 2 * s_vv_2
+
+        gamma1_channel = gamma1_cap_1 + gamma1_cap_2
+        return 1 / (gamma1_channel) * 1e-6
+
     # TODO: check the factor in front of addtional inductor in the spectral density
     def get_t1_inductive_loss(self, init_state):
         """T1 inductive loss of one particular state"""
@@ -620,7 +654,6 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         gamma1_ind_2 = np.abs(matelem_2) ** 2 * s_ii_2
         gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
 
-        gamma1_ind_tot = np.sum(gamma1_ind_1) + np.sum(gamma1_ind_2) + np.sum(gamma1_ind_a)
         gamma_channel = gamma1_ind_1 + gamma1_ind_2 + gamma1_ind_a
         return 1 / gamma_channel * 1e-6
 
@@ -697,14 +730,53 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
 
         if table is True:
             print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
-                         ' ms', '\n T2_flux_a =', t2_fluxa,
-                         ' ms', '\n T1_cap =',
-                         t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1_qp =', t1_qp, ' ms', '\n T1 =', t1_tot,
-                         ' ms', '\n T2 =', t2_tot,
-                         ' ms')
+                  ' ms', '\n T2_flux_a =', t2_fluxa,
+                  ' ms', '\n T1_cap =',
+                  t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1_qp =', t1_qp, ' ms', '\n T1 =', t1_tot,
+                  ' ms', '\n T2 =', t2_tot,
+                  ' ms')
 
         return np.array([t2_current, t2_flux, t2_fluxa, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot])
 
     def set_by_flux_cd(self, flux_c, flux_d):
         self.flux = flux_c * 2
         self.fluxa = - flux_d - flux_c
+
+    def obtain_flux_cd(self):
+        return self.flux / 2.0, -self.fluxa - self.flux / 2.0
+
+    def get_t2_flux_c_noise(self, init_state):
+        delta = 1e-6
+        pts = 11
+        flux_c, flux_d = self.obtain_flux_cd()
+        flux_list = np.linspace(flux_c - delta, flux_c + delta, pts)
+        energy = np.zeros((len(flux_list)))
+        for i in range(pts):
+            self.set_by_flux_cd(flux_list[i], flux_d)
+            temp_energy = self.eigenvals(evals_count=init_state + 2)
+            energy[i] = temp_energy[init_state] - temp_energy[0]
+
+        first_derivative = np.gradient(energy, flux_list)[int(np.round(pts / 2))]
+        second_derivative = np.gradient(np.gradient(energy, flux_list), flux_list)[int(np.round(pts / 2))]
+
+        first_order = 3e-6 * np.abs(first_derivative)
+        second_order = 9e-12 * np.abs(second_derivative)
+        return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
+
+    def get_t2_flux_d_noise(self, init_state):
+        delta = 1e-6
+        pts = 11
+        flux_c, flux_d = self.obtain_flux_cd()
+        flux_list = np.linspace(flux_d - delta, flux_d + delta, pts)
+        energy = np.zeros((len(flux_list)))
+        for i in range(pts):
+            self.set_by_flux_cd(flux_c, flux_list[i])
+            temp_energy = self.eigenvals(evals_count=init_state + 2)
+            energy[i] = temp_energy[init_state] - temp_energy[0]
+
+        first_derivative = np.gradient(energy, flux_list)[int(np.round(pts / 2))]
+        second_derivative = np.gradient(np.gradient(energy, flux_list), flux_list)[int(np.round(pts / 2))]
+
+        first_order = 3e-6 * np.abs(first_derivative)
+        second_order = 9e-12 * np.abs(second_derivative)
+        return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms

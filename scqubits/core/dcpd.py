@@ -960,3 +960,6 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
     def set_by_flux_cd(self, flux_c, flux_d):
         self.flux = flux_c * 2
         self.fluxa = - flux_d - flux_c
+
+    def flux_d_operator(self):
+        return self.theta_operator() + self.varphi_operator()
