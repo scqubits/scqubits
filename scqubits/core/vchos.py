@@ -443,8 +443,8 @@ class VCHOS:
     def _BCH_factor_for_potential_boundary(self, Xi):
         """BCH factor obtained from the last potential operator"""
         dim = self.number_degrees_freedom
-        return np.exp(-0.25*np.sum(np.array([self.boundary_coefficients[j] * self.boundary_coefficients[k]
-                                   * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim) for k in range(dim)])))
+        return np.exp(-0.25*np.sum([self.boundary_coefficients[j] * self.boundary_coefficients[k]
+                                   * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim) for k in range(dim)]))
 
     def hamiltonian(self):
         pass
@@ -473,9 +473,9 @@ class VCHOS:
         """
         Xi = self.Xi_matrix()
         a_operator_list = self._a_operator_list()
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
+        exp_i_phi_j = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
-        potential_function = partial(self._local_potential_contribution_to_transfer_matrix, exp_i_phi_list,
+        potential_function = partial(self._local_potential_contribution_to_transfer_matrix, exp_i_phi_j,
                                      premultiplied_a_and_a_dagger, Xi)
         return self._periodic_continuation(potential_function)
 
@@ -489,10 +489,10 @@ class VCHOS:
         Xi = self.Xi_matrix()
         Xi_inv = inv(Xi)
         a_operator_list = self._a_operator_list()
-        exp_i_phi_list = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
+        exp_i_phi_j = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
         premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
-        transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_list,
+        transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_j,
                                            premultiplied_a_and_a_dagger, EC_mat_t, Xi, Xi_inv)
         return self._periodic_continuation(transfer_matrix_function)
 
@@ -520,31 +520,28 @@ class VCHOS:
         kinetic_matrix = kinetic_matrix + identity_coefficient*self.identity()
         return kinetic_matrix
 
-    def _local_potential_contribution_to_transfer_matrix(self, exp_i_phi_list, premultiplied_a_and_a_dagger, Xi,
+    def _local_potential_contribution_to_transfer_matrix(self, exp_i_phi_j, premultiplied_a_and_a_dagger, Xi,
                                                          phi_neighbor, minima_m, minima_p):
         """Calculate the local potential contribution to the transfer matrix given two
         minima and a periodic continuation vector `phi_neighbor`"""
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
-        exp_i_phi_list_without_boundary = np.array([exp_i_phi_list[i] * np.exp(1j * phi_bar[i])
-                                                    for i in range(dim)])
-        exp_i_sum_phi = (exp_i_phi_list[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
-                         * np.prod([np.exp(1j * self.boundary_coefficients[i] * phi_bar[i]) for i in range(dim)]))
+        exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_matrix = np.sum([-0.5*self.EJlist[junction]
-                                   * (exp_i_phi_list_without_boundary[junction]
-                                      + exp_i_phi_list_without_boundary[junction].conjugate())
+                                   * (exp_i_phi_j_without_boundary[junction]
+                                      + exp_i_phi_j_without_boundary[junction].conjugate())
                                    for junction in range(dim)], axis=0)
         potential_matrix = potential_matrix - 0.5*self.EJlist[-1]*(exp_i_sum_phi + exp_i_sum_phi.conjugate())
         potential_matrix = potential_matrix + np.sum(self.EJlist)*self.identity()
         return potential_matrix
 
-    def _local_contribution_to_transfer_matrix(self, exp_i_phi_list, premultiplied_a_and_a_dagger, EC_mat_t,
+    def _local_contribution_to_transfer_matrix(self, exp_i_phi_j, premultiplied_a_and_a_dagger, EC_mat_t,
                                                Xi, Xi_inv, phi_neighbor, minima_m, minima_p):
         """Calculate the local contribution to the transfer matrix given two
         minima and a periodic continuation vector `phi_neighbor`"""
         return (self._local_kinetic_contribution_to_transfer_matrix(premultiplied_a_and_a_dagger, EC_mat_t, Xi_inv,
                                                                     phi_neighbor, minima_m, minima_p)
-                + self._local_potential_contribution_to_transfer_matrix(exp_i_phi_list, premultiplied_a_and_a_dagger,
+                + self._local_potential_contribution_to_transfer_matrix(exp_i_phi_j, premultiplied_a_and_a_dagger,
                                                                         Xi, phi_neighbor, minima_m, minima_p))
 
     def _periodic_continuation(self, func):
@@ -622,10 +619,10 @@ class VCHOS:
     def _transfer_matrix_and_inner_product(self):
         """Helper method called by _esys_calc and _evals_calc that returns the transfer matrix and inner product
         matrix but warns the user if the system is in a regime where tight-binding has questionable validity."""
-        minima_list = self.sorted_minima()
+#        minima_list = self.sorted_minima()
         # Either we haven't constructed nearest_neighbors yet or the number of minima has changed
-        if not self.nearest_neighbors or len(self.nearest_neighbors) != (len(minima_list)*(len(minima_list)+1))//2:
-            self.find_relevant_periodic_continuation_vectors()
+#        if not self.nearest_neighbors or len(self.nearest_neighbors) != (len(minima_list)*(len(minima_list)+1))//2:
+        self.find_relevant_periodic_continuation_vectors(num_cpus=4)
         if self.harmonic_length_optimization:
             self.optimize_Xi_variational_wrapper()
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
@@ -735,8 +732,11 @@ class VCHOS:
         """Perform the harmonic length optimization for a h.o. ground state wavefunction localized in a given minimum"""
         default_Xi = self.Xi_matrix(minimum)
         EC_mat = self.build_EC_matrix()
+        if not self.nearest_neighbors:
+            self.find_relevant_periodic_continuation_vectors()
         optimized_lengths_result = minimize(self._evals_calc_variational, self.optimized_lengths[minimum],
-                                            args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-1)
+                                            jac=self._gradient_evals_calc_variational,
+                                            args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-2)
         assert optimized_lengths_result.success
         optimized_lengths = optimized_lengths_result.x
         if not self.quiet:
@@ -746,6 +746,32 @@ class VCHOS:
     def _update_Xi(self, default_Xi, minimum):
         """Helper method for updating Xi so that the Xi matrix is not constantly regenerated."""
         return np.array([row * self.optimized_lengths[minimum, i] for i, row in enumerate(default_Xi.T)]).T
+
+    def _gradient_evals_calc_variational(self, optimized_lengths, minimum_location, minimum, EC_mat, default_Xi):
+        self.optimized_lengths[minimum] = optimized_lengths
+        Xi = self._update_Xi(default_Xi, minimum)
+        Xi_inv = inv(Xi)
+        exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
+        EC_mat_t = Xi_inv @ EC_mat @ Xi_inv.T
+        nearest_neighbors = 2.0*np.pi*self.nearest_neighbors[str(minimum) + str(minimum)]
+        gradient_transfer = [np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
+                                    * self._gradient_one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv,
+                                                                              neighbor, minimum_location,
+                                                                              minimum_location, which_length)
+                                    + self._gradient_one_state_local_inner_product(neighbor, Xi_inv, which_length)
+                                     * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi_inv, neighbor,
+                                                                      minimum_location, minimum_location)
+                                    for neighbor in nearest_neighbors])
+                             for which_length in range(self.number_degrees_freedom)]
+        transfer = np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
+                           * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi_inv, neighbor,
+                                                            minimum_location, minimum_location)
+                           for neighbor in nearest_neighbors])
+        gradient_inner = [np.sum([self._gradient_one_state_local_inner_product(neighbor, Xi_inv, which_length)
+                                  for neighbor in nearest_neighbors])
+                          for which_length in range(self.number_degrees_freedom)]
+        inner = np.sum([self._exp_product_coefficient(neighbor, Xi_inv) for neighbor in nearest_neighbors])
+        return np.real((inner * np.array(gradient_transfer) - transfer * np.array(gradient_inner)) / inner**2)
 
     def _evals_calc_variational(self, optimized_lengths, minimum_location, minimum, EC_mat, default_Xi):
         """Function to be optimized in the minimization procedure, corresponding to the variational estimate of
@@ -765,29 +791,60 @@ class VCHOS:
         exp_factors = np.array([np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j])) for j in range(dim)])
         return np.append(exp_factors, self._BCH_factor_for_potential_boundary(Xi))
 
+    def _gradient_one_state_local_inner_product(self, delta_phi, Xi_inv, which_length):
+        delta_phi_rotated = Xi_inv @ delta_phi
+        return (self.optimized_lengths[0, which_length]**(-1)
+                * (1j * self.nglist[which_length] * delta_phi_rotated[which_length]
+                   + 0.5 * delta_phi_rotated[which_length]**2) * self._exp_product_coefficient(delta_phi, Xi_inv))
+
     @staticmethod
     def _one_state_local_kinetic(EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p):
         """Local kinetic contribution when considering only the ground state."""
-        minima_diff = minima_p - minima_m
-        delta_phi = phi_neighbor + minima_diff
-        delta_phi_rotated = Xi_inv @ delta_phi
-        identity_coefficient = 0.5 * 4 * np.trace(EC_mat_t)
-        result = identity_coefficient - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
-        return result
+        delta_phi_rotated = Xi_inv @ (phi_neighbor + minima_p - minima_m)
+        return 0.5 * 4 * np.trace(EC_mat_t) - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
+
+    def _gradient_one_state_local_kinetic(self, EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p, which_length):
+        delta_phi_rotated = Xi_inv @ (phi_neighbor + minima_p - minima_m)
+        return (-4.0*self.optimized_lengths[0, which_length]**(-1)
+                * (EC_mat_t[which_length, which_length] - (delta_phi_rotated @ EC_mat_t)[which_length]
+                   * delta_phi_rotated[which_length]))
+
+    def _exp_i_phi_j_operators_with_phi_bar(self, exp_i_phi_j, phi_bar):
+        exp_i_phi_j_without_boundary = np.array([exp_i_phi_j[i] * np.exp(1j * phi_bar[i])
+                                                 for i in range(self.number_degrees_freedom)])
+        exp_i_sum_phi = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
+                         * np.exp(1j * self.boundary_coefficients @ phi_bar))
+        return exp_i_phi_j_without_boundary, exp_i_sum_phi
+
+    def _gradient_one_state_local_potential(self, exp_i_phi_j, phi_neighbor, minima_m, minima_p, Xi, which_length):
+        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
+        potential_gradient = np.sum([0.25 * self.EJlist[junction]
+                                     * Xi[junction, which_length] * Xi.T[which_length, junction]
+                                     * self.optimized_lengths[0, which_length]**(-1)
+                                     * (exp_i_phi_j_without_boundary[junction]
+                                        + exp_i_phi_j_without_boundary[junction].conjugate())
+                                     for junction in range(self.number_degrees_freedom)])
+        potential_gradient += (0.25 * self.EJlist[-1] * self.optimized_lengths[0, which_length]**(-1)
+                               * (self.boundary_coefficients @ Xi[:, which_length])**2
+                               * (exp_i_sum_phi + exp_i_sum_phi.conjugate()))
+        return potential_gradient
+
+    def _gradient_one_state_local_transfer(self, exp_i_phi_j, EC_mat_t, Xi, Xi_inv,
+                                           phi_neighbor, minima_m, minima_p, which_length):
+        return (self._gradient_one_state_local_potential(exp_i_phi_j, phi_neighbor, minima_m,
+                                                         minima_p, Xi, which_length)
+                + self._gradient_one_state_local_kinetic(EC_mat_t, Xi_inv, phi_neighbor, minima_m,
+                                                         minima_p, which_length))
 
     def _one_state_local_potential(self, exp_i_phi_j, phi_neighbor, minima_m, minima_p):
         """Local potential contribution when considering only the ground state."""
-        dim = self.number_degrees_freedom
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
-        exp_i_phi_list_without_boundary = np.array([exp_i_phi_j[i] * np.exp(1j * phi_bar[i]) for i in range(dim)])
-        exp_i_sum_phi = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
-                         * np.prod([np.exp(1j * self.boundary_coefficients[i] * phi_bar[i])
-                                    for i in range(dim)]))
-        potential = np.sum([-0.5 * self.EJlist[junction] * (exp_i_phi_list_without_boundary[junction]
-                                                            + exp_i_phi_list_without_boundary[junction].conjugate())
-                            for junction in range(dim)])
-        potential = potential - 0.5 * self.EJlist[-1] * (exp_i_sum_phi + exp_i_sum_phi.conjugate())
-        potential = potential + np.sum(self.EJlist)
+        exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
+        potential = np.sum([-0.5 * self.EJlist[junction] * (exp_i_phi_j_without_boundary[junction]
+                                                            + exp_i_phi_j_without_boundary[junction].conjugate())
+                            for junction in range(self.number_degrees_freedom)])
+        potential += np.sum(self.EJlist) - 0.5 * self.EJlist[-1] * (exp_i_sum_phi + exp_i_sum_phi.conjugate())
         return potential
 
     def _one_state_local_transfer(self, exp_i_phi_j, EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p):
@@ -797,25 +854,15 @@ class VCHOS:
 
     def _one_state_construct_transfer_and_inner(self, Xi_inv, minimum_location, minimum, EC_mat_t, exp_i_phi_j):
         """Transfer matrix and inner product matrix when considering only the ground state."""
-        if not self.nearest_neighbors:
-            self.find_relevant_periodic_continuation_vectors()
-        nearest_neighbors = self.nearest_neighbors[str(minimum) + str(minimum)]
+        nearest_neighbors = 2.0*np.pi*self.nearest_neighbors[str(minimum) + str(minimum)]
         transfer_function = partial(self._one_state_local_transfer, exp_i_phi_j, EC_mat_t, Xi_inv)
-        transfer = self._one_state_periodic_continuation(minimum_location, nearest_neighbors, transfer_function, Xi_inv)
-        inner_product = self._one_state_periodic_continuation(minimum_location, nearest_neighbors,
-                                                              lambda x, y, z: 1.0+0j, Xi_inv)
+        transfer = np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
+                           * transfer_function(neighbor, minimum_location, minimum_location)
+                           for neighbor in nearest_neighbors])
+        # Note need to include 2.0*np.pi*np.array(neighbor) + minimum_location - minimum_location for completeness
+        inner_product = np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
+                                for neighbor in nearest_neighbors])
         return transfer, inner_product
-
-    def _one_state_periodic_continuation(self, minimum_location, nearest_neighbors, func, Xi_inv):
-        """Periodic continuation when considering only the ground state."""
-        return np.sum([self._one_state_neighbor_contribution(neighbor, func, minimum_location, Xi_inv)
-                       for neighbor in nearest_neighbors])
-
-    def _one_state_neighbor_contribution(self, neighbor, func, minimum_location, Xi_inv):
-        """Contribution due to a periodic continuation vector `neighbor` when considering only the ground state."""
-        phi_neighbor = 2.0 * np.pi * np.array(neighbor)
-        exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor, Xi_inv)
-        return exp_prod_coefficient * func(phi_neighbor, minimum_location, minimum_location)
 
     def wavefunction(self, esys=None, which=0):
         """

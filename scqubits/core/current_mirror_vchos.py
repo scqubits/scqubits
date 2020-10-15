@@ -42,11 +42,11 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
         """
         minima_holder = []
         N = self.N
-        for m in range(int(math.ceil(N / 2 - np.abs(self.flux))) + 1):
-            guess_pos = np.array([np.pi * (m + self.flux) / N for _ in range(self.number_degrees_freedom)])
-            guess_neg = np.array([np.pi * (-m + self.flux) / N for _ in range(self.number_degrees_freedom)])
-            result_pos = minimize(self.potential, guess_pos)
-            result_neg = minimize(self.potential, guess_neg)
+        for m in range(int(math.ceil(N / 2)) + 1):
+            guess_pos = np.array([np.pi * (m - self.flux) / N for _ in range(self.number_degrees_freedom)])
+            guess_neg = np.array([np.pi * (-m - self.flux) / N for _ in range(self.number_degrees_freedom)])
+            result_pos = minimize(self.potential, guess_pos, options={'disp': False})
+            result_neg = minimize(self.potential, guess_neg, options={'disp': False})
             new_minimum_pos = (self._check_if_new_minima(result_pos.x, minima_holder)
                                and self._check_if_second_derivative_potential_positive(result_pos.x))
             if new_minimum_pos and result_pos.success:
@@ -61,6 +61,30 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
         """Helper method for determining whether the location specified by `phi_array` is a minimum."""
         second_derivative = np.round(-(self.potential(phi_array) - np.sum(self.EJlist)), decimals=3)
         return second_derivative > 0.0
+
+    def _boundary_sum(self, phi_array):
+        dim = self.number_degrees_freedom
+        return np.sum([self.boundary_coefficients[i]*phi_array[i] for i in range(dim)]) + 2*np.pi*self.flux
+
+    def _potential_derivative_for_direction(self, j, phi_array):
+        return self.EJlist[j] * np.sin(phi_array[j]) + self.EJlist[-1] * np.sin(self._boundary_sum(phi_array))
+
+    def _potential_hessian_for_direction_off_diagonal(self, phi_array):
+        return self.EJlist[-1] * np.cos(self._boundary_sum(phi_array))
+
+    def _potential_hessian_for_direction_diagonal(self, j, phi_array):
+        return self.EJlist[j] * np.cos(phi_array[j]) + self.EJlist[-1] * np.cos(self._boundary_sum(phi_array))
+
+    def potential_derivative(self, phi_array):
+        dim = self.number_degrees_freedom
+        return np.array([self._potential_derivative_for_direction(j, phi_array) for j in range(dim)])
+
+    def potential_hessian(self, phi_array):
+        dim = self.number_degrees_freedom
+        hessian = np.diag([self._potential_hessian_for_direction_diagonal(j, phi_array) for j in range(dim)])
+        hessian_off_diag_value = self._potential_hessian_for_direction_off_diagonal(phi_array)
+        hessian_off_diag = np.full((dim, dim), hessian_off_diag_value) - hessian_off_diag_value * np.eye(dim, dim)
+        return hessian + hessian_off_diag
 
     def potential(self, phi_array):
         """Potential evaluated at the location specified by phi_array.
