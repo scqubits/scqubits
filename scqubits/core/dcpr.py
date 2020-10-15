@@ -571,6 +571,44 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         gamma1_cap_tot = np.sum(gamma1_cap_1) + np.sum(gamma1_cap_2)
         return 1 / (gamma1_cap_tot) * 1e-6
 
+    def get_t1_capacitive_loss_tot(self, g_state, e_state):
+        """T1 capacitive loss of the two logical states"""
+        cutoff = e_state + 2
+        energy = self._evals_calc(cutoff)
+        energy_diff_g = energy[g_state] - energy
+        energy_diff_g = np.delete(energy_diff_g, g_state)
+        energy_diff_e = energy[e_state] - energy
+        energy_diff_e = np.delete(energy_diff_e, e_state)
+
+        matelem_1 = self.get_matelements_vs_paramvals('N_1_operator', 'ph', [0], evals_count=cutoff).matrixelem_table
+        matelem_2 = self.get_matelements_vs_paramvals('N_2_operator', 'ph', [0], evals_count=cutoff).matrixelem_table
+        matelem_1_g = matelem_1[0, g_state, :]
+        matelem_1_g = np.delete(matelem_1_g, g_state)
+        matelem_2_g = matelem_2[0, g_state, :]
+        matelem_2_g = np.delete(matelem_2_g, g_state)
+        matelem_1_e = matelem_1[0, e_state, :]
+        matelem_1_e = np.delete(matelem_1_e, e_state)
+        matelem_2_e = matelem_2[0, e_state, :]
+        matelem_2_e = np.delete(matelem_2_e, e_state)
+
+        s_vv_1_g = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff_g)) * self.thermal_factor(
+            energy_diff_g)
+        s_vv_2_g = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff_g)) * self.thermal_factor(
+            energy_diff_g)
+        s_vv_1_e = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff_e)) * self.thermal_factor(
+            energy_diff_e)
+        s_vv_2_e = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff_e)) * self.thermal_factor(
+            energy_diff_e)
+
+        gamma1_cap_1_g = np.abs(matelem_1_g) ** 2 * s_vv_1_g
+        gamma1_cap_2_g = np.abs(matelem_2_g) ** 2 * s_vv_2_g
+        gamma1_cap_1_e = np.abs(matelem_1_e) ** 2 * s_vv_1_e
+        gamma1_cap_2_e = np.abs(matelem_2_e) ** 2 * s_vv_2_e
+
+        gamma1_cap_tot = np.sum(gamma1_cap_1_g) + np.sum(gamma1_cap_2_g) + np.sum(gamma1_cap_1_e) + np.sum(
+            gamma1_cap_2_e)
+        return 1 / (gamma1_cap_tot) * 1e-6
+
     def get_t1_capacitive_loss_channel(self, init_state):
         """T1 capacitive loss of one particular state"""
         cutoff = init_state + 4
@@ -625,6 +663,54 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
 
         gamma1_ind_tot = np.sum(gamma1_ind_1) + np.sum(gamma1_ind_2) + np.sum(gamma1_ind_a)
+        return 1 / (gamma1_ind_tot) * 1e-6
+
+    def get_t1_inductive_loss_tot(self, g_state, e_state):
+        """T1 inductive loss of the two logical states"""
+        cutoff = e_state + 2
+        energy = self._evals_calc(cutoff)
+        energy_diff_g = energy[g_state] - energy
+        energy_diff_g = np.delete(energy_diff_g, g_state)
+        energy_diff_e = energy[e_state] - energy
+        energy_diff_e = np.delete(energy_diff_e, e_state)
+
+        matelem_1 = self.get_matelements_vs_paramvals('phi_1_operator', 'ph', [0], evals_count=cutoff).matrixelem_table
+        matelem_2 = self.get_matelements_vs_paramvals('phi_2_operator', 'ph', [0], evals_count=cutoff).matrixelem_table
+        matelem_a = self.get_matelements_vs_paramvals('phi_a_operator', 'ph', [0], evals_count=cutoff).matrixelem_table
+        matelem_1_g = matelem_1[0, g_state, :]
+        matelem_1_g = np.delete(matelem_1_g, g_state)
+        matelem_2_g = matelem_2[0, g_state, :]
+        matelem_2_g = np.delete(matelem_2_g, g_state)
+        matelem_a_g = matelem_a[0, g_state, :]
+        matelem_a_g = np.delete(matelem_a_g, g_state)
+        matelem_1_e = matelem_1[0, e_state, :]
+        matelem_1_e = np.delete(matelem_1_e, e_state)
+        matelem_2_e = matelem_2[0, e_state, :]
+        matelem_2_e = np.delete(matelem_2_e, e_state)
+        matelem_a_e = matelem_a[0, e_state, :]
+        matelem_a_e = np.delete(matelem_a_e, e_state)
+
+        s_ii_1_g = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff_g)) * self.thermal_factor(
+            energy_diff_g)
+        s_ii_2_g = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff_g)) * self.thermal_factor(
+            energy_diff_g)
+        s_ii_a_g = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff_g)) * self.thermal_factor(energy_diff_g)
+        s_ii_1_e = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff_e)) * self.thermal_factor(
+            energy_diff_e)
+        s_ii_2_e = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff_e)) * self.thermal_factor(
+            energy_diff_e)
+        s_ii_a_e = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff_e)) * self.thermal_factor(energy_diff_e)
+
+        gamma1_ind_1_g = np.abs(matelem_1_g) ** 2 * s_ii_1_g
+        gamma1_ind_2_g = np.abs(matelem_2_g) ** 2 * s_ii_2_g
+        gamma1_ind_a_g = np.abs(matelem_a_g) ** 2 * s_ii_a_g
+        gamma1_ind_1_e = np.abs(matelem_1_e) ** 2 * s_ii_1_e
+        gamma1_ind_2_e = np.abs(matelem_2_e) ** 2 * s_ii_2_e
+        gamma1_ind_a_e = np.abs(matelem_a_e) ** 2 * s_ii_a_e
+
+        gamma1_ind_tot = np.sum(gamma1_ind_1_g) + np.sum(gamma1_ind_2_g) + np.sum(gamma1_ind_a_g) + np.sum(
+            gamma1_ind_1_e) + np.sum(gamma1_ind_2_e) + np.sum(gamma1_ind_a_e)
+
         return 1 / (gamma1_ind_tot) * 1e-6
 
     def get_t1_inductive_loss_channel(self, init_state):
@@ -709,6 +795,7 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
 
     def get_t2_current_noise(self, init_state):
+        """Calculate the current noise using derivative of the spectrum"""
         delta = 1e-7
         pts = 11
         ej_list = np.linspace(self.EJ - delta, self.EJ + delta, pts)
@@ -716,6 +803,18 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
                                                 subtract_ground=True).energy_table[:, init_state]
         first_derivative = np.gradient(energy, ej_list)[int(np.round(pts / 2))]
         # assume EJ here is the average EJ in the presence of disorder
+        return np.abs(1 / (5e-7 * self.EJ * np.abs(first_derivative)) * 1e-6) / (2 * np.pi)  # unit in ms
+
+    def current_noise_operator(self):
+        return - 2 * self._kron2(self._cos_phi_div_operator(2.0), self._cos_varphi_div_operator(1.0))
+
+    def get_t2_current_noise_operator(self, g_state, e_state):
+        """Calculate the current noise using operator method up to first order"""
+        cutoff = e_state + 2
+        matele = self.get_matelements_vs_paramvals('current_noise_operator', 'ph', [0],
+                                                   evals_count=cutoff).matrixelem_table
+        first_derivative = np.abs(matele[0, e_state, e_state] - matele[0, g_state, g_state])
+
         return np.abs(1 / (5e-7 * self.EJ * np.abs(first_derivative)) * 1e-6) / (2 * np.pi)  # unit in ms
 
     def print_noise(self, g_state, e_state, table=True):
@@ -780,3 +879,21 @@ class Dcpr(base.QubitBaseClass, serializers.Serializable):
         first_order = 3e-6 * np.abs(first_derivative)
         second_order = 9e-12 * np.abs(second_derivative)
         return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
+
+    def cost_function(self, parameter):
+        self.EJ = parameter[0]
+        self.EC = parameter[1]
+        self.EL = parameter[2]
+        self.ELA = parameter[3]
+
+        g_state = 0
+        e_state = 2
+
+        t2_current = self.get_t2_current_noise_operator(g_state, e_state)
+        t1_cap = self.get_t1_capacitive_loss_tot(g_state, e_state)
+        t1_ind = self.get_t1_inductive_loss_tot(g_state, e_state)
+        t1_tot = 1 / (1 / t1_cap + 1 / t1_ind)
+        t2_tot = 1 / (1 / t2_current + 1 / t1_tot / 2)
+        print('T2 = %2.2f ms, EJ = %2.2f GHz, EC = %2.2f GHZ, EL = %2.2f GHz, EA = %2.2f GHz' % (
+            t2_tot, self.EJ, self.EC, self.EL, self.ELA))
+        return 1 / t2_tot
