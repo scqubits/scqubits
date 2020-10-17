@@ -270,8 +270,4 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             'xlabel': r'$\varphi$',
             'ylabel': ylabel
         }
-        if wavefunc_count > 1:
-            ymin = - 1.025 * self.EJ
-            ymax = max(1.8 * self.EJ, evals[-1] + 0.1 * (evals[-1] - evals[0]))
-            options['ylim'] = (ymin, ymax)
         return options

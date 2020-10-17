@@ -24,6 +24,7 @@ import scqubits.core.constants as constants
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
 import scqubits.settings as settings
+import scqubits.core.storage as storage
 
 try:
     from labellines import labelLines
@@ -140,17 +141,17 @@ def _process_special_option(figure, axes, key, value):
         axes.grid(**value) if isinstance(value, dict) else axes.grid(value)
 
 
-def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs):
+def wavefunction1d(wavefuncs, potential_vals=None, offset=0, scaling=1, **kwargs):
     """
     Plots the amplitude of a single real-valued 1d wave function, along with the potential energy if provided.
 
     Parameters
     ----------
-    wavefunc: WaveFunction object
+    wavefuncs: WaveFunction object or list of WaveFunction objects
         basis and amplitude data of wave function to be plotted
     potential_vals: array of float
         potential energies, array length must match basis array of `wavefunc`
-    offset: float
+    offset: float or list of float
         y-offset for the wave function (e.g., shift by eigenenergy)
     scaling: float, optional
         scaling factor for wave function amplitudes
@@ -164,15 +165,20 @@ def wavefunction1d(wavefunc, potential_vals=None, offset=0, scaling=1, **kwargs)
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
 
-    x_vals = wavefunc.basis_labels
-    y_vals = offset + scaling * wavefunc.amplitudes
-    offset_vals = [offset] * len(x_vals)
+    offset_list = [offset] if not isinstance(offset, (list, np.ndarray)) else offset
+    wavefunc_list = [wavefuncs] if not isinstance(wavefuncs, list) else wavefuncs
+
+    for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
+        x_vals = wavefunction.basis_labels
+        y_vals = energy_offset + scaling * wavefunction.amplitudes
+        offset_vals = [energy_offset] * len(x_vals)
+
+        axes.plot(x_vals, y_vals, **_extract_kwargs_options(kwargs, 'plot'))
+        axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)\
 
     if potential_vals is not None:
         axes.plot(x_vals, potential_vals, color='gray', **_extract_kwargs_options(kwargs, 'plot'))
 
-    axes.plot(x_vals, y_vals, **_extract_kwargs_options(kwargs, 'plot'))
-    axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
     _process_options(fig, axes, **kwargs)
     return fig, axes
 

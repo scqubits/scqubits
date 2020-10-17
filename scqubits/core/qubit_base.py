@@ -30,7 +30,7 @@ from scqubits.core.storage import SpectrumData, DataStore
 from scqubits.settings import IN_IPYTHON
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, drop_private_keys, process_which
-from scqubits.utils.plot_defaults import set_scaling
+from scqubits.utils.plot_defaults import set_wavefunction_scaling
 from scqubits.utils.spectrum_utils import (get_matrixelement_table, order_eigensystem, recast_esys_mapdata,
                                            standardize_sign)
 
@@ -471,8 +471,8 @@ class QubitBaseClass1d(QubitBaseClass):
     for plotting spectra, matrix elements, and writing data to files.
     """
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
-    _evec_dtype = np.float_
     _default_grid: Grid1d
+    _evec_dtype = np.float_
 
     @abstractmethod
     def potential(self, phi):
@@ -510,31 +510,33 @@ class QubitBaseClass1d(QubitBaseClass):
         -------
         Figure, Axes
         """
-        fig_ax = kwargs.get('fig_ax') or plt.subplots()
-        kwargs['fig_ax'] = fig_ax
+        wavefunc_indices = process_which(which, self.truncated_dim)
 
-        index_list = process_which(which, self.truncated_dim)
         if esys is None:
-            evals_count = max(index_list) + 2
-            esys = self.eigensys(evals_count)
-        evals, _ = esys
+            evals_count = max(wavefunc_indices) + 1
+            evals = self.eigenvals(evals_count=evals_count)
+        else:
+            evals, _ = esys
+
+        energies = evals[list(wavefunc_indices)]
 
         phi_grid = phi_grid or self._default_grid
         potential_vals = self.potential(phi_grid.make_linspace())
 
-        evals_count = len(index_list)
-        if evals_count == 1:
-            scale = set_scaling(self, scaling, potential_vals)
-        else:
-            scale = 0.75 * (evals[-1] - evals[0]) / evals_count
-
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        kwargs = {**self.wavefunction1d_defaults(mode, evals, wavefunc_count=len(index_list)), **kwargs}
-        # in merging the dictionaries in the previous line: if any duplicates, later ones survive
-        for wavefunc_index in index_list:
+        wavefunctions = []
+        for wavefunc_index in wavefunc_indices:
             phi_wavefunc = self.wavefunction(esys, which=wavefunc_index, phi_grid=phi_grid)
             phi_wavefunc.amplitudes = standardize_sign(phi_wavefunc.amplitudes)
             phi_wavefunc.amplitudes = amplitude_modifier(phi_wavefunc.amplitudes)
-            plot.wavefunction1d(phi_wavefunc, potential_vals=potential_vals, offset=phi_wavefunc.energy,
-                                scaling=scale, **kwargs)
+            wavefunctions.append(phi_wavefunc)
+
+        scale = scaling or set_wavefunction_scaling(wavefunctions, potential_vals)
+
+        fig_ax = kwargs.get('fig_ax') or plt.subplots()
+        kwargs['fig_ax'] = fig_ax
+        kwargs = {**self.wavefunction1d_defaults(mode, evals, wavefunc_count=len(wavefunc_indices)), **kwargs}
+        # in merging the dictionaries in the previous line: if any duplicates, later ones survive
+
+        plot.wavefunction1d(wavefunctions, potential_vals=potential_vals, offset=energies, scaling=scale, **kwargs)
         return fig_ax

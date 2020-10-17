@@ -193,10 +193,6 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             'xlabel': r'$\varphi$',
             'ylabel': ylabel
         }
-        if wavefunc_count > 1:
-            ymin = -1.05 * self.EJ
-            ymax = max(1.1 * self.EJ, evals[-1] + 0.05 * (evals[-1] - evals[0]))
-            options['ylim'] = (ymin, ymax)
         return options
 
     def plot_phi_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs_sqr', scaling=None, **kwargs):
