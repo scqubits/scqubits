@@ -24,7 +24,6 @@ import scqubits.core.constants as constants
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
 import scqubits.settings as settings
-import scqubits.core.storage as storage
 
 try:
     from labellines import labelLines
