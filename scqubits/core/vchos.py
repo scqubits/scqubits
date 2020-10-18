@@ -210,7 +210,7 @@ class VCHOS:
             return 0.0
         Xi_inv = inv(self.Xi_matrix(minimum=minimum))
         delta_inv = Xi_inv.T @ Xi_inv
-        if np.allclose(minima_p, minima_m):  # Do not include equivalent minima in the same unit cell
+        if m == p:  # Do not include equivalent minima in the same unit cell
             nearest_neighbors = np.array([vec for vec in nearest_neighbors if not np.allclose(vec, np.zeros_like(vec))])
         minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_p - minima_m)) / 2.0
                                      for vec in nearest_neighbors])
