@@ -121,6 +121,51 @@ class FluxoniumTunableCoupler(serializers.Serializable):
         else:
             return 0.0
 
+    def brian_effective_hamiltonian(self):
+        fluxonium_a = self.fluxonium_a()
+        fluxonium_b = self.fluxonium_b()
+        fluxonium_minus = self.fluxonium_minus()
+        h_o_plus = self.h_o_plus()
+        dim_a, dim_b = fluxonium_a.truncated_dim, fluxonium_b.truncated_dim
+        evals_a, evals_b, evals_minus, phi_a_mat, phi_b_mat, phi_minus_mat = self.setup_effective_calculation()
+        groundstate_expect = (np.real(phi_minus_mat[0, 0]) / (2 * np.pi))
+        osc_len = (4.0 * self.EC / self.EL_tilda()) ** (1 / 4)
+        chi_m = sum(abs(phi_minus_mat[0, m]) ** 2 / (evals_minus[m] - evals_minus[0])
+                    for m in range(1, fluxonium_minus.truncated_dim))
+        chi_p = 0.5 * (osc_len ** 2 / h_o_plus.E_osc)
+
+        E_La_shift = self.ELa ** 2 * (0.5 * chi_m + 2 * chi_p)
+        fluxonium_a.EL = self.ELa - E_La_shift
+        E_Lb_shift = self.ELb ** 2 * (0.5 * chi_m + 2 * chi_p)
+        fluxonium_b.EL = self.ELb - E_Lb_shift
+
+        J = self.ELa * self.ELb * (0.5 * chi_m - 2 * chi_p)
+        flux_shift_a = 0.5 * (self.ELa / fluxonium_a.EL) * groundstate_expect
+#        print(flux_shift_a)
+#        fluxonium_a.flux = self.flux_a + flux_shift_a
+        fluxonium_a.flux = 0.5
+
+        flux_shift_b = 0.5 * (self.ELb / fluxonium_b.EL) * groundstate_expect
+#        print(flux_shift_b)
+#        fluxonium_b.flux = self.flux_b - flux_shift_b
+        fluxonium_b.flux = 0.5
+
+        hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
+        hamiltonian_a = hilbert_space.diag_hamiltonian(fluxonium_a)
+        _, evecs_a = fluxonium_a.eigensys(dim_a)
+        mat_a = get_matrixelement_table(fluxonium_a.phi_operator(), evecs_a)
+        va = sum([mat_a[j][k] * hilbert_space.hubbard_operator(j, k, fluxonium_a)
+                  for j in range(dim_a) for k in range(dim_a)])
+
+        hamiltonian_b = hilbert_space.diag_hamiltonian(fluxonium_b)
+        _, evecs_b = fluxonium_b.eigensys(dim_b)
+        mat_a = get_matrixelement_table(fluxonium_b.phi_operator(), evecs_b)
+        vb = sum([mat_a[j][k] * hilbert_space.hubbard_operator(j, k, fluxonium_b)
+                  for j in range(dim_b) for k in range(dim_b)])
+
+        hamiltonian_ab = J * (va * vb) + J * 2 * np.pi * (flux_shift_a * vb - flux_shift_b * va)
+        return hamiltonian_a + hamiltonian_b + hamiltonian_ab, flux_shift_a, flux_shift_b
+
     def get_matrix_element_of_perturbation(self, ell, m, n, p, ell_prime, m_prime, n_prime, p_prime,
                                            effective_quantities):
         evals_a, evals_b, evals_minus, phi_a_mat, phi_b_mat, phi_minus_mat = effective_quantities
@@ -280,8 +325,8 @@ class FluxoniumTunableCoupler(serializers.Serializable):
     def second_order_effective_hamiltonian(self):
         fluxonium_a = self.fluxonium_a()
         fluxonium_b = self.fluxonium_b()
-        dim_a = fluxonium_a.truncated_dim
-        dim_b = fluxonium_b.truncated_dim
+        dim_a = 2
+        dim_b = 2
         effective_quantities = self.setup_effective_calculation()
         return sum([self.second_order_sum(ell, ell_prime, m, m_prime, effective_quantities)
                     for ell in range(dim_a) for ell_prime in range(dim_a)
