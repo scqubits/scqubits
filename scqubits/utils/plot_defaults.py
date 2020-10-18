@@ -12,9 +12,8 @@
 
 import numpy as np
 
-import scqubits
 import scqubits.core.constants as constants
-import scqubits.settings as settings
+import scqubits.core.units as units
 
 
 NAME_REPLACEMENTS = {
@@ -37,27 +36,69 @@ def recast_name(raw_name):
     return raw_name
 
 
-def set_scaling(qubit, scaling, potential_vals=None):
+def set_wavefunction_scaling(wavefunctions, potential_vals):
     """
     Sets the scaling parameter for 1d wavefunctions
 
     Parameters
     ----------
-    qubit: QuantumSystem
-    scaling: float
+    wavefunctions: list of WaveFunction
+        list of all WaveFunction objects to be included in plot and scaling
     potential_vals: ndarray
 
     Returns
     -------
     float
-        scaling factor
+      scaling factor
     """
-    if scaling is None:
-        if isinstance(qubit, scqubits.Transmon):
-            scaling = 0.2 * qubit.EJ
-        elif isinstance(qubit, scqubits.Fluxonium):
-            scaling = 0.125 * (np.max(potential_vals) - np.min(potential_vals))
-    return scaling
+    Y_RANGE_THRESHOLD_FRACTION = 1 / 20  # Do not attempt to scale down amplitudes to very small energy spacings
+                                         # i.e. if energy spacing is smaller than y_range * Y_RANGE_THRESHOLD_FRACTION
+    FILLING_FRACTION = 1.0               # If energy spacing is used for scaling, fill no more than this
+                                         #  fraction of the spacing.
+    MAX_AMPLITUDE_FRACTION = 1 / 7       # Largest allowed wavefunction  amplitude range as fraction of y_range.
+    PRECISION_THRESHOLD = 1E-8           # Amplitude threshold for applying any scaling at all. Note that the
+                                         #  imaginary part of a wavefunction may be nominally 0; do not scale up that.
+
+    wavefunc_count = len(wavefunctions)
+    energies = [wavefunc.energy for wavefunc in wavefunctions]
+
+    y_min = np.min(potential_vals)
+    y_max = max([np.max(potential_vals), np.max(energies)])
+    y_range = y_max - y_min
+
+    amplitudes = np.asarray([wavefunc.amplitudes for wavefunc in wavefunctions])
+
+    def amplitude_mins():
+        return np.apply_along_axis(func1d=np.min, axis=1, arr=amplitudes)
+
+    def amplitude_maxs():
+        return np.apply_along_axis(func1d=np.max, axis=1, arr=amplitudes)
+
+    def max_amplitude_range():
+        return np.max(amplitude_maxs() - amplitude_mins())
+
+    if max_amplitude_range() < PRECISION_THRESHOLD:  # amplitude likely just zero (e.g., mode='imag'); do not scale up
+        return 1
+    else:
+        scale_factor = y_range * MAX_AMPLITUDE_FRACTION / max_amplitude_range()  # set amplitudes to largest acceptable
+        amplitudes *= scale_factor
+
+        if wavefunc_count == 1:
+            return scale_factor
+
+        amplitude_fillings = np.pad(np.abs(amplitude_mins()), [0, 1]) + np.pad(np.abs(amplitude_maxs()), [1, 0])
+        amplitude_fillings = amplitude_fillings[1:-1]
+
+        energy_spacings = np.pad(energies, [0, 1]) - np.pad(energies, [1, 0])
+        energy_spacings = energy_spacings[1:-1]
+
+        for energy_gap, amplitude_filling in zip(energy_spacings, amplitude_fillings):
+            if energy_gap > y_range * Y_RANGE_THRESHOLD_FRACTION:
+                if amplitude_filling > energy_gap * FILLING_FRACTION:
+                    scale_factor *= energy_gap * FILLING_FRACTION / amplitude_filling
+                    amplitudes *= energy_gap * FILLING_FRACTION / amplitude_filling
+                    amplitude_fillings *= energy_gap * FILLING_FRACTION / amplitude_filling
+        return scale_factor
 
 
 def wavefunction1d_discrete(mode=None):
@@ -102,7 +143,7 @@ def matrix():
 def evals_vs_paramvals(specdata, **kwargs):
     """Plot defaults for plotting.evals_vs_paramvals"""
     kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(specdata.param_name)
-    kwargs['ylabel'] = kwargs.get('ylabel') or 'energy [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or 'energy [{}]'.format(units.get_units())
     return kwargs
 
 
@@ -120,22 +161,22 @@ def dressed_spectrum(sweep, **kwargs):
         kwargs['ymax'] = kwargs.get('ymax') or min(15, (np.max(sweep.dressed_specdata.energy_table) -
                                                         np.min(sweep.dressed_specdata.energy_table)))
     kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(sweep.param_name)
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'energy [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'energy [{}]'.format(units.get_units())
     return kwargs
 
 
 def chi(sweep, **kwargs):
     """Plot defaults for sweep_plotting.chi"""
     kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(sweep.param_name)
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$ [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$ [{}]'.format(units.get_units())
     return kwargs
 
 
 def chi01(param_name, yval, **kwargs):
     """Plot defaults for sweep_plotting.chi01"""
     kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(param_name)
-    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(settings.DEFAULT_ENERGY_UNITS)
-    kwargs['title'] = kwargs.get('title') or r'$\chi_{{01}}=${:.4f} {}'.format(yval, settings.DEFAULT_ENERGY_UNITS)
+    kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(units.get_units())
+    kwargs['title'] = kwargs.get('title') or r'$\chi_{{01}}=${:.4f} {}'.format(yval, units.get_units())
     return kwargs
 
 
@@ -148,10 +189,11 @@ def charge_matrixelem(param_name, **kwargs):
 
 # supported keyword arguments for plotting and sweep_plotting functions
 SPECIAL_PLOT_OPTIONS = [
+    'fig_ax',
+    'figsize',
+    'filename',
+    'grid',
     'x_range',
     'y_range',
     'ymax',
-    'figsize',
-    'fig_ax',
-    'filename'
 ]

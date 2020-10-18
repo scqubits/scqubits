@@ -27,10 +27,7 @@ jobs:
         pip install scipy
         pip install -r requirements.txt
         pip install -r optional-requirements.txt
-        pip install scqubits
+        pip install -e .
     - name: Test with pytest
       run: |
-        pip install pytest
-        pip install ipywidgets
-        pip install scqubits
-        pytest -v -Werror --pyargs scqubits
+        pytest -v --pyargs scqubits

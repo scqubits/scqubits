@@ -22,8 +22,17 @@ Matplotlib.
 #    LICENSE file in the root directory of this source tree.
 #######################################################################################################################
 
+import warnings
 import matplotlib as mpl
 from cycler import cycler
+
+
+# Set format for output of warnings
+def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
+    return "{}: {}\n {}: {}".format(category.__name__, message, filename, lineno)
+
+
+warnings.formatwarning = warning_on_one_line
 
 
 # a switch for displaying of progress bar; default: show only in ipython
@@ -34,13 +43,6 @@ try:
 except NameError:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
-
-# default energy units
-DEFAULT_ENERGY_UNITS = 'GHz'
-
-# define settings for tqdm progressbar
-TQDM_KWARGS = {'disable': PROGRESSBAR_DISABLED,
-               'leave': False}
 
 # run ParameterSweep directly upon initialization
 AUTORUN_SWEEP = True
@@ -76,7 +78,7 @@ mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
 
 # set matplotlib defaults
 mpl.rcParams['font.family'] = "sans-serif"
-mpl.rcParams['font.sans-serif'] = "Arial, Helvetica Neue, Helvetica"
+mpl.rcParams['font.sans-serif'] = "Arial, Helvetica, DejaVu Sans"
 mpl.rcParams['figure.dpi'] = 150
 mpl.rcParams['font.size'] = 11
 mpl.rcParams['axes.labelsize'] = 11

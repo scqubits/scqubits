@@ -43,8 +43,8 @@ EXTRA_KWARGS = {}
 
 # version information about scqubits goes here
 MAJOR = 1
-MINOR = 2
-MICRO = 3
+MINOR = 3
+MICRO = 2
 ISRELEASED = True
 
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)

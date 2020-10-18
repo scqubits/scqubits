@@ -18,6 +18,7 @@ import scqubits
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
+from scqubits.core.noise import NoisySystem, NOISE_PARAMS
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
@@ -25,7 +26,13 @@ import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
 
 
-class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
+# - ZeroPi noise class
+
+class NoisyFullZeroPi(NoisySystem):
+    pass
+
+
+class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
     r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
     Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
 
@@ -34,9 +41,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         &H_{0-\pi} = -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
                      +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta\\
         &\qquad\qquad\qquad+2E_{C\Sigma}(\delta C_J/C_J)\partial_\phi\partial_\theta
-                     +2\,\delta E_J \sin\theta\sin(\phi-\phi_\text{ext}/2)\\
+                     +2\,\delta E_J \sin\theta\sin(\phi-\varphi_\text{ext}/2)\\
         &H_\text{int} = 2E_{C\Sigma}dC\,\partial_\theta\partial_\zeta + E_L dE_L \phi\,\zeta\\
-        &H_\zeta = \omega_\zeta a^\dagger a
+        &H_\zeta = E_{\zeta} a^\dagger a
 
     expressed in phase basis. The definition of the relevant charging energies :math:`E_\text{CJ}`,
     :math:`E_{\text{C}\Sigma}`,     Josephson energies :math:`E_\text{J}`, inductive energies :math:`E_\text{L}`,
@@ -122,7 +129,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
         self._init_params.remove('ECS')  # used for file IO Serializable purposes; remove ECS as init parameter
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fullzeropi.png')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/fullzeropi.jpg')
 
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
 
@@ -145,10 +152,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
             'truncated_dim': 10
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['ng', 'flux', 'ncut', 'zeropi_cutoff', 'zeta_cutoff', 'truncated_dim']
-
     @classmethod
     def create(cls):
         phi_grid = discretization.Grid1d(-25.0, 25.0, 360)
@@ -156,6 +159,15 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         zeropi = cls(**init_params, grid=phi_grid)
         zeropi.widget()
         return zeropi
+
+    def supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_cc', 
+                'tphi_1_over_f_flux'
+                't1_bias_flux_line'
+                # 't1_capacitive',
+                't1_inductive',
+                ]
 
     def widget(self, params=None):
         init_params = params or self.get_initdata()
@@ -191,6 +203,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         """Returns energy quantum of the zeta mode"""
         return (8.0 * self.EL * self.EC) ** 0.5
 
+    def set_E_zeta(self, value):
+        raise ValueError("It's not possible to directly set `E_zeta`. Instead one can set its value through `EL` or `EC`.")
+
     def hamiltonian(self, return_parts=False):
         """Returns Hamiltonian in basis obtained by discretizing phi, employing charge basis for theta, and Fock
         basis for zeta.
@@ -211,6 +226,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
 
         zeta_dim = self.zeta_cutoff
         prefactor = self.E_zeta
+
         zeta_diag_hamiltonian = op.number_sparse(zeta_dim, prefactor)
 
         hamiltonian_mat = sparse.kron(zeropi_diag_hamiltonian,
@@ -248,6 +264,28 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_flux(),
                                                       zeropi_evecs=zeropi_evecs)
 
+    def d_hamiltonian_d_EJ(self, zeropi_evecs=None):
+        r"""Calculates a derivative of the Hamiltonian w.r.t EJ. 
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the Hamiltonian 
+        """
+        return self._zeropi_operator_in_product_basis(self._zeropi.d_hamiltonian_d_EJ(),
+                                                      zeropi_evecs=zeropi_evecs)
+
+    def d_hamiltonian_d_ng(self):
+        r"""Calculates a derivative of the Hamiltonian w.r.t ng.
+        as stored in the object.
+
+        Returns
+        -------
+        scipy.sparse.csc_matrix
+            matrix representing the derivative of the Hamiltonian
+        """
+        return -8 * self.EC * self.n_theta_operator()
+
     def _zeropi_operator_in_product_basis(self, zeropi_operator, zeropi_evecs=None):
         """Helper method that converts a zeropi operator into one in the product basis.
 
@@ -274,7 +312,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
 
     def i_d_dphi_operator(self, zeropi_evecs=None):
         r"""
-        Operator :math:`i d/d\varphi`.
+        Operator :math:`i d/d\phi`.
 
         Returns
         -------
@@ -288,13 +326,13 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
 
         Returns
         -------
-        scipy.sparse.csc_matrix
+            scipy.sparse.csc_matrix
         """
         return self._zeropi_operator_in_product_basis(self._zeropi.n_theta_operator(), zeropi_evecs=zeropi_evecs)
 
     def phi_operator(self, zeropi_evecs=None):
         r"""
-        Operator :math:`\varphi`.
+        Operator :math:`\phi`.
 
         Returns
         -------
@@ -303,7 +341,12 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable):
         return self._zeropi_operator_in_product_basis(self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs)
 
     def hilbertdim(self):
-        """Returns Hilbert space dimension"""
+        """Returns Hilbert space dimension
+
+        Returns
+        -------
+        int
+        """
         return self.zeropi_cutoff * self.zeta_cutoff
 
     def _evals_calc(self, evals_count, hamiltonian_mat=None):

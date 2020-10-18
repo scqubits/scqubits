@@ -20,6 +20,7 @@ import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.harmonic_osc as osc
+from scqubits.core.noise import NoisySystem
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
@@ -28,9 +29,9 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 # —Fluxonium qubit ————————————————————————
 
-class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
+class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the fluxonium qubit. Hamiltonian
-    :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi-\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
+    :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi+\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
     is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
     potential is handled via matrix exponentiation. Initialize with, for example::
 
@@ -67,7 +68,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/fluxonium.png')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/fluxonium.jpg')
 
     @staticmethod
     def default_params():
@@ -80,9 +81,16 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
             'truncated_dim': 10
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['flux', 'cutoff', 'truncated_dim']
+    def supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_cc', 
+                'tphi_1_over_f_flux',
+                't1_capacitive',
+                't1_charge_impedance', 
+                't1_flux_bias_line',
+                't1_inductive',
+                't1_quasiparticle_tunneling',
+                ]
 
     def phi_osc(self):
         """
@@ -122,37 +130,38 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         dimension = self.hilbertdim()
         return 1j * (op.creation(dimension) - op.annihilation(dimension)) / (self.phi_osc() * math.sqrt(2))
 
-    def exp_i_phi_operator(self):
+    def exp_i_phi_operator(self, alpha=1, beta=0):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`e^{i\\phi}` operator in the LC harmonic oscillator basis
+            Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the LC harmonic oscillator basis,
+            with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        exponent = 1j * self.phi_operator()
-        return sp.linalg.expm(exponent)
+        exponent = 1j * (alpha * self.phi_operator())
+        return sp.linalg.expm(exponent) * cmath.exp(1j * beta)
 
-    def cos_phi_operator(self):
+    def cos_phi_operator(self, alpha=1, beta=0):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`\\cos \\phi` operator in the LC harmonic oscillator basis
+            Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis,
+            with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        cos_phi_op = 0.5 * self.exp_i_phi_operator()
-        cos_phi_op += cos_phi_op.conjugate().T
-        return cos_phi_op
+        exp_matrix = self.exp_i_phi_operator(alpha, beta)
+        return 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
-    def sin_phi_operator(self):
+    def sin_phi_operator(self, alpha=1, beta=0):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`\\sin \\phi` operator in the LC harmonic oscillator basis
+            Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis
+            with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        sin_phi_op = -1j * 0.5 * self.exp_i_phi_operator()
-        sin_phi_op += sin_phi_op.conjugate().T
-        return sin_phi_op
+        exp_matrix = self.exp_i_phi_operator(alpha, beta)
+        return -1j * 0.5 * (exp_matrix - exp_matrix.conjugate().T)
 
     def hamiltonian(self):  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu et al., PRB 87, 024510 (2013)
@@ -171,6 +180,20 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
         return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential,
         # fluxonium Hamiltonian in harm. osc. basis is real-valued
+
+    def d_hamiltonian_d_EJ(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to `EJ`.
+
+        The flux is grouped as in the Hamiltonian. 
+        """
+        return - self.cos_phi_operator(1,  2 * np.pi * self.flux)
+
+    def d_hamiltonian_d_flux(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to `flux`.
+
+        Flux is grouped as in the Hamiltonian. 
+        """
+        return -2 * np.pi * self.EJ * self.sin_phi_operator(1,  2 * np.pi * self.flux)
 
     def hilbertdim(self):
         """
@@ -247,8 +270,4 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
             'xlabel': r'$\varphi$',
             'ylabel': ylabel
         }
-        if wavefunc_count > 1:
-            ymin = - 1.025 * self.EJ
-            ymax = max(1.8 * self.EJ, evals[-1] + 0.1 * (evals[-1] - evals[0]))
-            options['ylim'] = (ymin, ymax)
         return options

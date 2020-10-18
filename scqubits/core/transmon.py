@@ -17,6 +17,7 @@ import numpy as np
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
+from scqubits.core.noise import NoisySystem
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
@@ -26,7 +27,7 @@ import scqubits.utils.plotting as plot
 
 # —Cooper pair box / transmon——————————————————————————————————————————————
 
-class Transmon(base.QubitBaseClass1d, serializers.Serializable):
+class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is represented in dense form in the number
     basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
@@ -61,7 +62,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/transmon.png')
+        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/fixed-transmon.jpg')
 
     @staticmethod
     def default_params():
@@ -73,9 +74,20 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
             'truncated_dim': 10
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['ng', 'ncut', 'truncated_dim']
+    def supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_cc', 
+                'tphi_1_over_f_ng',
+                't1_capacitive',
+                't1_charge_impedance', 
+                ]
+
+    def effective_noise_channels(self):
+        """Return a default list of channels used when calculating effective t1 and t2 nosie."""
+        noise_channels=self.supported_noise_channels()
+        noise_channels.remove('t1_charge_impedance')
+        return noise_channels
+
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
@@ -109,6 +121,14 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
         hamiltonian_mat[ind, ind+1] = -self.EJ / 2.0
         hamiltonian_mat[ind+1, ind] = -self.EJ / 2.0
         return hamiltonian_mat
+
+    def d_hamiltonian_d_ng(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to charge offset `ng`."""
+        return -8*self.EC*self.n_operator()
+
+    def d_hamiltonian_d_EJ(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ."""
+        return -self.cos_phi_operator()
 
     def hilbertdim(self):
         """Returns Hilbert space dimension"""
@@ -173,10 +193,6 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
             'xlabel': r'$\varphi$',
             'ylabel': ylabel
         }
-        if wavefunc_count > 1:
-            ymin = -1.05 * self.EJ
-            ymax = max(1.1 * self.EJ, evals[-1] + 0.05 * (evals[-1] - evals[0]))
-            options['ylim'] = (ymin, ymax)
         return options
 
     def plot_phi_wavefunction(self, esys=None, which=0, phi_grid=None, mode='abs_sqr', scaling=None, **kwargs):
@@ -245,17 +261,17 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
 
 # — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
 
-class TunableTransmon(Transmon, serializers.Serializable):
+class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in dense form in the number
     basis,
     :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{h.c.})`,
     Here, the effective Josephson energy is flux-tunable:
-     :math:`\mathcal{E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(\pi\Phi/\Phi_0)}`
+    :math:`\mathcal{E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(\pi\Phi/\Phi_0)}`
     and :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes th junction asymmetry.
 
     Initialize with, for example::
 
-        Transmon2J(EJmax=1.0, d=0.1, EC=2.0, flux=0.3, ng=0.2, ncut=30)
+        TunableTransmon(EJmax=1.0, d=0.1, EC=2.0, flux=0.3, ng=0.2, ncut=30)
 
     Parameters
     ----------
@@ -291,7 +307,7 @@ class TunableTransmon(Transmon, serializers.Serializable):
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_pngs/tunable_transmon.png')
+                                            'qubit_img/tunable-transmon.jpg')
 
     @property
     def EJ(self):
@@ -311,6 +327,19 @@ class TunableTransmon(Transmon, serializers.Serializable):
             'truncated_dim': 10
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['flux', 'ng', 'ncut', 'truncated_dim']
+    def supported_noise_channels(self):
+        """Return a list of supported noise channels"""
+        return ['tphi_1_over_f_flux', 
+                'tphi_1_over_f_cc', 
+                'tphi_1_over_f_ng',
+                't1_capacitive',
+                't1_flux_bias_line',
+                't1_charge_impedance', 
+                ]
+
+    def d_hamiltonian_d_flux(self):
+        """Returns operator representing a derivittive of the Hamiltonian with respect to `flux`."""
+        return np.pi * self.EJmax * np.cos(np.pi * self.flux) * np.sin(np.pi * self.flux) * (self.d**2 - 1) \
+                / np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2) \
+                * self.cos_phi_operator()
+

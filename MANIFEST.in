@@ -4,4 +4,4 @@ include requirements.txt
 include optional-requirements.txt
 recursive-include scqubits/tests/data *.hdf5
 graft scqubits/tests/data
-graft scqubits/core/qubit_pngs
+graft scqubits/core/qubit_img
