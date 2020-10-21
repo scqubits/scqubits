@@ -44,18 +44,20 @@ class VCHOSSqueezing(VCHOS):
         sigma = logm(u)
         tau = v @ inv(u)
         return rho, sigma, tau
-
-    def _helper_squeezing_matrices(self, rho, rho_prime, Xi):
-        """Build variables helpful for constructing the Hamiltonian """
+    
+    def _delta_rho_matrices(self, rho, rho_prime):
         dim = self.number_degrees_freedom
-        Xi_inv = inv(Xi)
         delta_rho_prime = inv(np.eye(dim) - rho_prime @ rho) @ rho_prime
         delta_rho = inv(np.eye(dim) - rho @ rho_prime) @ rho
         delta_rho_bar = logm(inv(np.eye(dim) - rho_prime @ rho))
-        z = 1j * Xi_inv.T / np.sqrt(2.)
-        zp = z + 0.5 * (z + z @ rho_prime) @ (delta_rho + delta_rho.T)
-        zpp = z @ rho_prime + z
-        return delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp
+        return delta_rho, delta_rho_prime, delta_rho_bar
+
+    @staticmethod
+    def _linear_coefficient_matrices(rho_prime, delta_rho, A, B):
+        """Build variables helpful for constructing the Hamiltonian """
+        a_coefficient = A - 0.5 * (B - A @ rho_prime) @ (delta_rho + delta_rho.T)
+        a_dagger_coefficient = B - A @ rho_prime
+        return a_coefficient, a_dagger_coefficient
 
     def _squeezing_M_builder(self, minimum, Xi, Xi_prime):
         """
@@ -210,12 +212,12 @@ class VCHOSSqueezing(VCHOS):
         self.nearest_neighbors = nearest_neighbors
 
     def _build_translation_operators_squeezing(self, minima_diff, Xi, disentangled_squeezing_matrices,
-                                               helper_squeezing_matrices):
+                                               delta_rho_matrices):
         """Helper method for building the 2pi displacement operators."""
         dim = self.number_degrees_freedom
         a_operator_list = self._a_operator_list()
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = helper_squeezing_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         prefactor_a_dagger = (np.eye(dim) + rho_prime) @ expm(delta_rho_bar).T @ expm(-sigma)
         prefactor_a = (np.eye(dim) + 0.5 * (np.eye(dim) + rho_prime) @ (delta_rho + delta_rho.T)) @ expm(-sigma_prime)
         Xi_inv = inv(Xi)
@@ -232,12 +234,12 @@ class VCHOSSqueezing(VCHOS):
         return exp_a_dagger_list, exp_a_dagger_minima_difference, exp_a_list, exp_a_minima_difference
 
     def _build_potential_operators_squeezing(self, a_operator_list, Xi, exp_a_dagger_a,
-                                             disentangled_squeezing_matrices, helper_squeezing_matrices):
+                                             disentangled_squeezing_matrices, delta_rho_matrices):
         """Helper method for building the potential operators."""
         exp_i_list = []
         dim = self.number_degrees_freedom
         prefactor_a, prefactor_a_dagger = self._build_potential_exp_prefactors(disentangled_squeezing_matrices,
-                                                                               helper_squeezing_matrices)
+                                                                               delta_rho_matrices)
         for j in range(dim):
             exp_i_j_a_dagger_part = expm(np.sum([1j * (Xi @ prefactor_a_dagger)[j, i] * a_operator_list[i].T
                                          for i in range(dim)], axis=0) / np.sqrt(2.0))
@@ -256,13 +258,12 @@ class VCHOSSqueezing(VCHOS):
         return exp_i_list, exp_i_sum
 
     def _build_bilinear_squeezing_operators(self, a_operator_list, disentangled_squeezing_matrices,
-                                            helper_squeezing_matrices):
+                                            delta_rho_matrices):
         """Helper method for building the bilinear operators necessary for constructing the Hamiltonian
         in the presence of squeezing."""
         dim = self.number_degrees_freedom
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = helper_squeezing_matrices
-
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         prefactor_a_dagger_a_dagger = 0.5 * (tau.T - expm(-sigma).T @ delta_rho_prime @ expm(-sigma))
         prefactor_a_a = 0.5 * (tau_prime - expm(-sigma_prime).T @ delta_rho @ expm(-sigma_prime))
         prefactor_a_dagger_a = sp.linalg.logm(expm(-sigma).T @ expm(delta_rho_bar) @ expm(-sigma_prime))
@@ -305,21 +306,20 @@ class VCHOSSqueezing(VCHOS):
             nearest_neighbors = self.nearest_neighbors[str(m)+str(p)]
             disentangled_squeezing_matrices = self._build_rho_sigma_tau_matrices(m, p, Xi)
             rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-            helper_squeezing_matrices = self._helper_squeezing_matrices(rho, rho_prime, Xi)
+            delta_rho_matrices = self._delta_rho_matrices(rho, rho_prime)
             squeezing_operators = self._build_bilinear_squeezing_operators(a_operator_list,
                                                                            disentangled_squeezing_matrices,
-                                                                           helper_squeezing_matrices)
+                                                                           delta_rho_matrices)
             exp_a_dagger_a_dagger, exp_a_dagger_a, exp_a_a = squeezing_operators
             exp_operators = self._build_translation_operators_squeezing(minima_diff, Xi,
                                                                         disentangled_squeezing_matrices,
-                                                                        helper_squeezing_matrices)
-            minima_pair_results = minima_pair_func(exp_a_dagger_a, disentangled_squeezing_matrices,
-                                                   helper_squeezing_matrices)
+                                                                        delta_rho_matrices)
+            minima_pair_results = minima_pair_func(exp_a_dagger_a, disentangled_squeezing_matrices, delta_rho_matrices)
             scale = 1. / np.sqrt(det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rho_prime)))
             matrix_element = self._periodic_sum_minima_pair_squeezing(minima_m, minima_p, nearest_neighbors, local_func,
                                                                       squeezing_operators, exp_operators,
                                                                       disentangled_squeezing_matrices,
-                                                                      helper_squeezing_matrices,
+                                                                      delta_rho_matrices,
                                                                       minima_pair_results, Xi_inv)
             operator_matrix[m * num_states_min: (m + 1) * num_states_min,
                             p * num_states_min: (p + 1) * num_states_min] += matrix_element * scale
@@ -328,7 +328,7 @@ class VCHOSSqueezing(VCHOS):
 
     def _periodic_sum_minima_pair_squeezing(self, minima_m, minima_p, nearest_neighbors,
                                             local_func, squeezing_operators, exp_operators,
-                                            disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                            disentangled_squeezing_matrices, delta_rho_matrices,
                                             minima_pair_results, Xi_inv):
         num_states = self.number_states_per_minimum()
         matrix_element = np.zeros((num_states, num_states), dtype=np.complex_)
@@ -343,7 +343,7 @@ class VCHOSSqueezing(VCHOS):
                                                                                Xi_inv, sigma, sigma_prime)
                 matrix_element += (exp_prod_coefficient * translation_a_dagger
                                    @ local_func(phi_neighbor, minima_m, minima_p,
-                                                disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                                disentangled_squeezing_matrices, delta_rho_matrices,
                                                 exp_a_dagger_a, minima_pair_results)
                                    @ translation_a)
         return matrix_element
@@ -359,56 +359,62 @@ class VCHOSSqueezing(VCHOS):
         return alpha, epsilon
 
     def _minima_pair_transfer_squeezing_function(self, EC_mat, a_operator_list, Xi, exp_a_dagger_a,
-                                                 disentangled_squeezing_matrices, helper_squeezing_matrices):
+                                                 disentangled_squeezing_matrices, delta_rho_matrices):
         """Minima pair calculations for the kinetic and potential matrices."""
-        return (self._minima_pair_kinetic_squeezing_function(EC_mat, a_operator_list, exp_a_dagger_a,
+        return (self._minima_pair_kinetic_squeezing_function(EC_mat, a_operator_list, inv(Xi), exp_a_dagger_a,
                                                              disentangled_squeezing_matrices,
-                                                             helper_squeezing_matrices),
+                                                             delta_rho_matrices),
                 self._minima_pair_potential_squeezing_function(a_operator_list, Xi, exp_a_dagger_a,
                                                                disentangled_squeezing_matrices,
-                                                               helper_squeezing_matrices))
+                                                               delta_rho_matrices))
 
-    def _minima_pair_kinetic_squeezing_function(self, EC_mat, a_operator_list, exp_a_dagger_a,
-                                                disentangled_squeezing_matrices, helper_squeezing_matrices):
+    def _minima_pair_kinetic_squeezing_function(self, EC_mat, a_operator_list, Xi_inv, exp_a_dagger_a,
+                                                disentangled_squeezing_matrices, delta_rho_matrices):
         """Return data necessary for constructing the kinetic matrix that only depends on the minima
         pair, and not on the specific periodic continuation operator."""
         dim = self.number_degrees_freedom
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = helper_squeezing_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
+        linear_coefficients_kinetic = self._linear_coefficient_matrices(rho_prime, delta_rho,
+                                                                        -1j * Xi_inv.T / np.sqrt(2.0),
+                                                                        1j * Xi_inv.T / np.sqrt(2.0))
+        a_coefficient, a_dagger_coefficient = linear_coefficients_kinetic
         (xa, xaa, dxa, dx, ddx) = self._premultiplying_exp_a_dagger_a_with_a(exp_a_dagger_a, a_operator_list)
-        sigma_delta_rho_bar_zpp_EC = expm(-sigma).T @ expm(delta_rho_bar) @ zpp.T @ EC_mat
-        xaa_coefficient = (zp @ expm(-sigma_prime)).T @ EC_mat @ zp @ expm(-sigma_prime)
-        dxa_coefficient = sigma_delta_rho_bar_zpp_EC @ zp @ expm(-sigma_prime)
-        ddx_coefficient = sigma_delta_rho_bar_zpp_EC @ (expm(-sigma).T @ expm(delta_rho_bar) @ zpp.T).T
-        x_coefficient = zpp.T @ EC_mat @ zp
-        xa_coefficient = EC_mat @ zp @ expm(-sigma_prime)
-        dx_coefficient = EC_mat @ zpp @ (expm(-sigma).T @ expm(delta_rho_bar)).T
-        kinetic_matrix = np.sum([+4 * xaa[mu] * xaa_coefficient[mu, mu] - 8 * dxa[mu] * dxa_coefficient[mu, mu]
-                                 + 4 * ddx[mu] * ddx_coefficient[mu, mu] - 4 * exp_a_dagger_a * x_coefficient[mu, mu]
+        sigma_delta_rho_bar_a_dagger_coefficient_EC = (expm(-sigma).T @ expm(delta_rho_bar)
+                                                       @ a_dagger_coefficient.T @ EC_mat)
+        xaa_coefficient = (a_coefficient @ expm(-sigma_prime)).T @ EC_mat @ a_coefficient @ expm(-sigma_prime)
+        dxa_coefficient = sigma_delta_rho_bar_a_dagger_coefficient_EC @ a_coefficient @ expm(-sigma_prime)
+        ddx_coefficient = (sigma_delta_rho_bar_a_dagger_coefficient_EC @ (expm(-sigma).T @ expm(delta_rho_bar)
+                                                                          @ a_dagger_coefficient.T).T)
+        x_coefficient = a_dagger_coefficient.T @ EC_mat @ a_coefficient
+        xa_coefficient = EC_mat @ a_coefficient @ expm(-sigma_prime)
+        dx_coefficient = EC_mat @ a_dagger_coefficient @ (expm(-sigma).T @ expm(delta_rho_bar)).T
+        kinetic_matrix = np.sum([+4 * xaa[mu] * xaa_coefficient[mu, mu] + 8 * dxa[mu] * dxa_coefficient[mu, mu]
+                                 + 4 * ddx[mu] * ddx_coefficient[mu, mu] + 4 * exp_a_dagger_a * x_coefficient[mu, mu]
                                  for mu in range(dim)], axis=0)
         return kinetic_matrix, xa, dx, xa_coefficient, dx_coefficient
 
     def _local_transfer_squeezing_function(self, EC_mat, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                           disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                           disentangled_squeezing_matrices, delta_rho_matrices,
                                            exp_a_dagger_a, minima_pair_results):
         """Local contribution to the transfer matrix in the presence of squeezing."""
         kinetic_minima_pair_results, potential_minima_pair_results = minima_pair_results
         return (self._local_kinetic_squeezing_function(EC_mat, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                                       disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                                       disentangled_squeezing_matrices, delta_rho_matrices,
                                                        exp_a_dagger_a, kinetic_minima_pair_results)
                 + self._local_potential_squeezing_function(Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
                                                            disentangled_squeezing_matrices,
-                                                           helper_squeezing_matrices, exp_a_dagger_a,
+                                                           delta_rho_matrices, exp_a_dagger_a,
                                                            potential_minima_pair_results))
 
     def _local_kinetic_squeezing_function(self, EC_mat, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                          disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                          disentangled_squeezing_matrices, delta_rho_matrices,
                                           exp_a_dagger_a, minima_pair_results):
         """Local contribution to the kinetic matrix in the presence of squeezing."""
         dim = self.number_degrees_freedom
         delta_phi = phi_neighbor + minima_p - minima_m
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = helper_squeezing_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         kinetic_matrix_minima_pair, xa, dx, xa_coefficient, dx_coefficient = minima_pair_results
         alpha, epsilon = self._construct_kinetic_alpha_epsilon_squeezing(Xi_inv, delta_phi, rho_prime, delta_rho)
         e_xa_coefficient = epsilon @ xa_coefficient
@@ -480,22 +486,20 @@ class VCHOSSqueezing(VCHOS):
         Xi = self.Xi_matrix()
         Xi_inv = inv(Xi)
         a_operator_list = self._a_operator_list()
-        exp_product_boundary_coefficient = self._BCH_factor_for_potential_boundary(Xi)
         minima_pair_potential_function = partial(self._minima_pair_potential_squeezing_function, a_operator_list, Xi)
-        local_potential_function = partial(self._local_potential_squeezing_function, Xi, Xi_inv,
-                                           exp_product_boundary_coefficient)
+        local_potential_function = partial(self._local_potential_squeezing_function, Xi, Xi_inv)
         return self._periodic_continuation_squeezing(minima_pair_potential_function, local_potential_function)
 
-    def _build_potential_exp_prefactors(self, disentangled_squeezing_matrices, helper_squeezing_matrices):
+    def _build_potential_exp_prefactors(self, disentangled_squeezing_matrices, delta_rho_matrices):
         dim = self.number_degrees_freedom
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = helper_squeezing_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         prefactor_a_dagger = (np.eye(dim) - rho_prime) @ expm(delta_rho_bar).T @ expm(-sigma)
         prefactor_a = (np.eye(dim) - 0.5 * (np.eye(dim) - rho_prime) @ (delta_rho + delta_rho.T)) @ expm(-sigma_prime)
         return prefactor_a, prefactor_a_dagger
 
     def _local_potential_squeezing_function(self, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                            disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                            disentangled_squeezing_matrices, delta_rho_matrices,
                                             exp_a_dagger_a, minima_pair_results):
         """Local contribution to the potential matrix in the presence of squeezing."""
         dim = self.number_degrees_freedom
@@ -507,67 +511,62 @@ class VCHOSSqueezing(VCHOS):
                             * np.prod([np.exp(1j * self.boundary_coefficients[i] * phi_bar[i]) for i in range(dim)]))
         potential_matrix = np.sum([self._local_contribution_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
                                                                                       disentangled_squeezing_matrices,
-                                                                                      helper_squeezing_matrices,
+                                                                                      delta_rho_matrices,
                                                                                       exp_i_phi_list)
                                    for j in range(dim)], axis=0)
         potential_matrix += self._local_contribution_boundary_squeezing(delta_phi, Xi, Xi_inv,
                                                                         disentangled_squeezing_matrices,
-                                                                        helper_squeezing_matrices,
+                                                                        delta_rho_matrices,
                                                                         exp_i_phi_sum_op)
         potential_matrix += (self._local_contribution_identity_squeezing(Xi_inv, phi_neighbor, minima_m, minima_p,
                                                                          disentangled_squeezing_matrices,
-                                                                         helper_squeezing_matrices, exp_a_dagger_a,
+                                                                         delta_rho_matrices, exp_a_dagger_a,
                                                                          minima_pair_results)
                              * np.sum(self.EJlist))
         return potential_matrix
 
     def _local_contribution_boundary_squeezing(self, delta_phi, Xi, Xi_inv,
                                                disentangled_squeezing_matrices,
-                                               helper_squeezing_matrices, exp_i_sum):
+                                               delta_rho_matrices, exp_i_sum):
         """Local contribution to the potential due to the boundary term"""
         dim = self.number_degrees_freedom
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = helper_squeezing_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         delta_phi_rotated = delta_phi @ Xi_inv.T
         arg_exp_a_dag = (delta_phi_rotated + np.sum([1j * Xi[i, :] * self.boundary_coefficients[i]
                                                      for i in range(dim)], axis=0)) / np.sqrt(2.)
         alpha = self._alpha_helper(arg_exp_a_dag, -arg_exp_a_dag.conjugate(), rho_prime, delta_rho)
-        alpha_conjugate = self._alpha_helper(arg_exp_a_dag.conjugate(), -arg_exp_a_dag, rho_prime, delta_rho)
-        potential_matrix = -0.5 * self.EJlist[-1] * alpha * exp_i_sum
-        potential_matrix += -0.5 * self.EJlist[-1] * alpha_conjugate * exp_i_sum.conjugate()
+        potential_matrix = -0.5 * self.EJlist[-1] * (alpha * exp_i_sum + (alpha * exp_i_sum).conj())
         potential_matrix *= self._BCH_factor_for_potential_boundary(Xi)
         return potential_matrix
 
     def _local_contribution_single_junction_squeezing(self, j, delta_phi, Xi, Xi_inv, disentangled_squeezing_matrices,
-                                                      helper_squeezing_matrices, exp_i_phi_list):
+                                                      delta_rho_matrices, exp_i_phi_list):
         """Local contribution to the potential due to `\cos(\phi_j)`"""
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = helper_squeezing_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         delta_phi_rotated = delta_phi @ Xi_inv.T
         arg_exp_a_dag = (delta_phi_rotated + 1j * Xi[j, :]) / np.sqrt(2.)
         alpha = self._alpha_helper(arg_exp_a_dag, -arg_exp_a_dag.conjugate(), rho_prime, delta_rho)
-        alpha_conjugate = self._alpha_helper(arg_exp_a_dag.conjugate(), -arg_exp_a_dag, rho_prime, delta_rho)
-        potential_matrix = -0.5 * self.EJlist[j] * alpha * exp_i_phi_list[j]
-        # No need to .T the h.c. term, all that is necessary is conjugation
-        potential_matrix += -0.5 * self.EJlist[j] * alpha_conjugate * exp_i_phi_list[j].conjugate()
+        potential_matrix = -0.5 * self.EJlist[j] * (alpha * exp_i_phi_list[j] + (alpha * exp_i_phi_list[j]).conj())
         potential_matrix *= np.exp(-.25 * np.dot(Xi[j, :], Xi.T[:, j]))
         return potential_matrix
 
     def _minima_pair_potential_squeezing_function(self, a_operator_list, Xi, exp_a_dagger_a,
-                                                  disentangled_squeezing_matrices, helper_squeezing_matrices):
+                                                  disentangled_squeezing_matrices, delta_rho_matrices):
         """Return data necessary for constructing the potential matrix that only depends on the minima
         pair, and not on the specific periodic continuation operator."""
         return self._build_potential_operators_squeezing(a_operator_list, Xi, exp_a_dagger_a,
-                                                         disentangled_squeezing_matrices, helper_squeezing_matrices)
+                                                         disentangled_squeezing_matrices, delta_rho_matrices)
 
     def _local_contribution_identity_squeezing(self, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                               disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                               disentangled_squeezing_matrices, delta_rho_matrices,
                                                exp_a_dagger_a, minima_pair_results):
         """Local contribution to the identity matrix in the presence of squeezing."""
         _ = minima_pair_results
         delta_phi = phi_neighbor + minima_p - minima_m
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = helper_squeezing_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         arg_exp_a_dag = np.matmul(delta_phi, Xi_inv.T) / np.sqrt(2.)
         arg_exp_a = -arg_exp_a_dag
         alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rho_prime, delta_rho)
@@ -623,7 +622,7 @@ class VCHOSSqueezing(VCHOS):
         """Periodic continuation when considering only the ground state."""
         disentangled_squeezing_matrices = self._build_rho_sigma_tau_matrices(minimum, minimum, Xi)
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        helper_squeezing_matrices = self._helper_squeezing_matrices(rho, rho_prime, Xi)
+        delta_rho_matrices = self._delta_rho_matrices(rho, rho_prime)
         scale = 1. / np.sqrt(det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rho_prime)))
         ground_state_value = 0.0 + 0.0j
         for neighbor in nearest_neighbors:
@@ -632,31 +631,35 @@ class VCHOSSqueezing(VCHOS):
             ground_state_value += (scale * exp_prod_coefficient * local_func(phi_neighbor, minimum_location,
                                                                              minimum_location,
                                                                              disentangled_squeezing_matrices,
-                                                                             helper_squeezing_matrices))
+                                                                             delta_rho_matrices))
         return ground_state_value
 
     def _one_state_local_identity_squeezing(self, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                            disentangled_squeezing_matrices, helper_squeezing_matrices):
+                                            disentangled_squeezing_matrices, delta_rho_matrices):
         """Local identity contribution when considering only the ground state."""
         return self._local_contribution_identity_squeezing(Xi_inv, phi_neighbor, minima_m, minima_p,
-                                                           disentangled_squeezing_matrices, helper_squeezing_matrices,
+                                                           disentangled_squeezing_matrices, delta_rho_matrices,
                                                            1.0, None)
 
-    def _one_state_local_transfer_squeezing(self, EC_mat, Xi, Xi_inv, exp_product_boundary_coefficient,
-                                            phi_neighbor, minima_m, minima_p,
-                                            disentangled_squeezing_matrices, helper_squeezing_matrices):
+    def _one_state_local_transfer_squeezing(self, EC_mat, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
+                                            disentangled_squeezing_matrices, delta_rho_matrices):
         """Local transfer contribution when considering only the ground state."""
+        rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
+        linear_coefficients_potential = self._linear_coefficient_matrices(rho_prime, delta_rho,
+                                                                          Xi / np.sqrt(2.0), Xi / np.sqrt(2.0))
+        linear_coefficients_kinetic = self._linear_coefficient_matrices(rho_prime, delta_rho,
+                                                                        -1j * inv(Xi) / np.sqrt(2.0),
+                                                                        1j * inv(Xi) / np.sqrt(2.0))
         return (self._one_state_local_kinetic_squeezing_function(EC_mat, Xi_inv, phi_neighbor, minima_m, minima_p,
                                                                  disentangled_squeezing_matrices,
-                                                                 helper_squeezing_matrices)
-                + self._one_state_local_potential_squeezing_function(Xi, Xi_inv, exp_product_boundary_coefficient,
-                                                                     phi_neighbor, minima_m, minima_p,
+                                                                 delta_rho_matrices, linear_coefficients_kinetic)
+                + self._one_state_local_potential_squeezing_function(Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
                                                                      disentangled_squeezing_matrices,
-                                                                     helper_squeezing_matrices))
+                                                                     delta_rho_matrices))
 
-    def _one_state_local_potential_squeezing_function(self, Xi, Xi_inv, exp_product_boundary_coefficient,
-                                                      phi_neighbor, minima_m, minima_p,
-                                                      disentangled_squeezing_matrices, helper_squeezing_matrices):
+    def _one_state_local_potential_squeezing_function(self, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
+                                                      disentangled_squeezing_matrices, delta_rho_matrices):
         """Local potential contribution when considering only the ground state."""
         dim = self.number_degrees_freedom
         delta_phi = phi_neighbor + minima_p - minima_m
@@ -666,27 +669,29 @@ class VCHOSSqueezing(VCHOS):
                             * np.prod([np.exp(1j * self.boundary_coefficients[i] * phi_bar[i]) for i in range(dim)]))
         potential_matrix = np.sum([self._local_contribution_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
                                                                                       disentangled_squeezing_matrices,
-                                                                                      helper_squeezing_matrices,
+                                                                                      delta_rho_matrices,
                                                                                       exp_i_phi_list)
                                    for j in range(dim)], axis=0)
         potential_matrix += self._local_contribution_boundary_squeezing(delta_phi, Xi, Xi_inv,
                                                                         disentangled_squeezing_matrices,
-                                                                        helper_squeezing_matrices,
+                                                                        delta_rho_matrices,
                                                                         exp_i_phi_sum_op)
         potential_matrix += (self._local_contribution_identity_squeezing(Xi_inv, phi_neighbor, minima_m, minima_p,
                                                                          disentangled_squeezing_matrices,
-                                                                         helper_squeezing_matrices, 1.0, None)
+                                                                         delta_rho_matrices, 1.0, None)
                              * np.sum(self.EJlist))
         return potential_matrix
 
     def _one_state_local_kinetic_squeezing_function(self, EC_mat, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                                    disentangled_squeezing_matrices, helper_squeezing_matrices):
+                                                    disentangled_squeezing_matrices, delta_rho_matrices,
+                                                    linear_coefficient_matrices):
         """Local kinetic contribution when considering only the ground state."""
         delta_phi = phi_neighbor + minima_p - minima_m
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = helper_squeezing_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
+        a_coefficient, a_dagger_coefficient = linear_coefficient_matrices
         alpha, epsilon = self._construct_kinetic_alpha_epsilon_squeezing(Xi_inv, delta_phi, rho_prime, delta_rho)
-        result = 4 * alpha * (epsilon @ EC_mat @ epsilon - np.trace(zpp.T @ EC_mat @ zp))
+        result = 4 * alpha * (epsilon @ EC_mat @ epsilon - np.trace(a_dagger_coefficient.T @ EC_mat @ a_coefficient))
         return result
 
     def _evals_calc_variational(self, optimized_lengths, minimum_location, minimum, EC_mat, default_Xi):

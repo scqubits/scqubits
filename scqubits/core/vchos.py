@@ -622,7 +622,7 @@ class VCHOS:
 #        minima_list = self.sorted_minima()
         # Either we haven't constructed nearest_neighbors yet or the number of minima has changed
 #        if not self.nearest_neighbors or len(self.nearest_neighbors) != (len(minima_list)*(len(minima_list)+1))//2:
-        self.find_relevant_periodic_continuation_vectors(num_cpus=4)
+        self.find_relevant_periodic_continuation_vectors()
         if self.harmonic_length_optimization:
             self.optimize_Xi_variational_wrapper()
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
