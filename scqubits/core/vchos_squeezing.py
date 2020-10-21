@@ -419,7 +419,7 @@ class VCHOSSqueezing(VCHOS):
         alpha, epsilon = self._construct_kinetic_alpha_epsilon_squeezing(Xi_inv, delta_phi, rho_prime, delta_rho)
         e_xa_coefficient = epsilon @ xa_coefficient
         e_dx_coefficient = epsilon @ dx_coefficient
-        return alpha * (np.sum([-8 * xa[mu] * e_xa_coefficient[mu] + 8 * dx[mu] * e_dx_coefficient[mu]
+        return alpha * (np.sum([8 * xa[mu] * e_xa_coefficient[mu] + 8 * dx[mu] * e_dx_coefficient[mu]
                                 for mu in range(dim)], axis=0)
                         + kinetic_matrix_minima_pair + 4 * exp_a_dagger_a * (epsilon @ EC_mat @ epsilon))
 

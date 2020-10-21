@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
-from scipy.linalg import expm, inv, logm
+from scipy.linalg import expm, inv
 import scipy.constants as const
 
 from scqubits import VCHOSSqueezing
@@ -222,11 +222,11 @@ class ZeroPiVCHOSSqueezing(VCHOSSqueezing, ZeroPiVCHOS):
                                                                           Xi / np.sqrt(2.0), Xi / np.sqrt(2.0))
         return (self._build_potential_operators_squeezing(a_operator_list, Xi, exp_a_dagger_a,
                                                           disentangled_squeezing_matrices, delta_rho_matrices),
-                self._minima_pair_potential_harmonic_squeezing(a_operator_list, exp_a_dagger_a, Xi,
+                self._minima_pair_potential_harmonic_squeezing(a_operator_list, exp_a_dagger_a,
                                                                disentangled_squeezing_matrices,
                                                                delta_rho_matrices, linear_coefficients_potential))
 
-    def _minima_pair_potential_harmonic_squeezing(self, a_operator_list, exp_a_dagger_a, Xi,
+    def _minima_pair_potential_harmonic_squeezing(self, a_operator_list, exp_a_dagger_a,
                                                   disentangled_squeezing_matrices, delta_rho_matrices,
                                                   linear_coefficient_matrices):
         dim = self.number_degrees_freedom
