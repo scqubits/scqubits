@@ -85,3 +85,6 @@ mpl.rcParams['ytick.labelsize'] = 10
 
 # toggle top and right axes on and off
 DESPINE = True
+
+# This is a setting for number of points in stencil to approximate derivatives
+STENCIL = 7
