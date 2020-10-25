@@ -1,4 +1,4 @@
-#processed sweep_plotting.py
+# sweep_plotting.py
 #
 # This file is part of scqubits.
 #

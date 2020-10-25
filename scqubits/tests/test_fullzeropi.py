@@ -11,8 +11,8 @@
 ############################################################################
 
 
-import pytest
 import numpy as np
+import pytest
 
 import scqubits as qubit
 from scqubits.core.storage import SpectrumData

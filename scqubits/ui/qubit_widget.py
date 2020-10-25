@@ -24,9 +24,8 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
-import scqubits.utils.misc as utils
 import scqubits.core.units as units
-import scqubits.settings as settings
+import scqubits.utils.misc as utils
 
 
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
@@ -43,6 +42,7 @@ def create_widget(callback_func, init_params, image_filename=None):
         names and values of initialization parameters
     image_filename: str, optional
         file name for circuit image to be displayed alongside the qubit
+
     Returns
     -------
 
@@ -62,7 +62,8 @@ def create_widget(callback_func, init_params, image_filename=None):
         else:
             enter_widget = ipywidgets.IntText
 
-        widgets[name] = enter_widget(value=value, description='', disabled=False, layout=ipywidgets.Layout(width='150px'))
+        widgets[name] = enter_widget(value=value, description='', disabled=False,
+                                     layout=ipywidgets.Layout(width='150px'))
         box_list.append(ipywidgets.HBox([label, widgets[name]], layout=ipywidgets.Layout(justify_content='flex-end')))
 
     if image_filename:

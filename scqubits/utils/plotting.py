@@ -9,21 +9,20 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import functools
+import operator
 import os
 import warnings
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import functools
-import operator
-
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import scqubits.core.constants as constants
+import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
-import scqubits.settings as settings
 
 try:
     from labellines import labelLines

@@ -10,7 +10,6 @@
 ############################################################################
 
 import scqubits.core.units as units
-import scqubits.settings as settings
 import scqubits.utils.sweep_plotting as splot
 
 
