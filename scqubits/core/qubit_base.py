@@ -40,30 +40,26 @@ else:
     from tqdm import tqdm
 
 
-# To facilitate warnings in set_units, introduce a counter keeping track of the number of QuantumSystem instances
-_QUANTUMSYSTEM_COUNTER = 0
-
-
 # —Generic quantum system container and Qubit base class—————————————————————————————————
 
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
-    # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     truncated_dim: int
     _image_filename: str
     _evec_dtype: type
     _sys_type: str
 
+    # To facilitate warnings in set_units, introduce a counter keeping track of the number of QuantumSystem instances
+    _quantumsystem_counter: int = 0
+
     subclasses = []
 
     def __new__(cls, *args, **kwargs):
-        global _QUANTUMSYSTEM_COUNTER
-        _QUANTUMSYSTEM_COUNTER += 1
+        QuantumSystem._quantumsystem_counter += 1
         return super().__new__(cls, *args, **kwargs)
 
     def __del__(self):
-        global _QUANTUMSYSTEM_COUNTER
-        _QUANTUMSYSTEM_COUNTER -= 1
+        QuantumSystem._quantumsystem_counter -= 1
 
     def __init_subclass__(cls, **kwargs):
         """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
