@@ -9,14 +9,17 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import matplotlib.pyplot as plt
 import math
+
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 import scipy.constants
-import scqubits.utils.plotting as plotting
+
 import scqubits.core.units as units
 import scqubits.settings as settings
+import scqubits.utils.plotting as plotting
+
 
 # Helpers for units conversion
 
@@ -592,8 +595,8 @@ class NoisySystem:
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
 
         if esys is None:
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we need
-            # from the diagonalization.
+            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
+            # need from the diagonalization.
             # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
             max_level = max(common_noise_options.get('i', 1), common_noise_options.get('j', 1))
             for noise_channel in noise_channels:
@@ -1043,8 +1046,8 @@ class NoisySystem:
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
 
-    def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, x_qp=NOISE_PARAMS['x_qp'], T=NOISE_PARAMS['T'], Delta=NOISE_PARAMS['Delta'],
-                                   total=True,  esys=None, get_rate=False, **kwargs):
+    def t1_quasiparticle_tunneling(self, i=1, j=0, Y_qp=None, x_qp=NOISE_PARAMS['x_qp'], T=NOISE_PARAMS['T'],
+                                   Delta=NOISE_PARAMS['Delta'], total=True,  esys=None, get_rate=False, **kwargs):
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
         References: Smith et al (2020), Catelani et al (2011), Pop et al (2014). 
@@ -1056,7 +1059,7 @@ class NoisySystem:
             state index that along with j defines a transition (i->j)
         j: int >=0
             state index that along with i defines a transition (i->j)
-        Y_qp float or callable
+        Y_qp: float or callable
             complex admittance; a fixed value or function of `omega`
         x_qp: float
             quasiparticle density (in units of eV)

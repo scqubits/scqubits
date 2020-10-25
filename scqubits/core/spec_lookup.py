@@ -26,9 +26,9 @@ def check_sync_status(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self._out_of_sync:
-            warnings.warn("SCQUBITS\nSpectrum lookup data is out of sync with systems originally involved in generating it. This "
-                          "will generally lead to incorrect results. Consider regenerating the lookup data using "
-                          "<HilbertSpace>.generate_lookup() or <ParameterSweep>.run()", Warning)
+            warnings.warn("SCQUBITS\nSpectrum lookup data is out of sync with systems originally involved in generating"
+                          " it. This will generally lead to incorrect results. Consider regenerating the lookup data "
+                          "using <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()", Warning)
         return func(self, *args, **kwargs)
     return wrapper
 

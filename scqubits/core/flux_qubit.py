@@ -17,12 +17,12 @@ import scipy as sp
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
-from scqubits.core.noise import NoisySystem, NOISE_PARAMS
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
+from scqubits.core.noise import NoisySystem, NOISE_PARAMS
 
 
 # -Flux qubit noise class
