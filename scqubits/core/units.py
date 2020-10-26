@@ -12,6 +12,7 @@
 
 import warnings
 
+
 # Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)
 # Often, system units need to be converted to "standard units", which are considered to be `[Hz]` or `2pi/[s]`
 _current_units = 'GHz'
@@ -42,11 +43,11 @@ def set_units(units):
     """Set system units.
     """
     # Importing here avoids a cyclic import problem.
-    import scqubits.core.qubit_base as quantum_base
+    from scqubits.core.qubit_base import QuantumSystem
 
     # Show a warning if we are changing units after some `QuantumSystems`
     # may have been instantiated.
-    if quantum_base._QUANTUMSYSTEM_COUNTER > 0:
+    if QuantumSystem._quantumsystem_counter > 0:
         with warnings.catch_warnings():
             warnings.simplefilter("always")
             warnings.warn("WARNING: Changing units (by calling set_units()) after initializing qubit instances "
