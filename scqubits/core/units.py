@@ -52,13 +52,11 @@ def set_units(units):
             warnings.warn("WARNING: Changing units (by calling set_units()) after initializing qubit instances "
                           "is likely to cause unintended inconsistencies.")
 
-    global _current_units
-
     if units not in _supported_units:
         raise ValueError("Unsupported system units given. Must be one of: {}".format(str(_supported_units)))
-    else:
-        _current_units = units
 
+    global _current_units
+    _current_units = units
     return units
 
 

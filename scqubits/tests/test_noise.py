@@ -1,4 +1,4 @@
-# test_transmon.py
+# test_noise.py
 # meant to be run with 'pytest'
 #
 # This file is part of scqubits.
@@ -30,7 +30,7 @@ data = {
 
 def calc_coherence(qubit, noise_methods=None):
     if noise_methods is None:
-        noise_methods = qubit.supported_noise_channels()+['t1_effective', 't2_effective']
+        noise_methods = qubit.supported_noise_channels() + ['t1_effective', 't2_effective']
 
     def cap_coherence(time): 
         return np.inf if time>1e14 else time

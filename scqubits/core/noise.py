@@ -864,11 +864,13 @@ class NoisySystem:
 
         if Q_cap is None:
             # See Smith et al (2020)
-            def q_cap_fun(omega): return 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7
+            def q_cap_fun(omega):
+                return 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega)))**0.7
         elif callable(Q_cap):  # Q_cap is a function of omega
             q_cap_fun = Q_cap
         else:  # Q_cap is given as a number
-            def q_cap_fun(omega): return Q_cap
+            def q_cap_fun(omega):
+                return Q_cap
 
         def spectral_density(omega):
             therm_ratio = calc_therm_ratio(omega, T)
@@ -1033,7 +1035,8 @@ class NoisySystem:
             q_ind_fun = Q_ind
 
         else:  # Q_ind is given as a number
-            def q_ind_fun(omega): return Q_ind
+            def q_ind_fun(omega):
+                return Q_ind
 
         def spectral_density(omega):
             therm_ratio = calc_therm_ratio(omega, T)
@@ -1108,7 +1111,8 @@ class NoisySystem:
             y_qp_fun = Y_qp
 
         else:  # Y_qp is given as a number
-            def y_qp_fun(omega): return Y_qp
+            def y_qp_fun(omega):
+                return Y_qp
 
         def spectral_density(omega):
             """Eq. 38 in Catalani et al (2011). """
@@ -1124,6 +1128,3 @@ class NoisySystem:
 
         return self.t1(i=i, j=j, noise_op=noise_op, spectral_density=spectral_density, total=total,
                        esys=esys, get_rate=get_rate, **kwargs)
-
-
-
