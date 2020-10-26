@@ -50,8 +50,8 @@ def set_units(units):
     if QuantumSystem._quantumsystem_counter > 0:
         with warnings.catch_warnings():
             warnings.simplefilter("always")
-            warnings.warn("WARNING: Changing units (by calling set_units()) after initializing qubit instances "
-                          "is likely to cause unintended inconsistencies.")
+            warnings.warn("Changing units (by calling set_units()) after initializing qubit instances "
+                          "is likely to cause unintended inconsistencies.", UserWarning)
 
     if units not in _supported_units:
         raise ValueError("Unsupported system units given. Must be one of: {}".format(str(_supported_units)))
@@ -62,10 +62,8 @@ def set_units(units):
 
 
 def get_units_time_label(units=None):
-    """Get a latex representation of of 1/units 
+    """Get a latex representation of 1/units
     """
-    global _current_units
-
     units = _current_units if units is None else units
 
     if units not in _supported_units:
@@ -121,7 +119,6 @@ def units_scale_factor(units=None):
     Return a numerical scaling factor that converts form Hz to `units`.
     (given as argument or, by default, stored in  `_current_units`) .
     """
-    global _current_units
     units = _current_units if units is None else units
 
     if units not in _supported_units:
