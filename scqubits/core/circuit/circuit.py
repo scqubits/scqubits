@@ -577,6 +577,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                             variable.variable_type == 'variable']
         noninverted_indices = [variable_id for variable_id, variable in enumerate(self.variables) if
                                variable.variable_type == 'parameter']
+		inverted_indeces = np.asarray(inverted_indeces, dtype=np.int32)
+		noninverted_indeces = np.asarray(noninverted_indeces, dtype=np.int32)
         if symbolic:
             aii = self.capacitance_matrix_variables(symbolic)[inverted_indices, inverted_indices]
             ain = self.capacitance_matrix_variables(symbolic)[inverted_indices, noninverted_indices]
