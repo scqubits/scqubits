@@ -38,7 +38,7 @@ def process_which(which: Union[int, Iterable[int]], max_index: int) -> Iterable[
 
     Returns
     -------
-    list or iterable of indices
+        indices
     """
     if isinstance(which, int):
         if which == -1:

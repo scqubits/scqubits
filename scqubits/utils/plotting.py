@@ -148,7 +148,7 @@ def _process_special_option(figure: Figure,
         axes.grid(**value) if isinstance(value, dict) else axes.grid(value)
 
 
-def wavefunction1d(wavefuncs: Union['WaveFunction', List['WaveFunction']],
+def wavefunction1d(wavefuncs: Union['WaveFunction', 'List[WaveFunction]'],
                    potential_vals: np.ndarray = None,
                    offset: Union[float, Iterable[float]] = 0,
                    scaling: float = 1.0,

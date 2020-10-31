@@ -157,7 +157,7 @@ class SpectrumData(DataStore):
                  system_params: Dict[str, Any],
                  param_name: str = None,
                  param_vals: ndarray = None,
-                 state_table: Union[List['QutipEigenstates'], ndarray, List[ndarray]] = None,
+                 state_table: Union['List[QutipEigenstates]', ndarray, List[ndarray]] = None,
                  matrixelem_table: ndarray = None,
                  **kwargs
                  ) -> None:
@@ -166,7 +166,7 @@ class SpectrumData(DataStore):
         self.param_vals = param_vals,
         self.energy_table = energy_table
         self.state_table = state_table
-        self.matrixelem_table = matrixelem_table
+        self.matrixelem_table: ndarray = matrixelem_table
         super().__init__(system_params=system_params,
                          param_name=param_name,
                          param_vals=param_vals,

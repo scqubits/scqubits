@@ -317,7 +317,10 @@ class QubitBaseClass(QuantumSystem, ABC):
                 eigenvalue_table[param_index] -= eigenvalue_table[param_index, 0]
 
         setattr(self, param_name, previous_paramval)
-        specdata = SpectrumData(eigenvalue_table, self.get_initdata(), param_name, param_vals,
+        specdata = SpectrumData(eigenvalue_table,
+                                self.get_initdata(),
+                                param_name,
+                                param_vals,
                                 state_table=eigenstate_table)
         if filename:
             specdata.filewrite(filename)

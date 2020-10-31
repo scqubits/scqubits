@@ -16,12 +16,12 @@ import os
 from typing import Any, Callable, Dict, Union, TYPE_CHECKING
 
 from numpy import ndarray
+import h5py
 
 import scqubits.core.constants as const
 import scqubits.io_utils.fileio_serializers as io_serializers
 
 if TYPE_CHECKING:
-    from h5py import Group
     from scqubits.io_utils.fileio_backends import H5Reader, CSVReader, IOWriter
     from scqubits.io_utils.fileio_serializers import Serializable
 
@@ -80,7 +80,7 @@ def deserialize(iodata: IOData) -> Any:
     raise NotImplementedError("No implementation for converting {} data to Python object.".format(typename))
 
 
-def write(the_object: 'Serializable', filename: str, file_handle: 'Group' = None) -> None:
+def write(the_object: 'Serializable', filename: str, file_handle: h5py.Group = None) -> None:
     """
     Write `the_object` to a file with name `filename`. The optional `file_handle` parameter is used as a group name
     in case of h5 files.
@@ -99,7 +99,7 @@ def write(the_object: 'Serializable', filename: str, file_handle: 'Group' = None
     writer.to_file(iodata, file_handle=file_handle)
 
 
-def read(filename: str, file_handle: 'Group' = None) -> 'Serializable':
+def read(filename: str, file_handle: h5py.Group = None) -> 'Serializable':
     """
     Read a Serializable object from file.
 
@@ -123,7 +123,7 @@ class FileIOFactory:
     """Factory method for choosing reader/writer according to given format"""
     def get_writer(self,
                    file_name: str,
-                   file_handle: 'Group' = None
+                   file_handle: h5py.Group = None
                    ) -> 'IOWriter':
         """
         Based on the extension of the provided file name, return the appropriate writer engine.
@@ -139,7 +139,7 @@ class FileIOFactory:
 
     def get_reader(self,
                    file_name: str,
-                   file_handle: 'Group' = None,
+                   file_handle: h5py.Group = None,
                    get_external_reader: Callable = None
                    ) -> Union['CSVReader', 'H5Reader']:
         """
