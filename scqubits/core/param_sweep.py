@@ -41,7 +41,6 @@ class ParameterSweepBase(ABC):
     param_vals: np.ndarray
     param_count: int
     evals_count: int
-    lookup: spec_lookup.SpectrumLookup
     _hilbertspace: hspace.HilbertSpace
 
     @abstractmethod

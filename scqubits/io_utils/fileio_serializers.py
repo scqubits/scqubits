@@ -13,8 +13,9 @@ Helper classes for writing data to files.
 """
 
 import inspect
-from abc import ABC
+from abc import ABC, ABCMeta
 from numbers import Number
+from typing import List
 
 import numpy as np
 
@@ -25,7 +26,7 @@ SERIALIZABLE_REGISTRY = {}
 
 class Serializable(ABC):
     """Mix-in class that makes descendant classes serializable."""
-    _subclasses = []
+    _subclasses: List[ABCMeta] = []
 
     def __new__(cls, *args, **kwargs):
         """Modified `__new__` to set up `cls._init_params`. The latter is used to record which of the `__init__`
@@ -39,15 +40,6 @@ class Serializable(ABC):
         if not inspect.isabstract(cls):
             cls._subclasses.append(cls)
             SERIALIZABLE_REGISTRY[cls.__name__] = cls
-
-    def get_initdata(self):
-        """Returns dict appropriate for creating/initializing a new Serializable object.
-
-        Returns
-        -------
-        dict
-        """
-        return {name: getattr(self, name) for name in self._init_params}
 
     @classmethod
     def deserialize(cls, io_data):

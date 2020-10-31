@@ -66,10 +66,11 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         float
             spacing between neighboring grid points
         """
-        return (self.max_val - self.min_val) / self.pt_count
+        return (self.max_val - self.min_val) / (self.pt_count - 1)
 
     def make_linspace(self):
-        """Returns a numpy array of the grid points
+        """Returns a numpy array of the equally spaced grid points. The number of grid points (and thus entries in the
+        array) is `self.pt_count`. The first grid point / entry is `self.min_val`, the last one `self.max_val`.
 
         Returns
         -------
@@ -97,7 +98,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         else:
             dtp = np.float_
 
-        delta_x = (self.max_val - self.min_val) / self.pt_count
+        delta_x = self.grid_spacing()
         offdiag_element = prefactor / (2 * delta_x)
 
         derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=dtp)
@@ -125,7 +126,7 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         -------
         sparse matrix in `dia` format
         """
-        delta_x = (self.max_val - self.min_val) / self.pt_count
+        delta_x = self.grid_spacing()
         offdiag_element = prefactor / delta_x**2
 
         derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=np.float_)

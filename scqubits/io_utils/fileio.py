@@ -13,22 +13,42 @@ Helper routines for writing data to files.
 """
 
 import os
+from typing import Any, Callable, Dict, Union, TYPE_CHECKING
+
+from numpy import ndarray
 
 import scqubits.core.constants as const
 import scqubits.io_utils.fileio_serializers as io_serializers
 
+if TYPE_CHECKING:
+    from h5py import Group
+    from scqubits.io_utils.fileio_backends import H5Reader, CSVReader, IOWriter
+    from scqubits.io_utils.fileio_serializers import Serializable
 
-def serialize(the_object):
+
+class IOData:
+    """
+    Class for processing input/output data
+    """
+    def __init__(self,
+                 typename: str,
+                 attributes: Dict[str, Any],
+                 ndarrays: Dict[str, ndarray],
+                 objects: Any = None
+                 ) -> None:
+        self.typename = typename
+        self.attributes = attributes or {}
+        self.ndarrays = ndarrays or {}
+        self.objects = objects or {}
+
+    def as_kwargs(self) -> Dict[str, Any]:
+        """Return a joint dictionary of attributes, ndarrays, and objects, as used in __init__ calls"""
+        return {**self.attributes, **self.ndarrays, **self.objects}
+
+
+def serialize(the_object: 'Serializable') -> IOData:
     """
     Turn the given Python object into an IOData object, needed for writing data to file.
-
-    Parameters
-    ----------
-    the_object: Serializable
-
-    Returns
-    -------
-    IOData
     """
     if hasattr(the_object, 'serialize'):
         return the_object.serialize()
@@ -41,20 +61,12 @@ def serialize(the_object):
     raise NotImplementedError("No implementation for writing {} to file".format(typename))
 
 
-def deserialize(iodata):
+def deserialize(iodata: IOData) -> Any:
     """
     Turn IOData back into a Python object of the appropriate kind.
     An object is deemed deserializable if
     1) it is recorded in SERIALIZABLE_REGISTRY and has a `.deserialize` method
     2) there exists a function `file_io_serializers.<typename>_deserialize`
-
-    Parameters
-    ----------
-    iodata: IOData
-
-    Returns
-    -------
-    class instance
     """
     typename = iodata.typename
     if typename in io_serializers.SERIALIZABLE_REGISTRY:
@@ -68,18 +80,18 @@ def deserialize(iodata):
     raise NotImplementedError("No implementation for converting {} data to Python object.".format(typename))
 
 
-def write(the_object, filename, file_handle=None):
+def write(the_object: 'Serializable', filename: str, file_handle: 'Group' = None) -> None:
     """
     Write `the_object` to a file with name `filename`. The optional `file_handle` parameter is used as a group name
     in case of h5 files.
 
     Parameters
     ----------
-    the_object: io_serializers_serializers.Serializable
+    the_object:
         object to be written
-    filename: str
+    filename:
         Name of file to be written.
-    file_handle: h5py.Group, optional
+    file_handle:
         Name of h5 group to be used for writing (only applies to h5 output format)
     """
     iodata = serialize(the_object)
@@ -87,20 +99,19 @@ def write(the_object, filename, file_handle=None):
     writer.to_file(iodata, file_handle=file_handle)
 
 
-def read(filename, file_handle=None):
+def read(filename: str, file_handle: 'Group' = None) -> 'Serializable':
     """
     Read a Serializable object from file.
 
     Parameters
     ----------
-    filename: str
+    filename:
         Name of file to be read.
-    file_handle: h5py.Group, optional
+    file_handle:
         Specify Group inside h5 file if only this subgroup should be read.
 
     Returns
     -------
-    Serializable
         class instance initialized with the data from the file
     """
     reader = IO.get_reader(filename, file_handle=file_handle)
@@ -110,18 +121,12 @@ def read(filename, file_handle=None):
 
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format"""
-    def get_writer(self, file_name, file_handle=None):
+    def get_writer(self,
+                   file_name: str,
+                   file_handle: 'Group' = None
+                   ) -> 'IOWriter':
         """
         Based on the extension of the provided file name, return the appropriate writer engine.
-
-        Parameters
-        ----------
-        file_name: str
-        file_handle: h5py.Group, optional
-
-        Returns
-        -------
-        IOWriter
         """
         import scqubits.io_utils.fileio_backends as io_backends
         _, suffix = os.path.splitext(file_name)
@@ -132,19 +137,13 @@ class FileIOFactory:
         raise Exception("Extension '{}' of given file name '{}' does not match any supported "
                         "file type: {}".format(suffix, file_name, const.FILE_TYPES))
 
-    def get_reader(self, file_name, file_handle=None, get_external_reader=False):
+    def get_reader(self,
+                   file_name: str,
+                   file_handle: 'Group' = None,
+                   get_external_reader: Callable = None
+                   ) -> Union['CSVReader', 'H5Reader']:
         """
         Based on the extension of the provided file name, return the appropriate reader engine.
-
-        Parameters
-        ----------
-        file_name: str
-        file_handle: h5py.Group, optional
-        get_external_reader: book, optional
-
-        Returns
-        -------
-        H5Reader or CSVReader
         """
         if get_external_reader:
             return get_external_reader(file_name, file_handle=file_handle)
@@ -160,21 +159,3 @@ class FileIOFactory:
 
 
 IO = FileIOFactory()
-
-
-class IOData:
-    """
-    typename: str
-    attributes: dict of {str: number or str}
-    ndarrays: dict of {str: ndarray}
-    objects: dict of {str: Serializable}, optional
-    """
-    def __init__(self, typename, attributes, ndarrays, objects=None):
-        self.typename = typename
-        self.attributes = attributes or {}
-        self.ndarrays = ndarrays or {}
-        self.objects = objects or {}
-
-    def as_kwargs(self):
-        """Return a joint dictionary of attributes, ndarrays, and objects, as used in __init__ calls"""
-        return {**self.attributes, **self.ndarrays, **self.objects}

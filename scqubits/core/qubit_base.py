@@ -14,11 +14,15 @@ Provides the base classes for qubits
 
 import functools
 import inspect
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
+from typing import Tuple, Union, Any, Dict, Iterable, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from numpy import ndarray
 
 import scqubits.core.constants as constants
 import scqubits.settings as settings
@@ -44,7 +48,8 @@ else:
 
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
-    truncated_dim: int
+    truncated_dim: Optional[int]
+    _init_params: List[str]
     _image_filename: str
     _evec_dtype: type
     _sys_type: str
@@ -52,13 +57,13 @@ class QuantumSystem(DispatchClient, ABC):
     # To facilitate warnings in set_units, introduce a counter keeping track of the number of QuantumSystem instances
     _quantumsystem_counter: int = 0
 
-    subclasses = []
+    subclasses: List[ABCMeta] = []
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> 'QuantumSystem':
         QuantumSystem._quantumsystem_counter += 1
-        return super().__new__(cls, *args, **kwargs)
+        return super().__new__(cls)
 
-    def __del__(self):
+    def __del__(self) -> None:
         QuantumSystem._quantumsystem_counter -= 1
 
     def __init_subclass__(cls, **kwargs):
@@ -67,7 +72,7 @@ class QuantumSystem(DispatchClient, ABC):
         if not inspect.isabstract(cls):
             cls.subclasses.append(cls)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if hasattr(self, '_init_params'):
             init_names = self._init_params
         else:
@@ -75,26 +80,30 @@ class QuantumSystem(DispatchClient, ABC):
         init_dict = {name: getattr(self, name) for name in init_names}
         return type(self).__name__ + f'(**{init_dict!r})'
 
-    def __str__(self):
+    def __str__(self) -> str:
         output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
         for param_name, param_val in drop_private_keys(self.__dict__).items():
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())
         return output
 
+    def get_initdata(self) -> Dict[str, Any]:
+        """Returns dict appropriate for creating/initializing a new Serializable object.        """
+        return {name: getattr(self, name) for name in self._init_params}
+
     @abstractmethod
-    def hilbertdim(self):
+    def hilbertdim(self) -> int:
         """Returns dimension of Hilbert space"""
 
     @classmethod
-    def create(cls):
+    def create(cls) -> 'QuantumSystem':
         """Use ipywidgets to create a new class instance"""
         init_params = cls.default_params()
         instance = cls(**init_params)
         instance.widget()
         return instance
 
-    def widget(self, params=None):
+    def widget(self, params: Dict[str, Any] = None):
         """Use ipywidgets to modify parameters of class instance"""
         init_params = params or self.get_initdata()
         ui.create_widget(self.set_params, init_params, image_filename=self._image_filename)
@@ -107,15 +116,11 @@ class QuantumSystem(DispatchClient, ABC):
     def set_params(self, **kwargs):
         """
         Set new parameters through the provided dictionary.
-
-        Parameters
-        ----------
-        kwargs: dict (str: Number)
         """
         for param_name, param_val in kwargs.items():
             setattr(self, param_name, param_val)
 
-    def supported_noise_channels(self):
+    def supported_noise_channels(self) -> List:
         """
         Returns a list of noise channels this QuantumSystem supports. If none, return an empty list. 
         """
@@ -139,32 +144,35 @@ class QubitBaseClass(QuantumSystem, ABC):
     def hamiltonian(self):
         """Returns the Hamiltonian"""
 
-    def _evals_calc(self, evals_count):
+    def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = sp.linalg.eigh(hamiltonian_mat, eigvals_only=True, eigvals=(0, evals_count - 1))
         return np.sort(evals)
 
-    def _esys_calc(self, evals_count):
+    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals_only=False, eigvals=(0, evals_count - 1))
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def eigenvals(self, evals_count=6, filename=None, return_spectrumdata=False):
+    def eigenvals(self,
+                  evals_count: int = 6,
+                  filename: str = None,
+                  return_spectrumdata: bool = False
+                  ) -> Union[ndarray, SpectrumData]:
         """Calculates eigenvalues using `scipy.linalg.eigh`, returns numpy array of eigenvalues.
 
         Parameters
         ----------
-        evals_count: int
+        evals_count:
             number of desired eigenvalues/eigenstates (default value = 6)
-        filename: str, optional
+        filename:
             path and filename without suffix, if file output desired (default value = None)
-        return_spectrumdata: bool, optional
+        return_spectrumdata:
             if set to true, the returned data is provided as a SpectrumData object (default value = False)
 
         Returns
         -------
-        ndarray or SpectrumData
             eigenvalues as ndarray or in form of a SpectrumData object
         """
         evals = self._evals_calc(evals_count)
@@ -174,22 +182,25 @@ class QubitBaseClass(QuantumSystem, ABC):
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else evals
 
-    def eigensys(self, evals_count=6, filename=None, return_spectrumdata=False):
+    def eigensys(self,
+                 evals_count: int = 6,
+                 filename: str = None,
+                 return_spectrumdata: bool = False
+                 ) -> Union[Tuple[ndarray, ndarray], SpectrumData]:
         """Calculates eigenvalues and corresponding eigenvectors using `scipy.linalg.eigh`. Returns
         two numpy arrays containing the eigenvalues and eigenvectors, respectively.
 
         Parameters
         ----------
-        evals_count: int, optional
+        evals_count:
             number of desired eigenvalues/eigenstates (default value = 6)
-        filename: str, optional
+        filename:
             path and filename without suffix, if file output desired (default value = None)
-        return_spectrumdata: bool, optional
+        return_spectrumdata:
             if set to true, the returned data is provided as a SpectrumData object (default value = False)
 
         Returns
         -------
-        tuple(ndarray, ndarray) or SpectrumData
             eigenvalues, eigenvectors as numpy arrays or in form of a SpectrumData object
         """
         evals, evecs = self._esys_calc(evals_count)
@@ -199,7 +210,13 @@ class QubitBaseClass(QuantumSystem, ABC):
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else (evals, evecs)
 
-    def matrixelement_table(self, operator, evecs=None, evals_count=6, filename=None, return_datastore=False):
+    def matrixelement_table(self,
+                            operator: str,
+                            evecs: ndarray = None,
+                            evals_count: int = 6,
+                            filename: str = None,
+                            return_datastore: bool = False
+                            ) -> ndarray:
         """Returns table of matrix elements for `operator` with respect to the eigenstates of the qubit.
         The operator is given as a string matching a class method returning an operator matrix.
         E.g., for an instance `trm` of Transmon,  the matrix element table for the charge operator is given by
@@ -208,20 +225,16 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         Parameters
         ----------
-        operator: str
+        operator:
             name of class method in string form, returning operator matrix in qubit-internal basis.
-        evecs: ndarray, optional
+        evecs:
             if not provided, then the necessary eigenstates are calculated on the fly
-        evals_count: int, optional
+        evals_count:
             number of desired matrix elements, starting with ground state (default value = 6)
-        filename: str, optional
+        filename:
             output file name
-        return_datastore: bool, optional
+        return_datastore:
             if set to true, the returned data is provided as a DataStore object (default value = False)
-
-        Returns
-        -------
-        ndarray
         """
         if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
@@ -233,40 +246,51 @@ class QubitBaseClass(QuantumSystem, ABC):
             data_store.filewrite(filename)
         return data_store if return_datastore else table
 
-    def _esys_for_paramval(self, paramval, param_name, evals_count):
+    def _esys_for_paramval(self,
+                           paramval: float,
+                           param_name: str,
+                           evals_count: int
+                           ) -> Union[Tuple[ndarray, ndarray], SpectrumData]:
         setattr(self, param_name, paramval)
         return self.eigensys(evals_count)
 
-    def _evals_for_paramval(self, paramval, param_name, evals_count):
+    def _evals_for_paramval(self,
+                            paramval: float,
+                            param_name: str,
+                            evals_count: int
+                            ) -> ndarray:
         setattr(self, param_name, paramval)
         return self.eigenvals(evals_count)
 
-    def get_spectrum_vs_paramvals(self, param_name, param_vals, evals_count=6, subtract_ground=False,
-                                  get_eigenstates=False, filename=None, num_cpus=settings.NUM_CPUS):
+    def get_spectrum_vs_paramvals(self,
+                                  param_name: str,
+                                  param_vals: ndarray,
+                                  evals_count: int = 6,
+                                  subtract_ground: bool = False,
+                                  get_eigenstates: bool = False,
+                                  filename: str  = None,
+                                  num_cpus: int = settings.NUM_CPUS
+                                  ) -> SpectrumData:
         """Calculates eigenvalues/eigenstates for a varying system parameter, given an array of parameter values.
         Returns a `SpectrumData` object with `energy_data[n]` containing eigenvalues calculated for
         parameter value `param_vals[n]`.
 
         Parameters
         ----------
-        param_name: str
+        param_name:
             name of parameter to be varied
-        param_vals: ndarray
+        param_vals:
             parameter values to be plugged in
-        evals_count: int, optional
+        evals_count:
             number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
-        subtract_ground: bool, optional
+        subtract_ground:
             if True, eigenvalues are returned relative to the ground state eigenvalue (default value = False)
-        get_eigenstates: bool, optional
+        get_eigenstates:
             return eigenstates along with eigenvalues (default value = False)
-        filename: str, optional
+        filename:
             file name if direct output to disk is wanted
-        num_cpus: int, optional
+        num_cpus:
             number of cores to be used for computation (default value: settings.NUM_CPUS)
-
-        Returns
-        -------
-        SpectrumData object
         """
         previous_paramval = getattr(self, param_name)
         tqdm_disable = num_cpus > 1 or settings.PROGRESSBAR_DISABLED
@@ -298,28 +322,34 @@ class QubitBaseClass(QuantumSystem, ABC):
         if filename:
             specdata.filewrite(filename)
 
-        return SpectrumData(eigenvalue_table, self.get_initdata(), param_name, param_vals, state_table=eigenstate_table)
+        return SpectrumData(eigenvalue_table,
+                            self.get_initdata(),
+                            param_name,
+                            param_vals,
+                            state_table=eigenstate_table)
 
-    def get_matelements_vs_paramvals(self, operator, param_name, param_vals, evals_count=6, num_cpus=settings.NUM_CPUS):
+    def get_matelements_vs_paramvals(self,
+                                     operator: str,
+                                     param_name: str,
+                                     param_vals: ndarray,
+                                     evals_count: int = 6,
+                                     num_cpus: int = settings.NUM_CPUS
+                                     ) -> SpectrumData:
         """Calculates matrix elements for a varying system parameter, given an array of parameter values. Returns a
         `SpectrumData` object containing matrix element data, eigenvalue data, and eigenstate data..
 
         Parameters
         ----------
-        operator: str
+        operator:
             name of class method in string form, returning operator matrix
-        param_name: str
+        param_name:
             name of parameter to be varied
-        param_vals: ndarray
+        param_vals:
             parameter values to be plugged in
-        evals_count: int, optional
+        evals_count:
             number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
-        num_cpus: int, optional
+        num_cpus:
             number of cores to be used for computation (default value: settings.NUM_CPUS)
-
-        Returns
-        -------
-        SpectrumData object
         """
         spectrumdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=evals_count,
                                                       get_eigenstates=True, num_cpus=num_cpus)
@@ -334,36 +364,45 @@ class QubitBaseClass(QuantumSystem, ABC):
         spectrumdata.matrixelem_table = matelem_table
         return spectrumdata
 
-    def plot_evals_vs_paramvals(self, param_name, param_vals,
-                                evals_count=6, subtract_ground=None, num_cpus=settings.NUM_CPUS, **kwargs):
+    def plot_evals_vs_paramvals(self,
+                                param_name: str,
+                                param_vals: ndarray,
+                                evals_count: int = 6,
+                                subtract_ground: bool = False,
+                                num_cpus: int = settings.NUM_CPUS,
+                                **kwargs
+                                ) -> Tuple[Figure, Axes]:
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
         Parameters
         ----------
-        param_name: str
+        param_name:
             name of parameter to be varied
-        param_vals: ndarray
+        param_vals:
             parameter values to be plugged in
-        evals_count: int, optional
+        evals_count:
             number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
-        subtract_ground: bool, optional
+        subtract_ground:
             whether to subtract ground state energy from all eigenvalues (default value = False)
-        num_cpus: int, optional
+        num_cpus:
             number of cores to be used for computation (default value: settings.NUM_CPUS)
-        **kwargs: dict
+        **kwargs:
             standard plotting option (see separate documentation)
-
-        Returns
-        -------
-        Figure, Axes
         """
         specdata = self.get_spectrum_vs_paramvals(param_name, param_vals, evals_count=evals_count,
                                                   subtract_ground=subtract_ground, num_cpus=num_cpus)
         return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
 
-    def plot_matrixelements(self, operator, evecs=None, evals_count=6, mode='abs', show_numbers=False, show3d=True,
-                            **kwargs):
+    def plot_matrixelements(self,
+                            operator: str,
+                            evecs: ndarray = None,
+                            evals_count: int = 6,
+                            mode: str = 'abs',
+                            show_numbers: bool = False,
+                            show3d: bool = True,
+                            **kwargs
+                            ) -> Tuple[Figure, Axes]:
         """Plots matrix elements for `operator`, given as a string referring to a class method
         that returns an operator matrix. E.g., for instance `trm` of Transmon, the matrix element plot
         for the charge operator `n` is obtained by `trm.plot_matrixelements('n')`.
@@ -371,56 +410,55 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         Parameters
         ----------
-        operator: str
+        operator:
             name of class method in string form, returning operator matrix
-        evecs: ndarray, optional
+        evecs:
             eigensystem data of evals, evecs; eigensystem will be calculated if set to None (default value = None)
-        evals_count: int, optional
+        evals_count:
             number of desired matrix elements, starting with ground state (default value = 6)
-        mode: str, optional
+        mode:
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
-        show_numbers: bool, optional
+        show_numbers:
             determines whether matrix element values are printed on top of the plot (default: False)
-        show3d: bool, optional
+        show3d:
             whether to show a 3d skyscraper plot of the matrix alongside the 2d plot (default: True)
-        **kwargs: dict
+        **kwargs:
             standard plotting option (see separate documentation)
-
-        Returns
-        -------
-        Figure, Axes
         """
         matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
         if not show3d:
             return plot.matrix2d(matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs)
         return plot.matrix(matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs)
 
-    def plot_matelem_vs_paramvals(self, operator, param_name, param_vals,
-                                  select_elems=4, mode='abs', num_cpus=settings.NUM_CPUS, **kwargs):
+    def plot_matelem_vs_paramvals(self,
+                                  operator: str,
+                                  param_name: str,
+                                  param_vals: ndarray,
+                                  select_elems: Union[int, List[Tuple[int, int]]] = 4,
+                                  mode: str = 'abs',
+                                  num_cpus: int = settings.NUM_CPUS,
+                                  **kwargs
+                                  ) -> Tuple[Figure, Axes]:
         """Generates a simple plot of a set of eigenvalues as a function of one parameter.
         The individual points correspond to the a provided array of parameter values.
 
         Parameters
         ----------
-        operator: str
+        operator:
             name of class method in string form, returning operator matrix
-        param_name: str
+        param_name:
             name of parameter to be varied
-        param_vals: ndarray
+        param_vals:
             parameter values to be plugged in
-        select_elems: int or list, optional
+        select_elems:
             either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples
             for specific desired matrix elements (default value = 4)
-        mode: str, optional
+        mode:
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default value = 'abs')
-        num_cpus: int, optional
+        num_cpus:
             number of cores to be used for computation (default value = 1)
-        **kwargs: dict
+        **kwargs:
             standard plotting option (see separate documentation)
-
-        Returns
-        -------
-        Figure, Axes
         """
         if isinstance(select_elems, int):
             evals_count = select_elems
@@ -432,7 +470,10 @@ class QubitBaseClass(QuantumSystem, ABC):
                                                      evals_count=evals_count, num_cpus=num_cpus)
         return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, **kwargs)
 
-    def set_and_return(self, attr_name, value):
+    def set_and_return(self,
+                       attr_name: str,
+                       value: Any
+                       ) -> 'QubitBaseClass':
         """
         Allows to set an attribute after which self is returned. This is useful for doing 
         something like example::
@@ -446,15 +487,14 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         Parameters
         ----------
-        attr_name: str
+        attr_name:
             name of class attribute in string form
-        value: any
+        value:
             value that the attribute is to be set to
 
         Returns
         -------
-        self
-
+            self
         """
         setattr(self, attr_name, value)
         return self
@@ -471,40 +511,46 @@ class QubitBaseClass1d(QubitBaseClass):
     _evec_dtype = np.float_
 
     @abstractmethod
-    def potential(self, phi):
+    def potential(self, phi: Union[float, ndarray]) -> Union[float, ndarray]:
         pass
 
     @abstractmethod
-    def wavefunction(self, esys, which=0, phi_grid=None):
+    def wavefunction(self,
+                     esys: ndarray,
+                     which: Union[int, Iterable[int]] = 0,
+                     phi_grid: Grid1d = None):
         pass
 
     @abstractmethod
-    def wavefunction1d_defaults(self, mode, evals, wavefunc_count):
+    def wavefunction1d_defaults(self, mode: str, evals: ndarray, wavefunc_count: int) -> Dict[str, Any]:
         pass
 
-    def plot_wavefunction(self, which=0,  mode='real', esys=None, phi_grid=None, scaling=None, **kwargs):
+    def plot_wavefunction(self,
+                          which: Union[int, Iterable[int]] = 0,
+                          mode: str = 'real',
+                          esys: Tuple[ndarray, ndarray] = None,
+                          phi_grid: Grid1d = None,
+                          scaling: float = None,
+                          **kwargs
+                          ) -> Tuple[Figure, Axes]:
         """Plot 1d phase-basis wave function(s). Must be overwritten by higher-dimensional qubits like FluxQubits and
         ZeroPi.
 
         Parameters
         ----------
-        esys: (ndarray, ndarray), optional
-            eigenvalues, eigenvectors
-        which: int or tuple or list, optional
+        which:
             single index or tuple/list of integers indexing the wave function(s) to be plotted.
             If which is -1, all wavefunctions up to the truncation limit are plotted.
-        phi_grid: Grid1d, optional
-            used for setting a custom grid for phi; if None use self._default_grid
-        mode: str, optional
+        mode:
             choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
-        scaling: float or None, optional
+        esys:
+            eigenvalues, eigenvectors
+        phi_grid:
+            used for setting a custom grid for phi; if None use self._default_grid
+        scaling:
             custom scaling of wave function amplitude/modulus
-        **kwargs: dict
+        **kwargs:
             standard plotting option (see separate documentation)
-
-        Returns
-        -------
-        Figure, Axes
         """
         wavefunc_indices = process_which(which, self.truncated_dim)
 

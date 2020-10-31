@@ -10,10 +10,16 @@
 ############################################################################
 
 
+from typing import Dict, List, Optional, Union, Any, TYPE_CHECKING
+
 import numpy as np
 
 import scqubits.core.constants as constants
 import scqubits.core.units as units
+
+if TYPE_CHECKING:
+    from scqubits import ParameterSweep
+    from scqubits.core.storage import WaveFunction, DataStore, SpectrumData
 
 NAME_REPLACEMENTS = {
     'ng': r'$n_g$',
@@ -29,25 +35,18 @@ NAME_REPLACEMENTS = {
 }
 
 
-def recast_name(raw_name):
+def recast_name(raw_name: Union[str, None]) -> str:
     if raw_name in NAME_REPLACEMENTS:
         return NAME_REPLACEMENTS[raw_name]
-    return raw_name
+    return raw_name or ''
 
 
-def set_wavefunction_scaling(wavefunctions, potential_vals):
+def set_wavefunction_scaling(wavefunctions: List['WaveFunction'], potential_vals: np.ndarray) -> float:
     """
     Sets the scaling parameter for 1d wavefunctions
 
-    Parameters
-    ----------
-    wavefunctions: list of WaveFunction
-        list of all WaveFunction objects to be included in plot and scaling
-    potential_vals: ndarray
-
     Returns
     -------
-    float
       scaling factor
     """
     # Do not attempt to scale down amplitudes to very small energy spacings, i.e. if energy spacing is smaller than
@@ -73,13 +72,13 @@ def set_wavefunction_scaling(wavefunctions, potential_vals):
 
     amplitudes = np.asarray([wavefunc.amplitudes for wavefunc in wavefunctions])
 
-    def amplitude_mins():
+    def amplitude_mins() -> np.ndarray:
         return np.apply_along_axis(func1d=np.min, axis=1, arr=amplitudes)
 
-    def amplitude_maxs():
+    def amplitude_maxs() -> np.ndarray:
         return np.apply_along_axis(func1d=np.max, axis=1, arr=amplitudes)
 
-    def max_amplitude_range():
+    def max_amplitude_range() -> float:
         return np.max(amplitude_maxs() - amplitude_mins())
 
     if max_amplitude_range() < PRECISION_THRESHOLD:  # amplitude likely just zero (e.g., mode='imag'); do not scale up
@@ -106,12 +105,12 @@ def set_wavefunction_scaling(wavefunctions, potential_vals):
         return scale_factor
 
 
-def wavefunction1d_discrete(mode=None):
+def wavefunction1d_discrete(mode: Optional[str] = None) -> Dict[str, Any]:
     """Plot defaults for plotting.wavefunction1d_discrete.
 
     Parameters
     ----------
-    mode: str
+    mode:
         amplitude modifier, needed to give the correct default y label"""
     ylabel = r'$\psi_j(n)$'
     if mode:
@@ -122,14 +121,14 @@ def wavefunction1d_discrete(mode=None):
     }
 
 
-def wavefunction2d():
+def wavefunction2d() -> Dict[str, Any]:
     """Plot defaults for plotting.wavefunction2d"""
     return {
         'figsize': (8, 3)
     }
 
 
-def contours(x_vals, y_vals):
+def contours(x_vals: np.ndarray, y_vals: np.ndarray) -> Dict[str, Any]:
     """Plot defaults for plotting.contours"""
     aspect_ratio = (y_vals[-1] - y_vals[0]) / (x_vals[-1] - x_vals[0])
     figsize = (8, 8 * aspect_ratio)
@@ -138,21 +137,21 @@ def contours(x_vals, y_vals):
     }
 
 
-def matrix():
+def matrix() -> Dict[str, Any]:
     """Plot defaults for plotting.matrix"""
     return {
         'figsize': (10, 5)
     }
 
 
-def evals_vs_paramvals(specdata, **kwargs):
+def evals_vs_paramvals(specdata: 'SpectrumData', **kwargs) -> Dict[str, Any]:
     """Plot defaults for plotting.evals_vs_paramvals"""
     kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(specdata.param_name)
     kwargs['ylabel'] = kwargs.get('ylabel') or 'energy [{}]'.format(units.get_units())
     return kwargs
 
 
-def matelem_vs_paramvals(specdata):
+def matelem_vs_paramvals(specdata: Union['SpectrumData', 'DataStore']) -> Dict[str, Any]:
     """Plot defaults for plotting.matelem_vs_paramvals"""
     return {
         'xlabel': recast_name(specdata.param_name),
@@ -160,7 +159,7 @@ def matelem_vs_paramvals(specdata):
     }
 
 
-def dressed_spectrum(sweep, **kwargs):
+def dressed_spectrum(sweep: 'ParameterSweep', **kwargs) -> Dict[str, Any]:
     """Plot defaults for sweep_plotting.dressed_spectrum"""
     if 'ylim' not in kwargs:
         kwargs['ymax'] = kwargs.get('ymax') or min(15, (np.max(sweep.dressed_specdata.energy_table) -
@@ -170,14 +169,14 @@ def dressed_spectrum(sweep, **kwargs):
     return kwargs
 
 
-def chi(sweep, **kwargs):
+def chi(sweep: 'ParameterSweep', **kwargs) -> Dict[str, Any]:
     """Plot defaults for sweep_plotting.chi"""
     kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(sweep.param_name)
     kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$ [{}]'.format(units.get_units())
     return kwargs
 
 
-def chi01(param_name, yval, **kwargs):
+def chi01(param_name: str, yval: float, **kwargs) -> Dict[str, Any]:
     """Plot defaults for sweep_plotting.chi01"""
     kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(param_name)
     kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(units.get_units())
@@ -185,7 +184,7 @@ def chi01(param_name, yval, **kwargs):
     return kwargs
 
 
-def charge_matrixelem(param_name, **kwargs):
+def charge_matrixelem(param_name: str, **kwargs) -> Dict[str, Any]:
     """Plot defaults for sweep_plotting.charge_matrixelem"""
     kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(param_name)
     kwargs['ylabel'] = kwargs.get('ylabel') or r'$|\langle i |n| j \rangle|$'
