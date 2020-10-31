@@ -18,7 +18,6 @@ from numbers import Number
 from typing import List
 
 import numpy as np
-
 import scqubits.utils.misc as utils
 
 SERIALIZABLE_REGISTRY = {}

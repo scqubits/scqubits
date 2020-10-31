@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 import scipy.constants
-
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.utils.plotting as plotting

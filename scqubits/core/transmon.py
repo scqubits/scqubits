@@ -11,13 +11,9 @@
 
 import math
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
-from numpy import ndarray
-from matplotlib.figure import Figure
-from matplotlib.axes import Axes
-
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
@@ -26,7 +22,9 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
-
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from numpy import ndarray
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
@@ -262,12 +260,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            esys = self.eigensys(evals_count)
-        evals, _ = esys
+            evals, evecs = self.eigensys(evals_count)
+        else:
+            evals, evecs = esys
+
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
 
         phi_grid = phi_grid or self._default_grid
-
         phi_basis_labels = phi_grid.make_linspace()
         phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
         for k in range(phi_grid.pt_count):

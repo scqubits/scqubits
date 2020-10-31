@@ -14,7 +14,6 @@ import functools
 from abc import ABC, abstractmethod
 
 import numpy as np
-
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.hilbert_space as hspace

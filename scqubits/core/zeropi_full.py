@@ -12,8 +12,6 @@
 import os
 
 import numpy as np
-from scipy import sparse
-
 import scqubits
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -23,6 +21,7 @@ import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
+from scipy import sparse
 from scqubits.core.noise import NoisySystem
 
 

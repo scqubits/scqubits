@@ -20,14 +20,13 @@ from typing import Tuple, Union, Any, Dict, Iterable, List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from numpy import ndarray
-
 import scqubits.core.constants as constants
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from numpy import ndarray
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData, DataStore
@@ -520,7 +519,7 @@ class QubitBaseClass1d(QubitBaseClass):
     @abstractmethod
     def wavefunction(self,
                      esys: ndarray,
-                     which: Union[int, Iterable[int]] = 0,
+                     which: int = 0,
                      phi_grid: Grid1d = None):
         pass
 

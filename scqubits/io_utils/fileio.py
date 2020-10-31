@@ -15,11 +15,10 @@ Helper routines for writing data to files.
 import os
 from typing import Any, Callable, Dict, Union, TYPE_CHECKING
 
-from numpy import ndarray
 import h5py
-
 import scqubits.core.constants as const
 import scqubits.io_utils.fileio_serializers as io_serializers
+from numpy import ndarray
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio_backends import H5Reader, CSVReader, IOWriter

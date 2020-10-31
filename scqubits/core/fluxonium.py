@@ -12,10 +12,10 @@
 import cmath
 import math
 import os
+from typing import Any, Dict, List, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 import scipy as sp
-
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
@@ -24,7 +24,11 @@ import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
+from numpy import ndarray
 from scqubits.core.noise import NoisySystem
+
+if TYPE_CHECKING:
+    from scqubits.core.discretization import Grid1d
 
 
 # —Fluxonium qubit ————————————————————————
@@ -58,7 +62,14 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EC, EL, flux, cutoff, truncated_dim=None):
+    def __init__(self, 
+                 EJ: float,
+                 EC: float, 
+                 EL: float,
+                 flux: float,
+                 cutoff: int,
+                 truncated_dim: int = None
+                 ) -> None:
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
@@ -71,7 +82,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/fluxonium.jpg')
 
     @staticmethod
-    def default_params():
+    def default_params() -> Dict[str, Any]:
         return {
             'EJ': 8.9,
             'EC': 2.5,
@@ -81,7 +92,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             'truncated_dim': 10
         }
 
-    def supported_noise_channels(self):
+    def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
         return ['tphi_1_over_f_cc', 
                 'tphi_1_over_f_flux',
@@ -89,86 +100,74 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                 't1_charge_impedance', 
                 't1_flux_bias_line',
                 't1_inductive',
-                't1_quasiparticle_tunneling',
-                ]
+                't1_quasiparticle_tunneling']
 
-    def phi_osc(self):
+    def phi_osc(self) -> float:
         """
         Returns
         -------
-        float
             Returns oscillator length for the LC oscillator composed of the fluxonium inductance and capacitance.
         """
         return (8.0 * self.EC / self.EL) ** 0.25  # LC oscillator length
 
-    def E_plasma(self):
+    def E_plasma(self) -> float:
         """
         Returns
         -------
-        float
             Returns the plasma oscillation frequency.
         """
         return math.sqrt(8.0 * self.EL * self.EC)  # LC plasma oscillation energy
 
-    def phi_operator(self):
+    def phi_operator(self) -> ndarray:
         """
         Returns
         -------
-        ndarray
             Returns the phi operator in the LC harmonic oscillator basis
         """
         dimension = self.hilbertdim()
         return (op.creation(dimension) + op.annihilation(dimension)) * self.phi_osc() / math.sqrt(2)
 
-    def n_operator(self):
+    def n_operator(self) -> ndarray:
         """
         Returns
         -------
-        ndarray
             Returns the :math:`n = - i d/d\\phi` operator in the LC harmonic oscillator basis
         """
         dimension = self.hilbertdim()
         return 1j * (op.creation(dimension) - op.annihilation(dimension)) / (self.phi_osc() * math.sqrt(2))
 
-    def exp_i_phi_operator(self, alpha=1, beta=0):
+    def exp_i_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
         """
         Returns
         -------
-        ndarray
             Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the LC harmonic oscillator basis,
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
         exponent = 1j * (alpha * self.phi_operator())
         return sp.linalg.expm(exponent) * cmath.exp(1j * beta)
 
-    def cos_phi_operator(self, alpha=1, beta=0):
+    def cos_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
         """
         Returns
         -------
-        ndarray
             Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis,
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
         exp_matrix = self.exp_i_phi_operator(alpha, beta)
         return 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
-    def sin_phi_operator(self, alpha=1, beta=0):
+    def sin_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
         """
         Returns
         -------
-        ndarray
             Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
         exp_matrix = self.exp_i_phi_operator(alpha, beta)
         return -1j * 0.5 * (exp_matrix - exp_matrix.conjugate().T)
 
-    def hamiltonian(self):  # follow Zhu et al., PRB 87, 024510 (2013)
+    def hamiltonian(self) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu et al., PRB 87, 024510 (2013)
-
-        Returns
-        -------
-        ndarray
         """
         dimension = self.hilbertdim()
         diag_elements = [i * self.E_plasma() for i in range(dimension)]
@@ -181,34 +180,32 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential,
         # fluxonium Hamiltonian in harm. osc. basis is real-valued
 
-    def d_hamiltonian_d_EJ(self):
-        """Returns operator representing a derivittive of the Hamiltonian with respect to `EJ`.
+    def d_hamiltonian_d_EJ(self) -> ndarray:
+        """Returns operator representing a derivative of the Hamiltonian with respect to `EJ`.
 
         The flux is grouped as in the Hamiltonian. 
         """
         return - self.cos_phi_operator(1,  2 * np.pi * self.flux)
 
-    def d_hamiltonian_d_flux(self):
-        """Returns operator representing a derivittive of the Hamiltonian with respect to `flux`.
+    def d_hamiltonian_d_flux(self) -> ndarray:
+        """Returns operator representing a derivative of the Hamiltonian with respect to `flux`.
 
         Flux is grouped as in the Hamiltonian. 
         """
         return -2 * np.pi * self.EJ * self.sin_phi_operator(1,  2 * np.pi * self.flux)
 
-    def hilbertdim(self):
+    def hilbertdim(self) -> int:
         """
         Returns
         -------
-        int
             Returns the Hilbert space dimension."""
         return self.cutoff
 
-    def potential(self, phi):
+    def potential(self, phi: Union[float, ndarray]) -> ndarray:
         """Fluxonium potential evaluated at `phi`.
 
         Parameters
         ----------
-        phi: float or ndarray
             float value of the phase variable `phi`
 
         Returns
@@ -217,21 +214,21 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         return 0.5 * self.EL * phi * phi - self.EJ * np.cos(phi + 2.0 * np.pi * self.flux)
 
-    def wavefunction(self, esys, which=0, phi_grid=None):
+    def wavefunction(self,
+                     esys: Tuple[ndarray, ndarray],
+                     which: int = 0,
+                     phi_grid: 'Grid1d' = None
+                     ) -> storage.WaveFunction:
         """Returns a fluxonium wave function in `phi` basis
 
         Parameters
         ----------
-        esys: ndarray, ndarray
+        esys:
             eigenvalues, eigenvectors
-        which: int, optional
+        which:
              index of desired wave function (default value = 0)
-        phi_grid: Grid1d, optional
+        phi_grid:
             used for setting a custom grid for phi; if None use self._default_grid
-
-        Returns
-        -------
-        WaveFunction object
         """
         if esys is None:
             evals_count = max(which + 1, 3)
@@ -247,21 +244,22 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_wavefunc_amplitudes = np.zeros(phi_grid.pt_count, dtype=np.complex_)
         phi_osc = self.phi_osc()
         for n in range(dim):
-            phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[n] * osc.harm_osc_wavefunction(n, phi_basis_labels,
-                                                                                                    phi_osc)
-        return storage.WaveFunction(basis_labels=phi_basis_labels, amplitudes=phi_wavefunc_amplitudes,
+            phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[n] \
+                                       * osc.harm_osc_wavefunction(n, phi_basis_labels, phi_osc)
+        return storage.WaveFunction(basis_labels=phi_basis_labels,
+                                    amplitudes=phi_wavefunc_amplitudes,
                                     energy=evals[which])
 
-    def wavefunction1d_defaults(self, mode, evals, wavefunc_count):
+    def wavefunction1d_defaults(self, mode: str, evals: ndarray, wavefunc_count: int) -> Dict[str, Any]:
         """Plot defaults for plotting.wavefunction1d.
 
         Parameters
         ----------
-        mode: str
+        mode:
             amplitude modifier, needed to give the correct default y label
-        evals: ndarray
+        evals:
             eigenvalues to include in plot
-        wavefunc_count: int
+        wavefunc_count:
             number of wave functions to be plotted
         """
         ylabel = r'$\psi_j(\varphi)$'

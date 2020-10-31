@@ -14,7 +14,6 @@ import warnings
 
 import numpy as np
 import qutip as qt
-
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.harmonic_osc as osc

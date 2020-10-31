@@ -10,14 +10,12 @@
 ############################################################################
 
 import numpy as np
-from scipy import sparse
-
-import scqubits.settings as settings
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
 import scqubits.utils.misc as utils
-
+from scipy import sparse
 
 FIRST_STENCIL_COEFFS = {3: [-1/2, 0, 1/2],
                         5: [1/12, -2/3, 0, 2/3, -1/12],

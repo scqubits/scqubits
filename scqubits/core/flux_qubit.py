@@ -13,7 +13,6 @@ import os
 
 import numpy as np
 import scipy as sp
-
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization

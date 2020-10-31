@@ -15,7 +15,6 @@ from typing import Any, Callable, Dict, Iterable, Tuple, Union
 
 import numpy as np
 import qutip.qobj as qt
-
 from scqubits.settings import IN_IPYTHON
 
 if IN_IPYTHON:

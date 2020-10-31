@@ -16,7 +16,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-
 import scqubits.settings
 import scqubits.utils.plotting as plot
 from scqubits.core.storage import SpectrumData

@@ -11,10 +11,9 @@
 
 from typing import Any, Dict, List, Tuple, Union, TYPE_CHECKING
 
-from numpy import ndarray
-
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
+from numpy import ndarray
 
 if TYPE_CHECKING:
     from scqubits.core.discretization import GridSpec
