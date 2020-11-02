@@ -17,12 +17,12 @@ import numpy as np
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
-from scqubits.core.noise import NoisySystem
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+from scqubits.core.noise import NoisySystem
 
 
 # —Cooper pair box / transmon——————————————————————————————————————————————
@@ -84,10 +84,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def effective_noise_channels(self):
         """Return a default list of channels used when calculating effective t1 and t2 nosie."""
-        noise_channels=self.supported_noise_channels()
+        noise_channels = self.supported_noise_channels()
         noise_channels.remove('t1_charge_impedance')
         return noise_channels
-
 
     def n_operator(self):
         """Returns charge operator `n` in the charge basis"""
@@ -123,11 +122,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return hamiltonian_mat
 
     def d_hamiltonian_d_ng(self):
-        """Returns operator representing a derivittive of the Hamiltonian with respect to charge offset `ng`."""
+        """Returns operator representing a derivative of the Hamiltonian with respect to charge offset `ng`."""
         return -8*self.EC*self.n_operator()
 
     def d_hamiltonian_d_EJ(self):
-        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ."""
+        """Returns operator representing a derivative of the Hamiltonian with respect to EJ."""
         return -self.cos_phi_operator()
 
     def hilbertdim(self):
@@ -338,8 +337,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 ]
 
     def d_hamiltonian_d_flux(self):
-        """Returns operator representing a derivittive of the Hamiltonian with respect to `flux`."""
+        """Returns operator representing a derivative of the Hamiltonian with respect to `flux`."""
         return np.pi * self.EJmax * np.cos(np.pi * self.flux) * np.sin(np.pi * self.flux) * (self.d**2 - 1) \
                 / np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2) \
                 * self.cos_phi_operator()
-

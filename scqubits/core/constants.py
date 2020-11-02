@@ -10,8 +10,6 @@
 ############################################################################
 
 import numpy as np
-import scipy as sp
-
 
 # supported file types
 FILE_TYPES = ['.h5 | .hdf5',
@@ -33,4 +31,3 @@ MODE_STR_DICT = {'abs_sqr': (lambda x: '$|$' + x + '$|^2$'),
 PHI_INDEX = 0
 THETA_INDEX = 1
 ZETA_INDEX = 2
-

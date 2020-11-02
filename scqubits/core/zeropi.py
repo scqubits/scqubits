@@ -19,13 +19,13 @@ import scqubits.core.central_dispatch as dispatch
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
-from scqubits.core.noise import NoisySystem, NOISE_PARAMS
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
+from scqubits.core.noise import NoisySystem
 
 
 # - ZeroPi noise class
@@ -341,7 +341,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         """
         return self.sparse_d_potential_d_EJ_mat()
 
-
     def d_hamiltonian_d_ng(self):
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
@@ -352,7 +351,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             matrix representing the derivative of the Hamiltonian
         """
         return -8 * self.EC * self.n_theta_operator()
-
 
     def _identity_phi(self):
         r"""

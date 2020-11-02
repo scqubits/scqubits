@@ -20,11 +20,11 @@ import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.harmonic_osc as osc
-from scqubits.core.noise import NoisySystem
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
+from scqubits.core.noise import NoisySystem
 
 
 # —Fluxonium qubit ————————————————————————

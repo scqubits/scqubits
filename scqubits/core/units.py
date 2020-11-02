@@ -12,6 +12,7 @@
 
 import warnings
 
+
 # Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)
 # Often, system units need to be converted to "standard units", which are considered to be `[Hz]` or `2pi/[s]`
 _current_units = 'GHz'
@@ -42,31 +43,27 @@ def set_units(units):
     """Set system units.
     """
     # Importing here avoids a cyclic import problem.
-    import scqubits.core.qubit_base as quantum_base
+    from scqubits.core.qubit_base import QuantumSystem
 
     # Show a warning if we are changing units after some `QuantumSystems`
     # may have been instantiated.
-    if quantum_base._QUANTUMSYSTEM_COUNTER > 0:
+    if QuantumSystem._quantumsystem_counter > 0:
         with warnings.catch_warnings():
             warnings.simplefilter("always")
-            warnings.warn("WARNING: Changing units (by calling set_units()) after initializing qubit instances "
-                          "is likely to cause unintended inconsistencies.")
-
-    global _current_units
+            warnings.warn("Changing units (by calling set_units()) after initializing qubit instances "
+                          "is likely to cause unintended inconsistencies.", UserWarning)
 
     if units not in _supported_units:
         raise ValueError("Unsupported system units given. Must be one of: {}".format(str(_supported_units)))
-    else:
-        _current_units = units
 
+    global _current_units
+    _current_units = units
     return units
 
 
 def get_units_time_label(units=None):
-    """Get a latex representation of of 1/units 
+    """Get a latex representation of 1/units
     """
-    global _current_units
-
     units = _current_units if units is None else units
 
     if units not in _supported_units:
@@ -122,7 +119,6 @@ def units_scale_factor(units=None):
     Return a numerical scaling factor that converts form Hz to `units`.
     (given as argument or, by default, stored in  `_current_units`) .
     """
-    global _current_units
     units = _current_units if units is None else units
 
     if units not in _supported_units:

@@ -15,7 +15,6 @@ import numpy as np
 import scqubits.core.constants as constants
 import scqubits.core.units as units
 
-
 NAME_REPLACEMENTS = {
     'ng': r'$n_g$',
     'ng1': r'$n_{g1}$',
@@ -51,13 +50,19 @@ def set_wavefunction_scaling(wavefunctions, potential_vals):
     float
       scaling factor
     """
-    Y_RANGE_THRESHOLD_FRACTION = 1 / 20  # Do not attempt to scale down amplitudes to very small energy spacings
-                                         # i.e. if energy spacing is smaller than y_range * Y_RANGE_THRESHOLD_FRACTION
-    FILLING_FRACTION = 1.0               # If energy spacing is used for scaling, fill no more than this
-                                         #  fraction of the spacing.
-    MAX_AMPLITUDE_FRACTION = 1 / 7       # Largest allowed wavefunction  amplitude range as fraction of y_range.
-    PRECISION_THRESHOLD = 1E-8           # Amplitude threshold for applying any scaling at all. Note that the
-                                         #  imaginary part of a wavefunction may be nominally 0; do not scale up that.
+    # Do not attempt to scale down amplitudes to very small energy spacings, i.e. if energy spacing is smaller than
+    # y_range * Y_RANGE_THRESHOLD_FRACTION, then do not apply additional downscaling
+    Y_RANGE_THRESHOLD_FRACTION = 1 / 15
+
+    # If energy spacing is used for scaling, fill no more than this  fraction of the spacing.
+    FILLING_FRACTION = 1.0
+
+    # Largest allowed wavefunction amplitude range as fraction of y_range.
+    MAX_AMPLITUDE_FRACTION = 1 / 7
+
+    # Amplitude threshold for applying any scaling at all. Note that the imaginary part of a wavefunction may be
+    # nominally 0; do not scale up in that case.
+    PRECISION_THRESHOLD = 1E-8
 
     wavefunc_count = len(wavefunctions)
     energies = [wavefunc.energy for wavefunc in wavefunctions]

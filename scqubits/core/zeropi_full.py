@@ -18,12 +18,12 @@ import scqubits
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
-from scqubits.core.noise import NoisySystem, NOISE_PARAMS
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
+from scqubits.core.noise import NoisySystem
 
 
 # - ZeroPi noise class
@@ -204,7 +204,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return (8.0 * self.EL * self.EC) ** 0.5
 
     def set_E_zeta(self, value):
-        raise ValueError("It's not possible to directly set `E_zeta`. Instead one can set its value through `EL` or `EC`.")
+        raise ValueError("Cannot directly set `E_zeta`. Instead one can set its value through `EL` or `EC`.")
 
     def hamiltonian(self, return_parts=False):
         """Returns Hamiltonian in basis obtained by discretizing phi, employing charge basis for theta, and Fock
