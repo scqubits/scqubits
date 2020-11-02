@@ -258,8 +258,13 @@ def wavefunction2d(wavefunc: 'WaveFunctionOnGrid',
         imshow_maxval = np.max(wavefunc.amplitudes)
         cmap = plt.cm.viridis
 
-    im = axes.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
-                     cmap=cmap, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto',
+    im = axes.imshow(wavefunc.amplitudes,
+                     extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
+                     cmap=cmap,
+                     vmin=imshow_minval,
+                     vmax=imshow_maxval,
+                     origin='lower',
+                     aspect='auto',
                      **_extract_kwargs_options(kwargs, 'imshow'))
     divider = make_axes_locatable(axes)
     cax = divider.append_axes("right", size="2%", pad=0.05)

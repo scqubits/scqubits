@@ -14,12 +14,12 @@ from typing import Any, Dict, List, Tuple, Union, TYPE_CHECKING
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 from numpy import ndarray
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
+from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 if TYPE_CHECKING:
     from scqubits.core.discretization import GridSpec
-    from scqubits.io_utils.fileio_qutip import QutipEigenstates
-    from matplotlib.figure import Figure
-    from matplotlib.axes import Axes
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
@@ -55,7 +55,7 @@ class WaveFunctionOnGrid:
 
     Parameters
     ----------
-    gridspec:
+    gridspec: GridSpec
         grid specifications for the stored wave function
     amplitudes:
         wave function amplitudes on each grid point
@@ -86,8 +86,6 @@ class DataStore(serializers.Serializable):
         name of parameter being varies
     param_vals:
         parameter values for which spectrum data are stored
-
-
     **kwargs:
         keyword arguments for data to be stored: ``dataname=data``, where data should be an array-like object
     """
@@ -100,7 +98,7 @@ class DataStore(serializers.Serializable):
         self.system_params = system_params
         self.param_name = param_name
         self.param_vals = param_vals
-        if param_vals is not None:
+        if isinstance(param_vals, ndarray):
             self.param_count = len(self.param_vals)
         else:
             self.param_count = 1   # just one value if there is no parameter sweep
@@ -145,7 +143,7 @@ class SpectrumData(DataStore):
         name of parameter being varies
     param_vals:
         parameter values for which spectrum data are stored
-    state_table:
+    state_table: Union[List[QutipEigenstates], ndarray, List[ndarray]]
         eigenstate data stored for each `param_vals` point, either as pure ndarray or list of qutip.qobj
     matrixelem_table:
         matrix element data stored for each `param_vals` point
@@ -156,7 +154,7 @@ class SpectrumData(DataStore):
                  system_params: Dict[str, Any],
                  param_name: str = None,
                  param_vals: ndarray = None,
-                 state_table: Union['List[QutipEigenstates]', ndarray, List[ndarray]] = None,
+                 state_table: Union[List[QutipEigenstates], ndarray, List[ndarray]] = None,
                  matrixelem_table: ndarray = None,
                  **kwargs
                  ) -> None:
@@ -183,7 +181,7 @@ class SpectrumData(DataStore):
                                 subtract_ground: bool = False,
                                 label_list: List[str] = None,
                                 **kwargs
-                                ) -> Tuple['Figure', 'Axes']:
+                                ) -> 'Tuple[Figure, Axes]':
         """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
 
         Parameters

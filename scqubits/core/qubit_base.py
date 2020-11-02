@@ -20,13 +20,14 @@ from typing import Tuple, Union, Any, Dict, Iterable, List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from numpy import ndarray
+
 import scqubits.core.constants as constants
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from numpy import ndarray
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import SpectrumData, DataStore
@@ -133,7 +134,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     for plotting spectra, matrix elements, and writing data to files
     """
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
-    truncated_dim: int
+    truncated_dim: Optional[int]
     _default_grid: Grid1d
     _evec_dtype: type
     _sys_type: str
@@ -158,7 +159,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                   evals_count: int = 6,
                   filename: str = None,
                   return_spectrumdata: bool = False
-                  ) -> Union[ndarray, SpectrumData]:
+                  ) -> ndarray:
         """Calculates eigenvalues using `scipy.linalg.eigh`, returns numpy array of eigenvalues.
 
         Parameters
@@ -185,7 +186,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                  evals_count: int = 6,
                  filename: str = None,
                  return_spectrumdata: bool = False
-                 ) -> Union[Tuple[ndarray, ndarray], SpectrumData]:
+                 ) -> Tuple[ndarray, ndarray]:
         """Calculates eigenvalues and corresponding eigenvectors using `scipy.linalg.eigh`. Returns
         two numpy arrays containing the eigenvalues and eigenvectors, respectively.
 
@@ -267,7 +268,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                                   evals_count: int = 6,
                                   subtract_ground: bool = False,
                                   get_eigenstates: bool = False,
-                                  filename: str  = None,
+                                  filename: str = None,
                                   num_cpus: int = settings.NUM_CPUS
                                   ) -> SpectrumData:
         """Calculates eigenvalues/eigenstates for a varying system parameter, given an array of parameter values.
@@ -295,7 +296,14 @@ class QubitBaseClass(QuantumSystem, ABC):
         tqdm_disable = num_cpus > 1 or settings.PROGRESSBAR_DISABLED
 
         target_map = get_map_method(num_cpus)
-        if get_eigenstates:
+        if not get_eigenstates:
+            func = functools.partial(self._evals_for_paramval, param_name=param_name, evals_count=evals_count)
+            with InfoBar("Parallel computation of eigensystems [num_cpus={}]".format(num_cpus), num_cpus):
+                eigenvalue_table = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
+                                                              disable=tqdm_disable)))
+            eigenvalue_table = np.asarray(eigenvalue_table)
+            eigenstate_table = None
+        else:
             func = functools.partial(self._esys_for_paramval, param_name=param_name, evals_count=evals_count)
             with InfoBar("Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus), num_cpus):
                 # Note that it is useful here that the outermost eigenstate object is a list, 
@@ -303,17 +311,10 @@ class QubitBaseClass(QuantumSystem, ABC):
                 eigensystem_mapdata = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
                                                                  disable=tqdm_disable)))
             eigenvalue_table, eigenstate_table = recast_esys_mapdata(eigensystem_mapdata)
-        else:
-            func = functools.partial(self._evals_for_paramval, param_name=param_name, evals_count=evals_count)
-            with InfoBar("Parallel computation of eigensystems [num_cpus={}]".format(num_cpus), num_cpus):
-                eigenvalue_table = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
-                                                              disable=tqdm_disable)))
-            eigenvalue_table = np.asarray(eigenvalue_table)
-            eigenstate_table = None
 
         if subtract_ground:
             for param_index, _ in enumerate(param_vals):
-                eigenvalue_table[param_index] -= eigenvalue_table[param_index, 0]
+                eigenvalue_table[param_index] -= eigenvalue_table[param_index][0]
 
         setattr(self, param_name, previous_paramval)
         specdata = SpectrumData(eigenvalue_table,
@@ -554,7 +555,7 @@ class QubitBaseClass1d(QubitBaseClass):
         **kwargs:
             standard plotting option (see separate documentation)
         """
-        wavefunc_indices = process_which(which, self.truncated_dim)
+        wavefunc_indices = process_which(which, self.truncated_dim or 6)
 
         if esys is None:
             evals_count = max(wavefunc_indices) + 1

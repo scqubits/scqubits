@@ -131,3 +131,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     def annihilation_operator(self) -> ndarray:
         """Returns the creation operator"""
         return op.annihilation(self.truncated_dim)
+
+    def matrixelement_table(self, *args, **kwargs) -> ndarray:
+        raise NotImplementedError("The Oscillator class does not implement the matrixelement_table method.")

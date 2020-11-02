@@ -11,7 +11,7 @@
 
 import math
 import os
-from typing import Any, Dict, List, Tuple, Union
+from typing import cast, Any, Dict, List, Tuple, Union
 
 import numpy as np
 import scqubits.core.constants as constants

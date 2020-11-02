@@ -87,7 +87,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     truncated_dim: int, optional
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
-
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     EL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
@@ -95,14 +94,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     ECS = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     dEJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     dCJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
+    dC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dEL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     grid = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
     zeropi_cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi',
-                                                attr_name='truncated_dim')
-    dC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    dEL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+                                                 attr_name='truncated_dim')
 
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
                  ECS=None, truncated_dim=None):

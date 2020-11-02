@@ -235,10 +235,14 @@ def convert_ndarray_to_qobj(operator: np.ndarray,
                             subsystem: Union['QubitBaseClass', 'Oscillator'],
                             op_in_eigenbasis: bool,
                             evecs: Optional[np.ndarray]) -> qt.Qobj:
-    dim = subsystem.truncated_dim
+    if isinstance(subsystem.truncated_dim, int):
+        dim = subsystem.truncated_dim
+    else:
+        raise ValueError("Parameter truncated_dim of subsystem {} needs to be set.".format(type(subsystem)))
+
     if op_in_eigenbasis is False:
         if evecs is None:
-            _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+            _, evecs = subsystem.eigensys(evals_count=dim)
         operator_matrixelements = get_matrixelement_table(operator, evecs)
         return qt.Qobj(inpt=operator_matrixelements)
     return qt.Qobj(inpt=operator[:dim, :dim])
@@ -247,8 +251,13 @@ def convert_ndarray_to_qobj(operator: np.ndarray,
 def convert_opstring_to_qobj(operator: str,
                              subsystem: Union['QubitBaseClass', 'Oscillator'],
                              evecs: Optional[np.ndarray]) -> qt.Qobj:
+    if isinstance(subsystem.truncated_dim, int):
+        dim = subsystem.truncated_dim
+    else:
+        raise ValueError("Parameter truncated_dim of subsystem {} needs to be set.".format(type(subsystem)))
+
     if evecs is None:
-        _, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+        _, evecs = subsystem.eigensys(evals_count=dim)
     operator_matrixelements = subsystem.matrixelement_table(operator, evecs=evecs)
     return qt.Qobj(inpt=operator_matrixelements)
 
@@ -282,6 +291,7 @@ def generate_target_states_list(sweep: 'ParameterSweep',
     """
     target_states_list = []
     for subsys_index, qbt_subsys in sweep.qbt_subsys_list:   # iterate through qubit subsys_list
+        assert qbt_subsys.truncated_dim is not None
         initial_qbt_state = initial_state_labels[subsys_index]
         for state_label in range(initial_qbt_state + 1, qbt_subsys.truncated_dim):
             # for given qubit subsystem, generate target labels by increasing that qubit excitation level

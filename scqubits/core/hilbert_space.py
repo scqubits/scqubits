@@ -11,6 +11,7 @@
 
 import functools
 import warnings
+from typing import List, Union
 
 import numpy as np
 import qutip as qt
@@ -26,6 +27,9 @@ import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
+
+from numpy import ndarray
+from scqubits.core.qubit_base import QuantumSystem
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm

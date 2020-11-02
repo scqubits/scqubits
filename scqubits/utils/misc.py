@@ -11,7 +11,7 @@
 
 import ast
 import functools
-from typing import Any, Callable, Dict, Iterable, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 import qutip.qobj as qt
@@ -23,7 +23,7 @@ else:
     from tqdm import tqdm
 
 
-def process_which(which: Union[int, Iterable[int]], max_index: int) -> Iterable[int]:
+def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]:
     """
     Processes different ways of specifying the selection of wanted eigenvalues/eigenstates.
 
@@ -41,9 +41,9 @@ def process_which(which: Union[int, Iterable[int]], max_index: int) -> Iterable[
     """
     if isinstance(which, int):
         if which == -1:
-            return range(max_index)
+            return list(range(max_index))
         return [which]
-    return which
+    return list(which)
 
 
 def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
