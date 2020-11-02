@@ -712,16 +712,10 @@ class VCHOS:
                 filtered_minima_holder.append(minima)
         return filtered_minima_holder
 
-    def optimize_Xi_variational_wrapper(self, num_cpus=1):
+    def optimize_Xi_variational_wrapper(self):
         """Optimize the Xi matrix by adjusting the harmonic lengths of the ground state to minimize its energy.
         For tight-binding without squeezing, this is only done for the ansatz ground state wavefunction
-        localized in the global minimum.
-
-        Parameters
-        ----------
-        num_cpus: int
-            Number of CPUS/cores employed in underlying calculation.
-        """
+        localized in the global minimum."""
         minima_list = self.sorted_minima()
         self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
         self._optimize_Xi_variational(0, minima_list[0])

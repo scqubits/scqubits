@@ -590,18 +590,12 @@ class VCHOSSqueezing(VCHOS):
         return (np.exp(-0.5 * np.trace(sigma) - 0.5 * np.trace(sigma_prime))
                 * self._exp_product_coefficient(delta_phi, Xi_inv))
 
-    def optimize_Xi_variational_wrapper(self, num_cpus=1):
+    def optimize_Xi_variational_wrapper(self):
         """Overrides method in VCHOS. Allows for harmonic length optimization of states localized
         in all minima if the optimize_all_minima flag is set. Optimize the Xi matrix by adjusting
         the harmonic lengths of the ground state to minimize its energy.
         For tight-binding without squeezing, this is only done for the ansatz ground state wavefunction
-        localized in the global minimum.
-
-        Parameters
-        ----------
-        num_cpus: int
-            Number of CPUS/cores employed in underlying calculation.
-        """
+        localized in the global minimum."""
         minima_list = self.sorted_minima()
         self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
         self._optimize_Xi_variational(0, minima_list[0])
@@ -646,8 +640,6 @@ class VCHOSSqueezing(VCHOS):
         """Local transfer contribution when considering only the ground state."""
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
-        linear_coefficients_potential = self._linear_coefficient_matrices(rho_prime, delta_rho,
-                                                                          Xi / np.sqrt(2.0), Xi / np.sqrt(2.0))
         linear_coefficients_kinetic = self._linear_coefficient_matrices(rho_prime, delta_rho,
                                                                         -1j * inv(Xi) / np.sqrt(2.0),
                                                                         1j * inv(Xi) / np.sqrt(2.0))

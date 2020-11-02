@@ -16,7 +16,7 @@ class VCHOSTestFunctions(StandardTests):
         self.qbt = self.initialize_vchos_qbt(system_params)
         evals_count = len(evals_reference)
         evals_tst = self.qbt.eigenvals(evals_count=evals_count, filename=self.tmpdir + 'test.' + io_type)
-        assert np.allclose(evals_reference, evals_tst, rtol=1e-3)
+        assert np.allclose(evals_reference, evals_tst, rtol=1e-2)
 
     def test_compare_spectrum_vs_paramvals_with_Qubit(self, io_type):
         num_compare = 3
@@ -37,8 +37,15 @@ class VCHOSTestFunctions(StandardTests):
 
         assert np.allclose(evals_reference, calculated_spectrum.energy_table, rtol=1e-2)
 
+    def test_hamiltonian_is_hermitean(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        transfer_matrix = self.qbt.transfer_matrix()
+        assert np.isclose(np.max(np.abs(transfer_matrix - transfer_matrix.conj().T)), 0.0)
+
     def initialize_vchos_qbt(self, system_params):
-        return self.qbt_type(**system_params, kmax=1, num_exc=4)
+        return self.qbt_type(**system_params, maximum_periodic_vector_length=8, num_exc=4)
 
     def test_matrixelement_table(self, io_type):
         pytest.skip('not implemented yet for vchos')
