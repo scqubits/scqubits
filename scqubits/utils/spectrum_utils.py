@@ -235,10 +235,7 @@ def convert_ndarray_to_qobj(operator: np.ndarray,
                             subsystem: Union['QubitBaseClass', 'Oscillator'],
                             op_in_eigenbasis: bool,
                             evecs: Optional[np.ndarray]) -> qt.Qobj:
-    if isinstance(subsystem.truncated_dim, int):
-        dim = subsystem.truncated_dim
-    else:
-        raise ValueError("Parameter truncated_dim of subsystem {} needs to be set.".format(type(subsystem)))
+    dim = subsystem.truncated_dim
 
     if op_in_eigenbasis is False:
         if evecs is None:
@@ -251,10 +248,7 @@ def convert_ndarray_to_qobj(operator: np.ndarray,
 def convert_opstring_to_qobj(operator: str,
                              subsystem: Union['QubitBaseClass', 'Oscillator'],
                              evecs: Optional[np.ndarray]) -> qt.Qobj:
-    if isinstance(subsystem.truncated_dim, int):
-        dim = subsystem.truncated_dim
-    else:
-        raise ValueError("Parameter truncated_dim of subsystem {} needs to be set.".format(type(subsystem)))
+    dim = subsystem.truncated_dim
 
     if evecs is None:
         _, evecs = subsystem.eigensys(evals_count=dim)

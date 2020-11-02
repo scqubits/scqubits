@@ -30,7 +30,7 @@ import scqubits.utils.misc as utils
 
 from numpy import ndarray
 from qutip.qobj import Qobj
-from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
+from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.storage import DataStore, SpectrumData
@@ -41,6 +41,9 @@ if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
+
+
+QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
 class ParameterSweepBase(ABC):
@@ -54,10 +57,10 @@ class ParameterSweepBase(ABC):
     lookup = descriptors.ReadOnlyProperty()
     _hilbertspace: hspace.HilbertSpace
 
-    def get_subsys(self, index: int) -> QuantumSystem:
+    def get_subsys(self, index: int) -> QuantumSys:
         return self._hilbertspace[index]
 
-    def get_subsys_index(self, subsys: QuantumSystem) -> int:
+    def get_subsys_index(self, subsys: QuantumSys) -> int:
         return self._hilbertspace.get_subsys_index(subsys)
 
     @property
@@ -82,7 +85,7 @@ class ParameterSweepBase(ABC):
 
     def _lookup_bare_eigenstates(self,
                                  param_index: int,
-                                 subsys: QuantumSystem,
+                                 subsys: QuantumSys,
                                  bare_specdata_list: List[SpectrumData]
                                  ) -> ndarray:
         """
@@ -150,7 +153,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
                  param_vals: ndarray,
                  evals_count: int,
                  hilbertspace: HilbertSpace,
-                 subsys_update_list: List[QuantumSystem],
+                 subsys_update_list: List[QuantumSys],
                  update_hilbertspace: Callable,
                  num_cpus: int = settings.NUM_CPUS
                  ) -> None:
@@ -199,7 +202,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
             identity of sender announcing the event
         **kwargs
         """
-        if self.lookup is not None:
+        if self._lookup is not None:
             if event == 'HILBERTSPACE_UPDATE' and sender is self._hilbertspace:
                 self._lookup._out_of_sync = True
                 # print('Lookup table now out of sync')
@@ -324,7 +327,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
                 evals_count = subsys.truncated_dim
                 eigendata.append(subsys.eigensys(evals_count=evals_count))
             else:
-                eigendata.append(None)
+                eigendata.append(None)  # type: ignore
         return eigendata
 
     def _compute_bare_spectrum_varying(self, param_val: float) -> List[Tuple[ndarray, ndarray]]:
@@ -344,7 +347,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
                 subsys_index = self._hilbertspace.index(subsys)
                 eigendata.append(self._hilbertspace[subsys_index].eigensys(evals_count=evals_count))
             else:
-                eigendata.append(None)
+                eigendata.append(None)  # type: ignore
         return eigendata
 
     def _compute_dressed_eigensystem(self,
@@ -365,7 +368,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
 
     def _lookup_bare_eigenstates(self,
                                  param_index: int,
-                                 subsys: QuantumSystem,
+                                 subsys: QuantumSys,
                                  bare_specdata_list: List[SpectrumData]
                                  ) -> ndarray:
         """
@@ -452,7 +455,7 @@ class StoredSweep(ParameterSweepBase, serializers.Serializable):
         return self._hilbertspace
 
     def new_sweep(self,
-                  subsys_update_list: List[QuantumSystem],
+                  subsys_update_list: List[QuantumSys],
                   update_hilbertspace: Callable,
                   num_cpus: int = settings.NUM_CPUS
                   ) -> ParameterSweep:

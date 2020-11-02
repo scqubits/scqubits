@@ -113,7 +113,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
                  dEJ: float = 0.0,
                  dCJ: float = 0.0,
                  ECS: float = None,
-                 truncated_dim: int = None
+                 truncated_dim: int = 6
                  ) -> None:
         self.EJ = EJ
         self.EL = EL

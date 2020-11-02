@@ -97,7 +97,7 @@ def _process_options(figure: Figure,
     # Only process items in kwargs that would not have been
     # processed through _extract_kwargs_options()
     filtered_kwargs = {key: value for key, value in kwargs.items()
-                       if key not in functools.reduce(operator.concat, _direct_plot_options.values())}
+                       if key not in functools.reduce(operator.concat, _direct_plot_options.values())}  # type: ignore
 
     option_dict = {**opts, **filtered_kwargs}
 

@@ -84,7 +84,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     ECS: float, optional
         total charging energy including large shunting capacitances and junction capacitances; may be provided instead
         of EC
-    truncated_dim: int, optional
+    truncated_dim: int
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', inner_object_name='_zeropi')
@@ -104,7 +104,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
                                                  attr_name='truncated_dim')
 
     def __init__(self, EJ, EL, ECJ, EC, dEJ, dCJ, dC, dEL, flux, ng, zeropi_cutoff, zeta_cutoff, grid, ncut,
-                 ECS=None, truncated_dim=None):
+                 ECS=None, truncated_dim=6):
         self._zeropi = scqubits.ZeroPi(
             EJ=EJ,
             EL=EL,

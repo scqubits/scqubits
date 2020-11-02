@@ -62,7 +62,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                  EC: float,
                  ng: float,
                  ncut: int,
-                 truncated_dim: int = None
+                 truncated_dim: int = 6
                  ) -> None:
         self.EJ = EJ
         self.EC = EC
@@ -320,7 +320,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                  flux: float,
                  ng: float,
                  ncut: int,
-                 truncated_dim: int = None
+                 truncated_dim: int = 6
                  ) -> None:
         self.EJmax = EJmax
         self.EC = EC

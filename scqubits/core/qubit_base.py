@@ -15,7 +15,7 @@ Provides the base classes for qubits
 import functools
 import inspect
 from abc import ABC, ABCMeta, abstractmethod
-from typing import Tuple, Union, Any, Dict, Iterable, List, Optional
+from typing import Tuple, Union, Any, Dict, Iterable, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,6 +38,7 @@ from scqubits.utils.plot_defaults import set_wavefunction_scaling
 from scqubits.utils.spectrum_utils import (get_matrixelement_table, order_eigensystem, recast_esys_mapdata,
                                            standardize_sign)
 
+
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
@@ -48,7 +49,7 @@ else:
 
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
-    truncated_dim: Optional[int]
+    truncated_dim: int
     _init_params: List[str]
     _image_filename: str
     _evec_dtype: type
@@ -134,7 +135,7 @@ class QubitBaseClass(QuantumSystem, ABC):
     for plotting spectra, matrix elements, and writing data to files
     """
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
-    truncated_dim: Optional[int]
+    truncated_dim: int
     _default_grid: Grid1d
     _evec_dtype: type
     _sys_type: str
@@ -208,7 +209,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             specdata = SpectrumData(energy_table=evals, system_params=self.get_initdata(), state_table=evecs)
         if filename:
             specdata.filewrite(filename)
-        return specdata if return_spectrumdata else (evals, evecs)
+        return specdata if return_spectrumdata else (evals, evecs)  # type: ignore
 
     def matrixelement_table(self,
                             operator: str,
@@ -555,7 +556,7 @@ class QubitBaseClass1d(QubitBaseClass):
         **kwargs:
             standard plotting option (see separate documentation)
         """
-        wavefunc_indices = process_which(which, self.truncated_dim or 6)
+        wavefunc_indices = process_which(which, self.truncated_dim)
 
         if esys is None:
             evals_count = max(wavefunc_indices) + 1

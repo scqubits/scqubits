@@ -53,7 +53,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         external magnetic flux in angular units, 2pi corresponds to one flux quantum
     cutoff: int
         number of harm. osc. basis states used in diagonalization
-    truncated_dim: int, optional
+    truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
@@ -68,7 +68,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                  EL: float,
                  flux: float,
                  cutoff: int,
-                 truncated_dim: int = None
+                 truncated_dim: int = 6
                  ) -> None:
         self.EJ = EJ
         self.EC = EC

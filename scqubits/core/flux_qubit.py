@@ -254,7 +254,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         magnetic flux through the circuit loop, measured in units of the flux quantum
     ncut: int
         charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
-    truncated_dim: int, optional
+    truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
 
@@ -284,7 +284,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
                  ng2: float,
                  flux: float,
                  ncut: int,
-                 truncated_dim: int = None
+                 truncated_dim: int = 6
                  ) -> None:
         self.EJ1 = EJ1
         self.EJ2 = EJ2
