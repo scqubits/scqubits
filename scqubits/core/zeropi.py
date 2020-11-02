@@ -36,7 +36,32 @@ class NoisyZeroPi(NoisySystem):
 
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
 
-class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
+class ZeroPiFunctions:
+    def __init__(self, EJ, EL, flux, dEJ=0.):
+        self.EJ = EJ
+        self.EL = EL
+        self.flux = flux
+        self.dEJ = dEJ
+
+    def potential(self, phi_theta_array):
+        """
+        Parameters
+        ----------
+        phi_theta_array: ndarray
+
+        Returns
+        -------
+        float
+            value of the potential energy evaluated at phi, theta
+        """
+        phi = phi_theta_array[0]
+        theta = phi_theta_array[1]
+        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
+                + self.EL * phi ** 2 + 2.0 * self.EJ
+                + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
+
+class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     r"""Zero-Pi Qubit
 
     | [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
@@ -93,7 +118,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, grid, ncut, dEJ=0, dCJ=0, ECS=None, truncated_dim=None):
+    def __init__(self, EJ, EL, ECJ, EC, ng, flux, grid, ncut, dEJ=0., dCJ=0., ECS=None, truncated_dim=None):
+        ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
@@ -204,22 +230,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def hilbertdim(self):
         """Returns Hilbert space dimension"""
         return self.grid.pt_count * (2 * self.ncut + 1)
-
-    def potential(self, phi, theta):
-        """
-        Parameters
-        ----------
-        phi: float
-        theta: float
-
-        Returns
-        -------
-        float
-            value of the potential energy evaluated at phi, theta
-        """
-        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
-                + self.EL * phi ** 2 + 2.0 * self.EJ
-                + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
 
     def sparse_kinetic_mat(self):
         """
@@ -513,7 +523,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
         x_vals = self.grid.make_linspace()
         y_vals = theta_grid.make_linspace()
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals,
+        return plot.contours(x_vals, y_vals, lambda x, y: self.potential([x, y]), contour_vals=contour_vals,
                              xlabel=r'$\phi$', ylabel=r'$\theta$', **kwargs)
 
     def wavefunction(self, esys=None, which=0, theta_grid=None):

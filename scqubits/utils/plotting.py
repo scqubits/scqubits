@@ -18,6 +18,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.special import eval_hermite, gamma
 
 import scqubits.core.constants as constants
 import scqubits.settings as settings

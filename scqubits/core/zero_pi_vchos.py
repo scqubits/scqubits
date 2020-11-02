@@ -8,10 +8,12 @@ from scqubits.core.hashing import Hashing
 from scqubits.core.vchos import VCHOS
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
+from scqubits.core.zeropi import ZeroPiFunctions
 
 
-class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
+class ZeroPiVCHOS(ZeroPiFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
     def __init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=0, dCJ=0, truncated_dim=None, phi_extent=10, **kwargs):
+        ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
         VCHOS.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux,
                        number_degrees_freedom=2, number_periodic_degrees_freedom=1, **kwargs)
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
@@ -66,13 +68,6 @@ class ZeroPiVCHOS(VCHOS, base.QubitBaseClass, serializers.Serializable):
 
     def _check_second_derivative_positive(self, phi, theta):
         return (self.EL + 2 * self.EJ * np.cos(theta) * np.cos(phi - np.pi * self.flux)) > 0
-
-    def potential(self, phi_theta_array):
-        phi = phi_theta_array[0]
-        theta = phi_theta_array[1]
-        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
-                + self.EL * phi ** 2 + 2.0 * self.EJ
-                + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
 
     def _append_new_minima(self, result, minima_holder):
         new_minimum = self._check_if_new_minima(result, minima_holder)
