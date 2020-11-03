@@ -232,7 +232,7 @@ class NoisySystem(ABC):
             ax = axes.ravel()[n] if len(noise_channels) > 1 else axes
             plotting_options['fig_ax'] = fig, ax
             plotting_options['title'] = noise_channel_method
-            plotting.data_vs_paramvals(param_vals, noise_vals, **plotting_options)
+            plotting.data_vs_paramvals(param_vals, noise_vals, label_list=None, **plotting_options)
 
         if len(noise_channels) > 1 and len(noise_channels) % 2:
             axes.ravel()[-1].set_axis_off()

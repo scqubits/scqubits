@@ -11,7 +11,7 @@
 
 
 import warnings
-from typing import List, Optional
+from typing import List
 
 
 # Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)
@@ -60,7 +60,7 @@ def set_units(units: str) -> str:
     return units
 
 
-def get_units_time_label(units: Optional[str] = None) -> str:
+def get_units_time_label(units: str = None) -> str:
     """Get a latex representation of 1/units"""
     units = units or _current_units
     if units not in _supported_units:
@@ -110,7 +110,7 @@ def from_standard_units(value: float) -> float:
     return value / _units_factor[_current_units]
 
 
-def units_scale_factor(units: Optional[str] = None) -> float:
+def units_scale_factor(units: str = None) -> float:
     """
     Return a numerical scaling factor that converts form Hz to `units`.
     (given as argument or, by default, stored in  `_current_units`) .
