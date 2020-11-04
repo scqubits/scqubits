@@ -161,7 +161,7 @@ class SpectrumData(DataStore):
                  ) -> None:
         self.system_params = system_params
         self.param_name = param_name
-        self.param_vals = param_vals,
+        self.param_vals = param_vals
         self.energy_table = energy_table
         self.state_table = state_table
         self.matrixelem_table: ndarray = matrixelem_table
