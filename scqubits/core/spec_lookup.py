@@ -13,17 +13,16 @@ import itertools
 import warnings
 import weakref
 from functools import wraps
-from typing import Callable, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Callable, List, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 import qutip as qt
+from numpy import ndarray
+from qutip import Qobj
 
 import scqubits
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.spectrum_utils as spec_utils
-
-from numpy import ndarray
-from qutip import Qobj
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
@@ -105,7 +104,7 @@ class SpectrumLookup(serializers.Serializable):
         basis_labels_list = list(itertools.product(*basis_label_ranges))   # generate list of bare basis states (tuples)
         return basis_labels_list
 
-    def _generate_mappings(self) -> List[List[int]]:
+    def _generate_mappings(self) -> List[List[Union[int, None]]]:
         """
         For each parameter value of the parameter sweep (may only be one if called from HilbertSpace, so no sweep),
         generate the map between bare states and dressed states.
@@ -122,7 +121,7 @@ class SpectrumLookup(serializers.Serializable):
             dressed_indices_list.append(dressed_indices)
         return dressed_indices_list
 
-    def _generate_single_mapping(self, param_index: int) -> List[int]:
+    def _generate_single_mapping(self, param_index: int) -> List[Union[int, None]]:
         """
         For a single parameter value with index `param_index`, create a list of the dressed-state indices in an order
         that corresponds one to one to the canonical bare-state product states with largest overlap (whenever possible).
@@ -138,7 +137,7 @@ class SpectrumLookup(serializers.Serializable):
         """
         overlap_matrix = spec_utils.convert_esys_to_ndarray(self._dressed_specdata.state_table[param_index])
 
-        dressed_indices: List[int] = []
+        dressed_indices: List[Union[int, None]] = []
         for bare_basis_index in range(self._hilbertspace.dimension):   # for given bare basis index, find dressed index
             max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
             max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])

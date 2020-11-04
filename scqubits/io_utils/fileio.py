@@ -16,9 +16,10 @@ import os
 from typing import Any, Callable, Dict, Union, TYPE_CHECKING
 
 import h5py
+from numpy import ndarray
+
 import scqubits.core.constants as const
 import scqubits.io_utils.fileio_serializers as io_serializers
-from numpy import ndarray
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio_backends import H5Reader, CSVReader, IOWriter

@@ -18,8 +18,9 @@ from numbers import Number
 from typing import Any, Callable, Dict, Tuple, Union, List, TYPE_CHECKING
 
 import numpy as np
-import scqubits.utils.misc as utils
 from numpy import ndarray
+
+import scqubits.utils.misc as utils
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData

@@ -11,10 +11,12 @@
 
 
 import functools
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any, Callable, Dict, List, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
+from numpy import ndarray
+from qutip.qobj import Qobj
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -27,15 +29,12 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
-
-from numpy import ndarray
-from qutip.qobj import Qobj
-from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
+from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
-from scqubits.core.spec_lookup import SpectrumLookup
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import Serializable, IOData
@@ -435,7 +434,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         io.write(self, filename)
 
 
-class StoredSweep(ParameterSweepBase, serializers.Serializable):
+class StoredSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable):
     param_name = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
     param_vals = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
     param_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')

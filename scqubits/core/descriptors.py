@@ -11,17 +11,20 @@
 
 # Recap on descriptors: see https://realpython.com/python-descriptors/
 
+from typing import Any
+
+from scqubits.core.central_dispatch import DispatchClient
+
 
 class ReadOnlyProperty:
     """
     Descriptor for read-only properties (stored in xxx._name)
     """
-    def __set_name__(self, owner, name):
+    def __set_name__(self, owner, name: str):
         self.name = '_' + name
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance, *args, **kwargs):
         if instance is None:   # when accessed on class level rather than instance level
-            # raise TypeError("Descriptor only applies to instances, not to class itself.")
             return self
         return instance.__dict__[self.name]
 
@@ -53,18 +56,18 @@ class WatchedProperty:
         self.name = name
         self.attr_name = self.attr_name or name
 
-    def __get__(self, instance, owner):
+    def __get__(self, instance: object, owner: Any) -> Any:
         if instance is None:   # when accessed on class level rather than instance level
             # raise TypeError("Descriptor only applies to instances, not to class itself.")
             return self
 
-        if self.inner:
+        if self.inner and self.attr_name:
             inner_instance = instance.__dict__[self.inner]
             return getattr(inner_instance, self.attr_name)
         return instance.__dict__[self.attr_name]
 
-    def __set__(self, instance, value):
-        if self.inner:
+    def __set__(self, instance: DispatchClient, value: Any) -> None:
+        if self.inner and self.attr_name:
             inner_instance = instance.__dict__[self.inner]
             setattr(inner_instance, self.attr_name, value)
             # Rely on inner_instance.attr_name to do the broadcasting.

@@ -15,10 +15,11 @@ from typing import Any, Dict, Tuple, Union
 
 import numpy as np
 import scipy as sp
+from numpy import ndarray
+
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from numpy import ndarray
 
 _default_evals_count = 6
 

@@ -11,11 +11,12 @@
 
 from typing import Any, Dict, List, Tuple, Union, TYPE_CHECKING
 
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from numpy import ndarray
+
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
-from numpy import ndarray
-from matplotlib.figure import Figure
-from matplotlib.axes import Axes
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 if TYPE_CHECKING:
@@ -99,7 +100,7 @@ class DataStore(serializers.Serializable):
         self.param_name = param_name
         self.param_vals = param_vals
         if isinstance(param_vals, ndarray):
-            self.param_count = len(self.param_vals)
+            self.param_count = len(self.param_vals)  # type: ignore
         else:
             self.param_count = 1   # just one value if there is no parameter sweep
 

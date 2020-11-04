@@ -18,13 +18,14 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, TYPE_CHECK
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 import scqubits.core.constants as constants
 import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 if TYPE_CHECKING:
     from scqubits.core.storage import SpectrumData, WaveFunction, WaveFunctionOnGrid
@@ -454,7 +455,7 @@ print_matrix = matrix2d  # legacv, support of name now deprecated
 
 def data_vs_paramvals(xdata: np.ndarray,
                       ydata: np.ndarray,
-                      label_list: List[str] = None,
+                      label_list: Union[List[str], List[int]] = None,
                       **kwargs
                       ) -> Tuple[Figure, Axes]:
     """Plot of a set of yadata vs xdata.

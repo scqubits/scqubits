@@ -12,9 +12,9 @@
 import numpy as np
 import qutip as qt
 
+from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import Serializable
 from scqubits.utils import misc as utils
-from scqubits.io_utils.fileio import IOData
 
 
 class QutipEigenstates(np.ndarray, Serializable):

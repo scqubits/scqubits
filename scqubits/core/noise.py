@@ -10,13 +10,15 @@
 ############################################################################
 
 import math
-from typing import cast, Any, Callable, Dict, List, Tuple, Union
 from abc import ABC, abstractmethod
+from typing import cast, Any, Callable, Dict, List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 import scipy.constants
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy.sparse.csc import csc_matrix
 
@@ -24,8 +26,7 @@ import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.utils.plotting as plotting
 from scqubits.core.storage import SpectrumData
-from matplotlib.figure import Figure
-from matplotlib.axes import Axes
+
 
 # Helpers for units conversion
 

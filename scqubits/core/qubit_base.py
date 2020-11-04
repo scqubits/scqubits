@@ -38,7 +38,6 @@ from scqubits.utils.plot_defaults import set_wavefunction_scaling
 from scqubits.utils.spectrum_utils import (get_matrixelement_table, order_eigensystem, recast_esys_mapdata,
                                            standardize_sign)
 
-
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:

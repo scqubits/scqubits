@@ -10,11 +10,13 @@
 ############################################################################
 
 import os
-from abc import ABC, ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, List, Tuple
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import scipy as sp
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from numpy import ndarray
 
 import scqubits.core.constants as constants
@@ -26,9 +28,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 from scqubits.core.noise import NoisySystem, NOISE_PARAMS
-
-from matplotlib.figure import Figure
-from matplotlib.axes import Axes
 
 
 # -Flux qubit noise class

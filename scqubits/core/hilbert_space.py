@@ -15,6 +15,9 @@ from typing import Any, Callable, Dict, Iterator, Optional, Tuple, List, Union
 
 import numpy as np
 import qutip as qt
+from numpy import ndarray
+from qutip.qobj import Qobj
+
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.harmonic_osc as osc
@@ -27,11 +30,8 @@ import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
-
-from numpy import ndarray
-from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.harmonic_osc import Oscillator
-from qutip.qobj import Qobj
+from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 

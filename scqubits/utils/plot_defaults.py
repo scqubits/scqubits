@@ -13,6 +13,7 @@
 from typing import Dict, List, Optional, Union, Any, TYPE_CHECKING
 
 import numpy as np
+
 import scqubits.core.constants as constants
 import scqubits.core.units as units
 
@@ -168,14 +169,14 @@ def dressed_spectrum(sweep: 'ParameterSweep', **kwargs) -> Dict[str, Any]:
     return kwargs
 
 
-def chi(sweep: 'ParameterSweep', **kwargs) -> Dict[str, Any]:
+def chi(param_name: Union[str, None], **kwargs) -> Dict[str, Any]:
     """Plot defaults for sweep_plotting.chi"""
-    kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(sweep.param_name)
+    kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(param_name)
     kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_j$ [{}]'.format(units.get_units())
     return kwargs
 
 
-def chi01(param_name: str, yval: float, **kwargs) -> Dict[str, Any]:
+def chi01(param_name: Union[str, None], yval: float, **kwargs) -> Dict[str, Any]:
     """Plot defaults for sweep_plotting.chi01"""
     kwargs['xlabel'] = kwargs.get('xlabel') or recast_name(param_name)
     kwargs['ylabel'] = kwargs.get('ylabel') or r'$\chi_{{01}}$ [{}]'.format(units.get_units())

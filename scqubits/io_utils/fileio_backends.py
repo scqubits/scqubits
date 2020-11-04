@@ -25,7 +25,6 @@ from numpy import ndarray
 import scqubits.io_utils.fileio as io
 import scqubits.utils.misc as utils
 
-
 try:
     import h5py
     from h5py import AttributeManager, File, Group

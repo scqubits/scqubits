@@ -12,14 +12,15 @@
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
+from numpy import ndarray
+from scipy import sparse
+from scipy.sparse.dia import dia_matrix
+
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.misc as utils
-from numpy import ndarray
-from scipy import sparse
-from scipy.sparse.dia import dia_matrix
 
 FIRST_STENCIL_COEFFS: Dict[int, List[float]] = {
     3: [-1/2, 0.0, 1/2],

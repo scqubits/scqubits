@@ -14,12 +14,12 @@ import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
-from matplotlib.figure import Figure
-from matplotlib.axes import Axes
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.constants as constants
