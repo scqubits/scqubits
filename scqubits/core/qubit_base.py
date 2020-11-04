@@ -67,9 +67,9 @@ class QuantumSystem(DispatchClient, ABC):
     def __del__(self) -> None:
         QuantumSystem._quantumsystem_counter -= 1
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls):
         """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
-        super().__init_subclass__(**kwargs)
+        super().__init_subclass__()
         if not inspect.isabstract(cls):
             cls.subclasses.append(cls)
 
@@ -77,7 +77,7 @@ class QuantumSystem(DispatchClient, ABC):
         if hasattr(self, '_init_params'):
             init_names = self._init_params
         else:
-            init_names = list(inspect.signature(self.__init__).parameters.keys())[1:]
+            init_names = list(inspect.signature(self.__init__).parameters.keys())[1:]  # type: ignore
         init_dict = {name: getattr(self, name) for name in init_names}
         return type(self).__name__ + f'(**{init_dict!r})'
 
@@ -362,7 +362,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), disable=settings.PROGRESSBAR_DISABLED,
                                     leave=False):
-            evecs = spectrumdata.state_table[index]
+            evecs = spectrumdata.state_table[index]  # type: ignore
             matelem_table[index] = self.matrixelement_table(operator, evecs=evecs, evals_count=evals_count)
 
         spectrumdata.matrixelem_table = matelem_table

@@ -337,7 +337,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                                             'qubit_img/tunable-transmon.jpg')
 
     @property
-    def EJ(self) -> float:
+    def EJ(self) -> float:  # type: ignore
         """This is the effective, flux dependent Josephson energy, playing the role of EJ
         in the parent class `Transmon`"""
         return self.EJmax * np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2)

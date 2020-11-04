@@ -40,10 +40,10 @@ warnings.formatwarning = warning_on_one_line
 
 # a switch for displaying of progress bar; default: show only in ipython
 PROGRESSBAR_DISABLED = False
-try:
-    if __IPYTHON__:
-        IN_IPYTHON = True
-except NameError:
+
+if hasattr(__builtins__, '__IPYTHON__'):
+    IN_IPYTHON = True
+else:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
 

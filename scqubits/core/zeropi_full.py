@@ -175,7 +175,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     def create(cls) -> 'FullZeroPi':
         phi_grid = discretization.Grid1d(-25.0, 25.0, 360)
         init_params = cls.default_params()
-        zeropi = cls(**init_params, grid=phi_grid)
+        init_params['grid'] = phi_grid
+        zeropi = cls(**init_params)
         zeropi.widget()
         return zeropi
 

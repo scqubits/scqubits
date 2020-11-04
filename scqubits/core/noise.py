@@ -10,7 +10,7 @@
 ############################################################################
 
 import math
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import cast, Any, Callable, Dict, List, Tuple, Union
 from abc import ABC, abstractmethod
 
 import matplotlib.pyplot as plt
@@ -123,7 +123,8 @@ class NoisySystem(ABC):
 
             qubit.plot_coherence_vs_paramvals(param_name='flux',
                                               param_vals=np.linspace(-0.5, 0.5, 100), 
-                                              scale=1e-3, ylabel=r"$\mu s$");
+                                              scale=1e-3,
+                                              ylabel=r"$\mu s$");
 
 
         Parameters
@@ -155,9 +156,9 @@ class NoisySystem(ABC):
 
         # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
         noise_channels = [noise_channels] if isinstance(noise_channels, str) else noise_channels
+        cast(List, noise_channels)
 
         if spectrum_data is None:
-
             # We have to figure out the largest energy level involved in the calculations, to know how many levels we
             # need from the diagonalization.
             # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
@@ -166,7 +167,7 @@ class NoisySystem(ABC):
                 if isinstance(noise_channel, tuple):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get('i', 1), opts.get('j', 1))
-            # type: ignore
+
             spectrum_data = self.get_spectrum_vs_paramvals(param_name,  # type: ignore
                                                            param_vals,
                                                            evals_count=max_level+1,
@@ -176,7 +177,7 @@ class NoisySystem(ABC):
                                                            num_cpus=num_cpus)
 
         # figure out how many plots we need to produce
-        plot_grid = (1, 1) if len(noise_channels) == 1 else (math.ceil(len(noise_channels)/2), 2)
+        plot_grid = (1, 1) if len(noise_channels) == 1 else (math.ceil(len(noise_channels) / 2), 2)
 
         # figure out how large the figure should be, based on how many plots we have.
         # We currently assume 2 plots per row
@@ -198,18 +199,20 @@ class NoisySystem(ABC):
 
         for n, noise_channel in enumerate(noise_channels):
 
-            # noise_channel is a string representing the noise method
+            # case 1: noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
 
                 noise_channel_method = noise_channel
 
                 # calculate the noise over the full param span in param_vals
-                noise_vals = [scale * getattr(self.set_and_return(param_name, v), noise_channel_method)(
-                    esys=(spectrum_data.energy_table[v_i, :], spectrum_data.state_table[v_i]),
-                    **common_noise_options)
-                    for v_i, v in enumerate(param_vals)]
+                noise_vals = [
+                    scale * getattr(self.set_and_return(param_name, v), noise_channel_method)(
+                        esys=(spectrum_data.energy_table[v_i, :], spectrum_data.state_table[v_i]),
+                        **common_noise_options)
+                    for v_i, v in enumerate(param_vals)
+                ]
 
-            # noise_channel is a tuple representing the noise method and default options
+            # case 2: noise_channel is a tuple representing the noise method and default options
             elif isinstance(noise_channel, tuple):
 
                 noise_channel_method = noise_channel[0]
@@ -452,7 +455,7 @@ class NoisySystem(ABC):
         return fig, axes
 
     def _effective_rate(self, 
-                        noise_channels: Union[None, str, List[str], List[Tuple[str, Dict]]], 
+                        noise_channels: Union[List[str], List[Tuple[str, Dict]]],
                         common_noise_options: Dict, 
                         esys: Tuple[ndarray, ndarray], 
                         noise_type: str

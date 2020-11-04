@@ -79,7 +79,7 @@ def deserialize(iodata: IOData) -> Any:
     raise NotImplementedError("No implementation for converting {} data to Python object.".format(typename))
 
 
-def write(the_object: 'Serializable', filename: str, file_handle: h5py.Group = None) -> None:
+def write(the_object: Any, filename: str, file_handle: h5py.Group = None) -> None:
     """
     Write `the_object` to a file with name `filename`. The optional `file_handle` parameter is used as a group name
     in case of h5 files.
@@ -98,7 +98,7 @@ def write(the_object: 'Serializable', filename: str, file_handle: h5py.Group = N
     writer.to_file(iodata, file_handle=file_handle)
 
 
-def read(filename: str, file_handle: h5py.Group = None) -> 'Serializable':
+def read(filename: str, file_handle: h5py.Group = None) -> Any:
     """
     Read a Serializable object from file.
 

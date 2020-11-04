@@ -12,7 +12,7 @@
 
 import functools
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 
@@ -36,6 +36,9 @@ from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 from scqubits.core.spec_lookup import SpectrumLookup
+
+if TYPE_CHECKING:
+    from scqubits.io_utils.fileio import Serializable, IOData
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -87,7 +90,7 @@ class ParameterSweepBase(ABC):
                                  param_index: int,
                                  subsys: QuantumSys,
                                  bare_specdata_list: List[SpectrumData]
-                                 ) -> ndarray:
+                                 ) -> Union[ndarray, List[QutipEigenstates]]:
         """
         Parameters
         ----------
@@ -104,7 +107,7 @@ class ParameterSweepBase(ABC):
             its index
         """
         subsys_index = self.get_subsys_index(subsys)
-        return bare_specdata_list[subsys_index].state_table[param_index]
+        return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
 
     @property
     def system_params(self) -> Dict[str, Any]:
@@ -387,10 +390,10 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
             its index
         """
         subsys_index = self.get_subsys_index(subsys)
-        return bare_specdata_list[subsys_index].state_table[param_index]
+        return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
 
     @classmethod
-    def deserialize(cls, iodata: io.IOData) -> object:
+    def deserialize(cls, iodata: io.IOData) -> 'Serializable':
         """
         Take the given IOData and return an instance of the described class, initialized with the data stored in
         io_data.
@@ -405,7 +408,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         """
         return cls(**iodata.as_kwargs())
 
-    def serialize(self):
+    def serialize(self) -> 'IOData':
         """
         Convert the content of the current class instance into IOData format.
 
@@ -413,6 +416,9 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         -------
         IOData
         """
+        if self._lookup is None:
+            raise ValueError('Nothing to save - no lookup data has been generated yet.')
+
         initdata = {'param_name': self.param_name,
                     'param_vals': self.param_vals,
                     'evals_count': self.evals_count,

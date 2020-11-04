@@ -38,9 +38,9 @@ class Serializable(ABC):
         cls._init_params = get_init_params(cls)
         return super().__new__(cls)
 
-    def __init_subclass__(cls, **kwargs) -> None:
+    def __init_subclass__(cls) -> None:
         """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
-        super().__init_subclass__(**kwargs)
+        super().__init_subclass__()
         if not inspect.isabstract(cls):
             cls._subclasses.append(cls)
             SERIALIZABLE_REGISTRY[cls.__name__] = cls
@@ -189,7 +189,7 @@ def get_init_params(obj: Serializable) -> List[str]:
     """
     Returns a list of the parameters entering the `__init__` method of the given object `obj`.
     """
-    init_params = list(inspect.signature(obj.__init__).parameters.keys())
+    init_params = list(inspect.signature(obj.__init__).parameters.keys())  # type: ignore
     if 'self' in init_params:
         init_params.remove('self')
     if 'kwargs' in init_params:

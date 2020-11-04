@@ -135,7 +135,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     @classmethod
     def create(cls) -> 'HilbertSpace':
         hilbertspace = cls([])
-        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)
+        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)  # type: ignore
         return hilbertspace
 
     def __getitem__(self, index: int) -> QuantumSys:
