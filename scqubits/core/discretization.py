@@ -16,7 +16,7 @@ import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.misc as utils
-from scqubits.settings import STENCIL
+import scqubits.settings as settings
 
 FIRST_STENCIL_COEFFS = {3: [-1/2, 0, 1/2],
                         5: [1/12, -2/3, 0, 2/3, -1/12],
@@ -151,8 +151,8 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             dtp = np.float_
 
         delta_x = self.grid_spacing()
-        matrix_diagonals = [coefficient * prefactor / delta_x for coefficient in FIRST_STENCIL_COEFFS[STENCIL]]
-        offset = [i - (STENCIL - 1) // 2 for i in range(STENCIL)]
+        matrix_diagonals = [coefficient * prefactor / delta_x for coefficient in FIRST_STENCIL_COEFFS[settings.STENCIL]]
+        offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
         derivative_matrix = band_matrix(matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic)
         return derivative_matrix
 
@@ -177,8 +177,8 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             dtp = np.float_
 
         delta_x = self.grid_spacing()
-        matrix_diagonals = [coefficient * prefactor / delta_x ** 2 for coefficient in SECOND_STENCIL_COEFFS[STENCIL]]
-        offset = [i - (STENCIL - 1) // 2 for i in range(STENCIL)]
+        matrix_diagonals = [coefficient * prefactor / delta_x ** 2 for coefficient in SECOND_STENCIL_COEFFS[settings.STENCIL]]
+        offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
         derivative_matrix = band_matrix(matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic)
         return derivative_matrix
 
