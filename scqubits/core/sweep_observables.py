@@ -9,13 +9,25 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from typing import List, Tuple, Union, TYPE_CHECKING
+
 import numpy as np
+from numpy import ndarray
 
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
+if TYPE_CHECKING:
+    from scqubits import ParameterSweep, Oscillator
+    from scqubits.core.qubit_base import QubitBaseClass
 
-def dispersive_chi(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=None):
+
+def dispersive_chi(sweep: 'ParameterSweep',
+                   param_index: int,
+                   qubit_subsys: 'QubitBaseClass',
+                   osc_subsys: 'Oscillator',
+                   chi_indices: Tuple[int, int] = None
+                   ) -> Union[float, ndarray]:
     r"""For a given ParameterSweep, calculate dispersive shift data for a single value of the external parameter. The
     dispersive shift relates to a qubit subsystem coupled to an oscillator subsystem. :math:`\chi_j` is the shift of
     qubit level :math:`j` due to the addition of a photon in the oscillator. It is calculated here from the exact
@@ -24,26 +36,25 @@ def dispersive_chi(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=Non
     Parameters
     ----------
     sweep: ParameterSweep
-    param_index: int
+    param_index:
         index of the parameter value for which chis should be calculated
-    qubit_subsys: QuantumSystem
-    osc_subsys: Oscillator
-    chi_indices: tuple(int, int), optional
+    qubit_subsys:
+    osc_subsys:
+    chi_indices:
         If specified, calculate chi_i - chi_j; otherwise return table of all chis in subspace of qubit_subsys
 
     Returns
     -------
-    float or ndarray
         chi_i - chi_j   or   chi_0, chi_1, ...
     """
     qubitsys_index = sweep.get_subsys_index(qubit_subsys)
     oscsys_index = sweep.get_subsys_index(osc_subsys)
-    if chi_indices is not None:
+    if isinstance(chi_indices, tuple):
         chi_count = 2
-        chi_range = chi_indices
+        chi_range: Union[Tuple[int, int], List[int]] = chi_indices
     else:
         chi_count = qubit_subsys.truncated_dim
-        chi_range = range(chi_count)
+        chi_range = list(range(chi_count))
 
     chi_values = np.empty(chi_count, dtype=np.float_)
     omega = osc_subsys.E_osc
@@ -63,21 +74,21 @@ def dispersive_chi(sweep, param_index, qubit_subsys, osc_subsys, chi_indices=Non
     return chi_values
 
 
-def qubit_matrixelement(sweep, param_index, qubit_subsys, qubit_operator):
+def qubit_matrixelement(sweep: 'ParameterSweep',
+                        param_index: int,
+                        qubit_subsys: 'QubitBaseClass',
+                        qubit_operator: ndarray
+                        ) -> ndarray:
     """
     For given ParameterSweep and parameter_index, calculate the matrix elements for the provided qubit operator.
 
     Parameters
     ----------
-    sweep: ParameterSweep
-    param_index: int
-    qubit_subsys: QuantumSystem
-    qubit_operator: ndarray
+    sweep:
+    param_index:
+    qubit_subsys:
+    qubit_operator:
        operator within the qubit subspace
-
-    Returns
-    -------
-    ndarray
     """
     bare_evecs = sweep.lookup.bare_eigenstates(qubit_subsys, param_index=param_index)
     return spec_utils.get_matrixelement_table(qubit_operator, bare_evecs)

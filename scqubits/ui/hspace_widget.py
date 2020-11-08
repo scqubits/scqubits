@@ -11,6 +11,7 @@
 
 import functools
 import importlib
+
 import numpy as np
 
 try:
@@ -146,7 +147,6 @@ class HilbertSpaceUi:
         callback_func(subsystem_list, interaction_list)
 
     def set_data(self, **kwargs):
-        # self.set_subsys_list(kwargs.pop('subsys_list'))
         self.set_interact_term(**kwargs)
 
     def set_interact_term(self, **kwargs):

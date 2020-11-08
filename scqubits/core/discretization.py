@@ -9,27 +9,40 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from typing import Any, Dict, List, Tuple, Union
+
 import numpy as np
+from numpy import ndarray
 from scipy import sparse
+from scipy.sparse.dia import dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.utils.misc as utils
 import scqubits.settings as settings
+import scqubits.utils.misc as utils
 
-FIRST_STENCIL_COEFFS = {3: [-1/2, 0, 1/2],
-                        5: [1/12, -2/3, 0, 2/3, -1/12],
-                        7: [-1/60, 3/20, -3/4, 0, 3/4, -3/20, 1/60],
-                        9: [1/280, -4/105, 1/5, -4/5, 0, 4/5, -1/5, 4/105, -1/280]
-                        }
-SECOND_STENCIL_COEFFS = {3: [1, -2, 1],
-                         5: [-1/12, 4/3, -5/2, 4/3, -1/12],
-                         7: [1/90, -3/20, 3/2, -49/18, 3/2, -3/20, 1/90],
-                         9: [-1/560, 8/315, -1/5, 8/5, -205/72, 8/5, -1/5, 8/315, -1/560]}
+FIRST_STENCIL_COEFFS: Dict[int, List[float]] = {
+    3: [-1/2, 0.0, 1/2],
+    5: [1/12, -2/3, 0.0, 2/3, -1/12],
+    7: [-1/60, 3/20, -3/4, 0.0, 3/4, -3/20, 1/60],
+    9: [1/280, -4/105, 1/5, -4/5, 0.0, 4/5, -1/5, 4/105, -1/280]
+}
+
+SECOND_STENCIL_COEFFS: Dict[int, List[float]] = {
+    3: [1, -2, 1],
+    5: [-1/12, 4/3, -5/2, 4/3, -1/12],
+    7: [1/90, -3/20, 3/2, -49/18, 3/2, -3/20, 1/90],
+    9: [-1/560, 8/315, -1/5, 8/5, -205/72, 8/5, -1/5, 8/315, -1/560]
+}
 
 
-def band_matrix(band_coeffs, band_offsets, dim, dtype=None, has_corners=False):
+def band_matrix(band_coeffs: Union[List[float], List[complex], ndarray],
+                band_offsets: Union[List[int], ndarray],
+                dim: int,
+                dtype: Any = None,
+                has_corners: bool = False
+                ) -> dia_matrix:
     """
     Returns a dim x dim sparse matrix with constant diagonals of values `band_coeffs[0]`, `band_coeffs[1]`, ...
     along the (off-)diagonals specified by the offsets `band_offsets[0]`, `band_offsets[1]`, ... The `has_corners`
@@ -37,19 +50,16 @@ def band_matrix(band_coeffs, band_offsets, dim, dtype=None, has_corners=False):
     right corner and upper off-diagonals wrap into the bottom left corner.
     Parameters
     ----------
-    band_coeffs: list or ndarray
+    band_coeffs:
         each element of band_coeffs is a number to be assigned as a constant to the (off-)diagonals
-    band_offsets: list or ndarray of int
+    band_offsets:
         offsets specifying the positions of the (off-)diagonals
-    dim: int
+    dim:
         dimension of the matrix
-    dtype: dtype, optional
+    dtype:
         if not specified, dtype is inferred from the dtype of `band_vecs`
-    has_corners: bool, optional (default = False)
+    has_corners:
         if set to True, the off diagonals are wrapped into the opposing corners of the matrix
-    Returns
-    -------
-    scipy.sparse.dia_matrix
     """
     ones_vector = np.ones(dim)
     vectors = [ones_vector * number for number in band_coeffs]
@@ -74,76 +84,79 @@ def band_matrix(band_coeffs, band_offsets, dim, dtype=None, has_corners=False):
 class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
-
     Parameters
     ----------
-    min_val: float
+    min_val:
         minimum value of the discretized variable
-    max_val: float
+    max_val:
         maximum value of the discretized variable
-    pt_count: int
+    pt_count:
         number of grid points
     """
     min_val = descriptors.WatchedProperty('GRID_UPDATE')
     max_val = descriptors.WatchedProperty('GRID_UPDATE')
     pt_count = descriptors.WatchedProperty('GRID_UPDATE')
 
-    def __init__(self, min_val, max_val, pt_count):
+    def __init__(self,
+                 min_val: float,
+                 max_val: float,
+                 pt_count: int
+                 ) -> None:
         self.min_val = min_val
         self.max_val = max_val
         self.pt_count = pt_count
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         init_dict = self.get_initdata()
         return type(self).__name__ + f'({init_dict!r})'
 
-    def __str__(self):
+    def __str__(self) -> str:
         output = '    Grid1d ......'
         for param_name, param_val in sorted(utils.drop_private_keys(self.__dict__).items()):
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
 
-    def get_initdata(self):
+    def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Grid1d object.
-
         Returns
         -------
         dict
         """
         return self.__dict__
 
-    def grid_spacing(self):
+    def grid_spacing(self) -> float:
         """
         Returns
         -------
-        float
             spacing between neighboring grid points
         """
         return (self.max_val - self.min_val) / (self.pt_count - 1)
 
-    def make_linspace(self):
+    def make_linspace(self) -> ndarray:
         """Returns a numpy array of the grid points
-
         Returns
         -------
         ndarray
         """
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
-    def first_derivative_matrix(self, prefactor=1.0, periodic=False):
+    def first_derivative_matrix_five_pt_stencil(self,
+                                                prefactor: Union[float, complex] = 1.0,
+                                                periodic: bool = False
+                                                ) -> dia_matrix:
         """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
-        Uses :math:`f'(x) \\approx [f(x+h) - f(x-h)]/2h`.
+        Uses a five point stencil :math:`f'(x) \\approx [-f(x+2h) + 8f(x+h) - 8f(x-h) + f(x-2h)]/12h`.
 
         Parameters
         ----------
-        prefactor: float or complex, optional
+        prefactor:
             prefactor of the derivative matrix (default value: 1.0)
-        periodic: bool, optional
+        periodic:
             set to True if variable is a periodic variable
 
         Returns
         -------
-        sparse matrix in `dia` format
+            sparse matrix in `dia` format
         """
         if isinstance(prefactor, complex):
             dtp = np.complex_
@@ -162,14 +175,14 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
 
         Parameters
         ----------
-        prefactor: float, optional
+        prefactor:
             optional prefactor of the derivative matrix (default value = 1.0)
-        periodic: bool, optional
+        periodic:
             set to True if variable is a periodic variable (default value = False)
 
         Returns
         -------
-        sparse matrix in `dia` format
+            sparse matrix in `dia` format
         """
         if isinstance(prefactor, complex):
             dtp = np.complex_
@@ -189,7 +202,7 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
 
     Parameters
     ----------
-    minmaxpts_array: ndarray
+    minmaxpts_array:
         array of with entries [minvalue, maxvalue, number of points]
     """
     min_vals = descriptors.WatchedProperty('GRID_UPDATE')
@@ -197,18 +210,18 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
     var_count = descriptors.WatchedProperty('GRID_UPDATE')
     pt_counts = descriptors.WatchedProperty('GRID_UPDATE')
 
-    def __init__(self, minmaxpts_array):
+    def __init__(self, minmaxpts_array: ndarray) -> None:
         self.min_vals = minmaxpts_array[:, 0]
         self.max_vals = minmaxpts_array[:, 1]
         self.var_count = len(self.min_vals)
         self.pt_counts = minmaxpts_array[:, 2].astype(np.int)  # these are used as indices; need to be whole numbers.
 
-    def __str__(self):
+    def __str__(self) -> str:
         output = '    GridSpec ......'
         for param_name, param_val in sorted(self.__dict__.items()):
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
 
-    def unwrap(self):
+    def unwrap(self) -> Tuple[ndarray, ndarray, Union[List[int], ndarray], int]:
         """Auxiliary routine that yields a tuple of the parameters specifying the grid."""
         return self.min_vals, self.max_vals, self.pt_counts, self.var_count
