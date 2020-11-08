@@ -140,12 +140,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         """
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
-    def first_derivative_matrix_five_pt_stencil(self,
-                                                prefactor: Union[float, complex] = 1.0,
-                                                periodic: bool = False
-                                                ) -> dia_matrix:
+    def first_derivative_matrix(self,
+                                prefactor: Union[float, complex] = 1.0,
+                                periodic: bool = False
+                                ) -> dia_matrix:
         """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
-        Uses a five point stencil :math:`f'(x) \\approx [-f(x+2h) + 8f(x+h) - 8f(x-h) + f(x-2h)]/12h`.
+        Uses STENCIL setting to construct the matrix with a multi-point stencil.
 
         Parameters
         ----------
@@ -169,9 +169,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         derivative_matrix = band_matrix(matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic)
         return derivative_matrix
 
-    def second_derivative_matrix(self, prefactor=1.0, periodic=False):
+    def second_derivative_matrix(self,
+                                prefactor: Union[float, complex] = 1.0,
+                                periodic: bool = False
+                                ) -> dia_matrix:
         """Generate sparse matrix for second derivative of the form :math:`\\partial^2_{x_i}`.
-        Uses :math:`f''(x) \\approx [f(x+h) - 2f(x) + f(x-h)]/h^2`.
+        Uses STENCIL setting to construct the matrix with a multi-point stencil.
 
         Parameters
         ----------
