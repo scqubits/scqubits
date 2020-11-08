@@ -140,94 +140,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         """
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
-    def first_derivative_matrix_five_pt_stencil(self,
-                                                prefactor: Union[float, complex] = 1.0,
-                                                periodic: bool = False
-                                                ) -> dia_matrix:
-        """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
-        Uses a five point stencil :math:`f'(x) \\approx [-f(x+2h) + 8f(x+h) - 8f(x-h) + f(x-2h)]/12h`.
-
-        Parameters
-        ----------
-        prefactor:
-            prefactor of the derivative matrix (default value: 1.0)
-        periodic:
-            set to True if variable is a periodic variable
-
-        Returns
-        -------
-            sparse matrix in `dia` format
-        """
-        if isinstance(prefactor, complex):
-            dtp = np.complex_
-        else:
-            dtp = np.float_
-        delta_x = (self.max_val - self.min_val) / (self.pt_count - 1)
-        first_off_diag = prefactor * 8 / (12.0 * delta_x)
-        second_off_diag = prefactor / (12.0 * delta_x)
-
-        derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=dtp)
-        derivative_matrix.setdiag(-second_off_diag, k=2)
-        derivative_matrix.setdiag(first_off_diag, k=1)
-        derivative_matrix.setdiag(-first_off_diag, k=-1)
-        derivative_matrix.setdiag(second_off_diag, k=-2)
-
-        if periodic:
-            derivative_matrix.setdiag(first_off_diag, k=-self.pt_count + 1)
-            derivative_matrix.setdiag(-second_off_diag, k=-self.pt_count + 2)
-            derivative_matrix.setdiag(-first_off_diag, k=self.pt_count - 1)
-            derivative_matrix.setdiag(second_off_diag, k=self.pt_count - 2)
-
-        return derivative_matrix
-
-    def second_derivative_matrix_five_pt_stencil(self,
-                                                prefactor: Union[float, complex] = 1.0,
-                                                periodic: bool = False
-                                                ) -> dia_matrix:
-        """Generate sparse matrix for second derivative of the form :math:`\\partial^2_{x_i}`.
-        Uses a five point stencil :math:`f'(x) \\approx [-f(x+2h) + 16f(x+h) - 30f(x) + 16f(x-h) - f(x-2h)]/12h^2`.
-
-        Parameters
-        ----------
-        prefactor:
-            prefactor of the derivative matrix (default value: 1.0)
-        periodic:
-            set to True if variable is a periodic variable
-
-        Returns
-        -------
-            sparse matrix in `dia` format
-        """
-        if isinstance(prefactor, complex):
-            dtp = np.complex_
-        else:
-            dtp = np.float_
-        delta_x = (self.max_val - self.min_val) / (self.pt_count - 1)
-        diag = prefactor * 30.0 / (12.0 * delta_x**2)
-        first_off_diag = prefactor * 16 / (12.0 * delta_x**2)
-        second_off_diag = prefactor / (12.0 * delta_x**2)
-
-        derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=dtp)
-        derivative_matrix.setdiag(-diag, k=0)
-        derivative_matrix.setdiag(-second_off_diag, k=2)
-        derivative_matrix.setdiag(first_off_diag, k=1)
-        derivative_matrix.setdiag(first_off_diag, k=-1)
-        derivative_matrix.setdiag(-second_off_diag, k=-2)
-
-        if periodic:
-            derivative_matrix.setdiag(first_off_diag, k=-self.pt_count + 1)
-            derivative_matrix.setdiag(-second_off_diag, k=-self.pt_count + 2)
-            derivative_matrix.setdiag(first_off_diag, k=self.pt_count - 1)
-            derivative_matrix.setdiag(-second_off_diag, k=self.pt_count - 2)
-
-        return derivative_matrix
-
     def first_derivative_matrix(self,
                                 prefactor: Union[float, complex] = 1.0,
                                 periodic: bool = False
                                 ) -> dia_matrix:
         """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
-        Uses :math:`f'(x) \\approx [f(x+h) - f(x-h)]/2h`.
+        Uses STENCIL setting to construct the matrix with a multi-point stencil.
 
         Parameters
         ----------
@@ -252,11 +170,11 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return derivative_matrix
 
     def second_derivative_matrix(self,
-                                 prefactor: Union[float, complex] = 1.0,
-                                 periodic: bool = False
-                                 ) -> dia_matrix:
+                                prefactor: Union[float, complex] = 1.0,
+                                periodic: bool = False
+                                ) -> dia_matrix:
         """Generate sparse matrix for second derivative of the form :math:`\\partial^2_{x_i}`.
-        Uses :math:`f''(x) \\approx [f(x+h) - 2f(x) + f(x-h)]/h^2`.
+        Uses STENCIL setting to construct the matrix with a multi-point stencil.
 
         Parameters
         ----------
@@ -275,8 +193,8 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             dtp = np.float_
 
         delta_x = self.grid_spacing()
-        matrix_diagonals = [coefficient * prefactor / delta_x ** 2
-                            for coefficient in SECOND_STENCIL_COEFFS[settings.STENCIL]]
+        matrix_diagonals = [coefficient * prefactor / delta_x ** 2 for coefficient in
+                            SECOND_STENCIL_COEFFS[settings.STENCIL]]
         offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
         derivative_matrix = band_matrix(matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic)
         return derivative_matrix
