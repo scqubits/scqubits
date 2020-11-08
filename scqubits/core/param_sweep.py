@@ -392,7 +392,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
 
     @classmethod
-    def deserialize(cls, iodata: io.IOData) -> 'Serializable':
+    def deserialize(cls, iodata: 'IOData') -> 'Serializable':
         """
         Take the given IOData and return an instance of the described class, initialized with the data stored in
         io_data.

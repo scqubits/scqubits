@@ -60,7 +60,7 @@ class SpectrumLookup(serializers.Serializable):
         bare spectral data needed for generating the lookup mapping
     """
     def __init__(self,
-                 framework: Union['ParameterSweep', 'HilbertSpace'],
+                 framework: 'Union[ParameterSweep, HilbertSpace]',
                  dressed_specdata: 'SpectrumData',
                  bare_specdata_list: List['SpectrumData']
                  ) -> None:
