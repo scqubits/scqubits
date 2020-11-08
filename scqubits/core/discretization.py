@@ -177,7 +177,8 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             dtp = np.float_
 
         delta_x = self.grid_spacing()
-        matrix_diagonals = [coefficient * prefactor / delta_x ** 2 for coefficient in SECOND_STENCIL_COEFFS[settings.STENCIL]]
+        matrix_diagonals = [coefficient * prefactor / delta_x ** 2 for coefficient in
+                            SECOND_STENCIL_COEFFS[settings.STENCIL]]
         offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
         derivative_matrix = band_matrix(matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic)
         return derivative_matrix
