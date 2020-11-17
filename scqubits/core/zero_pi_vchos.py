@@ -1,3 +1,5 @@
+from itertools import product
+
 import numpy as np
 from scipy.optimize import minimize
 from scipy.linalg import expm, inv
@@ -81,19 +83,11 @@ class ZeroPiVCHOS(ZeroPiFunctions, VCHOS, base.QubitBaseClass, serializers.Seria
         result = minimize(self.potential, guess)
         minima_holder.append(np.array([result.x[0], np.mod(result.x[1], 2 * np.pi)]))
         for m in range(1, self.phi_extent):
-            guess_positive_0 = np.array([np.pi * m, 0.0])
-            guess_negative_0 = np.array([-np.pi * m, 0.0])
-            guess_positive_pi = np.array([np.pi * m, np.pi])
-            guess_negative_pi = np.array([-np.pi * m, np.pi])
-            result_positive_0 = minimize(self.potential, guess_positive_0)
-            result_negative_0 = minimize(self.potential, guess_negative_0)
-            result_positive_pi = minimize(self.potential, guess_positive_pi)
-            result_negative_pi = minimize(self.potential, guess_negative_pi)
-            minima_holder = self._append_new_minima(result_positive_0.x, minima_holder)
-            minima_holder = self._append_new_minima(result_negative_0.x, minima_holder)
-            minima_holder = self._append_new_minima(result_positive_pi.x, minima_holder)
-            minima_holder = self._append_new_minima(result_negative_pi.x, minima_holder)
-        return minima_holder
+            guesses = product(np.array([np.pi * m, -np.pi * m]), np.array([0.0, np.pi]))
+            for guess in guesses:
+                result = minimize(self.potential, guess)
+                minima_holder = self._append_new_minima(result.x, minima_holder)
+        return np.array(minima_holder)
 
     def build_gamma_matrix(self, minimum=0):
         dim = self.number_degrees_freedom
@@ -140,8 +134,8 @@ class ZeroPiVCHOS(ZeroPiFunctions, VCHOS, base.QubitBaseClass, serializers.Seria
         harmonic_contribution += self.EL * phi_bar[0]**2 * self.identity()
         return harmonic_contribution
 
-    def _local_potential_contribution_to_transfer_matrix(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
-                                                         Xi, phi_neighbor, minima_m, minima_p):
+    def _local_potential(self, exp_i_phi_list, premultiplied_a_and_a_dagger,
+                         Xi, phi_neighbor, minima_m, minima_p):
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
         potential_matrix = self._harmonic_contribution_to_potential(premultiplied_a_and_a_dagger, Xi, phi_bar)

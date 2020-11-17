@@ -48,7 +48,7 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions):
             (minima_holder, new_minima_negative) = self._ramp(-k, minima_holder)
             if not (new_minima_positive and new_minima_negative):
                 break
-        return minima_holder
+        return np.array(minima_holder)
 
 
 class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):

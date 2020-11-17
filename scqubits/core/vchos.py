@@ -372,7 +372,7 @@ class VCHOS:
         """
         return int(len(self.sorted_minima()) * self.number_states_per_minimum())
 
-    def _build_premultiplied_a_and_a_dagger(self, a_operator_list):
+    def _build_premultiplied_a_a_dagger(self, a_operator_list):
         """Helper method for premultiplying creation and annihilation operators (multiplications are expensive)"""
         dim = self.number_degrees_freedom
         a_a = np.array([a_operator_list[i] @ a_operator_list[i] for i in range(dim)])
@@ -458,10 +458,9 @@ class VCHOS:
         """
         Xi_inv = inv(self.Xi_matrix())
         a_operator_list = self._a_operator_list()
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
+        premultiplied_a_a_dagger = self._build_premultiplied_a_a_dagger(a_operator_list)
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
-        kinetic_function = partial(self._local_kinetic_contribution_to_transfer_matrix,
-                                   premultiplied_a_and_a_dagger, EC_mat_t, Xi_inv)
+        kinetic_function = partial(self._local_kinetic, premultiplied_a_a_dagger, EC_mat_t, Xi_inv)
         return self._periodic_continuation(kinetic_function)
 
     def potential_matrix(self):
@@ -474,9 +473,8 @@ class VCHOS:
         Xi = self.Xi_matrix()
         a_operator_list = self._a_operator_list()
         exp_i_phi_j = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
-        potential_function = partial(self._local_potential_contribution_to_transfer_matrix, exp_i_phi_j,
-                                     premultiplied_a_and_a_dagger, Xi)
+        premultiplied_a_a_dagger = self._build_premultiplied_a_a_dagger(a_operator_list)
+        potential_function = partial(self._local_potential, exp_i_phi_j, premultiplied_a_a_dagger, Xi)
         return self._periodic_continuation(potential_function)
 
     def transfer_matrix(self):
@@ -490,10 +488,10 @@ class VCHOS:
         Xi_inv = inv(Xi)
         a_operator_list = self._a_operator_list()
         exp_i_phi_j = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
-        premultiplied_a_and_a_dagger = self._build_premultiplied_a_and_a_dagger(a_operator_list)
+        premultiplied_a_a_dagger = self._build_premultiplied_a_a_dagger(a_operator_list)
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
-        transfer_matrix_function = partial(self._local_contribution_to_transfer_matrix, exp_i_phi_j,
-                                           premultiplied_a_and_a_dagger, EC_mat_t, Xi, Xi_inv)
+        transfer_matrix_function = partial(self._local_kinetic_plus_potential, exp_i_phi_j,
+                                           premultiplied_a_a_dagger, EC_mat_t, Xi, Xi_inv)
         return self._periodic_continuation(transfer_matrix_function)
 
     def inner_product_matrix(self):
@@ -505,11 +503,10 @@ class VCHOS:
         """
         return self._periodic_continuation(lambda x, y, z: self.identity())
 
-    def _local_kinetic_contribution_to_transfer_matrix(self, premultiplied_a_and_a_dagger, EC_mat_t, Xi_inv,
-                                                       phi_neighbor, minima_m, minima_p):
+    def _local_kinetic(self, premultiplied_a_a_dagger, EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p):
         """Calculate the local kinetic contribution to the transfer matrix given two
         minima and a periodic continuation vector `phi_neighbor`"""
-        a, a_a, a_dagger_a = premultiplied_a_and_a_dagger
+        a, a_a, a_dagger_a = premultiplied_a_a_dagger
         minima_diff = minima_p - minima_m
         delta_phi = phi_neighbor + minima_diff
         delta_phi_rotated = Xi_inv @ delta_phi
@@ -520,8 +517,7 @@ class VCHOS:
         kinetic_matrix = kinetic_matrix + identity_coefficient*self.identity()
         return kinetic_matrix
 
-    def _local_potential_contribution_to_transfer_matrix(self, exp_i_phi_j, premultiplied_a_and_a_dagger, Xi,
-                                                         phi_neighbor, minima_m, minima_p):
+    def _local_potential(self, exp_i_phi_j, premultiplied_a_a_dagger, Xi, phi_neighbor, minima_m, minima_p):
         """Calculate the local potential contribution to the transfer matrix given two
         minima and a periodic continuation vector `phi_neighbor`"""
         dim = self.number_degrees_freedom
@@ -535,14 +531,12 @@ class VCHOS:
         potential_matrix = potential_matrix + np.sum(self.EJlist)*self.identity()
         return potential_matrix
 
-    def _local_contribution_to_transfer_matrix(self, exp_i_phi_j, premultiplied_a_and_a_dagger, EC_mat_t,
-                                               Xi, Xi_inv, phi_neighbor, minima_m, minima_p):
+    def _local_kinetic_plus_potential(self, exp_i_phi_j, premultiplied_a_a_dagger, EC_mat_t,
+                                      Xi, Xi_inv, phi_neighbor, minima_m, minima_p):
         """Calculate the local contribution to the transfer matrix given two
         minima and a periodic continuation vector `phi_neighbor`"""
-        return (self._local_kinetic_contribution_to_transfer_matrix(premultiplied_a_and_a_dagger, EC_mat_t, Xi_inv,
-                                                                    phi_neighbor, minima_m, minima_p)
-                + self._local_potential_contribution_to_transfer_matrix(exp_i_phi_j, premultiplied_a_and_a_dagger,
-                                                                        Xi, phi_neighbor, minima_m, minima_p))
+        return (self._local_kinetic(premultiplied_a_a_dagger, EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p)
+                + self._local_potential(exp_i_phi_j, premultiplied_a_a_dagger, Xi, phi_neighbor, minima_m, minima_p))
 
     def _periodic_continuation(self, func):
         """This function is the meat of the VCHOS method. Any operator whose matrix
@@ -619,9 +613,6 @@ class VCHOS:
     def _transfer_matrix_and_inner_product(self):
         """Helper method called by _esys_calc and _evals_calc that returns the transfer matrix and inner product
         matrix but warns the user if the system is in a regime where tight-binding has questionable validity."""
-#        minima_list = self.sorted_minima()
-        # Either we haven't constructed nearest_neighbors yet or the number of minima has changed
-#        if not self.nearest_neighbors or len(self.nearest_neighbors) != (len(minima_list)*(len(minima_list)+1))//2:
         self.find_relevant_periodic_continuation_vectors()
         if self.harmonic_length_optimization:
             self.optimize_Xi_variational_wrapper()
@@ -633,37 +624,34 @@ class VCHOS:
         inner_product_matrix = self.inner_product_matrix()
         return transfer_matrix, inner_product_matrix
 
-    def _evals_calc(self, evals_count):
-        """Overrides method from QubitBaseClass for calculating eigenvalues.
-        Here it is clear that we are solving a generalized eigenvalue
-        problem. Additionally if the inner product matrix becomes singular (or not positive definite due
-        to rounding errors) the QZ algorithm is employed."""
+    def _evals_esys_calc(self, evals_count, eigvals_only):
+        """Helper method that wraps the try and except regarding
+        singularity/indefiniteness of the inner product matrix"""
         transfer_matrix, inner_product_matrix = self._transfer_matrix_and_inner_product()
         try:
-            evals = eigh(transfer_matrix, b=inner_product_matrix,
-                         eigvals_only=True, eigvals=(0, evals_count - 1))
+            eigs = eigh(transfer_matrix, b=inner_product_matrix,
+                        eigvals_only=eigvals_only, eigvals=(0, evals_count - 1))
         except LinAlgError:
             warnings.warn("Singular inner product. Attempt QZ algorithm")
-            evals = solve_generalized_eigenvalue_problem_with_QZ(transfer_matrix, inner_product_matrix,
-                                                                 evals_count, eigvals_only=True)
+            eigs = solve_generalized_eigenvalue_problem_with_QZ(transfer_matrix, inner_product_matrix,
+                                                                evals_count, eigvals_only=eigvals_only)
+        return eigs
+
+    def _evals_calc(self, evals_count):
+        """Overrides method from QubitBaseClass for calculating eigenvalues.
+        Here it is clear that we are solving a generalized eigenvalue problem."""
+        evals = self._evals_esys_calc(evals_count, True)
         return evals
 
     def _esys_calc(self, evals_count):
         """See _evals_calc. Here we calculate eigenvalues and eigenvectors."""
-        transfer_matrix, inner_product_matrix = self._transfer_matrix_and_inner_product()
-        try:
-            evals, evecs = eigh(transfer_matrix, b=inner_product_matrix,
-                                eigvals_only=False, eigvals=(0, evals_count - 1))
-            evals, evecs = order_eigensystem(evals, evecs)
-        except LinAlgError:
-            warnings.warn("Singular inner product. Attempt QZ algorithm")
-            evals, evecs = solve_generalized_eigenvalue_problem_with_QZ(transfer_matrix, inner_product_matrix,
-                                                                        evals_count, eigvals_only=False)
+        evals, evecs = self._evals_esys_calc(evals_count, False)
+        evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
     def _sorted_potential_values_and_minima(self):
         """Returns the value of the potential at minima and the location of minima, in sorted order."""
-        minima_holder = np.array(self.find_minima())
+        minima_holder = self.find_minima()
         value_of_potential = np.array([self.potential(minima) for minima in minima_holder])
         sorted_indices = np.argsort(value_of_potential)
         return value_of_potential[sorted_indices], minima_holder[sorted_indices, :]

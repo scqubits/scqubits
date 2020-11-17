@@ -55,7 +55,7 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
                                and self._check_if_second_derivative_potential_positive(result_neg.x))
             if new_minimum_neg and result_neg.success:
                 minima_holder.append(self._normalize_minimum_inside_pi_range(result_neg.x))
-        return minima_holder
+        return np.array(minima_holder)
 
     def _check_if_second_derivative_potential_positive(self, phi_array):
         """Helper method for determining whether the location specified by `phi_array` is a minimum."""
