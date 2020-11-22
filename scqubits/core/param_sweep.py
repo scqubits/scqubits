@@ -167,7 +167,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         self.subsys_update_list = tuple(subsys_update_list)
         self.update_hilbertspace = update_hilbertspace
         self.num_cpus = num_cpus
-        self._lookup: Union[SpectrumLookup, None]
+        self._lookup: Union[SpectrumLookup, None] = None
         self._bare_hamiltonian_constant: Qobj
 
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
