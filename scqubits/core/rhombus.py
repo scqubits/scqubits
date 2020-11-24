@@ -353,6 +353,30 @@ class Rhombus(base.QubitBaseClass, serializers.Serializable):
         """
         return self._kron3(self._identity_phi_1(), self._identity_phi_2(), self._identity_theta())
 
+    # def hamiltonian(self):
+    #     """
+    #     Rhombus qubit Hamiltonian
+    #
+    #     Returns
+    #     -------
+    #     ndarray
+    #     """
+    #
+    #     phi_1_ng_mat = 2 * self.EC1 * (self.n_phi_1_operator() - self.ng1 * self.total_identity()) ** 2
+    #     phi_2_ng_mat = 2 * self.EC2 * (self.n_phi_2_operator() - self.ng2 * self.total_identity()) ** 2
+    #     theta_ng_mat = 2 * self.ECS * (self.n_theta_operator() - self.ngs * self.total_identity()) ** 2
+    #     kinetic_mat = phi_1_ng_mat + phi_2_ng_mat + theta_ng_mat
+    #
+    #     theta_flux_term = self._cos_theta_operator() * np.cos(self.flux * np.pi) + self._sin_theta_operator() * np.sin(
+    #         self.flux * np.pi)
+    #     potential_mat = -2 * (self.EJ1 * self._kron3(self._cos_phi_1_operator(), self._identity_phi_2(),
+    #                                                  self._cos_theta_operator()) + self.EJ2 * self._kron3(
+    #         self._identity_phi_1(), self._cos_phi_2_operator(), theta_flux_term)) + 2 * (
+    #                                 self.EJ1 + self.EJ2) * self.total_identity()
+    #
+    #     return kinetic_mat + potential_mat
+
+    # double transmon
     def hamiltonian(self):
         """
         Rhombus qubit Hamiltonian
@@ -364,15 +388,9 @@ class Rhombus(base.QubitBaseClass, serializers.Serializable):
 
         phi_1_ng_mat = 2 * self.EC1 * (self.n_phi_1_operator() - self.ng1 * self.total_identity()) ** 2
         phi_2_ng_mat = 2 * self.EC2 * (self.n_phi_2_operator() - self.ng2 * self.total_identity()) ** 2
-        theta_ng_mat = 2 * self.ECS * (self.n_theta_operator() - self.ngs * self.total_identity()) ** 2
-        kinetic_mat = phi_1_ng_mat + phi_2_ng_mat + theta_ng_mat
+        kinetic_mat = phi_1_ng_mat + phi_2_ng_mat
 
-        theta_flux_term = self._cos_theta_operator() * np.cos(self.flux * np.pi) + self._sin_theta_operator() * np.sin(
-            self.flux * np.pi)
-        potential_mat = -2 * (self.EJ1 * self._kron3(self._cos_phi_1_operator(), self._identity_phi_2(),
-                                                     self._cos_theta_operator()) + self.EJ2 * self._kron3(
-            self._identity_phi_1(), self._cos_phi_2_operator(), theta_flux_term)) + 2 * (
-                                    self.EJ1 + self.EJ2) * self.total_identity()
+        potential_mat = -2 * self.EJ1 * self._kron3(self._cos_phi_1_operator(), self._cos_phi_2_operator(), self._identity_theta()) + 2 * self.EJ1 * self.total_identity()
 
         return kinetic_mat + potential_mat
 

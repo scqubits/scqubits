@@ -328,15 +328,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
 
     def q_cap(self, energy):
         # Devoret paper
-        # q_cap_0 = 1 * 1e6
-        # return q_cap_0 * (6 / energy) ** 0.7
+        q_cap_0 = 1 * 1e6
+        return q_cap_0 * (6 / energy) ** 0.7
 
         # Schuster paper
         # return 1 / (8e-6)
 
         # Vlad paper
-        q_cap_0 = 1 / (3 * 1e-6)
-        return q_cap_0 * (6 / energy) ** 0.15
+        # q_cap_0 = 1 / (3 * 1e-6)
+        # return q_cap_0 * (6 / energy) ** 0.15
 
     def get_t1_capacitive_loss(self, para_name, para_vals):
         energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
@@ -371,7 +371,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
     def get_t2_flux_noise(self, para_name, para_vals):
         orginal_flux = getattr(self, 'flux')
         delta = 1e-6
-        pts = 51
+        pts = 11
         flux_list = np.linspace(orginal_flux - delta, orginal_flux + delta, pts)
         energy = np.zeros((pts, para_vals.size))
         for i in range(pts):
@@ -392,7 +392,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
     def get_t2_current_noise(self, para_name, para_vals):
         orginal_ej = self.EJ
         delta = 1e-5
-        pts = 51
+        pts = 11
         ej_list = np.linspace(orginal_ej - delta, orginal_ej + delta, pts)
         energy = np.zeros((pts, para_vals.size))
         for i in range(pts):
@@ -409,11 +409,13 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
         t1_ind = self.get_t1_inductive_loss('dC', np.array([0]))
         t2_current = self.get_t2_current_noise('dC', np.array([0]))
         t2_flux = self.get_t2_flux_noise('dC', np.array([0]))
-        return print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
+        print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
                      ' ms', '\n Tphi_tot =', 1 / (1 / t2_flux + 1 / t2_current), ' ms', '\n T1_cap =',
                      t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1 =', 1 / (1 / t1_ind + 1 / t1_cap), ' ms',
                      '\n T2 =',
                      1 / (1 / t2_flux + 1 / t2_current + (1 / t1_ind + 1 / t1_cap) / 2), ' ms')
+
+        return 1 / (1 / t1_ind + 1 / t1_cap), 1 / (1 / t2_flux + 1 / t2_current + (1 / t1_ind + 1 / t1_cap) / 2)
 
     def get_noise_analysis_2d(self, func, para_name_1, para_vals_1, para_name_2, para_vals_2):
         noise = np.zeros((para_vals_1.size, para_vals_2.size))
