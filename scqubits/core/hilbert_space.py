@@ -372,10 +372,24 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         -------
             interaction Hamiltonian
         """
+        # if given_interaction:
+        #     if type(given_interaction) != Qobj:
+        #         given_interaction = spec_utils.convert_operator_to_qobj(given_interaction)
+        #     return given_interaction
         if not self.interaction_list:
             return 0
-
-        hamiltonian = [self.interactionterm_hamiltonian(term) for term in self.interaction_list]
+        hamiltonian = []
+        given_operators = []
+        for term in self.interaction_list:
+            if type(term) == InteractionTerm:
+                hamiltonian.append(term)
+            elif type(term) == Qobj:
+                given_operators.append(term)
+        print(hamiltonian)
+            # else:
+            #     try:
+            #         spec_utils.convert_operator_to_qobj(term) #How do I know what subsystem this is?
+        # hamiltonian = [self.interactionterm_hamiltonian(term) for term in self.interaction_list]
         return sum(hamiltonian)
 
     def interactionterm_hamiltonian(self,
