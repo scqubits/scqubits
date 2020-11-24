@@ -265,7 +265,7 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
     x_grid, y_grid = np.meshgrid(x_vals, y_vals)
     z_array = func(x_grid, y_grid)
 
-    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.viridis, origin="lower",
+    im = axes.contourf(x_grid, y_grid, z_array, levels=contour_vals, cmap=plt.cm.bone, origin="lower",
                        **_extract_kwargs_options(kwargs, 'contourf'))
 
     if show_colorbar:

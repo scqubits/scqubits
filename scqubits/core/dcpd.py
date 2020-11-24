@@ -484,13 +484,13 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         theta_osc_mat = self._kron3(self._identity_phi(), op.number_sparse(self.dim_theta(), self.theta_plasma()),
                                     self._identity_varphi()) + 2 * self._dis_ec() * self.n_theta_operator() ** 2
 
-        phi_inductive_mat = 0.25 * self._dis_el() * self.phi_operator() ** 2
+        phi_inductive_mat = 0.25 * self._dis_el() * (
+                    self.phi_operator() - 2 * np.pi * self.flux * self.total_identity()) ** 2
         varphi_inductive_mat = 0.5 * self.ELA * self.varphi_operator() ** 2
         add_inductive_mat = self.ELA * (
                 self.varphi_operator() * self.theta_operator() + 2 * np.pi * (self.flux / 2.0 + self.fluxa) * (
                 self.theta_operator() + self.varphi_operator()))
-        phi_flux_term = self._cos_phi_div_operator(2.0) * np.cos(np.pi * self.flux) - self._sin_phi_div_operator(
-            2.0) * np.sin(np.pi * self.flux)
+        phi_flux_term = self._cos_phi_div_operator(2.0)
         junction_mat = - 2 * self.EJ * self._kron3(phi_flux_term, self._identity_theta(),
                                                    self._cos_varphi_div_operator(
                                                        1.0)) + 2 * self.EJ * self.total_identity()
@@ -949,11 +949,11 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
 
         if table is True:
             print(' T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
-                         ' ms', '\n T2_flux_a =', t2_fluxa,
-                         ' ms', '\n T1_cap =',
-                         t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1_qp =', t1_qp, ' ms', '\n T1 =', t1_tot,
-                         ' ms', '\n T2 =', t2_tot,
-                         ' ms')
+                  ' ms', '\n T2_flux_a =', t2_fluxa,
+                  ' ms', '\n T1_cap =',
+                  t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1_qp =', t1_qp, ' ms', '\n T1 =', t1_tot,
+                  ' ms', '\n T2 =', t2_tot,
+                  ' ms')
 
         return np.array([t2_current, t2_flux, t2_fluxa, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot])
 

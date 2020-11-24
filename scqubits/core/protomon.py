@@ -25,7 +25,7 @@ import scqubits.utils.spectrum_utils as matele_utils
 
 
 # — Inductively-shunted Rhombus circuit ————————————————————————
-class Protomon_update(base.QubitBaseClass, serializers.Serializable):
+class Protomon(base.QubitBaseClass, serializers.Serializable):
     r"""inductively-shunted Rhombus qubit, with the harmonic mode in the ground state
 
     Parameters
@@ -479,7 +479,7 @@ class Protomon_update(base.QubitBaseClass, serializers.Serializable):
         """
         phase drop on additional inductor, used in inductive loss calculation
         """
-        return 0.
+        return self.phi_operator() - self.phi_operator()
 
     def q_ind(self, energy):
         """
@@ -602,23 +602,22 @@ class Protomon_update(base.QubitBaseClass, serializers.Serializable):
                                                       evals_count=cutoff).matrixelem_table[
                     0, init_state, :]
         matelem_2 = np.delete(matelem_2, init_state)
-        # matelem_a = self.get_matelements_vs_paramvals('phase_ind_a_operator', 'ph', [0],
-        #                                               evals_count=cutoff).matrixelem_table[
-        #             0, init_state, :]
-        # matelem_a = np.delete(matelem_a, init_state)
+        matelem_a = self.get_matelements_vs_paramvals('phase_ind_a_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[
+                    0, init_state, :]
+        matelem_a = np.delete(matelem_a, init_state)
 
         s_ii_1 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
             energy_diff)
         s_ii_2 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
             energy_diff)
-        # s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
 
         gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
         gamma1_ind_2 = np.abs(matelem_2) ** 2 * s_ii_2
-        # gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
+        gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
 
-        gamma1_ind_tot = np.sum(gamma1_ind_1) + np.sum(gamma1_ind_2) \
-            # + np.sum(gamma1_ind_a)
+        gamma1_ind_tot = np.sum(gamma1_ind_1) + np.sum(gamma1_ind_2) + np.sum(gamma1_ind_a)
         return 1 / (gamma1_ind_tot) * 1e-6
 
     def get_t1_qp_loss(self, init_state):
@@ -650,7 +649,7 @@ class Protomon_update(base.QubitBaseClass, serializers.Serializable):
 
     def get_t2_flux_c_noise(self, init_state):
         """
-        T2 flux noise
+        common flux noise
         """
         delta = 1e-6
         pts = 11
@@ -666,7 +665,7 @@ class Protomon_update(base.QubitBaseClass, serializers.Serializable):
 
     def get_t2_flux_d_noise(self, init_state):
         """
-        T2 flux noise
+        differential flux noise
         """
         delta = 1e-6
         pts = 11
@@ -775,6 +774,6 @@ class Protomon_update(base.QubitBaseClass, serializers.Serializable):
                                                               states[:, j]) * beta_phi + matele_utils.matrix_element(
                             states[:, i], self.n_theta_operator(), states[:, j]) * beta_theta
                         ds_table[i] += np.abs(ds_temp) ** 2 * (1 / (eigsys[0][i] - eigsys[0][j] - w_readout) - 1 / (
-                                    eigsys[0][j] - eigsys[0][i] - w_readout))
+                                eigsys[0][j] - eigsys[0][i] - w_readout))
 
         return ds_table
