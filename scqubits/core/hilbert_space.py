@@ -40,8 +40,8 @@ if settings.IN_IPYTHON:
 else:
     from tqdm import tqdm
 
-
 QuantumSys = Union[QubitBaseClass, Oscillator]
+
 
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
@@ -165,9 +165,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """
         return {'subsystem_list': self._subsystems, 'interaction_list': self.interaction_list}
 
-    def receive(self, 
-                event: str, 
-                sender: Any, 
+    def receive(self,
+                event: str,
+                sender: Any,
                 **kwargs
                 ) -> None:
         if self._lookup is not None:
@@ -277,9 +277,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))
         return self.identity_wrap(diag_qt_op, subsystem)
 
-    def identity_wrap(self, 
-                      operator: Union[str, ndarray, Qobj], 
-                      subsystem: QuantumSys, 
+    def identity_wrap(self,
+                      operator: Union[str, ndarray, Qobj],
+                      subsystem: QuantumSys,
                       op_in_eigenbasis: bool = False,
                       evecs: ndarray = None
                       ) -> Qobj:
@@ -372,25 +372,34 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         -------
             interaction Hamiltonian
         """
-        # if given_interaction:
-        #     if type(given_interaction) != Qobj:
-        #         given_interaction = spec_utils.convert_operator_to_qobj(given_interaction)
-        #     return given_interaction
         if not self.interaction_list:
             return 0
-        hamiltonian = []
+        hamiltonian_from_interaction_terms = []
         given_operators = []
         for term in self.interaction_list:
             if type(term) == InteractionTerm:
-                hamiltonian.append(term)
+                hamiltonian_from_interaction_terms.append(self.interactionterm_hamiltonian(term))
             elif type(term) == Qobj:
                 given_operators.append(term)
-        print(hamiltonian)
-            # else:
-            #     try:
-            #         spec_utils.convert_operator_to_qobj(term) #How do I know what subsystem this is?
-        # hamiltonian = [self.interactionterm_hamiltonian(term) for term in self.interaction_list]
-        return sum(hamiltonian)
+        # print("This is the sum of the interaction terms")
+        # print(sum(hamiltonian))
+        # print("-" * 90)
+        # print("This is the given matrix")
+        # print(given_operators)
+        # print("*" * 90)
+        # all_together = hamiltonian + given_operators
+        # print("This is it all put together:")
+        # print(sum(all_together))
+        hamiltonian = sum(given_operators + hamiltonian_from_interaction_terms)
+        return hamiltonian
+
+    # TODO: Rename this something better
+    def append_interaction_matrix(self, term):
+        if type(term) == Qobj:
+            self.interaction_list.append(term)
+        else:
+            # TODO: add a warning here!
+            pass
 
     def interactionterm_hamiltonian(self,
                                     interactionterm: InteractionTerm,
@@ -458,7 +467,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                                                                  disable=(num_cpus > 1))))
             eigenvalue_table, eigenstate_table = spec_utils.recast_esys_mapdata(eigensystem_mapdata)
         else:
-            func = functools.partial(self._evals_for_paramval,  update_hilbertspace=update_hilbertspace,
+            func = functools.partial(self._evals_for_paramval, update_hilbertspace=update_hilbertspace,
                                      evals_count=evals_count)
             with utils.InfoBar("Parallel computation of eigensystems [num_cpus={}]".format(num_cpus), num_cpus):
                 eigenvalue_table = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
@@ -471,3 +480,32 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                                     param_name,
                                     param_vals,
                                     state_table=eigenstate_table)
+
+qutip_dict = {
+    'cos': 'Qobj.cosm',
+    'dag': 'Qobj.dag',
+    'conj': 'Qobj.conj',
+    'exp': 'Qobj.expm',
+    'sin': 'Qobj.sinm',
+    'sqrt': 'Qobj.sqrtm',
+    'trans': 'Qobj.trans'
+}
+
+matrix_one = qt.qeye(10)
+matrix_two = qt.qeye(10) * 3
+# print('matrix_two:')
+# print(matrix_two)
+
+def replace_string(string: str):
+    for item, value in qutip_dict.items():
+        print(item,value)
+        if item in string:
+            string.replace(item, value)
+    return string
+
+fun_string = 'cos(sqrt(matrix_one) + matrix_two)'
+print("hello")
+# fun_string = replace_string(string=fun_string)
+# answer = eval(fun_string)
+# print(answer)
+# print(fun_string)
