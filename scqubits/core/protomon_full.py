@@ -27,7 +27,7 @@ import scqubits.core.operators as op
 
 
 # — Inductively-shunted Rhombus circuit ————————————————————————
-class Protomon_full(base.QubitBaseClass, serializers.Serializable):
+class FullProtomon(base.QubitBaseClass, serializers.Serializable):
     r"""inductively-shunted Rhombus qubit, with the harmonic mode in the ground state
 
     Parameters
@@ -43,9 +43,9 @@ class Protomon_full(base.QubitBaseClass, serializers.Serializable):
     ELA: float
         additional inductive energy
     flux_c: float
-        common part of the extern flux, e.g., 1 corresponds to one flux quantum
+        common part of the external flux, e.g., 1 corresponds to one flux quantum
     flux_d: float
-        differential part of the exteral flux, e.g., 1 corresponds to one flux quantum
+        differential part of the external flux, e.g., 1 corresponds to one flux quantum
     kbt: float
         photon temperature
     """
@@ -59,9 +59,9 @@ class Protomon_full(base.QubitBaseClass, serializers.Serializable):
         self.flux_c = flux_c
         self.flux_d = flux_d
         self.kbt = kbt * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # input temperature unit mK
-        self.phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
+        self.phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 90)
         self.theta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
-        self.zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
+        self.zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 110)
         self.zeta_cut = 5
         self.ph = 0  # placeholder
         self._sys_type = type(self).__name__
@@ -71,7 +71,7 @@ class Protomon_full(base.QubitBaseClass, serializers.Serializable):
     def default_params():
         return {
             'EJ': 15.0,
-            'EC': 2.8,
+            'EC': 3.5,
             'EL': 0.32,
             'ELA': 0.32,
             'flux_c': 0.5,
@@ -336,16 +336,15 @@ class Protomon_full(base.QubitBaseClass, serializers.Serializable):
             self._identity_phi(), self._identity_zeta(), theta_kinetic)
 
         phi_ind = self.EL * (self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux_c) ** 2
-        theta_zeta_ind = self.EL * (
-                    self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) ** 2 + 2 * self.EL * (
-                                     self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) * self.zeta_operator()
+        theta_ind = self.EL * (self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) ** 2
+        coupling_ind = - 2 * self.EL * (
+                    self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) * self.zeta_operator()
 
         # note the 2EJ constant term is added to be consistent with the 'LM' option in eigensolver
         phi_theta_junction = - 2 * self.EJ * self._kron3(self._cos_phi_div_operator(1.0), self._identity_zeta(),
                                                          self._cos_theta_div_operator(
                                                              1.0)) + 2 * self.EJ * self.total_identity()
-
-        return tot_kinetic + phi_ind + theta_zeta_ind + phi_theta_junction + zeta_osc
+        return zeta_osc + tot_kinetic + phi_ind + theta_ind + coupling_ind + phi_theta_junction
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -442,20 +441,19 @@ class Protomon_full(base.QubitBaseClass, serializers.Serializable):
         """
         phase drop on inductor 1, used in inductive loss calculation
         """
-        return self.phi_operator() + self.theta_operator() - self.zeta_operator()
+        return -self.phi_operator() - self.theta_operator() + self.zeta_operator()
 
     def phase_ind_2_operator(self):
         """
         phase drop on inductor 2, used in inductive loss calculation
         """
-        return self.phi_operator() - self.theta_operator() + self.zeta_operator()
+        return -self.phi_operator() + self.theta_operator() - self.zeta_operator()
 
-    # TODO: check no effect of inductive loss on additional inductor
     def phase_ind_a_operator(self):
         """
         phase drop on additional inductor, used in inductive loss calculation
         """
-        return -self.zeta_operator()
+        return self.zeta_operator()
 
     def q_ind(self, energy):
         """

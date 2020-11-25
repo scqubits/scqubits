@@ -21,7 +21,6 @@ import scqubits.utils.misc as utils
 class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
     matrices.
-
     Parameters
     ----------
     min_val: float
@@ -52,7 +51,6 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
 
     def get_initdata(self):
         """Returns dict appropriate for creating/initializing a new Grid1d object.
-
         Returns
         -------
         dict
@@ -70,7 +68,6 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
 
     def make_linspace(self):
         """Returns a numpy array of the grid points
-
         Returns
         -------
         ndarray
@@ -80,14 +77,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     def first_derivative_matrix(self, prefactor=1.0, periodic=False):
         """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
         Uses :math:`f'(x) \\approx [f(x+h) - f(x-h)]/2h`.
-
         Parameters
         ----------
         prefactor: float or complex, optional
             prefactor of the derivative matrix (default value: 1.0)
         periodic: bool, optional
             set to True if variable is a periodic variable
-
         Returns
         -------
         sparse matrix in `dia` format
@@ -113,14 +108,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
     def second_derivative_matrix(self, prefactor=1.0, periodic=False):
         """Generate sparse matrix for second derivative of the form :math:`\\partial^2_{x_i}`.
         Uses :math:`f''(x) \\approx [f(x+h) - 2f(x) + f(x-h)]/h^2`.
-
         Parameters
         ----------
         prefactor: float, optional
             optional prefactor of the derivative matrix (default value = 1.0)
         periodic: bool, optional
             set to True if variable is a periodic variable (default value = False)
-
         Returns
         -------
         sparse matrix in `dia` format
@@ -142,7 +135,6 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
 
 class GridSpec(dispatch.DispatchClient, serializers.Serializable):
     """Class for specifying a general discretized coordinate grid (arbitrary dimensions).
-
     Parameters
     ----------
     minmaxpts_array: ndarray

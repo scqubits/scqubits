@@ -39,9 +39,9 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
     ELA: float
         additional inductive energy
     flux_c: float
-        common part of the extern flux, e.g., 1 corresponds to one flux quantum
+        common part of the external flux, e.g., 1 corresponds to one flux quantum
     flux_d: float
-        differential part of the exteral flux, e.g., 1 corresponds to one flux quantum
+        differential part of the external flux, e.g., 1 corresponds to one flux quantum
     kbt: float
         photon temperature
     """
@@ -64,7 +64,7 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
     def default_params():
         return {
             'EJ': 15.0,
-            'EC': 2.8,
+            'EC': 3.5,
             'EL': 0.32,
             'ELA': 0.32,
             'flux_c': 0.5,
@@ -264,7 +264,7 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         theta_ind = self.EL / (1 + 2 * self.EL / self.ELA) * (
                 self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) ** 2
 
-        # note the 2EJ constant term is added to be consistent with the 'LM' option in eigensolver
+        # note the 2EJ constant term is added to be consistent with the 'LM' option in _evals_calc and _esys_calc
         phi_theta_junction = - 2 * self.EJ * self._kron2(self._cos_phi_div_operator(1.0),
                                                          self._cos_theta_div_operator(
                                                              1.0)) + 2 * self.EJ * self.total_identity()
@@ -462,24 +462,26 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         fig, axes = plot.wavefunction2d(n_phi_n_theta_wavefunction, zero_calibrate=zero_calibrate, **kwargs)
         return fig, axes
 
+    def effective_zeta_operator(self):
+        return self.EL / (self.EL + self.ELA * 0.5) * self.theta_operator()
+
     def phase_ind_1_operator(self):
         """
         phase drop on inductor 1, used in inductive loss calculation
         """
-        return self.phi_operator() + self.theta_operator()
+        return -self.phi_operator() - self.theta_operator() + self.effective_zeta_operator()
 
     def phase_ind_2_operator(self):
         """
         phase drop on inductor 2, used in inductive loss calculation
         """
-        return self.phi_operator() - self.theta_operator()
+        return -self.phi_operator() + self.theta_operator() - self.effective_zeta_operator()
 
-    # TODO: check no effect of inductive loss on additional inductor
     def phase_ind_a_operator(self):
         """
         phase drop on additional inductor, used in inductive loss calculation
         """
-        return self.phi_operator() - self.phi_operator()
+        return self.effective_zeta_operator()
 
     def q_ind(self, energy):
         """

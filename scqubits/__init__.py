@@ -31,7 +31,7 @@ from scqubits.core.dcpd import Dcpd
 from scqubits.core.dcpr import Dcpr
 from scqubits.core.protomon import Protomon
 from scqubits.core.protomon_ver_0 import Protomon_ver_0
-from scqubits.core.protomon_full import Protomon_full
+from scqubits.core.protomon_full import FullProtomon
 from scqubits.core.dcpr_dc import Dcpr_dc
 from scqubits.core.rhombus import Rhombus
 from scqubits.core.dcp_tri import Dcptri
