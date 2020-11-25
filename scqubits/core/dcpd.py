@@ -706,6 +706,9 @@ class Dcpd(base.QubitBaseClass, serializers.Serializable):
         """
         return self.theta_operator() + self.varphi_operator()
 
+    def test_operator(self):
+        return self.theta_operator() - self.varphi_operator()
+
     def q_ind(self, energy):
         """Frequency dependent quality factor of inductance"""
         q_ind_0 = 500 * 1e6
