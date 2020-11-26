@@ -41,8 +41,8 @@ def order_eigensystem(evals: np.ndarray, evecs: np.ndarray) -> Tuple[np.ndarray,
 
 def extract_phase(complex_array: np.ndarray, position: Optional[int] = None) -> float:
     """Extracts global phase from `complex_array` at given `position`. If position is not specified, the `position` is
-    set to to an intermediate position to avoid machine-precision problems with tails of wavefunctions at beginning
-    or end of the array.
+    set as follows. Find the maximum between the leftmost point and the halfway point of the wavefunction. The position
+    of that point is used to determine the phase factor to be eliminated.
 
     Parameters
     ----------
@@ -52,8 +52,9 @@ def extract_phase(complex_array: np.ndarray, position: Optional[int] = None) -> 
         position where the phase is extracted (default value = None)
     """
     if position is None:
+        halfway_position = len(complex_array) // 2
         flattened_position = np.argmax(
-            np.abs(complex_array))  # extract phase from element with largest amplitude modulus
+            np.abs(complex_array[:halfway_position]))  # extract phase from element with largest amplitude modulus
         position = np.unravel_index(flattened_position, complex_array.shape)
     return cmath.phase(complex_array[position])
 
@@ -73,10 +74,14 @@ def standardize_phases(complex_array: np.ndarray) -> np.ndarray:
 
 
 def standardize_sign(real_array: np.ndarray) -> np.ndarray:
-    """Standardizes the sign of a real-valued wavefunction by calculating the sign of the sum of all amplitudes and
-    making it positive.
+    """Standardizes the sign of a real-valued wavefunction by calculating the sign of the sum of all amplitudes up to
+    the wavefunctions mid-position and making it positive.
+
+    Summing up to the midpoint only is to address the  danger that the sum is actually zero, which may is the case for
+    odd wavefunctions taken over an interval centered at zero.
     """
-    return np.sign(np.sum(real_array)) * real_array
+    halfway_position = len(real_array) // 2
+    return np.sign(np.sum(real_array[:halfway_position])) * real_array
 
 
 # -Matrix elements and operators (outside qutip) ----------------------------------------------------------------------
