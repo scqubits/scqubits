@@ -5,6 +5,7 @@ import numpy as np
 import scipy as sp
 from scipy.linalg import LinAlgError, inv, expm, logm, det
 from numpy.linalg import matrix_power
+from scipy.optimize import minimize
 from scipy.special import factorial
 
 from scqubits.core.vchos import VCHOS
@@ -208,7 +209,8 @@ class VCHOSSqueezing(VCHOS):
         for (minima_m, m), (minima_p, p) in all_minima_pairs:
             minima_diff = Xi_inv_list[p] @ minima_p - Xi_inv_list[m] @ minima_m
             nearest_neighbors[str(m)+str(p)] = self._filter_for_minima_pair(minima_diff, Xi_inv_list[p], num_cpus)
-            print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
+            if not self.quiet:
+                print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
         self.nearest_neighbors = nearest_neighbors
 
     def _build_translation_operators_squeezing(self, minima_diff, Xi, disentangled_squeezing_matrices,
@@ -472,7 +474,8 @@ class VCHOSSqueezing(VCHOS):
         Xi_inv = inv(self.Xi_matrix())
         a_operator_list = self._a_operator_list()
         EC_mat = self.build_EC_matrix()
-        minima_pair_kinetic_function = partial(self._minima_pair_kinetic_squeezing_function, EC_mat, a_operator_list)
+        minima_pair_kinetic_function = partial(self._minima_pair_kinetic_squeezing_function, EC_mat,
+                                               a_operator_list, Xi_inv)
         local_kinetic_function = partial(self._local_kinetic_squeezing_function, EC_mat, Xi_inv)
         return self._periodic_continuation_squeezing(minima_pair_kinetic_function, local_kinetic_function)
 
@@ -611,6 +614,19 @@ class VCHOSSqueezing(VCHOS):
                                                    for i in range(self.number_degrees_freedom)])
                 self.optimized_lengths[minimum] = harmonic_lengths_global / harmonic_lengths_local
 
+    def _optimize_Xi_variational(self, minimum=0, minimum_location=None):
+        default_Xi = self.Xi_matrix(minimum)
+        EC_mat = self.build_EC_matrix()
+        if not self.nearest_neighbors:
+            self.find_relevant_periodic_continuation_vectors()
+        optimized_lengths_result = minimize(self._evals_calc_variational, self.optimized_lengths[minimum],
+                                            args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-1)
+        assert optimized_lengths_result.success
+        optimized_lengths = optimized_lengths_result.x
+        if not self.quiet:
+            print("completed harmonic length optimization for the m={m} minimum".format(m=minimum))
+        self.optimized_lengths[minimum] = optimized_lengths
+
     def _one_state_periodic_continuation_squeezing(self, minimum_location, minimum, nearest_neighbors,
                                                    local_func, Xi, Xi_inv):
         """Periodic continuation when considering only the ground state."""
@@ -641,8 +657,8 @@ class VCHOSSqueezing(VCHOS):
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         linear_coefficients_kinetic = self._linear_coefficient_matrices(rho_prime, delta_rho,
-                                                                        -1j * inv(Xi) / np.sqrt(2.0),
-                                                                        1j * inv(Xi) / np.sqrt(2.0))
+                                                                        -1j * Xi_inv.T / np.sqrt(2.0),
+                                                                        1j * Xi_inv.T / np.sqrt(2.0))
         return (self._one_state_local_kinetic_squeezing_function(EC_mat, Xi_inv, phi_neighbor, minima_m, minima_p,
                                                                  disentangled_squeezing_matrices,
                                                                  delta_rho_matrices, linear_coefficients_kinetic)
@@ -683,7 +699,7 @@ class VCHOSSqueezing(VCHOS):
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         a_coefficient, a_dagger_coefficient = linear_coefficient_matrices
         alpha, epsilon = self._construct_kinetic_alpha_epsilon_squeezing(Xi_inv, delta_phi, rho_prime, delta_rho)
-        result = 4 * alpha * (epsilon @ EC_mat @ epsilon - np.trace(a_dagger_coefficient.T @ EC_mat @ a_coefficient))
+        result = 4 * alpha * (epsilon @ EC_mat @ epsilon + np.trace(a_dagger_coefficient.T @ EC_mat @ a_coefficient))
         return result
 
     def _evals_calc_variational(self, optimized_lengths, minimum_location, minimum, EC_mat, default_Xi):
@@ -692,19 +708,14 @@ class VCHOSSqueezing(VCHOS):
         self.optimized_lengths[minimum] = optimized_lengths
         Xi = self._update_Xi(default_Xi, minimum)
         Xi_inv = inv(Xi)
-        exp_product_boundary_coefficient = self._BCH_factor_for_potential_boundary(Xi)
-        transfer, inner = self._one_state_construct_transfer_inner_squeezing(Xi, Xi_inv, minimum_location, minimum,
-                                                                             EC_mat, exp_product_boundary_coefficient)
+        transfer, inner = self._one_state_construct_transfer_inner_squeezing(Xi, Xi_inv, minimum_location,
+                                                                             minimum, EC_mat)
         return np.real([transfer / inner])
 
-    def _one_state_construct_transfer_inner_squeezing(self, Xi, Xi_inv, minimum_location, minimum, EC_mat,
-                                                      exp_product_boundary_coefficient):
+    def _one_state_construct_transfer_inner_squeezing(self, Xi, Xi_inv, minimum_location, minimum, EC_mat):
         """Transfer matrix and inner product matrix when considering only the ground state."""
-        if not self.nearest_neighbors:
-            self.find_relevant_periodic_continuation_vectors()
         nearest_neighbors = self.nearest_neighbors[str(minimum) + str(minimum)]
-        transfer_function = partial(self._one_state_local_transfer_squeezing, EC_mat, Xi, Xi_inv,
-                                    exp_product_boundary_coefficient)
+        transfer_function = partial(self._one_state_local_transfer_squeezing, EC_mat, Xi, Xi_inv)
         inner_product_function = partial(self._one_state_local_identity_squeezing, Xi_inv)
         transfer = self._one_state_periodic_continuation_squeezing(minimum_location, minimum, nearest_neighbors,
                                                                    transfer_function, Xi, Xi_inv)

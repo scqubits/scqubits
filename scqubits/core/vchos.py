@@ -41,12 +41,10 @@ class VCHOS:
 
     .. math::
 
-        U=-EJ[1]*\cos(\phi_1)-EJ[2]*\cos(\phi_2)-...-EJ[N]*\cos(bc[1]*\phi_1+bc[2]*\phi_2+...-2\pi f),
+        U=-EJ[1]\cos(\phi_1)-EJ[2]\cos(\phi_2)-...-EJ[N]\cos(bc[1]\phi_1+bc[2]\phi_2+...-2\pi f),
 
     where the array :math:`bc` denotes the coefficients of terms in the boundary term.
-    For the flux qubit, the last term looks like :math:`-\alpha*EJ*\cos(\phi_1-\phi_2-2\pi f)`, whereas for
-    the current mirror it is :math:`-EJ[N]*\cos(\sum_i(\phi_i)-2\pi f)`. Extension of this module
-    to circuits that include inductors is possible and is implemented for the
+    Extension of this module to circuits that include inductors is possible and is implemented for the
     zero-pi qubit in zero_pi_vchos.py. The user must define a new qubit class
     that inherits VCHOS, with all of the qubit specific information. Specifically, the user
     must provide in their child qubit class the functions build_capacitance_matrix(),
@@ -78,6 +76,8 @@ class VCHOS:
     optimize_all_minima: int
         flag only relevant in the case of squeezing (see class VCHOSSqueezing) denoting whether or
         not to optimize the harmonic lengths in all minima
+    quiet: int
+        flag whether or not to print out information regarding completion of intermediate tasks
     """
     potential: Callable
     find_minima: Callable
@@ -87,7 +87,7 @@ class VCHOS:
 
     def __init__(self, EJlist, nglist, flux, maximum_periodic_vector_length=0, number_degrees_freedom=0,
                  number_periodic_degrees_freedom=0, num_exc=0, nearest_neighbors=None,
-                 harmonic_length_optimization=0, optimize_all_minima=0, quiet=False):
+                 harmonic_length_optimization=0, optimize_all_minima=0, quiet=0):
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2 * self.e)**2
         self.Phi0 = 1. / (2 * self.e)
@@ -110,7 +110,7 @@ class VCHOS:
         self.optimized_lengths = np.array([])
 
     def build_gamma_matrix(self, minimum=0):
-        """Return linearized potential matrix
+        """Returns linearized potential matrix
 
         Note that we must divide by Phi_0^2 since Ej/Phi_0^2 = 1/Lj,
         or one over the effective impedance of the junction.
@@ -145,7 +145,7 @@ class VCHOS:
         return gamma_matrix
 
     def eigensystem_normal_modes(self, minimum=0):
-        """Return squared normal mode frequencies, matrix of eigenvectors
+        """Returns squared normal mode frequencies, matrix of eigenvectors
 
         Parameters
         ----------
@@ -163,7 +163,7 @@ class VCHOS:
         return omega_squared, normal_mode_eigenvectors
 
     def omega_matrix(self, minimum=0):
-        """Return a diagonal matrix of the normal mode frequencies of a given minimum
+        """Returns a diagonal matrix of the normal mode frequencies of a given minimum
 
         Parameters
         ----------
@@ -244,7 +244,7 @@ class VCHOS:
         return Xi_matrix
 
     def a_operator(self, mu):
-        """Return the lowering operator associated with the mu^th d.o.f. in the full Hilbert space
+        """Returns the lowering operator associated with the mu^th d.o.f. in the full Hilbert space
 
         Parameters
         ----------
@@ -435,7 +435,7 @@ class VCHOS:
         return translation_op_a_dagger, translation_op_a
 
     def _exp_product_coefficient(self, delta_phi, Xi_inv):
-        """Return overall multiplicative factor, including offset charge and Gaussian suppression BCH factor
+        """Returns overall multiplicative factor, including offset charge and Gaussian suppression BCH factor
         from the periodic continuation (translation) operators"""
         delta_phi_rotated = Xi_inv @ delta_phi
         return np.exp(-1j * self.nglist @ delta_phi) * np.exp(-0.25 * delta_phi_rotated @ delta_phi_rotated)
@@ -718,7 +718,7 @@ class VCHOS:
             self.find_relevant_periodic_continuation_vectors()
         optimized_lengths_result = minimize(self._evals_calc_variational, self.optimized_lengths[minimum],
                                             jac=self._gradient_evals_calc_variational,
-                                            args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-2)
+                                            args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-1)
         assert optimized_lengths_result.success
         optimized_lengths = optimized_lengths_result.x
         if not self.quiet:
@@ -730,6 +730,7 @@ class VCHOS:
         return np.array([row * self.optimized_lengths[minimum, i] for i, row in enumerate(default_Xi.T)]).T
 
     def _gradient_evals_calc_variational(self, optimized_lengths, minimum_location, minimum, EC_mat, default_Xi):
+        """Returns the gradient of evals_calc_variational to aid in the harmonic length optimization calculation"""
         self.optimized_lengths[minimum] = optimized_lengths
         Xi = self._update_Xi(default_Xi, minimum)
         Xi_inv = inv(Xi)
@@ -774,6 +775,7 @@ class VCHOS:
         return np.append(exp_factors, self._BCH_factor_for_potential_boundary(Xi))
 
     def _gradient_one_state_local_inner_product(self, delta_phi, Xi_inv, which_length):
+        """Returns gradient of the inner product matrix"""
         delta_phi_rotated = Xi_inv @ delta_phi
         return (self.optimized_lengths[0, which_length]**(-1)
                 * (1j * self.nglist[which_length] * delta_phi_rotated[which_length]
@@ -786,12 +788,14 @@ class VCHOS:
         return 0.5 * 4 * np.trace(EC_mat_t) - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
 
     def _gradient_one_state_local_kinetic(self, EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p, which_length):
+        """Returns gradient of the kinetic matrix"""
         delta_phi_rotated = Xi_inv @ (phi_neighbor + minima_p - minima_m)
         return (-4.0*self.optimized_lengths[0, which_length]**(-1)
                 * (EC_mat_t[which_length, which_length] - (delta_phi_rotated @ EC_mat_t)[which_length]
                    * delta_phi_rotated[which_length]))
 
     def _exp_i_phi_j_operators_with_phi_bar(self, exp_i_phi_j, phi_bar):
+        """Returns exp_i_phi_j operators including the local contribution of phi_bar"""
         exp_i_phi_j_without_boundary = np.array([exp_i_phi_j[i] * np.exp(1j * phi_bar[i])
                                                  for i in range(self.number_degrees_freedom)])
         exp_i_sum_phi = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
@@ -799,6 +803,7 @@ class VCHOS:
         return exp_i_phi_j_without_boundary, exp_i_sum_phi
 
     def _gradient_one_state_local_potential(self, exp_i_phi_j, phi_neighbor, minima_m, minima_p, Xi, which_length):
+        """Returns gradient of the potential matrix"""
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
         exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_gradient = np.sum([0.25 * self.EJlist[junction]
@@ -814,6 +819,7 @@ class VCHOS:
 
     def _gradient_one_state_local_transfer(self, exp_i_phi_j, EC_mat_t, Xi, Xi_inv,
                                            phi_neighbor, minima_m, minima_p, which_length):
+        """Returns gradient of the transfer matrix"""
         return (self._gradient_one_state_local_potential(exp_i_phi_j, phi_neighbor, minima_m,
                                                          minima_p, Xi, which_length)
                 + self._gradient_one_state_local_kinetic(EC_mat_t, Xi_inv, phi_neighbor, minima_m,

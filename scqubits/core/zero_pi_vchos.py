@@ -3,7 +3,6 @@ from itertools import product
 import numpy as np
 from scipy.optimize import minimize
 from scipy.linalg import expm, inv
-import scipy.constants as const
 
 from scqubits import VCHOSSqueezing
 from scqubits.core.hashing import Hashing
@@ -18,7 +17,6 @@ class ZeroPiVCHOS(ZeroPiFunctions, VCHOS, base.QubitBaseClass, serializers.Seria
         ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
         VCHOS.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux,
                        number_degrees_freedom=2, number_periodic_degrees_freedom=1, **kwargs)
-        self.e = np.sqrt(4.0 * np.pi * const.alpha)
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
