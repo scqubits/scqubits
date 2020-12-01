@@ -740,6 +740,7 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         :param cutoff: states involved in the calculation
         :return: table containing dispersive shift for each state
         """
+        factor = 0.913
         eigsys = self.eigensys(evals_count=cutoff)
         energy = eigsys[0]
         states = eigsys[1]
@@ -778,4 +779,4 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
                         ds_table[i] += np.abs(ds_temp) ** 2 * (1 / (eigsys[0][i] - eigsys[0][j] - w_readout) - 1 / (
                                 eigsys[0][j] - eigsys[0][i] - w_readout))
 
-        return ds_table
+        return ds_table * factor ** 2
