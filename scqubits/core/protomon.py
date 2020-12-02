@@ -271,7 +271,7 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
 
         return tot_kinetic + phi_ind + theta_ind + phi_theta_junction
 
-    def potential(self, phi, theta):
+    def potential(self, theta, phi):
         """
         Potential evaluated at `phi, theta`
 
