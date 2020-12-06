@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, Iterator, Optional, Tuple, List, Union
 import numpy as np
 import qutip as qt
 from numpy import ndarray
+from scipy.sparse import csc_matrix, dia_matrix
 from qutip.qobj import Qobj
 
 import scqubits.core.central_dispatch as dispatch
@@ -42,6 +43,7 @@ else:
 
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
+
 
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
@@ -72,9 +74,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     def __init__(self,
                  g_strength: Union[float, complex],
                  subsys1: QuantumSys,
-                 op1: Union[str, ndarray],
+                 op1: Union[str, ndarray, csc_matrix, dia_matrix],
                  subsys2: QuantumSys,
-                 op2: Union[str, ndarray],
+                 op2: Union[str, ndarray, csc_matrix, dia_matrix],
                  add_hc: bool = False,
                  hilbertspace: 'HilbertSpace' = None
                  ) -> None:
@@ -228,7 +230,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return hamiltonian_mat.eigenenergies(eigvals=evals_count)
 
     def eigensys(self, evals_count: int = 6) -> Tuple[ndarray, QutipEigenstates]:
-        """Calculates eigenvalues and eigenvectore of the full Hamiltonian using `qutip.Qob.eigenstates()`.
+        """Calculates eigenvalues and eigenvectors of the full Hamiltonian using `qutip.Qob.eigenstates()`.
 
         Parameters
         ----------
@@ -278,7 +280,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return self.identity_wrap(diag_qt_op, subsystem)
 
     def identity_wrap(self, 
-                      operator: Union[str, ndarray, Qobj], 
+                      operator: Union[str, ndarray, csc_matrix, dia_matrix, Qobj],
                       subsystem: QuantumSys, 
                       op_in_eigenbasis: bool = False,
                       evecs: ndarray = None
