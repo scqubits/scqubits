@@ -17,6 +17,8 @@ import numpy as np
 import qutip as qt
 from numpy import ndarray
 from qutip.qobj import Qobj
+from scipy.sparse.csc import csc_matrix
+from scipy.sparse.dia import dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -99,6 +101,93 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         for param_name in self._init_params:
             output += '\n' + str(param_name) + '\t: ' + str(getattr(self, param_name))
         return output + '\n'
+
+
+class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
+    # TODO: fix docstring
+    """
+    Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
+    the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
+    1. V = g A B, where A, B are Hermitean operators in two specified subsys_list,
+    2. V = g A B + h.c., where A, B may be non-Hermitean
+
+    Parameters
+    ----------
+    g_strength:
+        coefficient parametrizing the interaction strength
+    hilbertspace:
+        specifies the Hilbert space components
+    subsys1, subsys2:
+        the two subsys_list involved in the interaction
+    op1, op2:
+        names of operators in the two subsys_list
+    add_hc:
+        If set to True, the interaction Hamiltonian is of type 2, and the Hermitean conjugate is added.
+    """
+    function = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    operator_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    subsystem_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    name_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+
+
+    # TODO: impliment cosm and such
+    # TODO: search for parenthesis
+    qutip_dict = {
+        'cos': 'Qobj.cosm',
+        'dag': 'Qobj.dag',
+        'conj': 'Qobj.conj',
+        'exp': 'Qobj.expm',
+        'sin': 'Qobj.sinm',
+        'sqrt': 'Qobj.sqrtm',
+        'trans': 'Qobj.trans'
+    }
+
+    def __init__(self,
+                 function: str,
+                 operator_list: List[Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str]],
+                 subsystem_list: List[QuantumSys],
+                 name_list: List[str] = False
+                 ) -> None:
+        self.function = function
+        self.operator_list = operator_list
+        self.subsystem_list = subsystem_list
+        if name_list:
+            self.name_list = name_list
+        else:
+            self.name_list = ['op' + str(i+1) for i in range(len(operator_list))]
+        qoperator_list = self.convert_operators(operator_list, subsystem_list)
+        self.add_to_vars(self.name_list, qoperator_list)
+        self.answer = self.run_string_code(function)
+
+    def __repr__(self) -> str:
+        init_dict = {name: getattr(self, name) for name in self._init_params}
+        return type(self).__name__ + f'(**{init_dict!r})'
+
+    def __str__(self) -> str:
+        output = type(self).__name__.upper() + '\n ———— PARAMETERS ————'
+        for param_name in self._init_params:
+            output += '\n' + str(param_name) + '\t: ' + str(getattr(self, param_name))
+        return output + '\n'
+
+    def add_to_vars(self, names: list, op_list: list) -> None:
+        for count, term in enumerate(names):
+            globals()[term] = op_list[count]
+
+    def replace_string(self, string: str) -> str:
+        for item, value in self.qutip_dict.items():
+            if item in string:
+                string = string.replace(item, value)
+        return string
+
+    def run_string_code(self, string: str) -> Qobj:
+        string = self.replace_string(string)
+        answer = eval(string)
+        return answer
+
+    def convert_operators(self, op_list: list, subsys_list: list) -> list:
+        new_operators = [spec_utils.convert_operator_to_qobj(item, subsys_list[count], op_in_eigenbasis=False, evecs=None)
+                         for count, item in enumerate(op_list)]
+        return new_operators
 
 
 class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
@@ -374,34 +463,14 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """
         if not self.interaction_list:
             return 0
-        hamiltonian_from_interaction_terms = []
-        given_operators = []
-        for term in self.interaction_list:
-            if type(term) == InteractionTerm:
-                hamiltonian_from_interaction_terms.append(self.interactionterm_hamiltonian(term))
-            elif type(term) == Qobj:
-                given_operators.append(term)
-        # print("This is the sum of the interaction terms")
-        # print(sum(hamiltonian))
-        # print("-" * 90)
-        # print("This is the given matrix")
-        # print(given_operators)
-        # print("*" * 90)
-        # all_together = hamiltonian + given_operators
-        # print("This is it all put together:")
-        # print(sum(all_together))
-        hamiltonian = sum(given_operators + hamiltonian_from_interaction_terms)
+
+        operator_list = [self.interactionterm_hamiltonian(term) if isinstance(term, InteractionTerm)
+                         else term for term in self.interaction_list]
+        hamiltonian = sum(operator_list)
         return hamiltonian
 
-    # TODO: Rename this something better
-    def append_interaction_matrix(self, term):
-        if type(term) == Qobj:
-            self.interaction_list.append(term)
-        else:
-            # TODO: add a warning here!
-            pass
-
     def interactionterm_hamiltonian(self,
+                                    # TODO: Fix this with InteractionTermString
                                     interactionterm: InteractionTerm,
                                     evecs1: ndarray = None,
                                     evecs2: ndarray = None
@@ -480,32 +549,3 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                                     param_name,
                                     param_vals,
                                     state_table=eigenstate_table)
-
-qutip_dict = {
-    'cos': 'Qobj.cosm',
-    'dag': 'Qobj.dag',
-    'conj': 'Qobj.conj',
-    'exp': 'Qobj.expm',
-    'sin': 'Qobj.sinm',
-    'sqrt': 'Qobj.sqrtm',
-    'trans': 'Qobj.trans'
-}
-
-matrix_one = qt.qeye(10)
-matrix_two = qt.qeye(10) * 3
-# print('matrix_two:')
-# print(matrix_two)
-
-def replace_string(string: str):
-    for item, value in qutip_dict.items():
-        print(item,value)
-        if item in string:
-            string.replace(item, value)
-    return string
-
-fun_string = 'cos(sqrt(matrix_one) + matrix_two)'
-print("hello")
-# fun_string = replace_string(string=fun_string)
-# answer = eval(fun_string)
-# print(answer)
-# print(fun_string)
