@@ -92,10 +92,12 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         chi_m = sum(abs(phi_minus_mat[0, m]) ** 2 / (evals_minus[m] - evals_minus[0])
                     for m in range(1, fluxonium_minus.truncated_dim))
 
-        E_La_shift = 0.5 * self.ELa ** 2 * (0.5*chi_m + 1.0/self.EL_tilda())
+        E_La_shift = self.ELa ** 2 * (0.5*chi_m + 1.0/self.EL_tilda())
         fluxonium_a.EL = self.ELa - E_La_shift
-        E_Lb_shift = 0.5 * self.ELb ** 2 * (0.5*chi_m + 1.0/self.EL_tilda())
+        E_Lb_shift = self.ELb ** 2 * (0.5*chi_m + 1.0/self.EL_tilda())
         fluxonium_b.EL = self.ELb - E_Lb_shift
+        beta = 0.5 * fluxonium_a.EL
+        flux_shift = self.ELa*groundstate_expect/(4*beta)
 
         J = self.ELa * self.ELb * (1.0/(self.EL_tilda()) - 0.5*chi_m)
 
@@ -116,7 +118,7 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
                           + 0.5 * groundstate_expect * (self.ELa * phi_a_ops + self.ELb * phi_b_ops)
                           - 8.0 * self.ECg * n_a_ops * n_b_ops)
 
-        return hamiltonian_a + hamiltonian_b + hamiltonian_ab, J
+        return hamiltonian_a + hamiltonian_b + hamiltonian_ab, J*phi_a_mat[0, 1]*phi_b_mat[0, 1], flux_shift
 
     def fluxonium_a(self):
         return Fluxonium(self.EJa, 2*self.ECg, self.ELa, self.flux_a, cutoff=self.fluxonium_cutoff,
