@@ -14,6 +14,14 @@ class VCHOSTestFunctions(StandardTests):
         reference_transfer_matrix = specdata.transfer
         assert np.allclose(np.abs(reference_transfer_matrix), np.abs(transfer_matrix))
 
+    def test_sorted_minima(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        sorted_minima = self.qbt.sorted_minima()
+        reference_sorted_minima = specdata.sorted_minima
+        assert np.allclose(reference_sorted_minima, sorted_minima)
+
     def test_compare_eigenvals_with_Qubit(self, io_type):
         num_compare = 3
         compare_name = self.compare_file_str + '_1.' + io_type
