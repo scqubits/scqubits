@@ -575,6 +575,32 @@ class VCHOS:
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
 
+    def lowdin_inner_product(self):
+        Xi_inv = inv(self.Xi_matrix())
+        a_operator_list = self._a_operator_list()
+        minima_list = self.sorted_minima()
+        num_states_min = self.number_states_per_minimum()
+        operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex128)
+        minima_list_with_index = zip(minima_list, [m for m in range(len(minima_list))])
+        all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
+        for (minima_m, m), (minima_p, p) in all_minima_pairs:
+            minima_diff = minima_p - minima_m
+            exp_a, exp_a_dagger = self._build_minima_dependent_translation_operators(minima_diff, Xi_inv,
+                                                                                     a_operator_list)
+            matrix_element = self._exp_product_coefficient(minima_diff, Xi_inv) * exp_a_dagger @ exp_a
+            operator_matrix[m * num_states_min: (m + 1) * num_states_min,
+                            p * num_states_min: (p + 1) * num_states_min] += matrix_element
+        operator_matrix = self._populate_hermitian_matrix(operator_matrix)
+        return operator_matrix
+
+    def lowdin_orthogonalize(self):
+        inner_product = self.lowdin_inner_product()
+        eigenvals, eigenvecs = eigh(inner_product)
+        new_vecs = np.zeros_like(eigenvecs)
+        for k, val in enumerate(eigenvals):
+            new_vecs[k] = val**(-0.5) * eigenvecs.T[k, :]
+        return new_vecs
+
     def _periodic_continuation_for_minima_pair(self, minima_m, minima_p, nearest_neighbors,
                                                func, exp_a_list, Xi_inv, a_operator_list):
         """Helper method for performing the periodic continuation calculation given a minima pair."""
