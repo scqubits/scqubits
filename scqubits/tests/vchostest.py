@@ -6,6 +6,14 @@ from scqubits.core.storage import SpectrumData
 
 
 class VCHOSTestFunctions(StandardTests):
+    def test_transfer_matrix_comparison(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        transfer_matrix = self.qbt.transfer_matrix()
+        reference_transfer_matrix = specdata.transfer
+        assert np.allclose(np.abs(reference_transfer_matrix), np.abs(transfer_matrix))
+
     def test_compare_eigenvals_with_Qubit(self, io_type):
         num_compare = 3
         compare_name = self.compare_file_str + '_1.' + io_type
