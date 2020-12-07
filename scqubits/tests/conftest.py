@@ -63,6 +63,7 @@ class BaseTest:
     def eigenvals(self, io_type, evals_reference):
         evals_count = len(evals_reference)
         evals_tst = self.qbt.eigenvals(evals_count=evals_count, filename=self.tmpdir + 'test.' + io_type)
+        print(evals_reference, evals_tst)
         assert np.allclose(evals_reference, evals_tst)
 
     def eigenvecs(self, io_type, evecs_reference):
