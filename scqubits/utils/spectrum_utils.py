@@ -14,12 +14,13 @@ from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 import qutip as qt
-import scipy.sparse.csc as sp_sparse
+from scipy.sparse import csc_matrix, dia_matrix
 
 if TYPE_CHECKING:
     from scqubits import SpectrumData, Oscillator, ParameterSweep
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
+
 
 
 def order_eigensystem(evals: np.ndarray, evecs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -88,7 +89,7 @@ def standardize_sign(real_array: np.ndarray) -> np.ndarray:
 
 
 def matrix_element(state1: Union[np.ndarray, qt.Qobj],
-                   operator: Union[np.ndarray, sp_sparse.csc_matrix, qt.Qobj],
+                   operator: Union[np.ndarray, csc_matrix, qt.Qobj],
                    state2: Union[np.ndarray, qt.Qobj]) -> Union[float, complex]:
     """Calculate the matrix element `<state1|operator|state2>`.
 
@@ -122,8 +123,8 @@ def matrix_element(state1: Union[np.ndarray, qt.Qobj],
     return np.vdot(vec1, op_matrix.dot(vec2))  # No, operator is sparse. Must use its own 'dot' method.
 
 
-def get_matrixelement_table(operator: Union[np.ndarray, sp_sparse.csc_matrix, qt.Qobj],
-                            state_table: Union[np.ndarray, sp_sparse.csc_matrix, qt.Qobj]) -> np.ndarray:
+def get_matrixelement_table(operator: Union[np.ndarray, csc_matrix, dia_matrix, qt.Qobj],
+                            state_table: Union[np.ndarray, qt.Qobj]) -> np.ndarray:
     """Calculates a table of matrix elements.
 
     Parameters
@@ -236,10 +237,10 @@ def convert_esys_to_ndarray(esys_qutip: 'QutipEigenstates') -> np.ndarray:
     return esys_ndarray
 
 
-def convert_ndarray_to_qobj(operator: np.ndarray,
-                            subsystem: Union['QubitBaseClass', 'Oscillator'],
-                            op_in_eigenbasis: bool,
-                            evecs: Optional[np.ndarray]) -> qt.Qobj:
+def convert_matrix_to_qobj(operator: Union[np.ndarray, csc_matrix, dia_matrix],
+                           subsystem: Union['QubitBaseClass', 'Oscillator'],
+                           op_in_eigenbasis: bool,
+                           evecs: Optional[np.ndarray]) -> qt.Qobj:
     dim = subsystem.truncated_dim
 
     if op_in_eigenbasis is False:
@@ -261,14 +262,14 @@ def convert_opstring_to_qobj(operator: str,
     return qt.Qobj(inpt=operator_matrixelements)
 
 
-def convert_operator_to_qobj(operator: Union[np.ndarray, qt.Qobj, str],
+def convert_operator_to_qobj(operator: Union[np.ndarray, csc_matrix, dia_matrix, qt.Qobj, str],
                              subsystem: Union['QubitBaseClass', 'Oscillator'],
                              op_in_eigenbasis: bool,
                              evecs: Optional[np.ndarray]) -> qt.Qobj:
     if isinstance(operator, qt.Qobj):
         return operator
-    if isinstance(operator, np.ndarray):
-        return convert_ndarray_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+    if isinstance(operator, (np.ndarray, csc_matrix, dia_matrix)):
+        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)
     raise TypeError('Unsupported operator type: ', type(operator))
