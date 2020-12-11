@@ -440,7 +440,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         r"""
         Operator :math:`\cos(\theta)`.
         """
-        return sparse.kron(self._identity_phi(), self._cos_phi_operator(), format='csc')
+        return sparse.kron(self._identity_phi(), self._cos_theta_operator(), format='csc')
 
     def _sin_theta_operator(self) -> csc_matrix:
         r"""
