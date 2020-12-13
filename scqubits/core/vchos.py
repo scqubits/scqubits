@@ -16,7 +16,7 @@ from scqubits.core.hashing import generate_next_vector
 import scqubits.utils.plotting as plot
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ, \
-    standardize_phases
+    standardize_phases, standardize_sign
 
 
 def reflect_vectors(vec):
@@ -160,7 +160,10 @@ class VCHOS:
         g_matrix = self.build_gamma_matrix(minimum)
 
         omega_squared, normal_mode_eigenvectors = eigh(g_matrix, b=C_matrix)
-        return omega_squared, normal_mode_eigenvectors
+        standardized_normal_mode_eigenvectors = np.zeros_like(normal_mode_eigenvectors)
+        for j, eigenvec in enumerate(normal_mode_eigenvectors.T):
+            standardized_normal_mode_eigenvectors[:, j] = standardize_sign(eigenvec)
+        return omega_squared, standardized_normal_mode_eigenvectors
 
     def omega_matrix(self, minimum=0):
         """Returns a diagonal matrix of the normal mode frequencies of a given minimum
