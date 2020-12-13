@@ -20,6 +20,7 @@ class VCHOSTestFunctions(StandardTests):
         self.qbt = self.qbt_type(**specdata.system_params)
         omega_squared, normal_mode_eigenvectors = self.qbt.eigensystem_normal_modes()
         ref_omega_squared, ref_normal_mode_eigenvectors = specdata.eigensystem_normal_modes
+        print(ref_normal_mode_eigenvectors, normal_mode_eigenvectors)
         assert np.allclose(ref_omega_squared, omega_squared)
         assert np.allclose(np.abs(ref_normal_mode_eigenvectors), np.abs(normal_mode_eigenvectors))
 
@@ -29,6 +30,7 @@ class VCHOSTestFunctions(StandardTests):
         self.qbt = self.qbt_type(**specdata.system_params)
         Xi_matrix = self.qbt.Xi_matrix()
         reference_Xi_matrix = specdata.Xi_matrix
+        print(reference_Xi_matrix, Xi_matrix)
         assert np.allclose(reference_Xi_matrix, Xi_matrix)
 
     def test_relevant_periodic_continuation_vectors(self, io_type):
