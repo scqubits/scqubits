@@ -2,7 +2,7 @@ import numpy as np
 
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
-from scqubits.tests.vchostest import VCHOSTestFunctions
+from scqubits.tests.conftest import VCHOSTestFunctions
 
 
 class TestFluxQubitVCHOS(VCHOSTestFunctions):

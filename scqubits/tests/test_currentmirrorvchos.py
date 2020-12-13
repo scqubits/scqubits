@@ -3,7 +3,7 @@ import pytest
 
 from scqubits.core.current_mirror import CurrentMirror
 from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS
-from scqubits.tests.vchostest import VCHOSTestFunctions
+from scqubits.tests.conftest import VCHOSTestFunctions
 
 
 class TestCurrentMirrorVCHOS(VCHOSTestFunctions):

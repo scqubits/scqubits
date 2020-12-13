@@ -192,3 +192,132 @@ class StandardTests(BaseTest):
         if 'plot_potential' not in dir(self.qbt):
             pytest.skip('This is expected, no reason for concern.')
         self.qbt.plot_potential()
+
+
+class VCHOSTestFunctions(StandardTests):
+    def test_gamma_matrix(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        gamma_matrix = self.qbt.build_gamma_matrix()
+        reference_gamma_matrix = specdata.gamma_matrix
+        assert np.allclose(reference_gamma_matrix, gamma_matrix)
+
+    def test_eigensystem_normal_modes(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        omega_squared, normal_mode_eigenvectors = self.qbt.eigensystem_normal_modes()
+        ref_omega_squared, ref_normal_mode_eigenvectors = specdata.eigensystem_normal_modes
+        assert np.allclose(ref_omega_squared, omega_squared)
+        assert np.allclose(np.abs(ref_normal_mode_eigenvectors), np.abs(normal_mode_eigenvectors))
+
+    def test_Xi_matrix(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        Xi_matrix = self.qbt.Xi_matrix()
+        reference_Xi_matrix = specdata.Xi_matrix
+        assert np.allclose(reference_Xi_matrix, Xi_matrix)
+
+    def test_relevant_periodic_continuation_vectors(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        self.qbt.find_relevant_periodic_continuation_vectors()
+        reference_nearest_neighbors = specdata.nearest_neighbors
+        for key in reference_nearest_neighbors:
+            assert np.allclose(reference_nearest_neighbors[key], self.qbt.nearest_neighbors[key])
+
+    def test_kinetic_matrix(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        kinetic_matrix = self.qbt.kinetic_matrix()
+        reference_kinetic_matrix = specdata.kinetic_matrix
+        assert np.allclose(np.abs(reference_kinetic_matrix), np.abs(kinetic_matrix))
+
+    def test_potential_matrix(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        potential_matrix = self.qbt.potential_matrix()
+        reference_potential_matrix = specdata.potential_matrix
+        assert np.allclose(np.abs(reference_potential_matrix), np.abs(potential_matrix))
+
+    def test_inner_product_matrix(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        inner_product_matrix = self.qbt.inner_product_matrix()
+        reference_inner_product_matrix = specdata.inner_product_matrix
+        assert np.allclose(np.abs(reference_inner_product_matrix), np.abs(inner_product_matrix))
+
+    def test_transfer_matrix_comparison(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        transfer_matrix = self.qbt.transfer_matrix()
+        reference_transfer_matrix = specdata.transfer_matrix
+        assert np.allclose(np.abs(reference_transfer_matrix), np.abs(transfer_matrix))
+
+    def test_sorted_minima(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        sorted_minima = self.qbt.sorted_minima()
+        reference_sorted_minima = specdata.sorted_minima
+        assert np.allclose(reference_sorted_minima, sorted_minima)
+
+    def test_compare_eigenvals_with_Qubit(self, io_type):
+        num_compare = 3
+        compare_name = self.compare_file_str + '_1.' + io_type
+        exact_specdata = SpectrumData.create_from_file(DATADIR + compare_name)
+        evals_reference = exact_specdata.energy_table[0:num_compare]
+        system_params = exact_specdata.system_params
+        system_params.pop('ncut')
+        self.qbt = self.initialize_vchos_qbt(system_params)
+        evals_count = len(evals_reference)
+        evals_tst = self.qbt.eigenvals(evals_count=evals_count, filename=self.tmpdir + 'test.' + io_type)
+        assert np.allclose(evals_reference, evals_tst, rtol=1e-2)
+
+    def test_compare_spectrum_vs_paramvals_with_Qubit(self, io_type):
+        num_compare = 3
+        compare_name = self.compare_file_str + '_4.' + io_type
+        exact_specdata = SpectrumData.create_from_file(DATADIR + compare_name)
+        evals_reference = exact_specdata.energy_table[:, 0:num_compare]
+        system_params = exact_specdata.system_params
+        system_params.pop('ncut')
+        self.qbt = self.initialize_vchos_qbt(system_params)
+        self.compare_spectrum_vs_paramvals(io_type=io_type, param_name=exact_specdata.param_name,
+                                           param_list=exact_specdata.param_vals, evals_reference=evals_reference)
+
+    def compare_spectrum_vs_paramvals(self, io_type, param_name, param_list, evals_reference):
+        evals_count = len(evals_reference[0])
+        calculated_spectrum = self.qbt.get_spectrum_vs_paramvals(param_name, param_list, evals_count=evals_count,
+                                                                 subtract_ground=False, get_eigenstates=False)
+        calculated_spectrum.filewrite(filename=self.tmpdir + 'test.' + io_type)
+
+        assert np.allclose(evals_reference, calculated_spectrum.energy_table, rtol=1e-2)
+
+    def test_hamiltonian_is_hermitean(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        transfer_matrix = self.qbt.transfer_matrix()
+        assert np.isclose(np.max(np.abs(transfer_matrix - transfer_matrix.conj().T)), 0.0)
+
+    def initialize_vchos_qbt(self, system_params):
+        return self.qbt_type(**system_params, maximum_periodic_vector_length=8, num_exc=4)
+
+    def test_matrixelement_table(self, io_type):
+        pytest.skip('not implemented yet for vchos')
+
+    def test_plot_matrixelements(self, io_type):
+        pytest.skip('not implemented yet for vchos')
+
+    def test_print_matrixelements(self, io_type):
+        pytest.skip('not implemented yet for vchos')
+
+    def test_plot_matelem_vs_paramvals(self, num_cpus, io_type):
+        pytest.skip('not implemented yet for vchos')
