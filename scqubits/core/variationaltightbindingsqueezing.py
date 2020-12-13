@@ -8,17 +8,17 @@ from numpy.linalg import matrix_power
 from scipy.optimize import minimize
 from scipy.special import factorial
 
-from scqubits.core.vchos import VCHOS
+from scqubits.core.variationaltightbinding import VariationalTightBinding
 
 
-class VCHOSSqueezing(VCHOS):
-    r""" VCHOS allowing for squeezing
+class VariationalTightBindingSqueezing(VariationalTightBinding):
+    r""" VariationalTightBinding allowing for squeezing
 
-    See class VCHOS for documentation and explanation of parameters.
+    See class VariationalTightBinding for documentation and explanation of parameters.
 
     """
     def __init__(self, **kwargs):
-        VCHOS.__init__(self, **kwargs)
+        VariationalTightBinding.__init__(self, **kwargs)
 
     def _build_U_squeezing_operator(self, minimum, Xi):
         """
@@ -147,7 +147,7 @@ class VCHOSSqueezing(VCHOS):
         return eigvals, eigvec
 
     def _find_closest_periodic_minimum(self, minima_pair):
-        """Overrides method in VCHOS, need to consider states localized in both minima."""
+        """Overrides method in VariationalTightBinding, need to consider states localized in both minima."""
         (minima_m, m), (minima_p, p) = minima_pair
         max_for_m = self._find_closest_periodic_minimum_for_given_minima(minima_pair, m)
         max_for_p = self._find_closest_periodic_minimum_for_given_minima(minima_pair, p)
@@ -192,7 +192,7 @@ class VCHOSSqueezing(VCHOS):
 
     def find_relevant_periodic_continuation_vectors(self, num_cpus=1):
         """Constructs a dictionary of the relevant periodic continuation vectors for each pair of minima.
-        Overrides method in VCHOS. Because the Xi matrix now varies with the minima, the relevant
+        Overrides method in VariationalTightBinding. Because the Xi matrix now varies with the minima, the relevant
         periodic continuation vectors may differ from the non-squeezed case.
 
         Parameters
@@ -291,7 +291,8 @@ class VCHOSSqueezing(VCHOS):
         return translation_op_a_dag, translation_op_a
 
     def _periodic_continuation_squeezing(self, minima_pair_func, local_func):
-        """See VCHOS for documentation. This function generalizes _periodic_continuation to allow for squeezing"""
+        """See VariationalTightBinding for documentation. This function generalizes
+        _periodic_continuation to allow for squeezing"""
         if not self.nearest_neighbors:
             self.find_relevant_periodic_continuation_vectors()
         Xi = self.Xi_matrix()
@@ -594,7 +595,7 @@ class VCHOSSqueezing(VCHOS):
                 * self._exp_product_coefficient(delta_phi, Xi_inv))
 
     def optimize_Xi_variational_wrapper(self):
-        """Overrides method in VCHOS. Allows for harmonic length optimization of states localized
+        """Overrides method in VariationalTightBinding. Allows for harmonic length optimization of states localized
         in all minima if the optimize_all_minima flag is set. Optimize the Xi matrix by adjusting
         the harmonic lengths of the ground state to minimize its energy.
         For tight-binding without squeezing, this is only done for the ansatz ground state wavefunction

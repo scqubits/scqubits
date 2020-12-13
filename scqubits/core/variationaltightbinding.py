@@ -32,8 +32,8 @@ def reflect_vectors(vec):
     return reflected_vec_list
 
 
-class VCHOS:
-    r"""VCHOS (tight binding)
+class VariationalTightBinding:
+    r"""Variational Tight Binding
 
     This module allows for the diagonalization of superconducting circuit Hamiltonians using as a basis states
     that more closely approximate the low-energy eigenstates as compared to the charge basis.
@@ -45,12 +45,12 @@ class VCHOS:
 
     where the array :math:`bc` denotes the coefficients of terms in the boundary term.
     Extension of this module to circuits that include inductors is possible and is implemented for the
-    zero-pi qubit in zero_pi_vchos.py. The user must define a new qubit class
-    that inherits VCHOS, with all of the qubit specific information. Specifically, the user
+    zero-pi qubit in zero_pi_vtb.py. The user must define a new qubit class
+    that inherits VariationalTightBinding, with all of the qubit specific information. Specifically, the user
     must provide in their child qubit class the functions build_capacitance_matrix(),
     build_EC_matrix(), find_minima(), which define the capacitance matrix,
     the charging energy matrix, and a method to find and find all inequivalent minima, respectively.
-    See current_mirror_vchos.py, flux_qubit_vchos.py and zero_pi_vchos.py for examples.
+    See current_mirror_vtb.py, flux_qubit_vtb.py and zero_pi_vtb.py for examples.
 
     Parameters
     ----------
@@ -74,7 +74,7 @@ class VCHOS:
     harmonic_length_optimization: int
         flag denoting whether or not to optimize the harmonic length
     optimize_all_minima: int
-        flag only relevant in the case of squeezing (see class VCHOSSqueezing) denoting whether or
+        flag only relevant in the case of squeezing (see class VariationalTightBindingSqueezing) denoting whether or
         not to optimize the harmonic lengths in all minima
     quiet: int
         flag whether or not to print out information regarding completion of intermediate tasks
@@ -542,7 +542,7 @@ class VCHOS:
                 + self._local_potential(exp_i_phi_j, premultiplied_a_a_dagger, Xi, phi_neighbor, minima_m, minima_p))
 
     def _periodic_continuation(self, func):
-        """This function is the meat of the VCHOS method. Any operator whose matrix
+        """This function is the meat of the VariationalTightBinding method. Any operator whose matrix
         elements we want (the transfer matrix and inner product matrix are obvious examples)
         can be passed to this function, and the matrix elements of that operator
         will be returned.
@@ -883,7 +883,7 @@ class VCHOS:
 
     def wavefunction(self, esys=None, which=0):
         """
-        Return a vchos wavefunction, assuming the qubit has 2 degrees of freedom
+        Return a vtb wavefunction, assuming the qubit has 2 degrees of freedom
 
         Parameters
         ----------

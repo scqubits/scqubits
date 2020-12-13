@@ -38,14 +38,14 @@ from scqubits.core.zeropi_full import FullZeroPi
 from scqubits.core.fluxonium_tunable_coupler import FluxoniumTunableCoupler
 
 from scqubits.core.zeropi_nogrid import ZeroPiNoGrid
-from scqubits.core.vchos import VCHOS
-from scqubits.core.vchos_squeezing import VCHOSSqueezing
-from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS, CurrentMirrorVCHOSGlobal
-from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOSSqueezing, CurrentMirrorVCHOSGlobalSqueezing
-from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS, FluxQubitVCHOSGlobal
-from scqubits.core.flux_qubit_vchos import FluxQubitVCHOSSqueezing, FluxQubitVCHOSGlobalSqueezing
-from scqubits.core.zero_pi_vchos import ZeroPiVCHOS, ZeroPiVCHOSGlobal, ZeroPiVCHOSSqueezing
-from scqubits.core.transmon_vchos import TransmonVCHOS
+from scqubits.core.variationaltightbinding import VariationalTightBinding
+from scqubits.core.variationaltightbindingsqueezing import VariationalTightBindingSqueezing
+from scqubits.core.current_mirror_vtb import CurrentMirrorVTB, CurrentMirrorVTBGlobal
+from scqubits.core.current_mirror_vtb import CurrentMirrorVTBSqueezing, CurrentMirrorVTBGlobalSqueezing
+from scqubits.core.flux_qubit_vtb import FluxQubitVTB, FluxQubitVTBGlobal
+from scqubits.core.flux_qubit_vtb import FluxQubitVTBSqueezing, FluxQubitVTBGlobalSqueezing
+from scqubits.core.zero_pi_vtb import ZeroPiVTB, ZeroPiVTBGlobal, ZeroPiVTBSqueezing
+from scqubits.core.transmon_vtb import TransmonVTB
 # file IO
 from scqubits.io_utils.fileio import read, write
 

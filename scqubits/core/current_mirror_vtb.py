@@ -9,13 +9,13 @@ from typing import Callable
 import scqubits.core.descriptors as descriptors
 from scqubits.core.current_mirror import CurrentMirrorFunctions
 from scqubits.core.hashing import Hashing
-from scqubits.core.vchos import VCHOS
-from scqubits.core.vchos_squeezing import VCHOSSqueezing
+from scqubits.core.variationaltightbinding import VariationalTightBinding
+from scqubits.core.variationaltightbindingsqueezing import VariationalTightBindingSqueezing
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
 
-class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
+class CurrentMirrorVTBFunctions(CurrentMirrorFunctions):
     """Helper class for defining functions for VCHOS relevant to the Current Mirror"""
     _check_if_new_minima: Callable
     _normalize_minimum_inside_pi_range: Callable
@@ -82,7 +82,7 @@ class CurrentMirrorVCHOSFunctions(CurrentMirrorFunctions):
         return pot_sum
 
 
-class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
+class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding, base.QubitBaseClass, serializers.Serializable):
     r""" Current Mirror using VCHOS
 
     See class CurrentMirror for documentation on the qubit itself.
@@ -94,9 +94,9 @@ class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim=None, **kwargs):
-        VCHOS.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2 * N - 1,
-                       number_periodic_degrees_freedom=2 * N - 1, **kwargs)
-        CurrentMirrorVCHOSFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
+        VariationalTightBinding.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2 * N - 1,
+                                         number_periodic_degrees_freedom=2 * N - 1, **kwargs)
+        CurrentMirrorVTBFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self.truncated_dim = truncated_dim
@@ -123,24 +123,24 @@ class CurrentMirrorVCHOS(CurrentMirrorVCHOSFunctions, VCHOS, base.QubitBaseClass
         return ['N', 'nglist', 'flux', 'maximum_periodic_vector_length', 'num_exc', 'truncated_dim']
 
 
-class CurrentMirrorVCHOSSqueezing(VCHOSSqueezing, CurrentMirrorVCHOS):
+class CurrentMirrorVTBSqueezing(VariationalTightBindingSqueezing, CurrentMirrorVTB):
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs):
-        VCHOSSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux, number_degrees_freedom=2*N - 1,
-                                number_periodic_degrees_freedom=2*N - 1, **kwargs)
-        CurrentMirrorVCHOS.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)
+        VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux, number_degrees_freedom=2 * N - 1,
+                                                  number_periodic_degrees_freedom=2*N - 1, **kwargs)
+        CurrentMirrorVTB.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)
 
 
-class CurrentMirrorVCHOSGlobal(Hashing, CurrentMirrorVCHOS):
+class CurrentMirrorVTBGlobal(Hashing, CurrentMirrorVTB):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        CurrentMirrorVCHOS.__init__(self, N, **kwargs)
+        CurrentMirrorVTB.__init__(self, N, **kwargs)
 
 
-class CurrentMirrorVCHOSGlobalSqueezing(Hashing, CurrentMirrorVCHOSSqueezing):
+class CurrentMirrorVTBGlobalSqueezing(Hashing, CurrentMirrorVTBSqueezing):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, N, global_exc, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        CurrentMirrorVCHOSSqueezing.__init__(self, N, **kwargs)
+        CurrentMirrorVTBSqueezing.__init__(self, N, **kwargs)

@@ -7,13 +7,13 @@ from typing import Callable
 from scqubits.core import descriptors
 from scqubits.core.flux_qubit import FluxQubitFunctions
 from scqubits.core.hashing import Hashing
-from scqubits.core.vchos import VCHOS
-from scqubits.core.vchos_squeezing import VCHOSSqueezing
+from scqubits.core.variationaltightbinding import VariationalTightBinding
+from scqubits.core.variationaltightbindingsqueezing import VariationalTightBindingSqueezing
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
 
-class FluxQubitVCHOSFunctions(FluxQubitFunctions):
+class FluxQubitVTBFunctions(FluxQubitFunctions):
     """Helper class for defining functions for VCHOS relevant to the Flux Qubit"""
     _check_if_new_minima: Callable
     _normalize_minimum_inside_pi_range: Callable
@@ -51,7 +51,7 @@ class FluxQubitVCHOSFunctions(FluxQubitFunctions):
         return np.array(minima_holder)
 
 
-class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
+class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBaseClass, serializers.Serializable):
     r""" Flux Qubit using VCHOS
 
     See class FluxQubit for documentation on the qubit itself.
@@ -65,9 +65,9 @@ class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serial
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, truncated_dim=None, **kwargs):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
-        VCHOS.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2,
-                       number_periodic_degrees_freedom=2, **kwargs)
-        FluxQubitVCHOSFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
+        VariationalTightBinding.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2,
+                                         number_periodic_degrees_freedom=2, **kwargs)
+        FluxQubitVTBFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
@@ -93,27 +93,27 @@ class FluxQubitVCHOS(FluxQubitVCHOSFunctions, VCHOS, base.QubitBaseClass, serial
         return ['alpha', 'nglist', 'maximum_periodic_vector_length', 'num_exc', 'squeezing', 'truncated_dim']
 
 
-class FluxQubitVCHOSSqueezing(VCHOSSqueezing, FluxQubitVCHOS):
+class FluxQubitVTBSqueezing(VariationalTightBindingSqueezing, FluxQubitVTB):
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, truncated_dim, **kwargs):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
-        VCHOSSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux, number_degrees_freedom=2,
-                                number_periodic_degrees_freedom=2, **kwargs)
-        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux,
-                                truncated_dim, **kwargs)
+        VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux, number_degrees_freedom=2,
+                                                  number_periodic_degrees_freedom=2, **kwargs)
+        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux,
+                              truncated_dim, **kwargs)
 
 
-class FluxQubitVCHOSGlobal(Hashing, FluxQubitVCHOS):
+class FluxQubitVTBGlobal(Hashing, FluxQubitVTB):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, global_exc=0, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVCHOS.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, **kwargs)
+        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, **kwargs)
 
 
-class FluxQubitVCHOSGlobalSqueezing(Hashing, FluxQubitVCHOSSqueezing):
+class FluxQubitVTBGlobalSqueezing(Hashing, FluxQubitVTBSqueezing):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, global_exc=0, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVCHOSSqueezing.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, **kwargs)
+        FluxQubitVTBSqueezing.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, **kwargs)

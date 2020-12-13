@@ -2,16 +2,16 @@ import numpy as np
 import pytest
 
 from scqubits.core.current_mirror import CurrentMirror
-from scqubits.core.current_mirror_vchos import CurrentMirrorVCHOS
-from scqubits.tests.conftest import VCHOSTestFunctions
+from scqubits.core.current_mirror_vtb import CurrentMirrorVTB
+from scqubits.tests.conftest import VTBTestFunctions
 
 
-class TestCurrentMirrorVCHOS(VCHOSTestFunctions):
+class TestCurrentMirrorVTB(VTBTestFunctions):
     @classmethod
     def setup_class(cls):
         cls.qbt = None
-        cls.qbt_type = CurrentMirrorVCHOS
-        cls.file_str = 'currentmirrorvchos'
+        cls.qbt_type = CurrentMirrorVTB
+        cls.file_str = 'currentmirrorvtb'
         cls.op1_str = ''
         cls.op2_str = ''
         cls.param_name = 'flux'

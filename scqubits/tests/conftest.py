@@ -194,7 +194,7 @@ class StandardTests(BaseTest):
         self.qbt.plot_potential()
 
 
-class VCHOSTestFunctions(StandardTests):
+class VTBTestFunctions(StandardTests):
     def test_gamma_matrix(self, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
@@ -276,7 +276,7 @@ class VCHOSTestFunctions(StandardTests):
         evals_reference = exact_specdata.energy_table[0:num_compare]
         system_params = exact_specdata.system_params
         system_params.pop('ncut')
-        self.qbt = self.initialize_vchos_qbt(system_params)
+        self.qbt = self.initialize_vtb_qbt(system_params)
         evals_count = len(evals_reference)
         evals_tst = self.qbt.eigenvals(evals_count=evals_count, filename=self.tmpdir + 'test.' + io_type)
         assert np.allclose(evals_reference, evals_tst, rtol=1e-2)
@@ -288,7 +288,7 @@ class VCHOSTestFunctions(StandardTests):
         evals_reference = exact_specdata.energy_table[:, 0:num_compare]
         system_params = exact_specdata.system_params
         system_params.pop('ncut')
-        self.qbt = self.initialize_vchos_qbt(system_params)
+        self.qbt = self.initialize_vtb_qbt(system_params)
         self.compare_spectrum_vs_paramvals(io_type=io_type, param_name=exact_specdata.param_name,
                                            param_list=exact_specdata.param_vals, evals_reference=evals_reference)
 
@@ -307,17 +307,17 @@ class VCHOSTestFunctions(StandardTests):
         transfer_matrix = self.qbt.transfer_matrix()
         assert np.isclose(np.max(np.abs(transfer_matrix - transfer_matrix.conj().T)), 0.0)
 
-    def initialize_vchos_qbt(self, system_params):
+    def initialize_vtb_qbt(self, system_params):
         return self.qbt_type(**system_params, maximum_periodic_vector_length=8, num_exc=4)
 
     def test_matrixelement_table(self, io_type):
-        pytest.skip('not implemented yet for vchos')
+        pytest.skip('not implemented yet for vtb')
 
     def test_plot_matrixelements(self, io_type):
-        pytest.skip('not implemented yet for vchos')
+        pytest.skip('not implemented yet for vtb')
 
     def test_print_matrixelements(self, io_type):
-        pytest.skip('not implemented yet for vchos')
+        pytest.skip('not implemented yet for vtb')
 
     def test_plot_matelem_vs_paramvals(self, num_cpus, io_type):
-        pytest.skip('not implemented yet for vchos')
+        pytest.skip('not implemented yet for vtb')

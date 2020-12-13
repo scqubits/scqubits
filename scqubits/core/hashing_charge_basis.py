@@ -4,7 +4,7 @@ from scipy.sparse.coo import coo_matrix
 from functools import reduce
 
 from scqubits.core.hashing import Hashing
-from scqubits.core.vchos import reflect_vectors
+from scqubits.core.variationaltightbinding import reflect_vectors
 
 
 class HashingChargeBasis(Hashing):

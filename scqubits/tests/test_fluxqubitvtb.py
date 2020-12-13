@@ -1,16 +1,16 @@
 import numpy as np
 
 from scqubits.core.flux_qubit import FluxQubit
-from scqubits.core.flux_qubit_vchos import FluxQubitVCHOS
-from scqubits.tests.conftest import VCHOSTestFunctions
+from scqubits.core.flux_qubit_vtb import FluxQubitVTB
+from scqubits.tests.conftest import VTBTestFunctions
 
 
-class TestFluxQubitVCHOS(VCHOSTestFunctions):
+class TestFluxQubitVTB(VTBTestFunctions):
     @classmethod
     def setup_class(cls):
         cls.qbt = None
-        cls.qbt_type = FluxQubitVCHOS
-        cls.file_str = 'fluxqubitvchos'
+        cls.qbt_type = FluxQubitVTB
+        cls.file_str = 'fluxqubitvtb'
         cls.op1_str = ''
         cls.op2_str = ''
         cls.param_name = 'flux'

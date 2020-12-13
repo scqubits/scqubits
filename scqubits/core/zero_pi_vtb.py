@@ -4,19 +4,20 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.linalg import expm, inv
 
-from scqubits import VCHOSSqueezing
+from scqubits import VariationalTightBindingSqueezing
 from scqubits.core.hashing import Hashing
-from scqubits.core.vchos import VCHOS
+from scqubits.core.variationaltightbinding import VariationalTightBinding
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.zeropi import ZeroPiFunctions
 
 
-class ZeroPiVCHOS(ZeroPiFunctions, VCHOS, base.QubitBaseClass, serializers.Serializable):
+class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
+                base.QubitBaseClass, serializers.Serializable):
     def __init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=0, dCJ=0, truncated_dim=None, phi_extent=10, **kwargs):
         ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
-        VCHOS.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux,
-                       number_degrees_freedom=2, number_periodic_degrees_freedom=1, **kwargs)
+        VariationalTightBinding.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux,
+                                         number_degrees_freedom=2, number_periodic_degrees_freedom=1, **kwargs)
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
@@ -147,12 +148,13 @@ class ZeroPiVCHOS(ZeroPiFunctions, VCHOS, base.QubitBaseClass, serializers.Seria
         return potential_matrix
 
 
-class ZeroPiVCHOSSqueezing(VCHOSSqueezing, ZeroPiVCHOS):
+class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
     def __init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=0, dCJ=0, truncated_dim=None, phi_extent=10, **kwargs):
-        VCHOSSqueezing.__init__(self, EJlist=np.array([EJ, EJ]), nglist=np.array([0.0, ng]), flux=flux,
-                                number_degrees_freedom=2, number_periodic_degrees_freedom=1, **kwargs)
-        ZeroPiVCHOS.__init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=dEJ, dCJ=dCJ, truncated_dim=truncated_dim,
-                             phi_extent=phi_extent, **kwargs)
+        VariationalTightBindingSqueezing.__init__(self, EJlist=np.array([EJ, EJ]), nglist=np.array([0.0, ng]),
+                                                  flux=flux, number_degrees_freedom=2,
+                                                  number_periodic_degrees_freedom=1, **kwargs)
+        ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=dEJ, dCJ=dCJ,
+                           truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
 
     def _build_potential_operators_squeezing(self, a_operator_list, Xi, exp_a_dagger_a,
                                              disentangled_squeezing_matrices, delta_rho_matrices):
@@ -277,9 +279,9 @@ class ZeroPiVCHOSSqueezing(VCHOSSqueezing, ZeroPiVCHOS):
                         + potential_matrix_minima_pair + exp_a_dagger_a * self.EL * epsilon[0]**2)
 
 
-class ZeroPiVCHOSGlobal(Hashing, ZeroPiVCHOS):
+class ZeroPiVTBGlobal(Hashing, ZeroPiVTB):
     def __init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=0, dCJ=0, truncated_dim=None, phi_extent=10,
                  global_exc=0, **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        ZeroPiVCHOS.__init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=dEJ, dCJ=dCJ,
-                             truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
+        ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=dEJ, dCJ=dCJ,
+                           truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
