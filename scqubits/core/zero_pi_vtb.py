@@ -5,6 +5,7 @@ from scipy.optimize import minimize
 from scipy.linalg import expm, inv
 
 from scqubits import VariationalTightBindingSqueezing
+from scqubits.core import descriptors
 from scqubits.core.hashing import Hashing
 from scqubits.core.variationaltightbinding import VariationalTightBinding
 import scqubits.core.qubit_base as base
@@ -14,6 +15,21 @@ from scqubits.core.zeropi import ZeroPiFunctions
 
 class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
                 base.QubitBaseClass, serializers.Serializable):
+    r""" Zero Pi using VTB
+
+    See class ZeroPi for documentation on the qubit itself.
+
+    Initialize in the same way as for ZeroPi, however now `num_exc` and `maximum_periodic_vector_length`
+    must be set. See VTB for explanation of other kwargs.
+    """
+    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dEJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    dCJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='nglist', attr_location=2)
+
     def __init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=0, dCJ=0, truncated_dim=None, phi_extent=10, **kwargs):
         ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
         VariationalTightBinding.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux,
@@ -54,12 +70,12 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
         dim = self.number_degrees_freedom
         C_matrix = np.zeros((dim, dim))
 
-        C = self.e ** 2 / (2. * self.EC)
-        CJ = self.e ** 2 / (2. * self.ECJ)
+        C = self.e**2 / (2. * self.EC)
+        CJ = self.e**2 / (2. * self.ECJ)
 
-        C_matrix[0, 0] = 2*CJ
-        C_matrix[1, 1] = 2*(C + CJ)
-        C_matrix[0, 1] = C_matrix[1, 0] = 2*self.dCJ
+        C_matrix[0, 0] = 2 * CJ
+        C_matrix[1, 1] = 2 * (C + CJ)
+        C_matrix[0, 1] = C_matrix[1, 0] = 4 * self.dCJ
 
         return C_matrix
 
@@ -94,13 +110,14 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
         min_loc = self.sorted_minima()[minimum]
         phi_location = min_loc[0]
         theta_location = min_loc[1]
-        gamma_matrix[0, 0] = (2*self.EL + 2*self.EJ*np.cos(phi_location - np.pi*self.flux)*np.cos(theta_location)
-                              - 2*self.dEJ*np.sin(theta_location)*np.sin(phi_location - np.pi*self.flux))
-        gamma_matrix[1, 1] = (2*self.EJ*np.cos(phi_location - np.pi*self.flux)*np.cos(theta_location)
-                              - 2*self.dEJ*np.sin(theta_location)*np.sin(phi_location - np.pi*self.flux))
-        off_diagonal_term = (-2*self.EJ*np.sin(phi_location - np.pi*self.flux) * np.sin(theta_location)
-                             + 2*self.EL*phi_location
-                             + 2*self.dEJ*np.cos(theta_location)*np.cos(phi_location - np.pi*self.flux))
+        gamma_matrix[0, 0] = (2 * self.EL + 2 * self.EJ * np.cos(phi_location - np.pi * self.flux)
+                              * np.cos(theta_location) - 2 * self.dEJ * np.sin(theta_location)
+                              * np.sin(phi_location - np.pi * self.flux))
+        gamma_matrix[1, 1] = (2 * self.EJ * np.cos(phi_location - np.pi * self.flux) * np.cos(theta_location)
+                              - 2 * self.dEJ * np.sin(theta_location) * np.sin(phi_location - np.pi * self.flux))
+        off_diagonal_term = (-2 * self.EJ * np.sin(phi_location - np.pi * self.flux) * np.sin(theta_location)
+                             + 2 * self.EL * phi_location + 2 * self.dEJ * np.cos(theta_location)
+                             * np.cos(phi_location - np.pi * self.flux))
         gamma_matrix[1, 0] = off_diagonal_term
         gamma_matrix[0, 1] = off_diagonal_term
         return gamma_matrix/self.Phi0**2
@@ -108,7 +125,7 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
     def _BCH_factor(self, j, Xi):
         dim = self.number_degrees_freedom
         boundary_coeffs = np.array([(-1)**j, 1])
-        return np.exp(-0.25 * np.sum([boundary_coeffs[i]*boundary_coeffs[k]*np.dot(Xi[i, :], Xi.T[:, k])
+        return np.exp(-0.25 * np.sum([boundary_coeffs[i] * boundary_coeffs[k] * np.dot(Xi[i, :], Xi.T[:, k])
                                       for i in range(dim) for k in range(dim)]))
 
     def _build_single_exp_i_phi_j_operator(self, j, Xi, a_operator_list):
@@ -126,9 +143,9 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
     def _harmonic_contribution_to_potential(self, premultiplied_a_and_a_dagger, Xi, phi_bar):
         dim = self.number_degrees_freedom
         a, a_a, a_dagger_a = premultiplied_a_and_a_dagger
-        harmonic_contribution = np.sum([0.5*self.EL*Xi[0, i]*Xi.T[i, 0]*(a_a[i] + a_a[i].T
-                                                                         + 2.0*a_dagger_a[i] + self.identity())
-                                        + np.sqrt(2.0)*self.EL*Xi[0, i]*(a[i] + a[i].T)*phi_bar[0]
+        harmonic_contribution = np.sum([0.5 * self.EL * Xi[0, i]
+                                        * Xi.T[i, 0] * (a_a[i] + a_a[i].T + 2.0 * a_dagger_a[i] + self.identity())
+                                        + np.sqrt(2.0) * self.EL * Xi[0, i] * (a[i] + a[i].T) * phi_bar[0]
                                         for i in range(dim)], axis=0)
         harmonic_contribution += self.EL * phi_bar[0]**2 * self.identity()
         return harmonic_contribution
@@ -139,13 +156,44 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
         potential_matrix = self._harmonic_contribution_to_potential(premultiplied_a_and_a_dagger, Xi, phi_bar)
         for j in range(dim):
-            boundary_coeffs = np.array([(-1)**j, 1])
-            exp_i_phi_theta = (exp_i_phi_list[j]*np.prod([np.exp(1j*boundary_coeffs[i]*phi_bar[i])
-                                                         for i in range(dim)])
-                               * np.exp((-1)**(j+1) * 1j * np.pi * self.flux))
-            potential_matrix += -0.5 * self.EJlist[j] * (exp_i_phi_theta + exp_i_phi_theta.conjugate())
-        potential_matrix += np.sum(self.EJlist) * self.identity()
+            exp_i_phi_theta = self._exp_i_phi_theta_with_phibar(j, exp_i_phi_list, phi_bar)
+            potential_matrix += (-0.5 * self.EJ * (1.0 + (-1)**j * self.dEJ)
+                                 * (exp_i_phi_theta + exp_i_phi_theta.conjugate()))
+        potential_matrix += 2.0 * self.EJ * self.identity()
         return potential_matrix
+
+    def _one_state_local_potential(self, exp_i_phi_j, Xi, phi_neighbor, minima_m, minima_p):
+        dim = self.number_degrees_freedom
+        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        potential_matrix = self.EL * (phi_bar[0]**2 + 0.5*(Xi @ Xi.T)[0, 0])
+        for j in range(dim):
+            exp_i_phi_theta = self._exp_i_phi_theta_with_phibar(j, exp_i_phi_j, phi_bar)
+            potential_matrix += (-0.5 * self.EJ * (1.0 + (-1)**j * self.dEJ)
+                                 * (exp_i_phi_theta + exp_i_phi_theta.conjugate()))
+        potential_matrix += 2.0 * self.EJ
+        return potential_matrix
+
+    def _exp_i_phi_theta_with_phibar(self, j, exp_i_phi_j, phi_bar):
+        dim = self.number_degrees_freedom
+        boundary_coeffs = np.array([(-1) ** j, 1])
+        exp_i_phi_theta_with_phibar = (exp_i_phi_j[j] * np.prod([np.exp(1j * boundary_coeffs[i] * phi_bar[i])
+                                                                 for i in range(dim)])
+                                       * np.exp((-1) ** (j + 1) * 1j * np.pi * self.flux))
+        return exp_i_phi_theta_with_phibar
+
+    def _gradient_one_state_local_potential(self, exp_i_phi_j, phi_neighbor, minima_m, minima_p, Xi, which_length):
+        """Returns gradient of the potential matrix"""
+        dim = self.number_degrees_freedom
+        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        potential_gradient = self.EL * Xi[0, which_length]**2 * self.optimized_lengths[0, which_length]**(-1)
+        for j in range(dim):
+            boundary_coeffs = np.array([(-1) ** j, 1])
+            exp_i_phi_theta = self._exp_i_phi_theta_with_phibar(j, exp_i_phi_j, phi_bar)
+            potential_gradient += (0.25 * self.EJ * (1.0 + (-1)**j * self.dEJ)
+                                   * self.optimized_lengths[0, which_length]**(-1)
+                                   * (boundary_coeffs @ Xi[:, which_length])**2
+                                   * (exp_i_phi_theta + exp_i_phi_theta.conjugate()))
+        return potential_gradient
 
 
 class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
@@ -163,7 +211,7 @@ class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
         prefactor_a, prefactor_a_dagger = self._build_potential_exp_prefactors(disentangled_squeezing_matrices,
                                                                                delta_rho_matrices)
         for j in range(dim):
-            boundary_coeffs = np.array([(-1) ** j, 1])
+            boundary_coeffs = np.array([(-1)**j, 1])
             exp_i_j_a_dagger_part = expm(np.sum([1j * boundary_coeffs[i]
                                                  * (Xi @ prefactor_a_dagger)[i, k] * a_operator_list[k].T
                                                  for i in range(dim) for k in range(dim)], axis=0) / np.sqrt(2.0))
@@ -182,8 +230,9 @@ class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
         exp_i_list, harmonic_minima_pair_results = minima_pair_results
         exp_i_phi_list = []
         for j in range(dim):
-            boundary_coeffs = np.array([(-1) ** j, 1])
-            exp_i_phi_list.append(exp_i_list[j]*np.prod([np.exp(1j*boundary_coeffs[i]*phi_bar[i]) for i in range(dim)])
+            boundary_coeffs = np.array([(-1)**j, 1])
+            exp_i_phi_list.append(exp_i_list[j] * np.prod([np.exp(1j * boundary_coeffs[i] * phi_bar[i])
+                                                           for i in range(dim)])
                                   * np.exp((-1)**(j+1) * 1j * np.pi * self.flux))
         potential_matrix = np.sum([self._local_contribution_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
                                                                                       disentangled_squeezing_matrices,
@@ -245,7 +294,7 @@ class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
                                                       delta_rho_matrices, exp_i_phi_list):
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = delta_rho_matrices
-        boundary_coeffs = np.array([(-1) ** j, 1])
+        boundary_coeffs = np.array([(-1)**j, 1])
         arg_exp_a_dag = (delta_phi @ Xi_inv.T + 1j * (boundary_coeffs @ Xi)) / np.sqrt(2.)
         alpha = self._alpha_helper(arg_exp_a_dag, -arg_exp_a_dag.conjugate(), rho_prime, delta_rho)
         potential_matrix = -0.5 * self.EJlist[j] * (alpha * exp_i_phi_list[j] + (alpha * exp_i_phi_list[j]).conj())
