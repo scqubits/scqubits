@@ -16,7 +16,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 
 class CurrentMirrorVTBFunctions(CurrentMirrorFunctions):
-    """Helper class for defining functions for VCHOS relevant to the Current Mirror"""
+    """Helper class for defining functions for VTB relevant to the Current Mirror"""
     _check_if_new_minima: Callable
     _normalize_minimum_inside_pi_range: Callable
 
@@ -83,12 +83,12 @@ class CurrentMirrorVTBFunctions(CurrentMirrorFunctions):
 
 
 class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding, base.QubitBaseClass, serializers.Serializable):
-    r""" Current Mirror using VCHOS
+    r""" Current Mirror using VTB
 
     See class CurrentMirror for documentation on the qubit itself.
 
     Initialize in the same way as for CurrentMirror, however now `num_exc` and `maximum_periodic_vector_length`
-    must be set. See VCHOS for explanation of other kwargs.
+    must be set. See VTB for explanation of other kwargs.
     """
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')

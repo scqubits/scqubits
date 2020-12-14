@@ -43,11 +43,15 @@ class WatchedProperty:
     attr_name: str, optional
         custom attribute name to be used (default: name from defining property in instance class,
         obtained in __set_name__
+    attr_location: int, optional
+        if the object named attr_name is an array, then this specifies the location in the array.
+        NOT COMPATIBLE WITH USING inner_object_name
     """
-    def __init__(self, event, inner_object_name=None, attr_name=None):
+    def __init__(self, event, inner_object_name=None, attr_name=None, attr_location=None):
         self.event = event
         self.inner = inner_object_name
         self.attr_name = attr_name
+        self.attr_location = attr_location
 
     def __set_name__(self, owner, name):
         self.name = name
@@ -60,6 +64,8 @@ class WatchedProperty:
             if self.inner:
                 inner_instance = instance.__dict__[self.inner]
                 return getattr(inner_instance, self.attr_name)
+            elif self.attr_location:
+                return instance.__dict__[self.attr_name][self.attr_location - 1]
             return instance.__dict__[self.attr_name]
 
     def __set__(self, instance, value):
@@ -68,9 +74,14 @@ class WatchedProperty:
             setattr(inner_instance, self.attr_name, value)
             # Rely on inner_instance.attr_name to do the broadcasting.
         else:
-            if self.attr_name not in instance.__dict__:
+            if not self.attr_location:  # Can't use `if not self.attr_location` because it could be 0 (first entry)
                 instance.__dict__[self.attr_name] = value
-                # Rely on inner_instance.attr_name to do the broadcasting.
+                if self.attr_name in instance.__dict__:
+                    instance.broadcast(self.event)
             else:
-                instance.__dict__[self.attr_name] = value
-                instance.broadcast(self.event)
+                original_value = instance.__dict__[self.attr_name]
+                original_value[self.attr_location - 1] = value
+                instance.__dict__[self.name] = value
+                instance.__dict__[self.attr_name] = original_value
+                if self.attr_name in instance.__dict__:
+                    instance.broadcast(self.event)

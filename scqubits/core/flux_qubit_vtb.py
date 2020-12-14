@@ -14,7 +14,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 
 class FluxQubitVTBFunctions(FluxQubitFunctions):
-    """Helper class for defining functions for VCHOS relevant to the Flux Qubit"""
+    """Helper class for defining functions for VTB relevant to the Flux Qubit"""
     _check_if_new_minima: Callable
     _normalize_minimum_inside_pi_range: Callable
 
@@ -52,15 +52,18 @@ class FluxQubitVTBFunctions(FluxQubitFunctions):
 
 
 class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBaseClass, serializers.Serializable):
-    r""" Flux Qubit using VCHOS
+    r""" Flux Qubit using VTB
 
     See class FluxQubit for documentation on the qubit itself.
 
     Initialize in the same way as for FluxQubit, however now `num_exc` and `maximum_periodic_vector_length`
-    must be set. See VCHOS for explanation of other kwargs.
+    must be set. See VTB for explanation of other kwargs.
     """
-    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='nglist', attr_location=1)
+    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='nglist', attr_location=2)
+    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=1)
+    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=2)
+    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=3)
 
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, truncated_dim=None, **kwargs):
         EJlist = np.array([EJ1, EJ2, EJ3])
@@ -97,8 +100,8 @@ class FluxQubitVTBSqueezing(VariationalTightBindingSqueezing, FluxQubitVTB):
     def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, truncated_dim, **kwargs):
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
-        VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux, number_degrees_freedom=2,
-                                                  number_periodic_degrees_freedom=2, **kwargs)
+        VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux,
+                                                  number_degrees_freedom=2, number_periodic_degrees_freedom=2, **kwargs)
         FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux,
                               truncated_dim, **kwargs)
 
