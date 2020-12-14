@@ -185,60 +185,6 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
                   for l in range(dim_low_energy_b) for m in range(dim_low_energy_b)
                   for int_a, int_b in virtual_int_states)
 
-        virtual_int_states_1 = list(product(np.arange(fluxonium_a_spin.truncated_dim, fluxonium_a.truncated_dim),
-                                       np.arange(fluxonium_b_spin.truncated_dim, fluxonium_b.truncated_dim)))
-        virtual_int_states_2 = list(product(np.arange(0, fluxonium_a_spin.truncated_dim),
-                                       np.arange(0, fluxonium_b_spin.truncated_dim)))
-        initial_states = list(product(np.arange(0, fluxonium_a_spin.truncated_dim),
-                                 np.arange(0, fluxonium_b_spin.truncated_dim)))
-        final_states = list(product(np.arange(0, fluxonium_a_spin.truncated_dim),
-                               np.arange(0, fluxonium_b_spin.truncated_dim)))
-        H_3 = 0
-        # for begin_state in initial_states:
-        #     for final_state in final_states:
-        #         for int_state_1 in virtual_int_states_1:
-        #             for int_state_2 in virtual_int_states_2:
-        #                 j, l = begin_state
-        #                 k, m = final_state
-        #                 E_initial = evals_a[j] + evals_b[l]
-        #                 E_final = evals_a[k] + evals_b[m]
-        #                 E_int_state_1 = evals_a[int_state_1[0]] + evals_b[int_state_1[1]]
-        #                 E_int_state_2 = evals_a[int_state_2[0]] + evals_b[int_state_2[1]]
-        #                 coefficient_1 = -0.5*(V_op(j, int_state_1[0], l, int_state_1[1])
-        #                                       * V_op(int_state_1[0], int_state_2[0], int_state_1[1], int_state_2[1])
-        #                                       * V_op(int_state_2[0], k, int_state_2[1], m)
-        #                                       / ((E_final - E_int_state_1) * (E_int_state_2 - E_int_state_1)))
-        #                 coefficient_2 = -0.5*(V_op(j, int_state_2[0], l, int_state_2[1])
-        #                                       * V_op(int_state_2[0], int_state_1[0], int_state_2[1], int_state_1[1])
-        #                                       * V_op(int_state_1[0], k, int_state_1[1], m)
-        #                                       / ((E_initial - E_int_state_1) * (E_int_state_2 - E_int_state_1)))
-        #                 coefficient = coefficient_1 + coefficient_2
-        #                 H_3 += coefficient * (hilbert_space.hubbard_operator(j, k, fluxonium_a_spin)
-        #                                       * hilbert_space.hubbard_operator(l, m, fluxonium_b_spin))
-        #
-        # virtual_int_states_1 = list(product(np.arange(fluxonium_a_spin.truncated_dim, fluxonium_a.truncated_dim),
-        #                                np.arange(fluxonium_b_spin.truncated_dim, fluxonium_b.truncated_dim)))
-        # virtual_int_states_2 = list(product(np.arange(fluxonium_a_spin.truncated_dim, fluxonium_a.truncated_dim),
-        #                                np.arange(fluxonium_b_spin.truncated_dim, fluxonium_b.truncated_dim)))
-        # for begin_state in initial_states:
-        #     for final_state in final_states:
-        #         for int_state_1 in virtual_int_states_1:
-        #             for int_state_2 in virtual_int_states_2:
-        #                 j, l = begin_state
-        #                 k, m = final_state
-        #                 E_initial = evals_a[j] + evals_b[l]
-        #                 E_final = evals_a[k] + evals_b[m]
-        #                 E_int_state_1 = evals_a[int_state_1[0]] + evals_b[int_state_1[1]]
-        #                 E_int_state_2 = evals_a[int_state_2[0]] + evals_b[int_state_2[1]]
-        #                 coefficient = 0.5 * (V_op(j, int_state_1[0], l, int_state_1[1])
-        #                                      * V_op(int_state_1[0], int_state_2[0], int_state_1[1], int_state_2[1])
-        #                                      * V_op(int_state_2[0], k, int_state_2[1], m))
-        #                 E_denom_1 = (E_initial - E_int_state_1) * (E_initial - E_int_state_2)
-        #                 E_denom_2 = (E_final - E_int_state_1) * (E_final - E_int_state_2)
-        #                 coefficient = coefficient * ((1. / E_denom_1) + (1. / E_denom_2))
-        #                 H_3 += coefficient * (hilbert_space.hubbard_operator(j, k, fluxonium_a_spin)
-        #                                       * hilbert_space.hubbard_operator(l, m, fluxonium_b_spin))
-
         return H_0, H_1, H_2
 
     def decompose_matrix_into_specific_paulis(self, sigmai, sigmaj, matrix):
