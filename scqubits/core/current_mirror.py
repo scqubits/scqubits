@@ -299,7 +299,17 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
 
 
 class CurrentMirrorGlobal(HashingChargeBasis, CurrentMirror):
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, global_exc, truncated_dim=None):
+    def __init__(self,
+                 N: int,
+                 ECB: float,
+                 ECJ: float,
+                 ECg: float,
+                 EJlist: ndarray,
+                 nglist: ndarray,
+                 flux: float,
+                 global_exc: int,
+                 truncated_dim: int = None
+                 ) -> None:
         HashingChargeBasis.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
         CurrentMirror.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=0, truncated_dim=truncated_dim)
         self.global_exc = global_exc

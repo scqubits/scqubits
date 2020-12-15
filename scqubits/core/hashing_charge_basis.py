@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import ndarray
 from scipy.sparse import eye
 from scipy.sparse.coo import coo_matrix
 from functools import reduce
@@ -8,13 +9,19 @@ from scqubits.core.variationaltightbinding import reflect_vectors
 
 
 class HashingChargeBasis(Hashing):
-    def __init__(self, global_exc, number_degrees_freedom):
+    """
+    Allow for a global charge number cutoff in the charge basis
+    """
+    def __init__(self,
+                 global_exc: int,
+                 number_degrees_freedom: int
+                 ) -> None:
         Hashing.__init__(self, global_exc, number_degrees_freedom)
 
     def gen_basis_vectors(self):
         return self._gen_basis_vectors(reflect_vectors)
 
-    def charge_number_operator(self, j=0):
+    def n_operator(self, j: int = 0) -> ndarray:
         basis_vectors = self.gen_basis_vectors()
         tags, index_array = self._gen_tags(basis_vectors)
         num_states = len(tags)
@@ -25,7 +32,7 @@ class HashingChargeBasis(Hashing):
                 data.append(vector[j])
         return coo_matrix((data, (row, row)), shape=(num_states, num_states), dtype=np.complex_).tocsr()
 
-    def exp_i_phi_j_operator(self, j=0):
+    def exp_i_phi_j_operator(self, j: int = 0) -> ndarray:
         basis_vectors = self.gen_basis_vectors()
         tags, index_array = self._gen_tags(basis_vectors)
         num_states = len(tags)
@@ -38,11 +45,11 @@ class HashingChargeBasis(Hashing):
                 data.append(1.0)
         return coo_matrix((data, (row, col)), shape=(num_states, num_states), dtype=np.complex_).tocsr()
 
-    def identity_operator(self):
+    def identity_operator(self) -> ndarray:
         basis_vectors = self.gen_basis_vectors()
         num_states = len(basis_vectors)
         return eye(num_states, k=0, format="csr", dtype=np.complex_)
 
-    def exp_i_phi_boundary_term(self):
+    def exp_i_phi_boundary_term(self) -> ndarray:
         dim = self.number_degrees_freedom
         return reduce((lambda x, y: x @ y), np.array([self.exp_i_phi_j_operator(j) for j in range(dim)]))

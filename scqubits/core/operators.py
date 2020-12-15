@@ -19,19 +19,19 @@ from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
 
 
-def annihilation(dimension: int, dtype: dtype = None) -> ndarray:
+def annihilation(dimension: int, d_type: dtype = None) -> ndarray:
     """
     Returns a dense matrix of size dimension x dimension representing the annihilation operator in number basis.
     """
-    offdiag_elements = np.sqrt(range(1, dimension), dtype=dtype)
+    offdiag_elements = np.sqrt(range(1, dimension), dtype=d_type)
     return np.diagflat(offdiag_elements, 1)
 
 
-def creation(dimension: int, dtype: np.dtype = None) -> ndarray:
+def creation(dimension: int, d_type: dtype = None) -> ndarray:
     """
     Returns a dense matrix of size dimension x dimension representing the creation operator in number basis.
     """
-    return annihilation(dimension, dtype).T
+    return annihilation(dimension, d_type).T
 
 
 def number(dimension: int, prefactor: Union[float, complex] = None) -> ndarray:
