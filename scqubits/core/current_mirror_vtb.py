@@ -1,10 +1,11 @@
 import math
 import os
+from typing import Callable, Any, Dict
 
 import numpy as np
+from numpy import ndarray
 from scipy.optimize import minimize
 from scipy.linalg import inv
-from typing import Callable
 
 import scqubits.core.descriptors as descriptors
 from scqubits.core.current_mirror import CurrentMirrorFunctions
@@ -20,19 +21,27 @@ class CurrentMirrorVTBFunctions(CurrentMirrorFunctions):
     _check_if_new_minima: Callable
     _normalize_minimum_inside_pi_range: Callable
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux):
+    def __init__(self,
+                 N: int,
+                 ECB: float,
+                 ECJ: float,
+                 ECg: float,
+                 EJlist: ndarray,
+                 nglist: ndarray,
+                 flux: float
+                 ) -> None:
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self.boundary_coefficients = np.ones(2 * N - 1)
 
-    def convert_node_ng_to_junction_ng(self, node_nglist):
+    def convert_node_ng_to_junction_ng(self, node_nglist: ndarray) -> ndarray:
         """Convert offset charge from node variables to junction variables."""
         return inv(self._build_V_m()).T @ node_nglist.T
 
-    def convert_junction_ng_to_node_ng(self, junction_nglist):
+    def convert_junction_ng_to_node_ng(self, junction_nglist: ndarray) -> ndarray:
         """Convert offset charge from junction variables to node variables."""
         return self._build_V_m().T @ junction_nglist.T
 
-    def find_minima(self):
+    def find_minima(self) -> ndarray:
         """Find all minima in the potential energy landscape of the current mirror.
 
         Returns
@@ -57,12 +66,12 @@ class CurrentMirrorVTBFunctions(CurrentMirrorFunctions):
                 minima_holder.append(self._normalize_minimum_inside_pi_range(result_neg.x))
         return np.array(minima_holder)
 
-    def _check_if_second_derivative_potential_positive(self, phi_array):
+    def _check_if_second_derivative_potential_positive(self, phi_array: ndarray) -> bool:
         """Helper method for determining whether the location specified by `phi_array` is a minimum."""
         second_derivative = np.round(-(self.potential(phi_array) - np.sum(self.EJlist)), decimals=3)
         return second_derivative > 0.0
 
-    def potential(self, phi_array):
+    def potential(self, phi_array: ndarray) -> ndarray:
         """Potential evaluated at the location specified by phi_array.
 
         Parameters
@@ -82,7 +91,8 @@ class CurrentMirrorVTBFunctions(CurrentMirrorFunctions):
         return pot_sum
 
 
-class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding, base.QubitBaseClass, serializers.Serializable):
+class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding,
+                       base.QubitBaseClass, serializers.Serializable):
     r""" Current Mirror using VTB
 
     See class CurrentMirror for documentation on the qubit itself.
@@ -93,7 +103,17 @@ class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding, base.
     maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim=None, **kwargs):
+    def __init__(self,
+                 N: int,
+                 ECB: float,
+                 ECJ: float,
+                 ECg: float,
+                 EJlist: ndarray,
+                 nglist: ndarray,
+                 flux: float,
+                 truncated_dim: int = None,
+                 **kwargs
+                 ) -> None:
         VariationalTightBinding.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2 * N - 1,
                                          number_periodic_degrees_freedom=2 * N - 1, **kwargs)
         CurrentMirrorVTBFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
@@ -104,7 +124,7 @@ class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding, base.
                                             'qubit_pngs/' + str(type(self).__name__) + '.png')
 
     @staticmethod
-    def default_params():
+    def default_params() -> Dict[str, Any]:
         return {
             'N': 3,
             'ECB': 0.2,
@@ -118,14 +138,11 @@ class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding, base.
             'truncated_dim': 6
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['N', 'nglist', 'flux', 'maximum_periodic_vector_length', 'num_exc', 'truncated_dim']
-
 
 class CurrentMirrorVTBSqueezing(VariationalTightBindingSqueezing, CurrentMirrorVTB):
     def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs):
-        VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux, number_degrees_freedom=2 * N - 1,
+        VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux,
+                                                  number_degrees_freedom=2 * N - 1,
                                                   number_periodic_degrees_freedom=2*N - 1, **kwargs)
         CurrentMirrorVTB.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)
 

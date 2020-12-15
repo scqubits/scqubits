@@ -1,6 +1,8 @@
 import os
+from typing import Dict, Any, Tuple, List
 
 import numpy as np
+from numpy import ndarray
 import scipy as sp
 from scipy.sparse import eye, diags
 from scipy.sparse.linalg import eigsh
@@ -24,7 +26,15 @@ class CurrentMirrorFunctions:
     nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux):
+    def __init__(self,
+                 N: int,
+                 ECB: float,
+                 ECJ: float,
+                 ECg: float,
+                 EJlist: ndarray,
+                 nglist: ndarray,
+                 flux: float
+                 ) -> None:
         self.e = np.sqrt(4.0 * np.pi * const.alpha)
         self.N = N
         self.number_degrees_freedom = 2*N - 1
@@ -35,7 +45,7 @@ class CurrentMirrorFunctions:
         self.nglist = nglist
         self.flux = flux
 
-    def build_capacitance_matrix(self):
+    def build_capacitance_matrix(self) -> ndarray:
         """Returns the capacitance matrix, transforming to coordinates where the variable corresponding
         to the total charge can be eliminated
 
@@ -60,7 +70,7 @@ class CurrentMirrorFunctions:
 
         return C_matrix[0:-1, 0:-1]
 
-    def build_EC_matrix(self):
+    def build_EC_matrix(self) -> ndarray:
         """Returns the charging energy matrix
 
         Returns
@@ -70,7 +80,7 @@ class CurrentMirrorFunctions:
         C_matrix = self.build_capacitance_matrix()
         return 0.5 * self.e**2 * sp.linalg.inv(C_matrix)
 
-    def _build_V_m(self):
+    def _build_V_m(self) -> ndarray:
         """Builds the matrix necessary for the coordinate transformation"""
         N = self.N
         V_m = np.diagflat([-1 for _ in range(2*N)], 0)
@@ -78,7 +88,7 @@ class CurrentMirrorFunctions:
         V_m[-1] = np.array([1 for _ in range(2*N)])
         return V_m
 
-    def harmonic_modes(self):
+    def harmonic_modes(self) -> ndarray:
         """Returns the harmonic modes associated with the linearized current mirror Hamiltonian.
 
         Returns
@@ -153,8 +163,17 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
     """
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, 
-                 flux, ncut, truncated_dim=None):
+    def __init__(self,
+                 N: int,
+                 ECB: float,
+                 ECJ: float,
+                 ECg: float,
+                 EJlist: ndarray,
+                 nglist: ndarray,
+                 flux: float,
+                 ncut: int,
+                 truncated_dim: int = None
+                 ) -> None:
         CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self.ncut = ncut
         self.truncated_dim = truncated_dim
@@ -163,7 +182,7 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/currentmirror.png')
 
     @staticmethod
-    def default_params():
+    def default_params() -> Dict[str, Any]:
         return {
             'N': 3,
             'ECB': 0.2,
@@ -176,26 +195,22 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
             'truncated_dim': 6
         }
 
-    @staticmethod
-    def nonfit_params():
-        return ['N', 'nglist', 'flux', 'ncut', 'truncated_dim']
-
-    def _evals_calc(self, evals_count):
+    def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
         evals = eigsh(hamiltonian_mat, k=evals_count, which='SA', return_eigenvectors=False)
         return np.sort(evals)
 
-    def _esys_calc(self, evals_count):
+    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = eigsh(hamiltonian_mat, k=evals_count, which='SA', return_eigenvectors=True)
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
     
-    def hilbertdim(self):
+    def hilbertdim(self) -> int:
         """Return Hilbert space dimension."""
         return (2*self.ncut+1)**self.number_degrees_freedom
 
-    def hamiltonian(self):
+    def hamiltonian(self) -> ndarray:
         """Returns the Hamiltonian employing the charge number basis for all :math:`2\cdot N - 1` d.o.f.
 
         Returns
@@ -206,8 +221,8 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
         EC_matrix = self.build_EC_matrix()
         H = 0.*self.identity_operator()
         for j, k in itertools.product(range(dim), range(dim)):
-            H += 4*EC_matrix[j, k]*((self.charge_number_operator(j) - self.nglist[j]*self.identity_operator())
-                                    @ (self.charge_number_operator(k) - self.nglist[k]*self.identity_operator()))
+            H += 4*EC_matrix[j, k]*((self.n_operator(j) - self.nglist[j] * self.identity_operator())
+                                    @ (self.n_operator(k) - self.nglist[k] * self.identity_operator()))
         for j in range(dim):
             H += (-self.EJlist[j]/2.)*(self.exp_i_phi_j_operator(j) + self.exp_i_phi_j_operator(j).T)
             H += self.EJlist[j]*self.identity_operator()
@@ -217,13 +232,13 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
         
         return H
 
-    def _identity_operator(self):
+    def _identity_operator(self) -> ndarray:
         return eye(2 * self.ncut + 1, k=0, format="csr", dtype=np.complex_)
 
-    def _identity_operator_list(self):
+    def _identity_operator_list(self) -> List[ndarray]:
         return [self._identity_operator() for _ in range(self.number_degrees_freedom)]
 
-    def identity_operator(self):
+    def identity_operator(self) -> ndarray:
         """Returns the identity operator in the full Hilbert space
 
         Returns
@@ -232,10 +247,10 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
         """
         return operator_in_full_Hilbert_space([], [], self._identity_operator_list(), sparse=True)
 
-    def _charge_number_operator(self):
+    def _n_operator(self) -> ndarray:
         return diags([i for i in range(-self.ncut, self.ncut + 1, 1)], offsets=0, format="csr", dtype=np.complex_)
 
-    def charge_number_operator(self, j=0):
+    def n_operator(self, j: int = 0) -> ndarray:
         """Returns charge number operator :math:`n_{j}` in the full Hilbert space
 
         Parameters
@@ -247,13 +262,13 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
         -------
             ndarray
         """
-        number_operator = self._charge_number_operator()
+        number_operator = self._n_operator()
         return operator_in_full_Hilbert_space([number_operator], [j], self._identity_operator_list(), sparse=True)
 
-    def _exp_i_phi_j_operator(self):
+    def _exp_i_phi_j_operator(self) -> ndarray:
         return eye(2*self.ncut + 1, k=-1, format="csr", dtype=np.complex_)
 
-    def exp_i_phi_j_operator(self, j=0):
+    def exp_i_phi_j_operator(self, j: int = 0) -> ndarray:
         """Returns the operator :math:`\exp(i\phi_{j})` in the full Hilbert space
 
         Parameters
@@ -268,7 +283,7 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
         exp_i_phi_j = self._exp_i_phi_j_operator()
         return operator_in_full_Hilbert_space([exp_i_phi_j], [j], self._identity_operator_list(), sparse=True)
 
-    def exp_i_phi_boundary_term(self):
+    def exp_i_phi_boundary_term(self) -> ndarray:
         """Returns the operator associated with the last Josephson junction,
          :math:`\exp(i\sum_{j=1}^{2N-1}\phi_{j})` in the full Hilbert space
 

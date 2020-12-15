@@ -1,8 +1,9 @@
 import os
 
 import numpy as np
+from numpy import ndarray
 from scipy.optimize import minimize
-from typing import Callable
+from typing import Callable, List, Dict, Any, Tuple
 
 from scqubits.core import descriptors
 from scqubits.core.flux_qubit import FluxQubitFunctions
@@ -18,12 +19,24 @@ class FluxQubitVTBFunctions(FluxQubitFunctions):
     _check_if_new_minima: Callable
     _normalize_minimum_inside_pi_range: Callable
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux):
+    def __init__(self,
+                 EJ1: float,
+                 EJ2: float,
+                 EJ3: float,
+                 ECJ1: float,
+                 ECJ2: float,
+                 ECJ3: float,
+                 ECg1: float,
+                 ECg2: float,
+                 ng1: float,
+                 ng2: float,
+                 flux: float
+                 ) -> None:
         FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
         # final term in potential is cos[(+1)\phi_1+(-1)\phi_2+2pi f]
         self.boundary_coefficients = np.array([+1, -1])
 
-    def _ramp(self, k, minima_holder):
+    def _ramp(self, k: int, minima_holder: List) -> Tuple[List, bool]:
         """Helper function for find_minima"""
         guess = np.array([1.15 * 2.0 * np.pi * k / 3.0, 2.0 * np.pi * k / 3.0])
         result = minimize(self.potential, guess)
@@ -32,7 +45,7 @@ class FluxQubitVTBFunctions(FluxQubitFunctions):
             minima_holder.append(self._normalize_minimum_inside_pi_range(result.x))
         return minima_holder, new_minima
 
-    def find_minima(self):
+    def find_minima(self) -> ndarray:
         """
         Index all minima in the variable space of phi1 and phi2
         """
@@ -65,7 +78,21 @@ class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBas
     EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=2)
     EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=3)
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, truncated_dim=None, **kwargs):
+    def __init__(self,
+                 EJ1: float,
+                 EJ2: float,
+                 EJ3: float,
+                 ECJ1: float,
+                 ECJ2: float,
+                 ECJ3: float,
+                 ECg1: float,
+                 ECg2: float,
+                 ng1: float,
+                 ng2: float,
+                 flux: float,
+                 truncated_dim: int = None,
+                 **kwargs
+                 ) -> None:
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         VariationalTightBinding.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2,
@@ -78,7 +105,7 @@ class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBas
                                             'qubit_pngs/'+str(type(self).__name__)+'.png')
 
     @staticmethod
-    def default_params():
+    def default_params() -> Dict[str, Any]:
         return {
             'ECJ': 1.0 / 10.0,
             'ECg': 5.0,
@@ -90,10 +117,6 @@ class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBas
             'num_exc': 4,
             'truncated_dim': 6
         }
-
-    @staticmethod
-    def nonfit_params():
-        return ['alpha', 'nglist', 'maximum_periodic_vector_length', 'num_exc', 'squeezing', 'truncated_dim']
 
 
 class FluxQubitVTBSqueezing(VariationalTightBindingSqueezing, FluxQubitVTB):

@@ -1,10 +1,14 @@
+import itertools
+from typing import Callable, List, Tuple
+
 import numpy as np
+from numpy import ndarray
 from scipy.special import comb
 
 import scqubits.utils.plotting as plot
 
 
-def generate_next_vector(prev_vec, radius):
+def generate_next_vector(prev_vec: ndarray, radius: int) -> ndarray:
     """Algorithm for generating all vectors with positive entries of a given Manhattan length, specified in
     [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010)"""
     k = 0
@@ -19,15 +23,39 @@ def generate_next_vector(prev_vec, radius):
     return next_vec
 
 
+def reflect_vectors(vec: ndarray) -> ndarray:
+    """Helper function for generating all possible reflections of a given vector"""
+    reflected_vec_list = []
+    nonzero_indices = np.nonzero(vec)
+    nonzero_vec = vec[nonzero_indices]
+    multiplicative_factors = itertools.product(np.array([1, -1]), repeat=len(nonzero_vec))
+    for factor in multiplicative_factors:
+        reflected_vec = np.copy(vec)
+        np.put(reflected_vec, nonzero_indices, np.multiply(nonzero_vec, factor))
+        reflected_vec_list.append(reflected_vec)
+    return np.array(reflected_vec_list)
+
+
 class Hashing:
     """Helper class for efficiently constructing raising and lowering operators
     using a global excitation cutoff scheme, as opposed to the more commonly used
     number of excitations per mode cutoff, which can be easily constructed
     using kronecker product. The ideas herein are based on the excellent
     paper
-    [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010)."""
+    [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
 
-    def __init__(self, global_exc, number_degrees_freedom):
+    Parameters
+    ----------
+    global_exc: int
+        up to and including the number of global excitations to keep
+    number_degrees_freedom: int
+        number of degrees of freedom of the system
+    """
+
+    def __init__(self,
+                 global_exc: int,
+                 number_degrees_freedom: int
+                 ) -> None:
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
                                     29, 31, 37, 41, 43, 47, 53, 59,
                                     61, 67, 71, 73, 79, 83, 89, 97, 
@@ -58,11 +86,11 @@ class Hashing:
         self.global_exc = global_exc
         self.number_degrees_freedom = number_degrees_freedom
 
-    def gen_basis_vectors(self):
+    def gen_basis_vectors(self) -> ndarray:
         """Generate all basis vectors"""
         return self._gen_basis_vectors(lambda x: [x])
 
-    def _gen_basis_vectors(self, func):
+    def _gen_basis_vectors(self, func: Callable) -> ndarray:
         """Generate basis vectors using Zhang algorithm. `func` allows for inclusion of other vectors,
         such as those with negative entries (see CurrentMirrorGlobal)"""
         sites = self.number_degrees_freedom
@@ -78,13 +106,13 @@ class Hashing:
         return np.array(vector_list)
 
     @staticmethod
-    def _append_similar_vectors(vector_list, vector, func):
+    def _append_similar_vectors(vector_list: List, vector: ndarray, func: Callable) -> List:
         similar_vectors = func(vector)
         for vector in similar_vectors:
             vector_list.append(vector)
         return vector_list
 
-    def a_operator(self, i):
+    def a_operator(self, i: int) -> ndarray:
         """ Construct the lowering operator for mode `i`.
 
         Parameters
@@ -107,7 +135,7 @@ class Hashing:
                 a[basis_index, w] = temp_coefficient
         return a
 
-    def _find_lowered_vector(self, vector, i, tags, index_array):
+    def _find_lowered_vector(self, vector: ndarray, i: int, tags: ndarray, index_array: ndarray) -> int:
         temp_vector = np.copy(vector)
         temp_vector[i] = vector[i] - 1
         temp_vector_tag = self._hash(temp_vector)
@@ -115,17 +143,17 @@ class Hashing:
         basis_index = index_array[index]
         return basis_index
 
-    def number_states_per_minimum(self):
+    def number_states_per_minimum(self) -> int:
         """Using the global excitation scheme the total number of states
         per minimum is given by the hockey-stick identity"""
         return int(comb(self.global_exc + self.number_degrees_freedom, self.number_degrees_freedom))
 
-    def _hash(self, vector):
+    def _hash(self, vector: ndarray) -> ndarray:
         """Generate the (unique) identifier for a given vector `vector`"""
         dim = len(vector)
         return np.sum([np.sqrt(self.prime_list[i]) * vector[i] for i in range(dim)])
     
-    def _gen_tags(self, basis_vectors):
+    def _gen_tags(self, basis_vectors: ndarray) -> Tuple[ndarray, ndarray]:
         """Generate the identifiers for all basis vectors `basis_vectors`"""
         dim = basis_vectors.shape[0]
         tag_list = np.array([self._hash(basis_vectors[i, :]) for i in range(dim)])
@@ -133,12 +161,14 @@ class Hashing:
         tag_list = tag_list[index_array]
         return tag_list, index_array
 
-    def state_amplitudes_function(self, i, evecs, which):
+    def state_amplitudes_function(self, i: int, evecs: ndarray, which: int) -> ndarray:
         """Overrides method in VCHOS, appropriate for the global excitation cutoff scheme."""
         total_num_states = self.number_states_per_minimum()
         return np.real(evecs[i * total_num_states: (i + 1) * total_num_states, which])
 
-    def wavefunction_amplitudes_function(self, state_amplitudes, normal_mode_1, normal_mode_2):
+    def wavefunction_amplitudes_function(self, state_amplitudes: ndarray,
+                                         normal_mode_1: ndarray,
+                                         normal_mode_2: ndarray) -> ndarray:
         """Overrides method in VCHOS, appropriate for the global excitation cutoff scheme."""
         total_num_states = self.number_states_per_minimum()
         basis_vectors = self.gen_basis_vectors()
