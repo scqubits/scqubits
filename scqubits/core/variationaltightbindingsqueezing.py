@@ -1,7 +1,9 @@
 import itertools
 from functools import partial, reduce
+from typing import Tuple, Union, Callable
 
 import numpy as np
+from numpy import ndarray
 import scipy as sp
 from scipy.linalg import LinAlgError, inv, expm, logm, det
 from numpy.linalg import matrix_power
@@ -17,10 +19,10 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
     See class VariationalTightBinding for documentation and explanation of parameters.
 
     """
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         VariationalTightBinding.__init__(self, **kwargs)
 
-    def _build_U_squeezing_operator(self, minimum, Xi):
+    def _build_U_squeezing_operator(self, minimum: int, Xi: ndarray) -> Tuple:
         """
         Return the rho, sigma, tau matrices that define the overall squeezing operator U
 
@@ -46,7 +48,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         tau = v @ inv(u)
         return rho, sigma, tau
     
-    def _delta_rho_matrices(self, rho, rho_prime):
+    def _delta_rho_matrices(self, rho: ndarray, rho_prime: ndarray) -> Tuple:
         dim = self.number_degrees_freedom
         delta_rho_prime = inv(np.eye(dim) - rho_prime @ rho) @ rho_prime
         delta_rho = inv(np.eye(dim) - rho @ rho_prime) @ rho
@@ -54,13 +56,14 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         return delta_rho, delta_rho_prime, delta_rho_bar
 
     @staticmethod
-    def _linear_coefficient_matrices(rho_prime, delta_rho, A, B):
+    def _linear_coefficient_matrices(rho_prime: ndarray, delta_rho: ndarray,
+                                     A: ndarray, B: ndarray) -> Tuple:
         """Build variables helpful for constructing the Hamiltonian """
         a_coefficient = A - 0.5 * (B - A @ rho_prime) @ (delta_rho + delta_rho.T)
         a_dagger_coefficient = B - A @ rho_prime
         return a_coefficient, a_dagger_coefficient
 
-    def _squeezing_M_builder(self, minimum, Xi, Xi_prime):
+    def _squeezing_M_builder(self, minimum: int, Xi: ndarray, Xi_prime: ndarray) -> ndarray:
         """
         Returns the M matrix as defined in G. Qin et. al “General multi-mode-squeezed states,”
         (2001) arXiv: quant-ph/0109020, M=[[u, v],[v, u]] where u and v are the matrices
@@ -95,7 +98,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         _, eigvec = self._normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
         return eigvec
 
-    def _order_eigensystem_squeezing(self, eigvals, eigvec):
+    def _order_eigensystem_squeezing(self, eigvals: ndarray, eigvec: ndarray) -> Tuple:
         """Order eigensystem to have positive eigenvalues followed by negative, in same order"""
         dim = self.number_degrees_freedom
         eigval_holder = np.zeros(dim)
@@ -127,7 +130,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         eigvec_holder[dim: 2*dim, dim: 2*dim] = u
         return eigval_holder, eigvec_holder
 
-    def _normalize_symplectic_eigensystem_squeezing(self, eigvals, eigvec):
+    def _normalize_symplectic_eigensystem_squeezing(self, eigvals: ndarray, eigvec: ndarray) -> Tuple:
         """Enforce commutation relations so that Bogoliubov transformation is symplectic """
         dim = self.number_degrees_freedom
         for col in range(dim):
@@ -146,14 +149,16 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         eigvec[0: dim, dim: 2*dim] = B
         return eigvals, eigvec
 
-    def _find_closest_periodic_minimum(self, minima_pair):
+    def _find_closest_periodic_minimum(self,
+                                       minima_pair: Tuple
+                                       ) -> Union[ndarray, ndarray]:
         """Overrides method in VariationalTightBinding, need to consider states localized in both minima."""
         (minima_m, m), (minima_p, p) = minima_pair
         max_for_m = self._find_closest_periodic_minimum_for_given_minima(minima_pair, m)
         max_for_p = self._find_closest_periodic_minimum_for_given_minima(minima_pair, p)
         return max(max_for_m, max_for_p)
 
-    def _normal_ordered_a_dagger_a_exponential(self, x, a_operator_list):
+    def _normal_ordered_a_dagger_a_exponential(self, x: ndarray, a_operator_list: ndarray) -> ndarray:
         """Return normal ordered exponential matrix of exp(a_{i}^{\dagger}x_{ij}a_{j})"""
         expm_x = expm(x)
         num_states = self.number_states_per_minimum()
@@ -169,7 +174,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
             k += 1
         return result
 
-    def _build_rho_sigma_tau_matrices(self, m, p, Xi):
+    def _build_rho_sigma_tau_matrices(self, m: int, p: int, Xi: ndarray) -> Tuple:
         """Return the `\rho, \sigma, \tau` matrices that define the squeezing operator `U`."""
         dim = self.number_degrees_freedom
         if m == 0:  # At the global minimum, no squeezing required
@@ -190,7 +195,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
             rho_prime, sigma_prime, tau_prime = self._build_U_squeezing_operator(p, Xi)
         return rho, rho_prime, sigma, sigma_prime, tau, tau_prime
 
-    def find_relevant_periodic_continuation_vectors(self, num_cpus=1):
+    def find_relevant_periodic_continuation_vectors(self, num_cpus: int = 1) -> None:
         """Constructs a dictionary of the relevant periodic continuation vectors for each pair of minima.
         Overrides method in VariationalTightBinding. Because the Xi matrix now varies with the minima, the relevant
         periodic continuation vectors may differ from the non-squeezed case.
@@ -213,8 +218,9 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                 print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
         self.nearest_neighbors = nearest_neighbors
 
-    def _build_translation_operators_squeezing(self, minima_diff, Xi, disentangled_squeezing_matrices,
-                                               delta_rho_matrices):
+    def _build_translation_operators_squeezing(self, minima_diff: ndarray, Xi: ndarray,
+                                               disentangled_squeezing_matrices: Tuple,
+                                               delta_rho_matrices: Tuple) -> Tuple:
         """Helper method for building the 2pi displacement operators."""
         dim = self.number_degrees_freedom
         a_operator_list = self._a_operator_list()
@@ -235,8 +241,9 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                        for i in range(dim) for j in range(dim)], axis=0) / np.sqrt(2.0))
         return exp_a_dagger_list, exp_a_dagger_minima_difference, exp_a_list, exp_a_minima_difference
 
-    def _build_potential_operators_squeezing(self, a_operator_list, Xi, exp_a_dagger_a,
-                                             disentangled_squeezing_matrices, delta_rho_matrices):
+    def _build_potential_operators_squeezing(self, a_operator_list: ndarray, Xi: ndarray, exp_a_dagger_a: ndarray,
+                                             disentangled_squeezing_matrices: Tuple,
+                                             delta_rho_matrices: Tuple) -> Tuple:
         """Helper method for building the potential operators."""
         exp_i_list = []
         dim = self.number_degrees_freedom
@@ -259,8 +266,9 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         exp_i_sum = exp_i_sum_a_dagger_part @ exp_a_dagger_a @ exp_i_sum_a_part
         return exp_i_list, exp_i_sum
 
-    def _build_bilinear_squeezing_operators(self, a_operator_list, disentangled_squeezing_matrices,
-                                            delta_rho_matrices):
+    def _build_bilinear_squeezing_operators(self, a_operator_list: ndarray,
+                                            disentangled_squeezing_matrices: Tuple,
+                                            delta_rho_matrices: Tuple) -> Tuple:
         """Helper method for building the bilinear operators necessary for constructing the Hamiltonian
         in the presence of squeezing."""
         dim = self.number_degrees_freedom
@@ -278,7 +286,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         exp_a_dagger_a = self._normal_ordered_a_dagger_a_exponential(prefactor_a_dagger_a, a_operator_list)
         return exp_a_dagger_a_dagger, exp_a_dagger_a, exp_a_a
 
-    def _translation_squeezing(self, exp_operators, squeezing_operators, neighbor):
+    def _translation_squeezing(self, exp_operators: Tuple, squeezing_operators: Tuple, neighbor: ndarray) -> Tuple:
         """Build translation operators using matrix_power"""
         dim = self.number_degrees_freedom
         exp_a_dagger_list, exp_a_dagger_minima_difference, exp_a_list, exp_a_minima_difference = exp_operators
@@ -290,7 +298,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         translation_op_a = reduce((lambda x, y: x @ y), individual_op_a) @ exp_a_minima_difference @ exp_a_a
         return translation_op_a_dag, translation_op_a
 
-    def _periodic_continuation_squeezing(self, minima_pair_func, local_func):
+    def _periodic_continuation_squeezing(self, minima_pair_func: Callable, local_func: Callable) -> ndarray:
         """See VariationalTightBinding for documentation. This function generalizes
         _periodic_continuation to allow for squeezing"""
         if not self.nearest_neighbors:
@@ -329,10 +337,10 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
 
-    def _periodic_sum_minima_pair_squeezing(self, minima_m, minima_p, nearest_neighbors,
-                                            local_func, squeezing_operators, exp_operators,
-                                            disentangled_squeezing_matrices, delta_rho_matrices,
-                                            minima_pair_results, Xi_inv):
+    def _periodic_sum_minima_pair_squeezing(self, minima_m: ndarray, minima_p: ndarray, nearest_neighbors: ndarray,
+                                            local_func: Callable, squeezing_operators: Tuple, exp_operators: Tuple,
+                                            disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple,
+                                            minima_pair_results: Tuple, Xi_inv: ndarray):
         num_states = self.number_states_per_minimum()
         matrix_element = np.zeros((num_states, num_states), dtype=np.complex_)
         if nearest_neighbors is not None:
@@ -351,7 +359,8 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                    @ translation_a)
         return matrix_element
 
-    def _construct_kinetic_alpha_epsilon_squeezing(self, Xi_inv, delta_phi, rho_prime, delta_rho):
+    def _construct_kinetic_alpha_epsilon_squeezing(self, Xi_inv: ndarray, delta_phi: ndarray,
+                                                   rho_prime: ndarray, delta_rho: ndarray) -> Tuple:
         """Construct the `alpha` and `epsilon` variables necessary for the kinetic matrix."""
         arg_exp_a_dag = delta_phi @ Xi_inv.T / np.sqrt(2.)
         arg_exp_a = -arg_exp_a_dag
@@ -361,8 +370,10 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                                      + Xi_inv @ delta_phi / np.sqrt(2.0))
         return alpha, epsilon
 
-    def _minima_pair_transfer_squeezing_function(self, EC_mat, a_operator_list, Xi, exp_a_dagger_a,
-                                                 disentangled_squeezing_matrices, delta_rho_matrices):
+    def _minima_pair_transfer_squeezing_function(self, EC_mat: ndarray, a_operator_list: ndarray, Xi: ndarray,
+                                                 exp_a_dagger_a: ndarray,
+                                                 disentangled_squeezing_matrices: Tuple,
+                                                 delta_rho_matrices: Tuple) -> Tuple:
         """Minima pair calculations for the kinetic and potential matrices."""
         return (self._minima_pair_kinetic_squeezing_function(EC_mat, a_operator_list, inv(Xi), exp_a_dagger_a,
                                                              disentangled_squeezing_matrices,
@@ -371,8 +382,10 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                                                disentangled_squeezing_matrices,
                                                                delta_rho_matrices))
 
-    def _minima_pair_kinetic_squeezing_function(self, EC_mat, a_operator_list, Xi_inv, exp_a_dagger_a,
-                                                disentangled_squeezing_matrices, delta_rho_matrices):
+    def _minima_pair_kinetic_squeezing_function(self, EC_mat: ndarray, a_operator_list: ndarray,
+                                                Xi_inv: ndarray, exp_a_dagger_a: ndarray,
+                                                disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple
+                                                ) -> Tuple:
         """Return data necessary for constructing the kinetic matrix that only depends on the minima
         pair, and not on the specific periodic continuation operator."""
         dim = self.number_degrees_freedom
@@ -397,9 +410,10 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                  for mu in range(dim)], axis=0)
         return kinetic_matrix, xa, dx, xa_coefficient, dx_coefficient
 
-    def _local_transfer_squeezing_function(self, EC_mat, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                           disentangled_squeezing_matrices, delta_rho_matrices,
-                                           exp_a_dagger_a, minima_pair_results):
+    def _local_transfer_squeezing_function(self, EC_mat: ndarray, Xi: ndarray, Xi_inv: ndarray,
+                                           phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray,
+                                           disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple,
+                                           exp_a_dagger_a: ndarray, minima_pair_results: Tuple) -> ndarray:
         """Local contribution to the transfer matrix in the presence of squeezing."""
         kinetic_minima_pair_results, potential_minima_pair_results = minima_pair_results
         return (self._local_kinetic_squeezing_function(EC_mat, Xi_inv, phi_neighbor, minima_m, minima_p,
@@ -410,9 +424,10 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                                            delta_rho_matrices, exp_a_dagger_a,
                                                            potential_minima_pair_results))
 
-    def _local_kinetic_squeezing_function(self, EC_mat, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                          disentangled_squeezing_matrices, delta_rho_matrices,
-                                          exp_a_dagger_a, minima_pair_results):
+    def _local_kinetic_squeezing_function(self, EC_mat: ndarray, Xi_inv: ndarray,
+                                          phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray,
+                                          disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple,
+                                          exp_a_dagger_a: ndarray, minima_pair_results: Tuple) -> ndarray:
         """Local contribution to the kinetic matrix in the presence of squeezing."""
         dim = self.number_degrees_freedom
         delta_phi = phi_neighbor + minima_p - minima_m
@@ -426,7 +441,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                 for mu in range(dim)], axis=0)
                         + kinetic_matrix_minima_pair + 4 * exp_a_dagger_a * (epsilon @ EC_mat @ epsilon))
 
-    def _premultiplying_exp_a_dagger_a_with_a(self, exp_a_dagger_a, a_op_list):
+    def _premultiplying_exp_a_dagger_a_with_a(self, exp_a_dagger_a: ndarray, a_op_list: ndarray) -> Tuple:
         """
         Helper function for building the kinetic part of the Hamiltonian.
         Naming scheme is  x -> exp(A_{ij}a_{i}^{\dag}a_{j}) (for whatever matrix A is)
@@ -442,14 +457,14 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         return xa, xaa, dxa, dx, ddx
 
     @staticmethod
-    def _alpha_helper(arg_exp_a_dag, arg_exp_a, rho_prime, delta_rho):
+    def _alpha_helper(arg_exp_a_dag: ndarray, arg_exp_a: ndarray, rho_prime: ndarray, delta_rho: ndarray) -> ndarray:
         """Build the prefactor that arises due to squeezing. With no squeezing, alpha=1 (number, not matrix)"""
         arg_exp_a_rho_prime = np.matmul(arg_exp_a, rho_prime)
         alpha = np.exp(-0.5 * arg_exp_a @ arg_exp_a_rho_prime - 0.5 * (arg_exp_a_dag - arg_exp_a_rho_prime)
                        @ delta_rho @ (arg_exp_a_dag - arg_exp_a_rho_prime))
         return alpha
 
-    def transfer_matrix(self):
+    def transfer_matrix(self) -> ndarray:
         """Returns the transfer matrix
 
         Returns
@@ -465,7 +480,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         local_transfer_function = partial(self._local_transfer_squeezing_function, EC_mat, Xi, Xi_inv)
         return self._periodic_continuation_squeezing(minima_pair_transfer_function, local_transfer_function)
 
-    def kinetic_matrix(self):
+    def kinetic_matrix(self) -> ndarray:
         """Returns the kinetic energy matrix
 
         Returns
@@ -480,7 +495,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         local_kinetic_function = partial(self._local_kinetic_squeezing_function, EC_mat, Xi_inv)
         return self._periodic_continuation_squeezing(minima_pair_kinetic_function, local_kinetic_function)
 
-    def potential_matrix(self):
+    def potential_matrix(self) -> ndarray:
         """Returns the potential energy matrix
 
         Returns
@@ -494,7 +509,8 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         local_potential_function = partial(self._local_potential_squeezing_function, Xi, Xi_inv)
         return self._periodic_continuation_squeezing(minima_pair_potential_function, local_potential_function)
 
-    def _build_potential_exp_prefactors(self, disentangled_squeezing_matrices, delta_rho_matrices):
+    def _build_potential_exp_prefactors(self, disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple
+                                        ) -> Tuple:
         dim = self.number_degrees_freedom
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
@@ -502,9 +518,10 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         prefactor_a = (np.eye(dim) - 0.5 * (np.eye(dim) - rho_prime) @ (delta_rho + delta_rho.T)) @ expm(-sigma_prime)
         return prefactor_a, prefactor_a_dagger
 
-    def _local_potential_squeezing_function(self, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                            disentangled_squeezing_matrices, delta_rho_matrices,
-                                            exp_a_dagger_a, minima_pair_results):
+    def _local_potential_squeezing_function(self, Xi: ndarray, Xi_inv: ndarray, phi_neighbor: ndarray,
+                                            minima_m: ndarray, minima_p: ndarray,
+                                            disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple,
+                                            exp_a_dagger_a: ndarray, minima_pair_results: Tuple) -> ndarray:
         """Local contribution to the potential matrix in the presence of squeezing."""
         dim = self.number_degrees_freedom
         delta_phi = phi_neighbor + minima_p - minima_m
@@ -529,9 +546,9 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                              * np.sum(self.EJlist))
         return potential_matrix
 
-    def _local_contribution_boundary_squeezing(self, delta_phi, Xi, Xi_inv,
-                                               disentangled_squeezing_matrices,
-                                               delta_rho_matrices, exp_i_sum):
+    def _local_contribution_boundary_squeezing(self, delta_phi: ndarray, Xi: ndarray, Xi_inv: ndarray,
+                                               disentangled_squeezing_matrices: Tuple,
+                                               delta_rho_matrices: Tuple, exp_i_sum: ndarray) -> ndarray:
         """Local contribution to the potential due to the boundary term"""
         dim = self.number_degrees_freedom
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
@@ -544,8 +561,10 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         potential_matrix *= self._BCH_factor_for_potential_boundary(Xi)
         return potential_matrix
 
-    def _local_contribution_single_junction_squeezing(self, j, delta_phi, Xi, Xi_inv, disentangled_squeezing_matrices,
-                                                      delta_rho_matrices, exp_i_phi_list):
+    def _local_contribution_single_junction_squeezing(self, j: int, delta_phi: ndarray, Xi: ndarray,
+                                                      Xi_inv: ndarray, disentangled_squeezing_matrices: Tuple,
+                                                      delta_rho_matrices: Tuple, exp_i_phi_list: ndarray
+                                                      ) -> ndarray:
         """Local contribution to the potential due to `\cos(\phi_j)`"""
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
@@ -556,16 +575,20 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         potential_matrix *= np.exp(-.25 * np.dot(Xi[j, :], Xi.T[:, j]))
         return potential_matrix
 
-    def _minima_pair_potential_squeezing_function(self, a_operator_list, Xi, exp_a_dagger_a,
-                                                  disentangled_squeezing_matrices, delta_rho_matrices):
+    def _minima_pair_potential_squeezing_function(self, a_operator_list: ndarray, Xi: ndarray,
+                                                  exp_a_dagger_a: ndarray,
+                                                  disentangled_squeezing_matrices: Tuple,
+                                                  delta_rho_matrices: Tuple) -> Tuple:
         """Return data necessary for constructing the potential matrix that only depends on the minima
         pair, and not on the specific periodic continuation operator."""
         return self._build_potential_operators_squeezing(a_operator_list, Xi, exp_a_dagger_a,
                                                          disentangled_squeezing_matrices, delta_rho_matrices)
 
-    def _local_contribution_identity_squeezing(self, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                               disentangled_squeezing_matrices, delta_rho_matrices,
-                                               exp_a_dagger_a, minima_pair_results):
+    def _local_contribution_identity_squeezing(self, Xi_inv: ndarray, phi_neighbor: ndarray,
+                                               minima_m: ndarray, minima_p: ndarray,
+                                               disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple,
+                                               exp_a_dagger_a: ndarray, minima_pair_results: Tuple
+                                               ) -> ndarray:
         """Local contribution to the identity matrix in the presence of squeezing."""
         _ = minima_pair_results
         delta_phi = phi_neighbor + minima_p - minima_m
@@ -576,7 +599,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rho_prime, delta_rho)
         return alpha * exp_a_dagger_a
 
-    def inner_product_matrix(self):
+    def inner_product_matrix(self) -> ndarray:
         """Returns the inner product matrix
 
         Returns
@@ -587,14 +610,15 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         local_identity_function = partial(self._local_contribution_identity_squeezing, Xi_inv)
         return self._periodic_continuation_squeezing(lambda x, y, z: None, local_identity_function)
 
-    def _exp_product_coefficient_squeezing(self, delta_phi, Xi_inv, sigma, sigma_prime):
+    def _exp_product_coefficient_squeezing(self, delta_phi: ndarray, Xi_inv: ndarray,
+                                           sigma: ndarray, sigma_prime: ndarray) -> ndarray:
         """Overall multiplicative factor. Includes offset charge, Gaussian suppression factor in the
         absence of squeezing. With squeezing, also includes exponential of trace over
         sigma and sigma_prime, see Qin et. al"""
         return (np.exp(-0.5 * np.trace(sigma) - 0.5 * np.trace(sigma_prime))
                 * self._exp_product_coefficient(delta_phi, Xi_inv))
 
-    def optimize_Xi_variational_wrapper(self):
+    def optimize_Xi_variational_wrapper(self) -> None:
         """Overrides method in VariationalTightBinding. Allows for harmonic length optimization of states localized
         in all minima if the optimize_all_minima flag is set. Optimize the Xi matrix by adjusting
         the harmonic lengths of the ground state to minimize its energy.
@@ -615,7 +639,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                                    for i in range(self.number_degrees_freedom)])
                 self.optimized_lengths[minimum] = harmonic_lengths_global / harmonic_lengths_local
 
-    def _optimize_Xi_variational(self, minimum=0, minimum_location=None):
+    def _optimize_Xi_variational(self, minimum: int = 0, minimum_location: ndarray = None) -> None:
         default_Xi = self.Xi_matrix(minimum)
         EC_mat = self.build_EC_matrix()
         if not self.nearest_neighbors:
@@ -628,8 +652,9 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
             print("completed harmonic length optimization for the m={m} minimum".format(m=minimum))
         self.optimized_lengths[minimum] = optimized_lengths
 
-    def _one_state_periodic_continuation_squeezing(self, minimum_location, minimum, nearest_neighbors,
-                                                   local_func, Xi, Xi_inv):
+    def _one_state_periodic_continuation_squeezing(self, minimum_location: ndarray, minimum: int,
+                                                   nearest_neighbors: ndarray, local_func: Callable,
+                                                   Xi: ndarray, Xi_inv: ndarray) -> complex:
         """Periodic continuation when considering only the ground state."""
         disentangled_squeezing_matrices = self._build_rho_sigma_tau_matrices(minimum, minimum, Xi)
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
@@ -645,15 +670,19 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                                                              delta_rho_matrices))
         return ground_state_value
 
-    def _one_state_local_identity_squeezing(self, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                            disentangled_squeezing_matrices, delta_rho_matrices):
+    def _one_state_local_identity_squeezing(self, Xi_inv: ndarray, phi_neighbor: ndarray,
+                                            minima_m: ndarray, minima_p: ndarray,
+                                            disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple
+                                            ) -> ndarray:
         """Local identity contribution when considering only the ground state."""
         return self._local_contribution_identity_squeezing(Xi_inv, phi_neighbor, minima_m, minima_p,
                                                            disentangled_squeezing_matrices, delta_rho_matrices,
-                                                           1.0, None)
+                                                           np.array([1.0]), ())
 
-    def _one_state_local_transfer_squeezing(self, EC_mat, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                            disentangled_squeezing_matrices, delta_rho_matrices):
+    def _one_state_local_transfer_squeezing(self, EC_mat: ndarray, Xi: ndarray, Xi_inv: ndarray,
+                                            phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray,
+                                            disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple
+                                            ) -> ndarray:
         """Local transfer contribution when considering only the ground state."""
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
@@ -667,8 +696,11 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                                                      disentangled_squeezing_matrices,
                                                                      delta_rho_matrices))
 
-    def _one_state_local_potential_squeezing_function(self, Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                                      disentangled_squeezing_matrices, delta_rho_matrices):
+    def _one_state_local_potential_squeezing_function(self, Xi: ndarray, Xi_inv: ndarray,
+                                                      phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray,
+                                                      disentangled_squeezing_matrices: Tuple,
+                                                      delta_rho_matrices: Tuple
+                                                      ) -> ndarray:
         """Local potential contribution when considering only the ground state."""
         dim = self.number_degrees_freedom
         delta_phi = phi_neighbor + minima_p - minima_m
@@ -687,13 +719,14 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                                                         exp_i_phi_sum_op)
         potential_matrix += (self._local_contribution_identity_squeezing(Xi_inv, phi_neighbor, minima_m, minima_p,
                                                                          disentangled_squeezing_matrices,
-                                                                         delta_rho_matrices, 1.0, None)
+                                                                         delta_rho_matrices, np.array([1.0]), ())
                              * np.sum(self.EJlist))
         return potential_matrix
 
-    def _one_state_local_kinetic_squeezing_function(self, EC_mat, Xi_inv, phi_neighbor, minima_m, minima_p,
-                                                    disentangled_squeezing_matrices, delta_rho_matrices,
-                                                    linear_coefficient_matrices):
+    def _one_state_local_kinetic_squeezing_function(self, EC_mat: ndarray, Xi_inv: ndarray,
+                                                    phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray,
+                                                    disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple,
+                                                    linear_coefficient_matrices: Tuple) -> ndarray:
         """Local kinetic contribution when considering only the ground state."""
         delta_phi = phi_neighbor + minima_p - minima_m
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
@@ -703,7 +736,8 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         result = 4 * alpha * (epsilon @ EC_mat @ epsilon + np.trace(a_dagger_coefficient.T @ EC_mat @ a_coefficient))
         return result
 
-    def _evals_calc_variational(self, optimized_lengths, minimum_location, minimum, EC_mat, default_Xi):
+    def _evals_calc_variational(self, optimized_lengths: ndarray, minimum_location: ndarray, minimum: int,
+                                EC_mat: ndarray, default_Xi: ndarray) -> ndarray:
         """Function to be optimized in the minimization procedure, corresponding to the variational estimate of
         the ground state energy."""
         self.optimized_lengths[minimum] = optimized_lengths
@@ -713,7 +747,9 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
                                                                              minimum, EC_mat)
         return np.real([transfer / inner])
 
-    def _one_state_construct_transfer_inner_squeezing(self, Xi, Xi_inv, minimum_location, minimum, EC_mat):
+    def _one_state_construct_transfer_inner_squeezing(self, Xi: ndarray, Xi_inv: ndarray,
+                                                      minimum_location: ndarray, minimum: int,
+                                                      EC_mat: ndarray) -> Tuple:
         """Transfer matrix and inner product matrix when considering only the ground state."""
         nearest_neighbors = self.nearest_neighbors[str(minimum) + str(minimum)]
         transfer_function = partial(self._one_state_local_transfer_squeezing, EC_mat, Xi, Xi_inv)

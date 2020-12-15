@@ -11,7 +11,7 @@ class TestCurrentMirror(StandardTests):
         cls.qbt = None
         cls.qbt_type = CurrentMirror
         cls.file_str = 'currentmirror'
-        cls.op1_str = 'charge_number_operator'
+        cls.op1_str = 'n_operator'
         cls.op2_str = 'exp_i_phi_j_operator'
         cls.param_name = 'flux'
         cls.param_list = np.linspace(0.4, 0.6, 21)

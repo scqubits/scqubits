@@ -218,7 +218,7 @@ class VTBTestFunctions(StandardTests):
         self.qbt = self.qbt_type(**specdata.system_params)
         Xi_matrix = self.qbt.Xi_matrix()
         reference_Xi_matrix = specdata.Xi_matrix
-        assert np.allclose(reference_Xi_matrix, Xi_matrix)
+        assert np.allclose(np.abs(reference_Xi_matrix), np.abs(Xi_matrix))
 
     def test_relevant_periodic_continuation_vectors(self, io_type):
         testname = self.file_str + '_1.' + io_type
