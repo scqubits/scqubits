@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -13,10 +13,13 @@ import functools
 import operator
 import os
 import warnings
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, TYPE_CHECKING
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.special import eval_hermite, gamma
 
@@ -24,6 +27,9 @@ import scqubits.core.constants as constants
 import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
+
+if TYPE_CHECKING:
+    from scqubits.core.storage import SpectrumData, WaveFunction, WaveFunctionOnGrid
 
 try:
     from labellines import labelLines
@@ -35,51 +41,57 @@ except ImportError:
 # A dictionary of plotting options that are directly passed to specific matplotlib's
 # plot commands.
 _direct_plot_options = {
-        'plot': ('alpha', 'color', 'linestyle', 'linewidth', 'marker', 'markersize'),
-        'imshow': ('interpolation',),
-        'contourf': tuple()  # empty for now
-    }
+    'plot': ('alpha', 'color', 'linestyle', 'linewidth', 'marker', 'markersize'),
+    'imshow': ('interpolation',),
+    'contourf': tuple()  # empty for now
+}
 
 
-def _extract_kwargs_options(kwargs, plot_type, direct_plot_options=None):
+def _extract_kwargs_options(kwargs: Dict[str, Any],
+                            plot_type: str,
+                            direct_plot_options: Dict[str, Any] = None
+                            ) -> Dict[str, Any]:
     """
     Select options from kwargs for a given plot_type and return them in a dictionary.
-    
+
     Parameters
     ----------
-    kwargs: dict
+    kwargs:
         dictionary with options that can be passed to different plotting commands
-    plot_type: str
+    plot_type:
         a type of plot for which the options should be selected
-    direct_plot_options: dict
+    direct_plot_options:
         a lookup dictionary with supported options for a given plot_type
-        
+
     Returns
     ----------
-    dict
         dictionary with key/value pairs corresponding to selected options from kwargs
 
     """
     direct_plot_options = direct_plot_options or _direct_plot_options
     d = {}
     if plot_type in direct_plot_options:
-        for key in kwargs:  
+        for key in kwargs:
             if key in direct_plot_options[plot_type]:
                 d[key] = kwargs[key]
     return d
-    
 
-def _process_options(figure, axes, opts=None, **kwargs):
+
+def _process_options(figure: Figure,
+                     axes: Axes,
+                     opts: Dict[str, Any] = None,
+                     **kwargs
+                     ) -> None:
     """
     Processes plotting options.
 
     Parameters
     ----------
-    figure: matplotlib.Figure
-    axes: matplotlib.Axes
-    opts: dict
+    figure:
+    axes:
+    opts:
         keyword dictionary with custom options
-    **kwargs: dict
+    **kwargs:
         standard plotting option (see separate documentation)
     """
     opts = opts or {}
@@ -87,7 +99,7 @@ def _process_options(figure, axes, opts=None, **kwargs):
     # Only process items in kwargs that would not have been
     # processed through _extract_kwargs_options()
     filtered_kwargs = {key: value for key, value in kwargs.items()
-                       if key not in functools.reduce(operator.concat, _direct_plot_options.values())}
+                       if key not in functools.reduce(operator.concat, _direct_plot_options.values())}  # type: ignore
 
     option_dict = {**opts, **filtered_kwargs}
 
@@ -97,7 +109,7 @@ def _process_options(figure, axes, opts=None, **kwargs):
         else:
             set_method = getattr(axes, 'set_' + key)
             set_method(value)
- 
+
     filename = kwargs.get('filename')
     if filename:
         figure.savefig(os.path.splitext(filename)[0] + '.pdf')
@@ -112,16 +124,13 @@ def _process_options(figure, axes, opts=None, **kwargs):
         axes.xaxis.set_ticks_position('bottom')
 
 
-def _process_special_option(figure, axes, key, value):
+def _process_special_option(figure: Figure,
+                            axes: Axes,
+                            key: str,
+                            value: Any
+                            ) -> None:
     """Processes a single 'special' option, i.e., one internal to scqubits and not to be handed further down to
     matplotlib.
-
-    Parameters
-    ----------
-    figure: matplotlib.Figure
-    axes: matplotlib.Axes
-    key: str
-    value: anything
     """
     if key == 'x_range':
         warnings.warn('x_range is deprecated, use xlim instead', FutureWarning)
@@ -140,26 +149,30 @@ def _process_special_option(figure, axes, key, value):
         axes.grid(**value) if isinstance(value, dict) else axes.grid(value)
 
 
-def wavefunction1d(wavefuncs, potential_vals=None, offset=0, scaling=1, **kwargs):
+def wavefunction1d(wavefuncs: Union['WaveFunction', 'List[WaveFunction]'],
+                   potential_vals: np.ndarray = None,
+                   offset: Union[float, Iterable[float]] = 0,
+                   scaling: float = 1.0,
+                   **kwargs
+                   ) -> Tuple[Figure, Axes]:
     """
     Plots the amplitude of a single real-valued 1d wave function, along with the potential energy if provided.
 
     Parameters
     ----------
-    wavefuncs: WaveFunction object or list of WaveFunction objects
+    wavefuncs:
         basis and amplitude data of wave function to be plotted
-    potential_vals: array of float
+    potential_vals:
         potential energies, array length must match basis array of `wavefunc`
-    offset: float or list of float
+    offset:
         y-offset for the wave function (e.g., shift by eigenenergy)
-    scaling: float, optional
+    scaling:
         scaling factor for wave function amplitudes
-    **kwargs: dict
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    tuple(Figure, Axes)
         matplotlib objects for further editing
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
@@ -182,20 +195,21 @@ def wavefunction1d(wavefuncs, potential_vals=None, offset=0, scaling=1, **kwargs
     return fig, axes
 
 
-def wavefunction1d_discrete(wavefunc, **kwargs):
+def wavefunction1d_discrete(wavefunc: 'WaveFunction',
+                            **kwargs
+                            ) -> Tuple[Figure, Axes]:
     """
     Plots the amplitude of a real-valued 1d wave function in a discrete basis. (Example: transmon in the charge basis.)
 
     Parameters
     ----------
-    wavefunc: WaveFunction object
+    wavefunc:
         basis and amplitude data of wave function to be plotted
-    **kwargs: dict
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    tuple(Figure, Axes)
         matplotlib objects for further editing
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
@@ -211,22 +225,24 @@ def wavefunction1d_discrete(wavefunc, **kwargs):
     return fig, axes
 
 
-def wavefunction2d(wavefunc, zero_calibrate=False, **kwargs):
+def wavefunction2d(wavefunc: 'WaveFunctionOnGrid',
+                   zero_calibrate: bool = False,
+                   **kwargs
+                   ) -> Tuple[Figure, Axes]:
     """
     Creates a density plot of the amplitude of a real-valued wave function in 2 "spatial" dimensions.
 
     Parameters
     ----------
-    wavefunc: WaveFunctionOnGrid object
+    wavefunc:
         basis and amplitude data of wave function to be plotted
-    zero_calibrate: bool, optional
+    zero_calibrate:
         whether to calibrate plot to zero amplitude
-    **kwargs: dict
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    tuple(Figure, Axes)
         matplotlib objects for further editing
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
@@ -244,8 +260,13 @@ def wavefunction2d(wavefunc, zero_calibrate=False, **kwargs):
         imshow_maxval = np.max(wavefunc.amplitudes)
         cmap = plt.cm.viridis
 
-    im = axes.imshow(wavefunc.amplitudes, extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
-                     cmap=cmap, vmin=imshow_minval, vmax=imshow_maxval, origin='lower', aspect='auto',
+    im = axes.imshow(wavefunc.amplitudes,
+                     extent=[min_vals[0], max_vals[0], min_vals[1], max_vals[1]],
+                     cmap=cmap,
+                     vmin=imshow_minval,
+                     vmax=imshow_maxval,
+                     origin='lower',
+                     aspect='auto',
                      **_extract_kwargs_options(kwargs, 'imshow'))
     divider = make_axes_locatable(axes)
     cax = divider.append_axes("right", size="2%", pad=0.05)
@@ -255,26 +276,31 @@ def wavefunction2d(wavefunc, zero_calibrate=False, **kwargs):
     return fig, axes
 
 
-def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwargs):
+def contours(x_vals: Iterable[float],
+             y_vals: Iterable[float],
+             func: Callable,
+             contour_vals: Iterable[float] = None,
+             show_colorbar: bool = True,
+             **kwargs
+             ) -> Tuple[Figure, Axes]:
     """Contour plot of a 2d function `func(x,y)`.
 
     Parameters
     ----------
-    x_vals: (ordered) list
+    x_vals:
         x values for the x-y evaluation grid
-    y_vals: (ordered) list
+    y_vals:
         y values for the x-y evaluation grid
-    func: function f(x,y)
-        function for which contours are to be plotted
-    contour_vals: list of float, optional
+    func:
+        function f(x,y) for which contours are to be plotted
+    contour_vals:
         contour values can be specified if so desired
-    show_colorbar: bool, optional
-    **kwargs: dict
+    show_colorbar:
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    tuple(Figure, Axes)
         matplotlib objects for further editing
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
@@ -294,24 +320,27 @@ def contours(x_vals, y_vals, func, contour_vals=None, show_colorbar=True, **kwar
     return fig, axes
 
 
-def matrix(data_matrix, mode='abs', show_numbers=False, **kwargs):
+def matrix(data_matrix: np.ndarray,
+           mode: str = 'abs',
+           show_numbers: bool = False,
+           **kwargs
+           ) -> Tuple[Figure, Tuple[Axes, Axes]]:
     """
     Create a "skyscraper" plot and a 2d color-coded plot of a matrix.
 
     Parameters
     ----------
-    data_matrix: ndarray of float or complex
+    data_matrix:
         2d matrix data
-    mode: str from `constants.MODE_FUNC_DICT`
-        choice of processing function to be applied to data
-    show_numbers: bool, optional
+    mode:
+        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to data
+    show_numbers:
         determines whether matrix element values are printed on top of the plot (default: False)
-    **kwargs: dict
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    Figure, (Axes1, Axes2)
         figure and axes objects for further editing
     """
     if 'fig_ax' in kwargs:
@@ -326,21 +355,23 @@ def matrix(data_matrix, mode='abs', show_numbers=False, **kwargs):
     return fig, (ax1, ax2)
 
 
-def matrix_skyscraper(matrix, mode='abs', **kwargs):
+def matrix_skyscraper(matrix: np.ndarray,
+                      mode: str = 'abs',
+                      **kwargs
+                      ) -> Tuple[Figure, Axes]:
     """Display a 3d skyscraper plot of the matrix
 
     Parameters
     ----------
-    matrix: ndarray of float or complex
+    matrix:
         2d matrix data
-    mode: str from `constants.MODE_FUNC_DICT`
-        choice of processing function to be applied to data
-    **kwargs: dict
+    mode:
+        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to data
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    Figure, Axes
         figure and axes objects for further editing
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots(projection='3d')
@@ -372,23 +403,26 @@ def matrix_skyscraper(matrix, mode='abs', **kwargs):
     return fig, axes
 
 
-def matrix2d(matrix, mode='abs', show_numbers=True, **kwargs):
+def matrix2d(matrix: np.ndarray,
+             mode: str = 'abs',
+             show_numbers: bool = True,
+             **kwargs
+             ) -> Tuple[Figure, Axes]:
     """Display a matrix as a color-coded 2d plot, optionally printing the numerical values of the matrix elements.
 
     Parameters
     ----------
-    matrix: ndarray of float or complex
+    matrix:
         2d matrix data
-    mode: str from `constants.MODE_FUNC_DICT`
-        choice of processing function to be applied to data
-    show_numbers: bool, optional
+    mode:
+        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to data
+    show_numbers:
         determines whether matrix element values are printed on top of the plot (default: True)
-    **kwargs: dict
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    Figure, Axes
         figure and axes objects for further editing
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
@@ -420,27 +454,30 @@ def matrix2d(matrix, mode='abs', show_numbers=True, **kwargs):
 print_matrix = matrix2d  # legacv, support of name now deprecated
 
 
-def data_vs_paramvals(xdata, ydata, label_list=None, **kwargs):
+def data_vs_paramvals(xdata: np.ndarray,
+                      ydata: np.ndarray,
+                      label_list: Union[List[str], List[int]] = None,
+                      **kwargs
+                      ) -> Tuple[Figure, Axes]:
     """Plot of a set of yadata vs xdata.
     The individual points correspond to the a provided array of parameter values.
 
     Parameters
     ----------
-    xdata, ydata: ndarray
+    xdata, ydata:
         must have compatible shapes for matplotlib.pyplot.plot
-    label_list: list(str), optional
+    label_list:
         list of labels associated with the individual curves to be plotted
-    **kwargs: dict
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    tuple(Figure, Axes)
         matplotlib objects for further editing
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
- 
-    if label_list is None: 
+
+    if label_list is None:
         axes.plot(xdata, ydata, **_extract_kwargs_options(kwargs, 'plot'))
     else:
         for idx, ydataset in enumerate(ydata.T):
@@ -450,27 +487,31 @@ def data_vs_paramvals(xdata, ydata, label_list=None, **kwargs):
     return fig, axes
 
 
-def evals_vs_paramvals(specdata, which=-1, subtract_ground=False, label_list=None, **kwargs):
+def evals_vs_paramvals(specdata: 'SpectrumData',
+                       which: Union[int, Iterable[int]] = -1,
+                       subtract_ground: bool = False,
+                       label_list: List[str] = None,
+                       **kwargs
+                       ) -> Tuple[Figure, Axes]:
     """Generates a simple plot of a set of eigenvalues as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
 
     Parameters
     ----------
-    specdata: SpectrumData
+    specdata:
         object includes parameter name, values, and resulting eigenenergies
-    which: int or list(int)
+    which:
         number of desired eigenvalues (sorted from smallest to largest); default: -1, signals all eigenvalues
         or: list of specific eigenvalues to include
-    subtract_ground: bool
+    subtract_ground:
         whether to subtract the ground state energy
-    label_list: list(str), optional
+    label_list:
         list of labels associated with the individual curves to be plotted
-    **kwargs: dict
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    tuple(Figure, Axes)
         matplotlib objects for further editing
     """
     index_list = utils.process_which(which, specdata.energy_table[0].size)
@@ -483,35 +524,35 @@ def evals_vs_paramvals(specdata, which=-1, subtract_ground=False, label_list=Non
                              **defaults.evals_vs_paramvals(specdata, **kwargs))
 
 
-def matelem_vs_paramvals(specdata, select_elems=4, mode='abs', **kwargs):
+def matelem_vs_paramvals(specdata: 'SpectrumData',
+                         select_elems: Union[int, List[Tuple[int, int]]] = 4,
+                         mode: str = 'abs',
+                         **kwargs
+                         ) -> Tuple[Figure, Axes]:
     """Generates a simple plot of matrix elements as a function of one parameter.
     The individual points correspond to the a provided array of parameter values.
 
     Parameters
     ----------
-    specdata: SpectrumData
+    specdata:
         object includes parameter name, values, and matrix elements
-    select_elems: int or list
+    select_elems:
         either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples
         for specific desired matrix elements
-    mode: str from `constants.MODE_FUNC_DICT`, optional
+    mode:
         choice of processing function to be applied to data (default value = 'abs')
-    **kwargs: dict
+    **kwargs:
         standard plotting option (see separate documentation)
 
     Returns
     -------
-    tuple(Figure, Axes)
-        matplotlib objects for further editing
+    matplotlib objects for further editing
     """
-    def request_range(sel_elems):
-        return isinstance(sel_elems, int)
-
     fig, axes = kwargs.get('fig_ax') or plt.subplots()
     x = specdata.param_vals
     modefunction = constants.MODE_FUNC_DICT[mode]
 
-    if request_range(select_elems):
+    if isinstance(select_elems, int):
         index_pairs = [(row, col) for row in range(select_elems) for col in range(row + 1)]
     else:
         index_pairs = select_elems

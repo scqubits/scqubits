@@ -15,7 +15,7 @@ Matplotlib.
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -23,13 +23,15 @@ Matplotlib.
 #######################################################################################################################
 
 import warnings
+from typing import Type, Union, Any
 
 import matplotlib as mpl
 from cycler import cycler
 
 
 # Set format for output of warnings
-def warning_on_one_line(message, category, filename, lineno, file=None, line=None):
+def warning_on_one_line(message: Union[Warning, str], category: Type[Warning], filename: str,
+                        lineno: int, line: str = None) -> str:
     return "{}: {}\n {}: {}".format(category.__name__, message, filename, lineno)
 
 
@@ -38,10 +40,10 @@ warnings.formatwarning = warning_on_one_line
 
 # a switch for displaying of progress bar; default: show only in ipython
 PROGRESSBAR_DISABLED = False
-try:
-    if __IPYTHON__:
-        IN_IPYTHON = True
-except NameError:
+
+if hasattr(__builtins__, '__IPYTHON__'):
+    IN_IPYTHON = True
+else:
     PROGRESSBAR_DISABLED = True
     IN_IPYTHON = False
 
@@ -53,7 +55,7 @@ DISPATCH_ENABLED = True
 
 # For parallel processing ----------------------------------------------------------------------------------------------
 # store processing pool once generated
-POOL = None
+POOL: Any = None
 # number of cores to be used by default in methods that enable parallel processing
 NUM_CPUS = 1
 
@@ -88,3 +90,6 @@ mpl.rcParams['ytick.labelsize'] = 10
 
 # toggle top and right axes on and off
 DESPINE = True
+
+# This is a setting for number of points in stencil to approximate derivatives
+STENCIL = 7

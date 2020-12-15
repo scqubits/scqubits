@@ -2,13 +2,14 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from typing import Any, Callable, Dict
 
 try:
     import ipywidgets
@@ -29,23 +30,22 @@ import scqubits.utils.misc as utils
 
 
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
-def create_widget(callback_func, init_params, image_filename=None):
+def create_widget(callback_func: Callable,
+                  init_params: Dict[str, Any],
+                  image_filename: str = None
+                  ) -> None:
     """
     Displays ipywidgets for initialization of a QuantumSystem object.
 
     Parameters
     ----------
-    callback_func: function
+    callback_func:
         callback_function depends on all the parameters provided as keys (str) in the parameter_dict, and is called upon
         changes of values inside the widgets
-    init_params: {str: value, str: value, ...}
+    init_params:
         names and values of initialization parameters
-    image_filename: str, optional
+    image_filename:
         file name for circuit image to be displayed alongside the qubit
-
-    Returns
-    -------
-
     """
     widgets = {}
     box_list = []

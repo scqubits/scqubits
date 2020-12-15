@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -13,11 +13,16 @@
 import logging
 import warnings
 import weakref
+from typing import Callable
+from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings
 
+# ---------------------------------------------------------------
 # To enable logging output, uncomment the following setting:
 # logging.basicConfig(level=logging.DEBUG)
+# ---------------------------------------------------------------
+
 
 EVENTS = [
     'QUANTUMSYSTEM_UPDATE',
@@ -39,7 +44,7 @@ class CentralDispatch:
     # The objects are keys in the inner dict, implemented as a WeakKeyDictionary to allow deletion/garbage collection
     # when object should expire. Callback methods are stored as weakref.WeakMethod for the same reason.
 
-    def get_clients_dict(self, event):
+    def get_clients_dict(self, event: str) -> WeakKeyDictionary:
         """For given `event`, return the dict mapping each registered client to their callback routine
 
         Parameters
@@ -53,7 +58,11 @@ class CentralDispatch:
         """
         return self.clients_dict[event]
 
-    def register(self, event, who, callback=None):
+    def register(self,
+                 event: str,
+                 who: 'DispatchClient',
+                 callback: Callable = None
+                 ) -> None:
         """
         Register object `who` for event `event`. (This modifies `clients_dict`.)
 
@@ -83,7 +92,7 @@ class CentralDispatch:
             # so may have to revisit this issue if necessary.
         self.get_clients_dict(event)[who] = callback_ref
 
-    def unregister(self, event, who):
+    def unregister(self, event: str, who: 'DispatchClient') -> None:
         """Unregister object `who` from event `event`.  (This modifies `clients_dict`.)
 
         Parameters
@@ -95,7 +104,7 @@ class CentralDispatch:
         """
         del self.get_clients_dict(event)[who]
 
-    def unregister_object(self, who):
+    def unregister_object(self,  who: 'DispatchClient') -> None:
         """Unregister object `who` from all events.  (This modifies `clients_dict`.)
 
           Parameters
@@ -106,7 +115,11 @@ class CentralDispatch:
         for event in self.clients_dict:
             self.get_clients_dict(event).pop(who, None)
 
-    def _dispatch(self, event, sender, **kwargs):
+    def _dispatch(self,
+                  event: str,
+                  sender: 'DispatchClient',
+                  **kwargs
+                  ) -> None:
         """Issue a dispatch for `event` coming from `sender.
 
         Parameters
@@ -123,7 +136,7 @@ class CentralDispatch:
             # When using WeakMethod references, this should rather be:
             # callback_ref()(event, sender=sender, **kwargs)
 
-    def listen(self, caller, event, **kwargs):
+    def listen(self, caller: 'DispatchClient', event: str, **kwargs) -> None:
         """Receive message from client `caller` for event `event`. If dispatch is globally enabled, trigger a dispatch
         to all clients registered for event.
 
@@ -145,32 +158,32 @@ CENTRAL_DISPATCH = CentralDispatch()
 
 class DispatchClient:
     """Base class inherited by objects participating in central dispatch."""
-    def broadcast(self, event, **kwargs):
+    def broadcast(self, event: str, **kwargs) -> None:
         """Request a broadcast from CENTRAL_DISPATCH reporting `event`.
 
         Parameters
         ----------
-        event:  str
+        event:
             event name from EVENTS
         **kwargs
         """
         logging.debug("Client {} broadcasting {}".format(type(self).__name__, event))
         CENTRAL_DISPATCH.listen(self, event, **kwargs)
 
-    def receive(self, event, sender, **kwargs):
+    def receive(self, event: str, sender: 'DispatchClient', **kwargs) -> None:
         """Receive a message from CENTRAL_DISPATCH and initiate action on it.
 
         Parameters
         ----------
-        event:  str
+        event:
             event name from EVENTS
-        sender: DispatchClient
+        sender:
             original sender reporting the event
         **kwargs
         """
         warnings.warn("`receive() method not implemented for {}".format(self))
 
-    def __del__(self):
+    def __del__(self) -> None:
         # Garbage collection will invoke this at undetermined time. `if` clauses below prevent exceptions upon program
         # exit. (`logging` and `CENTRAL_DISPATCH` may have already been removed.)
         if logging:

@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -13,16 +13,24 @@ import itertools
 import warnings
 import weakref
 from functools import wraps
+from typing import Callable, List, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 import qutip as qt
+from numpy import ndarray
+from qutip import Qobj
 
 import scqubits
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.spectrum_utils as spec_utils
 
+if TYPE_CHECKING:
+    from scqubits.io_utils.fileio_qutip import QutipEigenstates
+    from scqubits.core.qubit_base import QuantumSystem
+    from scqubits import ParameterSweep, HilbertSpace, SpectrumData
 
-def check_sync_status(func):
+
+def check_sync_status(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self._out_of_sync:
@@ -45,13 +53,17 @@ class SpectrumLookup(serializers.Serializable):
 
     Parameters
     ----------
-    framework: HilbertSpace or ParameterSweep
-    dressed_specdata: SpectrumData
+    framework:
+    dressed_specdata:
         dressed spectral data needed for generating the lookup mapping
-    bare_specdata_list: SpectrumData
+    bare_specdata_list:
         bare spectral data needed for generating the lookup mapping
     """
-    def __init__(self, framework, dressed_specdata, bare_specdata_list):
+    def __init__(self,
+                 framework: 'Union[ParameterSweep, HilbertSpace]',
+                 dressed_specdata: 'SpectrumData',
+                 bare_specdata_list: List['SpectrumData']
+                 ) -> None:
         self._dressed_specdata = dressed_specdata
         self._bare_specdata_list = bare_specdata_list
         # Store ParameterSweep and/or HilbertSpace objects only as weakref.proxy objects to avoid circular references
@@ -72,7 +84,7 @@ class SpectrumLookup(serializers.Serializable):
         # Setup for Serializable operations
         self._init_params = ['_dressed_specdata', '_bare_specdata_list']
 
-    def _generate_bare_labels(self):
+    def _generate_bare_labels(self) -> List[Tuple[int, ...]]:
         """
         Generates the list of bare-state labels in canonical order. For example, for a Hilbert space composed of two
         subsys_list sys1 and sys2, each label is of the type (3,0) meaning sys1 is in bare eigenstate 3, sys2 in bare
@@ -81,10 +93,6 @@ class SpectrumLookup(serializers.Serializable):
          (1,0), (1,1), (1,2), ..., (1,max_2),
          ...
          (max_1,0), (max_1,1), (max_1,2), ..., (max_1,max_2)]
-
-        Returns
-        -------
-        list of tuples of ints
         """
         dim_list = self._hilbertspace.subsystem_dims
         subsys_count = self._hilbertspace.subsystem_count
@@ -96,14 +104,13 @@ class SpectrumLookup(serializers.Serializable):
         basis_labels_list = list(itertools.product(*basis_label_ranges))   # generate list of bare basis states (tuples)
         return basis_labels_list
 
-    def _generate_mappings(self):
+    def _generate_mappings(self) -> List[List[Union[int, None]]]:
         """
         For each parameter value of the parameter sweep (may only be one if called from HilbertSpace, so no sweep),
         generate the map between bare states and dressed states.
 
         Returns
         -------
-        list
             each list item is a list of dressed indices whose order corresponds to the ordering of bare indices (as
             stored in .canonical_bare_labels, thus establishing the mapping
         """
@@ -114,23 +121,23 @@ class SpectrumLookup(serializers.Serializable):
             dressed_indices_list.append(dressed_indices)
         return dressed_indices_list
 
-    def _generate_single_mapping(self, param_index):
+    def _generate_single_mapping(self, param_index: int) -> List[Union[int, None]]:
         """
         For a single parameter value with index `param_index`, create a list of the dressed-state indices in an order
         that corresponds one to one to the canonical bare-state product states with largest overlap (whenever possible).
 
         Parameters
         ----------
-        param_index: int
+        param_index:
+            index of the parameter value
 
         Returns
         -------
-        list of int
             dressed-state indices
         """
         overlap_matrix = spec_utils.convert_esys_to_ndarray(self._dressed_specdata.state_table[param_index])
 
-        dressed_indices = []
+        dressed_indices: List[Union[int, None]] = []
         for bare_basis_index in range(self._hilbertspace.dimension):   # for given bare basis index, find dressed index
             max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
             max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
@@ -141,20 +148,19 @@ class SpectrumLookup(serializers.Serializable):
         return dressed_indices
 
     @check_sync_status
-    def dressed_index(self, bare_labels, param_index=0):
+    def dressed_index(self, bare_labels: Tuple[int, ...], param_index: int = 0) -> Union[int, None]:
         """
         For given bare product state return the corresponding dressed-state index.
 
         Parameters
         ----------
-        bare_labels: tuple(int)
+        bare_labels:
             bare_labels = (index, index2, ...)
-        param_index: int, optional
+        param_index:
             index of parameter value of interest
 
         Returns
         -------
-        int
             dressed state index closest to the specified bare state
         """
         try:
@@ -164,18 +170,12 @@ class SpectrumLookup(serializers.Serializable):
         return self._dressed_indices[param_index][lookup_position]
 
     @check_sync_status
-    def bare_index(self, dressed_index, param_index=0):
+    def bare_index(self, dressed_index: int, param_index: int = 0) -> Union[Tuple[int, ...], None]:
         """
         For given dressed index, look up the corresponding bare index.
 
-        Parameters
-        ----------
-        dressed_index: int
-        param_index: int
-
         Returns
         -------
-        tuple of int
             Bare state specification in tuple form. Example: (1,0,3) means subsystem 1 is in bare state 1, subsystem 2
             in bare state 0, and subsystem 3 in bare state 3.
         """
@@ -187,54 +187,50 @@ class SpectrumLookup(serializers.Serializable):
         return basis_labels
 
     @check_sync_status
-    def dressed_eigenstates(self, param_index=0):
+    def dressed_eigenstates(self, param_index: int = 0) -> List['QutipEigenstates']:
         """
         Return the list of dressed eigenvectors
 
         Parameters
         ----------
-        param_index: int, optional
-            position index of parameter value in question, if called from within ParameterSweep
+        param_index:
+            position index of parameter value in question, if called from within `ParameterSweep`
 
         Returns
         -------
-        list of qutip.qobj eigenvectors
             dressed eigenvectors for the external parameter fixed to the value indicated by the provided index
         """
         return self._dressed_specdata.state_table[param_index]
 
     @check_sync_status
-    def dressed_eigenenergies(self, param_index=0):
+    def dressed_eigenenergies(self, param_index: int = 0) -> ndarray:
         """
         Return the array of dressed eigenenergies
 
         Parameters
         ----------
-        param_index: int, optional
             position index of parameter value in question
 
         Returns
         -------
-        ndarray
             dressed eigenenergies for the external parameter fixed to the value indicated by the provided index
         """
         return self._dressed_specdata.energy_table[param_index]
 
     @check_sync_status
-    def energy_bare_index(self, bare_tuple, param_index=0):
+    def energy_bare_index(self, bare_tuple: Tuple[int, ...], param_index: int = 0) -> Union[float, None]:
         """
         Look up dressed energy most closely corresponding to the given bare-state labels
 
         Parameters
         ----------
-        bare_tuple: tuple(int)
+        bare_tuple:
             bare state indices
-        param_index: int
+        param_index:
             index specifying the position in the self.param_vals array
 
         Returns
         -------
-        float or None
             dressed energy, if lookup successful
         """
         dressed_index = self.dressed_index(bare_tuple, param_index)
@@ -243,73 +239,63 @@ class SpectrumLookup(serializers.Serializable):
         return self._dressed_specdata.energy_table[param_index][dressed_index]
 
     @check_sync_status
-    def energy_dressed_index(self, dressed_index, param_index=0):
+    def energy_dressed_index(self, dressed_index: int, param_index: int = 0) -> float:
         """
         Look up the dressed eigenenergy belonging to the given dressed index.
 
         Parameters
         ----------
-        dressed_index: int
-        param_index: int
+        dressed_index:
+            index of dressed state of interest
+        param_index:
             relevant if used in the context of a ParameterSweep
 
         Returns
         -------
-        dressed energy: float
+            dressed energy
         """
         return self._dressed_specdata.energy_table[param_index][dressed_index]
 
     @check_sync_status
-    def bare_eigenstates(self, subsys, param_index=0):
+    def bare_eigenstates(self, subsys: 'QuantumSystem', param_index: int = 0) -> ndarray:
         """
         Return ndarray of bare eigenstates for given subsystem and parameter index.
         Eigenstates are expressed in the basis internal to the subsystem.
-
-        Parameters
-        ----------
-        subsys: QuantumSystem
-        param_index: int, optional
-
-        Returns
-        -------
-        ndarray
         """
         framework = self._sweep or self._hilbertspace
         subsys_index = framework.get_subsys_index(subsys)
         return self._bare_specdata_list[subsys_index].state_table[param_index]
 
     @check_sync_status
-    def bare_eigenenergies(self, subsys, param_index=0):
+    def bare_eigenenergies(self, subsys: 'QuantumSystem', param_index: int = 0) -> ndarray:
         """
         Return list of bare eigenenergies for given subsystem.
 
         Parameters
         ----------
-        subsys: QuantumSystem
+        subsys:
             Hilbert space subsystem for which bare eigendata is to be looked up
-        param_index: int, optional
+        param_index:
             position index of parameter value in question
 
         Returns
         -------
-        ndarray
             bare eigenenergies for the specified subsystem and the external parameter fixed to the value indicated by
             its index
         """
         subsys_index = self._hilbertspace.index(subsys)
         return self._bare_specdata_list[subsys_index].energy_table[param_index]
 
-    def bare_productstate(self, bare_index):
+    def bare_productstate(self, bare_index: Tuple[int, ...]) -> Qobj:
         """
         Return the bare product state specified by `bare_index`.
 
         Parameters
         ----------
-        bare_index: tuple of int
+        bare_index:
 
         Returns
         -------
-        qutip.Qobj
             ket in full Hilbert space
         """
         subsys_dims = self._hilbertspace.subsystem_dims

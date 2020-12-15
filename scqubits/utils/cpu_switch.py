@@ -2,17 +2,19 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from typing import Callable
+
 import scqubits.settings as settings
 
 
-def get_map_method(num_cpus):
+def get_map_method(num_cpus: int) -> Callable:
     """
     Selects the correct `.map` method depending on the specified number of desired cores. If num_cpus>1, the
     multiprocessing/pathos pool is started here.

@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#     Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#     Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #     All rights reserved.
 #
 #     This source code is licensed under the BSD-style license found in the
@@ -29,7 +29,7 @@ from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.noise import calc_therm_ratio
 from scqubits.core.param_sweep import ParameterSweep, StoredSweep
-from scqubits.core.storage import SpectrumData
+from scqubits.core.storage import SpectrumData, DataStore
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.units import get_units, set_units, show_supported_units, \
         to_standard_units, from_standard_units, get_units_time_label
