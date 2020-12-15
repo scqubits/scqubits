@@ -212,6 +212,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
     def matrixelement_table(self,
                             operator: str,
+                            operator_args: dict = None,
                             evecs: ndarray = None,
                             evals_count: int = 6,
                             filename: str = None,
@@ -227,6 +228,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         ----------
         operator:
             name of class method in string form, returning operator matrix in qubit-internal basis.
+        operator_args:
+            arguments, if any, of operator
         evecs:
             if not provided, then the necessary eigenstates are calculated on the fly
         evals_count:
@@ -238,7 +241,10 @@ class QubitBaseClass(QuantumSystem, ABC):
         """
         if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
-        operator_matrix = getattr(self, operator)()
+        if operator_args:
+            operator_matrix = getattr(self, operator)(**operator_args)
+        else:
+            operator_matrix = getattr(self, operator)()
         table = get_matrixelement_table(operator_matrix, evecs)
         if filename or return_datastore:
             data_store = DataStore(system_params=self.get_initdata(), matrixelem_table=table)
@@ -335,6 +341,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                                      operator: str,
                                      param_name: str,
                                      param_vals: ndarray,
+                                     operator_args: dict = None,
                                      evals_count: int = 6,
                                      num_cpus: int = settings.NUM_CPUS
                                      ) -> SpectrumData:
@@ -349,6 +356,8 @@ class QubitBaseClass(QuantumSystem, ABC):
             name of parameter to be varied
         param_vals:
             parameter values to be plugged in
+        operator_args:
+            arguments, if any, of operator
         evals_count:
             number of desired eigenvalues (sorted from smallest to largest) (default value = 6)
         num_cpus:
@@ -362,7 +371,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         for index, paramval in tqdm(enumerate(param_vals), total=len(param_vals), disable=settings.PROGRESSBAR_DISABLED,
                                     leave=False):
             evecs = spectrumdata.state_table[index]  # type: ignore
-            matelem_table[index] = self.matrixelement_table(operator, evecs=evecs, evals_count=evals_count)
+            matelem_table[index] = self.matrixelement_table(operator, operator_args, evecs=evecs,
+                                                            evals_count=evals_count)
 
         spectrumdata.matrixelem_table = matelem_table
         return spectrumdata
@@ -399,6 +409,7 @@ class QubitBaseClass(QuantumSystem, ABC):
 
     def plot_matrixelements(self,
                             operator: str,
+                            operator_args: dict = None,
                             evecs: ndarray = None,
                             evals_count: int = 6,
                             mode: str = 'abs',
@@ -415,6 +426,8 @@ class QubitBaseClass(QuantumSystem, ABC):
         ----------
         operator:
             name of class method in string form, returning operator matrix
+        operator_args:
+            arguments, if any, of operator
         evecs:
             eigensystem data of evals, evecs; eigensystem will be calculated if set to None (default value = None)
         evals_count:
@@ -428,7 +441,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         **kwargs:
             standard plotting option (see separate documentation)
         """
-        matrixelem_array = self.matrixelement_table(operator, evecs, evals_count)
+        matrixelem_array = self.matrixelement_table(operator, operator_args, evecs, evals_count)
         if not show3d:
             return plot.matrix2d(matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs)
         return plot.matrix(matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs)
@@ -437,6 +450,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                                   operator: str,
                                   param_name: str,
                                   param_vals: ndarray,
+                                  operator_args: dict = None,
                                   select_elems: Union[int, List[Tuple[int, int]]] = 4,
                                   mode: str = 'abs',
                                   num_cpus: int = settings.NUM_CPUS,
@@ -453,6 +467,8 @@ class QubitBaseClass(QuantumSystem, ABC):
             name of parameter to be varied
         param_vals:
             parameter values to be plugged in
+        operator_args:
+            arguments, if any, of operator
         select_elems:
             either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples
             for specific desired matrix elements (default value = 4)
@@ -469,7 +485,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             flattened_list = [index for tupl in select_elems for index in tupl]
             evals_count = max(flattened_list) + 1
 
-        specdata = self.get_matelements_vs_paramvals(operator, param_name, param_vals,
+        specdata = self.get_matelements_vs_paramvals(operator, param_name, param_vals, operator_args,
                                                      evals_count=evals_count, num_cpus=num_cpus)
         return plot.matelem_vs_paramvals(specdata, select_elems=select_elems, mode=mode, **kwargs)
 
