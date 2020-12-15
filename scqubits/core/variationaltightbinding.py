@@ -115,6 +115,7 @@ class VariationalTightBinding:
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.extended_grid = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
         self.optimized_lengths = np.array([])
+        self._evec_dtype = np.complex_
 
     def build_gamma_matrix(self, minimum=0):
         """Returns linearized potential matrix
