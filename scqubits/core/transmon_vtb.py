@@ -7,8 +7,6 @@ from scqubits import VariationalTightBinding
 
 
 # -Transmon using VariationalTightBinding
-from scqubits.core import discretization
-
 
 class TransmonVTB(VariationalTightBinding, base.QubitBaseClass, serializers.Serializable):
     EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=1)
