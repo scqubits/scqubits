@@ -7,7 +7,6 @@ from numpy import ndarray
 from scipy.optimize import minimize
 from scipy.linalg import inv
 
-import scqubits.core.descriptors as descriptors
 from scqubits.core.current_mirror import CurrentMirrorFunctions
 from scqubits.core.hashing import Hashing
 from scqubits.core.variationaltightbinding import VariationalTightBinding
@@ -100,9 +99,6 @@ class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding,
     Initialize in the same way as for CurrentMirror, however now `num_exc` and `maximum_periodic_vector_length`
     must be set. See VTB for explanation of other kwargs.
     """
-    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
     def __init__(self,
                  N: int,
                  ECB: float,
@@ -129,15 +125,15 @@ class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding,
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            'N': 3,
+            'N': 2,
             'ECB': 0.2,
             'ECJ': 20.0 / 2.7,
             'ECg': 20.0,
-            'EJlist': np.array(6 * [18.95]),
-            'nglist': np.array(5 * [0.0]),
+            'EJlist': np.array(4 * [18.95]),
+            'nglist': np.array(3 * [0.0]),
             'flux': 0.0,
-            'maximum_periodic_vector_length': 1,
             'num_exc': 2,
+            'maximum_periodic_vector_length': 8,
             'truncated_dim': 6
         }
 
@@ -160,8 +156,6 @@ class CurrentMirrorVTBSqueezing(VariationalTightBindingSqueezing, CurrentMirrorV
 
 
 class CurrentMirrorVTBGlobal(Hashing, CurrentMirrorVTB):
-    global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
     def __init__(self,
                  N: int,
                  ECB: float,
@@ -180,8 +174,6 @@ class CurrentMirrorVTBGlobal(Hashing, CurrentMirrorVTB):
 
 
 class CurrentMirrorVTBGlobalSqueezing(Hashing, CurrentMirrorVTBSqueezing):
-    global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
     def __init__(self,
                  N: int,
                  ECB: float,

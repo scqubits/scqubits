@@ -74,6 +74,7 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
             'ng': 0.1,
             'flux': 0.23,
             'num_exc': 5,
+            'maximum_periodic_vector_length': 8,
             'truncated_dim': 10
         }
 

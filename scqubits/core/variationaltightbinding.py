@@ -67,13 +67,8 @@ class VariationalTightBinding:
     quiet: int
         flag whether or not to print out information regarding completion of intermediate tasks
     """
-    nearest_neighbor_cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    maximum_site_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    maximum_periodic_vector_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     potential: Callable
     find_minima: Callable
     build_capacitance_matrix: Callable

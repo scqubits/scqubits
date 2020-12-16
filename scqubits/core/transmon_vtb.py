@@ -12,19 +12,20 @@ from scqubits import VariationalTightBinding
 # -Transmon using VariationalTightBinding
 
 class TransmonVTB(VariationalTightBinding, base.QubitBaseClass, serializers.Serializable):
-    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=1)
+    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='nglist', attr_location=1)
-    num_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self,
                  EJ: float,
                  EC: float,
                  ng: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  truncated_dim: int = None,
                  **kwargs
                  ) -> None:
-        VariationalTightBinding.__init__(self, np.array([EJ]), np.array([ng]), 0.0,
+        VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
                                          number_degrees_freedom=1, number_periodic_degrees_freedom=1, **kwargs)
         self.EJ = EJ
         self.EC = EC

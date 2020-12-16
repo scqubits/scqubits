@@ -5,7 +5,6 @@ from numpy import ndarray
 from scipy.optimize import minimize
 from typing import Callable, List, Dict, Any, Tuple
 
-from scqubits.core import descriptors
 from scqubits.core.flux_qubit import FluxQubitFunctions
 from scqubits.core.hashing import Hashing
 from scqubits.core.variationaltightbinding import VariationalTightBinding
@@ -102,14 +101,19 @@ class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBas
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            'ECJ': 1.0 / 10.0,
-            'ECg': 5.0,
-            'EJlist': np.array([1.0, 1.0, 0.8]),
-            'alpha': 0.8,
-            'nglist': np.array(2 * [0.0]),
+            'EJ1': 1.0,
+            'EJ2': 1.0,
+            'EJ3': 0.8,
+            'ECJ1': 1.0 / 10.0,
+            'ECJ2': 1.0 / 10.0,
+            'ECJ3': 1.0 / (10.0 * 0.8),
+            'ECg1': 5.0,
+            'ECg2': 5.0,
+            'ng1': 0.0,
+            'ng2': 0.0,
             'flux': 0.46,
-            'maximum_periodic_vector_length': 1,
-            'num_exc': 4,
+            'num_exc': 3,
+            'maximum_periodic_vector_length': 8,
             'truncated_dim': 6
         }
 
@@ -145,8 +149,6 @@ class FluxQubitVTBSqueezing(VariationalTightBindingSqueezing, FluxQubitVTB):
 
 
 class FluxQubitVTBGlobal(Hashing, FluxQubitVTB):
-    global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
     def __init__(self,
                  EJ1: float,
                  EJ2: float,
@@ -170,8 +172,6 @@ class FluxQubitVTBGlobal(Hashing, FluxQubitVTB):
 
 
 class FluxQubitVTBGlobalSqueezing(Hashing, FluxQubitVTBSqueezing):
-    global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
     def __init__(self,
                  EJ1: float,
                  EJ2: float,
