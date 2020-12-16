@@ -146,6 +146,17 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
                                                    for i in range(dim) for k in range(dim)], axis=0))
         return self._BCH_factor(j, Xi) * exp_i_phi_theta_a_component.T @ exp_i_phi_theta_a_component
 
+    def _one_state_exp_i_phi_j_operators(self, Xi: ndarray) -> ndarray:
+        r"""Helper method for building :math:`\exp(i\phi_{j})` when no excitations are kept."""
+        dim = self.number_degrees_freedom
+        exp_factors_list = np.zeros(dim)
+        for j in range(dim):
+            boundary_coeffs = np.array([(-1) ** j, 1])
+            exp_factors_list[j] = np.exp(-0.25 * np.sum([boundary_coeffs[j] * boundary_coeffs[k]
+                                                         * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim)
+                                                         for k in range(dim)]))
+        return exp_factors_list
+
     def _build_all_exp_i_phi_j_operators(self, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
         return np.array([self._build_single_exp_i_phi_j_operator(j, Xi, a_operator_list)
                          for j in range(self.number_degrees_freedom)])
@@ -373,8 +384,20 @@ class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
 
 
 class ZeroPiVTBGlobal(Hashing, ZeroPiVTB):
-    def __init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=0, dCJ=0, truncated_dim=None, phi_extent=10,
-                 global_exc=0, **kwargs):
+    def __init__(self,
+                 EJ: float,
+                 EL: float,
+                 ECJ: float,
+                 EC: float,
+                 ng: float,
+                 flux: float,
+                 dEJ: float = 0.0,
+                 dCJ: float = 0.0,
+                 truncated_dim: int = None,
+                 global_exc: int = 0,
+                 phi_extent: int = 10,
+                 **kwargs
+                 ) -> None:
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
         ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=dEJ, dCJ=dCJ,
                            truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)

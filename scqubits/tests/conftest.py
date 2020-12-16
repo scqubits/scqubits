@@ -15,6 +15,7 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.optimize import check_grad
 import pytest
 
 import scqubits.settings
@@ -83,21 +84,21 @@ class BaseTest:
         assert np.allclose(evals_reference, calculated_spectrum.energy_table)
         assert np.allclose(np.abs(evecs_reference), np.abs(calculated_spectrum.state_table), atol=1e-06)
 
-    def matrixelement_table(self, io_type, op, matelem_reference):
+    def matrixelement_table(self, io_type, op, matelem_reference, op_arg=None):
         evals_count = len(matelem_reference)
-        calculated_matrix = self.qbt.matrixelement_table(op, evecs=None, evals_count=evals_count,
+        calculated_matrix = self.qbt.matrixelement_table(op, operator_args=op_arg, evecs=None, evals_count=evals_count,
                                                          filename=self.tmpdir + 'test.' + io_type)
         assert np.allclose(np.abs(matelem_reference), np.abs(calculated_matrix))
 
-    def plot_matrixelements(self, op, evals_count=7):
-        self.qbt.plot_matrixelements(op, evecs=None, evals_count=evals_count)
+    def plot_matrixelements(self, op, evals_count=7, op_arg=None):
+        self.qbt.plot_matrixelements(op, operator_args=op_arg, evecs=None, evals_count=evals_count)
 
-    def print_matrixelements(self, op):
-        mat_data = self.qbt.matrixelement_table(op)
+    def print_matrixelements(self, op, op_arg=None):
+        mat_data = self.qbt.matrixelement_table(op, operator_args=op_arg)
         plot.print_matrix(abs(mat_data))
 
-    def plot_matelem_vs_paramvals(self, num_cpus, op, param_name, param_list, select_elems):
-        self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, select_elems=select_elems,
+    def plot_matelem_vs_paramvals(self, num_cpus, op, param_name, param_list, select_elems, op_arg=None):
+        self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, operator_args=op_arg, select_elems=select_elems,
                                            filename=self.tmpdir + 'test', num_cpus=num_cpus)
 
 
@@ -164,26 +165,38 @@ class StandardTests(BaseTest):
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
         matelem_reference = specdata.matrixelem_table
-        return self.matrixelement_table(io_type, self.op1_str, matelem_reference)
+        op_arg = None
+        if hasattr(self, 'op1_arg'):
+            op_arg = self.op1_arg
+        return self.matrixelement_table(io_type, self.op1_str, matelem_reference, op_arg=op_arg)
 
     def test_plot_matrixelements(self, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
-        self.plot_matrixelements(self.op1_str, evals_count=10)
+        op_arg = None
+        if hasattr(self, 'op1_arg'):
+            op_arg = self.op1_arg
+        self.plot_matrixelements(self.op1_str, evals_count=10, op_arg=op_arg)
 
     def test_print_matrixelements(self, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
-        self.print_matrixelements(self.op2_str)
+        op_arg = None
+        if hasattr(self, 'op2_arg'):
+            op_arg = self.op2_arg
+        self.print_matrixelements(self.op2_str, op_arg=op_arg)
 
     def test_plot_matelem_vs_paramvals(self, num_cpus, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
+        op_arg = None
+        if hasattr(self, 'op1_arg'):
+            op_arg = self.op1_arg
         self.plot_matelem_vs_paramvals(num_cpus, self.op1_str, self.param_name, self.param_list,
-                                       select_elems=[(0, 0), (1, 4), (1, 0)])
+                                       select_elems=[(0, 0), (1, 4), (1, 0)], op_arg=op_arg)
 
     def test_plot_potential(self, io_type):
         testname = self.file_str + '_1.' + io_type
@@ -307,17 +320,21 @@ class VTBTestFunctions(StandardTests):
         transfer_matrix = self.qbt.transfer_matrix()
         assert np.isclose(np.max(np.abs(transfer_matrix - transfer_matrix.conj().T)), 0.0)
 
+    def test_harmonic_length_optimization_gradient(self, io_type):
+        testname = self.file_str + '_1.' + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        self.qbt = self.qbt_type(**specdata.system_params)
+        minima_list = self.qbt.sorted_minima()
+        self.qbt.find_relevant_periodic_continuation_vectors()
+        Xi = self.qbt.Xi_matrix()
+        EC_mat = self.qbt.build_EC_matrix()
+        error = check_grad(self.qbt._evals_calc_variational,
+                           self.qbt._gradient_evals_calc_variational,
+                           np.ones(self.qbt.number_degrees_freedom), minima_list[0], 0, EC_mat, Xi)
+        assert np.allclose(error, 0.0, atol=1e-6)
+
     def initialize_vtb_qbt(self, system_params):
         return self.qbt_type(**system_params, maximum_periodic_vector_length=8, num_exc=4)
 
-    def test_matrixelement_table(self, io_type):
-        pytest.skip('not implemented yet for vtb')
-
-    def test_plot_matrixelements(self, io_type):
-        pytest.skip('not implemented yet for vtb')
-
-    def test_print_matrixelements(self, io_type):
-        pytest.skip('not implemented yet for vtb')
-
     def test_plot_matelem_vs_paramvals(self, num_cpus, io_type):
-        pytest.skip('not implemented yet for vtb')
+        pytest.skip('broken for vtb due to hilbertdim varying with flux')

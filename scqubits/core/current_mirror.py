@@ -224,12 +224,11 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
             H += 4*EC_matrix[j, k]*((self.n_operator(j) - self.nglist[j] * self.identity_operator())
                                     @ (self.n_operator(k) - self.nglist[k] * self.identity_operator()))
         for j in range(dim):
-            H += (-self.EJlist[j]/2.)*(self.exp_i_phi_j_operator(j) + self.exp_i_phi_j_operator(j).T)
+            H += (-self.EJlist[j]/2.)*(self.exp_i_phi_j_operator(j) + self.exp_i_phi_j_operator(j).conj().T)
             H += self.EJlist[j]*self.identity_operator()
-        H += (-self.EJlist[-1] / 2.) * np.exp(1j*2*np.pi*self.flux) * self.exp_i_phi_boundary_term().T
-        H += (-self.EJlist[-1] / 2.) * np.exp(-1j*2*np.pi*self.flux) * self.exp_i_phi_boundary_term()
+        H += (-self.EJlist[-1] / 2.) * (np.exp(1j*2*np.pi*self.flux) * self.exp_i_phi_boundary_term().conj().T
+                                        + np.exp(-1j*2*np.pi*self.flux) * self.exp_i_phi_boundary_term())
         H += self.EJlist[-1]*self.identity_operator()
-        
         return H
 
     def _identity_operator(self) -> ndarray:

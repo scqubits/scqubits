@@ -266,7 +266,7 @@ class VariationalTightBinding:
         """
         identity_operator = np.eye(self.num_exc + 1, dtype=np.complex_)
         identity_operator_list = np.array([identity_operator for _ in range(self.number_degrees_freedom)])
-        return operator_in_full_Hilbert_space(np.array([annihilation(self.num_exc + 1, dtype=np.complex_)]),
+        return operator_in_full_Hilbert_space(np.array([annihilation(self.num_exc + 1, d_type=np.complex_)]),
                                               np.array([mu]), identity_operator_list, sparse=False)
 
     def _a_operator_list(self) -> ndarray:

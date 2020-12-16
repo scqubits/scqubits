@@ -120,7 +120,21 @@ class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBas
 
 
 class FluxQubitVTBSqueezing(VariationalTightBindingSqueezing, FluxQubitVTB):
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, truncated_dim, **kwargs):
+    def __init__(self,
+                 EJ1: float,
+                 EJ2: float,
+                 EJ3: float,
+                 ECJ1: float,
+                 ECJ2: float,
+                 ECJ3: float,
+                 ECg1: float,
+                 ECg2: float,
+                 ng1: float,
+                 ng2: float,
+                 flux: float,
+                 truncated_dim: int = None,
+                 **kwargs
+                 ) -> None:
         EJlist = np.array([EJ1, EJ2, EJ3])
         nglist = np.array([ng1, ng2])
         VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux,
@@ -132,14 +146,46 @@ class FluxQubitVTBSqueezing(VariationalTightBindingSqueezing, FluxQubitVTB):
 class FluxQubitVTBGlobal(Hashing, FluxQubitVTB):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, global_exc=0, **kwargs):
+    def __init__(self,
+                 EJ1: float,
+                 EJ2: float,
+                 EJ3: float,
+                 ECJ1: float,
+                 ECJ2: float,
+                 ECJ3: float,
+                 ECg1: float,
+                 ECg2: float,
+                 ng1: float,
+                 ng2: float,
+                 flux: float,
+                 truncated_dim: int = None,
+                 global_exc: int = 0,
+                 **kwargs
+                 ) -> None:
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, **kwargs)
+        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux,
+                              truncated_dim, **kwargs)
 
 
 class FluxQubitVTBGlobalSqueezing(Hashing, FluxQubitVTBSqueezing):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, global_exc=0, **kwargs):
+    def __init__(self,
+                 EJ1: float,
+                 EJ2: float,
+                 EJ3: float,
+                 ECJ1: float,
+                 ECJ2: float,
+                 ECJ3: float,
+                 ECg1: float,
+                 ECg2: float,
+                 ng1: float,
+                 ng2: float,
+                 flux: float,
+                 truncated_dim: int = None,
+                 global_exc: int = 0,
+                 **kwargs
+                 ) -> None:
         Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVTBSqueezing.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, **kwargs)
+        FluxQubitVTBSqueezing.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux,
+                                       truncated_dim, **kwargs)

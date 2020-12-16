@@ -140,7 +140,16 @@ class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding,
 
 
 class CurrentMirrorVTBSqueezing(VariationalTightBindingSqueezing, CurrentMirrorVTB):
-    def __init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs):
+    def __init__(self,
+                 N: int,
+                 ECB: float,
+                 ECJ: float,
+                 ECg: float,
+                 EJlist: ndarray,
+                 nglist: ndarray,
+                 flux: float,
+                 truncated_dim: int = None,
+                 **kwargs) -> None:
         VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux,
                                                   number_degrees_freedom=2 * N - 1,
                                                   number_periodic_degrees_freedom=2*N - 1, **kwargs)
@@ -150,14 +159,34 @@ class CurrentMirrorVTBSqueezing(VariationalTightBindingSqueezing, CurrentMirrorV
 class CurrentMirrorVTBGlobal(Hashing, CurrentMirrorVTB):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, global_exc, **kwargs):
+    def __init__(self,
+                 N: int,
+                 ECB: float,
+                 ECJ: float,
+                 ECg: float,
+                 EJlist: ndarray,
+                 nglist: ndarray,
+                 flux: float,
+                 truncated_dim: int = None,
+                 global_exc: int = 0,
+                 **kwargs):
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        CurrentMirrorVTB.__init__(self, N, **kwargs)
+        CurrentMirrorVTB.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)
 
 
 class CurrentMirrorVTBGlobalSqueezing(Hashing, CurrentMirrorVTBSqueezing):
     global_exc = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, N, global_exc, **kwargs):
+    def __init__(self,
+                 N: int,
+                 ECB: float,
+                 ECJ: float,
+                 ECg: float,
+                 EJlist: ndarray,
+                 nglist: ndarray,
+                 flux: float,
+                 truncated_dim: int = None,
+                 global_exc: int = 0,
+                 **kwargs) -> None:
         Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        CurrentMirrorVTBSqueezing.__init__(self, N, **kwargs)
+        CurrentMirrorVTBSqueezing.__init__(self,  N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)

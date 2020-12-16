@@ -11,8 +11,10 @@ class TestFluxQubitVTB(VTBTestFunctions):
         cls.qbt = None
         cls.qbt_type = FluxQubitVTB
         cls.file_str = 'fluxqubitvtb'
-        cls.op1_str = ''
-        cls.op2_str = ''
+        cls.op1_str = 'n_operator'
+        cls.op1_arg = {'j': 0}
+        cls.op2_str = 'exp_i_phi_operator'
+        cls.op2_arg = {'j': 0}
         cls.param_name = 'flux'
         cls.param_list = np.linspace(0.46, 0.54, 21)
         cls.compare_qbt_type = FluxQubit
