@@ -6,7 +6,7 @@ from scqubits import ZeroPiVTB
 from scqubits.tests.conftest import VTBTestFunctions
 
 
-class TestVTB(VTBTestFunctions):
+class TestZeroPiVTB(VTBTestFunctions):
     @classmethod
     def setup_class(cls):
         cls.qbt = None

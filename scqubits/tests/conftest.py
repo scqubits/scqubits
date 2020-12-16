@@ -88,7 +88,8 @@ class BaseTest:
         evals_count = len(matelem_reference)
         calculated_matrix = self.qbt.matrixelement_table(op, operator_args=op_arg, evecs=None, evals_count=evals_count,
                                                          filename=self.tmpdir + 'test.' + io_type)
-        assert np.allclose(np.abs(matelem_reference), np.abs(calculated_matrix))
+        for ref_row, row in zip(matelem_reference, calculated_matrix):
+            assert np.allclose(np.abs(ref_row), np.abs(row))
 
     def plot_matrixelements(self, op, evals_count=7, op_arg=None):
         self.qbt.plot_matrixelements(op, operator_args=op_arg, evecs=None, evals_count=evals_count)
@@ -274,14 +275,6 @@ class VTBTestFunctions(StandardTests):
         reference_transfer_matrix = specdata.transfer_matrix
         assert np.allclose(np.abs(reference_transfer_matrix), np.abs(transfer_matrix), atol=1e-6)
 
-    def test_sorted_minima(self, io_type):
-        testname = self.file_str + '_1.' + io_type
-        specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type(**specdata.system_params)
-        sorted_minima = self.qbt.sorted_minima()
-        reference_sorted_minima = specdata.sorted_minima
-        assert np.allclose(reference_sorted_minima, sorted_minima)
-
     def test_compare_eigenvals_with_Qubit(self, io_type):
         num_compare = 3
         compare_name = self.compare_file_str + '_1.' + io_type
@@ -331,7 +324,7 @@ class VTBTestFunctions(StandardTests):
         error = check_grad(self.qbt._evals_calc_variational,
                            self.qbt._gradient_evals_calc_variational,
                            np.ones(self.qbt.number_degrees_freedom), minima_list[0], 0, EC_mat, Xi)
-        assert np.allclose(error, 0.0, atol=1e-6)
+        assert np.allclose(error, 0.0, atol=1e-5)
 
     def initialize_vtb_qbt(self, system_params):
         return self.qbt_type(**system_params, maximum_periodic_vector_length=8, num_exc=4)
