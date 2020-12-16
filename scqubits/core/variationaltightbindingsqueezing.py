@@ -19,8 +19,6 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
     See class VariationalTightBinding for documentation and explanation of parameters.
 
     """
-    def __init__(self, **kwargs) -> None:
-        VariationalTightBinding.__init__(self, **kwargs)
 
     def _build_U_squeezing_operator(self, minimum: int, Xi: ndarray) -> Tuple:
         """

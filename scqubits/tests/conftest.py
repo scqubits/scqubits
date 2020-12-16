@@ -88,8 +88,7 @@ class BaseTest:
         evals_count = len(matelem_reference)
         calculated_matrix = self.qbt.matrixelement_table(op, operator_args=op_arg, evecs=None, evals_count=evals_count,
                                                          filename=self.tmpdir + 'test.' + io_type)
-        for ref_row, row in zip(matelem_reference, calculated_matrix):
-            assert np.allclose(np.abs(ref_row), np.abs(row))
+        assert np.allclose(np.abs(matelem_reference), np.abs(calculated_matrix), atol=1e-8)
 
     def plot_matrixelements(self, op, evals_count=7, op_arg=None):
         self.qbt.plot_matrixelements(op, operator_args=op_arg, evecs=None, evals_count=evals_count)

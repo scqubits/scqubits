@@ -30,7 +30,6 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
     EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     dEJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     dCJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='nglist', attr_location=2)
 
     def __init__(self,
                  EJ: float,
@@ -39,6 +38,8 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
                  EC: float,
                  ng: float,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  dEJ: float = 0.0,
                  dCJ: float = 0.0,
                  truncated_dim: int = None,
@@ -46,7 +47,7 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
                  **kwargs
                  ) -> None:
         ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
-        VariationalTightBinding.__init__(self, np.array([EJ, EJ]), np.array([0.0, ng]), flux,
+        VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
                                          number_degrees_freedom=2, number_periodic_degrees_freedom=1, **kwargs)
         self.EJ = EJ
         self.EL = EL
@@ -75,6 +76,14 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
             'num_exc': 5,
             'truncated_dim': 10
         }
+
+    @property
+    def nglist(self):
+        return np.array([0.0, self.ng])
+
+    @property
+    def EJlist(self):
+        return np.array([self.EJ, self.EJ])
 
     def build_capacitance_matrix(self) -> ndarray:
         dim = self.number_degrees_freedom
@@ -229,16 +238,15 @@ class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
                  EC: float,
                  ng: float,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  dEJ: float = 0.0,
                  dCJ: float = 0.0,
                  truncated_dim: int = None,
                  phi_extent: int = 10,
                  **kwargs
                  ) -> None:
-        VariationalTightBindingSqueezing.__init__(self, EJlist=np.array([EJ, EJ]), nglist=np.array([0.0, ng]),
-                                                  flux=flux, number_degrees_freedom=2,
-                                                  number_periodic_degrees_freedom=1, **kwargs)
-        ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=dEJ, dCJ=dCJ,
+        ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, num_exc, maximum_periodic_vector_length, dEJ=dEJ, dCJ=dCJ,
                            truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
 
     def _build_potential_operators_squeezing(self, a_operator_list: ndarray, Xi: ndarray,
@@ -391,13 +399,35 @@ class ZeroPiVTBGlobal(Hashing, ZeroPiVTB):
                  EC: float,
                  ng: float,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  dEJ: float = 0.0,
                  dCJ: float = 0.0,
                  truncated_dim: int = None,
-                 global_exc: int = 0,
                  phi_extent: int = 10,
                  **kwargs
                  ) -> None:
-        Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, dEJ=dEJ, dCJ=dCJ,
+        Hashing.__init__(self)
+        ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, num_exc, maximum_periodic_vector_length, dEJ=dEJ, dCJ=dCJ,
                            truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
+
+
+class ZeroPiVTBGlobalSqueezing(Hashing, ZeroPiVTBSqueezing):
+    def __init__(self,
+                 EJ: float,
+                 EL: float,
+                 ECJ: float,
+                 EC: float,
+                 ng: float,
+                 flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
+                 dEJ: float = 0.0,
+                 dCJ: float = 0.0,
+                 truncated_dim: int = None,
+                 phi_extent: int = 10,
+                 **kwargs
+                 ) -> None:
+        Hashing.__init__(self)
+        ZeroPiVTBSqueezing.__init__(self, EJ, EL, ECJ, EC, ng, flux, num_exc, maximum_periodic_vector_length,
+                                    dEJ=dEJ, dCJ=dCJ, truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)

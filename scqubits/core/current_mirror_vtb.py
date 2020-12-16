@@ -111,10 +111,13 @@ class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding,
                  EJlist: ndarray,
                  nglist: ndarray,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  truncated_dim: int = None,
                  **kwargs
                  ) -> None:
-        VariationalTightBinding.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2 * N - 1,
+        VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
+                                         number_degrees_freedom=2 * N - 1,
                                          number_periodic_degrees_freedom=2 * N - 1, **kwargs)
         CurrentMirrorVTBFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
@@ -148,12 +151,12 @@ class CurrentMirrorVTBSqueezing(VariationalTightBindingSqueezing, CurrentMirrorV
                  EJlist: ndarray,
                  nglist: ndarray,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  truncated_dim: int = None,
                  **kwargs) -> None:
-        VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux,
-                                                  number_degrees_freedom=2 * N - 1,
-                                                  number_periodic_degrees_freedom=2*N - 1, **kwargs)
-        CurrentMirrorVTB.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)
+        CurrentMirrorVTB.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, num_exc,
+                                  maximum_periodic_vector_length, truncated_dim, **kwargs)
 
 
 class CurrentMirrorVTBGlobal(Hashing, CurrentMirrorVTB):
@@ -167,11 +170,13 @@ class CurrentMirrorVTBGlobal(Hashing, CurrentMirrorVTB):
                  EJlist: ndarray,
                  nglist: ndarray,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  truncated_dim: int = None,
-                 global_exc: int = 0,
                  **kwargs):
-        Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        CurrentMirrorVTB.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)
+        Hashing.__init__(self)
+        CurrentMirrorVTB.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, num_exc,
+                                  maximum_periodic_vector_length, truncated_dim, **kwargs)
 
 
 class CurrentMirrorVTBGlobalSqueezing(Hashing, CurrentMirrorVTBSqueezing):
@@ -185,8 +190,10 @@ class CurrentMirrorVTBGlobalSqueezing(Hashing, CurrentMirrorVTBSqueezing):
                  EJlist: ndarray,
                  nglist: ndarray,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  truncated_dim: int = None,
-                 global_exc: int = 0,
                  **kwargs) -> None:
-        Hashing.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
-        CurrentMirrorVTBSqueezing.__init__(self,  N, ECB, ECJ, ECg, EJlist, nglist, flux, truncated_dim, **kwargs)
+        Hashing.__init__(self)
+        CurrentMirrorVTBSqueezing.__init__(self,  N, ECB, ECJ, ECg, EJlist, nglist, flux, num_exc,
+                                           maximum_periodic_vector_length, truncated_dim, **kwargs)

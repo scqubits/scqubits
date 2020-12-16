@@ -306,9 +306,9 @@ class CurrentMirrorGlobal(HashingChargeBasis, CurrentMirror):
                  EJlist: ndarray,
                  nglist: ndarray,
                  flux: float,
-                 global_exc: int,
+                 num_exc: int,
                  truncated_dim: int = None
                  ) -> None:
-        HashingChargeBasis.__init__(self, global_exc, number_degrees_freedom=2*N - 1)
+        self.num_exc = num_exc
+        HashingChargeBasis.__init__(self)
         CurrentMirror.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=0, truncated_dim=truncated_dim)
-        self.global_exc = global_exc

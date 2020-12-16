@@ -43,19 +43,11 @@ class Hashing:
     using kronecker product. The ideas herein are based on the excellent
     paper
     [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
-
-    Parameters
-    ----------
-    global_exc: int
-        up to and including the number of global excitations to keep
-    number_degrees_freedom: int
-        number of degrees of freedom of the system
     """
+    num_exc: int  # up to and including the number of global excitations to keep
+    number_degrees_freedom: int  # number of degrees of freedom of the system
 
-    def __init__(self,
-                 global_exc: int,
-                 number_degrees_freedom: int
-                 ) -> None:
+    def __init__(self) -> None:
         self.prime_list = np.array([2, 3, 5, 7, 11, 13, 17, 19, 23, 
                                     29, 31, 37, 41, 43, 47, 53, 59,
                                     61, 67, 71, 73, 79, 83, 89, 97, 
@@ -83,8 +75,6 @@ class Hashing:
                                     881, 883, 887, 907, 911, 919, 
                                     929, 937, 941, 947, 953, 967, 
                                     971, 977, 983, 991, 997])
-        self.global_exc = global_exc
-        self.number_degrees_freedom = number_degrees_freedom
 
     def gen_basis_vectors(self) -> ndarray:
         """Generate all basis vectors"""
@@ -95,7 +85,7 @@ class Hashing:
         such as those with negative entries (see CurrentMirrorGlobal)"""
         sites = self.number_degrees_freedom
         vector_list = [np.zeros(sites)]
-        for total_exc in range(1, self.global_exc + 1):  # No excitation number conservation as in [1]
+        for total_exc in range(1, self.num_exc + 1):  # No excitation number conservation as in [1]
             previous_vector = np.zeros(sites)
             previous_vector[0] = total_exc
             vector_list = self._append_similar_vectors(vector_list, previous_vector, func)
@@ -146,7 +136,7 @@ class Hashing:
     def number_states_per_minimum(self) -> int:
         """Using the global excitation scheme the total number of states
         per minimum is given by the hockey-stick identity"""
-        return int(comb(self.global_exc + self.number_degrees_freedom, self.number_degrees_freedom))
+        return int(comb(self.num_exc + self.number_degrees_freedom, self.number_degrees_freedom))
 
     def _hash(self, vector: ndarray) -> ndarray:
         """Generate the (unique) identifier for a given vector `vector`"""

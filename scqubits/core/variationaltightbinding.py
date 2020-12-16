@@ -79,15 +79,15 @@ class VariationalTightBinding:
     build_capacitance_matrix: Callable
     build_EC_matrix: Callable
     boundary_coefficients: ndarray
+    EJlist: ndarray
+    nglist: ndarray
+    flux: float
 
     def __init__(self,
-                 EJlist: ndarray,
-                 nglist: ndarray,
-                 flux: float,
-                 maximum_periodic_vector_length: int = 0,
-                 number_degrees_freedom: int = 0,
-                 number_periodic_degrees_freedom: int = 0,
-                 num_exc: int = 0,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
+                 number_degrees_freedom: int,
+                 number_periodic_degrees_freedom: int,
                  nearest_neighbors: dict = None,
                  harmonic_length_optimization: int = 0,
                  optimize_all_minima: int = 0,
@@ -97,9 +97,6 @@ class VariationalTightBinding:
         self.Z0 = 1. / (2 * self.e)**2
         self.Phi0 = 1. / (2 * self.e)
         self.nearest_neighbor_cutoff = 1e-15
-        self.EJlist = EJlist
-        self.nglist = nglist
-        self.flux = flux
         self.maximum_periodic_vector_length = maximum_periodic_vector_length
         self.maximum_site_length = 2
         self.number_degrees_freedom = number_degrees_freedom
@@ -204,7 +201,7 @@ class VariationalTightBinding:
         minima_list = self.sorted_minima()
         minima_list_with_index = zip(minima_list, [m for m in range(len(minima_list))])
         all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
-        return np.array([function(minima_pair) for minima_pair in all_minima_pairs])
+        return np.array([function(minima_pair) for minima_pair in all_minima_pairs], dtype=object)
 
     def _find_closest_periodic_minimum(self, minima_pair: Tuple) -> ndarray:
         """Helper function comparing minima separation for given minima pair"""
@@ -266,7 +263,7 @@ class VariationalTightBinding:
         """
         identity_operator = np.eye(self.num_exc + 1, dtype=np.complex_)
         identity_operator_list = np.array([identity_operator for _ in range(self.number_degrees_freedom)])
-        return operator_in_full_Hilbert_space(np.array([annihilation(self.num_exc + 1, d_type=np.complex_)]),
+        return operator_in_full_Hilbert_space(np.array([annihilation(self.num_exc + 1, dtype=np.complex_)]),
                                               np.array([mu]), identity_operator_list, sparse=False)
 
     def _a_operator_list(self) -> ndarray:

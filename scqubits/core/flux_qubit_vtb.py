@@ -72,11 +72,6 @@ class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBas
     Initialize in the same way as for FluxQubit, however now `num_exc` and `maximum_periodic_vector_length`
     must be set. See VTB for explanation of other kwargs.
     """
-    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='nglist', attr_location=1)
-    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='nglist', attr_location=2)
-    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=1)
-    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=2)
-    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE', attr_name='EJlist', attr_location=3)
 
     def __init__(self,
                  EJ1: float,
@@ -90,13 +85,13 @@ class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBas
                  ng1: float,
                  ng2: float,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  truncated_dim: int = None,
                  **kwargs
                  ) -> None:
-        EJlist = np.array([EJ1, EJ2, EJ3])
-        nglist = np.array([ng1, ng2])
-        VariationalTightBinding.__init__(self, EJlist, nglist, flux, number_degrees_freedom=2,
-                                         number_periodic_degrees_freedom=2, **kwargs)
+        VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
+                                         number_degrees_freedom=2, number_periodic_degrees_freedom=2, **kwargs)
         FluxQubitVTBFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -118,6 +113,14 @@ class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBas
             'truncated_dim': 6
         }
 
+    @property
+    def EJlist(self) -> ndarray:
+        return np.array([self.EJ1, self.EJ2, self.EJ3])
+
+    @property
+    def nglist(self) -> ndarray:
+        return np.array([self.ng1, self.ng2])
+
 
 class FluxQubitVTBSqueezing(VariationalTightBindingSqueezing, FluxQubitVTB):
     def __init__(self,
@@ -132,15 +135,13 @@ class FluxQubitVTBSqueezing(VariationalTightBindingSqueezing, FluxQubitVTB):
                  ng1: float,
                  ng2: float,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  truncated_dim: int = None,
                  **kwargs
                  ) -> None:
-        EJlist = np.array([EJ1, EJ2, EJ3])
-        nglist = np.array([ng1, ng2])
-        VariationalTightBindingSqueezing.__init__(self, EJlist=EJlist, nglist=nglist, flux=flux,
-                                                  number_degrees_freedom=2, number_periodic_degrees_freedom=2, **kwargs)
-        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux,
-                              truncated_dim, **kwargs)
+        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, num_exc,
+                              maximum_periodic_vector_length, truncated_dim, **kwargs)
 
 
 class FluxQubitVTBGlobal(Hashing, FluxQubitVTB):
@@ -158,13 +159,14 @@ class FluxQubitVTBGlobal(Hashing, FluxQubitVTB):
                  ng1: float,
                  ng2: float,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  truncated_dim: int = None,
-                 global_exc: int = 0,
                  **kwargs
                  ) -> None:
-        Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux,
-                              truncated_dim, **kwargs)
+        Hashing.__init__(self)
+        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, num_exc,
+                              maximum_periodic_vector_length, truncated_dim, **kwargs)
 
 
 class FluxQubitVTBGlobalSqueezing(Hashing, FluxQubitVTBSqueezing):
@@ -182,10 +184,11 @@ class FluxQubitVTBGlobalSqueezing(Hashing, FluxQubitVTBSqueezing):
                  ng1: float,
                  ng2: float,
                  flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
                  truncated_dim: int = None,
-                 global_exc: int = 0,
                  **kwargs
                  ) -> None:
-        Hashing.__init__(self, global_exc, number_degrees_freedom=2)
-        FluxQubitVTBSqueezing.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux,
-                                       truncated_dim, **kwargs)
+        Hashing.__init__(self)
+        FluxQubitVTBSqueezing.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, num_exc,
+                                       maximum_periodic_vector_length, truncated_dim, **kwargs)

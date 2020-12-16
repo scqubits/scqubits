@@ -12,11 +12,8 @@ class HashingChargeBasis(Hashing):
     """
     Allow for a global charge number cutoff in the charge basis
     """
-    def __init__(self,
-                 global_exc: int,
-                 number_degrees_freedom: int
-                 ) -> None:
-        Hashing.__init__(self, global_exc, number_degrees_freedom)
+    def __init__(self) -> None:
+        Hashing.__init__(self)
 
     def gen_basis_vectors(self):
         return self._gen_basis_vectors(reflect_vectors)
