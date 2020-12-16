@@ -106,10 +106,10 @@ class Hashing:
         return np.array(vector_list)
 
     @staticmethod
-    def _append_similar_vectors(vector_list: List, vector: ndarray, func: Callable) -> List:
-        similar_vectors = func(vector)
-        for vector in similar_vectors:
-            vector_list.append(vector)
+    def _append_similar_vectors(vector_list: List, vec: ndarray, func: Callable) -> List:
+        similar_vectors = func(vec)
+        for vec in similar_vectors:
+            vector_list.append(vec)
         return vector_list
 
     def a_operator(self, i: int) -> ndarray:
@@ -128,10 +128,10 @@ class Hashing:
         tags, index_array = self._gen_tags(basis_vectors)
         dim = self.number_states_per_minimum()
         a = np.zeros((dim, dim), dtype=np.complex_)
-        for w, vector in enumerate(basis_vectors):
-            if vector[i] >= 1:
-                temp_coefficient = np.sqrt(vector[i])
-                basis_index = self._find_lowered_vector(vector, i, tags, index_array)
+        for w, vec in enumerate(basis_vectors):
+            if vec[i] >= 1:
+                temp_coefficient = np.sqrt(vec[i])
+                basis_index = self._find_lowered_vector(vec, i, tags, index_array)
                 a[basis_index, w] = temp_coefficient
         return a
 

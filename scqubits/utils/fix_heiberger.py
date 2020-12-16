@@ -3,8 +3,7 @@ import scipy as sp
 from scipy import linalg
 
 
-# TODO understand how to return eigenvectors
-def fixheiberger(A, B, num_eigvals=6, eigvals_only=True):
+def fixheiberger(A, B, num_eigvals=6):
     """Implement the Fix-Heiberger method for dealing
     with ill-conditioned generalized eigenvalue problems
 
@@ -17,8 +16,6 @@ def fixheiberger(A, B, num_eigvals=6, eigvals_only=True):
         of the inner-product matrix
     num_eigvals : int
         number of eigenvalues to return
-    eigvals_only : bool
-        return eigenvalues only, or eigenvalues and eigenvectors
 
     Returns
     -------
