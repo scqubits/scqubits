@@ -83,10 +83,10 @@ class VariationalTightBinding:
                  maximum_periodic_vector_length: int,
                  number_degrees_freedom: int,
                  number_periodic_degrees_freedom: int,
-                 nearest_neighbors: dict = None,
                  harmonic_length_optimization: int = 0,
                  optimize_all_minima: int = 0,
-                 quiet: int = 0
+                 quiet: int = 0,
+                 num_cpus: int = 1,
                  ) -> None:
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2 * self.e)**2
@@ -98,10 +98,10 @@ class VariationalTightBinding:
         self.number_periodic_degrees_freedom = number_periodic_degrees_freedom
         self.number_extended_degrees_freedom = number_degrees_freedom - number_periodic_degrees_freedom
         self.num_exc = num_exc
-        self.nearest_neighbors = nearest_neighbors
         self.harmonic_length_optimization = harmonic_length_optimization
         self.optimize_all_minima = optimize_all_minima
         self.quiet = quiet
+        self.num_cpus = num_cpus
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.extended_grid = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
         self.optimized_lengths = np.array([])
@@ -187,8 +187,6 @@ class VariationalTightBinding:
             If any of the values in the returned array exceed unity, then the wavefunctions are relatively spread out
             as compared to the minima separations
         """
-        if not self.nearest_neighbors:
-            self.find_relevant_periodic_continuation_vectors()
         return self._wrapper_for_functions_comparing_minima(self._find_closest_periodic_minimum)
 
     def _wrapper_for_functions_comparing_minima(self, function: Callable) -> ndarray:
@@ -206,7 +204,7 @@ class VariationalTightBinding:
         """Helper function comparing minima separation for given minima pair, along with the specification
         that we would like to use the Xi matrix as defined for `minimum`"""
         (minima_m, m), (minima_p, p) = minima_pair
-        nearest_neighbors = self.nearest_neighbors[str(m)+str(p)]
+        nearest_neighbors = self.nearest_neighbors
         if nearest_neighbors is None or np.allclose(nearest_neighbors, [np.zeros(self.number_degrees_freedom)]):
             return np.array([0.0])
         Xi_inv = inv(self.Xi_matrix(minimum=minimum))
@@ -265,43 +263,33 @@ class VariationalTightBinding:
         """Helper method to return a list of annihilation operator matrices for each mode"""
         return np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
 
-    def find_relevant_periodic_continuation_vectors(self, num_cpus: int = 1) -> None:
-        """Constructs a dictionary of the relevant periodic continuation vectors for each pair of minima.
-
-        Parameters
-        ----------
-        num_cpus: int
-            Number of CPUS/cores employed in underlying calculation.
-        """
-        Xi_inv = inv(self.Xi_matrix())
-        minima_list = self.sorted_minima()
-        number_of_minima = len(minima_list)
-        nearest_neighbors = {}
-        minima_list_with_index = zip(minima_list, [m for m in range(number_of_minima)])
-        all_minima_pairs = itertools.combinations(minima_list_with_index, 2)
-        nearest_neighbors["00"] = self._filter_for_minima_pair(np.zeros_like(minima_list[0]), Xi_inv, num_cpus)
-        if not self.quiet:
-            print("completed m={m}, p={p} minima pair computation".format(m=0, p=0))
-        for (minima_m, m), (minima_p, p) in all_minima_pairs:
-            minima_diff = Xi_inv @ (minima_list[p] - minima_m)
-            nearest_neighbors[str(m)+str(p)] = self._filter_for_minima_pair(minima_diff, Xi_inv, num_cpus)
-            if not self.quiet:
-                print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
-        for m in range(number_of_minima):
-            nearest_neighbors[str(m) + str(m)] = nearest_neighbors["00"]
-        self.nearest_neighbors = nearest_neighbors
-
-    def _filter_for_minima_pair(self, minima_diff: ndarray, Xi_inv: ndarray, num_cpus: int) -> ndarray:
-        """Given a minima pair, generate and then filter the periodic continuation vectors"""
-        target_map = get_map_method(num_cpus)
+    @property
+    def nearest_neighbors(self):
+        target_map = get_map_method(self.num_cpus)
         dim_extended = self.number_extended_degrees_freedom
+        zero_vec = np.concatenate((np.zeros(dim_extended, dtype=int), np.zeros(self.number_periodic_degrees_freedom)))
         periodic_vector_lengths = np.array([i for i in range(1, self.maximum_periodic_vector_length + 1)])
-        filter_function = partial(self._filter_periodic_vectors, minima_diff, Xi_inv)
-        filtered_vectors = list(target_map(filter_function, periodic_vector_lengths))
-        zero_vec = np.zeros(self.number_periodic_degrees_freedom)
-        if self._filter_neighbors(minima_diff, Xi_inv, zero_vec):
-            filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), zero_vec)))
+        filtered_vectors = list(target_map(self._sum_over_generated_vectors, periodic_vector_lengths))
+        filtered_vectors.append(zero_vec)
         return self._stack_filtered_vectors(filtered_vectors)
+
+    def _sum_over_generated_vectors(self, periodic_vector_length):
+        sites = self.number_periodic_degrees_freedom
+        prev_vec = np.zeros(sites, dtype=int)
+        prev_vec[0] = periodic_vector_length
+        new_vectors = []
+        if periodic_vector_length <= self.maximum_site_length:
+            reflected_vectors = reflect_vectors(prev_vec)
+            for vecs in reflected_vectors:
+                new_vectors.append(vecs)
+        while prev_vec[-1] != periodic_vector_length:
+            next_vec = generate_next_vector(prev_vec, periodic_vector_length)
+            if len(np.argwhere(next_vec > self.maximum_site_length)) == 0:
+                reflected_vectors = reflect_vectors(prev_vec)
+                for vecs in reflected_vectors:
+                    new_vectors.append(vecs)
+            prev_vec = next_vec
+        return np.array(new_vectors)
 
     @staticmethod
     def _stack_filtered_vectors(filtered_vectors: List) -> Optional[ndarray]:
@@ -311,42 +299,6 @@ class VariationalTightBinding:
             return np.vstack(filtered_vectors)
         else:
             return None
-
-    def _filter_periodic_vectors(self, minima_diff: ndarray, Xi_inv: ndarray,
-                                 periodic_vector_length: int) -> ndarray:
-        """Helper function that generates and filters periodic vectors of a given Manhattan length"""
-        sites = self.number_periodic_degrees_freedom
-        filtered_vectors = []
-        prev_vec = np.zeros(sites, dtype=int)
-        prev_vec[0] = periodic_vector_length
-        if periodic_vector_length <= self.maximum_site_length:
-            self._filter_reflected_vectors(minima_diff, Xi_inv, prev_vec, filtered_vectors)
-        while prev_vec[-1] != periodic_vector_length:
-            next_vec = generate_next_vector(prev_vec, periodic_vector_length)
-            if len(np.argwhere(next_vec > self.maximum_site_length)) == 0:
-                self._filter_reflected_vectors(minima_diff, Xi_inv, next_vec, filtered_vectors)
-            prev_vec = next_vec
-        return np.array(filtered_vectors)
-
-    def _filter_reflected_vectors(self, minima_diff: ndarray, Xi_inv: ndarray,
-                                  vec: ndarray, filtered_vectors: List) -> None:
-        """Helper function where given a specific vector, generate all possible reflections and filter those"""
-        dim_extended = self.number_extended_degrees_freedom
-        reflected_vectors = reflect_vectors(vec)
-        filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
-        new_vectors = filter(filter_function, reflected_vectors)
-        for filtered_vec in new_vectors:
-            filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), filtered_vec)))
-
-    def _filter_neighbors(self, minima_diff: ndarray, Xi_inv: ndarray, neighbor: ndarray) -> bool:
-        """Helper function that does the filtering. Matrix elements are suppressed by a
-        gaussian exponential factor, and we filter those that are suppressed below a cutoff.
-        Assumption is that extended degrees of freedom precede the periodic d.o.f.
-        """
-        phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom), neighbor))
-        dpkX = Xi_inv @ phi_neighbor + minima_diff
-        prod = np.exp(-0.25*np.dot(dpkX, dpkX))
-        return prod > self.nearest_neighbor_cutoff
 
     def identity(self) -> ndarray:
         """
@@ -620,8 +572,6 @@ class VariationalTightBinding:
         -------
         ndarray
         """
-        if not self.nearest_neighbors:
-            self.find_relevant_periodic_continuation_vectors()
         Xi_inv = inv(self.Xi_matrix())
         a_operator_list = self._a_operator_list()
         exp_a_list = self._build_general_translation_operators(Xi_inv, a_operator_list)
@@ -630,9 +580,10 @@ class VariationalTightBinding:
         operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex128)
         minima_list_with_index = zip(minima_list, [m for m in range(len(minima_list))])
         all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
+        nearest_neighbors = self.nearest_neighbors
         for (minima_m, m), (minima_p, p) in all_minima_pairs:
             matrix_element = self._periodic_continuation_for_minima_pair(minima_m, minima_p,
-                                                                         self.nearest_neighbors[str(m)+str(p)],
+                                                                         nearest_neighbors,
                                                                          func, exp_a_list, Xi_inv, a_operator_list)
             operator_matrix[m*num_states_min: (m + 1)*num_states_min,
                             p*num_states_min: (p + 1)*num_states_min] += matrix_element
@@ -680,7 +631,6 @@ class VariationalTightBinding:
     def _transfer_matrix_and_inner_product(self) -> Tuple[ndarray, ndarray]:
         """Helper method called by _esys_calc and _evals_calc that returns the transfer matrix and inner product
         matrix but warns the user if the system is in a regime where tight-binding has questionable validity."""
-        self.find_relevant_periodic_continuation_vectors()
         if self.harmonic_length_optimization:
             self.optimize_Xi_variational_wrapper()
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
@@ -781,8 +731,6 @@ class VariationalTightBinding:
         """Perform the harmonic length optimization for a h.o. ground state wavefunction localized in a given minimum"""
         default_Xi = self.Xi_matrix(minimum)
         EC_mat = self.build_EC_matrix()
-        if not self.nearest_neighbors:
-            self.find_relevant_periodic_continuation_vectors()
         optimized_lengths_result = minimize(self._evals_calc_variational, self.optimized_lengths[minimum],
                                             jac=self._gradient_evals_calc_variational,
                                             args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-1)
@@ -911,7 +859,7 @@ class VariationalTightBinding:
                                                 minimum: int, EC_mat_t: ndarray,
                                                 exp_i_phi_j: ndarray) -> Tuple[ndarray, ndarray]:
         """Transfer matrix and inner product matrix when considering only the ground state."""
-        nearest_neighbors = 2.0*np.pi*self.nearest_neighbors[str(minimum) + str(minimum)]
+        nearest_neighbors = 2.0*np.pi*self.nearest_neighbors
         transfer_function = partial(self._one_state_local_transfer, exp_i_phi_j, EC_mat_t, Xi, Xi_inv)
         transfer = np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
                            * transfer_function(neighbor, minimum_location, minimum_location)
