@@ -2,6 +2,9 @@ import numpy as np
 from itertools import product
 
 from qutip import tensor, sigmaz, qeye, sigmax, sigmay
+from scipy.linalg import inv
+from scipy.optimize import root
+from sympy import S, diff, symbols, Matrix, simplify, solve, hessian
 
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.fluxonium import Fluxonium
@@ -11,13 +14,14 @@ from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_p
 
 
 class FluxoniumTunableCouplerFloating(serializers.Serializable):
-    def __init__(self, EJa, EJb, ECgs, ECg, ECq1, ECq2, ELa, ELb, flux_a, flux_b, flux_c,
+    def __init__(self, EJa, EJb, ECg_top, ECg_bottom, ECg_sides, ECq1, ECq2, ELa, ELb, flux_a, flux_b, flux_c,
                  fluxonium_cutoff, fluxonium_truncated_dim, ECc, ECm, EL1, EL2, EJC,
                  fluxonium_minus_truncated_dim=6, h_o_truncated_dim=3):
         self.EJa = EJa
         self.EJb = EJb
-        self.ECgs = ECgs
-        self.ECg = ECg
+        self.ECg_top = ECg_top
+        self.ECg_bottom = ECg_bottom
+        self.ECg_sides = ECg_sides
         self.ECq1 = ECq1
         self.ECq2 = ECq2
         self.ELa = ELa
@@ -35,28 +39,66 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         self.EL2 = EL2
         self.EJC = EJC
 
-    def _qubit_charging_energy_denominator(self):
-        Cg = 1. / self.ECg
-        Cgs = 1. / self.ECgs
-        Cq1 = 1. / self.ECq1
-        Cq2 = 1. / self.ECq2
-        return Cg * (Cgs + Cq1) * (Cgs + Cq2) + Cgs * (2.0 * Cq1 * Cq2 + Cgs * (Cq1 + Cq2))
+    def _U_matrix(self):
+        return Matrix([[1, -1, 0, 0, 0],
+                       [0, 1, 0, 0, -1],
+                       [0, 2, -1, -1, 0],
+                       [0, 0, -1, 1, 0],
+                       [1, 1, 1, 1, 1]])
 
-    def _qubit_a_charging_energy(self):
-        Cg = 1. / self.ECg
-        Cgs = 1. / self.ECgs
-        Cq2 = 1. / self.ECq2
-        return (Cg * (Cgs + Cq2) + Cgs * (Cgs + 2.0 * Cq2)) / self._qubit_charging_energy_denominator()
+    def build_capacitance_matrix(self):
+        U = self._U_matrix()
+        U_inv = U**-1
+        phi1, phi2, phi3, phi4, phi5 = symbols('phi1 phi2 phi3 phi4 phi5')
+        phi_vector = Matrix([phi1, phi2, phi3, phi4, phi5])
+        Cc = 1 / S(2.0 * self.ECc)
+        Cg_top = 1 / S(2.0 * self.ECg_top)
+        Cg_bottom = 1 / S(2.0 * self.ECg_bottom)
+        Cg_sides = 1 / S(2.0 * self.ECg_sides)
+        Cm = 1 / S(2.0 * self.ECm)
+        Cq1 = 1 / S(2.0 * self.ECq1)
+        Cq2 = 1 / S(2.0 * self.ECq2)
+        T = 0.5 * (Cc * (phi3 - phi4) ** 2 + Cg_sides * (phi1 ** 2 + phi5 ** 2)
+                   + Cg_bottom * phi2 ** 2 + Cg_top * (phi3**2 + phi4**2)
+                   + Cm * ((phi2 - phi3) ** 2 + (phi2 - phi4) ** 2) + Cq1 * (phi1 - phi2) ** 2
+                   + Cq2 * (phi2 - phi5) ** 2)
+        varphia, varphib, varphi1, varphi2, varphisum = symbols('varphia varphib varphi1 varphi2 varphisum')
+        varphi_list = Matrix([varphia, varphib, varphi1, varphi2, varphisum])
+        phi_subs = U_inv * varphi_list
+        T = T.subs([(phival, phi_subs[j]) for j, phival in enumerate(phi_vector)])
+        T = simplify(T.subs(varphisum, solve(diff(T, varphisum), varphisum)[0]))
+        cap_mat = hessian(T, varphi_list)
+        return np.array(cap_mat, dtype=np.float_)[:-1, :-1]
 
-    def _qubit_b_charging_energy(self):
-        Cg = 1. / self.ECg
-        Cgs = 1. / self.ECgs
-        Cq1 = 1. / self.ECq1
-        return (Cg * (Cgs + Cq1) + Cgs * (Cgs + 2.0 * Cq1)) / self._qubit_charging_energy_denominator()
+    def _find_ECq1(self, ECq1, target_ECq1):
+        self.ECq1 = ECq1[0]
+        return self.charging_energy_matrix()[0, 0] - target_ECq1
 
-    def _off_diagonal_charging(self):
-        Cgs = 1. / self.ECgs
-        return -Cgs**2 / self._qubit_charging_energy_denominator()
+    def _find_ECq2(self, ECq2, target_ECq2):
+        self.ECq2 = ECq2[0]
+        return self.charging_energy_matrix()[1, 1] - target_ECq2
+
+    def find_ECq_given_target(self, given_ECq1, given_ECq2):
+        result_ECq1 = root(self._find_ECq1, self.ECq1, given_ECq1)
+        result_ECq2 = root(self._find_ECq2, self.ECq2, given_ECq2)
+        if not result_ECq1.success:
+            self.ECq1 = np.inf
+        if not result_ECq2.success:
+            self.ECq2 = np.inf
+        self.ECq1 = result_ECq1.x[0]
+        self.ECq2 = result_ECq2.x[0]
+
+    def charging_energy_matrix(self):
+        return 0.5 * inv(self.build_capacitance_matrix())
+
+    def qubit_a_charging_energy(self):
+        return self.charging_energy_matrix()[0, 0]
+
+    def qubit_b_charging_energy(self):
+        return self.charging_energy_matrix()[1, 1]
+
+    def off_diagonal_charging(self):
+        return self.charging_energy_matrix()[0, 1]
 
     def generate_coupled_system(self):
         """Returns a HilbertSpace object of the full system of two fluxonium qubits interacting via
@@ -85,7 +127,7 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
                                              subsys2=fluxonium_minus, op2=phi_minus)
         interaction_term_4 = InteractionTerm(g_strength=0.5 * self.ELb, subsys1=fluxonium_b, op1=phi_b,
                                              subsys2=fluxonium_minus, op2=phi_minus)
-        interaction_term_5 = InteractionTerm(g_strength=-8.0 * self._off_diagonal_charging(),
+        interaction_term_5 = InteractionTerm(g_strength=-8.0 * self.off_diagonal_charging(),
                                              subsys1=fluxonium_a, op1=n_a,
                                              subsys2=fluxonium_b, op2=n_b)
         hilbert_space.interaction_list = [interaction_term_1, interaction_term_2,
@@ -153,10 +195,11 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         dim_low_energy_a = fluxonium_a_spin.truncated_dim
         dim_low_energy_b = fluxonium_b_spin.truncated_dim
 
+        off_diag = self.off_diagonal_charging()
         def V_op(j, k, l, m):
             # (a): j --> k, (b): l--> m
             return (J * phi_a_mat[j, k] * phi_b_mat[l, m]
-                    - 8.0 * self._off_diagonal_charging() * n_a_mat[j, k] * n_b_mat[l, m])
+                    - 8.0 * off_diag * n_a_mat[j, k] * n_b_mat[l, m])
 
         H_0_a = sum(evals_a[j] * hilbert_space.hubbard_operator(j, j, fluxonium_a_spin)
                     for j in range(dim_low_energy_a))
@@ -187,11 +230,13 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
 
         return H_0, H_1, H_2
 
-    def decompose_matrix_into_specific_paulis(self, sigmai, sigmaj, matrix):
+    @staticmethod
+    def decompose_matrix_into_specific_paulis(sigmai, sigmaj, matrix):
         sigmaij = tensor(sigmai, sigmaj)
         return 0.5 * np.trace((sigmaij * matrix).data.toarray())
 
-    def decompose_matrix_into_paulis(self, matrix):
+    @staticmethod
+    def decompose_matrix_into_paulis(matrix):
         pauli_mats = [qeye(2), sigmax(), sigmay(), sigmaz()]
         pauli_name = ["I", "X", "Y", "Z"]
         pauli_list = []
@@ -239,17 +284,17 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         n_b_ops = sum([n_b_mat[j][k] * hilbert_space.hubbard_operator(j, k, fluxonium_b)
                        for j in range(dim_b) for k in range(dim_b)])
 
-        hamiltonian_ab = (J * (phi_a_ops * phi_b_ops) - 8.0 * self._off_diagonal_charging() * n_a_ops * n_b_ops)
+        hamiltonian_ab = (J * (phi_a_ops * phi_b_ops) - 8.0 * self.off_diagonal_charging() * n_a_ops * n_b_ops)
 
         return hamiltonian_a + hamiltonian_b + hamiltonian_ab
 
     def fluxonium_a(self):
-        return Fluxonium(self.EJa, self._qubit_a_charging_energy(), self.ELa,
+        return Fluxonium(self.EJa, self.qubit_a_charging_energy(), self.ELa,
                          self.flux_a, cutoff=self.fluxonium_cutoff,
                          truncated_dim=self.fluxonium_truncated_dim)
 
     def fluxonium_b(self):
-        return Fluxonium(self.EJb, self._qubit_b_charging_energy(), self.ELb,
+        return Fluxonium(self.EJb, self.qubit_b_charging_energy(), self.ELb,
                          self.flux_b, cutoff=self.fluxonium_cutoff,
                          truncated_dim=self.fluxonium_truncated_dim)
 
@@ -257,14 +302,18 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         return self.EL1 + self.EL2 + self.ELa + self.ELb
 
     def fluxonium_minus(self):
-        Cm = 1. / self.ECm
-        Cc = 1. / self.ECc
-        ECminus = 2. / (Cm + 2. * Cc)
-        return Fluxonium(self.EJC, ECminus, self.EL_tilda() / 4.0, self.flux_c,
+        return Fluxonium(self.EJC, self.fluxonium_minus_charging_energy(), self.EL_tilda() / 4.0, self.flux_c,
                          cutoff=self.fluxonium_cutoff, truncated_dim=self.fluxonium_minus_truncated_dim)
 
+    def h_o_plus_charging_energy(self):
+        return self.charging_energy_matrix()[2, 2]
+
+    def fluxonium_minus_charging_energy(self):
+        return self.charging_energy_matrix()[3, 3]
+
     def h_o_plus(self):
-        return Oscillator(E_osc=np.sqrt(4.0 * self.ECm * self.EL_tilda()), truncated_dim=self.h_o_truncated_dim)
+        return Oscillator(E_osc=np.sqrt(8.0 * self.h_o_plus_charging_energy() * self.EL_tilda() / 4.0),
+                          truncated_dim=self.h_o_truncated_dim)
 
     def phi_plus(self):
         h_o_plus = self.h_o_plus()
