@@ -427,7 +427,7 @@ class VariationalTightBinding:
     def hamiltonian(self) -> ndarray:
         return self.transfer_matrix()
 
-    def kinetic_matrix(self) -> ndarray:
+    def kinetic_matrix(self, nearest_neighbors: ndarray = None) -> ndarray:
         """
         Returns
         -------
@@ -439,9 +439,9 @@ class VariationalTightBinding:
         premultiplied_a_a_dagger = self._build_premultiplied_a_a_dagger(a_operator_list)
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
         kinetic_function = partial(self._local_kinetic, premultiplied_a_a_dagger, EC_mat_t, Xi_inv)
-        return self._periodic_continuation(kinetic_function)
+        return self._periodic_continuation(kinetic_function, nearest_neighbors)
 
-    def potential_matrix(self) -> ndarray:
+    def potential_matrix(self, nearest_neighbors: ndarray = None) -> ndarray:
         """
         Returns
         -------
@@ -453,9 +453,9 @@ class VariationalTightBinding:
         exp_i_phi_j = self._build_all_exp_i_phi_j_operators(Xi, a_operator_list)
         premultiplied_a_a_dagger = self._build_premultiplied_a_a_dagger(a_operator_list)
         potential_function = partial(self._local_potential, exp_i_phi_j, premultiplied_a_a_dagger, Xi)
-        return self._periodic_continuation(potential_function)
+        return self._periodic_continuation(potential_function, nearest_neighbors)
 
-    def transfer_matrix(self) -> ndarray:
+    def transfer_matrix(self, nearest_neighbors: ndarray = None) -> ndarray:
         """
         Returns
         -------
@@ -470,16 +470,16 @@ class VariationalTightBinding:
         EC_mat_t = Xi_inv @ self.build_EC_matrix() @ Xi_inv.T
         transfer_matrix_function = partial(self._local_kinetic_plus_potential, exp_i_phi_j,
                                            premultiplied_a_a_dagger, EC_mat_t, Xi, Xi_inv)
-        return self._periodic_continuation(transfer_matrix_function)
+        return self._periodic_continuation(transfer_matrix_function, nearest_neighbors)
 
-    def inner_product_matrix(self) -> ndarray:
+    def inner_product_matrix(self, nearest_neighbors: ndarray = None) -> ndarray:
         """
         Returns
         -------
         ndarray
             Returns the inner product matrix
         """
-        return self._periodic_continuation(lambda x, y, z: self.identity())
+        return self._periodic_continuation(lambda x, y, z: self.identity(), nearest_neighbors)
 
     def _local_charge_operator(self, j: int, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
                                Xi_inv: ndarray, phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
@@ -554,7 +554,7 @@ class VariationalTightBinding:
         return (self._local_kinetic(premultiplied_a_a_dagger, EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p)
                 + self._local_potential(exp_i_phi_j, premultiplied_a_a_dagger, Xi, phi_neighbor, minima_m, minima_p))
 
-    def _periodic_continuation(self, func: Callable) -> ndarray:
+    def _periodic_continuation(self, func: Callable, nearest_neighbors: ndarray = None) -> ndarray:
         """This function is the meat of the VariationalTightBinding method. Any operator whose matrix
         elements we want (the transfer matrix and inner product matrix are obvious examples)
         can be passed to this function, and the matrix elements of that operator
@@ -580,7 +580,8 @@ class VariationalTightBinding:
         operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex128)
         minima_list_with_index = zip(minima_list, [m for m in range(len(minima_list))])
         all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
-        nearest_neighbors = self.nearest_neighbors
+        if nearest_neighbors is None:
+            nearest_neighbors = self.nearest_neighbors
         for (minima_m, m), (minima_p, p) in all_minima_pairs:
             matrix_element = self._periodic_continuation_for_minima_pair(minima_m, minima_p,
                                                                          nearest_neighbors,
@@ -633,12 +634,13 @@ class VariationalTightBinding:
         matrix but warns the user if the system is in a regime where tight-binding has questionable validity."""
         if self.harmonic_length_optimization:
             self.optimize_Xi_variational_wrapper()
-        harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
-        if np.max(harmonic_length_minima_comparison) > 1.0 and not self.quiet:
-            print("Warning: large harmonic length compared to minima separation "
-                  "(largest is 3*l/(d/2) = {ratio})".format(ratio=np.max(harmonic_length_minima_comparison)))
-        transfer_matrix = self.transfer_matrix()
-        inner_product_matrix = self.inner_product_matrix()
+#        harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
+#        if np.max(harmonic_length_minima_comparison) > 1.0 and not self.quiet:
+#            print("Warning: large harmonic length compared to minima separation "
+#                  "(largest is 3*l/(d/2) = {ratio})".format(ratio=np.max(harmonic_length_minima_comparison)))
+        nearest_neighbors = self.nearest_neighbors
+        transfer_matrix = self.transfer_matrix(nearest_neighbors)
+        inner_product_matrix = self.inner_product_matrix(nearest_neighbors)
         return transfer_matrix, inner_product_matrix
 
     def _evals_esys_calc(self, evals_count: int, eigvals_only: bool) -> ndarray:
@@ -752,7 +754,7 @@ class VariationalTightBinding:
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
         EC_mat_t = Xi_inv @ EC_mat @ Xi_inv.T
-        nearest_neighbors = 2.0*np.pi*self.nearest_neighbors[str(minimum) + str(minimum)]
+        nearest_neighbors = 2.0*np.pi*self.nearest_neighbors
         gradient_transfer = [np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
                                     * self._gradient_one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv,
                                                                               neighbor, minimum_location,
