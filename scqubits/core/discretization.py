@@ -117,6 +117,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
 
+    def __eq__(self, other: 'Grid1d') -> bool:
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return super().__hash__()
+
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Grid1d object.
         Returns
