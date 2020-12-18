@@ -308,7 +308,7 @@ class SpectrumLookup(serializers.Serializable):
             bare eigenenergies for the specified subsystem and the external parameter fixed to the value indicated by
             its index
         """
-        subsys_index = self._hilbertspace.index(subsys)
+        subsys_index = self._hilbertspace.get_subsys_index(subsys)
         return self._bare_specdata_list[subsys_index].energy_table[param_index]
 
     def bare_productstate(self, bare_index: Tuple[int, ...]) -> Qobj:
