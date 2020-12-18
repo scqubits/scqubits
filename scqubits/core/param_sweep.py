@@ -346,7 +346,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         for subsys in self._hilbertspace:
             if subsys in self.subsys_update_list:
                 evals_count = subsys.truncated_dim
-                subsys_index = self._hilbertspace.index(subsys)
+                subsys_index = self._hilbertspace.get_subsys_index(subsys)
                 eigendata.append(self._hilbertspace[subsys_index].eigensys(evals_count=evals_count))
             else:
                 eigendata.append(None)  # type: ignore
@@ -391,6 +391,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         subsys_index = self.get_subsys_index(subsys)
         return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
 
+    # ParameterSweep: file IO methods ---------------------------------------------------------------
     @classmethod
     def deserialize(cls, iodata: 'IOData') -> 'StoredSweep':
         """
@@ -427,11 +428,6 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         iodata = serializers.dict_serialize(initdata)
         iodata.typename = 'StoredSweep'
         return iodata
-
-    def filewrite(self, filename: str):
-        """Convenience method bound to the class. Simply accesses the `write` function.
-        """
-        io.write(self, filename)
 
 
 class StoredSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable):
