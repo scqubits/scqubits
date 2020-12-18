@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
+import scqubits as scq
 import scqubits.settings
 import scqubits.utils.plotting as plot
 from scqubits.core.storage import SpectrumData
@@ -100,6 +101,12 @@ class BaseTest:
     def plot_matelem_vs_paramvals(self, num_cpus, op, param_name, param_list, select_elems):
         self.qbt.plot_matelem_vs_paramvals(op, param_name, param_list, select_elems=select_elems,
                                            filename=self.tmpdir + 'test', num_cpus=num_cpus)
+
+    def test_file_io(self):
+        self.qbt = self.qbt_type.create()
+        self.qbt.filewrite(self.tmpdir + 'test.h5')
+        qbt_copy = scq.read(self.tmpdir + 'test.h5')
+        assert self.qbt == qbt_copy
 
 
 @pytest.mark.usefixtures("num_cpus", "io_type")
