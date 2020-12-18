@@ -87,6 +87,12 @@ class QuantumSystem(DispatchClient, ABC):
         output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())
         return output
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return super().__hash__()
+
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Serializable object.        """
         return {name: getattr(self, name) for name in self._init_params}
