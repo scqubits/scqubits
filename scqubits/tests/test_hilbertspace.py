@@ -13,7 +13,7 @@
 import numpy as np
 import pytest
 
-import scqubits as qubit
+import scqubits as scq
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.sweep_generators import generate_diffspec_sweep
@@ -28,7 +28,7 @@ class TestHilbertSpace:
 
     @staticmethod
     def hilbertspace_initialize():
-        CPB1 = qubit.Transmon(
+        CPB1 = scq.Transmon(
             EJ=40.0,
             EC=0.2,
             ng=0.0,
@@ -36,7 +36,7 @@ class TestHilbertSpace:
             truncated_dim=3  # after diagonalization, we will keep 3 levels
         )
 
-        CPB2 = qubit.Transmon(
+        CPB2 = scq.Transmon(
             EJ=3.0,
             EC=1.0,
             ng=0.0,
@@ -44,7 +44,7 @@ class TestHilbertSpace:
             truncated_dim=4
         )
 
-        resonator = qubit.Oscillator(
+        resonator = scq.Oscillator(
             E_osc=6.0,
             truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
@@ -74,6 +74,28 @@ class TestHilbertSpace:
         interaction_list = [interaction1, interaction2]
         hilbertspace.interaction_list = interaction_list
 
+        return hilbertspace
+
+    @staticmethod
+    def hilbertspace_initialize_2():
+        fluxonium = scq.Fluxonium.create()
+        zpifull = scq.FullZeroPi.create()
+
+        # Form a list of all components making up the Hilbert space.
+        hilbertspace = HilbertSpace([fluxonium, zpifull])
+
+        g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
+
+        interaction1 = InteractionTerm(
+            g_strength=g1,
+            op1=fluxonium.n_operator(),
+            subsys1=fluxonium,
+            op2=zpifull.n_theta_operator(),
+            subsys2=zpifull
+        )
+
+        interaction_list = [interaction1]
+        hilbertspace.interaction_list = interaction_list
         return hilbertspace
 
     def test_HilbertSpace_init(self):
@@ -126,12 +148,12 @@ class TestHilbertSpace:
         return h1 + h2 + hres + (vcpb1 + vcpb2) * (a + a.dag())
 
     def hamiltonian_use_addhc(self):
-        res1 = qubit.Oscillator(
+        res1 = scq.Oscillator(
             E_osc=6.0,
             truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
 
-        res2 = qubit.Oscillator(
+        res2 = scq.Oscillator(
             E_osc=5.5,
             truncated_dim=7
         )
@@ -182,7 +204,7 @@ class TestHilbertSpace:
         assert np.allclose(evals_calculated, evals_reference)
 
     def test_HilbertSpace_get_spectrum_vs_paramvals(self, num_cpus):
-        qubit.settings.MULTIPROC = 'pathos'
+        scq.settings.MULTIPROC = 'pathos'
         hilbertspc = self.hilbertspace_initialize()
         [transmon1, transmon2, resonator] = hilbertspc
 
@@ -219,14 +241,20 @@ class TestHilbertSpace:
                                       2.09778458, 5.73747149, 7.49164636, 13.4096702])
         assert np.allclose(evals, evals_reference)
 
+    def test_HilbertSpace_fileIO(self):
+        hilbertspc = self.hilbertspace_initialize_2()
+        hilbertspc.generate_lookup()
+        hilbertspc.filewrite(self.tmpdir + 'test.h5')
+        hilbertspc_copy = scq.read(self.tmpdir + 'test.h5')
+
 
 @pytest.mark.usefixtures("num_cpus")
 class TestParameterSweep:
     def initialize(self, num_cpus):
         # Set up the components / subspaces of our Hilbert space
-        qubit.settings.MULTIPROC = 'pathos'
+        scq.settings.MULTIPROC = 'pathos'
 
-        CPB1 = qubit.Transmon(
+        CPB1 = scq.Transmon(
             EJ=40.0,
             EC=0.2,
             ng=0.0,
@@ -234,7 +262,7 @@ class TestParameterSweep:
             truncated_dim=3  # after diagonalization, we will keep 3 levels
         )
 
-        CPB2 = qubit.Transmon(
+        CPB2 = scq.Transmon(
             EJ=3.0,
             EC=1.0,
             ng=0.0,
@@ -242,7 +270,7 @@ class TestParameterSweep:
             truncated_dim=4
         )
 
-        resonator = qubit.Oscillator(
+        resonator = scq.Oscillator(
             E_osc=6.0,
             truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
