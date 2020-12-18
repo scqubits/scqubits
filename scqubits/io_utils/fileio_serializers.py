@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, Tuple, Union, List, TYPE_CHECKING
 
 import numpy as np
 from numpy import ndarray
+from scipy.sparse import csc_matrix
 
 import scqubits.utils.misc as utils
 
@@ -149,6 +150,27 @@ def dict_serialize(dict_instance: Dict[str, Any]) -> 'IOData':
     return io.IOData(typename, attributes, ndarrays, objects)
 
 
+def csc_matrix_serialize(csc_matrix_instance: csc_matrix) -> 'IOData':
+    """
+    Create an IOData instance from dictionary data.
+    """
+    import scqubits.io_utils.fileio as io
+    attributes: Dict[str, Any] = {}
+    ndarrays: Dict[str, ndarray] = {}
+    objects: Dict[str, object] = {}
+    typename = 'csc_matrix'
+
+    csc_dict = {"indices": csc_matrix_instance.indices,
+                "indptr": csc_matrix_instance.indptr,
+                "shape": csc_matrix_instance.shape,
+                "data": csc_matrix_instance.data}
+
+    for name, content in csc_dict.items():
+        update_func = type_dispatch(content)
+        attributes, ndarrays, objects = update_func(name, content, attributes, ndarrays, objects)
+    return io.IOData(typename, attributes, ndarrays, objects)
+
+
 def listlike_serialize(listlike_instance: Union[List, Tuple]) -> 'IOData':
     """
     Create an IOData instance from list data.
@@ -173,6 +195,12 @@ tuple_serialize = listlike_serialize
 def dict_deserialize(iodata: 'IOData') -> Dict[str, Any]:
     """Turn IOData instance back into a dict"""
     return dict(**iodata.as_kwargs())
+
+
+def csc_matrix_deserialize(iodata: 'IOData') -> csc_matrix:
+    """Turn IOData instance back into a csc_matrix"""
+    csc_dict = dict(**iodata.as_kwargs())
+    return csc_matrix((csc_dict['data'], csc_dict['indices'], csc_dict['indptr']), shape=csc_dict['shape'])
 
 
 def list_deserialize(iodata: 'IOData') -> List[Any]:
