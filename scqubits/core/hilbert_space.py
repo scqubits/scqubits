@@ -11,7 +11,8 @@
 
 import functools
 import warnings
-from typing import Any, Callable, Dict, Iterator, Optional, Tuple, List, Union
+import weakref
+from typing import Any, Callable, Dict, Iterator, Optional, Tuple, List, Union, TYPE_CHECKING
 
 import numpy as np
 import qutip as qt
@@ -40,6 +41,9 @@ if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
+
+if TYPE_CHECKING:
+    from scqubits.io_utils.fileio import IOData
 
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
@@ -134,12 +138,6 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         dispatch.CENTRAL_DISPATCH.register('INTERACTIONTERM_UPDATE', self)
         dispatch.CENTRAL_DISPATCH.register('INTERACTIONLIST_UPDATE', self)
 
-    @classmethod
-    def create(cls) -> 'HilbertSpace':
-        hilbertspace = cls([])
-        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)  # type: ignore
-        return hilbertspace
-
     def __getitem__(self, index: int) -> QuantumSys:
         return self._subsystems[index]
 
@@ -158,6 +156,51 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             for interaction_term in self.interaction_list:
                 output += '\n' + str(interaction_term) + '\n'
         return output
+
+    def _esys_for_paramval(self,
+                           paramval: float,
+                           update_hilbertspace: Callable,
+                           evals_count: int
+                           ) -> Tuple[ndarray, QutipEigenstates]:
+        update_hilbertspace(paramval)
+        return self.eigensys(evals_count)
+
+    def _evals_for_paramval(self,
+                            paramval: float,
+                            update_hilbertspace: Callable,
+                            evals_count: int
+                            ) -> ndarray:
+        update_hilbertspace(paramval)
+        return self.eigenvals(evals_count)
+
+    @classmethod
+    def deserialize(cls, io_data: 'IOData') -> 'HilbertSpace':
+        """
+        Take the given IOData and return an instance of the described class, initialized with the data stored in
+        io_data.
+        """
+        alldata_dict = io_data.as_kwargs()
+        lookup = alldata_dict.pop('_lookup')
+        new_hilbertspace = cls(**alldata_dict)
+        new_hilbertspace._lookup = lookup
+        new_hilbertspace._lookup._hilbertspace = weakref.proxy(new_hilbertspace)
+        return new_hilbertspace
+
+    def serialize(self) -> 'IOData':
+        """
+        Convert the content of the current class instance into IOData format.
+        """
+        initdata = {name: getattr(self, name) for name in self._init_params}
+        initdata['_lookup'] = self._lookup
+        iodata = serializers.dict_serialize(initdata)
+        iodata.typename = type(self).__name__
+        return iodata
+
+    @classmethod
+    def create(cls) -> 'HilbertSpace':
+        hilbertspace = cls([])
+        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)  # type: ignore
+        return hilbertspace
 
     def index(self, item: QuantumSys) -> int:
         return self._subsystems.index(item)
@@ -391,22 +434,6 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         if interactionterm.add_hc:
             return hamiltonian + hamiltonian.dag()
         return hamiltonian
-
-    def _esys_for_paramval(self,
-                           paramval: float,
-                           update_hilbertspace: Callable,
-                           evals_count: int
-                           ) -> Tuple[ndarray, QutipEigenstates]:
-        update_hilbertspace(paramval)
-        return self.eigensys(evals_count)
-
-    def _evals_for_paramval(self,
-                            paramval: float,
-                            update_hilbertspace: Callable,
-                            evals_count: int
-                            ) -> ndarray:
-        update_hilbertspace(paramval)
-        return self.eigenvals(evals_count)
 
     def get_spectrum_vs_paramvals(self,
                                   param_vals: ndarray,
