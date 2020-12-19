@@ -250,6 +250,10 @@ class TestHilbertSpace:
 
 @pytest.mark.usefixtures("num_cpus")
 class TestParameterSweep:
+    @pytest.fixture(autouse=True)
+    def set_tmpdir(self, request):
+        setattr(self, 'tmpdir', request.getfixturevalue('tmpdir'))
+
     def initialize(self, num_cpus):
         # Set up the components / subspaces of our Hilbert space
         scq.settings.MULTIPROC = 'pathos'
@@ -330,3 +334,8 @@ class TestParameterSweep:
                                        11.97802377, 12.46554431, 13.40154194, 13.71041554, 15.24359501, 16.70439594,
                                        17.01076356, 17.64202619])
         assert np.allclose(reference_energies, calculated_energies)
+
+    def test_ParameterSweep_fileIO(self, num_cpus):
+        sweep = self.initialize(num_cpus)
+        sweep.filewrite(self.tmpdir + 'test.h5')
+        sweep_copy = scq.read(self.tmpdir + 'test.h5')
