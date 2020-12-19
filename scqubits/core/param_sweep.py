@@ -11,24 +11,24 @@
 
 
 import functools
+import weakref
 from abc import ABC
-from typing import Any, Callable, Dict, List, Tuple, Union, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, TYPE_CHECKING, Tuple, Union
 
 import numpy as np
-from numpy import ndarray
-from qutip.qobj import Qobj
-
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.hilbert_space as hspace
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
-import scqubits.io_utils.fileio as io
 import scqubits.io_utils.fileio_qutip as qutip_serializer
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
+
+from numpy import ndarray
+from qutip.qobj import Qobj
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.qubit_base import QubitBaseClass
@@ -37,7 +37,7 @@ from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 if TYPE_CHECKING:
-    from scqubits.io_utils.fileio import Serializable, IOData
+    from scqubits.io_utils.fileio import IOData
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -188,6 +188,7 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         self._lookup = spec_lookup.SpectrumLookup(self, dressed_specdata, bare_specdata_list)
         settings.DISPATCH_ENABLED = True
 
+    # HilbertSpace: methods for CentralDispatch ----------------------------------------------------
     def cause_dispatch(self) -> None:
         self.update_hilbertspace(self.param_vals[0])
 
@@ -212,6 +213,50 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
                 self._lookup._out_of_sync = True
                 # print('Lookup table now out of sync')
 
+    # ParameterSweep: file IO methods ---------------------------------------------------------------
+    @classmethod
+    def deserialize(cls, iodata: 'IOData') -> 'StoredSweep':
+        """
+        Take the given IOData and return an instance of the described class, initialized with the data stored in
+        io_data.
+
+        Parameters
+        ----------
+        iodata: IOData
+
+        Returns
+        -------
+        StoredSweep
+        """
+        data_dict = iodata.as_kwargs()
+        lookup = data_dict.pop('_lookup')
+        data_dict['dressed_specdata'] = lookup._dressed_specdata
+        data_dict['bare_specdata_list'] = lookup._bare_specdata_list
+        new_storedsweep = StoredSweep(**data_dict)
+        new_storedsweep._lookup = lookup
+        return new_storedsweep
+
+    def serialize(self) -> 'IOData':
+        """
+        Convert the content of the current class instance into IOData format.
+
+        Returns
+        -------
+        IOData
+        """
+        if self._lookup is None:
+            raise ValueError('Nothing to save - no lookup data has been generated yet.')
+
+        initdata = {'param_name': self.param_name,
+                    'param_vals': self.param_vals,
+                    'evals_count': self.evals_count,
+                    'hilbertspace': self._hilbertspace,
+                    '_lookup': self._lookup}
+        iodata = serializers.dict_serialize(initdata)
+        iodata.typename = 'StoredSweep'
+        return iodata
+
+    # ParameterSweep: private methods for generating the sweep -------------------------------------------------
     def _compute_bare_specdata_sweep(self) -> List[SpectrumData]:
         """
         Pre-calculates all bare spectral data needed for the interactive explorer display.
@@ -391,44 +436,6 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         subsys_index = self.get_subsys_index(subsys)
         return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
 
-    # ParameterSweep: file IO methods ---------------------------------------------------------------
-    @classmethod
-    def deserialize(cls, iodata: 'IOData') -> 'StoredSweep':
-        """
-        Take the given IOData and return an instance of the described class, initialized with the data stored in
-        io_data.
-
-        Parameters
-        ----------
-        iodata: IOData
-
-        Returns
-        -------
-        StoredSweep
-        """
-        return StoredSweep(**iodata.as_kwargs())
-
-    def serialize(self) -> 'IOData':
-        """
-        Convert the content of the current class instance into IOData format.
-
-        Returns
-        -------
-        IOData
-        """
-        if self._lookup is None:
-            raise ValueError('Nothing to save - no lookup data has been generated yet.')
-
-        initdata = {'param_name': self.param_name,
-                    'param_vals': self.param_vals,
-                    'evals_count': self.evals_count,
-                    'hilbertspace': self._hilbertspace,
-                    'dressed_specdata': self._lookup._dressed_specdata,
-                    'bare_specdata_list': self._lookup._bare_specdata_list}
-        iodata = serializers.dict_serialize(initdata)
-        iodata.typename = 'StoredSweep'
-        return iodata
-
 
 class StoredSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable):
     param_name = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
@@ -450,8 +457,33 @@ class StoredSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Seria
         self.param_count = len(param_vals)
         self.evals_count = evals_count
         self._hilbertspace = hilbertspace
-        self._lookup = spec_lookup.SpectrumLookup(hilbertspace, dressed_specdata, bare_specdata_list)
+        self._lookup = spec_lookup.SpectrumLookup(hilbertspace, dressed_specdata, bare_specdata_list, auto_run=False)
 
+    # StoredSweep: file IO methods ---------------------------------------------------------------
+    @classmethod
+    def deserialize(cls, iodata: 'IOData') -> 'StoredSweep':
+        """
+        Take the given IOData and return an instance of the described class, initialized with the data stored in
+        io_data.
+
+        Parameters
+        ----------
+        iodata: IOData
+
+        Returns
+        -------
+        StoredSweep
+        """
+        data_dict = iodata.as_kwargs()
+        lookup = data_dict.pop('_lookup')
+        data_dict['dressed_specdata'] = lookup._dressed_specdata
+        data_dict['bare_specdata_list'] = lookup._bare_specdata_list
+        new_storedsweep = StoredSweep(**data_dict)
+        new_storedsweep._lookup = lookup
+        new_storedsweep._lookup._hilbertspace = weakref.proxy(new_storedsweep._hilbertspace)
+        return new_storedsweep
+
+    # StoredSweep: other methods
     def get_hilbertspace(self) -> HilbertSpace:
         return self._hilbertspace
 
