@@ -165,10 +165,11 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         io_data.
         """
         alldata_dict = io_data.as_kwargs()
-        lookup = alldata_dict.pop('_lookup')
+        lookup = alldata_dict.pop('_lookup', None)
         new_hilbertspace = cls(**alldata_dict)
         new_hilbertspace._lookup = lookup
-        new_hilbertspace._lookup._hilbertspace = weakref.proxy(new_hilbertspace)
+        if lookup is not None:
+            new_hilbertspace._lookup._hilbertspace = weakref.proxy(new_hilbertspace)
         return new_hilbertspace
 
     def serialize(self) -> 'IOData':
