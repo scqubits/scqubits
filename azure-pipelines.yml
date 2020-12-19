@@ -20,8 +20,6 @@ jobs:
         python.version: '3.6'
       Python37:
         python.version: '3.7'
-      Python38:
-        python.version: '3.8'
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -56,6 +54,64 @@ jobs:
       export NUMEXPR_NUM_THREADS=1
       pytest -v --pyargs scqubits --num_cpus=4
     displayName: 'Pytest: multiprocessing'
+#
+#
+jobs:
+- job: Linux & coverage
+  pool:
+    vmImage: 'ubuntu-latest'
+  strategy:
+    matrix:
+      Python38:
+        python.version: '3.8'
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(python.version)'
+    displayName: 'Use Python $(python.version)'
+  - script: |
+      python -m pip install --upgrade pip
+    displayName: 'Upgrade pip'
+  - script: |
+      pip install wheel
+      pip install --upgrade cython
+      pip install --upgrade numpy
+      pip install --upgrade scipy
+    displayName: 'Install/upgrade cython, numpy, scipy'
+  - script: |
+      pip install -r requirements.txt
+      pip install -r optional-requirements.txt
+    displayName: 'Install dependencies'
+  - script: |
+      pip install pytest pytest-azurepipelines
+      pip install pytest-cov
+      pip install pathos
+      pip install .
+    displayName: 'Install scqubits'
+  - script: |
+      pytest -v --pyargs scqubits
+    displayName: 'Pytest: single-core'
+  - script: |
+      export OMP_NUM_THREADS=1
+      export OPENBLAS_NUM_THREADS=1
+      export MKL_NUM_THREADS=1
+      export VECLIB_MAXIMUM_THREADS=1
+      export NUMEXPR_NUM_THREADS=1
+      pytest -v --pyargs scqubits --num_cpus=4 --cov=./ --cov-report=xml
+    displayName: 'Pytest: multiprocessing'
+  - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage.xml
+        files: ./coverage1.xml,./coverage2.xml
+        directory: ./coverage/reports/
+        flags: unittests
+        env_vars: OS,PYTHON
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        path_to_write_report: ./coverage/codecov_report.txt
+        verbose: true
 #
 #
 - job: Windows
