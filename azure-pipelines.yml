@@ -56,8 +56,7 @@ jobs:
     displayName: 'Pytest: multiprocessing'
 #
 #
-jobs:
-- job: Linux & coverage
+- job: Linux Py3.8 & coverage
   pool:
     vmImage: 'ubuntu-latest'
   strategy:
