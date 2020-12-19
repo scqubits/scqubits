@@ -157,7 +157,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                 output += '\n' + str(interaction_term) + '\n'
         return output
 
-    # HilbertSpace: file IO methods ---------------------------------------------------------------
+    ###############################################################################################
+    # HilbertSpace: file IO methods
+    ###############################################################################################
     @classmethod
     def deserialize(cls, io_data: 'IOData') -> 'HilbertSpace':
         """
@@ -187,14 +189,18 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """
         return {'subsystem_list': self._subsystems, 'interaction_list': self.interaction_list}
 
-    # HilbertSpace: creation via GUI ---------------------------------------------------------------
+    ###############################################################################################
+    # HilbertSpace: creation via GUI
+    ###############################################################################################
     @classmethod
     def create(cls) -> 'HilbertSpace':
         hilbertspace = cls([])
         scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)  # type: ignore
         return hilbertspace
 
-    # HilbertSpace: methods for CentralDispatch ----------------------------------------------------
+    ###############################################################################################
+    # HilbertSpace: methods for CentralDispatch
+    ###############################################################################################
     def receive(self,
                 event: str,
                 sender: Any,
@@ -211,7 +217,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                 self.broadcast('HILBERTSPACE_UPDATE')
                 self._lookup._out_of_sync = True
 
-    # HilbertSpace: subsystems, dimensions, etc. ----------------------------------------------------
+    ###############################################################################################
+    # HilbertSpace: subsystems, dimensions, etc.
+    ###############################################################################################
     def get_subsys_index(self, subsys: QuantumSys) -> int:
         """
         Return the index of the given subsystem in the HilbertSpace.
@@ -237,7 +245,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """Returns number of subsys_list composing the joint Hilbert space"""
         return len(self._subsystems)
 
-    # HilbertSpace: generate SpectrumLookup ----------------------------------------------------
+    ###############################################################################################
+    # HilbertSpace: generate SpectrumLookup
+    ###############################################################################################
     def generate_lookup(self) -> None:
         bare_specdata_list = []
         for index, subsys in enumerate(self):
@@ -254,7 +264,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                                                   bare_specdata_list=bare_specdata_list,
                                                   dressed_specdata=dressed_specdata)
 
-    # HilbertSpace: energy spectrum ----------------------------------------------------------------
+    ###############################################################################################
+    # HilbertSpace: energy spectrum
+    ###############################################################################################
     def eigenvals(self, evals_count: int = 6) -> ndarray:
         """Calculates eigenvalues of the full Hamiltonian using `qutip.Qob.eigenenergies()`.
 
@@ -299,7 +311,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         update_hilbertspace(paramval)
         return self.eigenvals(evals_count)
 
-    # HilbertSpace: Hamiltonian (bare, interaction, full)-------------------------------------------------------
+    ###############################################################################################
+    # HilbertSpace: Hamiltonian (bare, interaction, full)
+    ###############################################################################################
     def hamiltonian(self) -> Qobj:
         """
 
@@ -370,7 +384,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """Deprecated, use `hamiltonian()` instead."""
         return self.hamiltonian()
 
-    # HilbertSpace: identity wrapping, operators -------------------------------------------------------
+    ###############################################################################################
+    # HilbertSpace: identity wrapping, operators
+    ###############################################################################################
     def identity_wrap(self,
                       operator: Union[str, ndarray, csc_matrix, dia_matrix, Qobj],
                       subsystem: QuantumSys,
@@ -441,7 +457,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         operator = (qt.destroy(dim))
         return self.identity_wrap(operator, subsystem)
 
-    # HilbertSpace: spectrum sweep --------------------------------------------------------------
+    ###############################################################################################
+    # HilbertSpace: spectrum sweep
+    ###############################################################################################
     def get_spectrum_vs_paramvals(self,
                                   param_vals: ndarray,
                                   update_hilbertspace: Callable,
