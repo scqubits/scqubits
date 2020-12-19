@@ -171,6 +171,19 @@ def csc_matrix_serialize(csc_matrix_instance: csc_matrix) -> 'IOData':
     return io.IOData(typename, attributes, ndarrays, objects)
 
 
+def NoneType_serialize(none_instance: None) -> 'IOData':
+    """
+    Create an IOData instance to write `None` to file.
+    """
+    import scqubits.io_utils.fileio as io
+    attributes = {'None': 0}
+    ndarrays: Dict[str, ndarray] = {}
+    objects: Dict[str, object] = {}
+    typename = 'NoneType'
+
+    return io.IOData(typename, attributes, ndarrays, objects)
+
+
 def listlike_serialize(listlike_instance: Union[List, Tuple]) -> 'IOData':
     """
     Create an IOData instance from list data.
@@ -201,6 +214,11 @@ def csc_matrix_deserialize(iodata: 'IOData') -> csc_matrix:
     """Turn IOData instance back into a csc_matrix"""
     csc_dict = dict(**iodata.as_kwargs())
     return csc_matrix((csc_dict['data'], csc_dict['indices'], csc_dict['indptr']), shape=csc_dict['shape'])
+
+
+def NoneType_deserialize(iodata: 'IOData') -> None:
+    """Turn IOData instance back into a csc_matrix"""
+    return None
 
 
 def list_deserialize(iodata: 'IOData') -> List[Any]:
