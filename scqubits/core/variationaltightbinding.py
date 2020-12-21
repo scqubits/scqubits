@@ -42,12 +42,6 @@ class VariationalTightBinding:
 
     Parameters
     ----------
-    EJlist: ndarray
-        Josephson energies associated with each junction, which are allowed to vary.
-    nglist: ndarray
-        offset charge associated with each dynamical degree of freedom.
-    flux: float
-        magnetic flux through the circuit loop, measured in units of the flux quantum
     maximum_periodic_vector_length: int
         Maximum Manhattan length of a periodic continuation vector. This should be varied to ensure convergence.
     number_degrees_freedom: int
@@ -74,8 +68,6 @@ class VariationalTightBinding:
     build_capacitance_matrix: Callable
     build_EC_matrix: Callable
     boundary_coefficients: ndarray
-    EJlist: ndarray
-    nglist: ndarray
     flux: float
 
     def __init__(self,
@@ -83,6 +75,7 @@ class VariationalTightBinding:
                  maximum_periodic_vector_length: int,
                  number_degrees_freedom: int,
                  number_periodic_degrees_freedom: int,
+                 number_junctions: int,
                  nearest_neighbors: dict = None,
                  harmonic_length_optimization: int = 0,
                  optimize_all_minima: int = 0,
@@ -97,6 +90,7 @@ class VariationalTightBinding:
         self.number_degrees_freedom = number_degrees_freedom
         self.number_periodic_degrees_freedom = number_periodic_degrees_freedom
         self.number_extended_degrees_freedom = number_degrees_freedom - number_periodic_degrees_freedom
+        self.number_junctions = number_junctions
         self.num_exc = num_exc
         self.nearest_neighbors = nearest_neighbors
         self.harmonic_length_optimization = harmonic_length_optimization
@@ -106,6 +100,16 @@ class VariationalTightBinding:
         self.extended_grid = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
         self.optimized_lengths = np.array([])
         self._evec_dtype = np.complex_
+
+    @property
+    def EJlist(self) -> ndarray:
+        """Josephson energies associated with each junction"""
+        return np.zeros(self.number_junctions)
+
+    @property
+    def nglist(self) -> ndarray:
+        """offset charge associated with each dynamical degree of freedom"""
+        return np.zeros(self.number_degrees_freedom)
 
     def build_gamma_matrix(self, minimum: int = 0) -> ndarray:
         """Returns linearized potential matrix
@@ -383,10 +387,10 @@ class VariationalTightBinding:
         return a_operator_list, a_a, a_dagger_a
 
     def _build_single_exp_i_phi_j_operator(self, j: int, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
-        r"""Returns operator :math:`\exp(i\phi_{j})`. If `j` specifies the boundary term, then that is constructed
-        based on the boundary coefficients."""
+        r"""Returns operator :math:`\exp(i\phi_{j})`. If `j` specifies the boundary term, which is
+        assumed to be the last junction, then that is constructed based on the boundary coefficients."""
         dim = self.number_degrees_freedom
-        if j == dim:
+        if j == self.number_junctions - 1:
             exp_i_phi_j_a_component = expm(np.sum([self.boundary_coefficients[i] * 1j * Xi[i, k] * a_operator_list[k]
                                                   for i in range(dim) for k in range(dim)], axis=0) / np.sqrt(2.0))
             BCH_factor = self._BCH_factor_for_potential_boundary(Xi)
@@ -400,7 +404,7 @@ class VariationalTightBinding:
     def _build_all_exp_i_phi_j_operators(self, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
         """Helper method for building all potential operators"""
         return np.array([self._build_single_exp_i_phi_j_operator(j, Xi, a_operator_list)
-                         for j in range(self.number_degrees_freedom + 1)])
+                         for j in range(self.number_junctions)])
 
     def _build_general_translation_operators(self, Xi_inv: ndarray,
                                              a_operator_list: ndarray) -> Tuple[ndarray, ndarray]:
@@ -582,13 +586,12 @@ class VariationalTightBinding:
                          Xi: ndarray, phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Calculate the local potential contribution to the transfer matrix given two
         minima and a periodic continuation vector `phi_neighbor`"""
-        dim = self.number_degrees_freedom
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
         exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_matrix = np.sum([-0.5*self.EJlist[junction]
                                    * (exp_i_phi_j_without_boundary[junction]
                                       + exp_i_phi_j_without_boundary[junction].conjugate())
-                                   for junction in range(dim)], axis=0)
+                                   for junction in range(self.number_junctions - 1)], axis=0)
         potential_matrix = potential_matrix - 0.5*self.EJlist[-1]*(exp_i_sum_phi + exp_i_sum_phi.conjugate())
         potential_matrix = potential_matrix + np.sum(self.EJlist)*self.identity()
         return potential_matrix
@@ -682,7 +685,7 @@ class VariationalTightBinding:
         matrix but warns the user if the system is in a regime where tight-binding has questionable validity."""
         self.find_relevant_periodic_continuation_vectors()
         if self.harmonic_length_optimization:
-            self.optimize_Xi_variational_wrapper()
+            self.optimize_Xi_variational()
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
         if np.max(harmonic_length_minima_comparison) > 1.0 and not self.quiet:
             print("Warning: large harmonic length compared to minima separation "
@@ -767,7 +770,7 @@ class VariationalTightBinding:
                 filtered_minima_holder.append(minima)
         return filtered_minima_holder
 
-    def optimize_Xi_variational_wrapper(self) -> None:
+    def optimize_Xi_variational(self) -> None:
         """Optimize the Xi matrix by adjusting the harmonic lengths of the ground state to minimize its energy.
         For tight-binding without squeezing, this is only done for the ansatz ground state wavefunction
         localized in the global minimum."""
@@ -875,7 +878,7 @@ class VariationalTightBinding:
                                      * self.optimized_lengths[0, which_length]**(-1)
                                      * (exp_i_phi_j_without_boundary[junction]
                                         + exp_i_phi_j_without_boundary[junction].conjugate())
-                                     for junction in range(self.number_degrees_freedom)])
+                                     for junction in range(self.number_junctions - 1)])
         potential_gradient += (0.25 * self.EJlist[-1] * self.optimized_lengths[0, which_length]**(-1)
                                * (self.boundary_coefficients @ Xi[:, which_length])**2
                                * (exp_i_sum_phi + exp_i_sum_phi.conjugate()))
@@ -897,7 +900,7 @@ class VariationalTightBinding:
         exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
         potential = np.sum([-0.5 * self.EJlist[junction] * (exp_i_phi_j_without_boundary[junction]
                                                             + exp_i_phi_j_without_boundary[junction].conjugate())
-                            for junction in range(self.number_degrees_freedom)])
+                            for junction in range(self.number_junctions - 1)])
         potential += np.sum(self.EJlist) - 0.5 * self.EJlist[-1] * (exp_i_sum_phi + exp_i_sum_phi.conjugate())
         return potential
 

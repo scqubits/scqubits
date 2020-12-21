@@ -26,7 +26,8 @@ class TransmonVTB(VariationalTightBinding, base.QubitBaseClass, serializers.Seri
                  **kwargs
                  ) -> None:
         VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
-                                         number_degrees_freedom=1, number_periodic_degrees_freedom=1, **kwargs)
+                                         number_degrees_freedom=1, number_periodic_degrees_freedom=1,
+                                         number_junctions=1, **kwargs)
         self.EJ = EJ
         self.EC = EC
         self.ng = ng
@@ -48,9 +49,6 @@ class TransmonVTB(VariationalTightBinding, base.QubitBaseClass, serializers.Seri
         gamma_list = self.EJlist / self.Phi0 ** 2
         gamma_matrix[0, 0] = gamma_list[0] * np.cos(min_loc[0])
         return gamma_matrix
-
-    def _build_all_exp_i_phi_j_operators(self, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
-        return self._build_single_exp_i_phi_j_operator(0, Xi, a_operator_list)
 
     def _local_potential(self, exp_i_phi_j: ndarray, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
                          Xi: ndarray, phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:

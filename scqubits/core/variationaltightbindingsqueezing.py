@@ -616,7 +616,7 @@ class VariationalTightBindingSqueezing(VariationalTightBinding):
         return (np.exp(-0.5 * np.trace(sigma) - 0.5 * np.trace(sigma_prime))
                 * self._exp_product_coefficient(delta_phi, Xi_inv))
 
-    def optimize_Xi_variational_wrapper(self) -> None:
+    def optimize_Xi_variational(self) -> None:
         """Overrides method in VariationalTightBinding. Allows for harmonic length optimization of states localized
         in all minima if the optimize_all_minima flag is set. Optimize the Xi matrix by adjusting
         the harmonic lengths of the ground state to minimize its energy.

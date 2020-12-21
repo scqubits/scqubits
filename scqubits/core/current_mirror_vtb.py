@@ -114,7 +114,8 @@ class CurrentMirrorVTB(CurrentMirrorVTBFunctions, VariationalTightBinding,
                  ) -> None:
         VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
                                          number_degrees_freedom=2 * N - 1,
-                                         number_periodic_degrees_freedom=2 * N - 1, **kwargs)
+                                         number_periodic_degrees_freedom=2 * N - 1,
+                                         number_junctions=2 * N, **kwargs)
         CurrentMirrorVTBFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_

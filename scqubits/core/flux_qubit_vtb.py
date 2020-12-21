@@ -90,7 +90,8 @@ class FluxQubitVTB(FluxQubitVTBFunctions, VariationalTightBinding, base.QubitBas
                  **kwargs
                  ) -> None:
         VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
-                                         number_degrees_freedom=2, number_periodic_degrees_freedom=2, **kwargs)
+                                         number_degrees_freedom=2, number_periodic_degrees_freedom=2,
+                                         number_junctions=3, **kwargs)
         FluxQubitVTBFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__

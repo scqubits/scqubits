@@ -48,7 +48,8 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
                  ) -> None:
         ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
         VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
-                                         number_degrees_freedom=2, number_periodic_degrees_freedom=1, **kwargs)
+                                         number_degrees_freedom=2, number_periodic_degrees_freedom=1,
+                                         number_junctions=2, **kwargs)
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
@@ -100,8 +101,7 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
         return C_matrix
 
     def build_EC_matrix(self) -> ndarray:
-        C_matrix = self.build_capacitance_matrix()
-        return 0.5 * self.e**2 * inv(C_matrix)
+        return 0.5 * self.e**2 * inv(self.build_capacitance_matrix())
 
     def _check_second_derivative_positive(self, phi: ndarray, theta: ndarray) -> bool:
         return (self.EL + 2 * self.EJ * np.cos(theta) * np.cos(phi - np.pi * self.flux)) > 0
@@ -166,10 +166,6 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
                                                          * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim)
                                                          for k in range(dim)]))
         return exp_factors_list
-
-    def _build_all_exp_i_phi_j_operators(self, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
-        return np.array([self._build_single_exp_i_phi_j_operator(j, Xi, a_operator_list)
-                         for j in range(self.number_degrees_freedom)])
 
     def _harmonic_contribution_to_potential(self, premultiplied_a_and_a_dagger: Tuple,
                                             Xi: ndarray, phi_bar: ndarray) -> ndarray:
