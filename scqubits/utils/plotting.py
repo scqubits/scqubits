@@ -353,7 +353,6 @@ def matrix(data_matrix: np.ndarray,
     fig, ax1 = matrix_skyscraper(data_matrix, mode=mode, fig_ax=(fig, ax1), **kwargs)
     return fig, (ax1, ax2)
 
-
 def matrix_skyscraper(matrix: np.ndarray,
                       mode: str = 'abs',
                       **kwargs
@@ -375,11 +374,10 @@ def matrix_skyscraper(matrix: np.ndarray,
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots(projection='3d')
 
-    y_count, x_count = matrix.shape  # num. of elements to plot
-    element_count = x_count * y_count
+    y_count, x_count = matrix.shape # We label the columns as "x", while rows as "y"
+    element_count = x_count * y_count # total num. of elements to plot
 
     xgrid, ygrid = np.meshgrid(range(x_count), range(y_count))
-
     xgrid = xgrid.flatten()   
     ygrid = ygrid.flatten()  
 
