@@ -16,8 +16,8 @@ from scqubits.core.operators import annihilation, operator_in_full_Hilbert_space
 from scqubits.core.hashing import generate_next_vector, reflect_vectors
 import scqubits.utils.plotting as plot
 from scqubits.utils.cpu_switch import get_map_method
-from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ, \
-    standardize_phases, standardize_sign
+from scqubits.utils.spectrum_utils import (order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ,
+                                           standardize_phases)
 
 
 class VariationalTightBinding:
@@ -109,7 +109,7 @@ class VariationalTightBinding:
     @property
     def nglist(self) -> ndarray:
         """offset charge associated with each dynamical degree of freedom"""
-        return np.zeros(self.number_degrees_freedom)
+        return np.zeros(self.number_periodic_degrees_freedom)
 
     def build_gamma_matrix(self, minimum: int = 0) -> ndarray:
         """Returns linearized potential matrix
@@ -131,7 +131,7 @@ class VariationalTightBinding:
         -------
         ndarray
         """
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         gamma_matrix = np.zeros((dim, dim))
         min_loc = self.sorted_minima()[minimum]
         gamma_list = self.EJlist / self.Phi0 ** 2
@@ -162,10 +162,7 @@ class VariationalTightBinding:
         g_matrix = self.build_gamma_matrix(minimum)
 
         omega_squared, normal_mode_eigenvectors = eigh(g_matrix, b=C_matrix)
-        standardized_normal_mode_eigenvectors = np.zeros_like(normal_mode_eigenvectors)
-        for j, eigenvec in enumerate(normal_mode_eigenvectors.T):
-            standardized_normal_mode_eigenvectors[:, j] = standardize_sign(eigenvec)
-        return omega_squared, standardized_normal_mode_eigenvectors
+        return omega_squared, normal_mode_eigenvectors
 
     def omega_matrix(self, minimum: int = 0) -> ndarray:
         """Returns a diagonal matrix of the normal mode frequencies of a given minimum
@@ -211,7 +208,8 @@ class VariationalTightBinding:
         that we would like to use the Xi matrix as defined for `minimum`"""
         (minima_m, m), (minima_p, p) = minima_pair
         nearest_neighbors = self.nearest_neighbors[str(m)+str(p)]
-        if nearest_neighbors is None or np.allclose(nearest_neighbors, [np.zeros(self.number_degrees_freedom)]):
+        if nearest_neighbors is None or np.allclose(nearest_neighbors,
+                                                    [np.zeros(self.number_periodic_degrees_freedom)]):
             return np.array([0.0])
         Xi_inv = inv(self.Xi_matrix(minimum=minimum))
         delta_inv = Xi_inv.T @ Xi_inv
@@ -241,7 +239,7 @@ class VariationalTightBinding:
         """
         minima_list = self.sorted_minima()
         if self.optimized_lengths.size == 0 or self.harmonic_length_optimization == 0:
-            self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
+            self.optimized_lengths = np.ones((len(minima_list), self.number_periodic_degrees_freedom))
         omega_squared, normal_mode_eigenvectors = self.eigensystem_normal_modes(minimum)
         # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
         Xi_matrix = np.array([normal_mode_eigenvectors[:, i] * self.optimized_lengths[minimum, i] * omega**(-1/4)
@@ -254,20 +252,20 @@ class VariationalTightBinding:
         Parameters
         ----------
         mu: int
-            which degree of freedom, 0<=mu<=self.number_degrees_freedom
+            which degree of freedom, 0<=mu<=self.number_periodic_degrees_freedom
 
         Returns
         -------
         ndarray
         """
         identity_operator = np.eye(self.num_exc + 1, dtype=np.complex_)
-        identity_operator_list = np.array([identity_operator for _ in range(self.number_degrees_freedom)])
+        identity_operator_list = np.array([identity_operator for _ in range(self.number_periodic_degrees_freedom)])
         return operator_in_full_Hilbert_space(np.array([annihilation(self.num_exc + 1, dtype=np.complex_)]),
                                               np.array([mu]), identity_operator_list, sparse=False)
 
     def _a_operator_list(self) -> ndarray:
         """Helper method to return a list of annihilation operator matrices for each mode"""
-        return np.array([self.a_operator(i) for i in range(self.number_degrees_freedom)])
+        return np.array([self.a_operator(i) for i in range(self.number_periodic_degrees_freedom)])
 
     def find_relevant_periodic_continuation_vectors(self, num_cpus: int = 1) -> None:
         """Constructs a dictionary of the relevant periodic continuation vectors for each pair of minima.
@@ -286,8 +284,10 @@ class VariationalTightBinding:
         nearest_neighbors["00"] = self._filter_for_minima_pair(np.zeros_like(minima_list[0]), Xi_inv, num_cpus)
         if not self.quiet:
             print("completed m={m}, p={p} minima pair computation".format(m=0, p=0))
-        for (minima_m, m), (minima_p, p) in all_minima_pairs:
-            minima_diff = Xi_inv @ (minima_list[p] - minima_m)
+        for (minima_m_total, m), (minima_p_total, p) in all_minima_pairs:
+            minima_m = minima_m_total[:self.number_extended_degrees_freedom]
+            minima_p = minima_p_total[:self.number_extended_degrees_freedom]
+            minima_diff = Xi_inv @ (minima_p - minima_m)
             nearest_neighbors[str(m)+str(p)] = self._filter_for_minima_pair(minima_diff, Xi_inv, num_cpus)
             if not self.quiet:
                 print("completed m={m}, p={p} minima pair computation".format(m=m, p=p))
@@ -304,7 +304,7 @@ class VariationalTightBinding:
         filtered_vectors = list(target_map(filter_function, periodic_vector_lengths))
         zero_vec = np.zeros(self.number_periodic_degrees_freedom)
         if self._filter_neighbors(minima_diff, Xi_inv, zero_vec):
-            filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), zero_vec)))
+            filtered_vectors.append(zero_vec)
         return self._stack_filtered_vectors(filtered_vectors)
 
     @staticmethod
@@ -340,14 +340,14 @@ class VariationalTightBinding:
         filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
         new_vectors = filter(filter_function, reflected_vectors)
         for filtered_vec in new_vectors:
-            filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), filtered_vec)))
+            filtered_vectors.append(filtered_vec)
 
     def _filter_neighbors(self, minima_diff: ndarray, Xi_inv: ndarray, neighbor: ndarray) -> bool:
         """Helper function that does the filtering. Matrix elements are suppressed by a
         gaussian exponential factor, and we filter those that are suppressed below a cutoff.
         Assumption is that extended degrees of freedom precede the periodic d.o.f.
         """
-        phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom), neighbor))
+        phi_neighbor = 2.0 * np.pi * neighbor
         dpkX = Xi_inv @ phi_neighbor + minima_diff
         prod = np.exp(-0.25*np.dot(dpkX, dpkX))
         return prod > self.nearest_neighbor_cutoff
@@ -368,7 +368,7 @@ class VariationalTightBinding:
         int
             Returns the number of states displaced into each local minimum
         """
-        return (self.num_exc + 1)**self.number_degrees_freedom
+        return (self.num_exc + 1)**self.number_periodic_degrees_freedom
 
     def hilbertdim(self) -> int:
         """
@@ -381,7 +381,7 @@ class VariationalTightBinding:
 
     def _build_premultiplied_a_a_dagger(self, a_operator_list: ndarray) -> Tuple[ndarray, ndarray, ndarray]:
         """Helper method for premultiplying creation and annihilation operators (multiplications are expensive)"""
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         a_a = np.array([a_operator_list[i] @ a_operator_list[i] for i in range(dim)])
         a_dagger_a = np.array([a_operator_list[i].T @ a_operator_list[i] for i in range(dim)])
         return a_operator_list, a_a, a_dagger_a
@@ -389,7 +389,7 @@ class VariationalTightBinding:
     def _build_single_exp_i_phi_j_operator(self, j: int, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
         r"""Returns operator :math:`\exp(i\phi_{j})`. If `j` specifies the boundary term, which is
         assumed to be the last junction, then that is constructed based on the boundary coefficients."""
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         if j == self.number_junctions - 1:
             exp_i_phi_j_a_component = expm(np.sum([self.boundary_coefficients[i] * 1j * Xi[i, k] * a_operator_list[k]
                                                   for i in range(dim) for k in range(dim)], axis=0) / np.sqrt(2.0))
@@ -412,7 +412,7 @@ class VariationalTightBinding:
         future construction of translation operators. The resulting matrices yield a 2pi translation
         in each degree of freedom, so that any translation can be built from these by an appropriate
         call to np.matrix_power"""
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         exp_a_list = np.array([expm(np.sum([2.0 * np.pi * Xi_inv.T[i, j] * a_operator_list[j] / np.sqrt(2.0)
                                     for j in range(dim)], axis=0)) for i in range(dim)])
         exp_a_dagger_list = np.array([expm(np.sum([2.0 * np.pi * Xi_inv.T[i, j] * a_operator_list[j].T / np.sqrt(2.0)
@@ -424,7 +424,7 @@ class VariationalTightBinding:
         """Helper method that performs matrix exponentiation to aid in the
         future construction of translation operators. This part of the translation operator accounts
         for the differing location of minima within a single unit cell."""
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         exp_a_minima_difference = expm(np.sum([-minima_diff[i] * Xi_inv.T[i, j] * a_operator_list[j] / np.sqrt(2.0)
                                                for i in range(dim) for j in range(dim)], axis=0))
         exp_a_dagger_minima_difference = expm(np.sum([minima_diff[i] * Xi_inv.T[i, j] * a_operator_list[j].T
@@ -436,7 +436,7 @@ class VariationalTightBinding:
                                            neighbor: ndarray) -> Tuple[ndarray, ndarray]:
         """Helper method that builds translation operators using matrix_power and the pre-exponentiated
         translation operators that define 2pi translations."""
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         exp_a_list, exp_a_dagger_list = exp_a_list
         exp_a_minima_difference, exp_a_dagger_minima_difference = exp_minima_difference
         individual_a_dagger_op = np.array([matrix_power(exp_a_dagger_list[j], int(neighbor[j])) for j in range(dim)])
@@ -453,7 +453,7 @@ class VariationalTightBinding:
 
     def _BCH_factor_for_potential_boundary(self, Xi: ndarray) -> ndarray:
         """BCH factor obtained from the last potential operator"""
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         return np.exp(-0.25*np.sum([self.boundary_coefficients[j] * self.boundary_coefficients[k]
                                    * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim) for k in range(dim)]))
 
@@ -535,7 +535,7 @@ class VariationalTightBinding:
 
     def _local_charge_operator(self, j: int, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
                                Xi_inv: ndarray, phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         constant_coefficient = -0.5 * 1j * (Xi_inv.T @ Xi_inv @ (phi_neighbor + minima_p - minima_m))[j]
         return (-(1j/np.sqrt(2.0)) * np.sum([Xi_inv.T[j, mu] * (a[mu] - a[mu].T) for mu in range(dim)], axis=0)
@@ -543,7 +543,7 @@ class VariationalTightBinding:
 
     def _local_phi_operator(self, j: int, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
                             Xi: ndarray, phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         constant_coefficient = 0.5 * (phi_neighbor + (minima_m + minima_p))
         return ((1.0/np.sqrt(2.0)) * np.sum([Xi[j, mu] * (a[mu] + a[mu].T) for mu in range(dim)], axis=0)
@@ -552,14 +552,14 @@ class VariationalTightBinding:
     def _exp_i_phi_j_operators_with_phi_bar(self, exp_i_phi_j: ndarray, phi_bar: ndarray) -> Tuple[ndarray, ndarray]:
         """Returns exp_i_phi_j operators including the local contribution of phi_bar"""
         exp_i_phi_j_without_boundary = np.array([exp_i_phi_j[i] * np.exp(1j * phi_bar[i])
-                                                 for i in range(self.number_degrees_freedom)])
+                                                 for i in range(self.number_periodic_degrees_freedom)])
         exp_i_sum_phi = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
                          * np.exp(1j * self.boundary_coefficients @ phi_bar))
         return exp_i_phi_j_without_boundary, exp_i_sum_phi
 
     def _local_exp_i_phi_operator(self, j: int, exp_i_phi_j: ndarray, phi_neighbor: ndarray,
                                   minima_m: ndarray, minima_p: ndarray) -> ndarray:
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
         exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
         if j == dim:
@@ -577,7 +577,7 @@ class VariationalTightBinding:
         delta_phi_rotated = Xi_inv @ delta_phi
         kinetic_matrix = np.sum([EC_mat_t[i, i]*(-0.5*4*a_a[i] - 0.5*4*a_a[i].T + 0.5*8*a_dagger_a[i]
                                                  - 4*(a[i] - a[i].T)*delta_phi_rotated[i]/np.sqrt(2.0))
-                                 for i in range(self.number_degrees_freedom)], axis=0)
+                                 for i in range(self.number_periodic_degrees_freedom)], axis=0)
         identity_coefficient = 0.5*4*np.trace(EC_mat_t) - 0.25*4*delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
         kinetic_matrix = kinetic_matrix + identity_coefficient*self.identity()
         return kinetic_matrix
@@ -633,7 +633,9 @@ class VariationalTightBinding:
         operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex128)
         minima_list_with_index = zip(minima_list, [m for m in range(len(minima_list))])
         all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
-        for (minima_m, m), (minima_p, p) in all_minima_pairs:
+        for (minima_m_total, m), (minima_p_total, p) in all_minima_pairs:
+            minima_m = minima_m_total[:self.number_extended_degrees_freedom]
+            minima_p = minima_p_total[:self.number_extended_degrees_freedom]
             matrix_element = self._periodic_continuation_for_minima_pair(minima_m, minima_p,
                                                                          self.nearest_neighbors[str(m)+str(p)],
                                                                          func, exp_a_list, Xi_inv, a_operator_list)
@@ -740,10 +742,10 @@ class VariationalTightBinding:
     def _normalize_minimum_inside_pi_range(self, minimum: ndarray) -> ndarray:
         """Helper method for defining the unit cell from -pi to pi rather than the less symmetric 0 to 2pi"""
         num_extended = self.number_extended_degrees_freedom
-        extended_coordinates = minimum[0:num_extended]
-        periodic_coordinates = np.mod(minimum, 2*np.pi*np.ones_like(minimum))[num_extended:]
+        extended_coordinates = minimum[num_extended:]
+        periodic_coordinates = np.mod(minimum, 2*np.pi*np.ones_like(minimum))[:num_extended]
         periodic_coordinates = np.array([elem - 2*np.pi if elem > np.pi else elem for elem in periodic_coordinates])
-        return np.concatenate((extended_coordinates, periodic_coordinates))
+        return np.concatenate((periodic_coordinates, extended_coordinates))
 
     def _check_if_new_minima(self, new_minima: ndarray, minima_holder: List) -> bool:
         """Helper method for find_minima, checking if new_minima is already represented in minima_holder. If so,
@@ -751,8 +753,8 @@ class VariationalTightBinding:
         """
         num_extended = self.number_extended_degrees_freedom
         for minima in minima_holder:
-            extended_coordinates = np.array(minima[0:num_extended] - new_minima[0:num_extended])
-            periodic_coordinates = np.mod(minima - new_minima, 2*np.pi*np.ones_like(minima))[num_extended:]
+            extended_coordinates = np.array(minima[num_extended:] - new_minima[num_extended:])
+            periodic_coordinates = np.mod(minima - new_minima, 2*np.pi*np.ones_like(minima))[:num_extended]
             diff_array_bool_extended = [True if np.allclose(elem, 0.0, atol=1e-3) else False
                                         for elem in extended_coordinates]
             diff_array_bool_periodic = [True if (np.allclose(elem, 0.0, atol=1e-3)
@@ -775,7 +777,7 @@ class VariationalTightBinding:
         For tight-binding without squeezing, this is only done for the ansatz ground state wavefunction
         localized in the global minimum."""
         minima_list = self.sorted_minima()
-        self.optimized_lengths = np.ones((len(minima_list), self.number_degrees_freedom))
+        self.optimized_lengths = np.ones((len(minima_list), self.number_periodic_degrees_freedom))
         self._optimize_Xi_variational(0, minima_list[0])
         for minimum, _ in enumerate(minima_list):
             self.optimized_lengths[minimum] = self.optimized_lengths[0]
@@ -816,14 +818,14 @@ class VariationalTightBinding:
                                      * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv, neighbor,
                                                                       minimum_location, minimum_location)
                                     for neighbor in nearest_neighbors])
-                             for which_length in range(self.number_degrees_freedom)]
+                             for which_length in range(self.number_periodic_degrees_freedom)]
         transfer = np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
                            * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv, neighbor,
                                                             minimum_location, minimum_location)
                            for neighbor in nearest_neighbors])
         gradient_inner = [np.sum([self._gradient_one_state_local_inner_product(neighbor, Xi_inv, which_length)
                                   for neighbor in nearest_neighbors])
-                          for which_length in range(self.number_degrees_freedom)]
+                          for which_length in range(self.number_periodic_degrees_freedom)]
         inner = np.sum([self._exp_product_coefficient(neighbor, Xi_inv) for neighbor in nearest_neighbors])
         return np.real((inner * np.array(gradient_transfer) - transfer * np.array(gradient_inner)) / inner**2)
 
@@ -842,7 +844,7 @@ class VariationalTightBinding:
 
     def _one_state_exp_i_phi_j_operators(self, Xi: ndarray) -> ndarray:
         r"""Helper method for building :math:`\exp(i\phi_{j})` when no excitations are kept."""
-        dim = self.number_degrees_freedom
+        dim = self.number_periodic_degrees_freedom
         exp_factors = np.array([np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j])) for j in range(dim)])
         return np.append(exp_factors, self._BCH_factor_for_potential_boundary(Xi))
 
@@ -968,7 +970,7 @@ class VariationalTightBinding:
                                                     self.maximum_periodic_vector_length + 1), repeat=dim_periodic)
             neighbor = next(neighbors, -1)
             while neighbor != -1:
-                phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(dim_extended), neighbor))
+                phi_neighbor = 2.0 * np.pi * neighbor
                 phi_offset = phi_neighbor - minimum
                 state_amplitudes = self.state_amplitudes_function(i, evecs, which)
                 phi_1_with_offset = phi_1_vec + phi_offset[0]

@@ -1,18 +1,190 @@
+from functools import partial
 from itertools import product
 from typing import Dict, Any, List, Tuple
 
 import numpy as np
 from numpy import ndarray
 from scipy.optimize import minimize
-from scipy.linalg import expm, inv
+from scipy.linalg import expm, inv, eigh
 
-from scqubits import VariationalTightBindingSqueezing
+from scqubits import VariationalTightBindingSqueezing, Grid1d
 from scqubits.core import descriptors
 from scqubits.core.hashing import Hashing
 from scqubits.core.variationaltightbinding import VariationalTightBinding
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.zeropi import ZeroPiFunctions
+
+
+class ZeroPiVTBNew(ZeroPiFunctions, VariationalTightBinding,
+                   base.QubitBaseClass, serializers.Serializable):
+    def __init__(self,
+                 EJ: float,
+                 EL: float,
+                 ECJ: float,
+                 EC: float,
+                 ng: float,
+                 flux: float,
+                 num_exc: int,
+                 maximum_periodic_vector_length: int,
+                 grid: Grid1d,
+                 dEJ: float = 0.0,
+                 dCJ: float = 0.0,
+                 truncated_dim: int = None,
+                 phi_extent: int = 10,
+                 **kwargs
+                 ) -> None:
+        ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
+        VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
+                                         number_degrees_freedom=2, number_periodic_degrees_freedom=1,
+                                         number_junctions=2, **kwargs)
+        self.EJ = EJ
+        self.EL = EL
+        self.ECJ = ECJ
+        self.EC = EC
+        self.ng = ng
+        self.flux = flux
+        self.phi_extent = phi_extent
+        self.grid = grid
+        self.dEJ = dEJ
+        self.dCJ = dCJ
+        self.truncated_dim = truncated_dim
+        self._sys_type = type(self).__name__
+        self._evec_dtype = np.complex_
+
+    @staticmethod
+    def default_params() -> Dict[str, Any]:
+        return {
+            'EJ': 10.0,
+            'EL': 0.04,
+            'ECJ': 20.0,
+            'EC': 0.04,
+            'dEJ': 0.0,
+            'dCJ': 0.0,
+            'ng': 0.1,
+            'flux': 0.23,
+            'num_exc': 5,
+            'maximum_periodic_vector_length': 8,
+            'truncated_dim': 10
+        }
+
+    @property
+    def nglist(self):
+        return np.array([self.ng])
+
+    @property
+    def EJlist(self):
+        return np.array([self.EJ, self.EJ])
+
+    def build_capacitance_matrix(self) -> ndarray:
+        dim = self.number_degrees_freedom
+        C_matrix = np.zeros((dim, dim))
+
+        C = self.e**2 / (2. * self.EC)
+        CJ = self.e**2 / (2. * self.ECJ)
+
+        C_matrix[0, 0] = 2 * (C + CJ)
+        C_matrix[1, 1] = 2 * CJ
+        C_matrix[0, 1] = C_matrix[1, 0] = 4 * self.dCJ
+
+        return np.array([[C_matrix[0, 0]]])
+
+    def build_EC_matrix(self) -> ndarray:
+        return 0.5 * self.e**2 * inv(self.build_capacitance_matrix())
+
+    def _check_second_derivative_positive(self, phi: ndarray, theta: ndarray) -> bool:
+        return (self.EL + 2 * self.EJ * np.cos(theta) * np.cos(phi - np.pi * self.flux)) > 0
+
+    def _append_new_minima(self, result: ndarray, minima_holder: List) -> List:
+        new_minimum = self._check_if_new_minima(result, minima_holder)
+        if new_minimum:
+            minima_holder.append(np.array([result[0], np.mod(result[1], 2 * np.pi)]))
+        return minima_holder
+
+    def find_minima(self) -> ndarray:
+        minima_holder = []
+        guess = np.array([0.01, 0.01])
+        result = minimize(self.potential, guess)
+        minima_holder.append(np.array([result.x[0], np.mod(result.x[1], 2 * np.pi)]))
+        for m in range(1, self.phi_extent):
+            guesses = product(np.array([np.pi * m, -np.pi * m]), np.array([0.0, np.pi]))
+            for guess in guesses:
+                result = minimize(self.potential, guess)
+                minima_holder = self._append_new_minima(result.x, minima_holder)
+        return np.array(minima_holder)
+
+    def sorted_minima(self) -> ndarray:
+        _, sorted_minima_holder = self._sorted_potential_values_and_minima()
+        minimum_0 = sorted_minima_holder[0]
+        minimum_pi = sorted_minima_holder[1]
+        assert np.allclose(minimum_0[0], 0.0, atol=1e-6)
+        assert np.allclose(minimum_pi[0], np.pi, atol=1e-6)
+        return np.array([minimum_0, minimum_pi])
+
+    def _build_all_exp_i_phi_j_operators(self, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
+        dim = self.number_periodic_degrees_freedom
+        BCH_coeff = np.exp(-0.25 * np.dot(Xi[0, :], Xi.T[:, 0]))
+        exp_i_phi_j_a_component = expm(np.sum([1j * Xi[0, k] * a_operator_list[k]
+                                               for k in range(dim)], axis=0) / np.sqrt(2.0))
+        return np.array([BCH_coeff * exp_i_phi_j_a_component.T @ exp_i_phi_j_a_component])
+
+    def build_gamma_matrix(self, minimum: int = 0) -> ndarray:
+        dim = self.number_degrees_freedom
+        gamma_matrix = np.zeros((dim, dim))
+        min_loc = self.sorted_minima()[minimum]
+        theta_location = min_loc[0]
+        phi_location = min_loc[1]
+        gamma_matrix[0, 0] = (2 * self.EJ * np.cos(phi_location - np.pi * self.flux) * np.cos(theta_location)
+                              - 2 * self.dEJ * np.sin(theta_location) * np.sin(phi_location - np.pi * self.flux))
+        gamma_matrix[1, 1] = (2 * self.EL + 2 * self.EJ * np.cos(phi_location - np.pi * self.flux)
+                              * np.cos(theta_location) - 2 * self.dEJ * np.sin(theta_location)
+                              * np.sin(phi_location - np.pi * self.flux))
+        off_diagonal_term = (-2 * self.EJ * np.sin(phi_location - np.pi * self.flux) * np.sin(theta_location)
+                             + 2 * self.EL * phi_location + 2 * self.dEJ * np.cos(theta_location)
+                             * np.cos(phi_location - np.pi * self.flux))
+        gamma_matrix[1, 0] = off_diagonal_term
+        gamma_matrix[0, 1] = off_diagonal_term
+        return np.array([[gamma_matrix[0, 0]]])/self.Phi0**2
+
+    def _local_potential(self, exp_i_phi_list: ndarray, premultiplied_a_and_a_dagger: Tuple,
+                         Xi: ndarray, phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        exp_i_phi_j = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_list, phi_bar)
+        return 0.5 * (exp_i_phi_j[0] + exp_i_phi_j[0].conj().T)
+
+    def _exp_i_phi_j_operators_with_phi_bar(self, exp_i_phi_j: ndarray, phi_bar: ndarray):
+        """Returns exp_i_phi_j operators including the local contribution of phi_bar"""
+        exp_i_phi_j_without_boundary = np.array([exp_i_phi_j[i] * np.exp(1j * phi_bar[i])
+                                                 for i in range(self.number_periodic_degrees_freedom)])
+        return exp_i_phi_j_without_boundary
+
+    def hamiltonian_and_inner(self):
+        kinetic_theta = self.kinetic_matrix()
+        potential_theta = self.potential_matrix()
+        inner_product_theta = self.inner_product_matrix()
+
+        pt_count = self.grid.pt_count
+        grid_linspace = self.grid.make_linspace()
+        identity_phi = np.eye(pt_count)
+        kinetic_matrix_phi = self.grid.second_derivative_matrix(prefactor=-2.0 * self.ECJ).toarray()
+        phi_inductive_vals = self.EL * np.square(grid_linspace)
+        phi_inductive_potential = np.diag(phi_inductive_vals)
+        phi_cos_vals = np.cos(grid_linspace - 2.0 * np.pi * self.flux / 2.0)
+        phi_cos_potential = np.diag(phi_cos_vals)
+
+        kinetic = np.kron(inner_product_theta, kinetic_matrix_phi) + np.kron(kinetic_theta, identity_phi)
+        potential = np.kron(inner_product_theta, phi_inductive_potential)
+        potential += 2.0 * self.EJ * (np.kron(inner_product_theta, identity_phi)
+                                      - np.kron(potential_theta, phi_cos_potential))
+        return kinetic + potential, np.kron(inner_product_theta, identity_phi)
+
+    def _evals_calc(self, evals_count=6):
+        transfer_matrix, inner_product_matrix = self.hamiltonian_and_inner()
+        return eigh(transfer_matrix, b=inner_product_matrix, eigvals_only=True, eigvals=(0, evals_count - 1))
+
+    def _esys_calc(self, evals_count=6):
+        transfer_matrix, inner_product_matrix = self.hamiltonian_and_inner()
+        return eigh(transfer_matrix, b=inner_product_matrix, eigvals_only=False, eigvals=(0, evals_count - 1))
 
 
 class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,

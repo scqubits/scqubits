@@ -57,8 +57,8 @@ class ZeroPiFunctions:
         -------
             value of the potential energy evaluated at phi, theta
         """
-        phi = phi_theta[0]
-        theta = phi_theta[1]
+        theta = phi_theta[0]
+        phi = phi_theta[1]
         return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
                 + self.EL * phi ** 2 + 2.0 * self.EJ
                 + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))

@@ -43,7 +43,7 @@ from scqubits.core.current_mirror_vtb import CurrentMirrorVTB, CurrentMirrorVTBG
 from scqubits.core.current_mirror_vtb import CurrentMirrorVTBSqueezing, CurrentMirrorVTBGlobalSqueezing
 from scqubits.core.flux_qubit_vtb import FluxQubitVTB, FluxQubitVTBGlobal
 from scqubits.core.flux_qubit_vtb import FluxQubitVTBSqueezing, FluxQubitVTBGlobalSqueezing
-from scqubits.core.zero_pi_vtb import ZeroPiVTB, ZeroPiVTBGlobal, ZeroPiVTBSqueezing
+from scqubits.core.zero_pi_vtb import ZeroPiVTB, ZeroPiVTBGlobal, ZeroPiVTBSqueezing, ZeroPiVTBNew
 from scqubits.core.transmon_vtb import TransmonVTB
 # file IO
 from scqubits.io_utils.fileio import read, write
