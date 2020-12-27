@@ -12,7 +12,6 @@
 
 import numpy as np
 
-import scqubits as scq
 from scqubits import FluxQubit
 from scqubits.tests.conftest import StandardTests
 

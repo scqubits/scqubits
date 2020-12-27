@@ -12,7 +12,7 @@
 import cmath
 import math
 import os
-from typing import Any, Dict, List, Tuple, Union, TYPE_CHECKING
+from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
 
 import numpy as np
 import scipy as sp

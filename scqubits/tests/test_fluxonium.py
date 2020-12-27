@@ -11,7 +11,6 @@
 ############################################################################
 
 import numpy as np
-import scqubits as scq
 
 from scqubits import Fluxonium
 from scqubits.tests.conftest import StandardTests

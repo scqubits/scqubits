@@ -15,7 +15,7 @@ Provides the base classes for qubits
 import functools
 import inspect
 from abc import ABC, ABCMeta, abstractmethod
-from typing import Tuple, Union, Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,7 +30,7 @@ import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
-from scqubits.core.storage import SpectrumData, DataStore
+from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.settings import IN_IPYTHON
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, drop_private_keys, process_which
@@ -87,7 +87,9 @@ class QuantumSystem(DispatchClient, ABC):
         output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())
         return output
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any):
+        if not isinstance(other, type(self)):
+            return False
         return self.__dict__ == other.__dict__
 
     def __hash__(self):
