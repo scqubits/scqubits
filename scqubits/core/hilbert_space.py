@@ -12,13 +12,13 @@
 import functools
 import warnings
 import weakref
-from typing import Any, Callable, Dict, Iterator, Optional, Tuple, List, Union, TYPE_CHECKING
+from typing import Any, Callable, Dict, Iterator, List, Optional, TYPE_CHECKING, Tuple, Union
 
 import numpy as np
 import qutip as qt
 from numpy import ndarray
-from scipy.sparse import csc_matrix, dia_matrix
 from qutip.qobj import Qobj
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
