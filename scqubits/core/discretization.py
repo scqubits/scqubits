@@ -22,7 +22,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.misc as utils
 
-
 FIRST_STENCIL_COEFFS: Dict[int, List[float]] = {
     3: [-1/2, 0.0, 1/2],
     5: [1/12, -2/3, 0.0, 2/3, -1/12],
@@ -117,7 +116,9 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
 
-    def __eq__(self, other: 'Grid1d') -> bool:
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, type(self)):
+            return False
         return self.__dict__ == other.__dict__
 
     def __hash__(self):
