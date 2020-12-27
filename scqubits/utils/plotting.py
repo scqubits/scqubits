@@ -13,7 +13,7 @@ import functools
 import operator
 import os
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, TYPE_CHECKING
+from typing import Any, Callable, Dict, Iterable, List, TYPE_CHECKING, Tuple, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
