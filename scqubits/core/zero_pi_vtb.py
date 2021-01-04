@@ -348,7 +348,7 @@ class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
                                                       delta_rho_matrices: Tuple, exp_i_phi_list: ndarray
                                                       ) -> ndarray:
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = delta_rho_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         boundary_coeffs = np.array([(-1)**j, 1])
         arg_exp_a_dag = (delta_phi @ Xi_inv.T + 1j * (boundary_coeffs @ Xi)) / np.sqrt(2.)
         alpha = self._alpha_helper(arg_exp_a_dag, -arg_exp_a_dag.conjugate(), rho_prime, delta_rho)
@@ -377,7 +377,7 @@ class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
         dim = self.number_degrees_freedom
         delta_phi = phi_neighbor + minima_p - minima_m
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar, zp, zpp = delta_rho_matrices
+        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         potential_matrix_minima_pair, xa, dx, xa_coefficient, dx_coefficient = minima_pair_results
         alpha, epsilon = self._construct_potential_alpha_epsilon_squeezing(Xi, Xi_inv, delta_phi,
                                                                            rho_prime, delta_rho, phi_bar)
