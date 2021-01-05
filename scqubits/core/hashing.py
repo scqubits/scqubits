@@ -1,5 +1,5 @@
 import itertools
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Optional
 
 import numpy as np
 from numpy import ndarray
@@ -122,14 +122,17 @@ class Hashing:
             if vec[i] >= 1:
                 temp_coefficient = np.sqrt(vec[i])
                 basis_index = self._find_lowered_vector(vec, i, tags, index_array)
-                a[basis_index, w] = temp_coefficient
+                if basis_index is not None:  # Should not be the case here, only an issue for charge basis
+                    a[basis_index, w] = temp_coefficient
         return a
 
-    def _find_lowered_vector(self, vector: ndarray, i: int, tags: ndarray, index_array: ndarray) -> int:
+    def _find_lowered_vector(self, vector: ndarray, i: int, tags: ndarray, index_array: ndarray) -> Optional[int]:
         temp_vector = np.copy(vector)
         temp_vector[i] = vector[i] - 1
         temp_vector_tag = self._hash(temp_vector)
         index = np.searchsorted(tags, temp_vector_tag)
+        if not np.allclose(tags[index], temp_vector_tag):
+            return None
         basis_index = index_array[index]
         return basis_index
 

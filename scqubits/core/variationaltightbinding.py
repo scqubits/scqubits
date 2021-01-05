@@ -12,6 +12,7 @@ from numpy.linalg import matrix_power
 
 from scqubits.core import discretization, storage, descriptors
 import scqubits.core.constants as constants
+from scqubits.core.discretization import Grid1d
 from scqubits.core.operators import annihilation, operator_in_full_Hilbert_space
 from scqubits.core.hashing import generate_next_vector, reflect_vectors
 import scqubits.utils.plotting as plot
@@ -79,7 +80,8 @@ class VariationalTightBinding:
                  nearest_neighbors: dict = None,
                  harmonic_length_optimization: int = 0,
                  optimize_all_minima: int = 0,
-                 quiet: int = 0
+                 quiet: int = 0,
+                 grid: Grid1d = Grid1d(-6 * np.pi, 6 * np.pi, 200)
                  ) -> None:
         self.e = np.sqrt(4.0*np.pi*const.alpha)
         self.Z0 = 1. / (2 * self.e)**2
@@ -97,7 +99,7 @@ class VariationalTightBinding:
         self.optimize_all_minima = optimize_all_minima
         self.quiet = quiet
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
-        self.extended_grid = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
+        self.extended_grid = grid
         self.optimized_lengths = np.array([])
         self._evec_dtype = np.complex_
 
@@ -206,24 +208,24 @@ class VariationalTightBinding:
         """Helper function comparing minima separation for given minima pair"""
         return self._find_closest_periodic_minimum_for_given_minima(minima_pair, 0)
 
-    def _find_closest_periodic_minimum_for_given_minima(self, minima_pair: Tuple, minimum: int) -> ndarray:
+    def _find_closest_periodic_minimum_for_given_minima(self, minima_pair: Tuple, minimum: int) -> float:
         """Helper function comparing minima separation for given minima pair, along with the specification
         that we would like to use the Xi matrix as defined for `minimum`"""
         (minima_m, m), (minima_p, p) = minima_pair
         nearest_neighbors = self.nearest_neighbors[str(m)+str(p)]
         if nearest_neighbors is None or np.allclose(nearest_neighbors, [np.zeros(self.number_degrees_freedom)]):
-            return np.array([0.0])
+            return 0.0
         Xi_inv = inv(self.Xi_matrix(minimum=minimum))
         delta_inv = Xi_inv.T @ Xi_inv
         if m == p:  # Do not include equivalent minima in the same unit cell
             nearest_neighbors = np.array([vec for vec in nearest_neighbors if not np.allclose(vec, np.zeros_like(vec))])
-        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_p - minima_m)) / 2.0
-                                     for vec in nearest_neighbors])
+        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_p - minima_m))
+                                     for vec in nearest_neighbors]) / 2.0
         minima_vectors = np.array([2.0 * np.pi * vec + (minima_p - minima_m)
                                    for i, vec in enumerate(nearest_neighbors)])
         minima_unit_vectors = np.array([minima_vectors[i] / minima_distances[i] for i in range(len(minima_distances))])
-        harmonic_lengths = np.array([4.0*(unit_vec @ delta_inv @ unit_vec)**(-1/2)
-                                     for unit_vec in minima_unit_vectors])
+        harmonic_lengths = 3.0 * np.array([(unit_vec @ delta_inv @ unit_vec)**(-1/2)
+                                           for unit_vec in minima_unit_vectors])
         return np.max(harmonic_lengths / minima_distances)
 
     def Xi_matrix(self, minimum: int = 0) -> ndarray:
@@ -957,9 +959,12 @@ class VariationalTightBinding:
         phi_2_grid = self.periodic_grid
         phi_2_vec = phi_2_grid.make_linspace()
 
-        if dim_extended != 0:
+        if dim_extended == 1:
             phi_1_grid = self.extended_grid
             phi_1_vec = phi_1_grid.make_linspace()
+        if dim_extended == 2:
+            phi_2_grid = self.extended_grid
+            phi_2_vec = phi_1_grid.make_linspace()
 
         wavefunction_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec), dtype=np.complex_).T
 
@@ -1024,4 +1029,5 @@ class VariationalTightBinding:
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunction = self.wavefunction(esys, which=which)
         wavefunction.amplitudes = amplitude_modifier(wavefunction.amplitudes)
-        return plot.wavefunction2d(wavefunction, zero_calibrate=zero_calibrate, **kwargs)
+        return plot.wavefunction2d(wavefunction, zero_calibrate=zero_calibrate,
+                                   xlabel=r'$\phi$', ylabel=r'$\theta$', **kwargs)

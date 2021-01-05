@@ -35,8 +35,8 @@ class HashingChargeBasis(Hashing):
         num_states = len(tags)
         row, col, data = [], [], []
         for w, vector in enumerate(basis_vectors):
-            if vector[j] != -self.global_exc:
-                basis_index = self._find_lowered_vector(vector, j, tags, index_array)
+            basis_index = self._find_lowered_vector(vector, j, tags, index_array)
+            if basis_index is not None:
                 row.append(basis_index)
                 col.append(w)
                 data.append(1.0)
