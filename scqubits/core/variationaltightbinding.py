@@ -18,7 +18,7 @@ from scqubits.core.hashing import generate_next_vector, reflect_vectors
 import scqubits.utils.plotting as plot
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.spectrum_utils import order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ, \
-    standardize_phases, standardize_sign
+    standardize_phases
 
 
 class VariationalTightBinding:
@@ -164,10 +164,7 @@ class VariationalTightBinding:
         g_matrix = self.build_gamma_matrix(minimum)
 
         omega_squared, normal_mode_eigenvectors = eigh(g_matrix, b=C_matrix)
-        standardized_normal_mode_eigenvectors = np.zeros_like(normal_mode_eigenvectors)
-        for j, eigenvec in enumerate(normal_mode_eigenvectors.T):
-            standardized_normal_mode_eigenvectors[:, j] = standardize_sign(eigenvec)
-        return omega_squared, standardized_normal_mode_eigenvectors
+        return omega_squared, normal_mode_eigenvectors
 
     def omega_matrix(self, minimum: int = 0) -> ndarray:
         """Returns a diagonal matrix of the normal mode frequencies of a given minimum
@@ -204,7 +201,7 @@ class VariationalTightBinding:
         all_minima_pairs = itertools.combinations_with_replacement(minima_list_with_index, 2)
         return np.array([function(minima_pair) for minima_pair in all_minima_pairs], dtype=object)
 
-    def _find_closest_periodic_minimum(self, minima_pair: Tuple) -> ndarray:
+    def _find_closest_periodic_minimum(self, minima_pair: Tuple) -> float:
         """Helper function comparing minima separation for given minima pair"""
         return self._find_closest_periodic_minimum_for_given_minima(minima_pair, 0)
 
