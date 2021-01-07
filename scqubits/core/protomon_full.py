@@ -62,7 +62,7 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         self.phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 90)
         self.theta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 110)
-        self.zeta_cut = 5
+        self.zeta_cut = 10
         self.ph = 0  # placeholder
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
