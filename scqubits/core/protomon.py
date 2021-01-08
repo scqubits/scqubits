@@ -780,3 +780,102 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
                                 eigsys[0][j] - eigsys[0][i] - w_readout))
 
         return ds_table * factor ** 2
+
+
+    def get_t1_capacitive_loss_channel(self, init_state):
+        """
+        T1 capacitive loss of one particular state
+        """
+        cutoff = init_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[init_state] - energy
+        energy_diff = np.delete(energy_diff, init_state)
+
+        matelem_1 = self.get_matelements_vs_paramvals('charge_jj_1_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[0,
+                    init_state, :]
+        matelem_1 = np.delete(matelem_1, init_state)
+        matelem_2 = self.get_matelements_vs_paramvals('charge_jj_2_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[0,
+                    init_state, :]
+        matelem_2 = np.delete(matelem_2, init_state)
+
+        s_vv_1 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        s_vv_2 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+
+        gamma1_cap_1 = np.abs(matelem_1) ** 2 * s_vv_1
+        gamma1_cap_2 = np.abs(matelem_2) ** 2 * s_vv_2
+
+        gamma1_cap_tot = gamma1_cap_1 + gamma1_cap_2
+        return 1 / (gamma1_cap_tot) * 1e-6
+
+    def get_t1_inductive_loss_channel(self, init_state):
+        """
+        T1 inductive loss of one particular state
+        """
+        cutoff = init_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[init_state] - energy
+        energy_diff = np.delete(energy_diff, init_state)
+
+        matelem_1 = self.get_matelements_vs_paramvals('phase_ind_1_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[
+                    0, init_state, :]
+        matelem_1 = np.delete(matelem_1, init_state)
+        matelem_2 = self.get_matelements_vs_paramvals('phase_ind_2_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[
+                    0, init_state, :]
+        matelem_2 = np.delete(matelem_2, init_state)
+        matelem_a = self.get_matelements_vs_paramvals('phase_ind_a_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[
+                    0, init_state, :]
+        matelem_a = np.delete(matelem_a, init_state)
+
+        s_ii_1 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        s_ii_2 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+
+        gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
+        gamma1_ind_2 = np.abs(matelem_2) ** 2 * s_ii_2
+        gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
+
+        gamma1_ind_tot = gamma1_ind_1 + gamma1_ind_2 + gamma1_ind_a
+        return 1 / (gamma1_ind_tot) * 1e-6
+
+    def get_t1_qp_loss_channel(self, init_state):
+        """
+        T1 quasiparticle loss of one particular state
+        """
+        cutoff = init_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[init_state] - energy
+        energy_diff = np.delete(energy_diff, init_state)
+
+        matelem_1 = self.get_matelements_vs_paramvals('sin_phase_jj_1_2_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[
+                    0, init_state, :]
+        matelem_1 = np.delete(matelem_1, init_state)
+        matelem_2 = self.get_matelements_vs_paramvals('sin_phase_jj_2_2_operator', 'ph', [0],
+                                                      evals_count=cutoff).matrixelem_table[
+                    0, init_state, :]
+        matelem_2 = np.delete(matelem_2, init_state)
+
+        s_qp_1 = self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_qp_2 = self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+
+        gamma1_qp_1 = np.abs(matelem_1) ** 2 * s_qp_1
+        gamma1_qp_2 = np.abs(matelem_2) ** 2 * s_qp_2
+
+        gamma1_qp_tot = gamma1_qp_1 + gamma1_qp_2
+        return 1 / (gamma1_qp_tot) * 1e-6
+
+    def get_noise_channel(self, init_state):
+        inductive_loss = self.get_t1_inductive_loss_channel(init_state)
+        capacitive_loss = self.get_t1_capacitive_loss_channel(init_state)
+        qp_loss = self.get_t1_qp_loss_channel(init_state)
+
+        return 1/(1/inductive_loss + 1/capacitive_loss + 1/qp_loss)
