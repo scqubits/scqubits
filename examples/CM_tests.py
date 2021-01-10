@@ -40,7 +40,7 @@ specdata_1 = CMV.eigenvals(evals_count=12, filename='../scqubits/tests/data/curr
 read_1 = qubit.read(filename='../scqubits/tests/data/currentmirrorvtb_1.hdf5')
 read_1.add_data(transfer_matrix=CMV.transfer_matrix())
 read_1.add_data(sorted_minima=CMV.sorted_minima())
-read_1.add_data(gamma_matrix=CMV.build_gamma_matrix())
+read_1.add_data(gamma_matrix=CMV.gamma_matrix())
 read_1.add_data(eigensystem_normal_modes=CMV.eigensystem_normal_modes())
 read_1.add_data(Xi_matrix=CMV.Xi_matrix())
 read_1.add_data(nearest_neighbors=CMV.nearest_neighbors)

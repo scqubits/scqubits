@@ -3,19 +3,14 @@ from typing import Any, Dict, Tuple
 import numpy as np
 from numpy import ndarray
 
-import scqubits.core.descriptors as descriptors
-import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.core.qubit_base as base
-from scqubits import VariationalTightBinding
+import scqubits.io_utils.fileio_serializers as serializers
+from scqubits import Transmon, VTBBaseMethods
 
 
 # -Transmon using VariationalTightBinding
 
-class TransmonVTB(VariationalTightBinding, base.QubitBaseClass, serializers.Serializable):
-    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
+class TransmonVTB(VTBBaseMethods, Transmon, base.QubitBaseClass, serializers.Serializable):
     def __init__(self,
                  EJ: float,
                  EC: float,
@@ -25,14 +20,29 @@ class TransmonVTB(VariationalTightBinding, base.QubitBaseClass, serializers.Seri
                  truncated_dim: int = None,
                  **kwargs
                  ) -> None:
-        VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
-                                         number_degrees_freedom=1, number_periodic_degrees_freedom=1,
-                                         number_junctions=1, **kwargs)
-        self.EJ = EJ
-        self.EC = EC
-        self.ng = ng
-        self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
+        VTBBaseMethods.__init__(self, num_exc, maximum_periodic_vector_length,
+                                number_degrees_freedom=1, number_periodic_degrees_freedom=1,
+                                number_junctions=1, **kwargs)
+        Transmon.__init__(self, EJ, EC, ng, 0, truncated_dim)
+        delattr(self, 'ncut')
+
+    def set_EJlist(self, EJlist) -> None:
+        self.EJ = EJlist[0]
+        self.__dict__['EJlist'] = EJlist
+
+    def get_EJlist(self) -> ndarray:
+        return np.array([self.EJ])
+
+    EJlist = property(get_EJlist, set_EJlist)
+
+    def set_nglist(self, nglist) -> None:
+        self.ng = nglist[0]
+        self.__dict__['nglist'] = nglist
+
+    def get_nglist(self) -> ndarray:
+        return np.array([self.ng])
+
+    nglist = property(get_nglist, set_nglist)
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -43,10 +53,12 @@ class TransmonVTB(VariationalTightBinding, base.QubitBaseClass, serializers.Seri
             'truncated_dim': 10
         }
 
-    def build_gamma_matrix(self, minimum: int = 0) -> ndarray:
+    def gamma_matrix(self, minimum: int = 0) -> ndarray:
         gamma_matrix = np.array([[0.0]])
         min_loc = self.sorted_minima()[minimum]
-        gamma_list = self.EJlist / self.Phi0 ** 2
+        e_charge = 1.0
+        Phi0 = 1. / (2 * e_charge)
+        gamma_list = self.EJlist / Phi0 ** 2
         gamma_matrix[0, 0] = gamma_list[0] * np.cos(min_loc[0])
         return gamma_matrix
 
@@ -58,14 +70,11 @@ class TransmonVTB(VariationalTightBinding, base.QubitBaseClass, serializers.Seri
         potential_matrix += self.EJlist[0] * self.identity()
         return potential_matrix
 
-    def potential(self, phi: ndarray) -> ndarray:
-        return -self.EJ * np.cos(phi[0])
-
-    def build_EC_matrix(self)-> ndarray:
+    def EC_matrix(self) -> ndarray:
         return np.array([[self.EC]])
 
-    def build_capacitance_matrix(self) -> ndarray:
-        return np.array([[self.e**2 / (2 * self.EC)]])
+    def capacitance_matrix(self) -> ndarray:
+        return np.array([[1.0 / (2 * self.EC)]])
 
     def sorted_minima(self) -> ndarray:
         return np.array([[0.0]])

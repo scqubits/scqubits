@@ -22,7 +22,7 @@ specdata_1 = ZPV.eigenvals(evals_count=12, filename='../scqubits/tests/data/zero
 read_1 = qubit.read(filename='../scqubits/tests/data/zeropivtb_1.hdf5')
 read_1.add_data(transfer_matrix=ZPV.transfer_matrix())
 read_1.add_data(sorted_minima=ZPV.sorted_minima())
-read_1.add_data(gamma_matrix=ZPV.build_gamma_matrix())
+read_1.add_data(gamma_matrix=ZPV.gamma_matrix())
 read_1.add_data(eigensystem_normal_modes=ZPV.eigensystem_normal_modes())
 read_1.add_data(Xi_matrix=ZPV.Xi_matrix())
 read_1.add_data(nearest_neighbors=ZPV.nearest_neighbors)

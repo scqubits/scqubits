@@ -87,7 +87,7 @@ specdata_1 = FQV.eigenvals(evals_count=12, filename='../scqubits/tests/data/flux
 read_1 = qubit.read(filename='../scqubits/tests/data/fluxqubitvtb_1.hdf5')
 read_1.add_data(transfer_matrix=FQV.transfer_matrix())
 read_1.add_data(sorted_minima=FQV.sorted_minima())
-read_1.add_data(gamma_matrix=FQV.build_gamma_matrix())
+read_1.add_data(gamma_matrix=FQV.gamma_matrix())
 read_1.add_data(eigensystem_normal_modes=FQV.eigensystem_normal_modes())
 read_1.add_data(Xi_matrix=FQV.Xi_matrix())
 read_1.add_data(nearest_neighbors=FQV.nearest_neighbors)

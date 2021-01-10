@@ -1,22 +1,21 @@
 from itertools import product
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 import numpy as np
+import scipy.constants as const
 from numpy import ndarray
-from scipy.optimize import minimize
 from scipy.linalg import expm, inv
+from scipy.optimize import minimize
 
-from scqubits import VariationalTightBindingSqueezing
-from scqubits.core import descriptors
-from scqubits.core.hashing import Hashing
-from scqubits.core.variationaltightbinding import VariationalTightBinding
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.zeropi import ZeroPiFunctions
+import scqubits.ui.qubit_widget as ui
+from scqubits import VTBBaseMethods, VTBBaseMethodsSqueezing, Grid1d
+from scqubits.core.hashing import Hashing
+from scqubits.core.zeropi import ZeroPi
 
 
-class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
-                base.QubitBaseClass, serializers.Serializable):
+class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Serializable):
     r""" Zero Pi using VTB
 
     See class ZeroPi for documentation on the qubit itself.
@@ -24,44 +23,47 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
     Initialize in the same way as for ZeroPi, however now `num_exc` and `maximum_periodic_vector_length`
     must be set. See VTB for explanation of other kwargs.
     """
-    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    dEJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    dCJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self,
                  EJ: float,
                  EL: float,
                  ECJ: float,
-                 EC: float,
+                 EC: Optional[float],
                  ng: float,
                  flux: float,
                  num_exc: int,
                  maximum_periodic_vector_length: int,
                  dEJ: float = 0.0,
                  dCJ: float = 0.0,
+                 ECS: float = None,
                  truncated_dim: int = None,
                  phi_extent: int = 10,
                  **kwargs
                  ) -> None:
-        ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
-        VariationalTightBinding.__init__(self, num_exc, maximum_periodic_vector_length,
-                                         number_degrees_freedom=2, number_periodic_degrees_freedom=1,
-                                         number_junctions=2, **kwargs)
-        self.EJ = EJ
-        self.EL = EL
-        self.ECJ = ECJ
-        self.EC = EC
-        self.ng = ng
-        self.flux = flux
+        ZeroPi.__init__(self, EJ, EL, ECJ, EC, ng, flux, Grid1d(1, 2, 3), 0, dEJ, dCJ, ECS, truncated_dim)
+        VTBBaseMethods.__init__(self, num_exc, maximum_periodic_vector_length,
+                                number_degrees_freedom=2, number_periodic_degrees_freedom=1,
+                                number_junctions=2, **kwargs)
         self.phi_extent = phi_extent
-        self.dEJ = dEJ
-        self.dCJ = dCJ
-        self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
+        delattr(self, 'grid')
+        delattr(self, 'ncut')
+
+    def set_EJlist(self, EJlist) -> None:
+        self.__dict__['EJlist'] = EJlist
+
+    def get_EJlist(self) -> ndarray:
+        return np.array([self.EJ, self.EJ])
+
+    EJlist = property(get_EJlist, set_EJlist)
+
+    def set_nglist(self, nglist) -> None:
+        self.ng = nglist[1]
+        self.__dict__['nglist'] = nglist
+
+    def get_nglist(self) -> ndarray:
+        return np.array([0.0, self.ng])
+
+    nglist = property(get_nglist, set_nglist)
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -76,32 +78,78 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
             'flux': 0.23,
             'num_exc': 5,
             'maximum_periodic_vector_length': 8,
+            'phi_extent': 10,
             'truncated_dim': 10
         }
 
-    @property
-    def nglist(self):
-        return np.array([0.0, self.ng])
+    def vtb_potential(self, phi_array: ndarray) -> ndarray:
+        """Helper method for converting potential method arguments"""
+        phi = phi_array[0]
+        theta = phi_array[1]
+        return self.potential(phi, theta)
 
-    @property
-    def EJlist(self):
-        return np.array([self.EJ, self.EJ])
+    @classmethod
+    def create(cls) -> 'ZeroPiVTB':
+        zeropivtb = cls(**cls.default_params())
+        zeropivtb.widget()
+        return zeropivtb
 
-    def build_capacitance_matrix(self) -> ndarray:
+    def widget(self, params: Dict[str, Any] = None):
+        """Use ipywidgets to modify parameters of class instance"""
+        init_params = params or self.get_initdata()
+        ui.create_widget(self.set_params, init_params, image_filename=self._image_filename)
+
+    def i_d_dphi_operator(self):
+        return self.n_operator(0)
+
+    def n_theta_operator(self):
+        return self.n_operator(1)
+
+    def cos_theta_operator(self):
+        raise NotImplementedError("Not Implemented yet for tight binding")
+
+    def sin_theta_operator(self):
+        raise NotImplementedError("Not Implemented yet for tight binding")
+
+    def supported_noise_channels(self) -> List[str]:
+        raise NotImplementedError("Not Implemented yet for tight binding")
+
+    def sparse_kinetic_mat(self):
+        raise NotImplementedError("Not relevant to tight binding")
+
+    def sparse_potential_mat(self):
+        raise NotImplementedError("Not relevant to tight binding")
+
+    def sparse_d_potential_d_flux_mat(self):
+        raise NotImplementedError("Not relevant to tight binding")
+
+    def d_hamiltonian_d_flux(self):
+        raise NotImplementedError("Not Implemented yet for tight binding")
+
+    def sparse_d_potential_d_EJ_mat(self):
+        raise NotImplementedError("Not relevant to tight binding")
+
+    def d_hamiltonian_d_EJ(self):
+        raise NotImplementedError("Not Implemented yet for tight binding")
+
+    def d_hamiltonian_d_ng(self):
+        raise NotImplementedError("Not Implemented yet for tight binding")
+
+    def capacitance_matrix(self) -> ndarray:
         dim = self.number_degrees_freedom
         C_matrix = np.zeros((dim, dim))
+        e_charge = np.sqrt(4.0 * np.pi * const.alpha)
 
-        C = self.e**2 / (2. * self.EC)
-        CJ = self.e**2 / (2. * self.ECJ)
-
+        CS = e_charge ** 2 / (2. * self.ECS)
+        CJ = e_charge ** 2 / (2. * self.ECJ)
         C_matrix[0, 0] = 2 * CJ
-        C_matrix[1, 1] = 2 * (C + CJ)
+        C_matrix[1, 1] = 2 * CS
         C_matrix[0, 1] = C_matrix[1, 0] = 4 * self.dCJ
-
         return C_matrix
 
-    def build_EC_matrix(self) -> ndarray:
-        return 0.5 * self.e**2 * inv(self.build_capacitance_matrix())
+    def EC_matrix(self) -> ndarray:
+        e_charge = np.sqrt(4.0 * np.pi * const.alpha)
+        return 0.5 * e_charge ** 2 * inv(self.capacitance_matrix())
 
     def _check_second_derivative_positive(self, phi: ndarray, theta: ndarray) -> bool:
         return (self.EL + 2 * self.EJ * np.cos(theta) * np.cos(phi - np.pi * self.flux)) > 0
@@ -115,19 +163,21 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
     def find_minima(self) -> ndarray:
         minima_holder = []
         guess = np.array([0.01, 0.01])
-        result = minimize(self.potential, guess)
+        result = minimize(self.vtb_potential, guess)
         minima_holder.append(np.array([result.x[0], np.mod(result.x[1], 2 * np.pi)]))
         for m in range(1, self.phi_extent):
             guesses = product(np.array([np.pi * m, -np.pi * m]), np.array([0.0, np.pi]))
             for guess in guesses:
-                result = minimize(self.potential, guess)
+                result = minimize(self.vtb_potential, guess)
                 minima_holder = self._append_new_minima(result.x, minima_holder)
         return np.array(minima_holder)
 
-    def build_gamma_matrix(self, minimum: int = 0) -> ndarray:
+    def gamma_matrix(self, minimum: int = 0) -> ndarray:
         dim = self.number_degrees_freedom
         gamma_matrix = np.zeros((dim, dim))
         min_loc = self.sorted_minima()[minimum]
+        e_charge = np.sqrt(4.0 * np.pi * const.alpha)
+        Phi0 = 1. / (2 * e_charge)
         phi_location = min_loc[0]
         theta_location = min_loc[1]
         gamma_matrix[0, 0] = (2 * self.EL + 2 * self.EJ * np.cos(phi_location - np.pi * self.flux)
@@ -140,7 +190,7 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
                              * np.cos(phi_location - np.pi * self.flux))
         gamma_matrix[1, 0] = off_diagonal_term
         gamma_matrix[0, 1] = off_diagonal_term
-        return gamma_matrix/self.Phi0**2
+        return gamma_matrix / (Phi0 ** 2)
 
     def _BCH_factor(self, j: int, Xi: ndarray) -> ndarray:
         dim = self.number_degrees_freedom
@@ -148,7 +198,7 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
         return np.exp(-0.25 * np.sum([boundary_coeffs[i] * boundary_coeffs[k] * np.dot(Xi[i, :], Xi.T[:, k])
                                       for i in range(dim) for k in range(dim)]))
 
-    def _build_single_exp_i_phi_j_operator(self, j: int, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
+    def _single_exp_i_phi_j_operator(self, j: int, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
         dim = self.number_degrees_freedom
         boundary_coeffs = np.array([(-1)**j, 1])
         exp_i_phi_theta_a_component = expm(np.sum([1j * boundary_coeffs[i] * Xi[i, k]
@@ -227,7 +277,7 @@ class ZeroPiVTB(ZeroPiFunctions, VariationalTightBinding,
         return potential_gradient
 
 
-class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
+class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
     def __init__(self,
                  EJ: float,
                  EL: float,
@@ -246,14 +296,14 @@ class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
         ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, num_exc, maximum_periodic_vector_length, dEJ=dEJ, dCJ=dCJ,
                            truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
 
-    def _build_potential_operators_squeezing(self, a_operator_list: ndarray, Xi: ndarray,
-                                             exp_a_dagger_a: ndarray,
-                                             disentangled_squeezing_matrices: Tuple,
-                                             delta_rho_matrices: Tuple) -> ndarray:
+    def _potential_operators_squeezing(self, a_operator_list: ndarray, Xi: ndarray,
+                                       exp_a_dagger_a: ndarray,
+                                       disentangled_squeezing_matrices: Tuple,
+                                       delta_rho_matrices: Tuple) -> ndarray:
         exp_i_list = []
         dim = self.number_degrees_freedom
-        prefactor_a, prefactor_a_dagger = self._build_potential_exp_prefactors(disentangled_squeezing_matrices,
-                                                                               delta_rho_matrices)
+        prefactor_a, prefactor_a_dagger = self._potential_exp_prefactors(disentangled_squeezing_matrices,
+                                                                         delta_rho_matrices)
         for j in range(dim):
             boundary_coeffs = np.array([(-1)**j, 1])
             exp_i_j_a_dagger_part = expm(np.sum([1j * boundary_coeffs[i]
@@ -308,8 +358,8 @@ class ZeroPiVTBSqueezing(VariationalTightBindingSqueezing, ZeroPiVTB):
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         linear_coefficients_potential = self._linear_coefficient_matrices(rho_prime, delta_rho,
                                                                           Xi / np.sqrt(2.0), Xi / np.sqrt(2.0))
-        return (self._build_potential_operators_squeezing(a_operator_list, Xi, exp_a_dagger_a,
-                                                          disentangled_squeezing_matrices, delta_rho_matrices),
+        return (self._potential_operators_squeezing(a_operator_list, Xi, exp_a_dagger_a,
+                                                    disentangled_squeezing_matrices, delta_rho_matrices),
                 self._minima_pair_potential_harmonic_squeezing(a_operator_list, exp_a_dagger_a,
                                                                disentangled_squeezing_matrices,
                                                                delta_rho_matrices, linear_coefficients_potential))

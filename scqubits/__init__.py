@@ -37,8 +37,8 @@ from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
 
 from scqubits.core.zeropi_nogrid import ZeroPiNoGrid
-from scqubits.core.variationaltightbinding import VariationalTightBinding
-from scqubits.core.variationaltightbindingsqueezing import VariationalTightBindingSqueezing
+from scqubits.core.vtbbasemethods import VTBBaseMethods
+from scqubits.core.vtbsqueezingbasemethods import VTBBaseMethodsSqueezing
 from scqubits.core.current_mirror_vtb import CurrentMirrorVTB, CurrentMirrorVTBGlobal
 from scqubits.core.current_mirror_vtb import CurrentMirrorVTBSqueezing, CurrentMirrorVTBGlobalSqueezing
 from scqubits.core.flux_qubit_vtb import FluxQubitVTB, FluxQubitVTBGlobal
