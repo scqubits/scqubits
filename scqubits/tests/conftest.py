@@ -212,7 +212,7 @@ class VTBTestFunctions(StandardTests):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
-        gamma_matrix = self.qbt.build_gamma_matrix()
+        gamma_matrix = self.qbt.gamma_matrix()
         reference_gamma_matrix = specdata.gamma_matrix
         assert np.allclose(reference_gamma_matrix, gamma_matrix)
 
@@ -319,7 +319,7 @@ class VTBTestFunctions(StandardTests):
         minima_list = self.qbt.sorted_minima()
         self.qbt.find_relevant_periodic_continuation_vectors()
         Xi = self.qbt.Xi_matrix()
-        EC_mat = self.qbt.build_EC_matrix()
+        EC_mat = self.qbt.EC_matrix()
         error = check_grad(self.qbt._evals_calc_variational,
                            self.qbt._gradient_evals_calc_variational,
                            np.ones(self.qbt.number_degrees_freedom), minima_list[0], 0, EC_mat, Xi)

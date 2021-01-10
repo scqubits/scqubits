@@ -44,46 +44,20 @@ class NoisyZeroPi(NoisySystem):
 
 # -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
 
-class ZeroPiFunctions:
-    def __init__(self, EJ, EL, flux, dEJ=0.):
-        self.EJ = EJ
-        self.EL = EL
-        self.flux = flux
-        self.dEJ = dEJ
-
-    def potential(self, phi_theta: ndarray) -> ndarray:
-        """
-        Returns
-        -------
-            value of the potential energy evaluated at phi, theta
-        """
-        phi = phi_theta[0]
-        theta = phi_theta[1]
-        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
-                + self.EL * phi ** 2 + 2.0 * self.EJ
-                + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
-
-
-class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
+class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     r"""Zero-Pi Qubit
-
     | [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
     | [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
     | [3] Groszkowski et al., New J. Phys. 20, 043053 (2018). https://doi.org/10.1088/1367-2630/aab7cd
-
     Zero-Pi qubit without coupling to the `zeta` mode, i.e., no disorder in `EC` and `EL`,
     see Eq. (4) in Groszkowski et al., New J. Phys. 20, 043053 (2018),
-
     .. math::
-
         H &= -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
                +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta
                -2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2\\
           &\qquad +2E_\text{J} + E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2).
-
     Formulation of the Hamiltonian matrix proceeds by discretization of the `phi` variable, and using charge basis for
     the `theta` variable.
-
     Parameters
     ----------
     EJ:
@@ -135,7 +109,6 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
                  ECS: float = None,
                  truncated_dim: int = 6
                  ) -> None:
-        ZeroPiFunctions.__init__(self, EJ, EL, flux, dEJ=dEJ)
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
@@ -192,7 +165,7 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
         return [
-                'tphi_1_over_f_cc', 
+                'tphi_1_over_f_cc',
                 'tphi_1_over_f_flux',
                 't1_flux_bias_line',
                 # 't1_capacitive',
@@ -250,10 +223,19 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
         """Returns Hilbert space dimension"""
         return self.grid.pt_count * (2 * self.ncut + 1)
 
-    def sparse_kinetic_mat(self):
+    def potential(self, phi: ndarray, theta: ndarray) -> ndarray:
+        """
+        Returns
+        -------
+            value of the potential energy evaluated at phi, theta
+        """
+        return (-2.0 * self.EJ * np.cos(theta) * np.cos(phi - 2.0 * np.pi * self.flux / 2.0)
+                + self.EL * phi ** 2 + 2.0 * self.EJ
+                + self.EJ * self.dEJ * np.sin(theta) * np.sin(phi - 2.0 * np.pi * self.flux / 2.0))
+
+    def sparse_kinetic_mat(self) -> csc_matrix:
         """
         Kinetic energy portion of the Hamiltonian.
-
         Returns
         -------
             matrix representing the kinetic energy operator
@@ -275,7 +257,6 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
     def sparse_potential_mat(self) -> csc_matrix:
         """
         Potential energy portion of the Hamiltonian.
-
         Returns
         -------
             matrix representing the potential energy operator
@@ -304,7 +285,6 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
 
     def hamiltonian(self) -> csc_matrix:
         """Calculates Hamiltonian in basis obtained by discretizing phi and employing charge basis for theta.
-
         Returns
         -------
             matrix representing the potential energy operator
@@ -314,11 +294,9 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
     def sparse_d_potential_d_flux_mat(self) -> csc_matrix:
         r"""Calculates a of the potential energy w.r.t flux, at the current value of flux,
         as stored in the object.
-
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
         So if \frac{\partial U}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
         by this function, needs to be multiplied by 1/\Phi_0.
-
         Returns
         -------
             matrix representing the derivative of the potential energy
@@ -332,11 +310,9 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
     def d_hamiltonian_d_flux(self) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
         as stored in the object.
-
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
         So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
         by this function, needs to be multiplied by 1/\Phi_0.
-
         Returns
         -------
             matrix representing the derivative of the Hamiltonian
@@ -345,7 +321,6 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
 
     def sparse_d_potential_d_EJ_mat(self) -> csc_matrix:
         r"""Calculates a of the potential energy w.r.t EJ.
-
         Returns
         -------
             matrix representing the derivative of the potential energy
@@ -355,7 +330,6 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
 
     def d_hamiltonian_d_EJ(self) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t EJ.
-
         Returns
         -------
             matrix representing the derivative of the Hamiltonian
@@ -365,7 +339,6 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
     def d_hamiltonian_d_ng(self) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
-
         Returns
         -------
             matrix representing the derivative of the Hamiltonian
@@ -418,7 +391,7 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
         n_theta_matrix = sparse.dia_matrix((diag_elements, [0]), shape=(dim_theta, dim_theta)).tocsc()
         return sparse.kron(self._identity_phi(), n_theta_matrix, format='csc')
 
-    def _sin_phi_operator(self, x: float=0) -> csc_matrix:
+    def _sin_phi_operator(self, x: float = 0) -> csc_matrix:
         r"""
         Operator :math:`\sin(\phi + x)`, acting only on the `\phi` Hilbert subspace.x
         """
@@ -428,7 +401,7 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
         sin_phi_matrix = sparse.dia_matrix((vals, [0]), shape=(pt_count, pt_count)).tocsc()
         return sin_phi_matrix
 
-    def _cos_phi_operator(self, x: float=0) -> csc_matrix:
+    def _cos_phi_operator(self, x: float = 0) -> csc_matrix:
         r"""
         Operator :math:`\cos(\phi + x)`, acting only on the `\phi` Hilbert subspace.
         """
@@ -475,7 +448,6 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
                        **kwargs
                        ) -> Tuple[Figure, Axes]:
         """Draw contour plot of the potential energy.
-
         Parameters
         ----------
         theta_grid:
@@ -490,7 +462,7 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
         y_vals = theta_grid.make_linspace()
         return plot.contours(x_vals,
                              y_vals,
-                             lambda x, y: self.potential([x, y]),
+                             self.potential,
                              contour_vals=contour_vals,
                              xlabel=r'$\phi$',
                              ylabel=r'$\theta$',
@@ -502,7 +474,6 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
                      theta_grid: Grid1d = None
                      ) -> WaveFunctionOnGrid:
         """Returns a zero-pi wave function in `phi`, `theta` basis
-
         Parameters
         ----------
         esys:
@@ -543,7 +514,6 @@ class ZeroPi(ZeroPiFunctions, base.QubitBaseClass, serializers.Serializable, Noi
                           **kwargs
                           ) -> Tuple[Figure, Axes]:
         """Plots 2d phase-basis wave function.
-
         Parameters
         ----------
         esys:

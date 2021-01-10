@@ -36,7 +36,6 @@ class WatchedProperty:
     """
     Descriptor class for properties that are to be monitored for changes. Upon change of the value, the instance
     class invokes its `broadcast()` method to send the appropriate event notification to CentralDispatch
-
     Parameters
     ----------
     event:
@@ -46,31 +45,28 @@ class WatchedProperty:
     attr_name:
         custom attribute name to be used (default: name from defining property in instance class,
         obtained in __set_name__
-    attr_location: int, optional
-        if the object named attr_name is an array, then this specifies the location in the array.
-        NOT COMPATIBLE WITH USING inner_object_name
     """
-    def __init__(self, event: str, inner_object_name: str = None, attr_name: str = None, attr_location: int = None) -> None:
+    def __init__(self, event: str, inner_object_name: str = None, attr_name: str = None) -> None:
         self.event = event
         self.inner = inner_object_name
         self.attr_name = attr_name
-        self.attr_location = attr_location
 
     def __set_name__(self, owner, name: str) -> None:
         self.name = name
         self.attr_name = self.attr_name or name
 
+    def __delete__(self, instance):
+        del instance.__dict__[self.name]
+
     def __get__(self, instance: object, owner: Any) -> Any:
         if instance is None:   # when accessed on class level rather than instance level
             # raise TypeError("Descriptor only applies to instances, not to class itself.")
             return self
-        else:
-            if self.inner and self.attr_name:
-                inner_instance = instance.__dict__[self.inner]
-                return getattr(inner_instance, self.attr_name)
-            elif self.attr_location:
-                return instance.__dict__[self.attr_name][self.attr_location - 1]
-            return instance.__dict__[self.attr_name]
+
+        if self.inner and self.attr_name:
+            inner_instance = instance.__dict__[self.inner]
+            return getattr(inner_instance, self.attr_name)
+        return instance.__dict__[self.attr_name]
 
     def __set__(self, instance: DispatchClient, value: Any) -> None:
         if self.inner and self.attr_name:
@@ -78,14 +74,9 @@ class WatchedProperty:
             setattr(inner_instance, self.attr_name, value)
             # Rely on inner_instance.attr_name to do the broadcasting.
         else:
-            if not self.attr_location:  # Can't use `if not self.attr_location` because it could be 0 (first entry)
+            if self.attr_name not in instance.__dict__:
                 instance.__dict__[self.attr_name] = value
-                if self.attr_name in instance.__dict__:
-                    instance.broadcast(self.event)
+                # Rely on inner_instance.attr_name to do the broadcasting.
             else:
-                original_value = instance.__dict__[self.attr_name]
-                original_value[self.attr_location - 1] = value
-                instance.__dict__[self.name] = value
-                instance.__dict__[self.attr_name] = original_value
-                if self.attr_name in instance.__dict__:
-                    instance.broadcast(self.event)
+                instance.__dict__[self.attr_name] = value
+                instance.broadcast(self.event)

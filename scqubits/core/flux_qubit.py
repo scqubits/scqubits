@@ -14,11 +14,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
-import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
-import scipy.constants as const
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -28,7 +26,7 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
-from scqubits.core.noise import NoisySystem, NOISE_PARAMS
+from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
 
 # -Flux qubit noise class
@@ -59,9 +57,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
                           **kwargs
                           ) -> float:
         r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
+        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with
         Josephson energy :math:`EJ1`.
-
         Parameters
         ----------
         A_noise:
@@ -74,11 +71,9 @@ class NoisyFluxQubit(NoisySystem, ABC):
             evals, evecs tuple
         get_rate:
             get rate or time
-
         Returns
         -------
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
-
         """
         if 'tphi_1_over_f_cc1' not in self.supported_noise_channels():
             raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc1' is not supported in this system.")
@@ -100,9 +95,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
                           **kwargs
                           ) -> float:
         r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
+        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with
         Josephson energy :math:`EJ2`.
-
         Parameters
         ----------
         A_noise:
@@ -115,7 +109,6 @@ class NoisyFluxQubit(NoisySystem, ABC):
             evals, evecs tuple
         get_rate:
             get rate or time
-
         Returns
         -------
             :math:`T_{\phi}` time or rate:
@@ -141,9 +134,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
                           **kwargs
                           ) -> float:
         r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
+        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with
         Josephson energy :math:`EJ3`.
-
         Parameters
         ----------
         A_noise:
@@ -156,7 +148,6 @@ class NoisyFluxQubit(NoisySystem, ABC):
             evals, evecs tuple
         get_rate:
             get rate or time
-
         Returns
         -------
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
@@ -181,9 +172,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
                          **kwargs
                          ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to critical current noise from all three Josephson junctions
-        :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The combined noise is calculated by summing the rates from the 
+        :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The combined noise is calculated by summing the rates from the
         individual contributions.
-
         Parameters
         -----------
         A_noise:
@@ -196,7 +186,6 @@ class NoisyFluxQubit(NoisySystem, ABC):
             evals, evecs tuple
         get_rate:
             get rate or time
-
         Returns
         -------
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
@@ -215,89 +204,24 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
 
-
-class FluxQubitFunctions:
-    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
-    def __init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux):
-        self.e = np.sqrt(4.0 * np.pi * const.alpha)
-        self.EJ1 = EJ1
-        self.EJ2 = EJ2
-        self.EJ3 = EJ3
-        self.ECJ1 = ECJ1
-        self.ECJ2 = ECJ2
-        self.ECJ3 = ECJ3
-        self.ECg1 = ECg1
-        self.ECg2 = ECg2
-        self.ng1 = ng1
-        self.ng2 = ng2
-        self.flux = flux
-        self.number_degrees_freedom = 2
-
-    def build_capacitance_matrix(self):
-        C_matrix = np.zeros((2, 2))
-        CJ1 = self.e**2 / (2 * self.ECJ1)
-        CJ2 = self.e**2 / (2 * self.ECJ2)
-        CJ3 = self.e**2 / (2 * self.ECJ3)
-        Cg1 = self.e**2 / (2 * self.ECg1)
-        Cg2 = self.e**2 / (2 * self.ECg2)
-
-        C_matrix[0, 0] = CJ1 + CJ3 + Cg1
-        C_matrix[1, 1] = CJ2 + CJ3 + Cg2
-        C_matrix[0, 1] = -CJ3
-        C_matrix[1, 0] = -CJ3
-
-        return C_matrix
-
-    def build_EC_matrix(self):
-        """Return the charging energy matrix"""
-        C_matrix = self.build_capacitance_matrix()
-        return 0.5 * self.e ** 2 * sp.linalg.inv(C_matrix)
-
-    def potential(self, phi_array):
-        """Return value of the potential energy at phi1 and phi2."""
-        phi1 = phi_array[0]
-        phi2 = phi_array[1]
-        return (-self.EJ1 * np.cos(phi1) - self.EJ2 * np.cos(phi2)
-                - self.EJ3 * np.cos(2.0 * np.pi * self.flux + phi1 - phi2)
-                + self.EJ1 + self.EJ2 + self.EJ3)
-
-
-class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
+class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     r"""Flux Qubit
-
     | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
-
     The original flux qubit as defined in [1], where the junctions are allowed to have varying junction
     energies and capacitances to allow for junction asymmetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and
     :math:`E_{J3}=\alpha E_J` where :math:`0\le \alpha \le 1`. The same relations typically hold
     for the junction capacitances. The Hamiltonian is given by
-
     .. math::
-
        H_\text{flux}=&(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
                     -&E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}),
-
     where :math:`i,j\in\{1,2\}` is represented in the charge basis for both degrees of freedom.
     Initialize with, for example::
-
         EJ = 35.0
         alpha = 0.6
         flux_qubit = scq.FluxQubit(EJ1 = EJ, EJ2 = EJ, EJ3 = alpha*EJ,
                                      ECJ1 = 1.0, ECJ2 = 1.0, ECJ3 = 1.0/alpha,
                                      ECg1 = 50.0, ECg2 = 50.0, ng1 = 0.0, ng2 = 0.0,
                                      flux = 0.5, ncut = 10)
-
     Parameters
     ----------
     EJ1, EJ2, EJ3: float
@@ -345,7 +269,17 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
                  ncut: int,
                  truncated_dim: int = 6
                  ) -> None:
-        FluxQubitFunctions.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux)
+        self.EJ1 = EJ1
+        self.EJ2 = EJ2
+        self.EJ3 = EJ3
+        self.ECJ1 = ECJ1
+        self.ECJ2 = ECJ2
+        self.ECJ3 = ECJ3
+        self.ECg1 = ECg1
+        self.ECg2 = ECg2
+        self.ng1 = ng1
+        self.ng2 = ng2
+        self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -382,24 +316,36 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
                 # 'tphi_1_over_f_ng',
                 ]
 
-    def _evals_calc(self, evals_count: int) -> ndarray:
-        hamiltonian_mat = self.hamiltonian()
-        evals = sp.linalg.eigh(hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=True)
-        return np.sort(evals)
+    def capacitance_matrix(self) -> ndarray:
+        Cmat = np.zeros((2, 2))
+        CJ1 = 1. / (2 * self.ECJ1)  # capacitances in units where e is set to 1
+        CJ2 = 1. / (2 * self.ECJ2)
+        CJ3 = 1. / (2 * self.ECJ3)
+        Cg1 = 1. / (2 * self.ECg1)
+        Cg2 = 1. / (2 * self.ECg2)
 
-    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=False)
-        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
-        return evals, evecs
+        Cmat[0, 0] = CJ1 + CJ3 + Cg1
+        Cmat[1, 1] = CJ2 + CJ3 + Cg2
+        Cmat[0, 1] = -CJ3
+        Cmat[1, 0] = -CJ3
+        return Cmat
+
+    def EC_matrix(self) -> ndarray:
+        """Return the charging energy matrix"""
+        return np.linalg.inv(self.capacitance_matrix()) / 2.
 
     def hilbertdim(self) -> int:
         """Return Hilbert space dimension."""
         return (2 * self.ncut + 1) ** 2
 
+    def potential(self, phi1: ndarray, phi2: ndarray) -> ndarray:
+        """Return value of the potential energy at phi1 and phi2, disregarding constants."""
+        return (-self.EJ1 * np.cos(phi1) - self.EJ2 * np.cos(phi2)
+                - self.EJ3 * np.cos(2.0 * np.pi * self.flux + phi1 - phi2))
+
     def kineticmat(self) -> ndarray:
         """Return the kinetic energy matrix."""
-        ECmat = self.build_EC_matrix()
+        ECmat = self.EC_matrix()
 
         kinetic_mat = 4.0 * ECmat[0, 0] * np.kron(np.matmul(self._n_operator() - self.ng1 * self._identity(),
                                                             self._n_operator() - self.ng1 * self._identity()),
@@ -439,10 +385,10 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
 
     def d_hamiltonian_d_EJ3(self) -> ndarray:
         """Returns operator representing a derivittive of the Hamiltonian with respect to EJ3."""
-        return (-0.5 * (np.exp(1j * 2 * np.pi * self.flux)
-                                            * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)))\
-               + (-0.5 * (np.exp(-1j * 2 * np.pi * self.flux)
-                                            * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())))
+        return ((-0.5 * (np.exp(1j * 2 * np.pi * self.flux)
+                         * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)))
+                + (-0.5 * (np.exp(-1j * 2 * np.pi * self.flux)
+                           * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator()))))
 
     def _n_operator(self) -> ndarray:
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
@@ -477,13 +423,13 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
     def cos_phi_1_operator(self) -> ndarray:
         """Return operator :math:`\\cos \\phi_1` in the charge basis"""
         cos_op = 0.5 * self.exp_i_phi_1_operator()
-        cos_op += cos_op.T
+        cos_op += cos_op.conj().T
         return cos_op
 
     def cos_phi_2_operator(self) -> ndarray:
         """Return operator :math:`\\cos \\phi_2` in the charge basis"""
         cos_op = 0.5 * self.exp_i_phi_2_operator()
-        cos_op += cos_op.T
+        cos_op += cos_op.conj().T
         return cos_op
 
     def sin_phi_1_operator(self) -> ndarray:
@@ -505,7 +451,6 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
                        ) -> Tuple[Figure, Axes]:
         """
         Draw contour plot of the potential energy.
-
         Parameters
         ----------
         phi_grid:
@@ -519,7 +464,7 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
         x_vals = y_vals = phi_grid.make_linspace()
         if 'figsize' not in kwargs:
             kwargs['figsize'] = (5, 5)
-        return plot.contours(x_vals, y_vals, lambda x, y: self.potential([x, y]), contour_vals=contour_vals, **kwargs)
+        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
 
     def wavefunction(self,
                      esys: Tuple[ndarray, ndarray] = None,
@@ -528,7 +473,6 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
                      ) -> storage.WaveFunctionOnGrid:
         """
         Return a flux qubit wave function in phi1, phi2 basis
-
         Parameters
         ----------
         esys:
@@ -569,7 +513,6 @@ class FluxQubit(FluxQubitFunctions, base.QubitBaseClass, serializers.Serializabl
                           **kwargs
                           ) -> Tuple[Figure, Axes]:
         """Plots 2d phase-basis wave function.
-
         Parameters
         ----------
         esys:

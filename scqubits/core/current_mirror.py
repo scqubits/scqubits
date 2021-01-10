@@ -1,113 +1,22 @@
+import itertools
 import os
 from typing import Dict, Any, Tuple, List
 
 import numpy as np
-from numpy import ndarray
 import scipy as sp
+from numpy import ndarray
 from scipy.sparse import eye, diags
 from scipy.sparse.linalg import eigsh
-import itertools
-import scipy.constants as const
 
-import scqubits.core.qubit_base as base
 import scqubits.core.descriptors as descriptors
+import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.hashing_charge_basis import HashingChargeBasis
-from scqubits.utils.spectrum_utils import order_eigensystem
 from scqubits.core.operators import operator_in_full_Hilbert_space
+from scqubits.utils.spectrum_utils import order_eigensystem
 
 
-class CurrentMirrorFunctions:
-    N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECB = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-
-    def __init__(self,
-                 N: int,
-                 ECB: float,
-                 ECJ: float,
-                 ECg: float,
-                 EJlist: ndarray,
-                 nglist: ndarray,
-                 flux: float
-                 ) -> None:
-        self.e = np.sqrt(4.0 * np.pi * const.alpha)
-        self.N = N
-        self.number_degrees_freedom = 2*N - 1
-        self.ECB = ECB
-        self.ECJ = ECJ
-        self.ECg = ECg
-        self.EJlist = EJlist
-        self.nglist = nglist
-        self.flux = flux
-
-    def build_capacitance_matrix(self) -> ndarray:
-        """Returns the capacitance matrix, transforming to coordinates where the variable corresponding
-        to the total charge can be eliminated
-
-        Returns
-        -------
-            ndarray
-        """
-        N = self.N
-        CB = self.e**2 / (2.*self.ECB)
-        CJ = self.e**2 / (2.*self.ECJ)
-        Cg = self.e**2 / (2.*self.ECg)
-
-        C_matrix = np.diagflat([Cg + 2*CJ + CB for _ in range(2*N)], 0)
-        C_matrix += np.diagflat([-CJ for _ in range(2*N - 1)], +1)
-        C_matrix += np.diagflat([-CJ for _ in range(2*N - 1)], -1)
-        C_matrix += np.diagflat([-CB for _ in range(N)], +N)
-        C_matrix += np.diagflat([-CB for _ in range(N)], -N)
-        C_matrix[0, -1] = C_matrix[-1, 0] = - CJ
-
-        V_m_inv = sp.linalg.inv(self._build_V_m())
-        C_matrix = np.matmul(V_m_inv.T, np.matmul(C_matrix, V_m_inv))
-
-        return C_matrix[0:-1, 0:-1]
-
-    def build_EC_matrix(self) -> ndarray:
-        """Returns the charging energy matrix
-
-        Returns
-        -------
-            ndarray
-        """
-        C_matrix = self.build_capacitance_matrix()
-        return 0.5 * self.e**2 * sp.linalg.inv(C_matrix)
-
-    def _build_V_m(self) -> ndarray:
-        """Builds the matrix necessary for the coordinate transformation"""
-        N = self.N
-        V_m = np.diagflat([-1 for _ in range(2*N)], 0)
-        V_m += np.diagflat([1 for _ in range(2*N - 1)], 1)
-        V_m[-1] = np.array([1 for _ in range(2*N)])
-        return V_m
-
-    def harmonic_modes(self) -> ndarray:
-        """Returns the harmonic modes associated with the linearized current mirror Hamiltonian.
-
-        Returns
-        -------
-        ndarray
-        """
-        CB = self.e ** 2 / (2. * self.ECB)
-        CJ = self.e ** 2 / (2. * self.ECJ)
-        Cg = self.e ** 2 / (2. * self.ECg)
-        omega_list = np.zeros(self.number_degrees_freedom)
-        for mu in range(1, self.number_degrees_freedom+1):
-            potential_contribution = (4.0*self.EJlist[0]*np.sin(np.pi*mu/(2*self.N))**2)
-            kinetic_contribution = Cg + 4*CJ*np.sin(np.pi*mu/(2*self.N))**2 + (1 - (-1)**mu)*CB
-            omega_mu = 2*self.e*np.sqrt(potential_contribution/kinetic_contribution)
-            omega_list[mu-1] = omega_mu
-        return omega_list
-
-
-class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Serializable):
+class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
     r"""Current Mirror Qubit
 
     | [1] A. Kitaev, arXiv:cond-mat/0609441. https://arxiv.org/abs/cond-mat/0609441
@@ -161,6 +70,14 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
     truncated_dim: int, optional
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
+    N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    number_degrees_freedom = descriptors.ReadOnlyProperty()
+    ECB = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECg = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
     def __init__(self,
@@ -174,7 +91,14 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
                  ncut: int,
                  truncated_dim: int = None
                  ) -> None:
-        CurrentMirrorFunctions.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux)
+        self.N = N
+        self._number_degrees_freedom = 2 * N - 1
+        self.ECB = ECB
+        self.ECJ = ECJ
+        self.ECg = ECg
+        self.EJlist = EJlist
+        self.nglist = nglist
+        self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
@@ -194,6 +118,84 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
             'ncut': 10,
             'truncated_dim': 6
         }
+
+    def potential(self, phi_array: ndarray) -> ndarray:
+        """Potential evaluated at the location specified by phi_array.
+
+        Parameters
+        ----------
+        phi_array: ndarray
+            float value of the phase variable `phi`
+
+        Returns
+        -------
+        float
+        """
+        dim = self.number_degrees_freedom
+        pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
+        pot_sum += (-self.EJlist[-1] * np.cos(np.sum([phi_array[i] for i in range(dim)]) + 2*np.pi*self.flux))
+        pot_sum += np.sum(self.EJlist)
+        return pot_sum
+
+    def capacitance_matrix(self) -> ndarray:
+        """Returns the capacitance matrix, transforming to coordinates where the variable corresponding
+        to the total charge can be eliminated
+
+        Returns
+        -------
+            ndarray
+        """
+        N = self.N
+        CB = 1. / (2.*self.ECB)
+        CJ = 1. / (2.*self.ECJ)
+        Cg = 1. / (2.*self.ECg)
+
+        C_matrix = np.diagflat([Cg + 2*CJ + CB for _ in range(2*N)], 0)
+        C_matrix += np.diagflat([-CJ for _ in range(2*N - 1)], +1)
+        C_matrix += np.diagflat([-CJ for _ in range(2*N - 1)], -1)
+        C_matrix += np.diagflat([-CB for _ in range(N)], +N)
+        C_matrix += np.diagflat([-CB for _ in range(N)], -N)
+        C_matrix[0, -1] = C_matrix[-1, 0] = - CJ
+
+        V_m_inv = sp.linalg.inv(self._build_V_m())
+        C_matrix = np.matmul(V_m_inv.T, np.matmul(C_matrix, V_m_inv))
+
+        return C_matrix[0:-1, 0:-1]
+
+    def EC_matrix(self) -> ndarray:
+        """Returns the charging energy matrix
+
+        Returns
+        -------
+            ndarray
+        """
+        return 0.5 * sp.linalg.inv(self.capacitance_matrix())
+
+    def _build_V_m(self) -> ndarray:
+        """Builds the matrix necessary for the coordinate transformation"""
+        N = self.N
+        V_m = np.diagflat([-1 for _ in range(2*N)], 0)
+        V_m += np.diagflat([1 for _ in range(2*N - 1)], 1)
+        V_m[-1] = np.array([1 for _ in range(2*N)])
+        return V_m
+
+    def harmonic_modes(self) -> ndarray:
+        """Returns the harmonic modes associated with the linearized current mirror Hamiltonian.
+
+        Returns
+        -------
+        ndarray
+        """
+        CB = 1. / (2. * self.ECB)
+        CJ = 1. / (2. * self.ECJ)
+        Cg = 1. / (2. * self.ECg)
+        omega_list = np.zeros(self.number_degrees_freedom)
+        for mu in range(1, self.number_degrees_freedom+1):
+            potential_contribution = (4.0*self.EJlist[0]*np.sin(np.pi*mu/(2*self.N))**2)
+            kinetic_contribution = Cg + 4*CJ*np.sin(np.pi*mu/(2*self.N))**2 + (1 - (-1)**mu)*CB
+            omega_mu = 2*np.sqrt(potential_contribution/kinetic_contribution)
+            omega_list[mu-1] = omega_mu
+        return omega_list
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
@@ -218,7 +220,7 @@ class CurrentMirror(CurrentMirrorFunctions, base.QubitBaseClass, serializers.Ser
             ndarray
         """
         dim = self.number_degrees_freedom
-        EC_matrix = self.build_EC_matrix()
+        EC_matrix = self.EC_matrix()
         H = 0.*self.identity_operator()
         for j, k in itertools.product(range(dim), range(dim)):
             H += 4*EC_matrix[j, k]*((self.n_operator(j) - self.nglist[j] * self.identity_operator())

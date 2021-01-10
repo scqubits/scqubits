@@ -1,11 +1,12 @@
+from functools import reduce
+
 import numpy as np
 from numpy import ndarray
 from scipy.sparse import eye
 from scipy.sparse.coo import coo_matrix
-from functools import reduce
 
 from scqubits.core.hashing import Hashing
-from scqubits.core.variationaltightbinding import reflect_vectors
+from scqubits.core.vtbbasemethods import reflect_vectors
 
 
 class HashingChargeBasis(Hashing):
