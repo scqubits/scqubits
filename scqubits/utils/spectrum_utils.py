@@ -329,7 +329,7 @@ def solve_generalized_eigenvalue_problem_with_QZ(hamiltonian, inner_product, eva
     evals = np.array(alpha) / np.array(beta)
     index = np.argsort(np.real(list(filter(lambda a: np.real(a) > 0, evals))))
     evals = np.real(evals[index][0: evals_count])
-    evecs = Z[:, index]
+    evecs = Z[:, index][:, 0: evals_count]
     if eigvals_only:
         return evals
     else:

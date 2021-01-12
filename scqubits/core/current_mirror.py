@@ -12,11 +12,16 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.hashing_charge_basis import HashingChargeBasis
+from scqubits.core.noise import NoisySystem
 from scqubits.core.operators import operator_in_full_Hilbert_space
 from scqubits.utils.spectrum_utils import order_eigensystem
 
 
-class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
+class NoisyCurrentMirror(NoisySystem):
+    pass
+
+
+class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentMirror):
     r"""Current Mirror Qubit
 
     | [1] A. Kitaev, arXiv:cond-mat/0609441. https://arxiv.org/abs/cond-mat/0609441
@@ -118,6 +123,10 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable):
             'ncut': 10,
             'truncated_dim': 6
         }
+
+    def supported_noise_channels(self) -> List[str]:
+        """Return a list of supported noise channels"""
+        return ['']
 
     def potential(self, phi_array: ndarray) -> ndarray:
         """Potential evaluated at the location specified by phi_array.
