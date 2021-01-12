@@ -31,6 +31,10 @@ class ReadOnlyProperty:
     def __set__(self, instance, value):
         raise AttributeError('Property is for reading only, cannot assign to it.')
 
+    def __delete__(self, instance):
+        del instance.__dict__[self.name]
+
+
 
 class WatchedProperty:
     """
@@ -78,3 +82,6 @@ class WatchedProperty:
             else:
                 instance.__dict__[self.attr_name] = value
                 instance.broadcast(self.event)
+
+    def __delete__(self, instance):
+        del instance.__dict__[self.name]

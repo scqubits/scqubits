@@ -39,7 +39,7 @@ def compute_custom_data_sweep(sweep, func, **kwargs):
     ndarray
     """
     return np.asarray([func(sweep, param_index, **kwargs)
-                       for param_index in tqdm(range(sweep.param_count), desc='data sweep', leave=False,
+                       for param_index in tqdm(range(sweep.paramvals_count), desc='data sweep', leave=False,
                                                disable=settings.PROGRESSBAR_DISABLED)])
 
 
@@ -53,7 +53,7 @@ def generate_chi_sweep(sweep):
     Returns
     -------
     dict
-        (osc_index, qbt_index) -> ndararray of chi values
+        (osc_index, qbt_index) -> ndarray of chi values
     """
     osc_subsys_list = sweep.osc_subsys_list
     qbt_subsys_list = sweep.qbt_subsys_list
@@ -63,7 +63,32 @@ def generate_chi_sweep(sweep):
         for (qbt_index, qubit_subsys) in qbt_subsys_list:
             data_dict[(osc_index, qbt_index)] = sweep.new_datastore(
                 chi=compute_custom_data_sweep(sweep, observable.dispersive_chi, qubit_subsys=qubit_subsys,
-                                              osc_subsys=osc_subsys, chi_indices=(1, 0))
+                                              osc_subsys=osc_subsys)
+            )
+    return data_dict
+
+
+def generate_kerr_sweep(sweep):
+    """Generate data for the Kerr shift as a function of the sweep parameter
+
+    Parameters
+    ----------
+    sweep: ParameterSweep
+
+    Returns
+    -------
+    dict
+        (osc_index, qbt_index) -> ndarray of Kerr values
+    """
+    osc_subsys_list = sweep.osc_subsys_list
+    qbt_subsys_list = sweep.qbt_subsys_list
+
+    data_dict = {}
+    for (osc_index, osc_subsys) in osc_subsys_list:
+        for (qbt_index, qubit_subsys) in qbt_subsys_list:
+            data_dict[(osc_index, qbt_index)] = sweep.new_datastore(
+                kerr=compute_custom_data_sweep(sweep, observable.dispersive_kerr, qubit_subsys=qubit_subsys,
+                                               osc_subsys=osc_subsys)
             )
     return data_dict
 
@@ -105,7 +130,7 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
     SpectrumData
     """
     lookup = sweep.lookup
-    param_count = sweep.param_count
+    param_count = sweep.paramvals_count
     evals_count = sweep.evals_count
     diff_eigenenergy_table = np.empty(shape=(param_count, evals_count))
 
@@ -144,7 +169,7 @@ def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     target_states_list = spec_utils.generate_target_states_list(sweep, initial_state_labels)
     difference_energies_table = []
 
-    for param_index in range(sweep.param_count):
+    for param_index in range(sweep.paramvals_count):
         difference_energies = []
         initial_energy = lookup.energy_bare_index(initial_state_labels, param_index)
         for target_labels in target_states_list:

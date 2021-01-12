@@ -13,7 +13,8 @@ import itertools
 import warnings
 import weakref
 from functools import wraps
-from typing import Callable, List, Tuple, Union, TYPE_CHECKING
+from typing import Callable, List, Optional, TYPE_CHECKING, Tuple, Union
+from weakref import CallableProxyType
 
 import numpy as np
 import qutip as qt
@@ -26,6 +27,7 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
+    from scqubits.io_utils.fileio import IOData
     from scqubits.core.qubit_base import QuantumSystem
     from scqubits import ParameterSweep, HilbertSpace, SpectrumData
 
@@ -73,12 +75,14 @@ class SpectrumLookup(serializers.Serializable):
         self._dressed_indices: List[List[Union[int, None]]]
         self._out_of_sync = False
         self._init_params = ['_dressed_specdata', '_bare_specdata_list', '_canonical_bare_labels', '_dressed_indices']
+        self._sweep: Optional[CallableProxyType]
+        self._hilbertspace: CallableProxyType
 
         # Store ParameterSweep and/or HilbertSpace objects only as weakref.proxy objects to avoid circular references
         # that would prevent objects from expiring appropriately and being garbage collected
         if isinstance(framework, scqubits.ParameterSweep):
             self._sweep = weakref.proxy(framework)
-            self._hilbertspace = weakref.proxy(self._sweep._hilbertspace)
+            self._hilbertspace = weakref.proxy(framework._hilbertspace)
         elif isinstance(framework, scqubits.HilbertSpace):
             self._sweep = None
             self._hilbertspace = weakref.proxy(framework)

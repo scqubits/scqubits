@@ -151,6 +151,24 @@ def chi(datastore: 'DataStore', **kwargs) -> Tuple[Figure, Axes]:
     return plot.data_vs_paramvals(xdata, ydata, label_list=label_list, **defaults.chi(datastore.param_name, **kwargs))
 
 
+def kerr(datastore: 'DataStore', qubit_level=None, **kwargs) -> Tuple[Figure, Axes]:
+    """
+    Plot dispersive Kerr energy for a given pair of qubit and oscillator.
+
+    Parameters
+    ----------
+    datastore:
+        contains sweep data for the Kerr shift, stored as specdata.kerr
+    **kwargs:
+        standard plotting option (see separate documentation)
+    """
+    ydata = datastore.kerr if qubit_level is None else datastore.kerr[:, qubit_level]
+    xdata = datastore.param_vals
+    state_count = len(ydata)
+    label_list = list(range(state_count)) if qubit_level is None else None
+    return plot.data_vs_paramvals(xdata, ydata.T, label_list=label_list) # , **defaults.chi(datastore.param_name, **kwargs))
+
+
 def chi_01(datastore: 'DataStore', param_index: int = 0, **kwargs) -> Tuple[Figure, Axes]:
     """
     Plot the dispersive shift chi01 for a given pair of qubit and oscillator.

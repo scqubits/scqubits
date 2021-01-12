@@ -11,9 +11,10 @@
 
 
 import functools
+import inspect
 import weakref
 from abc import ABC
-from collections import Mapping, namedtuple
+from collections import Mapping
 from typing import Any, Callable, Dict, Iterable, List, TYPE_CHECKING, Tuple, Union
 
 import numpy as np
@@ -64,22 +65,264 @@ class ReadOnlyDict(Mapping):
         return iter(self._data)
 
 
+class NamedParamvalsSliceable:
+    """
+    This mixin class applies to multi-dimensional arrays, for which the leading M dimensions are each associated with
+    a parameter name and a corresponding array of parameter values (float or complex). All standard slicing of the
+    multi-dimensional array with integer-values indices is supported as usual, e.g.
+
+        some_array[0, 3:-1, -4, ::2]
+
+    Slicing of the multi-dimensional array associated with named sets of parameter values is extended in two ways:
+
+    (1) Parameter-value based slicing
+    Integer indices other than the `step` index may be replaced by a float or a complex number. This prompts a lookup
+    and substitution by the integer index representing the location of the closest element in the set of parameter
+    values. As an example, consider the situation of named parameter sets
+
+        paramvals_by_name = {'param1': np.asarray([-4.4, -0.1, 0.3, 10.0]),
+                             'param2': np.asarray([0.1*1j, 3.0 - 4.0*1j, 25.0])}
+
+    Then, the following are examples of parameter-value based slicing:
+
+        some_array[0.25, 0:2]                   -->     some_array[2, 0:2]
+        some_array[-3.0, 0.0:(2.0 - 4.0*1j)]    -->     some_array[0, 0:1]
+
+
+    (2) Name-based slicing
+    Sometimes, it is convenient to refer to one of the parameter-value sets by its name rather than its position within
+    the multiple sets. As an example, let
+
+        paramvals_by_name = {'ng': np.asarray([-0.1, 0.0, 0.1, 0.2]),
+                             'flux': np.asarray([-1.0, -0.5, 0.0, 0.5, 1.0])}
+
+    If we are interested in the slice of `some_array` obtained by setting 'flux' to a value or the value associated with
+    a given index, we can now use:
+
+        some_array['flux':0.5]            -->    some_array[:, 1]
+        some_array['flux'::2, 'ng':-1]    -->    some_array[-1, :2]
+
+    Name-based slicing has the format `<name str>:start:stop`  where start and stop my be integers or make use of
+    parameter-value based slicing. Note: the `step` option is not available in name-based slicing. Name-based and
+    standard position-based slicing cannot be combined: `some_array['name1':3, 2:4]` is not supported. For such mixed-
+    mode slicing, use several stages of slicing as in `some_array['name1':3][2:4]`.
+    """
+    paramvals_by_name: Dict[str, Iterable]
+    paramvals_by_index: Dict[int, Iterable]
+    name_by_index: Dict[str, int]
+    index_by_name: Dict[int, str]
+    data_callback: Union[ndarray, Callable]
+
+    def __getitem__(self, multi_index: Union[Number, Tuple[Union[Number, slice], ...]]) -> Any:
+        """Overwrites the magic method for element selection and slicing to support the extended slicing options."""
+        if not isinstance(multi_index, tuple):
+            multi_index = (multi_index,)
+        if callable(self.data_callback):
+            return self.data_callback(self.convert_to_standard_multi_index(multi_index))
+        return self.data_callback[self.convert_to_standard_multi_index(multi_index)]
+
+    def convert_paramvals_names_to_indices(self,
+                                           multi_index: Tuple[Union[Number, slice], ...]
+                                           ) -> Tuple[Union[Number, slice], ...]:
+        """Converts a name-based multi-index into a position-based multi-index."""
+        converted_multi_index = [slice(None)] * self.paramvals_count
+        for this_slice in multi_index:
+            try:
+                name = this_slice.start
+                index = self.index_by_name[name]
+                if this_slice.step is None:
+                    converted_slice = this_slice.stop
+                else:
+                    converted_slice = slice(this_slice.stop, this_slice.step)
+                converted_multi_index[index] = converted_slice
+            except (AttributeError, KeyError):
+                raise Exception("Slicing error: could not convert parameter-name based slices to ordinary slices.")
+        return tuple(converted_multi_index)
+
+    def convert_to_standard_multi_index(self,
+                                        multi_index: Tuple[Union[Number, slice], ...]
+                                        ) -> Tuple[Union[int, slice], ...]:
+        """Takes an extended-syntax multi-index and converts it to a standard position-based multi-index with only
+        integer-valued indices."""
+        index = multi_index[0]  # inspect first index to determine whether multi-index is name-based
+        if isinstance(index, slice) and isinstance(index.start, str):
+            # Multi-index is name-based (slices with a str as the start attribute)
+            # -> convert to position-based multi-index
+            multi_index = self.convert_paramvals_names_to_indices(multi_index)
+            processed_multi_index = [slice(None)] * self.paramvals_count
+        else:
+            # Multi-index is position based (nothing to do, just convert to list further to be processed)
+            processed_multi_index = list(multi_index)
+
+        # Check for value-based indices and slice entries and convert to standard indices
+        for position, index in enumerate(multi_index):
+            if isinstance(index, int):
+                # all int entries are taken as standard indices
+                processed_multi_index[position] = index
+            elif isinstance(index, (float, complex)):
+                # individual value-based index
+                value = index
+                processed_multi_index[position] = self.get_index_closest_value(value, self.paramvals_by_index[position])
+            elif isinstance(index, slice):
+                # slice objects must be checked for internal value-based entries in start and stop attributes
+                this_slice = index if self.is_standard_slice(index) else self.convert_to_standard_slice(index, position)
+                processed_multi_index[position] = this_slice
+        return tuple(processed_multi_index)
+
+    def is_standard_slice(self, this_slice: slice) -> bool:
+        """Checks whether slice is standard, i.e., all entries for start, stop, and step are integers."""
+        if (isinstance(this_slice.start, (int, type(None))) and
+                isinstance(this_slice.stop, (int, type(None))) and
+                isinstance(this_slice.step, (int, type(None)))):
+            return True
+        return False
+
+    def convert_to_standard_slice(self, this_slice: slice, range_index) -> slice:
+        """Takes a single slice object that includes parameter-value based entries and converts them into
+        integer indices reflecting the position of the closest element in the given parameter-value set."""
+        start = this_slice.start
+        stop = this_slice.stop
+        step = this_slice.step
+        if not isinstance(start, (int, type(None))):
+            value = start
+            start = self.get_index_closest_value(value, range_index)
+        if not isinstance(stop, (int, type(None))):
+            value = stop
+            stop = self.get_index_closest_value(value, range_index)
+        if not isinstance(step, (int, type(None))):
+            raise Exception("Slicing error: non-integer step sizes not supported.")
+        return slice(start, stop, step)
+
+    @property
+    def paramvals_count(self) -> int:
+        return len(self.paramvals_by_name)
+
+    def get_index_closest_value(self, value: Number, paramvals_index: int) -> int:
+        location = np.abs(self.paramvals_by_index[paramvals_index] - value).argmin()
+        return location
+
+
+class NamedParamvalsArray(np.ndarray, NamedParamvalsSliceable):
+    def __new__(cls, input_array: np.ndarray, paramvals_by_name: Dict[str, Iterable]):
+        obj = np.asarray(input_array).view(cls)
+        obj.paramvals_by_name = paramvals_by_name
+        obj.index_by_name = {name: index for index, name in enumerate(paramvals_by_name.keys())}
+        obj.name_by_index = {index: name for name, index in obj.index_by_name.items()}
+        obj.paramvals_by_index = {obj.index_by_name[name]: paramvals_by_name[name] for name in paramvals_by_name.keys()}
+        obj.data_callback = None
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+        self.paramvals_by_name = getattr(obj, 'paramvals_by_name', None)
+        self.index_by_name = getattr(obj, 'index_by_name', None)
+        self.name_by_index = getattr(obj, 'name_by_index', None)
+        self.paramvals_by_index = getattr(obj, 'paramvals_by_index', None)
+        self.data_callback = getattr(obj, 'data_callback', None)
+
+    def __getitem__(self, multi_index: Union[Number, Tuple[Union[Number, slice], ...]]) -> Any:
+        """Overwrites the magic method for element selection and slicing to support the extended slicing options."""
+        if not isinstance(multi_index, tuple):
+            multi_index = (multi_index,)
+        return super().__getitem__(self.convert_to_standard_multi_index(multi_index))
+
+
+class Sweep(NamedParamvalsSliceable):
+    eigenenergies = descriptors.ReadOnlyProperty()
+    eigenstates = descriptors.ReadOnlyProperty()
+    spectrum_lookup_data = descriptors.ReadOnlyProperty()
+    custom_data = descriptors.ReadOnlyProperty()
+    system_info = descriptors.ReadOnlyProperty()
+    generator_info = descriptors.ReadOnlyProperty()
+
+    def __init__(self,
+                 paramvals_by_name: Dict[str, Iterable],
+                 eigenenergies: ndarray,
+                 eigenstates: ndarray,
+                 spectrum_lookup_data: ndarray,
+                 custom_data: ndarray,
+                 system_info: str,
+                 generator_info: str
+                 ):
+        self.paramvals_by_name = paramvals_by_name
+        self.index_by_name = {name: index for index, name in enumerate(paramvals_by_name.keys())}
+        self.name_by_index = {index: name for name, index in self.index_by_name.items()}
+        self.paramvals_by_index = {self.index_by_name[name]: paramvals_by_name[name]
+                                   for name in paramvals_by_name.keys()}
+
+        self._eigenenergies = NamedParamvalsArray(eigenenergies)
+        self._eigenstates = NamedParamvalsArray(eigenstates)
+        self._spectrum_lookup_data = NamedParamvalsArray(spectrum_lookup_data)
+        self._custom_data = NamedParamvalsArray(custom_data)
+        self._system_info = system_info
+        self._generator_info = generator_info
+
+        self.data_callback = self.return_sliced_data
+
+    def __str__(self):
+        info = "Sweep\n" \
+               "=========================\n\n" \
+               "Label: {}\n" \
+               "This sweep was generated as a scan over the following parameter(s): {}\n" \
+               "The arrays specifying the parameter-value sets can be accessed via\n" \
+               "    <ParameterSweep obj>['<label>']['<parameter name>']\n" \
+               "Custom data was computed with the generating function:\n\n" \
+               "{}\n\n" \
+               "The sweep is based on the following composite quantum system:\n" \
+               "{}".format(self.label,
+                           str(list(self.paramvals_by_name.keys())),
+                           self.generator_info,
+                           self.system_info)
+        return info
+
+    def return_sliced_data(self, multi_index: Tuple[Union[int, slice], ...]) -> 'Sweep':
+        sliced_paramvals_by_name = {self.name_by_index[index]: self.paramvals_by_index[index][this_slice]
+                                    for index, this_slice in enumerate(multi_index[:self.paramvals_count])}
+        return Sweep(paramvals_by_name=sliced_paramvals_by_name,
+                     eigenenergies=self.eigenenergies[multi_index],
+                     eigenstates=self.eigenstates[multi_index],
+                     spectrum_lookup_data=self.spectrum_lookup_data[multi_index],
+                     custom_data=self.custom_data)
+        return sliced_data
+
+    # VISUALIZATION METHODS MAY WANT TO GO HERE
+
+
+# class SweepInfo:
+#     def __init__(self,
+#                  label: str,
+#                  system_info: str,
+#                  evals_count: int,
+#                  paramvals_by_name: Dict[str, Iterable],
+#                  sweep_generator: Union[str, Callable[[Union[float, ndarray]], Dict[str, Union[Number, ndarray]]]],
+#                  fixed_subsys_list: List[QuantumSys] = None,
+#                  num_cpus: int = settings.NUM_CPUS
+#                  ):
+#         self.label = label
+#         self.system_info = system_info
+#         self.evals_count = evals_count
+#         self.paramvals_by_name = paramvals_by_name
+#         self.fixed_subsys_list = fixed_subsys_list
+#         self.num_cpus = num_cpus
+#
+#         self.generator_info = sweep_generator if isinstance(sweep_generator, str) else inspect.getsource(sweep_generator)
+#
+#         if not callable(sweep_generator):
+#             self.sweep_generator = self.create_generator(sweep_generator)
+#         else:
+#             self.sweep_generator = sweep_generator
+#
+
+
 class ParameterSweepBase(ABC):
     """
     The ParameterSweepBase class is an abstract base class for ParameterSweep and StoredSweep
     """
     hilbertspace = descriptors.ReadOnlyProperty()
-    _sweeps: Dict[str, SweepData]
+    _sweeps: Dict[str, Sweep] = {}
 
-    def __init__(self,
-                 hilbertspace: hspace.HilbertSpace,
-                 sweep_name: str,
-                 param_ranges: Dict[str, Iterable],
-                 sweep_function: Callable[[Union[float, ndarray]], Union[float, ndarray]]):
-        self._hilbertspace = hilbertspace
-        self.add_sweep(sweep_name, param_ranges, sweep_function)
-
-    def __getitem__(self, name: str) -> SweepData:
+    def __getitem__(self, name: str) -> Sweep:
         return self._sweeps[name]
 
     def __setitem__(self, key: str, item):
@@ -88,18 +331,14 @@ class ParameterSweepBase(ABC):
     def __delitem__(self, name: str) -> None:
         del self._sweeps[name]
 
-    def add_sweep(self,
-                  sweep_name: str,
-                  param_ranges: Dict[str, Iterable],
-                  sweep_function: Callable[[Union[float, ndarray]], Union[float, ndarray]]) -> None:
-        self._sweeps[sweep_name] = self.generate_sweep(param_ranges, sweep_function)
-        return None
-
     def get_subsys(self, index: int) -> QuantumSys:
         return self._hilbertspace[index]
 
     def get_subsys_index(self, subsys: QuantumSys) -> int:
         return self._hilbertspace.get_subsys_index(subsys)
+
+    def system_info(self) -> str:
+        return self.hilbertspace.__str__()
 
     @property
     def osc_subsys_list(self) -> List[Tuple[int, Oscillator]]:
@@ -114,181 +353,20 @@ class ParameterSweepBase(ABC):
         return self._hilbertspace.subsystem_count
 
 
-class NamedRangeSlicing:
-    def __init__(self,
-                 ranges: Dict[str, Iterable],
-                 data_callback: Callable):
-        self.range_by_name = ranges
-        self.index_by_name = {name: index for index, name in enumerate(ranges.keys())}
-        self.name_by_index = {index: name for name, index in self.index_by_name.items()}
-        self.range_by_index = {self.index_by_name[name]: ranges[name] for name in ranges.keys()}
-        self.data_callback = data_callback
-
-    def __getitem__(self, *multi_index: Union[Number, slice]) -> Any:
-        # two options: 1. positional slicing
-        #              2. all indices are referred to by parameter name, e.g.,
-        #                    sweep['flux1':start:stop, 'ng1':start:stop]
-        return self.data_callback(self.process_slicing(multi_index))
-
-
-    def names_to_indices(self,
-                         multi_index: Tuple[Union[Number, slice], ...]
-                         ) ->  Tuple[Union[Number, slice], ...]:
-        converted_multi_index = [slice(None)] * self.param_count
-        for this_slice in multi_index:
-            try:
-                name = this_slice.start
-                converted_slice = slice(start=this_slice.stop, stop=this_slice.step)
-                index = self.index_by_name[name]
-                converted_multi_index[index] = converted_slice
-            except (AttributeError, KeyError):
-                raise Exception("Slicing error: could not convert parameter-name based slices to ordinary slices.")
-        return tuple(converted_multi_index)
-
-    def process_slicing(self, multi_index: Tuple[Union[Number, slice], ...]) -> Tuple[int]:
-        index = multi_index[0]
-        if isinstance(index, slice) and isinstance(index.start, str):
-            multi_index = self.names_to_indices(multi_index)
-
-        processed_multi_index = [slice(None)] * self.param_count
-        for position, index in enumerate(multi_index):
-            if isinstance(index, int):
-                processed_multi_index[position] = index
-            elif isinstance(index, (float, complex)):
-                value = index
-                processed_multi_index[position] = self.get_index_closest_value(value, self.range_by_index[position])
-            elif isinstance(index, slice):
-                this_slice = index if self.is_regular_slice(index) else self.convert_to_regular_slice(index, position)
-                processed_multi_index[position] = this_slice
-
-        return tuple(processed_multi_index)
-
-    def is_regular_slice(self, this_slice: slice) -> bool:
-        if (isinstance(this_slice.start, (int, None)) and
-                isinstance(this_slice.stop, (int, None)) and
-                isinstance(this_slice.step, (int, None))):
-            return True
-        return False
-
-    def convert_to_regular_slice(self, this_slice: slice, range_index) -> slice:
-        if not isinstance(this_slice.start, (int, None)):
-            value = this_slice.start
-            this_slice.start = self.get_index_closest_value(value, range_index)
-        if not isinstance(this_slice.stop, (int, None)):
-            value = this_slice.stop
-            this_slice.stop = self.get_index_closest_value(value, range_index)
-        if not isinstance(this_slice.step, (int, None)):
-            raise Exception("Slicing error: non-integer step sizes not supported.")
-        return this_slice
-
-    def params_count(self) -> int:
-        return len(self.param_range)
-
-
-SweepData = namedtuple('SweepData', ['eigenenergies', 'eigenstates', 'lookup_data', 'custom_data'])
-
-
-class Sweep(NamedRangeSlicing):
-    eigenenergies = descriptors.ReadOnlyProperty()
-    eigenstates = descriptors.ReadOnlyProperty()
-    lookup_data = descriptors.ReadOnlyProperty()
-    custom_data = descriptors.ReadOnlyProperty()
-
-    def __init__(self,
-                 param_range: Dict[str, Iterable],
-                 eigenenergies: ndarray,
-                 eigenstates: ndarray,
-                 spectrum_lookup_data: ndarray,
-                 custom_data: ndarray):
-
-        super().__init__(param_range)
-        self.param_range = ReadOnlyDict(param_range)
-        self.param_index = ReadOnlyDict({param_name: index for index, param_name in param_range.keys()})
-        self.param_name = ReadOnlyDict({index: param_name for index, param_name in param_range.keys()})
-        self._eigenenergies = eigenenergies
-        self._eigenstates = eigenstates
-        self._spectrum_lookup_data = spectrum_lookup_data
-        self._custom_data = custom_data
-
-    def return_sweepdata(self, multi_index: Tuple[Union[Int, slice],...]) -> SweepData:
-        sliced_data = SweepData(eigenenergies=self.eigenenergies[multi_index],
-                                eigenstates=self.eigenstates[multi_index],
-                                lookup_data=self.lookup_data[multi_index],
-                                custom_data=self.custom_data
-                                )
-
-    def __getitem__(self, *multi_index1, **multi_index2):
-        if multi_index1 and multi_index2:
-            raise NotImplementedError
-
-
-    def multi_index(self, **fixed_params: Union[int, List[float]]):
-        multi_index = np.empty(self.params_count(), dtype=np.int)
-        for param_name, value_or_index in fixed_params.items():
-            if isinstance(value_or_index, int):
-                index = value_or_index
-                multi_index[self.param_index[param_name]] = index
-            elif isinstance(value_or_index, list):
-                value = value_or_index[0]
-                index = self.get_index_closest_value(value)
-            else:
-                raise TypeError
-
-
-
-    param_vals = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    evals_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    lookup = descriptors.ReadOnlyProperty()
-    _hilbertspace: hspace.HilbertSpace
-
-
-    @property
-    def bare_specdata_list(self) -> List[SpectrumData]:
-        return self.lookup._bare_specdata_list
-
-    @property
-    def dressed_specdata(self) -> SpectrumData:
-        return self.lookup._dressed_specdata
-
-    def _lookup_bare_eigenstates(self,
-                                 param_index: int,
-                                 subsys: QuantumSys,
-                                 bare_specdata_list: List[SpectrumData]
-                                 ) -> Union[ndarray, List[QutipEigenstates]]:
-        """
-        Parameters
-        ----------
-        param_index:
-            position index of parameter value in question
-        subsys:
-            Hilbert space subsystem for which bare eigendata is to be looked up
-        bare_specdata_list:
-            may be provided during partial generation of the lookup
-
-        Returns
-        -------
-            bare eigenvectors for the specified subsystem and the external parameter fixed to the value indicated by
-            its index
-        """
-        subsys_index = self.get_subsys_index(subsys)
-        return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
-
-    @property
-    def system_params(self) -> Dict[str, Any]:
-        return self._hilbertspace.get_initdata()
-
-    def new_datastore(self, **kwargs) -> DataStore:
-        """Return DataStore object with system/sweep information obtained from self."""
-        return storage.DataStore(self.system_params, self.param_name, self.param_vals, **kwargs)
-
-
 class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable):
     """
-    The ParameterSweep class helps generate spectral and associated data for a composite quantum system, as an externa,
-    parameter, such as flux, is swept over some given interval of values. Upon initialization, these data are calculated
-    and stored internally, so that plots can be generated efficiently. This is of particular use for interactive
-    displays used in the Explorer class.
+    The ParameterSweep class helps generate spectral and associated data for a composite quantum system, when one or
+    multiple external parameter(s), such as flux, is/are swept over some given interval of values. Upon initialization,
+    these data are calculated and stored internally, so that plots can be generated efficiently. (This is of particular
+    use for interactive displays used in the Explorer class.)
+
+    Note: the full interacting Hamiltonian is represented in the bare product basis, i.e. the eigenbasis of the non-
+    interacting Hamiltonian consisting only of the individual Hamiltonians of each subsystem. Consequently, for a given
+    parameter set, construction invariably requires diagonalization of the individual subsystem Hamiltonians. Since this
+    diagonalization can be costly itself (think, e.g., of `FullZeroPi`), significant savings in computation time can be
+    achieved by identifying subsystems unaffected by a particular scan. it is of significant benefit for
+
+    Note
 
     Parameters
     ----------
@@ -308,31 +386,26 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
     num_cpus:
         number of CPUS requested for computing the sweep (default value settings.NUM_CPUS)
     """
-    param_name = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_vals = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    evals_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    subsys_update_list = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    update_hilbertspace = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    lookup = descriptors.ReadOnlyProperty()
 
     def __init__(self,
-                 param_name: str,
-                 param_vals: ndarray,
+                 label: str,
+                 hilbertspace: hspace.HilbertSpace,
                  evals_count: int,
-                 hilbertspace: HilbertSpace,
-                 subsys_update_list: List[QuantumSys],
-                 update_hilbertspace: Callable,
+                 paramvals_by_name: Dict[str, Iterable],
+                 sweep_generator: Callable[[Union[float, ndarray]], Dict[str, Union[Number, ndarray]]],
+                 fixed_subsys_list: List[QuantumSys] = None,
                  num_cpus: int = settings.NUM_CPUS
-                 ) -> None:
-        self.param_name = param_name
-        self.param_vals = param_vals
-        self.param_count = len(param_vals)
-        self.evals_count = evals_count
+                 ):
         self._hilbertspace = hilbertspace
-        self.subsys_update_list = tuple(subsys_update_list)
-        self.update_hilbertspace = update_hilbertspace
+
+        # The following quantities reflect the current sweep being generated
+        self.label = label
+        self.evals_count = evals_count
+        self.paramvals_by_name = paramvals_by_name
+        self.sweep_generator = sweep_generator
+        self.fixed_subsys_list = fixed_subsys_list
         self.num_cpus = num_cpus
+
         self._lookup: Union[SpectrumLookup, None] = None
         self._bare_hamiltonian_constant: Qobj
 
@@ -345,9 +418,28 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         if settings.AUTORUN_SWEEP:
             self.run()
 
+    def create_generator(self, generator_string: str):
+        raise NotImplementedError
+
+    def add_sweep(self,
+                  label: str,
+                  evals_count: int,
+                  paramvals_by_name: Dict[str, Iterable],
+                  sweep_generator: Callable[[Union[float, ndarray]], Dict[str, Union[Number, ndarray]]],
+                  fixed_subsys_list: List[QuantumSys] = None,
+                  num_cpus: int = settings.NUM_CPUS
+                  ) -> None:
+        self.__init__(label,
+                      self.hilbertspace,
+                      evals_count,
+                      paramvals_by_name,
+                      sweep_generator,
+                      fixed_subsys_list,
+                      num_cpus)
+
     def run(self) -> None:
         """Top-level method for generating all parameter sweep data"""
-        self.cause_dispatch()   # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
+        # self.cause_dispatch()   # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
         settings.DISPATCH_ENABLED = False
         bare_specdata_list = self._compute_bare_specdata_sweep()
         dressed_specdata = self._compute_dressed_specdata_sweep(bare_specdata_list)
@@ -355,72 +447,72 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         settings.DISPATCH_ENABLED = True
 
     # HilbertSpace: methods for CentralDispatch ----------------------------------------------------
-    def cause_dispatch(self) -> None:
-        self.update_hilbertspace(self.param_vals[0])
-
-    def receive(self, event: str, sender: object, **kwargs) -> None:
-        """Hook to CENTRAL_DISPATCH. This method is accessed by the global CentralDispatch instance whenever an event
-        occurs that ParameterSweep is registered for. In reaction to update events, the lookup table is marked as out
-        of sync.
-
-        Parameters
-        ----------
-        event:
-            type of event being received
-        sender:
-            identity of sender announcing the event
-        **kwargs
-        """
-        if self._lookup is not None:
-            if event == 'HILBERTSPACE_UPDATE' and sender is self._hilbertspace:
-                self._lookup._out_of_sync = True
-                # print('Lookup table now out of sync')
-            elif event == 'PARAMETERSWEEP_UPDATE' and sender is self:
-                self._lookup._out_of_sync = True
-                # print('Lookup table now out of sync')
+    # def cause_dispatch(self) -> None:
+    #     self.update_hilbertspace(self.param_vals[0])
+    #
+    # def receive(self, event: str, sender: object, **kwargs) -> None:
+    #     """Hook to CENTRAL_DISPATCH. This method is accessed by the global CentralDispatch instance whenever an event
+    #     occurs that ParameterSweep is registered for. In reaction to update events, the lookup table is marked as out
+    #     of sync.
+    #
+    #     Parameters
+    #     ----------
+    #     event:
+    #         type of event being received
+    #     sender:
+    #         identity of sender announcing the event
+    #     **kwargs
+    #     """
+    #     if self._lookup is not None:
+    #         if event == 'HILBERTSPACE_UPDATE' and sender is self._hilbertspace:
+    #             self._lookup._out_of_sync = True
+    #             # print('Lookup table now out of sync')
+    #         elif event == 'PARAMETERSWEEP_UPDATE' and sender is self:
+    #             self._lookup._out_of_sync = True
+    #             # print('Lookup table now out of sync')
 
     # ParameterSweep: file IO methods ---------------------------------------------------------------
-    @classmethod
-    def deserialize(cls, iodata: 'IOData') -> 'StoredSweep':
-        """
-        Take the given IOData and return an instance of the described class, initialized with the data stored in
-        io_data.
+    # @classmethod
+    # def deserialize(cls, iodata: 'IOData') -> 'StoredSweep':
+    #     """
+    #     Take the given IOData and return an instance of the described class, initialized with the data stored in
+    #     io_data.
+    #
+    #     Parameters
+    #     ----------
+    #     iodata: IOData
+    #
+    #     Returns
+    #     -------
+    #     StoredSweep
+    #     """
+    #     data_dict = iodata.as_kwargs()
+    #     lookup = data_dict.pop('_lookup')
+    #     data_dict['dressed_specdata'] = lookup._dressed_specdata
+    #     data_dict['bare_specdata_list'] = lookup._bare_specdata_list
+    #     new_storedsweep = StoredSweep(**data_dict)
+    #     new_storedsweep._lookup = lookup
+    #     return new_storedsweep
 
-        Parameters
-        ----------
-        iodata: IOData
-
-        Returns
-        -------
-        StoredSweep
-        """
-        data_dict = iodata.as_kwargs()
-        lookup = data_dict.pop('_lookup')
-        data_dict['dressed_specdata'] = lookup._dressed_specdata
-        data_dict['bare_specdata_list'] = lookup._bare_specdata_list
-        new_storedsweep = StoredSweep(**data_dict)
-        new_storedsweep._lookup = lookup
-        return new_storedsweep
-
-    def serialize(self) -> 'IOData':
-        """
-        Convert the content of the current class instance into IOData format.
-
-        Returns
-        -------
-        IOData
-        """
-        if self._lookup is None:
-            raise ValueError('Nothing to save - no lookup data has been generated yet.')
-
-        initdata = {'param_name': self.param_name,
-                    'param_vals': self.param_vals,
-                    'evals_count': self.evals_count,
-                    'hilbertspace': self._hilbertspace,
-                    '_lookup': self._lookup}
-        iodata = serializers.dict_serialize(initdata)
-        iodata.typename = 'StoredSweep'
-        return iodata
+    # def serialize(self) -> 'IOData':
+    #     """
+    #     Convert the content of the current class instance into IOData format.
+    #
+    #     Returns
+    #     -------
+    #     IOData
+    #     """
+    #     if self._lookup is None:
+    #         raise ValueError('Nothing to save - no lookup data has been generated yet.')
+    #
+    #     initdata = {'param_name': self.param_name,
+    #                 'param_vals': self.param_vals,
+    #                 'evals_count': self.evals_count,
+    #                 'hilbertspace': self._hilbertspace,
+    #                 '_lookup': self._lookup}
+    #     iodata = serializers.dict_serialize(initdata)
+    #     iodata.typename = 'StoredSweep'
+    #     return iodata
 
     # ParameterSweep: private methods for generating the sweep -------------------------------------------------
     def _compute_bare_specdata_sweep(self) -> List[SpectrumData]:
