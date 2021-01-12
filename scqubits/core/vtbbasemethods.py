@@ -152,9 +152,9 @@ class VTBBaseMethods(ABC):
         gamma_list = self.EJlist / Phi0 ** 2
         gamma_diag = np.diag([gamma_list[j] * np.cos(minimum_location[j]) for j in range(dim)])
         stitching_term_sum = np.sum([self.stitching_coefficients[j] * minimum_location[j] for j in range(dim)])
-        gamma_matrix = (np.fromfunction(lambda j, k: gamma_list[-1] * self.stitching_coefficients[j]
-                                        * self.stitching_coefficients[k]
-                                        * np.cos(stitching_term_sum + 2*np.pi*self.flux), (dim, dim))
+        gamma_matrix = (np.fromfunction(lambda j, k: [gamma_list[-1] * self.stitching_coefficients[j.astype(int)]
+                                        * self.stitching_coefficients[k.astype(int)]
+                                        * np.cos(stitching_term_sum + 2 * np.pi * self.flux)], (dim, dim))
                         + gamma_diag)
         return gamma_matrix
 
