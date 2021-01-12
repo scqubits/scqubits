@@ -156,7 +156,7 @@ class VTBBaseMethods(ABC):
                                         * self.stitching_coefficients[k.astype(int)]
                                         * np.cos(stitching_term_sum + 2 * np.pi * self.flux)], (dim, dim))
                         + gamma_diag)
-        return gamma_matrix
+        return gamma_matrix[0]
 
     def eigensystem_normal_modes(self, minimum: int = 0) -> (ndarray, ndarray):
         """Returns squared normal mode frequencies, matrix of eigenvectors
@@ -208,7 +208,7 @@ class VTBBaseMethods(ABC):
         delta_inv = Xi_inv.T @ Xi_inv
         if m == p:  # Do not include equivalent minima in the same unit cell
             nearest_neighbors = np.array([vec for vec in nearest_neighbors if not np.allclose(vec, np.zeros_like(vec))])
-        minima_distances = np.array([np.linalg.norm(2.0*np.pi*vec + (minima_p - minima_m))
+        minima_distances = np.array([np.linalg.norm(2.0 * np.pi*vec + (minima_p - minima_m))
                                      for vec in nearest_neighbors]) / 2.0
         minima_vectors = np.array([2.0 * np.pi * vec + (minima_p - minima_m)
                                    for i, vec in enumerate(nearest_neighbors)])
@@ -531,7 +531,7 @@ class VTBBaseMethods(ABC):
         dim = self.number_degrees_freedom
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         constant_coefficient = -0.5 * 1j * (Xi_inv.T @ Xi_inv @ (phi_neighbor + minima_p - minima_m))[j]
-        return (-(1j/np.sqrt(2.0)) * np.sum([Xi_inv.T[j, mu] * (a[mu] - a[mu].T) for mu in range(dim)], axis=0)
+        return (-(1j / np.sqrt(2.0)) * np.sum([Xi_inv.T[j, mu] * (a[mu] - a[mu].T) for mu in range(dim)], axis=0)
                 + constant_coefficient * self.identity())
 
     def _local_phi_operator(self, j: int, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
@@ -539,13 +539,13 @@ class VTBBaseMethods(ABC):
         dim = self.number_degrees_freedom
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         constant_coefficient = 0.5 * (phi_neighbor + (minima_m + minima_p))
-        return ((1.0/np.sqrt(2.0)) * np.sum([Xi[j, mu] * (a[mu] + a[mu].T) for mu in range(dim)], axis=0)
+        return ((1.0 / np.sqrt(2.0)) * np.sum([Xi[j, mu] * (a[mu] + a[mu].T) for mu in range(dim)], axis=0)
                 + constant_coefficient[j] * self.identity())
 
     def _exp_i_phi_j_with_phi_bar(self, exp_i_phi_j: ndarray, phi_bar: ndarray) -> Tuple[ndarray, ndarray]:
         """Returns exp_i_phi_j operators including the local contribution of phi_bar"""
         exp_i_phi_j_phi_bar = np.array([exp_i_phi_j[i] * np.exp(1j * phi_bar[i])
-                                                 for i in range(self.number_degrees_freedom)])
+                                        for i in range(self.number_degrees_freedom)])
         exp_i_stitching_phi_j_phi_bar = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
                                          * np.exp(1j * self.stitching_coefficients @ phi_bar))
         return exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar
@@ -568,8 +568,8 @@ class VTBBaseMethods(ABC):
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         delta_phi = phi_neighbor + minima_p - minima_m
         delta_phi_rotated = Xi_inv @ delta_phi
-        kinetic_matrix = np.sum([EC_mat_t[i, i]*(-0.5*4*a_a[i] - 0.5*4*a_a[i].T + 0.5*8*a_dagger_a[i]
-                                                 - 4*(a[i] - a[i].T)*delta_phi_rotated[i]/np.sqrt(2.0))
+        kinetic_matrix = np.sum([EC_mat_t[i, i] * (-0.5 * 4 * a_a[i] - 0.5 * 4 * a_a[i].T + 0.5 * 8 * a_dagger_a[i]
+                                                   - 4 * (a[i] - a[i].T) * delta_phi_rotated[i] / np.sqrt(2.0))
                                  for i in range(self.number_degrees_freedom)], axis=0)
         identity_coefficient = (0.5 * 4 * np.trace(EC_mat_t)
                                 - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated)
@@ -582,12 +582,12 @@ class VTBBaseMethods(ABC):
         minima and a periodic continuation vector `phi_neighbor`"""
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
         exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
-        potential_matrix = np.sum([-0.5*self.EJlist[junction]
+        potential_matrix = np.sum([-0.5 * self.EJlist[junction]
                                    * (exp_i_phi_j_phi_bar[junction] + exp_i_phi_j_phi_bar[junction].conjugate())
                                    for junction in range(self.number_junctions - 1)], axis=0)
-        potential_matrix = potential_matrix - 0.5*self.EJlist[-1]*(exp_i_stitching_phi_j_phi_bar
-                                                                   + exp_i_stitching_phi_j_phi_bar.conjugate())
-        potential_matrix = potential_matrix + np.sum(self.EJlist)*self.identity()
+        potential_matrix = potential_matrix - 0.5 * self.EJlist[-1] * (exp_i_stitching_phi_j_phi_bar
+                                                                       + exp_i_stitching_phi_j_phi_bar.conjugate())
+        potential_matrix = potential_matrix + np.sum(self.EJlist) * self.identity()
         return potential_matrix
 
     def _local_kinetic_plus_potential(self, exp_i_phi_j: ndarray,
@@ -631,8 +631,8 @@ class VTBBaseMethods(ABC):
             matrix_element = self._periodic_continuation_for_minima_pair(minima_m, minima_p,
                                                                          self.nearest_neighbors[str(m)+str(p)],
                                                                          func, exp_a_list, Xi_inv, a_operator_list)
-            operator_matrix[m*num_states_min: (m + 1)*num_states_min,
-                            p*num_states_min: (p + 1)*num_states_min] += matrix_element
+            operator_matrix[m * num_states_min: (m + 1) * num_states_min,
+                            p * num_states_min: (p + 1) * num_states_min] += matrix_element
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
 
@@ -668,10 +668,10 @@ class VTBBaseMethods(ABC):
         num_states_min = int(self.number_states_per_minimum())
         for m, minima_m in enumerate(minima_list):
             for p in range(m + 1, len(minima_list)):
-                matrix_element = mat[m*num_states_min: (m + 1)*num_states_min,
-                                     p*num_states_min: (p + 1)*num_states_min]
-                mat[p*num_states_min: (p + 1)*num_states_min,
-                    m*num_states_min: (m + 1)*num_states_min] += matrix_element.conjugate().T
+                matrix_element = mat[m * num_states_min: (m + 1) * num_states_min,
+                                     p * num_states_min: (p + 1) * num_states_min]
+                mat[p * num_states_min: (p + 1) * num_states_min,
+                    m * num_states_min: (m + 1) * num_states_min] += matrix_element.conjugate().T
         return mat
 
     def _transfer_matrix_and_inner_product(self) -> Tuple[ndarray, ndarray]:
@@ -734,9 +734,9 @@ class VTBBaseMethods(ABC):
     def _normalize_minimum_inside_pi_range(self, minimum: ndarray) -> ndarray:
         """Helper method for defining the unit cell from -pi to pi rather than the less symmetric 0 to 2pi"""
         num_extended = self.number_extended_degrees_freedom
-        extended_coordinates = minimum[0:num_extended]
-        periodic_coordinates = np.mod(minimum, 2*np.pi*np.ones_like(minimum))[num_extended:]
-        periodic_coordinates = np.array([elem - 2*np.pi if elem > np.pi else elem for elem in periodic_coordinates])
+        extended_coordinates = minimum[0: num_extended]
+        periodic_coordinates = np.mod(minimum, 2 * np.pi * np.ones_like(minimum))[num_extended:]
+        periodic_coordinates = np.array([elem - 2 * np.pi if elem > np.pi else elem for elem in periodic_coordinates])
         return np.concatenate((extended_coordinates, periodic_coordinates))
 
     def _check_if_new_minima(self, new_minima: ndarray, minima_holder: List) -> bool:
@@ -750,7 +750,7 @@ class VTBBaseMethods(ABC):
             diff_array_bool_extended = [True if np.allclose(elem, 0.0, atol=1e-3) else False
                                         for elem in extended_coordinates]
             diff_array_bool_periodic = [True if (np.allclose(elem, 0.0, atol=1e-3)
-                                                 or np.allclose(elem, 2*np.pi, atol=1e-3))
+                                                 or np.allclose(elem, 2 * np.pi, atol=1e-3))
                                         else False for elem in periodic_coordinates]
             if np.all(diff_array_bool_extended) and np.all(diff_array_bool_periodic):
                 return False
