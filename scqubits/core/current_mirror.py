@@ -237,8 +237,8 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         for j in range(dim):
             H += (-self.EJlist[j]/2.)*(self.exp_i_phi_j_operator(j) + self.exp_i_phi_j_operator(j).conj().T)
             H += self.EJlist[j]*self.identity_operator()
-        H += (-self.EJlist[-1] / 2.) * (np.exp(1j*2*np.pi*self.flux) * self.exp_i_phi_boundary_term().conj().T
-                                        + np.exp(-1j*2*np.pi*self.flux) * self.exp_i_phi_boundary_term())
+        H += (-self.EJlist[-1] / 2.) * (np.exp(1j*2*np.pi*self.flux) * self.exp_i_phi_stitching_term().conj().T
+                                        + np.exp(-1j*2*np.pi*self.flux) * self.exp_i_phi_stitching_term())
         H += self.EJlist[-1]*self.identity_operator()
         return H
 
@@ -293,7 +293,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         exp_i_phi_j = self._exp_i_phi_j_operator()
         return operator_in_full_Hilbert_space([exp_i_phi_j], [j], self._identity_operator_list(), sparse=True)
 
-    def exp_i_phi_boundary_term(self) -> ndarray:
+    def exp_i_phi_stitching_term(self) -> ndarray:
         """Returns the operator associated with the last Josephson junction,
          :math:`\exp(i\sum_{j=1}^{2N-1}\phi_{j})` in the full Hilbert space
 

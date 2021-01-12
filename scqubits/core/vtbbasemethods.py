@@ -78,7 +78,7 @@ class VTBBaseMethods(ABC):
     capacitance_matrix: Callable
     find_minima: Callable
     vtb_potential: Callable
-    boundary_coefficients: ndarray
+    stitching_coefficients: ndarray
     flux: float
 
     def __init__(self,
@@ -146,20 +146,16 @@ class VTBBaseMethods(ABC):
         ndarray
         """
         dim = self.number_degrees_freedom
-        gamma_matrix = np.zeros((dim, dim))
-        min_loc = self.sorted_minima()[minimum]
+        minimum_location = self.sorted_minima()[minimum]
         e_charge = 1.0
         Phi0 = 1. / (2 * e_charge)
         gamma_list = self.EJlist / Phi0 ** 2
-
-        gamma_diag = np.diag(np.array([gamma_list[j] * np.cos(min_loc[j]) for j in range(dim)]))
-        gamma_matrix = gamma_matrix + gamma_diag
-
-        min_loc_bound_sum = np.sum(np.array([self.boundary_coefficients[j] * min_loc[j] for j in range(dim)]))
-        for j in range(dim):
-            for k in range(dim):
-                gamma_matrix[j, k] += (gamma_list[-1] * self.boundary_coefficients[j] * self.boundary_coefficients[k]
-                                       * np.cos(min_loc_bound_sum + 2*np.pi*self.flux))
+        gamma_diag = np.diag([gamma_list[j] * np.cos(minimum_location[j]) for j in range(dim)])
+        stitching_term_sum = np.sum([self.stitching_coefficients[j] * minimum_location[j] for j in range(dim)])
+        gamma_matrix = (np.fromfunction(lambda j, k: gamma_list[-1] * self.stitching_coefficients[j]
+                                        * self.stitching_coefficients[k]
+                                        * np.cos(stitching_term_sum + 2*np.pi*self.flux), (dim, dim))
+                        + gamma_diag)
         return gamma_matrix
 
     def eigensystem_normal_modes(self, minimum: int = 0) -> (ndarray, ndarray):
@@ -174,26 +170,8 @@ class VTBBaseMethods(ABC):
         -------
         ndarray, ndarray
         """
-        C_matrix = self.capacitance_matrix()
-        g_matrix = self.gamma_matrix(minimum)
-
-        omega_squared, normal_mode_eigenvectors = eigh(g_matrix, b=C_matrix)
+        omega_squared, normal_mode_eigenvectors = eigh(self.gamma_matrix(minimum), b=self.capacitance_matrix())
         return omega_squared, normal_mode_eigenvectors
-
-    def omega_matrix(self, minimum: int = 0) -> ndarray:
-        """Returns a diagonal matrix of the normal mode frequencies of a given minimum
-
-        Parameters
-        ----------
-        minimum: int
-            integer specifying which minimum to linearize around, 0<=minimum<= total number of minima
-
-        Returns
-        -------
-        ndarray
-        """
-        omega_squared, _ = self.eigensystem_normal_modes(minimum)
-        return np.sqrt(omega_squared)
 
     def compare_harmonic_lengths_with_minima_separations(self) -> ndarray:
         """
@@ -402,13 +380,13 @@ class VTBBaseMethods(ABC):
         return a_operator_list, a_a, a_dagger_a
 
     def _single_exp_i_phi_j_operator(self, j: int, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
-        r"""Returns operator :math:`\exp(i\phi_{j})`. If `j` specifies the boundary term, which is
-        assumed to be the last junction, then that is constructed based on the boundary coefficients."""
+        r"""Returns operator :math:`\exp(i\phi_{j})`. If `j` specifies the stitching term, which is
+        assumed to be the last junction, then that is constructed based on the stitching coefficients."""
         dim = self.number_degrees_freedom
         if j == self.number_junctions - 1:
-            exp_i_phi_j_a_component = expm(np.sum([self.boundary_coefficients[i] * 1j * Xi[i, k] * a_operator_list[k]
-                                                  for i in range(dim) for k in range(dim)], axis=0) / np.sqrt(2.0))
-            BCH_factor = self._BCH_factor_for_potential_boundary(Xi)
+            exp_i_phi_j_a_component = expm(np.sum([self.stitching_coefficients[i] * 1j * Xi[i, k] * a_operator_list[k]
+                                                   for i in range(dim) for k in range(dim)], axis=0) / np.sqrt(2.0))
+            BCH_factor = self._BCH_factor_for_potential_stitching(Xi)
         else:
             exp_i_phi_j_a_component = expm(np.sum([1j * Xi[j, k] * a_operator_list[k]
                                                   for k in range(dim)], axis=0) / np.sqrt(2.0))
@@ -466,11 +444,11 @@ class VTBBaseMethods(ABC):
         delta_phi_rotated = Xi_inv @ delta_phi
         return np.exp(-1j * self.nglist @ delta_phi) * np.exp(-0.25 * delta_phi_rotated @ delta_phi_rotated)
 
-    def _BCH_factor_for_potential_boundary(self, Xi: ndarray) -> ndarray:
+    def _BCH_factor_for_potential_stitching(self, Xi: ndarray) -> ndarray:
         """BCH factor obtained from the last potential operator"""
         dim = self.number_degrees_freedom
-        return np.exp(-0.25*np.sum([self.boundary_coefficients[j] * self.boundary_coefficients[k]
-                                   * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim) for k in range(dim)]))
+        return np.exp(-0.25*np.sum([self.stitching_coefficients[j] * self.stitching_coefficients[k]
+                                    * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim) for k in range(dim)]))
 
     def n_operator(self, j: int = 0) -> ndarray:
         Xi_inv = inv(self.Xi_matrix())
@@ -564,23 +542,23 @@ class VTBBaseMethods(ABC):
         return ((1.0/np.sqrt(2.0)) * np.sum([Xi[j, mu] * (a[mu] + a[mu].T) for mu in range(dim)], axis=0)
                 + constant_coefficient[j] * self.identity())
 
-    def _exp_i_phi_j_operators_with_phi_bar(self, exp_i_phi_j: ndarray, phi_bar: ndarray) -> Tuple[ndarray, ndarray]:
+    def _exp_i_phi_j_with_phi_bar(self, exp_i_phi_j: ndarray, phi_bar: ndarray) -> Tuple[ndarray, ndarray]:
         """Returns exp_i_phi_j operators including the local contribution of phi_bar"""
-        exp_i_phi_j_without_boundary = np.array([exp_i_phi_j[i] * np.exp(1j * phi_bar[i])
+        exp_i_phi_j_phi_bar = np.array([exp_i_phi_j[i] * np.exp(1j * phi_bar[i])
                                                  for i in range(self.number_degrees_freedom)])
-        exp_i_sum_phi = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
-                         * np.exp(1j * self.boundary_coefficients @ phi_bar))
-        return exp_i_phi_j_without_boundary, exp_i_sum_phi
+        exp_i_stitching_phi_j_phi_bar = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
+                                         * np.exp(1j * self.stitching_coefficients @ phi_bar))
+        return exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar
 
     def _local_exp_i_phi_operator(self, j: int, exp_i_phi_j: ndarray, phi_neighbor: ndarray,
                                   minima_m: ndarray, minima_p: ndarray) -> ndarray:
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
-        exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
+        exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         if j == dim:
-            return exp_i_sum_phi
+            return exp_i_stitching_phi_j_phi_bar
         else:
-            return exp_i_phi_j_without_boundary[j]
+            return exp_i_phi_j_phi_bar[j]
 
     def _local_kinetic(self, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
                        EC_mat_t: ndarray, Xi_inv: ndarray, phi_neighbor: ndarray,
@@ -593,7 +571,8 @@ class VTBBaseMethods(ABC):
         kinetic_matrix = np.sum([EC_mat_t[i, i]*(-0.5*4*a_a[i] - 0.5*4*a_a[i].T + 0.5*8*a_dagger_a[i]
                                                  - 4*(a[i] - a[i].T)*delta_phi_rotated[i]/np.sqrt(2.0))
                                  for i in range(self.number_degrees_freedom)], axis=0)
-        identity_coefficient = 0.5*4*np.trace(EC_mat_t) - 0.25*4*delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
+        identity_coefficient = (0.5 * 4 * np.trace(EC_mat_t)
+                                - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated)
         kinetic_matrix = kinetic_matrix + identity_coefficient*self.identity()
         return kinetic_matrix
 
@@ -602,12 +581,12 @@ class VTBBaseMethods(ABC):
         """Calculate the local potential contribution to the transfer matrix given two
         minima and a periodic continuation vector `phi_neighbor`"""
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
-        exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
+        exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_matrix = np.sum([-0.5*self.EJlist[junction]
-                                   * (exp_i_phi_j_without_boundary[junction]
-                                      + exp_i_phi_j_without_boundary[junction].conjugate())
+                                   * (exp_i_phi_j_phi_bar[junction] + exp_i_phi_j_phi_bar[junction].conjugate())
                                    for junction in range(self.number_junctions - 1)], axis=0)
-        potential_matrix = potential_matrix - 0.5*self.EJlist[-1]*(exp_i_sum_phi + exp_i_sum_phi.conjugate())
+        potential_matrix = potential_matrix - 0.5*self.EJlist[-1]*(exp_i_stitching_phi_j_phi_bar
+                                                                   + exp_i_stitching_phi_j_phi_bar.conjugate())
         potential_matrix = potential_matrix + np.sum(self.EJlist)*self.identity()
         return potential_matrix
 
@@ -859,7 +838,7 @@ class VTBBaseMethods(ABC):
         r"""Helper method for building :math:`\exp(i\phi_{j})` when no excitations are kept."""
         dim = self.number_degrees_freedom
         exp_factors = np.array([np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j])) for j in range(dim)])
-        return np.append(exp_factors, self._BCH_factor_for_potential_boundary(Xi))
+        return np.append(exp_factors, self._BCH_factor_for_potential_stitching(Xi))
 
     def _gradient_one_state_local_inner_product(self, delta_phi: ndarray, Xi_inv: ndarray, which_length: int) -> float:
         """Returns gradient of the inner product matrix"""
@@ -887,16 +866,15 @@ class VTBBaseMethods(ABC):
                                             minima_p: ndarray, Xi: ndarray, which_length: int) -> ndarray:
         """Returns gradient of the potential matrix"""
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
-        exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
+        exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_gradient = np.sum([0.25 * self.EJlist[junction]
                                      * Xi[junction, which_length] * Xi.T[which_length, junction]
                                      * self.optimized_lengths[0, which_length]**(-1)
-                                     * (exp_i_phi_j_without_boundary[junction]
-                                        + exp_i_phi_j_without_boundary[junction].conjugate())
+                                     * (exp_i_phi_j_phi_bar[junction] + exp_i_phi_j_phi_bar[junction].conjugate())
                                      for junction in range(self.number_junctions - 1)])
-        potential_gradient += (0.25 * self.EJlist[-1] * self.optimized_lengths[0, which_length]**(-1)
-                               * (self.boundary_coefficients @ Xi[:, which_length])**2
-                               * (exp_i_sum_phi + exp_i_sum_phi.conjugate()))
+        potential_gradient += (0.25 * self.EJlist[-1] * self.optimized_lengths[0, which_length] ** (-1)
+                               * (self.stitching_coefficients @ Xi[:, which_length]) ** 2
+                               * (exp_i_stitching_phi_j_phi_bar + exp_i_stitching_phi_j_phi_bar.conjugate()))
         return potential_gradient
 
     def _gradient_one_state_local_transfer(self, exp_i_phi_j: ndarray, EC_mat_t: ndarray, Xi: ndarray, Xi_inv: ndarray,
@@ -912,11 +890,12 @@ class VTBBaseMethods(ABC):
                                    minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Local potential contribution when considering only the ground state."""
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
-        exp_i_phi_j_without_boundary, exp_i_sum_phi = self._exp_i_phi_j_operators_with_phi_bar(exp_i_phi_j, phi_bar)
-        potential = np.sum([-0.5 * self.EJlist[junction] * (exp_i_phi_j_without_boundary[junction]
-                                                            + exp_i_phi_j_without_boundary[junction].conjugate())
+        exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
+        potential = np.sum([-0.5 * self.EJlist[junction] * (exp_i_phi_j_phi_bar[junction]
+                                                            + exp_i_phi_j_phi_bar[junction].conjugate())
                             for junction in range(self.number_junctions - 1)])
-        potential += np.sum(self.EJlist) - 0.5 * self.EJlist[-1] * (exp_i_sum_phi + exp_i_sum_phi.conjugate())
+        potential += np.sum(self.EJlist) - 0.5 * self.EJlist[-1] * (exp_i_stitching_phi_j_phi_bar
+                                                                    + exp_i_stitching_phi_j_phi_bar.conjugate())
         return potential
 
     def _one_state_local_transfer(self, exp_i_phi_j: ndarray, EC_mat_t: ndarray, Xi: ndarray, Xi_inv: ndarray,

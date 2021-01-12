@@ -194,14 +194,14 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
 
     def _BCH_factor(self, j: int, Xi: ndarray) -> ndarray:
         dim = self.number_degrees_freedom
-        boundary_coeffs = np.array([(-1)**j, 1])
-        return np.exp(-0.25 * np.sum([boundary_coeffs[i] * boundary_coeffs[k] * np.dot(Xi[i, :], Xi.T[:, k])
+        cosine_coeffs = np.array([(-1)**j, 1])
+        return np.exp(-0.25 * np.sum([cosine_coeffs[i] * cosine_coeffs[k] * np.dot(Xi[i, :], Xi.T[:, k])
                                       for i in range(dim) for k in range(dim)]))
 
     def _single_exp_i_phi_j_operator(self, j: int, Xi: ndarray, a_operator_list: ndarray) -> ndarray:
         dim = self.number_degrees_freedom
-        boundary_coeffs = np.array([(-1)**j, 1])
-        exp_i_phi_theta_a_component = expm(np.sum([1j * boundary_coeffs[i] * Xi[i, k]
+        cosine_coeffs = np.array([(-1)**j, 1])
+        exp_i_phi_theta_a_component = expm(np.sum([1j * cosine_coeffs[i] * Xi[i, k]
                                                    * a_operator_list[k] / np.sqrt(2.0)
                                                    for i in range(dim) for k in range(dim)], axis=0))
         return self._BCH_factor(j, Xi) * exp_i_phi_theta_a_component.T @ exp_i_phi_theta_a_component
@@ -211,8 +211,8 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
         dim = self.number_degrees_freedom
         exp_factors_list = np.zeros(dim)
         for j in range(dim):
-            boundary_coeffs = np.array([(-1) ** j, 1])
-            exp_factors_list[j] = np.exp(-0.25 * np.sum([boundary_coeffs[j] * boundary_coeffs[k]
+            cosine_coeffs = np.array([(-1) ** j, 1])
+            exp_factors_list[j] = np.exp(-0.25 * np.sum([cosine_coeffs[j] * cosine_coeffs[k]
                                                          * np.dot(Xi[j, :], Xi.T[:, k]) for j in range(dim)
                                                          for k in range(dim)]))
         return exp_factors_list
@@ -254,8 +254,8 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
 
     def _exp_i_phi_theta_with_phi_bar(self, j: int, exp_i_phi_j: ndarray, phi_bar: ndarray) -> ndarray:
         dim = self.number_degrees_freedom
-        boundary_coeffs = np.array([(-1) ** j, 1])
-        exp_i_phi_theta_with_phi_bar = (exp_i_phi_j[j] * np.prod([np.exp(1j * boundary_coeffs[i] * phi_bar[i])
+        cosine_coeffs = np.array([(-1) ** j, 1])
+        exp_i_phi_theta_with_phi_bar = (exp_i_phi_j[j] * np.prod([np.exp(1j * cosine_coeffs[i] * phi_bar[i])
                                                                   for i in range(dim)])
                                         * np.exp((-1) ** (j + 1) * 1j * np.pi * self.flux))
         return exp_i_phi_theta_with_phi_bar
@@ -268,11 +268,11 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
         potential_gradient = self.EL * Xi[0, which_length]**2 * self.optimized_lengths[0, which_length]**(-1)
         for j in range(dim):
-            boundary_coeffs = np.array([(-1) ** j, 1])
+            cosine_coeffs = np.array([(-1) ** j, 1])
             exp_i_phi_theta = self._exp_i_phi_theta_with_phi_bar(j, exp_i_phi_j, phi_bar)
             potential_gradient += (0.25 * self.EJ * (1.0 + (-1)**j * self.dEJ)
                                    * self.optimized_lengths[0, which_length]**(-1)
-                                   * (boundary_coeffs @ Xi[:, which_length])**2
+                                   * (cosine_coeffs @ Xi[:, which_length])**2
                                    * (exp_i_phi_theta + exp_i_phi_theta.conjugate()))
         return potential_gradient
 
@@ -282,19 +282,20 @@ class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
                  EJ: float,
                  EL: float,
                  ECJ: float,
-                 EC: float,
+                 EC: Optional[float],
                  ng: float,
                  flux: float,
                  num_exc: int,
                  maximum_periodic_vector_length: int,
                  dEJ: float = 0.0,
                  dCJ: float = 0.0,
+                 ECS: float = None,
                  truncated_dim: int = None,
                  phi_extent: int = 10,
                  **kwargs
                  ) -> None:
         ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, num_exc, maximum_periodic_vector_length, dEJ=dEJ, dCJ=dCJ,
-                           truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
+                           ECS=ECS, truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
 
     def _potential_operators_squeezing(self, a_operator_list: ndarray, Xi: ndarray,
                                        exp_a_dagger_a: ndarray,
@@ -305,11 +306,11 @@ class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
         prefactor_a, prefactor_a_dagger = self._potential_exp_prefactors(disentangled_squeezing_matrices,
                                                                          delta_rho_matrices)
         for j in range(dim):
-            boundary_coeffs = np.array([(-1)**j, 1])
-            exp_i_j_a_dagger_part = expm(np.sum([1j * boundary_coeffs[i]
+            cosine_coeffs = np.array([(-1)**j, 1])
+            exp_i_j_a_dagger_part = expm(np.sum([1j * cosine_coeffs[i]
                                                  * (Xi @ prefactor_a_dagger)[i, k] * a_operator_list[k].T
                                                  for i in range(dim) for k in range(dim)], axis=0) / np.sqrt(2.0))
-            exp_i_j_a_part = expm(np.sum([1j * boundary_coeffs[i] * (Xi @ prefactor_a)[i, k] * a_operator_list[k]
+            exp_i_j_a_part = expm(np.sum([1j * cosine_coeffs[i] * (Xi @ prefactor_a)[i, k] * a_operator_list[k]
                                           for i in range(dim) for k in range(dim)], axis=0) / np.sqrt(2.0))
             exp_i_j = exp_i_j_a_dagger_part @ exp_a_dagger_a @ exp_i_j_a_part
             exp_i_list.append(exp_i_j)
@@ -327,8 +328,8 @@ class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
         exp_i_list, harmonic_minima_pair_results = minima_pair_results
         exp_i_phi_list = []
         for j in range(dim):
-            boundary_coeffs = np.array([(-1)**j, 1])
-            exp_i_phi_list.append(exp_i_list[j] * np.prod([np.exp(1j * boundary_coeffs[i] * phi_bar[i])
+            cosine_coeffs = np.array([(-1)**j, 1])
+            exp_i_phi_list.append(exp_i_list[j] * np.prod([np.exp(1j * cosine_coeffs[i] * phi_bar[i])
                                                            for i in range(dim)])
                                   * np.exp((-1)**(j+1) * 1j * np.pi * self.flux))
         potential_matrix = np.sum([self._local_contribution_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
@@ -399,8 +400,8 @@ class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
                                                       ) -> ndarray:
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
-        boundary_coeffs = np.array([(-1)**j, 1])
-        arg_exp_a_dag = (delta_phi @ Xi_inv.T + 1j * (boundary_coeffs @ Xi)) / np.sqrt(2.)
+        cosine_coeffs = np.array([(-1)**j, 1])
+        arg_exp_a_dag = (delta_phi @ Xi_inv.T + 1j * (cosine_coeffs @ Xi)) / np.sqrt(2.)
         alpha = self._alpha_helper(arg_exp_a_dag, -arg_exp_a_dag.conjugate(), rho_prime, delta_rho)
         potential_matrix = -0.5 * self.EJlist[j] * (alpha * exp_i_phi_list[j] + (alpha * exp_i_phi_list[j]).conj())
         potential_matrix *= self._BCH_factor(j, Xi)
@@ -450,13 +451,14 @@ class ZeroPiVTBGlobal(Hashing, ZeroPiVTB):
                  maximum_periodic_vector_length: int,
                  dEJ: float = 0.0,
                  dCJ: float = 0.0,
+                 ECS: float = None,
                  truncated_dim: int = None,
                  phi_extent: int = 10,
                  **kwargs
                  ) -> None:
         Hashing.__init__(self)
         ZeroPiVTB.__init__(self, EJ, EL, ECJ, EC, ng, flux, num_exc, maximum_periodic_vector_length, dEJ=dEJ, dCJ=dCJ,
-                           truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
+                           ECS=ECS, truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
 
 
 class ZeroPiVTBGlobalSqueezing(Hashing, ZeroPiVTBSqueezing):
@@ -471,10 +473,12 @@ class ZeroPiVTBGlobalSqueezing(Hashing, ZeroPiVTBSqueezing):
                  maximum_periodic_vector_length: int,
                  dEJ: float = 0.0,
                  dCJ: float = 0.0,
+                 ECS: float = None,
                  truncated_dim: int = None,
                  phi_extent: int = 10,
                  **kwargs
                  ) -> None:
         Hashing.__init__(self)
         ZeroPiVTBSqueezing.__init__(self, EJ, EL, ECJ, EC, ng, flux, num_exc, maximum_periodic_vector_length,
-                                    dEJ=dEJ, dCJ=dCJ, truncated_dim=truncated_dim, phi_extent=phi_extent, **kwargs)
+                                    ECS=ECS, dEJ=dEJ, dCJ=dCJ, truncated_dim=truncated_dim,
+                                    phi_extent=phi_extent, **kwargs)

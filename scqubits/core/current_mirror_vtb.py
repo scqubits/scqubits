@@ -43,7 +43,7 @@ class CurrentMirrorVTB(VTBBaseMethods, CurrentMirror, base.QubitBaseClass, seria
         CurrentMirror.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, 0, truncated_dim)
         self._EJlist = EJlist
         self._nglist = nglist
-        self.boundary_coefficients = np.ones(2 * N - 1)
+        self.stitching_coefficients = np.ones(2 * N - 1)
         delattr(self, 'ncut')
 
     def set_EJlist(self, EJlist) -> None:

@@ -45,7 +45,7 @@ class FluxQubitVTB(VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.S
                                 number_degrees_freedom=2, number_periodic_degrees_freedom=2,
                                 number_junctions=3, **kwargs)
         FluxQubit.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, 0, truncated_dim)
-        self.boundary_coefficients = np.array([+1, -1])
+        self.stitching_coefficients = np.array([+1, -1])
         delattr(self, 'ncut')
 
     def _ramp(self, k: int, minima_holder: List) -> Tuple[List, bool]:

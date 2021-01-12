@@ -48,6 +48,6 @@ class HashingChargeBasis(Hashing):
         num_states = len(basis_vectors)
         return eye(num_states, k=0, format="csr", dtype=np.complex_)
 
-    def exp_i_phi_boundary_term(self) -> ndarray:
+    def exp_i_phi_stitching_term(self) -> ndarray:
         dim = self.number_degrees_freedom
         return reduce((lambda x, y: x @ y), np.array([self.exp_i_phi_j_operator(j) for j in range(dim)]))
