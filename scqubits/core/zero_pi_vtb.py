@@ -2,7 +2,6 @@ from itertools import product
 from typing import Dict, Any, List, Tuple, Optional
 
 import numpy as np
-import scipy.constants as const
 from numpy import ndarray
 from scipy.linalg import expm, inv
 from scipy.optimize import minimize
@@ -82,7 +81,7 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
             'truncated_dim': 10
         }
 
-    def vtb_potential(self, phi_array: ndarray) -> ndarray:
+    def _vtb_potential(self, phi_array: ndarray) -> ndarray:
         """Helper method for converting potential method arguments"""
         phi = phi_array[0]
         theta = phi_array[1]
@@ -138,18 +137,16 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
     def capacitance_matrix(self) -> ndarray:
         dim = self.number_degrees_freedom
         C_matrix = np.zeros((dim, dim))
-        e_charge = np.sqrt(4.0 * np.pi * const.alpha)
 
-        CS = e_charge ** 2 / (2. * self.ECS)
-        CJ = e_charge ** 2 / (2. * self.ECJ)
+        CS = 1. ** 2 / (2. * self.ECS)
+        CJ = 1. ** 2 / (2. * self.ECJ)
         C_matrix[0, 0] = 2 * CJ
         C_matrix[1, 1] = 2 * CS
         C_matrix[0, 1] = C_matrix[1, 0] = 4 * self.dCJ
         return C_matrix
 
     def EC_matrix(self) -> ndarray:
-        e_charge = np.sqrt(4.0 * np.pi * const.alpha)
-        return 0.5 * e_charge ** 2 * inv(self.capacitance_matrix())
+        return 0.5 ** 2 * inv(self.capacitance_matrix())
 
     def _check_second_derivative_positive(self, phi: ndarray, theta: ndarray) -> bool:
         return (self.EL + 2 * self.EJ * np.cos(theta) * np.cos(phi - np.pi * self.flux)) > 0
@@ -176,7 +173,7 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
         dim = self.number_degrees_freedom
         gamma_matrix = np.zeros((dim, dim))
         min_loc = self.sorted_minima()[minimum]
-        e_charge = np.sqrt(4.0 * np.pi * const.alpha)
+        e_charge = 1.0
         Phi0 = 1. / (2 * e_charge)
         phi_location = min_loc[0]
         theta_location = min_loc[1]

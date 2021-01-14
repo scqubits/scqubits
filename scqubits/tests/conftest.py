@@ -233,14 +233,14 @@ class VTBTestFunctions(StandardTests):
         reference_Xi_matrix = specdata.Xi_matrix
         assert np.allclose(np.abs(reference_Xi_matrix), np.abs(Xi_matrix))
 
-    def test_relevant_periodic_continuation_vectors(self, io_type):
-        testname = self.file_str + '_1.' + io_type
-        specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type(**specdata.system_params)
-        self.qbt.find_relevant_periodic_continuation_vectors()
-        reference_nearest_neighbors = specdata.nearest_neighbors
-        for key in reference_nearest_neighbors:
-            assert np.allclose(reference_nearest_neighbors[key], self.qbt.nearest_neighbors[key])
+    # def test_relevant_periodic_continuation_vectors(self, io_type):
+    #     testname = self.file_str + '_1.' + io_type
+    #     specdata = SpectrumData.create_from_file(DATADIR + testname)
+    #     self.qbt = self.qbt_type(**specdata.system_params)
+    #     self.qbt.find_relevant_periodic_continuation_vectors()
+    #     reference_nearest_neighbors = specdata.nearest_neighbors
+    #     for key in reference_nearest_neighbors:
+    #         assert np.allclose(reference_nearest_neighbors[key], self.qbt.nearest_neighbors[key])
 
     def test_kinetic_matrix(self, io_type):
         testname = self.file_str + '_1.' + io_type
@@ -316,13 +316,13 @@ class VTBTestFunctions(StandardTests):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
-        minima_list = self.qbt.sorted_minima()
+        sorted_minima_dict = self.qbt.sorted_minima
         self.qbt.find_relevant_periodic_continuation_vectors()
         Xi = self.qbt.Xi_matrix()
         EC_mat = self.qbt.EC_matrix()
         error = check_grad(self.qbt._evals_calc_variational,
                            self.qbt._gradient_evals_calc_variational,
-                           np.ones(self.qbt.number_degrees_freedom), minima_list[0], 0, EC_mat, Xi)
+                           np.ones(self.qbt.number_degrees_freedom), sorted_minima_dict[0], 0, EC_mat, Xi)
         assert np.allclose(error, 0.0, atol=1e-5)
 
     def initialize_vtb_qbt(self, system_params):
