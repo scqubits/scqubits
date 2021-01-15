@@ -411,10 +411,10 @@ class VTBBaseMethods(ABC):
         in each degree of freedom, so that any translation can be built from these by an appropriate
         call to np.matrix_power"""
         dim = self.number_degrees_freedom
-        exp_a_list = np.array([expm(np.sum([2.0 * np.pi * Xi_inv.T[i, j] * a_operator_array[j] / np.sqrt(2.0)
-                                    for j in range(dim)], axis=0)) for i in range(dim)])
-        exp_a_dagger_list = np.array([expm(np.sum([2.0 * np.pi * Xi_inv.T[i, j] * a_operator_array[j].T / np.sqrt(2.0)
-                                      for j in range(dim)], axis=0)) for i in range(dim)])
+        exp_a_list = np.array([expm(np.sum(2.0 * np.pi * Xi_inv.T[i] * np.transpose(a_operator_array, (1, 2, 0)) / np.sqrt(2.0),
+                                    axis=2) for i in range(dim))])
+        exp_a_dagger_list = np.array([expm(np.sum(2.0 * np.pi * Xi_inv.T[i] * a_operator_array.T / np.sqrt(2.0),
+                                                  axis=2)) for i in range(dim)])
         return exp_a_list, exp_a_dagger_list
 
     def _minima_dependent_translation_operators(self, minima_diff: ndarray, Xi_inv: ndarray,
@@ -422,11 +422,10 @@ class VTBBaseMethods(ABC):
         """Helper method that performs matrix exponentiation to aid in the
         future construction of translation operators. This part of the translation operator accounts
         for the differing location of minima within a single unit cell."""
-        dim = self.number_degrees_freedom
-        exp_a_minima_difference = expm(np.sum([-minima_diff[i] * Xi_inv.T[i, j] * a_operator_array[j] / np.sqrt(2.0)
-                                               for i in range(dim) for j in range(dim)], axis=0))
-        exp_a_dagger_minima_difference = expm(np.sum([minima_diff[i] * Xi_inv.T[i, j] * a_operator_array[j].T
-                                              for i in range(dim) for j in range(dim)], axis=0) / np.sqrt(2.0))
+        exp_a_minima_difference = expm(np.sum(-minima_diff * Xi_inv.T * np.transpose(a_operator_array, (1, 2, 0))
+                                              / np.sqrt(2.0), axis=2))
+        exp_a_dagger_minima_difference = expm(np.sum(minima_diff * Xi_inv.T * a_operator_array.T
+                                              / np.sqrt(2.0), axis=2))
         return exp_a_minima_difference, exp_a_dagger_minima_difference
 
     def _local_translation_operators(self, exp_a_list: Tuple[ndarray, ndarray],
