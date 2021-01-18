@@ -56,7 +56,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
     the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
-    1. V = g A B C ..., where A, B, C... are Hermitian operators in two specified subsys_list,
+    1. V = g A B C ..., where A, B, C... are Hermitian operators in subsystems in subsystem_list,
     2. V = g A B C... + h.c., where A, B, C... may be non-Hermitian
 # TODO: Fix subsystem list and operator list
 
@@ -65,7 +65,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     g_strength:
         coefficient parametrizing the interaction strength.
     operator_list:
-        list of tuples of operators involved in the interaction paired with their subsystems.
+        list of tuples of operators involved in the interaction paired with their subsystems eg. (operator, subsystem).
     subsystem_list:
         list of subsystems.
     add_hc:
@@ -133,8 +133,8 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     ----------
     str_expression:
         string that defines the interaction.
-    operator_list:
-        list of operators involved in the interaction.
+    operator_dict:
+        dictonary of names and tuples of operators and subsystems eg. {name: (operator, subsystem)}.
     subsystem_list:
         list of all subsystems.
     add_hc:

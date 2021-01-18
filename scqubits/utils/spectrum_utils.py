@@ -18,7 +18,8 @@ import qutip as qt
 from qutip import Qobj
 import scipy.sparse.csc as sp_sparse
 
-if TYPE_CHECKING:
+# if TYPE_CHECKING:
+if True:
     from scqubits import SpectrumData, Oscillator, ParameterSweep
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
