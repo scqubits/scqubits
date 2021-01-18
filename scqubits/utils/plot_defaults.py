@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -20,6 +20,7 @@ import scqubits.core.units as units
 if TYPE_CHECKING:
     from scqubits import ParameterSweep
     from scqubits.core.storage import WaveFunction, DataStore, SpectrumData
+
 
 NAME_REPLACEMENTS = {
     'ng': r'$n_g$',

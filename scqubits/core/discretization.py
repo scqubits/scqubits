@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -115,6 +115,14 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         for param_name, param_val in sorted(utils.drop_private_keys(self.__dict__).items()):
             output += '\n' + str(param_name) + '\t: ' + str(param_val)
         return output
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, type(self)):
+            return False
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return super().__hash__()
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Grid1d object.

@@ -3,7 +3,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -12,7 +12,7 @@
 
 import numpy as np
 
-from scqubits import Fluxonium, FluxQubit, Grid1d, Transmon, TunableTransmon, ZeroPi
+from scqubits import FluxQubit, Fluxonium, Grid1d, Transmon, TunableTransmon, ZeroPi
 
 data = {
     'Transmon': np.array([1.33428506e+07, 3.77005675e+00, 2.16683864e+06, 5.02320540e+02, 2.16683864e+06,

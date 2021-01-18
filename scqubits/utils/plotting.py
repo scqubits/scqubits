@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -13,7 +13,7 @@ import functools
 import operator
 import os
 import warnings
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, TYPE_CHECKING
+from typing import Any, Callable, Dict, Iterable, List, TYPE_CHECKING, Tuple, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -353,7 +353,6 @@ def matrix(data_matrix: np.ndarray,
     fig, ax1 = matrix_skyscraper(data_matrix, mode=mode, fig_ax=(fig, ax1), **kwargs)
     return fig, (ax1, ax2)
 
-
 def matrix_skyscraper(matrix: np.ndarray,
                       mode: str = 'abs',
                       **kwargs
@@ -375,32 +374,38 @@ def matrix_skyscraper(matrix: np.ndarray,
     """
     fig, axes = kwargs.get('fig_ax') or plt.subplots(projection='3d')
 
-    matsize = len(matrix)
-    element_count = matsize ** 2  # num. of elements to plot
+    y_count, x_count = matrix.shape # We label the columns as "x", while rows as "y"
+    element_count = x_count * y_count # total num. of elements to plot
 
-    xgrid, ygrid = np.meshgrid(range(matsize), range(matsize))
-    xgrid = xgrid.T.flatten() - 0.5  # center bars on integer value of x-axis
-    ygrid = ygrid.T.flatten() - 0.5  # center bars on integer value of y-axis
+    xgrid, ygrid = np.meshgrid(range(x_count), range(y_count))
+    xgrid = xgrid.flatten()   
+    ygrid = ygrid.flatten()  
 
     zbottom = np.zeros(element_count)  # all bars start at z=0
-    dx = 0.75 * np.ones(element_count)  # width of bars in x-direction
-    dy = dx  # width of bars in y-direction (same as x-direction)
+    dx, dy=0.75, 0.75 # width of bars in x and y directions
 
     modefunction = constants.MODE_FUNC_DICT[mode]
     zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
-    nrm = mpl.colors.Normalize(0, max(zheight))  # <-- normalize colors to max. data
+ 
+    if mode == 'abs' or mode == 'abs_sqr':
+        nrm = mpl.colors.Normalize(0, max(zheight))  # normalize colors between 0 and max. data
+    else:
+        nrm = mpl.colors.Normalize(min(zheight), max(zheight))  # normalize colors between min. and max. of data
+
     colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
 
     # skyscraper plot
     axes.view_init(azim=210, elev=23)
     axes.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
-    axes.axes.xaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set x-ticks to integers
-    axes.axes.yaxis.set_major_locator(plt.IndexLocator(1, -0.5))  # set y-ticks to integers
     axes.set_zlim3d([0, max(zheight)])
 
-    _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
-    return fig, axes
+    for axis, locs in [(axes.xaxis, np.arange(x_count)), (axes.yaxis, np.arange(y_count))]:
+        axis.set_ticks(locs+0.5, minor=True)
+        axis.set(ticks=locs+0.5, ticklabels=locs)
 
+    _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
+
+    return fig, axes
 
 def matrix2d(matrix: np.ndarray,
              mode: str = 'abs',
@@ -428,7 +433,11 @@ def matrix2d(matrix: np.ndarray,
 
     modefunction = constants.MODE_FUNC_DICT[mode]
     zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
-    nrm = mpl.colors.Normalize(0, max(zheight))  # <-- normalize colors to max. data
+
+    if mode == 'abs' or mode == 'abs_sqr':
+        nrm = mpl.colors.Normalize(0, max(zheight))  # normalize colors between 0 and max. data
+    else:
+        nrm = mpl.colors.Normalize(min(zheight), max(zheight))  # normalize colors between min. and max. of data
 
     axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
     cax, _ = mpl.colorbar.make_axes(axes, shrink=.75, pad=.02)  # add colorbar with normalized range
@@ -443,8 +452,7 @@ def matrix2d(matrix: np.ndarray,
     for axis, locs in [(axes.xaxis, np.arange(matrix.shape[1])), (axes.yaxis, np.arange(matrix.shape[0]))]:
         axis.set_ticks(locs + 0.5, minor=True)
         axis.set(ticks=locs, ticklabels=locs)
-    axes.grid(True, which='minor', linewidth=0)
-    axes.grid(False, which='major', linewidth=0)
+    axes.grid(False)
 
     _process_options(fig, axes, **kwargs)
     return fig, axes

@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -120,12 +120,16 @@ class H5Writer(IOWriter):
         self.io_data = io_data
         if file_handle is None:
             h5file_group = h5py.File(self.filename, 'w')
+            close_when_done = True
         else:
             h5file_group = file_handle
+            close_when_done = False
 
         self.write_attributes(h5file_group)
         self.write_ndarrays(h5file_group)
         self.write_objects(h5file_group)
+        if close_when_done:
+            h5file_group.close()
 
 
 class H5Reader:

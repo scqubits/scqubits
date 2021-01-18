@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -58,14 +58,22 @@ class SpectrumLookup(serializers.Serializable):
         dressed spectral data needed for generating the lookup mapping
     bare_specdata_list:
         bare spectral data needed for generating the lookup mapping
+    auto_run:
+        boolean variable that determines whether the lookup data is immediately generated upon initialization
     """
     def __init__(self,
-                 framework: Union['ParameterSweep', 'HilbertSpace'],
+                 framework: 'Union[ParameterSweep, HilbertSpace, None]',
                  dressed_specdata: 'SpectrumData',
-                 bare_specdata_list: List['SpectrumData']
+                 bare_specdata_list: List['SpectrumData'],
+                 auto_run: bool = True
                  ) -> None:
         self._dressed_specdata = dressed_specdata
         self._bare_specdata_list = bare_specdata_list
+        self._canonical_bare_labels: List[Tuple[int, ...]]
+        self._dressed_indices: List[List[Union[int, None]]]
+        self._out_of_sync = False
+        self._init_params = ['_dressed_specdata', '_bare_specdata_list', '_canonical_bare_labels', '_dressed_indices']
+
         # Store ParameterSweep and/or HilbertSpace objects only as weakref.proxy objects to avoid circular references
         # that would prevent objects from expiring appropriately and being garbage collected
         if isinstance(framework, scqubits.ParameterSweep):
@@ -75,14 +83,31 @@ class SpectrumLookup(serializers.Serializable):
             self._sweep = None
             self._hilbertspace = weakref.proxy(framework)
         else:
-            raise TypeError
+            self._sweep = None
+            self._hilbertspace = None
 
+        if auto_run:
+            self.run()
+
+    def run(self):
         self._canonical_bare_labels = self._generate_bare_labels()
         self._dressed_indices = self._generate_mappings()  # lists of as many elements as there are parameter values.
         # For HilbertSpace objects the above is a single-element list.
-        self._out_of_sync = False
-        # Setup for Serializable operations
-        self._init_params = ['_dressed_specdata', '_bare_specdata_list']
+
+    @classmethod
+    def deserialize(cls, io_data: 'IOData') -> 'SpectrumLookup':
+        """
+        Take the given IOData and return an instance of the described class, initialized with the data stored in
+        io_data.
+        """
+        alldata_dict = io_data.as_kwargs()
+        new_spectrum_lookup = cls(framework=None,
+                                  dressed_specdata=alldata_dict['_dressed_specdata'],
+                                  bare_specdata_list=alldata_dict['_bare_specdata_list'],
+                                  auto_run=False)
+        new_spectrum_lookup._canonical_bare_labels = alldata_dict['_canonical_bare_labels']
+        new_spectrum_lookup._dressed_indices = alldata_dict['_dressed_indices']
+        return new_spectrum_lookup
 
     def _generate_bare_labels(self) -> List[Tuple[int, ...]]:
         """
@@ -283,7 +308,7 @@ class SpectrumLookup(serializers.Serializable):
             bare eigenenergies for the specified subsystem and the external parameter fixed to the value indicated by
             its index
         """
-        subsys_index = self._hilbertspace.index(subsys)
+        subsys_index = self._hilbertspace.get_subsys_index(subsys)
         return self._bare_specdata_list[subsys_index].energy_table[param_index]
 
     def bare_productstate(self, bare_index: Tuple[int, ...]) -> Qobj:

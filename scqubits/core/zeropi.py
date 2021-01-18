@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -440,7 +440,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         r"""
         Operator :math:`\cos(\theta)`.
         """
-        return sparse.kron(self._identity_phi(), self._cos_phi_operator(), format='csc')
+        return sparse.kron(self._identity_phi(), self._cos_theta_operator(), format='csc')
 
     def _sin_theta_operator(self) -> csc_matrix:
         r"""
