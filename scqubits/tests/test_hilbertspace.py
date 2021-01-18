@@ -55,6 +55,7 @@ class TestHilbertSpace:
         g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
         g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
 
+        # TODO: Change this
         interaction1 = InteractionTerm(
             g_strength=g1,
             op1=CPB1.n_operator(),
@@ -140,7 +141,7 @@ class TestHilbertSpace:
         hilbertspace = HilbertSpace([res1, res2])
 
         g1 = 0.29
-
+        # TODO: Change this
         interaction1 = InteractionTerm(
             g_strength=g1,
             op1=res1.annihilation_operator(),
@@ -252,7 +253,7 @@ class TestParameterSweep:
 
         g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
         g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
-
+        # TODO: Change this
         interaction1 = InteractionTerm(
             g_strength=g1,
             op1=CPB1.n_operator(),

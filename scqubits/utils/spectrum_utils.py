@@ -13,13 +13,17 @@ import cmath
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
+from numpy import ndarray
 import qutip as qt
+from qutip import Qobj
 import scipy.sparse.csc as sp_sparse
 
 if TYPE_CHECKING:
     from scqubits import SpectrumData, Oscillator, ParameterSweep
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
+
+QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
 def order_eigensystem(evals: np.ndarray, evecs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -309,3 +313,33 @@ def recast_esys_mapdata(esys_mapdata: Union[List[Tuple[np.ndarray, np.ndarray]],
     eigenenergy_table = np.asarray([esys_mapdata[index][0] for index in range(paramvals_count)])
     eigenstate_table = [esys_mapdata[index][1] for index in range(paramvals_count)]
     return eigenenergy_table, eigenstate_table
+
+def identity_wrap(operator: Union[str, ndarray, Qobj],
+                  subsystem: QuantumSys,
+                  subsys_list: List[QuantumSys],
+                  op_in_eigenbasis: bool = False,
+                  evecs: ndarray = None
+                  ) -> Qobj:
+    """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
+
+    Parameters
+    ----------
+    operator:
+        operator acting in Hilbert space of `subsystem`; if str, then this should be an operator name in
+        the subsystem, typically not in eigenbasis
+    subsystem:
+        subsystem where diagonal operator is defined
+    subsys_list:
+        list of all subsystems
+    op_in_eigenbasis:
+        whether `operator` is given in the `subsystem` eigenbasis; otherwise, the internal QuantumSys basis is
+        assumed
+    evecs:
+        internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
+    """
+    # TODO: Better subsys_list definition
+    subsys_operator = convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+    operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list]
+    subsystem_index = subsys_list.index(subsystem)
+    operator_identitywrap_list[subsystem_index] = subsys_operator
+    return qt.tensor(operator_identitywrap_list)
