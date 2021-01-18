@@ -353,6 +353,7 @@ def matrix(data_matrix: np.ndarray,
     fig, ax1 = matrix_skyscraper(data_matrix, mode=mode, fig_ax=(fig, ax1), **kwargs)
     return fig, (ax1, ax2)
 
+
 def matrix_skyscraper(matrix: np.ndarray,
                       mode: str = 'abs',
                       **kwargs
@@ -406,6 +407,7 @@ def matrix_skyscraper(matrix: np.ndarray,
     _process_options(fig, axes, opts=defaults.matrix(), **kwargs)
 
     return fig, axes
+
 
 def matrix2d(matrix: np.ndarray,
              mode: str = 'abs',
