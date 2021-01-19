@@ -169,10 +169,10 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
                 minima_holder = self._append_new_minima(result.x, minima_holder)
         return np.array(minima_holder)
 
-    def gamma_matrix(self, minimum: int = 0) -> ndarray:
+    def gamma_matrix(self, minimum_index: int = 0) -> ndarray:
         dim = self.number_degrees_freedom
         gamma_matrix = np.zeros((dim, dim))
-        min_loc = self.sorted_minima()[minimum]
+        min_loc = self.sorted_minima()[minimum_index]
         e_charge = 1.0
         Phi0 = 1. / (2 * e_charge)
         phi_location = min_loc[0]

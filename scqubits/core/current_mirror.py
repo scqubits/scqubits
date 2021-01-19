@@ -13,7 +13,7 @@ import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.hashing_charge_basis import HashingChargeBasis
 from scqubits.core.noise import NoisySystem
-from scqubits.core.operators import operator_in_full_Hilbert_space
+from scqubits.core.operators import identity_wrap
 from scqubits.utils.spectrum_utils import order_eigensystem
 
 
@@ -255,7 +255,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         -------
             ndarray
         """
-        return operator_in_full_Hilbert_space([], [], self._identity_operator_list(), sparse=True)
+        return identity_wrap([], [], self._identity_operator_list(), sparse=True)
 
     def _n_operator(self) -> ndarray:
         return diags([i for i in range(-self.ncut, self.ncut + 1, 1)], offsets=0, format="csr", dtype=np.complex_)
@@ -273,7 +273,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             ndarray
         """
         number_operator = self._n_operator()
-        return operator_in_full_Hilbert_space([number_operator], [j], self._identity_operator_list(), sparse=True)
+        return identity_wrap([number_operator], [j], self._identity_operator_list(), sparse=True)
 
     def _exp_i_phi_j_operator(self) -> ndarray:
         return eye(2*self.ncut + 1, k=-1, format="csr", dtype=np.complex_)
@@ -291,7 +291,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             ndarray
         """
         exp_i_phi_j = self._exp_i_phi_j_operator()
-        return operator_in_full_Hilbert_space([exp_i_phi_j], [j], self._identity_operator_list(), sparse=True)
+        return identity_wrap([exp_i_phi_j], [j], self._identity_operator_list(), sparse=True)
 
     def exp_i_phi_stitching_term(self) -> ndarray:
         """Returns the operator associated with the last Josephson junction,
@@ -304,8 +304,8 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         dim = self.number_degrees_freedom
         exp_i_phi_op = self._exp_i_phi_j_operator()
         identity_operator_list = self._identity_operator_list()
-        return operator_in_full_Hilbert_space([exp_i_phi_op for _ in range(dim)],
-                                              [j for j in range(dim)], identity_operator_list, sparse=True)
+        return identity_wrap([exp_i_phi_op for _ in range(dim)],
+                             [j for j in range(dim)], identity_operator_list, sparse=True)
 
 
 class CurrentMirrorGlobal(HashingChargeBasis, CurrentMirror):

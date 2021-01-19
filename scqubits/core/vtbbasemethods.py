@@ -6,7 +6,6 @@ from functools import partial, reduce
 from typing import Callable, List, Tuple, Optional
 
 import numpy as np
-from jax import vmap
 from numpy import ndarray
 from numpy.linalg import matrix_power
 from scipy.linalg import LinAlgError, expm, inv, eigh
@@ -17,7 +16,7 @@ import scqubits.utils.plotting as plot
 from scqubits.core import discretization, storage, descriptors
 from scqubits.core.discretization import Grid1d
 from scqubits.core.hashing import generate_next_vector, reflect_vectors
-from scqubits.core.operators import annihilation, operator_in_full_Hilbert_space
+from scqubits.core.operators import annihilation, identity_wrap
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.spectrum_utils import (order_eigensystem, solve_generalized_eigenvalue_problem_with_QZ,
                                            standardize_phases)
@@ -57,19 +56,19 @@ class VTBBaseMethods(ABC):
         number of periodic degrees of freedom
     number_junctions: int
         number of junctions in the loop
-    nearest_neighbors: dict
+    retained_unit_cell_displacement_vectors: dict
         dictionary of the relevant periodic continuation vectors for each minima pair. It can
         be passed here to avoid constructing it later, a costly calculation
-    harmonic_length_optimization: int
-        flag denoting whether or not to optimize the harmonic length
-    optimize_all_minima: int
-        flag only relevant in the case of squeezing (see class VariationalTightBindingSqueezing) denoting whether or
+    harmonic_length_optimization: bool
+        bool denoting whether or not to optimize the harmonic length
+    optimize_all_minima: bool
+        bool only relevant in the case of squeezing (see class VariationalTightBindingSqueezing) denoting whether or
         not to optimize the harmonic lengths in all minima
     quiet: int
         flag whether or not to print out information regarding completion of intermediate tasks
     grid: Grid1d
         grid for wavefunction plotting that will be used for extended d.o.f.
-    nearest_neighbor_cutoff: float
+    displacement_vector_cutoff: float
         criteria for retaining periodic continuation vectors. If the overlap of two multidimensional Gaussian
         wavefunctions is less than this, the periodic continuation vector is not retained.
     maximum_site_length: int
@@ -83,7 +82,7 @@ class VTBBaseMethods(ABC):
     harmonic_length_optimization = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     optimize_all_minima = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     extended_grid = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    nearest_neighbor_cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    displacement_vector_cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     maximum_site_length = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     stitching_coefficients = descriptors.ReadOnlyProperty()
@@ -94,12 +93,12 @@ class VTBBaseMethods(ABC):
                  number_degrees_freedom: int,
                  number_periodic_degrees_freedom: int,
                  number_junctions: int,
-                 nearest_neighbors: dict = None,
-                 harmonic_length_optimization: int = 0,
-                 optimize_all_minima: int = 0,
+                 retained_unit_cell_displacement_vectors: Optional[dict] = None,
+                 harmonic_length_optimization: bool = False,
+                 optimize_all_minima: bool = False,
                  quiet: int = 0,
                  grid: Grid1d = Grid1d(-6 * np.pi, 6 * np.pi, 200),
-                 nearest_neighbor_cutoff: float = 1e-15,
+                 displacement_vector_cutoff: float = 1e-15,
                  maximum_site_length: int = 2,
                  ) -> None:
         self.num_exc = num_exc
@@ -107,12 +106,12 @@ class VTBBaseMethods(ABC):
         self._number_degrees_freedom = number_degrees_freedom
         self._number_periodic_degrees_freedom = number_periodic_degrees_freedom
         self._number_junctions = number_junctions
-        self.nearest_neighbors = nearest_neighbors
+        self.retained_unit_cell_displacement_vectors = retained_unit_cell_displacement_vectors
         self.harmonic_length_optimization = harmonic_length_optimization
         self.optimize_all_minima = optimize_all_minima
         self.quiet = quiet
         self.extended_grid = grid
-        self.nearest_neighbor_cutoff = nearest_neighbor_cutoff
+        self.displacement_vector_cutoff = displacement_vector_cutoff
         self.maximum_site_length = maximum_site_length
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.optimized_lengths = None
@@ -148,7 +147,7 @@ class VTBBaseMethods(ABC):
     def nglist(self):
         pass
 
-    def gamma_matrix(self, minimum: int = 0) -> ndarray:
+    def gamma_matrix(self, minimum_index: int = 0) -> ndarray:
         """Returns linearized potential matrix
 
         Note that we must divide by Phi_0^2 since Ej/Phi_0^2 = 1/Lj,
@@ -161,7 +160,7 @@ class VTBBaseMethods(ABC):
 
         Parameters
         ----------
-        minimum: int
+        minimum_index: int
             integer specifying which minimum to linearize around, 0<=minimum<= total number of minima
 
         Returns
@@ -169,7 +168,7 @@ class VTBBaseMethods(ABC):
         ndarray
         """
         dim = self.number_degrees_freedom
-        minimum_location = self.sorted_minima[minimum]
+        minimum_location = self.sorted_minima[minimum_index]
         Phi0 = 1. / (2. * 1.)  # units where e_charge = 1
         diagonal_elements = np.diag(self.EJlist[0:dim] * np.cos(minimum_location))
         stitching_term_sum = np.sum(self.stitching_coefficients * minimum_location)
@@ -178,19 +177,19 @@ class VTBBaseMethods(ABC):
                         + diagonal_elements) / Phi0**2
         return gamma_matrix
 
-    def eigensystem_normal_modes(self, minimum: int = 0) -> (ndarray, ndarray):
+    def eigensystem_normal_modes(self, minimum_index: int = 0) -> (ndarray, ndarray):
         """Returns squared normal mode frequencies, matrix of eigenvectors
 
         Parameters
         ----------
-        minimum: int
+        minimum_index: int
             integer specifying which minimum to linearize around, 0<=minimum<= total number of minima
 
         Returns
         -------
         ndarray, ndarray
         """
-        omega_squared, normal_mode_eigenvectors = eigh(self.gamma_matrix(minimum), b=self.capacitance_matrix())
+        omega_squared, normal_mode_eigenvectors = eigh(self.gamma_matrix(minimum_index), b=self.capacitance_matrix())
         return omega_squared, normal_mode_eigenvectors
 
     def compare_harmonic_lengths_with_minima_separations(self) -> ndarray:
@@ -202,7 +201,7 @@ class VTBBaseMethods(ABC):
             If any of the values in the returned array exceed unity, then the wavefunctions are relatively spread out
             as compared to the minima separations
         """
-        if not self.nearest_neighbors:
+        if not self.retained_unit_cell_displacement_vectors:
             self.find_relevant_periodic_continuation_vectors()
         sorted_minima_dict = self.sorted_minima
         all_minima_index_pairs = itertools.combinations_with_replacement(sorted_minima_dict.items(), 2)
@@ -210,32 +209,34 @@ class VTBBaseMethods(ABC):
 
     def _find_closest_periodic_minimum(self, minima_index_pair: Tuple) -> float:
         """Helper function comparing minima separation for given minima pair"""
-        return self._localization_ratio_for_minima_pair(minima_index_pair, 0)
+        return self._max_localization_ratio_for_minima_pair(minima_index_pair, 0)
 
-    def _localization_ratio_for_minima_pair(self, minima_index_pair: Tuple, Xi_arg: int) -> float:
+    def _max_localization_ratio_for_minima_pair(self, minima_index_pair: Tuple, Xi_minimum_index_arg: int) -> float:
         """Helper function comparing minima separation for given minima pair, along with the specification
         that we would like to use the Xi matrix as defined for the minimum indexed by `Xi_arg`"""
         (m, minima_m), (p, minima_p) = minima_index_pair
-        nearest_neighbors = self.nearest_neighbors[(m, p)]
-        if nearest_neighbors is None or np.allclose(nearest_neighbors, [np.zeros(self.number_degrees_freedom)]):
+        retained_unit_cell_displacement_vectors = self.retained_unit_cell_displacement_vectors[(m, p)]
+        if retained_unit_cell_displacement_vectors is None or np.allclose(retained_unit_cell_displacement_vectors,
+                                                                          [np.zeros(self.number_degrees_freedom)]):
             return 0.0
-        Xi_inv = inv(self.Xi_matrix(minimum=Xi_arg))
+        Xi_inv = inv(self.Xi_matrix(minimum_index=Xi_minimum_index_arg))
         delta_inv = Xi_inv.T @ Xi_inv
         if m == p:  # Do not include equivalent minima in the same unit cell
-            nearest_neighbors = np.array([vec for vec in nearest_neighbors if not np.allclose(vec, np.zeros_like(vec))])
-        minima_vectors = 2.0 * np.pi * nearest_neighbors + (minima_p - minima_m)
-        minima_distances = np.linalg.norm(minima_vectors, axis=1)
-        minima_unit_vectors = minima_vectors / np.tile(minima_distances, (self.number_degrees_freedom, 1)).T
+            retained_unit_cell_displacement_vectors = np.array([vec for vec in retained_unit_cell_displacement_vectors
+                                                                if not np.allclose(vec, np.zeros_like(vec))])
+        displacement_vectors = 2.0 * np.pi * retained_unit_cell_displacement_vectors + (minima_p - minima_m)
+        minima_distances = np.linalg.norm(displacement_vectors, axis=1)
+        minima_unit_vectors = displacement_vectors / np.tile(minima_distances, (self.number_degrees_freedom, 1)).T
         harmonic_lengths = np.array([(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
         return np.max(3.0 * harmonic_lengths / minima_distances / 2.0)
 
-    def Xi_matrix(self, minimum: int = 0) -> ndarray:
+    def Xi_matrix(self, minimum_index: int = 0) -> ndarray:
         """ Returns Xi matrix of the normal mode eigenvectors normalized to encode the harmonic length.
         This matrix simultaneously diagonalizes the capacitance and effective inductance matrices.
 
         Parameters
         ----------
-        minimum: int
+        minimum_index: int
             integer specifying which minimum to linearize around, 0<=minimum<= total number of minima
 
         Returns
@@ -244,12 +245,13 @@ class VTBBaseMethods(ABC):
         """
         dim = self.number_degrees_freedom
         sorted_minima_dict = self.sorted_minima
-        if self.optimized_lengths is None or self.harmonic_length_optimization == 0:
+        if self.optimized_lengths is None or not self.harmonic_length_optimization:
             self.optimized_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
-        omega_squared, eigenvectors = self.eigensystem_normal_modes(minimum)
+        omega_squared, eigenvectors = self.eigensystem_normal_modes(minimum_index)
         # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
         Z0 = 1. / (2. * 1.)**2  # units where e_charge = 1
-        return eigenvectors * np.tile(self.optimized_lengths[minimum] * omega_squared**(-1/4), (dim, 1)) / np.sqrt(Z0)
+        return eigenvectors * np.tile(self.optimized_lengths[minimum_index] * omega_squared ** (-1 / 4),
+                                      (dim, 1)) / np.sqrt(Z0)
 
     def a_operator(self, mu: int) -> ndarray:
         """Returns the lowering operator associated with the mu^th d.o.f. in the full Hilbert space
@@ -265,8 +267,8 @@ class VTBBaseMethods(ABC):
         """
         identity_operator = np.eye(self.num_exc + 1, dtype=np.complex_)
         identity_operator_list = np.array([identity_operator for _ in range(self.number_degrees_freedom)])
-        return operator_in_full_Hilbert_space(np.array([annihilation(self.num_exc + 1, dtype=np.complex_)]),
-                                              np.array([mu]), identity_operator_list, sparse=False)
+        return identity_wrap(np.array([annihilation(self.num_exc + 1, dtype=np.complex_)]),
+                             np.array([mu]), identity_operator_list, sparse=False)
 
     def _a_operator_array(self) -> ndarray:
         """Helper method to return a list of annihilation operator matrices for each mode"""
@@ -283,15 +285,17 @@ class VTBBaseMethods(ABC):
         Xi_inv = inv(self.Xi_matrix())
         sorted_minima_dict = self.sorted_minima
         number_of_minima = len(sorted_minima_dict)
-        nearest_neighbors = {}
+        retained_unit_cell_displacement_vectors = {}
         all_minima_index_pairs = itertools.combinations(sorted_minima_dict.items(), 2)
-        nearest_neighbors[(0, 0)] = self._filter_for_minima_pair(np.zeros_like(sorted_minima_dict[0]), Xi_inv, num_cpus)
+        retained_unit_cell_displacement_vectors[(0, 0)] = self._filter_for_minima_pair(np.zeros_like(sorted_minima_dict[0]),
+                                                                                       Xi_inv, num_cpus)
         for ((m, minima_m), (p, minima_p)) in all_minima_index_pairs:
             minima_diff = Xi_inv @ (minima_p - minima_m)
-            nearest_neighbors[(m, p)] = self._filter_for_minima_pair(minima_diff, Xi_inv, num_cpus)
+            retained_unit_cell_displacement_vectors[(m, p)] = self._filter_for_minima_pair(minima_diff, Xi_inv,
+                                                                                           num_cpus)
         for m in range(1, number_of_minima):
-            nearest_neighbors[(m, m)] = nearest_neighbors[(0, 0)]
-        self.nearest_neighbors = nearest_neighbors
+            retained_unit_cell_displacement_vectors[(m, m)] = retained_unit_cell_displacement_vectors[(0, 0)]
+        self.retained_unit_cell_displacement_vectors = retained_unit_cell_displacement_vectors
 
     def _filter_for_minima_pair(self, minima_diff: ndarray, Xi_inv: ndarray, num_cpus: int) -> ndarray:
         """Given a minima pair, generate and then filter the periodic continuation vectors"""
@@ -301,7 +305,7 @@ class VTBBaseMethods(ABC):
         filter_function = partial(self._filter_periodic_vectors, minima_diff, Xi_inv)
         filtered_vectors = list(target_map(filter_function, periodic_vector_lengths))
         zero_vec = np.zeros(self.number_periodic_degrees_freedom)
-        if self._filter_neighbors(minima_diff, Xi_inv, zero_vec):
+        if self._filter_displacement_vectors(minima_diff, Xi_inv, zero_vec):
             filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), zero_vec)))
         return self._stack_filtered_vectors(filtered_vectors)
 
@@ -335,20 +339,21 @@ class VTBBaseMethods(ABC):
         """Helper function where given a specific vector, generate all possible reflections and filter those"""
         dim_extended = self.number_extended_degrees_freedom
         reflected_vectors = reflect_vectors(vec)
-        filter_function = partial(self._filter_neighbors, minima_diff, Xi_inv)
+        filter_function = partial(self._filter_displacement_vectors, minima_diff, Xi_inv)
         new_vectors = filter(filter_function, reflected_vectors)
         for filtered_vec in new_vectors:
             filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), filtered_vec)))
 
-    def _filter_neighbors(self, minima_diff: ndarray, Xi_inv: ndarray, neighbor: ndarray) -> bool:
+    def _filter_displacement_vectors(self, minima_diff: ndarray, Xi_inv: ndarray, unit_cell_vector: ndarray) -> bool:
         """Helper function that does the filtering. Matrix elements are suppressed by a
         gaussian exponential factor, and we filter those that are suppressed below a cutoff.
         Assumption is that extended degrees of freedom precede the periodic d.o.f.
         """
-        phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom), neighbor))
-        dpkX = Xi_inv @ phi_neighbor + minima_diff
-        prod = np.exp(-0.25*np.dot(dpkX, dpkX))
-        return prod > self.nearest_neighbor_cutoff
+        displacement_vector = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom),
+                                                            unit_cell_vector))
+        gaussian_overlap_argument = Xi_inv @ displacement_vector + minima_diff
+        gaussian_overlap = np.exp(-0.25*np.dot(gaussian_overlap_argument, gaussian_overlap_argument))
+        return gaussian_overlap > self.displacement_vector_cutoff
 
     def identity(self) -> ndarray:
         """
@@ -397,12 +402,8 @@ class VTBBaseMethods(ABC):
 
     def _all_exp_i_phi_j_operators(self, Xi: ndarray, a_operator_array: ndarray) -> ndarray:
         """Helper method for building all potential operators"""
-        def _helper(Xi, a_operator_array, j):
-            return self._single_exp_i_phi_j_operator(j, Xi, a_operator_array)
-        j_array = np.arange(self.number_junctions)
-        partial_helper = partial(_helper, Xi, a_operator_array)
-        vmap_exp_i_phi = vmap(partial_helper)
-        return vmap_exp_i_phi(j_array)
+        return np.array([self._single_exp_i_phi_j_operator(j, Xi, a_operator_array)
+                         for j in range(self.number_junctions)])
 
     def _general_translation_operators(self, Xi_inv: ndarray,
                                        a_operator_array: ndarray) -> Tuple[ndarray, ndarray]:
@@ -411,8 +412,8 @@ class VTBBaseMethods(ABC):
         in each degree of freedom, so that any translation can be built from these by an appropriate
         call to np.matrix_power"""
         dim = self.number_degrees_freedom
-        exp_a_list = np.array([expm(np.sum(2.0 * np.pi * Xi_inv.T[i] * np.transpose(a_operator_array, (1, 2, 0)) / np.sqrt(2.0),
-                                    axis=2) for i in range(dim))])
+        exp_a_list = np.array([expm(np.sum(2.0 * np.pi * Xi_inv.T[i] * np.transpose(a_operator_array, (1, 2, 0))
+                                           / np.sqrt(2.0), axis=2)) for i in range(dim)])
         exp_a_dagger_list = np.array([expm(np.sum(2.0 * np.pi * Xi_inv.T[i] * a_operator_array.T / np.sqrt(2.0),
                                                   axis=2)) for i in range(dim)])
         return exp_a_list, exp_a_dagger_list
@@ -422,23 +423,23 @@ class VTBBaseMethods(ABC):
         """Helper method that performs matrix exponentiation to aid in the
         future construction of translation operators. This part of the translation operator accounts
         for the differing location of minima within a single unit cell."""
-        exp_a_minima_difference = expm(np.sum(-minima_diff * Xi_inv.T * np.transpose(a_operator_array, (1, 2, 0))
+        exp_a_minima_difference = expm(np.sum((-minima_diff @ Xi_inv.T) * np.transpose(a_operator_array, (1, 2, 0))
                                               / np.sqrt(2.0), axis=2))
-        exp_a_dagger_minima_difference = expm(np.sum(minima_diff * Xi_inv.T * a_operator_array.T
+        exp_a_dagger_minima_difference = expm(np.sum((minima_diff @ Xi_inv.T) * a_operator_array.T
                                               / np.sqrt(2.0), axis=2))
         return exp_a_minima_difference, exp_a_dagger_minima_difference
 
     def _local_translation_operators(self, exp_a_list: Tuple[ndarray, ndarray],
                                      exp_minima_difference: Tuple[ndarray, ndarray],
-                                     neighbor: ndarray) -> Tuple[ndarray, ndarray]:
+                                     unit_cell_vector: ndarray) -> Tuple[ndarray, ndarray]:
         """Helper method that builds translation operators using matrix_power and the pre-exponentiated
         translation operators that define 2pi translations."""
         dim = self.number_degrees_freedom
         exp_a_list, exp_a_dagger_list = exp_a_list
         exp_a_minima_difference, exp_a_dagger_minima_difference = exp_minima_difference
         # Note: stacks of object matrices are not currently supported by numpy: must use listcomp
-        individual_a_dagger_op = np.array([matrix_power(exp_a_dagger_list[j], int(neighbor[j])) for j in range(dim)])
-        individual_a_op = np.array([matrix_power(exp_a_list[j], -int(neighbor[j])) for j in range(dim)])
+        individual_a_dagger_op = np.array([matrix_power(exp_a_dagger_list[j], int(unit_cell_vector[j])) for j in range(dim)])
+        individual_a_op = np.array([matrix_power(exp_a_list[j], -int(unit_cell_vector[j])) for j in range(dim)])
         translation_op_a_dagger = reduce((lambda x, y: x @ y), individual_a_dagger_op) @ exp_a_dagger_minima_difference
         translation_op_a = reduce((lambda x, y: x @ y), individual_a_op) @ exp_a_minima_difference
         return translation_op_a_dagger, translation_op_a
@@ -530,16 +531,16 @@ class VTBBaseMethods(ABC):
         return self._periodic_continuation(lambda x, y, z: self.identity())
 
     def _local_charge_operator(self, j: int, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-                               Xi_inv: ndarray, phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+                               Xi_inv: ndarray, displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
-        constant_coefficient = -0.5 * 1j * (Xi_inv.T @ Xi_inv @ (phi_neighbor + minima_p - minima_m))[j]
+        constant_coefficient = -0.5 * 1j * (Xi_inv.T @ Xi_inv @ (displacement_vector + minima_p - minima_m))[j]
         return (-(1j / np.sqrt(2.0)) * np.sum(Xi_inv.T[j] * (np.transpose(a, (1, 2, 0)) - a.T), axis=2)
                 + constant_coefficient * self.identity())
 
     def _local_phi_operator(self, j: int, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-                            Xi: ndarray, phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+                            Xi: ndarray, displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
-        constant_coefficient = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        constant_coefficient = 0.5 * (displacement_vector + (minima_m + minima_p))
         return ((1.0 / np.sqrt(2.0)) * np.sum(Xi[j] * (np.transpose(a, (1, 2, 0)) + a.T), axis=2)
                 + constant_coefficient[j] * self.identity())
 
@@ -550,10 +551,10 @@ class VTBBaseMethods(ABC):
                                          * np.exp(1j * self.stitching_coefficients @ phi_bar))
         return np.transpose(exp_i_phi_j_phi_bar, (2, 0, 1)), exp_i_stitching_phi_j_phi_bar
 
-    def _local_exp_i_phi_operator(self, j: int, exp_i_phi_j: ndarray, phi_neighbor: ndarray,
+    def _local_exp_i_phi_operator(self, j: int, exp_i_phi_j: ndarray, displacement_vector: ndarray,
                                   minima_m: ndarray, minima_p: ndarray) -> ndarray:
         dim = self.number_degrees_freedom
-        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         if j == dim:
             return exp_i_stitching_phi_j_phi_bar
@@ -561,12 +562,12 @@ class VTBBaseMethods(ABC):
             return exp_i_phi_j_phi_bar[j]
 
     def _local_kinetic(self, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-                       EC_mat_t: ndarray, Xi_inv: ndarray, phi_neighbor: ndarray,
+                       EC_mat_t: ndarray, Xi_inv: ndarray, displacement_vector: ndarray,
                        minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Calculate the local kinetic contribution to the transfer matrix given two
-        minima and a periodic continuation vector `phi_neighbor`"""
+        minima and a periodic continuation vector `displacement_vector`"""
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
-        delta_phi = phi_neighbor + minima_p - minima_m
+        delta_phi = displacement_vector + minima_p - minima_m
         delta_phi_rotated = Xi_inv @ delta_phi
         kinetic_matrix = np.sum(np.diag(EC_mat_t)
                                 * (- 0.5 * 4 * np.transpose(a_a, (1, 2, 0)) - 0.5 * 4 * a_a.T
@@ -578,10 +579,10 @@ class VTBBaseMethods(ABC):
         return kinetic_matrix
 
     def _local_potential(self, exp_i_phi_j: ndarray, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-                         Xi: ndarray, phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+                         Xi: ndarray, displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Calculate the local potential contribution to the transfer matrix given two
-        minima and a periodic continuation vector `phi_neighbor`"""
-        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        minima and a periodic continuation vector `displacement_vector`"""
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_matrix = np.sum(-0.5 * self.EJlist[: -1]
                                   * (np.transpose(exp_i_phi_j_phi_bar, (1, 2, 0))
@@ -594,11 +595,11 @@ class VTBBaseMethods(ABC):
     def _local_kinetic_plus_potential(self, exp_i_phi_j: ndarray,
                                       premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
                                       EC_mat_t: ndarray, Xi: ndarray, Xi_inv: ndarray,
-                                      phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+                                      displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Calculate the local contribution to the transfer matrix given two
-        minima and a periodic continuation vector `phi_neighbor`"""
-        return (self._local_kinetic(premultiplied_a_a_dagger, EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p)
-                + self._local_potential(exp_i_phi_j, premultiplied_a_a_dagger, Xi, phi_neighbor, minima_m, minima_p))
+        minima and a periodic continuation vector `displacement_vector`"""
+        return (self._local_kinetic(premultiplied_a_a_dagger, EC_mat_t, Xi_inv, displacement_vector, minima_m, minima_p)
+                + self._local_potential(exp_i_phi_j, premultiplied_a_a_dagger, Xi, displacement_vector, minima_m, minima_p))
 
     def _periodic_continuation(self, func: Callable) -> ndarray:
         """This function is the meat of the VariationalTightBinding method. Any operator whose matrix
@@ -609,16 +610,16 @@ class VTBBaseMethods(ABC):
         Parameters
         ----------
         func: method
-            function that takes three arguments (phi_neighbor, minima_m, minima_p) and returns the
+            function that takes three arguments (displacement_vector, minima_m, minima_p) and returns the
             relevant operator with dimension NxN, where N is the number of states
             displaced into each minimum. For instance to find the inner product matrix,
-            we use the function self._inner_product_operator(phi_neighbor, minima_m, minima_p) -> self.identity
+            we use the function self._inner_product_operator(displacement_vector, minima_m, minima_p) -> self.identity
 
         Returns
         -------
         ndarray
         """
-        if not self.nearest_neighbors:
+        if not self.retained_unit_cell_displacement_vectors:
             self.find_relevant_periodic_continuation_vectors()
         Xi_inv = inv(self.Xi_matrix())
         a_operator_array = self._a_operator_array()
@@ -629,43 +630,42 @@ class VTBBaseMethods(ABC):
         all_minima_index_pairs = itertools.combinations_with_replacement(sorted_minima_dict.items(), 2)
         for ((m, minima_m), (p, minima_p)) in all_minima_index_pairs:
             matrix_element = self._periodic_continuation_for_minima_pair(minima_m, minima_p,
-                                                                         self.nearest_neighbors[(m, p)],
+                                                                         self.retained_unit_cell_displacement_vectors[(m, p)],
                                                                          func, exp_a_list, Xi_inv, a_operator_array)
             operator_matrix[m * num_states_min: (m + 1) * num_states_min,
                             p * num_states_min: (p + 1) * num_states_min] += matrix_element
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
 
-    def _periodic_continuation_for_minima_pair(self, minima_m: ndarray, minima_p: ndarray, nearest_neighbors: ndarray,
+    def _periodic_continuation_for_minima_pair(self, minima_m: ndarray, minima_p: ndarray, retained_unit_cell_displacement_vectors: ndarray,
                                                func: Callable, exp_a_list: Tuple[ndarray, ndarray], Xi_inv: ndarray,
                                                a_operator_array: ndarray) -> ndarray:
         """Helper method for performing the periodic continuation calculation given a minima pair."""
-        if nearest_neighbors is not None:
+        if retained_unit_cell_displacement_vectors is not None:
             minima_diff = minima_p - minima_m
             exp_minima_difference = self._minima_dependent_translation_operators(minima_diff, Xi_inv,
                                                                                  a_operator_array)
-            return np.sum([self._neighbor_contribution(neighbor, func, minima_m, minima_p,
-                                                       exp_a_list, exp_minima_difference, Xi_inv)
-                           for neighbor in nearest_neighbors], axis=0)
+            return np.sum([self._displacement_vector_contribution(unit_cell_vector, func, minima_m, minima_p,
+                                                                  exp_a_list, exp_minima_difference, Xi_inv)
+                           for unit_cell_vector in retained_unit_cell_displacement_vectors], axis=0)
         else:
             return np.zeros((self.number_states_per_minimum(), self.number_states_per_minimum()), dtype=np.complex_)
 
-    def _neighbor_contribution(self, neighbor: ndarray, func: Callable, minima_m: ndarray, minima_p: ndarray,
-                               exp_a_list: Tuple[ndarray, ndarray], exp_minima_difference: Tuple[ndarray, ndarray],
-                               Xi_inv: ndarray) -> ndarray:
-        """Helper method for calculating the contribution of a specific periodic continuation vector `neighbor`"""
-        phi_neighbor = 2.0 * np.pi * np.array(neighbor)
-        exp_prod_coefficient = self._exp_product_coefficient(phi_neighbor + minima_p - minima_m, Xi_inv)
-        exp_a_dagger, exp_a = self._local_translation_operators(exp_a_list, exp_minima_difference,
-                                                                neighbor)
-        neighbor_matrix_element = exp_prod_coefficient * func(phi_neighbor, minima_m, minima_p)
-        return exp_a_dagger @ neighbor_matrix_element @ exp_a
+    def _displacement_vector_contribution(self, unit_cell_vector: ndarray, func: Callable, minima_m: ndarray, minima_p: ndarray,
+                                          exp_a_list: Tuple[ndarray, ndarray], exp_minima_difference: Tuple[ndarray, ndarray],
+                                          Xi_inv: ndarray) -> ndarray:
+        """Helper method for calculating the contribution of a specific periodic continuation vector `displacement_vector`"""
+        displacement_vector = 2.0 * np.pi * np.array(unit_cell_vector)
+        exp_prod_coefficient = self._exp_product_coefficient(displacement_vector + minima_p - minima_m, Xi_inv)
+        exp_a_dagger, exp_a = self._local_translation_operators(exp_a_list, exp_minima_difference, unit_cell_vector)
+        matrix_element = exp_prod_coefficient * func(displacement_vector, minima_m, minima_p)
+        return exp_a_dagger @ matrix_element @ exp_a
 
     def _populate_hermitian_matrix(self, mat: ndarray) -> ndarray:
         """Return a fully Hermitian matrix, assuming that the input matrix has been
         populated with the upper right blocks"""
         sorted_minima_dict = self.sorted_minima
-        num_states_min = int(self.number_states_per_minimum())
+        num_states_min = self.number_states_per_minimum()
         for m, _ in sorted_minima_dict.items():
             for p in range(m + 1, len(sorted_minima_dict)):
                 matrix_element = mat[m * num_states_min: (m + 1) * num_states_min,
@@ -729,8 +729,8 @@ class VTBBaseMethods(ABC):
         -------
         ndarray
         """
-        _, sorted_minima_holder = self._sorted_potential_values_and_minima()
-        return OrderedDict({m: minimum for m, minimum in enumerate(sorted_minima_holder)})
+        _, sorted_minima_list = self._sorted_potential_values_and_minima()
+        return OrderedDict({m: minimum for m, minimum in enumerate(sorted_minima_list)})
 
     def _normalize_minimum_inside_pi_range(self, minimum: ndarray) -> ndarray:
         """Helper method for defining the unit cell from -pi to pi rather than the less symmetric 0 to 2pi"""
@@ -740,14 +740,14 @@ class VTBBaseMethods(ABC):
         periodic_coordinates = np.array([elem - 2 * np.pi if elem > np.pi else elem for elem in periodic_coordinates])
         return np.concatenate((extended_coordinates, periodic_coordinates))
 
-    def _check_if_new_minima(self, new_minima: ndarray, minima_holder: List) -> bool:
-        """Helper method for find_minima, checking if new_minima is already represented in minima_holder. If so,
+    def _check_if_new_minima(self, new_minima: ndarray, minima_list: List) -> bool:
+        """Helper method for find_minima, checking if new_minima is already represented in minima_list. If so,
         _check_if_new_minima returns False.
         """
         num_extended = self.number_extended_degrees_freedom
-        for minima in minima_holder:
-            extended_coordinates = np.array(minima[0:num_extended] - new_minima[0:num_extended])
-            periodic_coordinates = np.mod(minima - new_minima, 2*np.pi*np.ones_like(minima))[num_extended:]
+        for minimum in minima_list:
+            extended_coordinates = np.array(minimum[0:num_extended] - new_minima[0:num_extended])
+            periodic_coordinates = np.mod(minimum - new_minima, 2*np.pi*np.ones_like(minimum))[num_extended:]
             diff_array_bool_extended = [True if np.allclose(elem, 0.0, atol=1e-3) else False
                                         for elem in extended_coordinates]
             diff_array_bool_periodic = [True if (np.allclose(elem, 0.0, atol=1e-3)
@@ -757,13 +757,13 @@ class VTBBaseMethods(ABC):
                 return False
         return True
 
-    def _filter_repeated_minima(self, minima_holder: List) -> List:
-        """Eliminate repeated minima contained in minima_holder"""
-        filtered_minima_holder = [minima_holder[0]]
-        for minima in minima_holder:
-            if self._check_if_new_minima(minima, filtered_minima_holder):
-                filtered_minima_holder.append(minima)
-        return filtered_minima_holder
+    def _filter_repeated_minima(self, minima_list: List) -> List:
+        """Eliminate repeated minima contained in minima_list"""
+        filtered_minima_list = [minima_list[0]]
+        for minima in minima_list:
+            if self._check_if_new_minima(minima, filtered_minima_list):
+                filtered_minima_list.append(minima)
+        return filtered_minima_list
 
     def optimize_Xi_variational(self) -> None:
         """Optimize the Xi matrix by adjusting the harmonic lengths of the ground state to minimize its energy.
@@ -779,7 +779,7 @@ class VTBBaseMethods(ABC):
         """Perform the harmonic length optimization for a h.o. ground state wavefunction localized in a given minimum"""
         default_Xi = self.Xi_matrix(minimum)
         EC_mat = self.EC_matrix()
-        if not self.nearest_neighbors:
+        if not self.retained_unit_cell_displacement_vectors:
             self.find_relevant_periodic_continuation_vectors()
         optimized_lengths_result = minimize(self._evals_calc_variational, self.optimized_lengths[minimum],
                                             jac=self._gradient_evals_calc_variational,
@@ -802,24 +802,24 @@ class VTBBaseMethods(ABC):
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
         EC_mat_t = Xi_inv @ EC_mat @ Xi_inv.T
-        nearest_neighbors = 2.0*np.pi*self.nearest_neighbors[(minimum, minimum)]
-        gradient_transfer = [np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
+        displacement_vectors = 2.0*np.pi*self.retained_unit_cell_displacement_vectors[(minimum, minimum)]
+        gradient_transfer = [np.sum([self._exp_product_coefficient(displacement_vector, Xi_inv)
                                     * self._gradient_one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv,
-                                                                              neighbor, minimum_location,
+                                                                              displacement_vector, minimum_location,
                                                                               minimum_location, which_length)
-                                    + self._gradient_one_state_local_inner_product(neighbor, Xi_inv, which_length)
-                                     * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv, neighbor,
+                                    + self._gradient_one_state_local_inner_product(displacement_vector, Xi_inv, which_length)
+                                     * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv, displacement_vector,
                                                                       minimum_location, minimum_location)
-                                    for neighbor in nearest_neighbors])
+                                    for displacement_vector in displacement_vectors])
                              for which_length in range(self.number_degrees_freedom)]
-        transfer = np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
-                           * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv, neighbor,
+        transfer = np.sum([self._exp_product_coefficient(displacement_vector, Xi_inv)
+                           * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv, displacement_vector,
                                                             minimum_location, minimum_location)
-                           for neighbor in nearest_neighbors])
-        gradient_inner = [np.sum([self._gradient_one_state_local_inner_product(neighbor, Xi_inv, which_length)
-                                  for neighbor in nearest_neighbors])
+                           for displacement_vector in displacement_vectors])
+        gradient_inner = [np.sum([self._gradient_one_state_local_inner_product(displacement_vector, Xi_inv, which_length)
+                                  for displacement_vector in displacement_vectors])
                           for which_length in range(self.number_degrees_freedom)]
-        inner = np.sum([self._exp_product_coefficient(neighbor, Xi_inv) for neighbor in nearest_neighbors])
+        inner = np.sum([self._exp_product_coefficient(displacement_vector, Xi_inv) for displacement_vector in displacement_vectors])
         return np.real((inner * np.array(gradient_transfer) - transfer * np.array(gradient_inner)) / inner**2)
 
     def _evals_calc_variational(self, optimized_lengths: ndarray, minimum_location: ndarray, minimum: int,
@@ -846,27 +846,27 @@ class VTBBaseMethods(ABC):
         delta_phi_rotated = Xi_inv @ delta_phi
         return (self.optimized_lengths[0, which_length]**(-1)
                 * (1j * self.nglist[which_length] * delta_phi_rotated[which_length]
-                   + 0.5 * delta_phi_rotated[which_length]**2) * self._exp_product_coefficient(delta_phi, Xi_inv))
+                   + 0.5 * delta_phi_rotated[which_length] ** 2) * self._exp_product_coefficient(delta_phi, Xi_inv))
 
     @staticmethod
     def _one_state_local_kinetic(EC_mat_t: ndarray, Xi_inv: ndarray,
-                                 phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> float:
+                                 displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> float:
         """Local kinetic contribution when considering only the ground state."""
-        delta_phi_rotated = Xi_inv @ (phi_neighbor + minima_p - minima_m)
+        delta_phi_rotated = Xi_inv @ (displacement_vector + minima_p - minima_m)
         return 0.5 * 4 * np.trace(EC_mat_t) - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
 
-    def _gradient_one_state_local_kinetic(self, EC_mat_t: ndarray, Xi_inv: ndarray, phi_neighbor: ndarray,
+    def _gradient_one_state_local_kinetic(self, EC_mat_t: ndarray, Xi_inv: ndarray, displacement_vector: ndarray,
                                           minima_m: ndarray, minima_p: ndarray, which_length: int) -> ndarray:
         """Returns gradient of the kinetic matrix"""
-        delta_phi_rotated = Xi_inv @ (phi_neighbor + minima_p - minima_m)
+        delta_phi_rotated = Xi_inv @ (displacement_vector + minima_p - minima_m)
         return (-4.0*self.optimized_lengths[0, which_length]**(-1)
                 * (EC_mat_t[which_length, which_length] - (delta_phi_rotated @ EC_mat_t)[which_length]
                    * delta_phi_rotated[which_length]))
 
-    def _gradient_one_state_local_potential(self, exp_i_phi_j: ndarray, phi_neighbor: ndarray, minima_m: ndarray,
+    def _gradient_one_state_local_potential(self, exp_i_phi_j: ndarray, displacement_vector: ndarray, minima_m: ndarray,
                                             minima_p: ndarray, Xi: ndarray, which_length: int) -> ndarray:
         """Returns gradient of the potential matrix"""
-        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_gradient = np.sum([0.25 * self.EJlist[junction]
                                      * Xi[junction, which_length] * Xi.T[which_length, junction]
@@ -879,18 +879,18 @@ class VTBBaseMethods(ABC):
         return potential_gradient
 
     def _gradient_one_state_local_transfer(self, exp_i_phi_j: ndarray, EC_mat_t: ndarray, Xi: ndarray, Xi_inv: ndarray,
-                                           phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray,
+                                           displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray,
                                            which_length: int) -> ndarray:
         """Returns gradient of the transfer matrix"""
-        return (self._gradient_one_state_local_potential(exp_i_phi_j, phi_neighbor, minima_m,
+        return (self._gradient_one_state_local_potential(exp_i_phi_j, displacement_vector, minima_m,
                                                          minima_p, Xi, which_length)
-                + self._gradient_one_state_local_kinetic(EC_mat_t, Xi_inv, phi_neighbor, minima_m,
+                + self._gradient_one_state_local_kinetic(EC_mat_t, Xi_inv, displacement_vector, minima_m,
                                                          minima_p, which_length))
 
-    def _one_state_local_potential(self, exp_i_phi_j: ndarray, Xi: ndarray, phi_neighbor: ndarray,
+    def _one_state_local_potential(self, exp_i_phi_j: ndarray, Xi: ndarray, displacement_vector: ndarray,
                                    minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Local potential contribution when considering only the ground state."""
-        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         potential = np.sum([-0.5 * self.EJlist[junction] * (exp_i_phi_j_phi_bar[junction]
                                                             + exp_i_phi_j_phi_bar[junction].conjugate())
@@ -900,23 +900,23 @@ class VTBBaseMethods(ABC):
         return potential
 
     def _one_state_local_transfer(self, exp_i_phi_j: ndarray, EC_mat_t: ndarray, Xi: ndarray, Xi_inv: ndarray,
-                                  phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+                                  displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Local transfer contribution when considering only the ground state."""
-        return (self._one_state_local_kinetic(EC_mat_t, Xi_inv, phi_neighbor, minima_m, minima_p)
-                + self._one_state_local_potential(exp_i_phi_j, Xi, phi_neighbor, minima_m, minima_p))
+        return (self._one_state_local_kinetic(EC_mat_t, Xi_inv, displacement_vector, minima_m, minima_p)
+                + self._one_state_local_potential(exp_i_phi_j, Xi, displacement_vector, minima_m, minima_p))
 
     def _one_state_construct_transfer_and_inner(self, Xi: ndarray, Xi_inv: ndarray, minimum_location: ndarray,
                                                 minimum: int, EC_mat_t: ndarray,
                                                 exp_i_phi_j: ndarray) -> Tuple[ndarray, ndarray]:
         """Transfer matrix and inner product matrix when considering only the ground state."""
-        nearest_neighbors = 2.0*np.pi*self.nearest_neighbors[(minimum, minimum)]
+        retained_unit_cell_displacement_vectors = 2.0*np.pi*self.retained_unit_cell_displacement_vectors[(minimum, minimum)]
         transfer_function = partial(self._one_state_local_transfer, exp_i_phi_j, EC_mat_t, Xi, Xi_inv)
-        transfer = np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
-                           * transfer_function(neighbor, minimum_location, minimum_location)
-                           for neighbor in nearest_neighbors])
-        # Note need to include 2.0*np.pi*np.array(neighbor) + minimum_location - minimum_location for completeness
-        inner_product = np.sum([self._exp_product_coefficient(neighbor, Xi_inv)
-                                for neighbor in nearest_neighbors])
+        transfer = np.sum([self._exp_product_coefficient(unit_cell_vector, Xi_inv)
+                           * transfer_function(unit_cell_vector, minimum_location, minimum_location)
+                           for unit_cell_vector in retained_unit_cell_displacement_vectors])
+        # Note need to include 2.0*np.pi*np.array(unit_cell_vector) + minimum_location - minimum_location for completeness
+        inner_product = np.sum([self._exp_product_coefficient(unit_cell_vector, Xi_inv)
+                                for unit_cell_vector in retained_unit_cell_displacement_vectors])
         return transfer, inner_product
 
     def wavefunction(self, esys=None, which=0):
@@ -962,12 +962,12 @@ class VTBBaseMethods(ABC):
         wavefunction_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec), dtype=np.complex_).T
 
         for i, minimum in sorted_minima_dict.items():
-            neighbors = itertools.product(np.arange(-self.maximum_periodic_vector_length,
+            unit_cell_vectors = itertools.product(np.arange(-self.maximum_periodic_vector_length,
                                                     self.maximum_periodic_vector_length + 1), repeat=dim_periodic)
-            neighbor = next(neighbors, -1)
-            while neighbor != -1:
-                phi_neighbor = 2.0 * np.pi * np.concatenate((np.zeros(dim_extended), neighbor))
-                phi_offset = phi_neighbor - minimum
+            unit_cell_vector = next(unit_cell_vectors, -1)
+            while unit_cell_vector != -1:
+                displacement_vector = 2.0 * np.pi * np.concatenate((np.zeros(dim_extended), unit_cell_vector))
+                phi_offset = displacement_vector - minimum
                 state_amplitudes = self.state_amplitudes_function(i, evecs, which)
                 phi_1_with_offset = phi_1_vec + phi_offset[0]
                 phi_2_with_offset = phi_2_vec + phi_offset[1]
@@ -976,7 +976,7 @@ class VTBBaseMethods(ABC):
                 wavefunction_amplitudes += (self.wavefunction_amplitudes_function(state_amplitudes,
                                                                                   normal_mode_1, normal_mode_2)
                                             * normalization * np.exp(-1j * np.dot(self.nglist, phi_offset)))
-                neighbor = next(neighbors, -1)
+                unit_cell_vector = next(unit_cell_vectors, -1)
 
         grid2d = discretization.GridSpec(np.asarray([[phi_1_grid.min_val, phi_1_grid.max_val, phi_1_grid.pt_count],
                                                      [phi_2_grid.min_val, phi_2_grid.max_val, phi_2_grid.pt_count]]))

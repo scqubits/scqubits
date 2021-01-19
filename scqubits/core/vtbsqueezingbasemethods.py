@@ -153,8 +153,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                                        ) -> float:
         """Overrides method in VariationalTightBinding, need to consider states localized in both minima."""
         (minima_m, m), (minima_p, p) = minima_index_pair
-        max_for_m = self._localization_ratio_for_minima_pair(minima_index_pair, m)
-        max_for_p = self._localization_ratio_for_minima_pair(minima_index_pair, p)
+        max_for_m = self._max_localization_ratio_for_minima_pair(minima_index_pair, m)
+        max_for_p = self._max_localization_ratio_for_minima_pair(minima_index_pair, p)
         return max(max_for_m, max_for_p)
 
     def _normal_ordered_a_dagger_a_exponential(self, x: ndarray, a_operator_list: ndarray) -> ndarray:
@@ -630,14 +630,14 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         sorted_minima_dict = self.sorted_minima
         self.optimized_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
         self._optimize_Xi_variational(0, sorted_minima_dict[0])
-        Xi_global = self.Xi_matrix(minimum=0)
+        Xi_global = self.Xi_matrix(minimum_index=0)
         harmonic_lengths_global = np.array([np.linalg.norm(Xi_global[:, i])
                                             for i in range(self.number_degrees_freedom)])
         for m, minimum in sorted_minima_dict.items():
             if self.optimize_all_minima and m != 0:
                 self._optimize_Xi_variational(m, minimum)
             elif m != 0:
-                Xi_local = self.Xi_matrix(minimum=m)
+                Xi_local = self.Xi_matrix(minimum_index=m)
                 harmonic_lengths_local = np.array([np.linalg.norm(Xi_local[:, i])
                                                    for i in range(self.number_degrees_freedom)])
                 self.optimized_lengths[m] = harmonic_lengths_global / harmonic_lengths_local

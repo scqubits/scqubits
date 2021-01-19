@@ -105,7 +105,7 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
     return hubbardmat.asformat('csc')
 
 
-def operator_in_full_Hilbert_space(operators, indices, identity_operator_list, sparse=False):
+def identity_wrap(operators, indices, identity_operator_list, sparse=False):
     """Return operator in the full Hilbert space
 
     Parameters
@@ -130,7 +130,7 @@ def operator_in_full_Hilbert_space(operators, indices, identity_operator_list, s
     if sparse:
         kron_function = kron_sparse_matrix_list
     else:
-        kron_function = kron_matrix_list
+        kron_function = kron_dense_matrix_list
     product_list = np.copy(identity_operator_list)
     for (index, op) in zip(indices, operators):
         product_list[index] = op
@@ -138,7 +138,7 @@ def operator_in_full_Hilbert_space(operators, indices, identity_operator_list, s
     return full_op
 
 
-def kron_matrix_list(matrix_list):
+def kron_dense_matrix_list(matrix_list):
     output = matrix_list[0]
     for matrix in matrix_list[1:]:
         output = np.kron(output, matrix)

@@ -53,9 +53,9 @@ class TransmonVTB(VTBBaseMethods, Transmon, base.QubitBaseClass, serializers.Ser
             'truncated_dim': 10
         }
 
-    def gamma_matrix(self, minimum: int = 0) -> ndarray:
+    def gamma_matrix(self, minimum_index: int = 0) -> ndarray:
         gamma_matrix = np.array([[0.0]])
-        min_loc = self.sorted_minima()[minimum]
+        min_loc = self.sorted_minima()[minimum_index]
         e_charge = 1.0
         Phi0 = 1. / (2 * e_charge)
         gamma_list = self.EJlist / Phi0 ** 2
