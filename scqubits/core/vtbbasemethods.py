@@ -216,14 +216,13 @@ class VTBBaseMethods(ABC):
         that we would like to use the Xi matrix as defined for the minimum indexed by `Xi_arg`"""
         (m, minima_m), (p, minima_p) = minima_index_pair
         retained_unit_cell_displacement_vectors = self.retained_unit_cell_displacement_vectors[(m, p)]
-        if retained_unit_cell_displacement_vectors is None or np.allclose(retained_unit_cell_displacement_vectors,
-                                                                          [np.zeros(self.number_degrees_freedom)]):
+        if retained_unit_cell_displacement_vectors is None or np.allclose(retained_unit_cell_displacement_vectors, 0.0):
             return 0.0
         Xi_inv = inv(self.Xi_matrix(minimum_index=Xi_minimum_index_arg))
         delta_inv = Xi_inv.T @ Xi_inv
         if m == p:  # Do not include equivalent minima in the same unit cell
             retained_unit_cell_displacement_vectors = np.array([vec for vec in retained_unit_cell_displacement_vectors
-                                                                if not np.allclose(vec, np.zeros_like(vec))])
+                                                                if not np.allclose(vec, 0.0)])
         displacement_vectors = 2.0 * np.pi * retained_unit_cell_displacement_vectors + (minima_p - minima_m)
         minima_distances = np.linalg.norm(displacement_vectors, axis=1)
         minima_unit_vectors = displacement_vectors / np.tile(minima_distances, (self.number_degrees_freedom, 1)).T
@@ -294,25 +293,22 @@ class VTBBaseMethods(ABC):
         number_of_minima = len(sorted_minima_dict)
         retained_unit_cell_displacement_vectors = {}
         all_minima_index_pairs = itertools.combinations(sorted_minima_dict.items(), 2)
-        retained_unit_cell_displacement_vectors[(0, 0)] = self._filter_for_minima_pair(np.zeros_like(sorted_minima_dict[0]),
-                                                                                       Xi_inv, num_cpus)
+        retained_unit_cell_displacement_vectors[(0, 0)] = self._filter_unit_cell_vectors_minima_pair(0.0, Xi_inv, num_cpus)
         for ((m, minima_m), (p, minima_p)) in all_minima_index_pairs:
             minima_diff = Xi_inv @ (minima_p - minima_m)
-            retained_unit_cell_displacement_vectors[(m, p)] = self._filter_for_minima_pair(minima_diff, Xi_inv,
-                                                                                           num_cpus)
+            retained_unit_cell_displacement_vectors[(m, p)] = self._filter_unit_cell_vectors_minima_pair(minima_diff, Xi_inv, num_cpus)
         for m in range(1, number_of_minima):
             retained_unit_cell_displacement_vectors[(m, m)] = retained_unit_cell_displacement_vectors[(0, 0)]
         self.retained_unit_cell_displacement_vectors = retained_unit_cell_displacement_vectors
 
-    def _filter_for_minima_pair(self, minima_diff: ndarray, Xi_inv: ndarray, num_cpus: int) -> ndarray:
+    def _filter_unit_cell_vectors_minima_pair(self, minima_diff: ndarray, Xi_inv: ndarray, num_cpus: int) -> ndarray:
         """Given a minima pair, generate and then filter the periodic continuation vectors"""
         target_map = get_map_method(num_cpus)
         dim_extended = self.number_extended_degrees_freedom
-        periodic_vector_lengths = np.arange(1, self.maximum_periodic_vector_length + 1)
-        filter_function = partial(self._filter_periodic_vectors, minima_diff, Xi_inv)
-        filtered_vectors = list(target_map(filter_function, periodic_vector_lengths))
+        filtered_vectors = list(target_map(partial(self._generate_and_filter_unit_cell_vectors, minima_diff, Xi_inv),
+                                           np.arange(1, self.maximum_periodic_vector_length + 1)))
         zero_vec = np.zeros(self.number_periodic_degrees_freedom)
-        if self._filter_displacement_vectors(minima_diff, Xi_inv, zero_vec):
+        if self._filter_single_vector(minima_diff, Xi_inv, zero_vec):
             filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), zero_vec)))
         return self._stack_filtered_vectors(filtered_vectors)
 
@@ -325,33 +321,32 @@ class VTBBaseMethods(ABC):
         else:
             return None
 
-    def _filter_periodic_vectors(self, minima_diff: ndarray, Xi_inv: ndarray,
-                                 periodic_vector_length: int) -> ndarray:
+    def _generate_and_filter_unit_cell_vectors(self, minima_diff: ndarray, Xi_inv: ndarray,
+                                               periodic_vector_length: int) -> ndarray:
         """Helper function that generates and filters periodic vectors of a given Manhattan length"""
-        sites = self.number_periodic_degrees_freedom
         filtered_vectors = []
-        prev_vec = np.zeros(sites, dtype=int)
+        prev_vec = np.zeros(self.number_periodic_degrees_freedom, dtype=int)
         prev_vec[0] = periodic_vector_length
         if periodic_vector_length <= self.maximum_site_length:
-            self._filter_reflected_vectors(minima_diff, Xi_inv, prev_vec, filtered_vectors)
+            self._filter_all_reflected_vectors_given_length(minima_diff, Xi_inv, prev_vec, filtered_vectors)
         while prev_vec[-1] != periodic_vector_length:
             next_vec = generate_next_vector(prev_vec, periodic_vector_length)
-            if len(np.argwhere(next_vec > self.maximum_site_length)) == 0:
-                self._filter_reflected_vectors(minima_diff, Xi_inv, next_vec, filtered_vectors)
+            if len(np.argwhere(next_vec > self.maximum_site_length)) == 0:  # No element exceeds maximum_site_length
+                self._filter_all_reflected_vectors_given_length(minima_diff, Xi_inv, next_vec, filtered_vectors)
             prev_vec = next_vec
         return np.array(filtered_vectors)
 
-    def _filter_reflected_vectors(self, minima_diff: ndarray, Xi_inv: ndarray,
-                                  vec: ndarray, filtered_vectors: List) -> None:
+    def _filter_all_reflected_vectors_given_length(self, minima_diff: ndarray, Xi_inv: ndarray,
+                                                   vec: ndarray, filtered_vectors: List) -> None:
         """Helper function where given a specific vector, generate all possible reflections and filter those"""
         dim_extended = self.number_extended_degrees_freedom
         reflected_vectors = reflect_vectors(vec)
-        filter_function = partial(self._filter_displacement_vectors, minima_diff, Xi_inv)
+        filter_function = partial(self._filter_single_vector, minima_diff, Xi_inv)
         new_vectors = filter(filter_function, reflected_vectors)
         for filtered_vec in new_vectors:
             filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), filtered_vec)))
 
-    def _filter_displacement_vectors(self, minima_diff: ndarray, Xi_inv: ndarray, unit_cell_vector: ndarray) -> bool:
+    def _filter_single_vector(self, minima_diff: ndarray, Xi_inv: ndarray, unit_cell_vector: ndarray) -> bool:
         """Helper function that does the filtering. Matrix elements are suppressed by a
         gaussian exponential factor, and we filter those that are suppressed below a cutoff.
         Assumption is that extended degrees of freedom precede the periodic d.o.f.
@@ -452,9 +447,8 @@ class VTBBaseMethods(ABC):
         num_states_per_min = self.number_states_per_minimum()
         exp_a_list, exp_a_dagger_list = exp_a_list
         exp_a_minima_difference, exp_a_dagger_minima_difference = exp_minima_difference
-        # Note: stacks of object matrices are not currently supported by numpy: must use listcomp
         individual_a_dagger_op = np.zeros((dim, num_states_per_min, num_states_per_min), dtype=np.complex_)
-        individual_a_op = np.zeros((dim, num_states_per_min, num_states_per_min), dtype=np.complex_)
+        individual_a_op = np.zeros_like(individual_a_dagger_op)
         for j in range(dim):
             individual_a_dagger_op[j] = matrix_power(exp_a_dagger_list[j], int(unit_cell_vector[j]))
             individual_a_op[j] = matrix_power(exp_a_list[j], -int(unit_cell_vector[j]))
@@ -569,7 +563,7 @@ class VTBBaseMethods(ABC):
         if exp_i_phi_j.ndim > 1:  # Normal VTB
             _exp_i_phi_j_phi_bar = np.transpose(exp_i_phi_j[:-1], (1, 2, 0)) * np.exp(1j * phi_bar)
             exp_i_phi_j_phi_bar = np.transpose(_exp_i_phi_j_phi_bar, (2, 0, 1))
-        else:  # One state VTB, each element of the array is the ground state
+        else:  # One state VTB, each element of the array is the ground state value
             exp_i_phi_j_phi_bar = exp_i_phi_j[:-1] * np.exp(1j * phi_bar)
         exp_i_stitching_phi_j_phi_bar = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
                                          * np.exp(1j * self.stitching_coefficients @ phi_bar))
@@ -708,9 +702,9 @@ class VTBBaseMethods(ABC):
         if self.harmonic_length_optimization:
             self.optimize_Xi_variational()
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
-        if np.max(harmonic_length_minima_comparison) > 1.0 and not self.quiet:
-            print("Warning: large harmonic length compared to minima separation "
-                  "(largest is 3*l/(d/2) = {ratio})".format(ratio=np.max(harmonic_length_minima_comparison)))
+        if np.max(harmonic_length_minima_comparison) > 1.0:
+            warnings.warn("Warning: large harmonic length compared to minima separation "
+                          "largest is 3*l/(d/2) = {ratio})".format(ratio=np.max(harmonic_length_minima_comparison)))
         transfer_matrix = self.transfer_matrix()
         inner_product_matrix = self.inner_product_matrix()
         return transfer_matrix, inner_product_matrix

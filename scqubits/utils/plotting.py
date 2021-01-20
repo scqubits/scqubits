@@ -116,8 +116,8 @@ def _process_options(figure: Figure,
 
     if settings.DESPINE and not axes.name == '3d':
         # Hide the right and top spines
-        axes.spines['right'].set_visible(False)
-        axes.spines['top'].set_visible(False)
+#        axes.spines['right'].set_visible(False)
+#        axes.spines['top'].set_visible(False)
 
         # Only show ticks on the left and bottom spines
         axes.yaxis.set_ticks_position('left')
