@@ -81,7 +81,7 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
             'truncated_dim': 10
         }
 
-    def _vtb_potential(self, phi_array: ndarray) -> ndarray:
+    def vtb_potential(self, phi_array: ndarray) -> ndarray:
         """Helper method for converting potential method arguments"""
         phi = phi_array[0]
         theta = phi_array[1]
@@ -138,15 +138,15 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
         dim = self.number_degrees_freedom
         C_matrix = np.zeros((dim, dim))
 
-        CS = 1. ** 2 / (2. * self.ECS)
-        CJ = 1. ** 2 / (2. * self.ECJ)
+        CS = 1. / (2. * self.ECS)
+        CJ = 1. / (2. * self.ECJ)
         C_matrix[0, 0] = 2 * CJ
         C_matrix[1, 1] = 2 * CS
         C_matrix[0, 1] = C_matrix[1, 0] = 4 * self.dCJ
         return C_matrix
 
     def EC_matrix(self) -> ndarray:
-        return 0.5 ** 2 * inv(self.capacitance_matrix())
+        return 0.5 * inv(self.capacitance_matrix())
 
     def _check_second_derivative_positive(self, phi: ndarray, theta: ndarray) -> bool:
         return (self.EL + 2 * self.EJ * np.cos(theta) * np.cos(phi - np.pi * self.flux)) > 0
@@ -172,9 +172,8 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
     def gamma_matrix(self, minimum_index: int = 0) -> ndarray:
         dim = self.number_degrees_freedom
         gamma_matrix = np.zeros((dim, dim))
-        min_loc = self.sorted_minima()[minimum_index]
-        e_charge = 1.0
-        Phi0 = 1. / (2 * e_charge)
+        min_loc = self.sorted_minima[minimum_index]
+        Phi0 = 1. / (2 * 1.)  # units where e_charge = 1.
         phi_location = min_loc[0]
         theta_location = min_loc[1]
         gamma_matrix[0, 0] = (2 * self.EL + 2 * self.EJ * np.cos(phi_location - np.pi * self.flux)

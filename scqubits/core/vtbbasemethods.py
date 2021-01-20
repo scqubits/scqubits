@@ -308,7 +308,7 @@ class VTBBaseMethods(ABC):
         """Given a minima pair, generate and then filter the periodic continuation vectors"""
         target_map = get_map_method(num_cpus)
         dim_extended = self.number_extended_degrees_freedom
-        periodic_vector_lengths = np.array([i for i in range(1, self.maximum_periodic_vector_length + 1)])
+        periodic_vector_lengths = np.arange(1, self.maximum_periodic_vector_length + 1)
         filter_function = partial(self._filter_periodic_vectors, minima_diff, Xi_inv)
         filtered_vectors = list(target_map(filter_function, periodic_vector_lengths))
         zero_vec = np.zeros(self.number_periodic_degrees_freedom)
