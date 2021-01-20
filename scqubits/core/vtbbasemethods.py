@@ -566,10 +566,14 @@ class VTBBaseMethods(ABC):
 
     def _exp_i_phi_j_with_phi_bar(self, exp_i_phi_j: ndarray, phi_bar: ndarray) -> Tuple[ndarray, ndarray]:
         """Returns exp_i_phi_j operators including the local contribution of phi_bar"""
-        exp_i_phi_j_phi_bar = np.transpose(exp_i_phi_j[:-1], (1, 2, 0)) * np.exp(1j * phi_bar)
+        if exp_i_phi_j.ndim > 1:  # Normal VTB
+            _exp_i_phi_j_phi_bar = np.transpose(exp_i_phi_j[:-1], (1, 2, 0)) * np.exp(1j * phi_bar)
+            exp_i_phi_j_phi_bar = np.transpose(_exp_i_phi_j_phi_bar, (2, 0, 1))
+        else:  # One state VTB, each element of the array is the ground state
+            exp_i_phi_j_phi_bar = exp_i_phi_j[:-1] * np.exp(1j * phi_bar)
         exp_i_stitching_phi_j_phi_bar = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
                                          * np.exp(1j * self.stitching_coefficients @ phi_bar))
-        return np.transpose(exp_i_phi_j_phi_bar, (2, 0, 1)), exp_i_stitching_phi_j_phi_bar
+        return exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar
 
     def _local_exp_i_phi_operator(self, j: int, exp_i_phi_j: ndarray, displacement_vector: ndarray,
                                   minima_m: ndarray, minima_p: ndarray) -> ndarray:
