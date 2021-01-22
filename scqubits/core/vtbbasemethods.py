@@ -115,6 +115,7 @@ class VTBBaseMethods(ABC):
         self.maximum_site_length = maximum_site_length
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.optimized_lengths = None
+        self.translation_op_dict = {}
         self._evec_dtype = np.complex_
 
     @property
@@ -448,18 +449,26 @@ class VTBBaseMethods(ABC):
         speed bottleneck."""
         exp_a_list, exp_a_dagger_list = exp_a_list
         exp_a_minima_difference, exp_a_dagger_minima_difference = exp_minima_difference
-        translation_a_dagger_with_power = zip(exp_a_dagger_list, unit_cell_vector.astype(int))
-        translation_a_with_power = zip(exp_a_list, -unit_cell_vector.astype(int))
+        translation_a_dagger_with_power = zip(np.ones(self.number_degrees_freedom),
+                                              np.arange(self.number_degrees_freedom),
+                                              exp_a_dagger_list, unit_cell_vector.astype(int))
+        translation_a_with_power = zip(np.zeros(self.number_degrees_freedom),
+                                              np.arange(self.number_degrees_freedom),
+                                              exp_a_list, -unit_cell_vector.astype(int))
         translation_op_a_dagger = (reduce(np.matmul, map(self._matrix_power_helper, translation_a_dagger_with_power))
                                    @ exp_a_dagger_minima_difference)
         translation_op_a = (reduce(np.matmul, map(self._matrix_power_helper, translation_a_with_power))
                             @ exp_a_minima_difference)
         return translation_op_a_dagger, translation_op_a
 
-    @staticmethod
-    def _matrix_power_helper(translation_op_with_power: Tuple):
-        (exp_a_or_a_dagger, unit_cell_displacement) = translation_op_with_power
-        return matrix_power(exp_a_or_a_dagger, unit_cell_displacement)
+    def _matrix_power_helper(self, translation_op_with_power: Tuple):
+        (a, j, exp_a_or_a_dagger, unit_cell_displacement) = translation_op_with_power
+        if (a, j, unit_cell_displacement) in self.translation_op_dict:
+            return self.translation_op_dict[(a, j, unit_cell_displacement)]
+        else:
+            translation_operator = matrix_power(exp_a_or_a_dagger, unit_cell_displacement)
+            self.translation_op_dict[(a, j, unit_cell_displacement)] = translation_operator
+            return translation_operator
 
     def _exp_product_coefficient(self, delta_phi: ndarray, Xi_inv: ndarray) -> ndarray:
         """Returns overall multiplicative factor, including offset charge and Gaussian suppression BCH factor
@@ -647,12 +656,13 @@ class VTBBaseMethods(ABC):
         Xi_inv = inv(self.Xi_matrix())
         a_operator_array = self._a_operator_array()
         exp_a_list = self._general_translation_operators(Xi_inv, a_operator_array)
+        self.translation_op_dict = {}
         sorted_minima_dict = self.sorted_minima
         num_states_min = self.number_states_per_minimum()
         operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex128)
         all_minima_index_pairs = list(itertools.combinations_with_replacement(sorted_minima_dict.items(), 2))
         periodic_continuation_for_minima_pair = partial(self._periodic_continuation_for_minima_pair,
-                                                        func, exp_a_list, Xi_inv, a_operator_array, operator_matrix)
+                                                        func, exp_a_list, Xi_inv, a_operator_array)
         matrix_elements = list(map(periodic_continuation_for_minima_pair, all_minima_index_pairs))
         for i, ((m, minima_m), (p, minima_p)) in enumerate(all_minima_index_pairs):
             operator_matrix[m * num_states_min: (m + 1) * num_states_min,
@@ -661,7 +671,7 @@ class VTBBaseMethods(ABC):
         return operator_matrix
 
     def _periodic_continuation_for_minima_pair(self, func: Callable, exp_a_list: Tuple[ndarray, ndarray],
-                                               Xi_inv: ndarray, a_operator_array: ndarray, operator_matrix: ndarray,
+                                               Xi_inv: ndarray, a_operator_array: ndarray,
                                                minima_index_pair: Tuple) -> ndarray:
         """Helper method for performing the periodic continuation calculation given a minima pair."""
         ((m, minima_m), (p, minima_p)) = minima_index_pair
@@ -673,8 +683,8 @@ class VTBBaseMethods(ABC):
                                                                                  a_operator_array)
             displacement_vector_contribution = partial(self._displacement_vector_contribution, func, minima_m, minima_p,
                                                        exp_a_list, exp_minima_difference, Xi_inv)
-            relevant_vector_contributions = np.sum(map(displacement_vector_contribution,
-                                                       retained_unit_cell_displacement_vectors), axis=0)
+            relevant_vector_contributions = sum(map(displacement_vector_contribution,
+                                                    retained_unit_cell_displacement_vectors))
         else:
             relevant_vector_contributions = np.zeros((num_states_min, num_states_min), dtype=np.complex_)
         return relevant_vector_contributions
