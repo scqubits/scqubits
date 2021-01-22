@@ -58,7 +58,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
     1. V = g A B C ..., where A, B, C... are Hermitian operators in subsystems in subsystem_list,
     2. V = g A B C... + h.c., where A, B, C... may be non-Hermitian
-# TODO: Fix subsystem list and operator list
+# TODO: Fix subsystem list and operator list definitions
 
     Parameters
     ----------
@@ -76,7 +76,6 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     subsystem_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
     add_hc = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
 
-    # TODO: Fix Identity Wrapping in both classes
 
     def __init__(self,
                  g_strength: Union[float, complex],
@@ -161,7 +160,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
 
     def __init__(self,
                  str_expression: str,
-                 operator_dict: Dict[str: Tuple[Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str], QuantumSys]],
+                 operator_dict: Dict[str, Tuple[Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str], QuantumSys]],
                  subsystem_list: List[QuantumSys],
                  add_hc: bool = False
                  ) -> None:
@@ -188,13 +187,13 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         return output + '\n'
 
     def add_to_variables(self, op_dict: dict) -> None:
-        for (key, value) in op_dict:
+        for (key, value) in op_dict.items():
             globals()[key] = value
 
     def replace_string(self, string: str) -> str:
         for item, value in self.qutip_dict.items():
-            if item + '(' in string:
-                string = string.replace(item + "(", value + '(')
+            if item in string:
+                string = string.replace(item, value)
         return string
 
     def run_string_code(self, string: str) -> Qobj:
@@ -203,8 +202,8 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         return answer
 
     def id_wrap(self, op_dict: dict, subsys_list: list):
-        new_operators = {key: spec_utils.identity_wrap(value.operator, value.subsystem, subsys_list)
-                         for (key, value) in op_dict}
+        new_operators = {key: spec_utils.identity_wrap(value[0], value[1], subsys_list)
+                         for (key, value) in op_dict.items()}
         return new_operators
 
 

@@ -18,13 +18,12 @@ import qutip as qt
 from qutip import Qobj
 import scipy.sparse.csc as sp_sparse
 
-# if TYPE_CHECKING:
-if True:
+if TYPE_CHECKING:
     from scqubits import SpectrumData, Oscillator, ParameterSweep
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
-QuantumSys = Union[QubitBaseClass, Oscillator]
+    QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
 def order_eigensystem(evals: np.ndarray, evecs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -289,7 +288,7 @@ def generate_target_states_list(sweep: 'ParameterSweep',
         bare-state labels of the initial state whose energy is supposed to be subtracted from the spectral data
     """
     target_states_list = []
-    for subsys_index, qbt_subsys in sweep.qbt_subsys_list:   # iterate through qubit subsys_list
+    for subsys_index, qbt_subsys in sweep.qbt_subsys_list:  # iterate through qubit subsys_list
         assert qbt_subsys.truncated_dim is not None
         initial_qbt_state = initial_state_labels[subsys_index]
         for state_label in range(initial_qbt_state + 1, qbt_subsys.truncated_dim):
@@ -315,9 +314,10 @@ def recast_esys_mapdata(esys_mapdata: Union[List[Tuple[np.ndarray, np.ndarray]],
     eigenstate_table = [esys_mapdata[index][1] for index in range(paramvals_count)]
     return eigenenergy_table, eigenstate_table
 
+
 def identity_wrap(operator: Union[str, ndarray, Qobj],
-                  subsystem: QuantumSys,
-                  subsys_list: List[QuantumSys],
+                  subsystem: 'QuantumSys',
+                  subsys_list: List['QuantumSys'],
                   op_in_eigenbasis: bool = False,
                   evecs: ndarray = None
                   ) -> Qobj:
