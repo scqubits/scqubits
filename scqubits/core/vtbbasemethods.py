@@ -423,12 +423,12 @@ class VTBBaseMethods(ABC):
         dim = self.number_degrees_freedom
         num_states_per_min = self.number_states_per_minimum()
         exp_a_list = np.zeros((dim, num_states_per_min, num_states_per_min), dtype=np.complex_)
-        exp_a_dagger_list = np.zeros_like(exp_a_list)
+        exp_a_minus_list = np.zeros_like(exp_a_list)
         for i in range(dim):
-            exp_a_list[i] = expm(np.sum(2.0 * np.pi * Xi_inv.T[i] * np.transpose(a_operator_array, (1, 2, 0))
-                                        / np.sqrt(2.0), axis=2))
-            exp_a_dagger_list[i] = expm(np.sum(2.0 * np.pi * Xi_inv.T[i] * a_operator_array.T / np.sqrt(2.0), axis=2))
-        return exp_a_list, exp_a_dagger_list
+            expm_argument = np.sum(2.0 * np.pi * Xi_inv.T[i] * np.transpose(a_operator_array, (1, 2, 0)) / np.sqrt(2.0), axis=2)
+            exp_a_list[i] = expm(expm_argument)
+            exp_a_minus_list[i] = expm(-expm_argument)
+        return exp_a_list, exp_a_minus_list
 
     def _minima_dependent_translation_operators(self, minima_diff: ndarray, Xi_inv: ndarray,
                                                 a_operator_array: ndarray) -> Tuple[ndarray, ndarray]:
@@ -441,34 +441,34 @@ class VTBBaseMethods(ABC):
                                               / np.sqrt(2.0), axis=2))
         return exp_a_minima_difference, exp_a_dagger_minima_difference
 
-    def _local_translation_operators(self, exp_a_list: Tuple[ndarray, ndarray],
+    def _local_translation_operators(self, exp_list: Tuple[ndarray, ndarray],
                                      exp_minima_difference: Tuple[ndarray, ndarray],
                                      unit_cell_vector: ndarray) -> Tuple[ndarray, ndarray]:
         """Helper method that builds translation operators using matrix_power and the pre-exponentiated
         translation operators that define 2pi translations. Note that this function is currently the
         speed bottleneck."""
-        exp_a_list, exp_a_dagger_list = exp_a_list
+        exp_a_list, exp_a_minus_list = exp_list
         exp_a_minima_difference, exp_a_dagger_minima_difference = exp_minima_difference
-        translation_a_dagger_with_power = zip(np.ones(self.number_degrees_freedom),
-                                              np.arange(self.number_degrees_freedom),
-                                              exp_a_dagger_list, unit_cell_vector.astype(int))
-        translation_a_with_power = zip(np.zeros(self.number_degrees_freedom),
-                                              np.arange(self.number_degrees_freedom),
-                                              exp_a_list, -unit_cell_vector.astype(int))
-        translation_op_a_dagger = (reduce(np.matmul, map(self._matrix_power_helper, translation_a_dagger_with_power))
+        translation_a_dagger_with_power = zip(np.arange(self.number_degrees_freedom), exp_a_list, exp_a_minus_list,
+                                              unit_cell_vector.astype(int))
+        translation_a_with_power = zip(np.arange(self.number_degrees_freedom), exp_a_list, exp_a_minus_list,
+                                       -unit_cell_vector.astype(int))
+        translation_op_a_dagger = (reduce(np.matmul, map(self._matrix_power_helper, translation_a_dagger_with_power)).T
                                    @ exp_a_dagger_minima_difference)
         translation_op_a = (reduce(np.matmul, map(self._matrix_power_helper, translation_a_with_power))
                             @ exp_a_minima_difference)
         return translation_op_a_dagger, translation_op_a
 
     def _matrix_power_helper(self, translation_op_with_power: Tuple):
-        (a, j, exp_a_or_a_dagger, unit_cell_displacement) = translation_op_with_power
-        if (a, j, unit_cell_displacement) in self.translation_op_dict:
-            return self.translation_op_dict[(a, j, unit_cell_displacement)]
+        (j, exp_a_list, exp_a_minus_list, unit_cell_displacement) = translation_op_with_power
+        if (j, unit_cell_displacement) in self.translation_op_dict:
+            return self.translation_op_dict[(j, unit_cell_displacement)]
+        elif unit_cell_displacement > 0:
+            translation_operator = matrix_power(exp_a_list, unit_cell_displacement)
         else:
-            translation_operator = matrix_power(exp_a_or_a_dagger, unit_cell_displacement)
-            self.translation_op_dict[(a, j, unit_cell_displacement)] = translation_operator
-            return translation_operator
+            translation_operator = matrix_power(exp_a_minus_list, -unit_cell_displacement)
+        self.translation_op_dict[(j, unit_cell_displacement)] = translation_operator
+        return translation_operator
 
     def _exp_product_coefficient(self, delta_phi: ndarray, Xi_inv: ndarray) -> ndarray:
         """Returns overall multiplicative factor, including offset charge and Gaussian suppression BCH factor
