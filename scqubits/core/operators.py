@@ -103,3 +103,23 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
     hubbardmat = sp.sparse.dok_matrix((dimension, dimension), dtype=np.float_)
     hubbardmat[j1, j2] = 1.0
     return hubbardmat.asformat('csc')
+
+
+def sigma_x() -> np.ndarray:
+    return np.asarray([[0.0, 1.0], [1.0, 0.0]])
+
+
+def sigma_y() -> np.ndarray:
+    return np.asarray([[0.0, -1j], [1j, 0.0]])
+
+
+def sigma_z() -> np.ndarray:
+    return np.asarray([[1.0, 0.0], [0.0, -1.0]])
+
+
+def sigma_plus() -> np.ndarray:
+    return np.asarray([[0.0, 1.0], [0.0, 0.0]])
+
+
+def sigma_minus() -> np.ndarray:
+    return sigma_plus().T
