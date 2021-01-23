@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -13,18 +13,14 @@ import cmath
 from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
-from numpy import ndarray
 import qutip as qt
-from qutip import Qobj
-import scipy.sparse.csc as sp_sparse
+from scipy.sparse import csc_matrix, dia_matrix
 
-# if TYPE_CHECKING:
-if True:
+if TYPE_CHECKING:
     from scqubits import SpectrumData, Oscillator, ParameterSweep
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
-QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
 def order_eigensystem(evals: np.ndarray, evecs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -46,8 +42,8 @@ def order_eigensystem(evals: np.ndarray, evecs: np.ndarray) -> Tuple[np.ndarray,
 
 def extract_phase(complex_array: np.ndarray, position: Optional[int] = None) -> float:
     """Extracts global phase from `complex_array` at given `position`. If position is not specified, the `position` is
-    set to to an intermediate position to avoid machine-precision problems with tails of wavefunctions at beginning
-    or end of the array.
+    set as follows. Find the maximum between the leftmost point and the halfway point of the wavefunction. The position
+    of that point is used to determine the phase factor to be eliminated.
 
     Parameters
     ----------
@@ -57,8 +53,9 @@ def extract_phase(complex_array: np.ndarray, position: Optional[int] = None) -> 
         position where the phase is extracted (default value = None)
     """
     if position is None:
+        halfway_position = len(complex_array) // 2
         flattened_position = np.argmax(
-            np.abs(complex_array))  # extract phase from element with largest amplitude modulus
+            np.abs(complex_array[:halfway_position]))  # extract phase from element with largest amplitude modulus
         position = np.unravel_index(flattened_position, complex_array.shape)
     return cmath.phase(complex_array[position])
 
@@ -78,17 +75,21 @@ def standardize_phases(complex_array: np.ndarray) -> np.ndarray:
 
 
 def standardize_sign(real_array: np.ndarray) -> np.ndarray:
-    """Standardizes the sign of a real-valued wavefunction by calculating the sign of the sum of all amplitudes and
-    making it positive.
+    """Standardizes the sign of a real-valued wavefunction by calculating the sign of the sum of all amplitudes up to
+    the wavefunctions mid-position and making it positive.
+
+    Summing up to the midpoint only is to address the  danger that the sum is actually zero, which may is the case for
+    odd wavefunctions taken over an interval centered at zero.
     """
-    return np.sign(np.sum(real_array)) * real_array
+    halfway_position = len(real_array) // 2
+    return np.sign(np.sum(real_array[:halfway_position])) * real_array
 
 
 # -Matrix elements and operators (outside qutip) ----------------------------------------------------------------------
 
 
 def matrix_element(state1: Union[np.ndarray, qt.Qobj],
-                   operator: Union[np.ndarray, sp_sparse.csc_matrix, qt.Qobj],
+                   operator: Union[np.ndarray, csc_matrix, qt.Qobj],
                    state2: Union[np.ndarray, qt.Qobj]) -> Union[float, complex]:
     """Calculate the matrix element `<state1|operator|state2>`.
 
@@ -122,8 +123,8 @@ def matrix_element(state1: Union[np.ndarray, qt.Qobj],
     return np.vdot(vec1, op_matrix.dot(vec2))  # No, operator is sparse. Must use its own 'dot' method.
 
 
-def get_matrixelement_table(operator: Union[np.ndarray, sp_sparse.csc_matrix, qt.Qobj],
-                            state_table: Union[np.ndarray, sp_sparse.csc_matrix, qt.Qobj]) -> np.ndarray:
+def get_matrixelement_table(operator: Union[np.ndarray, csc_matrix, dia_matrix, qt.Qobj],
+                            state_table: Union[np.ndarray, qt.Qobj]) -> np.ndarray:
     """Calculates a table of matrix elements.
 
     Parameters
@@ -236,10 +237,10 @@ def convert_esys_to_ndarray(esys_qutip: 'QutipEigenstates') -> np.ndarray:
     return esys_ndarray
 
 
-def convert_ndarray_to_qobj(operator: np.ndarray,
-                            subsystem: Union['QubitBaseClass', 'Oscillator'],
-                            op_in_eigenbasis: bool,
-                            evecs: Optional[np.ndarray]) -> qt.Qobj:
+def convert_matrix_to_qobj(operator: Union[np.ndarray, csc_matrix, dia_matrix],
+                           subsystem: Union['QubitBaseClass', 'Oscillator'],
+                           op_in_eigenbasis: bool,
+                           evecs: Optional[np.ndarray]) -> qt.Qobj:
     dim = subsystem.truncated_dim
 
     if op_in_eigenbasis is False:
@@ -261,14 +262,14 @@ def convert_opstring_to_qobj(operator: str,
     return qt.Qobj(inpt=operator_matrixelements)
 
 
-def convert_operator_to_qobj(operator: Union[np.ndarray, qt.Qobj, str],
+def convert_operator_to_qobj(operator: Union[np.ndarray, csc_matrix, dia_matrix, qt.Qobj, str],
                              subsystem: Union['QubitBaseClass', 'Oscillator'],
                              op_in_eigenbasis: bool,
                              evecs: Optional[np.ndarray]) -> qt.Qobj:
     if isinstance(operator, qt.Qobj):
         return operator
-    if isinstance(operator, np.ndarray):
-        return convert_ndarray_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+    if isinstance(operator, (np.ndarray, csc_matrix, dia_matrix)):
+        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)
     raise TypeError('Unsupported operator type: ', type(operator))
@@ -314,33 +315,3 @@ def recast_esys_mapdata(esys_mapdata: Union[List[Tuple[np.ndarray, np.ndarray]],
     eigenenergy_table = np.asarray([esys_mapdata[index][0] for index in range(paramvals_count)])
     eigenstate_table = [esys_mapdata[index][1] for index in range(paramvals_count)]
     return eigenenergy_table, eigenstate_table
-
-def identity_wrap(operator: Union[str, ndarray, Qobj],
-                  subsystem: QuantumSys,
-                  subsys_list: List[QuantumSys],
-                  op_in_eigenbasis: bool = False,
-                  evecs: ndarray = None
-                  ) -> Qobj:
-    """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
-
-    Parameters
-    ----------
-    operator:
-        operator acting in Hilbert space of `subsystem`; if str, then this should be an operator name in
-        the subsystem, typically not in eigenbasis
-    subsystem:
-        subsystem where diagonal operator is defined
-    subsys_list:
-        list of all subsystems
-    op_in_eigenbasis:
-        whether `operator` is given in the `subsystem` eigenbasis; otherwise, the internal QuantumSys basis is
-        assumed
-    evecs:
-        internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
-    """
-    # TODO: Better subsys_list definition
-    subsys_operator = convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
-    operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list]
-    subsystem_index = subsys_list.index(subsystem)
-    operator_identitywrap_list[subsystem_index] = subsys_operator
-    return qt.tensor(operator_identitywrap_list)
