@@ -2,28 +2,23 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-# TODO: Clean up this doc and then branch for the zombie version
-
-# TODO: Add typing for all methods
-
 import functools
 import warnings
-from typing import Any, Callable, Dict, Iterator, Optional, Tuple, List, Union
+import weakref
+from typing import Any, Callable, Dict, Iterator, List, Optional, TYPE_CHECKING, Tuple, Union
 
 import numpy as np
 import qutip as qt
 from numpy import ndarray
 from qutip.qobj import Qobj
-from scipy.sparse.csc import csc_matrix
-from scipy.sparse.dia import dia_matrix
-from collections import namedtuple
+from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -47,165 +42,77 @@ if settings.IN_IPYTHON:
 else:
     from tqdm import tqdm
 
+if TYPE_CHECKING:
+    from scqubits.io_utils.fileio import IOData
+
 QuantumSys = Union[QubitBaseClass, Oscillator]
-Op = namedtuple("Op", ['operator', 'subsystem'])
 
 
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
-    # TODO: GUI needs to be fixed before pushing
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
     the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
-    1. V = g A B C ..., where A, B, C... are Hermitian operators in subsystems in subsystem_list,
-    2. V = g A B C... + h.c., where A, B, C... may be non-Hermitian
-# TODO: Fix subsystem list and operator list
+    1. V = g A B, where A, B are Hermitean operators in two specified subsys_list,
+    2. V = g A B + h.c., where A, B may be non-Hermitean
 
     Parameters
     ----------
     g_strength:
-        coefficient parametrizing the interaction strength.
-    operator_list:
-        list of tuples of operators involved in the interaction paired with their subsystems eg. (operator, subsystem).
-    subsystem_list:
-        list of subsystems.
+        coefficient parametrizing the interaction strength
+    hilbertspace:
+        specifies the Hilbert space components
+    subsys1, subsys2:
+        the two subsys_list involved in the interaction
+    op1, op2:
+        names of operators in the two subsys_list
     add_hc:
-        If set to True, the interaction Hamiltonian is of type 2, and the Hermitian conjugate is added.
+        If set to True, the interaction Hamiltonian is of type 2, and the Hermitean conjugate is added.
     """
     g_strength = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    operator_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    subsystem_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    add_hc = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-
-    # TODO: Fix Identity Wrapping in both classes
+    subsys1 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    subsys2 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    op1 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    op2 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
 
     def __init__(self,
                  g_strength: Union[float, complex],
-                 operator_list: List[Tuple[Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str], QuantumSys]],
-                 subsystem_list: List[QuantumSys],
-                 add_hc: bool = False
+                 subsys1: QuantumSys,
+                 op1: Union[str, ndarray, csc_matrix, dia_matrix],
+                 subsys2: QuantumSys,
+                 op2: Union[str, ndarray, csc_matrix, dia_matrix],
+                 add_hc: bool = False,
+                 hilbertspace: 'HilbertSpace' = None
                  ) -> None:
+        if hilbertspace:
+            warnings.warn("`hilbertspace` is no longer a parameter for initializing an InteractionTerm object.",
+                          FutureWarning)
         self.g_strength = g_strength
-        self.operator_list = [Op._make(operator) for operator in operator_list]
-        self.subsystem_list = subsystem_list
+        self.subsys1 = subsys1
+        self.op1 = op1
+        self.subsys2 = subsys2
+        self.op2 = op2
         self.add_hc = add_hc
-        hamiltonian = g_strength
-        qoperator_list = self.idwrap(operator_list, subsystem_list)
-        for op in qoperator_list:
-            hamiltonian *= op
-        if add_hc:
-            self.hamiltonian = hamiltonian + hamiltonian.dag()
-        else:
-            self.hamiltonian = hamiltonian
+
+        self._init_params.remove('hilbertspace')
 
     def __repr__(self) -> str:
         init_dict = {name: getattr(self, name) for name in self._init_params}
         return type(self).__name__ + f'(**{init_dict!r})'
 
     def __str__(self) -> str:
-        output = type(self).__name__.upper() + '\n ———— PARAMETERS ————'
+        indent_length = 25
+        name_prepend = 'InteractionTerm'.ljust(indent_length, '-') + '|\n'
+
+        output = ''
         for param_name in self._init_params:
-            output += '\n' + str(param_name) + '\t: ' + str(getattr(self, param_name))
-        return output + '\n'
+            param_content = getattr(self, param_name).__repr__()
+            if '\n' in param_content:
+                length = min(param_content.rfind('\n') - 1, 30)
+                param_content = param_content[:length]
+                param_content += ' ...'
 
-    def __getitem__(self, index: int) -> QuantumSys:
-        return self.subsystem_list[index]
-
-    def convert_operators(self, op_list: list) -> list:
-        new_operators = [spec_utils.convert_operator_to_qobj(item.operator, item.subsystem,
-                                                             op_in_eigenbasis=False, evecs=None)
-                         for item in op_list]
-        return new_operators
-
-    def idwrap(self, operator_list, subsystem_list):
-        id_wrapped_operators = [spec_utils.identity_wrap(item.operator, item.subsystem, subsystem_list)
-                                for item in operator_list]
-        return id_wrapped_operators
-
-class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
-    """
-    Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
-    the Hamiltonian in qutip.Qobj format. The form of the interaction is defined using the str_expression string.
-    Each operator must be hermitian, unless add_hc = True in which case each operator my be non-hermitian.
-    Acceptable functions inside of str_expression string include: cos(), sin(), dag(), ()), exp(), sqrt(), trans(),
-    cosm(), sinm(), expm(), and sqrtm() along with other operators included in python.
-
-    Parameters
-    ----------
-    str_expression:
-        string that defines the interaction.
-    operator_dict:
-        dictonary of names and tuples of operators and subsystems eg. {name: (operator, subsystem)}.
-    subsystem_list:
-        list of all subsystems.
-    add_hc:
-        If set to True, the interaction Hamiltonian is of type 2, and the Hermitian conjugate is added.
-    """
-    str_expression = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    operator_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    subsystem_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    add_hc = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-
-    qutip_dict = {
-        'cosm(': 'Qobj.cosm(',
-        'expm(': 'Qobj.expm(',
-        'sinm(': 'Qobj.sinm(',
-        'sqrtm(': 'Qobj.sqrtm(',
-        'cos(': 'Qobj.cosm(',
-        'dag(': 'Qobj.dag(',
-        'conj(': 'Qobj.conj(',
-        'exp(': 'Qobj.expm(',
-        'sin(': 'Qobj.sinm(',
-        'sqrt(': 'Qobj.sqrtm(',
-        'trans(': 'Qobj.trans('
-    }
-
-    def __init__(self,
-                 str_expression: str,
-                 operator_dict: Dict[str: Tuple[Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str], QuantumSys]],
-                 subsystem_list: List[QuantumSys],
-                 add_hc: bool = False
-                 ) -> None:
-        self.str_expression = str_expression
-        self.operator_dict = {key: Op._make(value) for (key, value) in operator_dict.items()}
-        self.subsystem_list = subsystem_list
-        self.add_hc = add_hc
-        qoperator_dict = self.id_wrap(operator_dict, subsystem_list)
-        self.add_to_variables(qoperator_dict)
-        hamiltonian = self.run_string_code(str_expression)
-        if not add_hc:
-            self.hamiltonian = hamiltonian
-        else:
-            self.hamiltonian = hamiltonian + hamiltonian.dag()
-
-    def __repr__(self) -> str:
-        init_dict = {name: getattr(self, name) for name in self._init_params}
-        return type(self).__name__ + f'(**{init_dict!r})'
-
-    def __str__(self) -> str:
-        output = type(self).__name__.upper() + '\n ———— PARAMETERS ————'
-        for param_name in self._init_params:
-            output += '\n' + str(param_name) + '\t: ' + str(getattr(self, param_name))
-        return output + '\n'
-
-    def add_to_variables(self, op_dict: dict) -> None:
-        for (key, value) in op_dict:
-            globals()[key] = value
-
-    def replace_string(self, string: str) -> str:
-        for item, value in self.qutip_dict.items():
-            if item + '(' in string:
-                string = string.replace(item + "(", value + '(')
-        return string
-
-    def run_string_code(self, string: str) -> Qobj:
-        string = self.replace_string(string)
-        answer = eval(string)
-        return answer
-
-    def id_wrap(self, op_dict: dict, subsys_list: list):
-        new_operators = {key: spec_utils.identity_wrap(value.operator, value.subsystem, subsys_list)
-                         for (key, value) in op_dict}
-        return new_operators
+            output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name),param_content)
+        return name_prepend + output
 
 
 class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
@@ -224,7 +131,6 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                  interaction_list: List[InteractionTerm] = None
                  ) -> None:
         self._subsystems: Tuple[QuantumSys, ...] = tuple(subsystem_list)
-        self.subsys_list = subsystem_list
         if interaction_list:
             self.interaction_list = tuple(interaction_list)
         else:
@@ -240,12 +146,6 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         dispatch.CENTRAL_DISPATCH.register('INTERACTIONTERM_UPDATE', self)
         dispatch.CENTRAL_DISPATCH.register('INTERACTIONLIST_UPDATE', self)
 
-    @classmethod
-    def create(cls) -> 'HilbertSpace':
-        hilbertspace = cls([])
-        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)  # type: ignore
-        return hilbertspace
-
     def __getitem__(self, index: int) -> QuantumSys:
         return self._subsystems[index]
 
@@ -257,22 +157,62 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return type(self).__name__ + f'(**{init_dict!r})'
 
     def __str__(self) -> str:
-        output = '====== HilbertSpace object ======\n'
+        output = 'HilbertSpace:  subsystems\n'
+        output += '-------------------------\n'
         for subsystem in self:
             output += '\n' + str(subsystem) + '\n'
         if self.interaction_list:
+            output += '\n\n'
+            output += 'HilbertSpace:  interaction terms\n'
+            output += '--------------------------------\n'
             for interaction_term in self.interaction_list:
                 output += '\n' + str(interaction_term) + '\n'
         return output
 
-    def index(self, item: QuantumSys) -> int:
-        return self._subsystems.index(item)
+    ###############################################################################################
+    # HilbertSpace: file IO methods
+    ###############################################################################################
+    @classmethod
+    def deserialize(cls, io_data: 'IOData') -> 'HilbertSpace':
+        """
+        Take the given IOData and return an instance of the described class, initialized with the data stored in
+        io_data.
+        """
+        alldata_dict = io_data.as_kwargs()
+        lookup = alldata_dict.pop('_lookup', None)
+        new_hilbertspace = cls(**alldata_dict)
+        new_hilbertspace._lookup = lookup
+        if lookup is not None:
+            new_hilbertspace._lookup._hilbertspace = weakref.proxy(new_hilbertspace)
+        return new_hilbertspace
+
+    def serialize(self) -> 'IOData':
+        """
+        Convert the content of the current class instance into IOData format.
+        """
+        initdata = {name: getattr(self, name) for name in self._init_params}
+        initdata['_lookup'] = self._lookup
+        iodata = serializers.dict_serialize(initdata)
+        iodata.typename = type(self).__name__
+        return iodata
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new HilbertSpace object.
         """
         return {'subsystem_list': self._subsystems, 'interaction_list': self.interaction_list}
 
+    ###############################################################################################
+    # HilbertSpace: creation via GUI
+    ###############################################################################################
+    @classmethod
+    def create(cls) -> 'HilbertSpace':
+        hilbertspace = cls([])
+        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)  # type: ignore
+        return hilbertspace
+
+    ###############################################################################################
+    # HilbertSpace: methods for CentralDispatch
+    ###############################################################################################
     def receive(self,
                 event: str,
                 sender: Any,
@@ -288,6 +228,15 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             elif event == 'INTERACTIONLIST_UPDATE' and sender is self:
                 self.broadcast('HILBERTSPACE_UPDATE')
                 self._lookup._out_of_sync = True
+
+    ###############################################################################################
+    # HilbertSpace: subsystems, dimensions, etc.
+    ###############################################################################################
+    def get_subsys_index(self, subsys: QuantumSys) -> int:
+        """
+        Return the index of the given subsystem in the HilbertSpace.
+        """
+        return self._subsystems.index(subsys)
 
     @property
     def subsystem_list(self) -> Tuple[QuantumSys, ...]:
@@ -308,6 +257,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """Returns number of subsys_list composing the joint Hilbert space"""
         return len(self._subsystems)
 
+    ###############################################################################################
+    # HilbertSpace: generate SpectrumLookup
+    ###############################################################################################
     def generate_lookup(self) -> None:
         bare_specdata_list = []
         for index, subsys in enumerate(self):
@@ -324,6 +276,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                                                   bare_specdata_list=bare_specdata_list,
                                                   dressed_specdata=dressed_specdata)
 
+    ###############################################################################################
+    # HilbertSpace: energy spectrum
+    ###############################################################################################
     def eigenvals(self, evals_count: int = 6) -> ndarray:
         """Calculates eigenvalues of the full Hamiltonian using `qutip.Qob.eigenenergies()`.
 
@@ -336,7 +291,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return hamiltonian_mat.eigenenergies(eigvals=evals_count)
 
     def eigensys(self, evals_count: int = 6) -> Tuple[ndarray, QutipEigenstates]:
-        """Calculates eigenvalues and eigenvectore of the full Hamiltonian using `qutip.Qob.eigenstates()`.
+        """Calculates eigenvalues and eigenvectors of the full Hamiltonian using `qutip.Qob.eigenstates()`.
 
         Parameters
         ----------
@@ -351,115 +306,6 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
         evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
         return evals, evecs
-
-    def diag_operator(self, diag_elements: ndarray, subsystem: QuantumSys) -> Qobj:
-        """For given diagonal elements of a diagonal operator in `subsystem`, return the `Qobj` operator for the
-        full Hilbert space (perform wrapping in identities for other subsys_list).
-
-        Parameters
-        ----------
-        diag_elements:
-            diagonal elements of subsystem diagonal operator
-        subsystem:
-            subsystem where diagonal operator is defined
-        """
-        dim = subsystem.truncated_dim
-        index = range(dim)
-        diag_matrix = np.zeros((dim, dim), dtype=np.float_)
-        diag_matrix[index, index] = diag_elements
-        return spec_utils.identity_wrap(diag_matrix, subsystem, self.subsys_list)
-
-    def diag_hamiltonian(self, subsystem: QuantumSys, evals: ndarray = None) -> Qobj:
-        """Returns a `qutip.Qobj` which has the eigenenergies of the object `subsystem` on the diagonal.
-
-        Parameters
-        ----------
-        subsystem:
-            Subsystem for which the Hamiltonian is to be provided.
-        evals:
-            Eigenenergies can be provided as `evals`; otherwise, they are calculated.
-        """
-        evals_count = subsystem.truncated_dim
-        if evals is None:
-            evals = subsystem.eigenvals(evals_count=evals_count)
-        diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))
-        return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsys_list)
-
-    def hubbard_operator(self, j: int, k: int, subsystem: QuantumSys) -> Qobj:
-        """Hubbard operator :math:`|j\\rangle\\langle k|` for system `subsystem`
-
-        Parameters
-        ----------
-        j,k:
-            eigenstate indices for Hubbard operator
-        subsystem:
-            subsystem in which Hubbard operator acts
-        """
-        dim = subsystem.truncated_dim
-        operator = (qt.states.basis(dim, j) * qt.states.basis(dim, k).dag())
-        return spec_utils.identity_wrap(operator, subsystem, self.subsys_list)
-
-    def annihilate(self, subsystem: QuantumSys) -> Qobj:
-        """Annihilation operator a for `subsystem`
-
-        Parameters
-        ----------
-        subsystem:
-            specifies subsystem in which annihilation operator acts
-        """
-        dim = subsystem.truncated_dim
-        operator = (qt.destroy(dim))
-        return spec_utils.identity_wrap(operator, subsystem, self.subsys_list)
-
-    def get_subsys_index(self, subsys: QuantumSys) -> int:
-        """
-        Return the index of the given subsystem in the HilbertSpace.
-        """
-        return self.index(subsys)
-
-    def bare_hamiltonian(self) -> Qobj:
-        """
-        Returns
-        -------
-            composite Hamiltonian composed of bare Hamiltonians of subsys_list independent of the external parameter
-        """
-        bare_hamiltonian = 0
-        for subsys in self:
-            evals = subsys.eigenvals(evals_count=subsys.truncated_dim)
-            bare_hamiltonian += self.diag_hamiltonian(subsys, evals)
-        return bare_hamiltonian
-
-    def get_bare_hamiltonian(self) -> Qobj:
-        """Deprecated, use `bare_hamiltonian()` instead."""
-        warnings.warn('get_bare_hamiltonian() is deprecated, use bare_hamiltonian() instead', FutureWarning)
-        return self.bare_hamiltonian()
-
-    def hamiltonian(self) -> Qobj:
-        """
-
-        Returns
-        -------
-            Hamiltonian of the composite system, including the interaction between components
-        """
-        return self.bare_hamiltonian() + self.interaction_hamiltonian()
-
-    def get_hamiltonian(self):
-        """Deprecated, use `hamiltonian()` instead."""
-        return self.hamiltonian()
-
-    def interaction_hamiltonian(self) -> Qobj:
-        """
-        Returns
-        -------
-            interaction Hamiltonian
-        """
-        if not self.interaction_list:
-            return 0
-
-        operator_list = [term.hamiltonian if isinstance(term, InteractionTerm)
-                         else term for term in self.interaction_list]
-        hamiltonian = sum(operator_list)
-        return hamiltonian
 
     def _esys_for_paramval(self,
                            paramval: float,
@@ -477,6 +323,155 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         update_hilbertspace(paramval)
         return self.eigenvals(evals_count)
 
+    ###############################################################################################
+    # HilbertSpace: Hamiltonian (bare, interaction, full)
+    ###############################################################################################
+    def hamiltonian(self) -> Qobj:
+        """
+
+        Returns
+        -------
+            Hamiltonian of the composite system, including the interaction between components
+        """
+        return self.bare_hamiltonian() + self.interaction_hamiltonian()
+
+    def bare_hamiltonian(self) -> Qobj:
+        """
+        Returns
+        -------
+            composite Hamiltonian composed of bare Hamiltonians of subsys_list independent of the external parameter
+        """
+        bare_hamiltonian = 0
+        for subsys in self:
+            evals = subsys.eigenvals(evals_count=subsys.truncated_dim)
+            bare_hamiltonian += self.diag_hamiltonian(subsys, evals)
+        return bare_hamiltonian
+
+    def interaction_hamiltonian(self) -> Qobj:
+        """
+        Returns
+        -------
+            interaction Hamiltonian
+        """
+        if not self.interaction_list:
+            return 0
+
+        hamiltonian = [self.interactionterm_hamiltonian(term) for term in self.interaction_list]
+        return sum(hamiltonian)
+
+    def interactionterm_hamiltonian(self,
+                                    interactionterm: InteractionTerm,
+                                    evecs1: ndarray = None,
+                                    evecs2: ndarray = None
+                                    ) -> Qobj:
+        interaction_op1 = self.identity_wrap(interactionterm.op1, interactionterm.subsys1, evecs=evecs1)
+        interaction_op2 = self.identity_wrap(interactionterm.op2, interactionterm.subsys2, evecs=evecs2)
+        hamiltonian = interactionterm.g_strength * interaction_op1 * interaction_op2
+        if interactionterm.add_hc:
+            return hamiltonian + hamiltonian.dag()
+        return hamiltonian
+
+    def diag_hamiltonian(self, subsystem: QuantumSys, evals: ndarray = None) -> Qobj:
+        """Returns a `qutip.Qobj` which has the eigenenergies of the object `subsystem` on the diagonal.
+
+        Parameters
+        ----------
+        subsystem:
+            Subsystem for which the Hamiltonian is to be provided.
+        evals:
+            Eigenenergies can be provided as `evals`; otherwise, they are calculated.
+        """
+        evals_count = subsystem.truncated_dim
+        if evals is None:
+            evals = subsystem.eigenvals(evals_count=evals_count)
+        diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))
+        return self.identity_wrap(diag_qt_op, subsystem)
+
+    def get_bare_hamiltonian(self) -> Qobj:
+        """Deprecated, use `bare_hamiltonian()` instead."""
+        warnings.warn('get_bare_hamiltonian() is deprecated, use bare_hamiltonian() instead', FutureWarning)
+        return self.bare_hamiltonian()
+
+    def get_hamiltonian(self):
+        """Deprecated, use `hamiltonian()` instead."""
+        return self.hamiltonian()
+
+    ###############################################################################################
+    # HilbertSpace: identity wrapping, operators
+    ###############################################################################################
+    def identity_wrap(self,
+                      operator: Union[str, ndarray, csc_matrix, dia_matrix, Qobj],
+                      subsystem: QuantumSys,
+                      op_in_eigenbasis: bool = False,
+                      evecs: ndarray = None
+                      ) -> Qobj:
+        """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
+
+        Parameters
+        ----------
+        operator:
+            operator acting in Hilbert space of `subsystem`; if str, then this should be an operator name in
+            the subsystem, typically not in eigenbasis
+        subsystem:
+            subsystem where diagonal operator is defined
+        op_in_eigenbasis:
+            whether `operator` is given in the `subsystem` eigenbasis; otherwise, the internal QuantumSys basis is
+            assumed
+        evecs:
+            internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
+        """
+        subsys_operator = spec_utils.convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+        operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in self]
+        subsystem_index = self.get_subsys_index(subsystem)
+        operator_identitywrap_list[subsystem_index] = subsys_operator
+        return qt.tensor(operator_identitywrap_list)
+
+    def diag_operator(self, diag_elements: ndarray, subsystem: QuantumSys) -> Qobj:
+        """For given diagonal elements of a diagonal operator in `subsystem`, return the `Qobj` operator for the
+        full Hilbert space (perform wrapping in identities for other subsys_list).
+
+        Parameters
+        ----------
+        diag_elements:
+            diagonal elements of subsystem diagonal operator
+        subsystem:
+            subsystem where diagonal operator is defined
+        """
+        dim = subsystem.truncated_dim
+        index = range(dim)
+        diag_matrix = np.zeros((dim, dim), dtype=np.float_)
+        diag_matrix[index, index] = diag_elements
+        return self.identity_wrap(diag_matrix, subsystem)
+
+    def hubbard_operator(self, j: int, k: int, subsystem: QuantumSys) -> Qobj:
+        """Hubbard operator :math:`|j\\rangle\\langle k|` for system `subsystem`
+
+        Parameters
+        ----------
+        j,k:
+            eigenstate indices for Hubbard operator
+        subsystem:
+            subsystem in which Hubbard operator acts
+        """
+        dim = subsystem.truncated_dim
+        operator = (qt.states.basis(dim, j) * qt.states.basis(dim, k).dag())
+        return self.identity_wrap(operator, subsystem)
+
+    def annihilate(self, subsystem: QuantumSys) -> Qobj:
+        """Annihilation operator a for `subsystem`
+
+        Parameters
+        ----------
+        subsystem:
+            specifies subsystem in which annihilation operator acts
+        """
+        dim = subsystem.truncated_dim
+        operator = (qt.destroy(dim))
+        return self.identity_wrap(operator, subsystem)
+
+    ###############################################################################################
+    # HilbertSpace: spectrum sweep
+    ###############################################################################################
     def get_spectrum_vs_paramvals(self,
                                   param_vals: ndarray,
                                   update_hilbertspace: Callable,
