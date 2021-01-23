@@ -111,9 +111,10 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return type(self).__name__ + f'({init_dict!r})'
 
     def __str__(self) -> str:
-        output = '    Grid1d ......'
+        output = 'Grid1d -----[ '
         for param_name, param_val in sorted(utils.drop_private_keys(self.__dict__).items()):
-            output += '\n' + str(param_name) + '\t: ' + str(param_val)
+            output += str(param_name) + ': ' + str(param_val) + ',  '
+        output = output[:-3] + ' ]'
         return output
 
     def __eq__(self, other: Any) -> bool:
