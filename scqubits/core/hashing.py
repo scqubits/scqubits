@@ -126,9 +126,16 @@ class Hashing:
                     a[basis_index, w] = temp_coefficient
         return a
 
-    def _find_lowered_vector(self, vector: ndarray, i: int, tags: ndarray, index_array: ndarray) -> Optional[int]:
+    def _find_lowered_vector(self, vector: ndarray, i: int, tags: ndarray, index_array: ndarray,
+                             raised_or_lowered="lowered") -> Optional[int]:
+        if raised_or_lowered == "lowered":
+            pm_1 = -1
+        elif raised_or_lowered == "raised":
+            pm_1 = +1
+        else:
+            raise ValueError("only raised or lowered recognized")
         temp_vector = np.copy(vector)
-        temp_vector[i] = vector[i] - 1
+        temp_vector[i] = vector[i] + pm_1
         temp_vector_tag = self._hash(temp_vector)
         index = np.searchsorted(tags, temp_vector_tag)
         if not np.allclose(tags[index], temp_vector_tag):

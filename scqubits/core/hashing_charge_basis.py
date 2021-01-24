@@ -1,4 +1,5 @@
 from functools import reduce
+import itertools
 
 import numpy as np
 from numpy import ndarray
@@ -51,3 +52,68 @@ class HashingChargeBasis(Hashing):
     def exp_i_phi_stitching_term(self) -> ndarray:
         dim = self.number_degrees_freedom
         return reduce((lambda x, y: x @ y), np.array([self.exp_i_phi_j_operator(j) for j in range(dim)]))
+
+
+class ChargeBasisLinearOperator(Hashing):
+    """
+    Use the regular charge basis, but use LinearOperator to not
+    implement the entire Hamiltonian
+    """
+
+    def __init__(self, ncut, number_degrees_freedom) -> None:
+        self.ncut = ncut
+        self._number_degrees_freedom = number_degrees_freedom
+        Hashing.__init__(self)
+        self.basis_vecs = self.gen_basis_vectors()
+        self.tags, self.index_array = self._gen_tags(self.basis_vecs)
+
+    def gen_basis_vectors(self):
+        basis_vecs = itertools.product(np.arange(-self.ncut, self.ncut + 1, 1), repeat=self.number_degrees_freedom)
+        np_basis_vecs = np.array(list(map(np.array, basis_vecs)))
+        return np_basis_vecs
+
+    def n_operator(self, j: int, vec: ndarray) -> ndarray:
+        basis_vectors = self.basis_vecs
+        new_vec = np.zeros_like(vec)
+        for k, vec_val in enumerate(vec):
+            corresponding_basis_vec = basis_vectors[k]
+            new_vec[k] += vec_val * corresponding_basis_vec[j]
+        return new_vec
+
+    def exp_i_phi_j_operator(self, j: int, vec: ndarray) -> ndarray:
+        basis_vectors = self.basis_vecs
+        tags, index_array = self.tags, self.index_array
+        new_vec = np.zeros_like(vec)
+        for k, vec_val in enumerate(vec):
+            corresponding_basis_vec = basis_vectors[k]
+            if corresponding_basis_vec[j] != -self.ncut:
+                basis_index = self._find_lowered_vector(corresponding_basis_vec, j, tags, index_array)
+                if basis_index is not None:
+                    new_vec[basis_index] += vec_val
+        return new_vec
+
+    def exp_m_i_phi_j_operator(self, j: int, vec: ndarray) -> ndarray:
+        basis_vectors = self.basis_vecs
+        tags, index_array = self.tags, self.index_array
+        new_vec = np.zeros_like(vec)
+        for k, vec_val in enumerate(vec):
+            corresponding_basis_vec = basis_vectors[k]
+            if corresponding_basis_vec[j] != self.ncut:
+                basis_index = self._find_lowered_vector(corresponding_basis_vec, j, tags, index_array,
+                                                        raised_or_lowered="raised")
+                if basis_index is not None:
+                    new_vec[basis_index] += vec_val
+        return new_vec
+
+    def exp_i_phi_stitching_term(self, vec: ndarray) -> ndarray:
+        for j in range(self.number_degrees_freedom):
+            vec = self.exp_i_phi_j_operator(j, vec)
+        return vec
+
+    def exp_m_i_phi_stitching_term(self, vec: ndarray) -> ndarray:
+        for j in range(self.number_degrees_freedom):
+            vec = self.exp_m_i_phi_j_operator(j, vec)
+        return vec
+
+    def identity_operator(self, vec: ndarray) -> ndarray:
+        return vec

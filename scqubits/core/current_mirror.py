@@ -6,12 +6,12 @@ import numpy as np
 import scipy as sp
 from numpy import ndarray
 from scipy.sparse import eye, diags
-from scipy.sparse.linalg import eigsh
+from scipy.sparse.linalg import eigsh, LinearOperator
 
 import scqubits.core.descriptors as descriptors
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.hashing_charge_basis import HashingChargeBasis
+from scqubits.core.hashing_charge_basis import HashingChargeBasis, ChargeBasisLinearOperator
 from scqubits.core.noise import NoisySystem
 from scqubits.core.operators import identity_wrap
 from scqubits.utils.spectrum_utils import order_eigensystem
@@ -323,3 +323,55 @@ class CurrentMirrorGlobal(HashingChargeBasis, CurrentMirror):
         self.num_exc = num_exc
         HashingChargeBasis.__init__(self)
         CurrentMirror.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=0, truncated_dim=truncated_dim)
+
+
+class CurrentMirrorLinearOperator(ChargeBasisLinearOperator, CurrentMirror):
+    def __init__(self,
+                 N: int,
+                 ECB: float,
+                 ECJ: float,
+                 ECg: float,
+                 EJlist: ndarray,
+                 nglist: ndarray,
+                 flux: float,
+                 ncut: int,
+                 truncated_dim: int = None
+                 ) -> None:
+        CurrentMirror.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=ncut, truncated_dim=truncated_dim)
+        ChargeBasisLinearOperator.__init__(self, ncut=ncut, number_degrees_freedom=2*N - 1)
+        self.dtype = np.complex_
+        self.shape = (self.hilbertdim(), self.hilbertdim())
+
+    def _matvec(self, vec) -> ndarray:
+        """Returns the Hamiltonian employing the charge number basis for all :math:`2\cdot N - 1` d.o.f.
+
+        Returns
+        -------
+            ndarray
+        """
+        dim = self.number_degrees_freedom
+        EC_matrix = self.EC_matrix()
+        result_vec = (-self.EJlist[-1] / 2.) * (np.exp(1j * 2 * np.pi * self.flux) * self.exp_i_phi_stitching_term(vec)
+                                          + np.exp(-1j * 2 * np.pi * self.flux) * self.exp_m_i_phi_stitching_term(vec))
+        result_vec += self.EJlist[-1] * self.identity_operator(vec)
+        for j, k in itertools.product(range(dim), range(dim)):
+            n_k_vec = self.n_operator(k, vec)
+            result_vec += 4*EC_matrix[j, k] * self.nglist[j] * self.nglist[k] * self.identity_operator(vec)
+            result_vec += -4*EC_matrix[j, k] * self.nglist[k] * self.n_operator(j, vec)
+            result_vec += -4 * EC_matrix[j, k] * self.nglist[j] * n_k_vec
+            result_vec += 4*EC_matrix[j, k] * self.n_operator(j, n_k_vec)
+        for j in range(dim):
+            result_vec += (-self.EJlist[j]/2.)*(self.exp_i_phi_j_operator(j, vec) + self.exp_m_i_phi_j_operator(j, vec))
+            result_vec += self.EJlist[j]*self.identity_operator(vec)
+        return result_vec
+
+    def _evals_calc(self, evals_count: int) -> ndarray:
+        ham_op = LinearOperator((self.hilbertdim(), self.hilbertdim()), dtype=np.complex_, matvec=self._matvec)
+        evals = eigsh(ham_op, k=evals_count, which='SA', return_eigenvectors=False)
+        return np.sort(evals)
+
+    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+        ham_op = LinearOperator((self.hilbertdim(), self.hilbertdim()), dtype=np.complex_, matvec=self._matvec)
+        evals, evecs = eigsh(ham_op, k=evals_count, which='SA', return_eigenvectors=True)
+        evals, evecs = order_eigensystem(evals, evecs)
+        return evals, evecs
