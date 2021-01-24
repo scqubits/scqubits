@@ -106,20 +106,25 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
 
 
 def sigma_x() -> np.ndarray:
+    """Returns the Pauli-x matrix"""
     return np.asarray([[0.0, 1.0], [1.0, 0.0]])
 
 
 def sigma_y() -> np.ndarray:
+    """Returns the Pauli-y matrix"""
     return np.asarray([[0.0, -1j], [1j, 0.0]])
 
 
 def sigma_z() -> np.ndarray:
+    """Returns the Pauli-z matrix"""
     return np.asarray([[1.0, 0.0], [0.0, -1.0]])
 
 
 def sigma_plus() -> np.ndarray:
+    """Returns the Pauli plus matrix"""
     return np.asarray([[0.0, 1.0], [0.0, 0.0]])
 
 
 def sigma_minus() -> np.ndarray:
+    """Returns the Pauli minus matrix"""
     return sigma_plus().T
