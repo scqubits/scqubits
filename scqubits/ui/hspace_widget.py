@@ -88,7 +88,7 @@ class HilbertSpaceUi:
         self.g_widget = ipywidgets.FloatText(description='g_strength')
         self.addhc_widget = ipywidgets.Dropdown(description='add_hc', options=['False', 'True'])
 
-        self.interact_box = ipywidgets.VBox([
+        self.interact_box1 = ipywidgets.VBox([
             ipywidgets.Label(value="Specify interaction"),
             self.op1subsys_widget,
             self.op1_widget,
@@ -97,20 +97,20 @@ class HilbertSpaceUi:
             self.g_widget,
             self.addhc_widget
         ])
-        #self.interact_box.layout.display = 'none'
 
         self.string_expr_widget = ipywidgets.Text(description='expression', placeholder='e.g., EJ * cos(op1 - op2)')
-        self.interact2_box = ipywidgets.VBox([
+        self.interact_box2 = ipywidgets.VBox([
             ipywidgets.Label(value="Specify interaction"),
             self.string_expr_widget,
             self.op1_widget,
+            self.op1subsys_widget,
             self.op2_widget,
+            self.op2subsys_widget,
             self.addhc_widget
         ])
 
-
         self.tabs_select_interact_type = ipywidgets.Tab(layout=ipywidgets.Layout(width='350px'))
-        self.tabs_select_interact_type.children = [self.interact_box, self.interact2_box]
+        self.tabs_select_interact_type.children = [self.interact_box1, self.interact_box2]
         self.tabs_select_interact_type.set_title(0, 'g * op1 * op2')
         self.tabs_select_interact_type.set_title(1, 'Python expression')
         self.tabs_select_interact_type.layout.display = 'none'
@@ -127,6 +127,11 @@ class HilbertSpaceUi:
 
         # == Make GUI connections ======================================================================================
         self.connect_ui()
+
+    def current_interaction_type(self) -> str:
+        interaction_types = {0: 'InteractionTerm', 1: 'InteractionTermStr'}
+        tab_index = self.tabs_select_interact_type.selected_index
+        return interaction_types[tab_index]
 
     def connect_ui(self):
         def on_subsys_selected(change):
@@ -175,7 +180,6 @@ class HilbertSpaceUi:
         self.current_interaction_key = 'term {}'.format(self.interactions_count)
         self.interactions_dict[self.current_interaction_key] = self.empty_interaction_term()
         self.interact_list_widget.options = list(self.interactions_dict.keys())
-        # self.interact_box.layout.display = 'flex'
         self.tabs_select_interact_type.layout.display = 'flex'
 
     def del_interaction_term(self, *args):
@@ -188,7 +192,6 @@ class HilbertSpaceUi:
         else:
             self.current_interaction_key = ''
             self.interact_list_widget.options = []
-            # self.interact_box.layout.display = 'none'
             self.tabs_select_interact_type.layout.display = 'none'
 
     def current_interact_change(self, *args):
@@ -202,6 +205,7 @@ class HilbertSpaceUi:
         self.op2subsys_widget.value = interact_params['subsys2']
         self.g_widget.value = interact_params['g_strength']
         self.addhc_widget.value = interact_params['add_hc']
+        self.string_expr_widget.value = interact_params['string_expr']
 
     @staticmethod
     def empty_interaction_term():
@@ -211,7 +215,8 @@ class HilbertSpaceUi:
             'op2': '',
             'subsys2': None,
             'g_strength': 0.0,
-            'add_hc': 'False'
+            'add_hc': 'False',
+            'string_expr': ''
         }
 
     def widgets_dict(self):
@@ -223,12 +228,13 @@ class HilbertSpaceUi:
             'subsys2': self.op2subsys_widget,
             'g_strength': self.g_widget,
             'add_hc': self.addhc_widget
+            'string_expr': self.string_expr_widget
         }
 
     def validated_interact_list(self):
-        main = importlib.import_module('__main__')
-
         self.status_output.clear_output()
+
+        main = importlib.import_module('__main__')
         subsys_list = self.subsys_widget.value
         interaction_list = []
         for interaction_term in self.interactions_dict.values():
@@ -254,6 +260,11 @@ class HilbertSpaceUi:
                     with self.status_output:
                         print("Type mismatch: '{}' is not a valid operator.".format(operator_str))
                     return False
+            #
+            #
+            # Check here for which tab is selected and branch out into InteractionTerm vs InteractionTermStr
+            #
+            #
             interaction_list.append(scqubits.InteractionTerm(g_strength=interaction_term['g_strength'],
                                                              op1=eval(operator_str_list[0], main.__dict__),
                                                              subsys1=eval(interaction_term['subsys1'], main.__dict__),
