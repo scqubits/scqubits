@@ -25,6 +25,15 @@ from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_t
 # —generic qubit (two-level system)——————————————————————————————————————————————
 
 class GenericQubit(base.QuantumSystem, serializers.Serializable):
+    """Class for a generic qubit (genuine two-level system). Create a class instance via::
+
+        GenericQubit(E=4.3)
+
+    Parameters
+    ----------
+    E:
+       qubit energy splitting
+    """
     truncated_dim = 2
     _evec_dtype: type
     _sys_type: str
