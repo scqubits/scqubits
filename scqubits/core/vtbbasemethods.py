@@ -419,13 +419,16 @@ class VTBBaseMethods(ABC):
         """Helper method that performs matrix exponentiation to aid in the
         future construction of translation operators. The resulting matrices yield a 2pi translation
         in each degree of freedom, so that any translation can be built from these by an appropriate
-        call to np.matrix_power"""
+        call to np.matrix_power. Note that we need only use lowering operators, because raising operators can
+        be constructed by transposition. We construct both positive and negative 2pi translations to
+        avoid costly calls to `inv` later."""
         dim = self.number_degrees_freedom
         num_states_per_min = self.number_states_per_minimum()
         exp_a_list = np.zeros((dim, num_states_per_min, num_states_per_min), dtype=np.complex_)
         exp_a_minus_list = np.zeros_like(exp_a_list)
         for i in range(dim):
-            expm_argument = np.sum(2.0 * np.pi * Xi_inv.T[i] * np.transpose(a_operator_array, (1, 2, 0)) / np.sqrt(2.0), axis=2)
+            expm_argument = np.sum(2.0 * np.pi * Xi_inv.T[i] * np.transpose(a_operator_array, (1, 2, 0))
+                                   / np.sqrt(2.0), axis=2)
             exp_a_list[i] = expm(expm_argument)
             exp_a_minus_list[i] = expm(-expm_argument)
         return exp_a_list, exp_a_minus_list
@@ -600,10 +603,10 @@ class VTBBaseMethods(ABC):
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         delta_phi = displacement_vector + minima_p - minima_m
         delta_phi_rotated = Xi_inv @ delta_phi
-        kinetic_matrix = np.sum(np.diag(EC_mat_t)
-                                * (- 0.5 * 4 * np.transpose(a_a, (1, 2, 0)) - 0.5 * 4 * a_a.T
-                                   + 0.5 * 8 * np.transpose(a_dagger_a, (1, 2, 0))
-                                   - 4 * (np.transpose(a, (1, 2, 0)) - a.T) * delta_phi_rotated / np.sqrt(2.0)), axis=2)
+        local_kinetic_diagonal = (- 2.0 * np.transpose(a_a, (1, 2, 0)) - 2.0 * a_a.T
+                                  + 4.0 * np.transpose(a_dagger_a, (1, 2, 0))
+                                  - 4 * (np.transpose(a, (1, 2, 0)) - a.T) * delta_phi_rotated / np.sqrt(2.0))
+        kinetic_matrix = np.sum(np.diag(EC_mat_t) * local_kinetic_diagonal, axis=2)
         identity_coefficient = (0.5 * 4 * np.trace(EC_mat_t)
                                 - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated)
         kinetic_matrix = kinetic_matrix + identity_coefficient*self.identity()
@@ -656,11 +659,9 @@ class VTBBaseMethods(ABC):
         Xi_inv = inv(self.Xi_matrix())
         a_operator_array = self._a_operator_array()
         exp_a_list = self._general_translation_operators(Xi_inv, a_operator_array)
-        self.translation_op_dict = {}
-        sorted_minima_dict = self.sorted_minima
         num_states_min = self.number_states_per_minimum()
         operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex128)
-        all_minima_index_pairs = list(itertools.combinations_with_replacement(sorted_minima_dict.items(), 2))
+        all_minima_index_pairs = list(itertools.combinations_with_replacement(self.sorted_minima.items(), 2))
         periodic_continuation_for_minima_pair = partial(self._periodic_continuation_for_minima_pair,
                                                         func, exp_a_list, Xi_inv, a_operator_array)
         matrix_elements = list(map(periodic_continuation_for_minima_pair, all_minima_index_pairs))
@@ -718,6 +719,7 @@ class VTBBaseMethods(ABC):
         """Helper method called by _esys_calc and _evals_calc that returns the transfer matrix and inner product
         matrix but warns the user if the system is in a regime where tight-binding has questionable validity."""
         self.find_relevant_unit_cell_vectors()
+        self.translation_op_dict = {}
         if self.harmonic_length_optimization:
             self.optimize_Xi_variational()
         harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
@@ -953,7 +955,8 @@ class VTBBaseMethods(ABC):
                                                 minimum: int, EC_mat_t: ndarray,
                                                 exp_i_phi_j: ndarray) -> Tuple[ndarray, ndarray]:
         """Transfer matrix and inner product matrix when considering only the ground state."""
-        retained_unit_cell_displacement_vectors = 2.0*np.pi*self.retained_unit_cell_displacement_vectors[(minimum, minimum)]
+        retained_unit_cell_displacement_vectors = 2.0 * np.pi * self.retained_unit_cell_displacement_vectors[(minimum,
+                                                                                                              minimum)]
         transfer_function = partial(self._one_state_local_transfer, exp_i_phi_j, EC_mat_t, Xi, Xi_inv)
         transfer = np.sum([self._exp_product_coefficient(unit_cell_vector, Xi_inv)
                            * transfer_function(unit_cell_vector, minimum_location, minimum_location)
