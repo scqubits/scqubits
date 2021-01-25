@@ -67,8 +67,10 @@ class QuantumSystem(DispatchClient, ABC):
         # The following if clause mitigates an issue where upon program exit calls to this destructor fail because
         # `QuantumSystem` is of NoneType. (Upon program exit, does the class itself get deleted before class instances
         # are calling their destructor?)
-        if QuantumSystem:
+        try:
             QuantumSystem._quantumsystem_counter -= 1
+        except NameError:
+            pass
 
     def __init_subclass__(cls):
         """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
