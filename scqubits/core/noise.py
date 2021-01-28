@@ -11,7 +11,7 @@
 
 import math
 from abc import ABC, abstractmethod
-from typing import cast, Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -103,3 +103,28 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
     hubbardmat = sp.sparse.dok_matrix((dimension, dimension), dtype=np.float_)
     hubbardmat[j1, j2] = 1.0
     return hubbardmat.asformat('csc')
+
+
+def sigma_x() -> np.ndarray:
+    """Returns the Pauli-x matrix [[0, 1], [1, 0]]"""
+    return np.asarray([[0.0, 1.0], [1.0, 0.0]])
+
+
+def sigma_y() -> np.ndarray:
+    """Returns the Pauli-y matrix [[0, -i], [i, 0]]"""
+    return np.asarray([[0.0, -1j], [1j, 0.0]])
+
+
+def sigma_z() -> np.ndarray:
+    """Returns the Pauli-z matrix [[1, 0], [0, -1]]"""
+    return np.asarray([[1.0, 0.0], [0.0, -1.0]])
+
+
+def sigma_plus() -> np.ndarray:
+    """Returns the Pauli plus matrix (sigma_x + i sigma_y) / 2"""
+    return np.asarray([[0.0, 1.0], [0.0, 0.0]])
+
+
+def sigma_minus() -> np.ndarray:
+    """Returns the Pauli minus matrix (sigma_x - i sigma_y) / 2"""
+    return sigma_plus().T

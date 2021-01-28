@@ -22,7 +22,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.misc as utils
 
-
 FIRST_STENCIL_COEFFS: Dict[int, List[float]] = {
     3: [-1/2, 0.0, 1/2],
     5: [1/12, -2/3, 0.0, 2/3, -1/12],
@@ -112,10 +111,19 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return type(self).__name__ + f'({init_dict!r})'
 
     def __str__(self) -> str:
-        output = '    Grid1d ......'
+        output = 'Grid1d -----[ '
         for param_name, param_val in sorted(utils.drop_private_keys(self.__dict__).items()):
-            output += '\n' + str(param_name) + '\t: ' + str(param_val)
+            output += str(param_name) + ': ' + str(param_val) + ',  '
+        output = output[:-3] + ' ]'
         return output
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, type(self)):
+            return False
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return super().__hash__()
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Grid1d object.

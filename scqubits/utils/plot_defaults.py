@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from scqubits import ParameterSweep
     from scqubits.core.storage import WaveFunction, DataStore, SpectrumData
 
+
 NAME_REPLACEMENTS = {
     'ng': r'$n_g$',
     'ng1': r'$n_{g1}$',

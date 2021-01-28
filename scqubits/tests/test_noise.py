@@ -12,7 +12,7 @@
 
 import numpy as np
 
-from scqubits import Fluxonium, FluxQubit, Grid1d, Transmon, TunableTransmon, ZeroPi
+from scqubits import FluxQubit, Fluxonium, Grid1d, Transmon, TunableTransmon, ZeroPi
 
 data = {
     'Transmon': np.array([1.33428506e+07, 3.77005675e+00, 2.16683864e+06, 5.02320540e+02, 2.16683864e+06,

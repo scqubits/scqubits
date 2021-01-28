@@ -15,7 +15,7 @@ Provides the base classes for qubits
 import functools
 import inspect
 from abc import ABC, ABCMeta, abstractmethod
-from typing import Tuple, Union, Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,7 +30,7 @@ import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
-from scqubits.core.storage import SpectrumData, DataStore
+from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.settings import IN_IPYTHON
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, drop_private_keys, process_which
@@ -64,7 +64,13 @@ class QuantumSystem(DispatchClient, ABC):
         return super().__new__(cls)
 
     def __del__(self) -> None:
-        QuantumSystem._quantumsystem_counter -= 1
+        # The following if clause mitigates an issue where upon program exit calls to this destructor fail because
+        # `QuantumSystem` is of NoneType. (Upon program exit, does the class itself get deleted before class instances
+        # are calling their destructor?)
+        try:
+            QuantumSystem._quantumsystem_counter -= 1
+        except NameError:
+            pass
 
     def __init_subclass__(cls):
         """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
@@ -81,11 +87,26 @@ class QuantumSystem(DispatchClient, ABC):
         return type(self).__name__ + f'(**{init_dict!r})'
 
     def __str__(self) -> str:
-        output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
-        for param_name, param_val in drop_private_keys(self.__dict__).items():
-            output += '\n' + str(param_name) + '\t: ' + str(param_val)
-        output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())
-        return output
+        indent_length = 20
+        name_prepend = self._sys_type.ljust(indent_length, '-') + '|\n'
+
+        output = ''
+        # for param_name, param_val in drop_private_keys(self.__dict__).items():
+        #     output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name), str(param_val))
+        for param_name in self.default_params().keys():
+            output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name), str(getattr(self, param_name)))
+        output += '{0}|\n'.format(' ' * indent_length)
+        output += "{0}| dim: {1}\n".format(' ' * indent_length, str(self.hilbertdim()))
+
+        return name_prepend + output
+
+    def __eq__(self, other: Any):
+        if not isinstance(other, type(self)):
+            return False
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return super().__hash__()
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Serializable object.        """
