@@ -106,6 +106,11 @@ class GUI:
             'ZeroPi': zeropi_defaults,
             'FullZeroPi': fullzeropi_defaults
         }
+        self.grid_defaults = {
+            'grid_min_val': -6*np.pi,
+            'grid_max_val': 6*np.pi,
+            'grid_pt_count': 50
+        }
         self.plot_choices = { 
             'Energy spectrum': 'plot_evals_vs_paramvals', 
             'Wavefunctions': 'plot_wavefunction', 
@@ -142,7 +147,10 @@ class GUI:
         init_params = QubitClass.default_params()
 
         if qubit_name == 'ZeroPi' or qubit_name == 'FullZeroPi':
-            init_params['grid'] = scq.Grid1d(min_val = -6*np.pi, max_val = 6*np.pi, pt_count = 50)
+            init_params['grid'] = scq.Grid1d(
+                                            min_val = self.grid_defaults['grid_min_val'], 
+                                            max_val = self.grid_defaults['grid_max_val'], 
+                                            pt_count = self.grid_defaults['grid_pt_count'])
           
         self.active_qubit = QubitClass(**init_params)
 
@@ -160,7 +168,6 @@ class GUI:
         self.create_params_dict()
         self.create_plot_settings_widgets()
         self.create_qubit_params_widgets()
-        #self.create_qubit_and_plot_choice_widgets()
 
     def get_operators(self) -> List[ str ]:
         """Return a list of operators.
@@ -273,11 +280,10 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
+        params.update(self.grid_defaults)
         scan_min, scan_max = scan_range
         grid_min, grid_max = grid_range
-        params['grid_min_val'] = -2*np.pi
-        params['grid_max_val'] = 2*np.pi
-        params['grid_pt_count'] = 50
+        self.active_qubit.set_params(**params)
         np_list = np.linspace(scan_min, scan_max, 50)
         dynamic_grid = scq.Grid1d(min_val = grid_min, max_val = grid_max, pt_count = 50)
         self.fig, _ = self.active_qubit.plot_evals_vs_paramvals(scan_value, np_list, grid = dynamic_grid, evals_count=eigenvalue_amount_value, subtract_ground=subtract_ground_tf)
@@ -351,11 +357,9 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
+        params.update(self.grid_defaults)
         scan_min, scan_max = scan_range
         grid_min, grid_max = grid_range
-        params['grid_min_val'] = -2*np.pi
-        params['grid_max_val'] = 2*np.pi
-        params['grid_pt_count'] = 50
         self.active_qubit.set_params(**params)
         np_list = np.linspace(scan_min,scan_max,50)
         dynamic_grid = scq.Grid1d(min_val = grid_min, max_val = grid_max, pt_count = 50)
@@ -414,10 +418,8 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
+        params.update(self.grid_defaults)
         grid_min, grid_max = grid_range
-        params['grid_min_val'] = -2*np.pi
-        params['grid_max_val'] = 2*np.pi
-        params['grid_pt_count'] = 50
         self.active_qubit.set_params(**params)
         dynamic_grid = scq.Grid1d(min_val = grid_min, max_val = grid_max, pt_count = 50)
         self.fig, _ = self.active_qubit.plot_wavefunction(which = eigenvalue, grid = dynamic_grid, mode = mode_value)
@@ -491,10 +493,8 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
+        params.update(self.grid_defaults)
         grid_min, grid_max = grid_range
-        params['grid_min_val'] = -2*np.pi
-        params['grid_max_val'] = 2*np.pi
-        params['grid_pt_count'] = 50
         self.active_qubit.set_params(**params)
         dynamic_grid = scq.Grid1d(min_val = grid_min, max_val = grid_max, pt_count = 50)
         self.fig, _ = self.active_qubit.plot_matrixelements(operator_value, evals_count=eigenvalue_amount_value, mode = mode_value, grid = dynamic_grid, show_numbers = show_numbers_tf, show3d = show3d_tf)
@@ -711,6 +711,7 @@ class GUI:
             Current interactive chosen.
         """
         if qubit_plot_interactive is None:
+            display('FullZeroPi currently does not have Wavefunctions implemented.')
             return None
         
         output = qubit_plot_interactive.children[-1]
