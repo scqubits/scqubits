@@ -390,7 +390,31 @@ class GUI:
 
         self.active_qubit.set_params(**params)
         self.fig, _ = self.active_qubit.plot_wavefunction(which = eigenvalue, mode = mode_value, scaling = scale_value)
-  
+      
+    def fluxqubit_wavefunction_interactive(self, 
+        eigenvalue: Union[ List[ int ], int ], 
+        mode_value: str, 
+        manual_scale_tf: bool,
+        **params: Dict[ str, Union[ float, int ] ]) -> None:  
+        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_wavefunction().
+
+        Parameters
+        ----------
+        eigenvalue:
+            If the active qubit is not FluxQubit, then eigenvalue is the current list of eigenvalues that will be plotted.
+            If the active qubit is FluxQubit, then eigenvalue is the current eigenvalue specified that will be plotted.
+
+        mode_value:
+            Current value of the mode dropdown.
+
+        manual_scale_tf:
+
+        **params:
+            Dictionary of current qubit parameter values (taken from the sliders)
+        """
+        self.active_qubit.set_params(**params)
+        self.fig, _ = self.active_qubit.plot_wavefunction(which = eigenvalue, mode = mode_value)
+
     def zeropi_wavefunction_interactive(self, 
         eigenvalue: Union[ List[ int ], int ], 
         grid_range: Tuple[ float, float ],
@@ -810,6 +834,13 @@ class GUI:
                                                 grid_range = self.qubit_plot_options_widgets['grid_range_slider'],
                                                 mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
                                                 **self.qubit_params_widgets)
+            elif isinstance(self.active_qubit, scq.FluxQubit):
+                qubit_plot_interactive = widgets.interactive(
+                                self.fluxqubit_wavefunction_interactive,  
+                                eigenvalue = which_widget,
+                                mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
+                                manual_scale_tf = self.qubit_plot_options_widgets['manual_scale_checkbox'],
+                                **self.qubit_params_widgets)
             else:
                 qubit_plot_interactive = widgets.interactive(
                                 self.wavefunction_interactive,  
