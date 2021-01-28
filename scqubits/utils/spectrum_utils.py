@@ -331,14 +331,13 @@ def identity_wrap(operator: Union[str, ndarray, Qobj],
     subsystem:
         subsystem where diagonal operator is defined
     subsys_list:
-        list of all subsystems
+        list of all subsystems relevant to the Hilbert space.
     op_in_eigenbasis:
         whether `operator` is given in the `subsystem` eigenbasis; otherwise, the internal QuantumSys basis is
         assumed
     evecs:
         internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
     """
-    # TODO: Better subsys_list definition
     subsys_operator = convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
     operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list]
     subsystem_index = subsys_list.index(subsystem)

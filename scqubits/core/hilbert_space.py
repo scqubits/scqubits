@@ -11,7 +11,8 @@
 
 # TODO: Clean up this doc and then branch for the zombie version
 
-# TODO: Add typing for all methods
+# TODO: Test this version to see if I screwed something up
+
 
 import functools
 import warnings
@@ -48,26 +49,26 @@ else:
     from tqdm import tqdm
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
+#TODO: Rename Op to something more descriptive (Maybe SubsysOperator)
 Op = namedtuple("Op", ['operator', 'subsystem'])
 
 
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
-    # TODO: GUI needs to be fixed before pushing
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
     the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
     1. V = g A B C ..., where A, B, C... are Hermitian operators in subsystems in subsystem_list,
     2. V = g A B C... + h.c., where A, B, C... may be non-Hermitian
-# TODO: Fix subsystem list and operator list definitions
 
     Parameters
     ----------
     g_strength:
         coefficient parametrizing the interaction strength.
     operator_list:
-        list of tuples of operators involved in the interaction paired with their subsystems eg. (operator, subsystem).
+        list of tuples of operators and their corresponding subsystems involved in the interaction
+        eg. (operator, subsystem).
     subsystem_list:
-        list of subsystems.
+        list of all subsystems relevant to the Hilbert space.
     add_hc:
         If set to True, the interaction Hamiltonian is of type 2, and the Hermitian conjugate is added.
     """
@@ -115,7 +116,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                          for item in op_list]
         return new_operators
 
-    def idwrap(self, operator_list, subsystem_list):
+    def idwrap(self, operator_list: list, subsystem_list: list) -> list:
         id_wrapped_operators = [spec_utils.identity_wrap(item.operator, item.subsystem, subsystem_list)
                                 for item in operator_list]
         return id_wrapped_operators
@@ -125,7 +126,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
     the Hamiltonian in qutip.Qobj format. The form of the interaction is defined using the str_expression string.
     Each operator must be hermitian, unless add_hc = True in which case each operator my be non-hermitian.
-    Acceptable functions inside of str_expression string include: cos(), sin(), dag(), ()), exp(), sqrt(), trans(),
+    Acceptable functions inside of str_expression string include: cos(), sin(), dag(), conj(), exp(), sqrt(), trans(),
     cosm(), sinm(), expm(), and sqrtm() along with other operators included in python.
 
     Parameters
@@ -201,7 +202,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         answer = eval(string)
         return answer
 
-    def id_wrap(self, op_dict: dict, subsys_list: list):
+    def id_wrap(self, op_dict: dict, subsys_list: list) -> dict:
         new_operators = {key: spec_utils.identity_wrap(value[0], value[1], subsys_list)
                          for (key, value) in op_dict.items()}
         return new_operators
@@ -217,7 +218,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     qbt_subsys_list = descriptors.ReadOnlyProperty()
     lookup = descriptors.ReadOnlyProperty()
     interaction_list = descriptors.WatchedProperty('INTERACTIONLIST_UPDATE')
-
+    # TODO: Have an example of a given interaction term that is NOT an InteractionTerm object
     def __init__(self,
                  subsystem_list: List[QuantumSys],
                  interaction_list: List[InteractionTerm] = None
