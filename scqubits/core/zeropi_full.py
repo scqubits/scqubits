@@ -210,9 +210,19 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             self.broadcast('QUANTUMSYSTEM_UPDATE')
 
     def __str__(self) -> str:
-        output_str = super().__str__() + '\n\n'
-        output_str += 'INTERNAL 0-Pi object: ' + self._zeropi.__str__()
-        return output_str
+        output = super().__str__()
+        output = output[:output.rfind('\n')]
+        output = output[:output.rfind('\n')]
+        line_indent = output[output.rfind('\n'):]
+
+        # output += '\n'
+        output += line_indent + ' dim: {0}   --[ (theta, phi): {1} total, {2} truncated;  (zeta): {3} ]--\n'.format(
+            self.hilbertdim(),
+            self._zeropi.hilbertdim(),
+            self.zeropi_cutoff,
+            self.zeta_cutoff
+        )
+        return output
 
     def set_EC_via_ECS(self, ECS: float) -> None:
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""

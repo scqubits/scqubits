@@ -182,10 +182,19 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         return type(self).__name__ + f'(**{init_dict!r})'
 
     def __str__(self) -> str:
-        output = type(self).__name__.upper() + '\n ———— PARAMETERS ————'
+        indent_length = 25
+        name_prepend = 'InteractionTerm'.ljust(indent_length, '-') + '|\n'
+
+        output = ''
         for param_name in self._init_params:
-            output += '\n' + str(param_name) + '\t: ' + str(getattr(self, param_name))
-        return output + '\n'
+            param_content = getattr(self, param_name).__repr__()
+            if '\n' in param_content:
+                length = min(param_content.rfind('\n') - 1, 30)
+                param_content = param_content[:length]
+                param_content += ' ...'
+
+            output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name),param_content)
+        return name_prepend + output
 
     def add_to_variables(self, op_dict: dict) -> None:
         for (key, value) in op_dict.items():
@@ -257,10 +266,14 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return type(self).__name__ + f'(**{init_dict!r})'
 
     def __str__(self) -> str:
-        output = '====== HilbertSpace object ======\n'
+        output = 'HilbertSpace:  subsystems\n'
+        output += '-------------------------\n'
         for subsystem in self:
             output += '\n' + str(subsystem) + '\n'
         if self.interaction_list:
+            output += '\n\n'
+            output += 'HilbertSpace:  interaction terms\n'
+            output += '--------------------------------\n'
             for interaction_term in self.interaction_list:
                 output += '\n' + str(interaction_term) + '\n'
         return output

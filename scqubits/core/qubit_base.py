@@ -64,7 +64,13 @@ class QuantumSystem(DispatchClient, ABC):
         return super().__new__(cls)
 
     def __del__(self) -> None:
-        QuantumSystem._quantumsystem_counter -= 1
+        # The following if clause mitigates an issue where upon program exit calls to this destructor fail because
+        # `QuantumSystem` is of NoneType. (Upon program exit, does the class itself get deleted before class instances
+        # are calling their destructor?)
+        try:
+            QuantumSystem._quantumsystem_counter -= 1
+        except NameError:
+            pass
 
     def __init_subclass__(cls):
         """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
@@ -81,11 +87,18 @@ class QuantumSystem(DispatchClient, ABC):
         return type(self).__name__ + f'(**{init_dict!r})'
 
     def __str__(self) -> str:
-        output = self._sys_type.upper() + '\n ———— PARAMETERS ————'
-        for param_name, param_val in drop_private_keys(self.__dict__).items():
-            output += '\n' + str(param_name) + '\t: ' + str(param_val)
-        output += '\nHilbert space dimension\t: ' + str(self.hilbertdim())
-        return output
+        indent_length = 20
+        name_prepend = self._sys_type.ljust(indent_length, '-') + '|\n'
+
+        output = ''
+        # for param_name, param_val in drop_private_keys(self.__dict__).items():
+        #     output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name), str(param_val))
+        for param_name in self.default_params().keys():
+            output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name), str(getattr(self, param_name)))
+        output += '{0}|\n'.format(' ' * indent_length)
+        output += "{0}| dim: {1}\n".format(' ' * indent_length, str(self.hilbertdim()))
+
+        return name_prepend + output
 
     def __eq__(self, other: Any):
         if not isinstance(other, type(self)):
