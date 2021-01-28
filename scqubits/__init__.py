@@ -37,6 +37,7 @@ from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
 # file IO
 from scqubits.io_utils.fileio import read, write
+from scqubits.ui.gui import GUI
 
 # version
 try:
