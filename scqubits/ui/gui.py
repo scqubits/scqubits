@@ -207,11 +207,6 @@ class GUI:
         self.qubit_plot_options_widgets['scan_range_slider'].value = [ self.active_defaults[change.new]['min'], self.active_defaults[change.new]['max'] ]
         self.qubit_params_widgets[change.old].disabled = False
         self.qubit_params_widgets[change.new].disabled = True
-        
-    def qubit_buttons_eventhandler(self, change):
-        #plot_value = self.qubit_and_plot_choice_widgets['plot_buttons'].value
-        self.set_qubit(change.new)
-        #self.qubit_and_plot_choice_widgets['plot_buttons'].options = self.get_plot_choices()
             
     def save_button_clicked_action(self, *args):
         self.fig.savefig(self.qubit_plot_options_widgets['filename_text'].value)
@@ -672,7 +667,6 @@ class GUI:
                 description = 'qubit info', 
                 disabled = False)
         }
-        self.qubit_and_plot_choice_widgets['qubit_buttons'].observe(self.qubit_buttons_eventhandler, names='value')
 
     def create_plot_option_columns(self, qubit_plot_interactive: widgets.interactive) -> List[ widgets.VBox ]:
         """Divides the widgets into columns.
@@ -745,8 +739,8 @@ class GUI:
         plot_value:
             Current plot option chosen
         """       
-        print(self.qubit_and_plot_choice_widgets['plot_buttons'].options)
-        
+        self.set_qubit(qubit_value)
+
         if qubit_info:
             image_box = widgets.Box(layout = Layout(justify_content = 'center'))
             image_box.children = [ self.qubit_plot_options_widgets['qubit_info_image_widget'] ]
