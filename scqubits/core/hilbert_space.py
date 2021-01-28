@@ -11,7 +11,7 @@
 
 # TODO: Clean up this doc and then branch for the zombie version
 
-# TODO: Test this version to see if I screwed something up
+# TODO: Have an example of a given interaction term that is NOT an InteractionTerm object in the HilbertSpace examples
 
 
 import functools
@@ -49,8 +49,7 @@ else:
     from tqdm import tqdm
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
-#TODO: Rename Op to something more descriptive (Maybe SubsysOperator)
-Op = namedtuple("Op", ['operator', 'subsystem'])
+SubsysOperator = namedtuple("SubsysOperator", ['operator', 'subsystem'])
 
 
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
@@ -85,11 +84,11 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                  add_hc: bool = False
                  ) -> None:
         self.g_strength = g_strength
-        self.operator_list = [Op._make(operator) for operator in operator_list]
+        self.operator_list = [(SubsysOperator(operator[0], operator[1])) for operator in operator_list]
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
         hamiltonian = g_strength
-        qoperator_list = self.idwrap(operator_list, subsystem_list)
+        qoperator_list = self.idwrap(self.operator_list, subsystem_list)
         for op in qoperator_list:
             hamiltonian *= op
         if add_hc:
@@ -166,10 +165,10 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
                  add_hc: bool = False
                  ) -> None:
         self.str_expression = str_expression
-        self.operator_dict = {key: Op._make(value) for (key, value) in operator_dict.items()}
+        self.operator_dict = {key: (SubsysOperator(value[0], value[1])) for (key, value) in operator_dict.items()}
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
-        qoperator_dict = self.id_wrap(operator_dict, subsystem_list)
+        qoperator_dict = self.id_wrap(self.operator_dict, subsystem_list)
         self.add_to_variables(qoperator_dict)
         hamiltonian = self.run_string_code(str_expression)
         if not add_hc:
@@ -212,7 +211,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         return answer
 
     def id_wrap(self, op_dict: dict, subsys_list: list) -> dict:
-        new_operators = {key: spec_utils.identity_wrap(value[0], value[1], subsys_list)
+        new_operators = {key: spec_utils.identity_wrap(value.operator, value.subsystem, subsys_list)
                          for (key, value) in op_dict.items()}
         return new_operators
 
@@ -227,7 +226,6 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     qbt_subsys_list = descriptors.ReadOnlyProperty()
     lookup = descriptors.ReadOnlyProperty()
     interaction_list = descriptors.WatchedProperty('INTERACTIONLIST_UPDATE')
-    # TODO: Have an example of a given interaction term that is NOT an InteractionTerm object
     def __init__(self,
                  subsystem_list: List[QuantumSys],
                  interaction_list: List[InteractionTerm] = None
@@ -469,7 +467,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         if not self.interaction_list:
             return 0
 
-        operator_list = [term.hamiltonian if isinstance(term, InteractionTerm)
+        operator_list = [term.hamiltonian if isinstance(term, InteractionTerm) or isinstance(term, InteractionTermStr)
                          else term for term in self.interaction_list]
         hamiltonian = sum(operator_list)
         return hamiltonian
