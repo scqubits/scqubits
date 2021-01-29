@@ -13,6 +13,7 @@
 
 # TODO: Have an example of a given interaction term that is NOT an InteractionTerm object in the HilbertSpace examples
 
+print("This is a test")
 
 import functools
 import warnings
