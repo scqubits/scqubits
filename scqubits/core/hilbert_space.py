@@ -534,16 +534,30 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             return 0
 
         operator_list = []
+        # TODO: Should this be list comp or is it too complex?
         for term in self.interaction_list:
             if isinstance(term, InteractionTerm) or isinstance(term, InteractionTermStr):
                 operator_list.append(term.hamiltonian)
             elif isinstance(term, InteractionTermLegacy):
-                #spec_utils.identity_wrap(term)
-
-        operator_list = [term.hamiltonian if isinstance(term, InteractionTerm) or isinstance(term, InteractionTermStr)
-                                             or isinstance(term, InteractionTermLegacy) else term
-                         for term in self.interaction_list]
+                interactionlegacy_hamiltonian = self.interactiontermlegacy_hamiltonian(term)
+                operator_list.append(interactionlegacy_hamiltonian)
+            else:
+                operator_list.append(term)
         hamiltonian = sum(operator_list)
+        return hamiltonian
+
+    def interactiontermlegacy_hamiltonian(self,
+                                    interactionterm: InteractionTermLegacy,
+                                    evecs1: ndarray = None,
+                                    evecs2: ndarray = None
+                                    ) -> Qobj:
+        interaction_op1 = spec_utils.identity_wrap(interactionterm.op1, interactionterm.subsys1,
+                                                   self.subsys_list, evecs=evecs1)
+        interaction_op2 = spec_utils.identity_wrap(interactionterm.op2, interactionterm.subsys2,
+                                                   self.subsys_list, evecs=evecs2)
+        hamiltonian = interactionterm.g_strength * interaction_op1 * interaction_op2
+        if interactionterm.add_hc:
+            return hamiltonian + hamiltonian.dag()
         return hamiltonian
 
     def _esys_for_paramval(self,
