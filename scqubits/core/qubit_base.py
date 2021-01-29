@@ -25,6 +25,7 @@ from matplotlib.figure import Figure
 from numpy import ndarray
 
 import scqubits.core.constants as constants
+import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
@@ -545,9 +546,26 @@ class QubitBaseClass1d(QubitBaseClass):
                      phi_grid: Grid1d = None):
         pass
 
-    @abstractmethod
     def wavefunction1d_defaults(self, mode: str, evals: ndarray, wavefunc_count: int) -> Dict[str, Any]:
-        pass
+        """Plot defaults for plotting.wavefunction1d.
+
+        Parameters
+        ----------
+        mode:
+            amplitude modifier, needed to give the correct default y label
+        evals:
+            eigenvalues to include in plot
+        wavefunc_count:
+            number of wave functions to be plotted
+        """
+        ylabel = r'$\psi_j(\varphi)$'
+        ylabel = constants.MODE_STR_DICT[mode](ylabel)
+        ylabel += ',  energy [{}]'.format(units.get_units())
+        options = {
+            'xlabel': r'$\varphi$',
+            'ylabel': ylabel
+        }
+        return options
 
     def plot_wavefunction(self,
                           which: Union[int, Iterable[int]] = 0,
@@ -597,12 +615,10 @@ class QubitBaseClass1d(QubitBaseClass):
             phi_wavefunc.amplitudes = amplitude_modifier(phi_wavefunc.amplitudes)
             wavefunctions.append(phi_wavefunc)
 
-        scale = scaling or set_wavefunction_scaling(wavefunctions, potential_vals)
-
         fig_ax = kwargs.get('fig_ax') or plt.subplots()
         kwargs['fig_ax'] = fig_ax
         kwargs = {**self.wavefunction1d_defaults(mode, evals, wavefunc_count=len(wavefunc_indices)), **kwargs}
         # in merging the dictionaries in the previous line: if any duplicates, later ones survive
 
-        plot.wavefunction1d(wavefunctions, potential_vals=potential_vals, offset=energies, scaling=scale, **kwargs)
+        plot.wavefunction1d(wavefunctions, potential_vals=potential_vals, offset=energies, scaling=scaling, **kwargs)
         return fig_ax

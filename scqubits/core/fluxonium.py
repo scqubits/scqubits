@@ -250,23 +250,3 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return storage.WaveFunction(basis_labels=phi_basis_labels,
                                     amplitudes=phi_wavefunc_amplitudes,
                                     energy=evals[which])
-
-    def wavefunction1d_defaults(self, mode: str, evals: ndarray, wavefunc_count: int) -> Dict[str, Any]:
-        """Plot defaults for plotting.wavefunction1d.
-
-        Parameters
-        ----------
-        mode:
-            amplitude modifier, needed to give the correct default y label
-        evals:
-            eigenvalues to include in plot
-        wavefunc_count:
-            number of wave functions to be plotted
-        """
-        ylabel = r'$\psi_j(\varphi)$'
-        ylabel = constants.MODE_STR_DICT[mode](ylabel)
-        options = {
-            'xlabel': r'$\varphi$',
-            'ylabel': ylabel
-        }
-        return options
