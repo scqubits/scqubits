@@ -11,8 +11,11 @@
 
 import functools
 import importlib
+from typing import List
 
 import numpy as np
+from qutip import Qobj
+from scipy.sparse import csc_matrix
 
 try:
     import ipywidgets
@@ -31,6 +34,10 @@ else:
 import scqubits
 from scqubits.ui.qubit_widget import _HAS_IPYWIDGETS, _HAS_IPYTHON
 from scqubits.utils import misc as utils
+from scqubits.core.qubit_base import QubitBaseClass
+
+
+QuantumSys = Union[scqubits.core.QubitBaseClass, scqubits.core.Oscillator]
 
 
 class HilbertSpaceUi:
@@ -73,7 +80,7 @@ class HilbertSpaceUi:
         self.interact_list_box = ipywidgets.VBox([self.interact_buttons, self.interact_list_widget])
 
         # == Panel for specifying an InteractionTerm ===================================================================
-        self.op1_widget = ipywidgets.Text(description='op1', placeholder='e.g., <subsys1>.n_operator()')
+        self.op1_widget = ipywidgets.Text(description='op1', placeholder='e.g., <subsys1>.phi_operator()')
         self.op2_widget = ipywidgets.Text(description='op2', placeholder='e.g., <subsys2>.creation_operator()')
         self.op1subsys_widget = ipywidgets.Dropdown(
             options=self.subsys_widget.value,
@@ -159,14 +166,12 @@ class HilbertSpaceUi:
         return candidates_dict
 
     def finish(self, callback_func, *args, **kwargs):
-        main = importlib.import_module('__main__')
-        subsystem_list = [eval(subsys_name, main.__dict__) for subsys_name in self.subsys_widget.value]
         interaction_list = self.validated_interact_list()
         if interaction_list is False:
             return None
         with self.status_output:
             print("HilbertSpace instance created.")
-        callback_func(subsystem_list, interaction_list)
+        callback_func(self.subsystem_list(), interaction_list)
 
     def set_data(self, **kwargs):
         self.set_interact_term(**kwargs)
@@ -227,15 +232,20 @@ class HilbertSpaceUi:
             'op2': self.op2_widget,
             'subsys2': self.op2subsys_widget,
             'g_strength': self.g_widget,
-            'add_hc': self.addhc_widget
+            'add_hc': self.addhc_widget,
             'string_expr': self.string_expr_widget
         }
+
+    def subsystem_list(self) -> 'List[QuantumSys]':
+        main = importlib.import_module('__main__')
+        return  [eval(subsys_name, main.__dict__) for subsys_name in self.subsys_widget.value]
 
     def validated_interact_list(self):
         self.status_output.clear_output()
 
         main = importlib.import_module('__main__')
-        subsys_list = self.subsys_widget.value
+        subsysname_list = self.subsys_widget.value
+
         interaction_list = []
         for interaction_term in self.interactions_dict.values():
             for param_name in ['subsys1', 'subsys2']:
@@ -243,10 +253,10 @@ class HilbertSpaceUi:
                     with self.status_output:
                         print("Error: {} not specified.".format(param_name))
                     return False
-                if interaction_term[param_name] not in subsys_list:
+                if interaction_term[param_name] not in subsysname_list:
                     with self.status_output:
                         print("Error: subsystem operator '{}' is not consistent "
-                              "with HilbertSpace subsys_list.".format(interaction_term[param_name]))
+                              "with HilbertSpace subsysname_list.".format(interaction_term[param_name]))
                     return False
             operator_str_list = [interaction_term['op1'], interaction_term['op2']]
             for operator_str in operator_str_list:
@@ -256,21 +266,33 @@ class HilbertSpaceUi:
                     with self.status_output:
                         print("Error: operator {} is not defined or has a syntax error.".format(operator_str))
                     return False
-                if not isinstance(instance, np.ndarray):
+                if not isinstance(instance, (np.ndarray, csc_matrix, Qobj)):
                     with self.status_output:
                         print("Type mismatch: '{}' is not a valid operator.".format(operator_str))
                     return False
-            #
-            #
-            # Check here for which tab is selected and branch out into InteractionTerm vs InteractionTermStr
-            #
-            #
-            interaction_list.append(scqubits.InteractionTerm(g_strength=interaction_term['g_strength'],
-                                                             op1=eval(operator_str_list[0], main.__dict__),
-                                                             subsys1=eval(interaction_term['subsys1'], main.__dict__),
-                                                             op2=eval(operator_str_list[1], main.__dict__),
-                                                             subsys2=eval(interaction_term['subsys2'], main.__dict__),
-                                                             add_hc=(interaction_term['add_hc'] == 'True')))
+
+            op1 = eval(operator_str_list[0], main.__dict__)
+            op2 = eval(operator_str_list[1], main.__dict__)
+            subsys1 = eval(interaction_term['subsys1'], main.__dict__)
+            subsys2 = eval(interaction_term['subsys2'], main.__dict__)
+
+            if self.current_interaction_type() == 'InteractionTerm':
+                operator_list = [(op1, subsys1), (op2, subsys2)]
+                interaction_list.append(
+                    scqubits.InteractionTerm(g_strength=interaction_term['g_strength'],
+                                             operator_list=operator_list,
+                                             subsystem_list=self.subsystem_list(),
+                                             add_hc=(interaction_term['add_hc'] == 'True'))
+                )
+            else:  # current interaction type is 'InteractionTermStr'
+                operator_dict = {'op1': (op1, subsys1),
+                                 'op2': (op2, subsys2)}
+                interaction_list.append(
+                    scqubits.InteractionTermStr(str_expression=self.string_expr_widget.value,
+                                                operator_dict=operator_dict,
+                                                subsystem_list=self.subsystem_list(),
+                                                add_hc=(interaction_term['add_hc'] == 'True'))
+                )
         return interaction_list
 
 
