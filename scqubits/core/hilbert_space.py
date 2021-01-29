@@ -52,6 +52,72 @@ QuantumSys = Union[QubitBaseClass, Oscillator]
 SubsysOperator = namedtuple("SubsysOperator", ['operator', 'subsystem'])
 
 
+class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
+    """
+    Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
+    the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
+    1. V = g A B, where A, B are Hermitean operators in two specified subsys_list,
+    2. V = g A B + h.c., where A, B may be non-Hermitean
+
+    Parameters
+    ----------
+    g_strength:
+        coefficient parametrizing the interaction strength
+    hilbertspace:
+        specifies the Hilbert space components
+    subsys1, subsys2:
+        the two subsys_list involved in the interaction
+    op1, op2:
+        names of operators in the two subsys_list
+    add_hc:
+        If set to True, the interaction Hamiltonian is of type 2, and the Hermitean conjugate is added.
+    """
+    g_strength = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    subsys1 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    subsys2 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    op1 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+    op2 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
+
+    def __init__(self,
+                 g_strength: Union[float, complex],
+                 subsys1: QuantumSys,
+                 op1: Union[str, ndarray, csc_matrix, dia_matrix],
+                 subsys2: QuantumSys,
+                 op2: Union[str, ndarray, csc_matrix, dia_matrix],
+                 add_hc: bool = False,
+                 hilbertspace: 'HilbertSpace' = None
+                 ) -> None:
+        if hilbertspace:
+            warnings.warn("`hilbertspace` is no longer a parameter for initializing an InteractionTerm object.",
+                          FutureWarning)
+        self.g_strength = g_strength
+        self.subsys1 = subsys1
+        self.op1 = op1
+        self.subsys2 = subsys2
+        self.op2 = op2
+        self.add_hc = add_hc
+
+        self._init_params.remove('hilbertspace')
+
+    def __repr__(self) -> str:
+        init_dict = {name: getattr(self, name) for name in self._init_params}
+        return type(self).__name__ + f'(**{init_dict!r})'
+
+    def __str__(self) -> str:
+        indent_length = 25
+        name_prepend = 'InteractionTerm'.ljust(indent_length, '-') + '|\n'
+
+        output = ''
+        for param_name in self._init_params:
+            param_content = getattr(self, param_name).__repr__()
+            if '\n' in param_content:
+                length = min(param_content.rfind('\n') - 1, 30)
+                param_content = param_content[:length]
+                param_content += ' ...'
+
+            output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name), param_content)
+        return name_prepend + output
+
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
@@ -467,8 +533,16 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         if not self.interaction_list:
             return 0
 
+        operator_list = []
+        for term in self.interaction_list:
+            if isinstance(term, InteractionTerm) or isinstance(term, InteractionTermStr):
+                operator_list.append(term.hamiltonian)
+            elif isinstance(term, InteractionTermLegacy):
+                #spec_utils.identity_wrap(term)
+
         operator_list = [term.hamiltonian if isinstance(term, InteractionTerm) or isinstance(term, InteractionTermStr)
-                         else term for term in self.interaction_list]
+                                             or isinstance(term, InteractionTermLegacy) else term
+                         for term in self.interaction_list]
         hamiltonian = sum(operator_list)
         return hamiltonian
 
