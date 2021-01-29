@@ -114,7 +114,7 @@ class VTBBaseMethods(ABC):
         self.displacement_vector_cutoff = displacement_vector_cutoff
         self.maximum_site_length = maximum_site_length
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
-        self.optimized_lengths = None
+        self.harmonic_lengths = None
         self.translation_op_dict = {}
         self._evec_dtype = np.complex_
 
@@ -170,7 +170,7 @@ class VTBBaseMethods(ABC):
         """
         dim = self.number_degrees_freedom
         minimum_location = self.sorted_minima[minimum_index]
-        Phi0 = 1. / (2. * 1.)  # units where e_charge = 1
+        Phi0 = 0.5  # units where e_charge, hbar = 1; Phi0 = hbar / (2 * e)
         diagonal_elements = np.diag(self.EJlist[0:dim] * np.cos(minimum_location))
         stitching_term_sum = np.sum(self.stitching_coefficients * minimum_location)
         gamma_matrix = (self.EJlist[-1] * np.cos(stitching_term_sum + 2 * np.pi * self.flux)
@@ -231,8 +231,10 @@ class VTBBaseMethods(ABC):
         return np.max(3.0 * harmonic_lengths / minima_distances / 2.0)
 
     def Xi_matrix(self, minimum_index: int = 0) -> ndarray:
-        """ Returns Xi matrix of the normal mode eigenvectors normalized to encode the harmonic length.
-        This matrix simultaneously diagonalizes the capacitance and effective inductance matrices.
+        """ Returns Xi matrix of the normal-mode eigenvectors normalized according to \Xi^T C \Xi = \Omega^{-1}/Z0.
+
+        This matrix simultaneously diagonalizes the capacitance and effective
+        inductance matrices by a congruence transformation.
 
         Parameters
         ----------
@@ -245,20 +247,19 @@ class VTBBaseMethods(ABC):
         """
         dim = self.number_degrees_freedom
         sorted_minima_dict = self.sorted_minima
-        if self.optimized_lengths is None or not self.harmonic_length_optimization:
-            self.optimized_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
+        if self.harmonic_lengths is None or not self.harmonic_length_optimization:
+            self.harmonic_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
         omega_squared, eigenvectors = self.eigensystem_normal_modes(minimum_index)
-        # We introduce a normalization such that \Xi^T C \Xi = \Omega^{-1}/Z0
-        Z0 = 1. / (2. * 1.)**2  # units where e_charge = 1
-        return eigenvectors * np.tile(self.optimized_lengths[minimum_index] * omega_squared ** (-1 / 4),
+        Z0 = 0.25  # units where e_charge and hbar = 1; Z0 = hbar / (2 * e)**2
+        return eigenvectors * np.tile(self.harmonic_lengths[minimum_index] * omega_squared ** (-1 / 4),
                                       (dim, 1)) / np.sqrt(Z0)
 
-    def a_operator(self, mu: int) -> ndarray:
+    def a_operator(self, dof_index: int) -> ndarray:
         """Returns the lowering operator associated with the mu^th d.o.f. in the full Hilbert space
 
         Parameters
         ----------
-        mu: int
+        dof_index: int
             which degree of freedom, 0<=mu<=self.number_degrees_freedom
 
         Returns
@@ -266,17 +267,17 @@ class VTBBaseMethods(ABC):
         ndarray
         """
         dim = self.number_degrees_freedom
-        identity_operator = np.eye(self.num_exc + 1, dtype=np.complex_)
-        identity_operator_list = np.zeros((dim, self.num_exc + 1, self.num_exc + 1), dtype=np.complex_)
+        identity_operator = np.eye(self.num_exc + 1)
+        identity_operator_list = np.empty((dim, self.num_exc + 1, self.num_exc + 1))
         identity_operator_list[np.arange(dim)] = identity_operator
-        return identity_wrap(np.array([annihilation(self.num_exc + 1, dtype=np.complex_)]),
-                             np.array([mu]), identity_operator_list, sparse=False)
+        return identity_wrap(np.array([annihilation(self.num_exc + 1)]),
+                             np.array([dof_index]), identity_operator_list, sparse=False)
 
     def _a_operator_array(self) -> ndarray:
         """Helper method to return a list of annihilation operator matrices for each mode"""
         dim = self.number_degrees_freedom
         num_states_per_minimum = self.number_states_per_minimum()
-        a_operator_array = np.zeros((dim, num_states_per_minimum, num_states_per_minimum), dtype=np.complex_)
+        a_operator_array = np.empty((dim, num_states_per_minimum, num_states_per_minimum))
         for i in range(dim):
             a_operator_array[i] = self.a_operator(i)
         return a_operator_array
@@ -409,7 +410,7 @@ class VTBBaseMethods(ABC):
         """Helper method for building all potential operators"""
         num_junc = self.number_junctions
         num_states_per_min = self.number_states_per_minimum()
-        all_exp_i_phi_j = np.zeros((num_junc, num_states_per_min, num_states_per_min), dtype=np.complex_)
+        all_exp_i_phi_j = np.empty((num_junc, num_states_per_min, num_states_per_min))
         for j in range(num_junc):
             all_exp_i_phi_j[j] = self._single_exp_i_phi_j_operator(j, Xi, a_operator_array)
         return all_exp_i_phi_j
@@ -424,8 +425,8 @@ class VTBBaseMethods(ABC):
         avoid costly calls to `inv` later."""
         dim = self.number_degrees_freedom
         num_states_per_min = self.number_states_per_minimum()
-        exp_a_list = np.zeros((dim, num_states_per_min, num_states_per_min), dtype=np.complex_)
-        exp_a_minus_list = np.zeros_like(exp_a_list)
+        exp_a_list = np.empty((dim, num_states_per_min, num_states_per_min))
+        exp_a_minus_list = np.empty_like(exp_a_list)
         for i in range(dim):
             expm_argument = np.sum(2.0 * np.pi * Xi_inv.T[i] * np.transpose(a_operator_array, (1, 2, 0))
                                    / np.sqrt(2.0), axis=2)
@@ -660,7 +661,7 @@ class VTBBaseMethods(ABC):
         a_operator_array = self._a_operator_array()
         exp_a_list = self._general_translation_operators(Xi_inv, a_operator_array)
         num_states_min = self.number_states_per_minimum()
-        operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex128)
+        operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex_)
         all_minima_index_pairs = list(itertools.combinations_with_replacement(self.sorted_minima.items(), 2))
         periodic_continuation_for_minima_pair = partial(self._periodic_continuation_for_minima_pair,
                                                         func, exp_a_list, Xi_inv, a_operator_array)
@@ -812,10 +813,10 @@ class VTBBaseMethods(ABC):
         For tight-binding without squeezing, this is only done for the ansatz ground state wavefunction
         localized in the global minimum."""
         sorted_minima_dict = self.sorted_minima
-        self.optimized_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
+        self.harmonic_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
         self._optimize_Xi_variational(0, sorted_minima_dict[0])
         for m, _ in sorted_minima_dict.items():
-            self.optimized_lengths[m] = self.optimized_lengths[0]
+            self.harmonic_lengths[m] = self.harmonic_lengths[0]
 
     def _optimize_Xi_variational(self, minimum: int = 0, minimum_location: ndarray = None) -> None:
         """Perform the harmonic length optimization for a h.o. ground state wavefunction localized in a given minimum"""
@@ -823,23 +824,23 @@ class VTBBaseMethods(ABC):
         EC_mat = self.EC_matrix()
         if not self.retained_unit_cell_displacement_vectors:
             self.find_relevant_unit_cell_vectors()
-        optimized_lengths_result = minimize(self._evals_calc_variational, self.optimized_lengths[minimum],
+        optimized_lengths_result = minimize(self._evals_calc_variational, self.harmonic_lengths[minimum],
                                             jac=self._gradient_evals_calc_variational,
                                             args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-1)
         assert optimized_lengths_result.success
         optimized_lengths = optimized_lengths_result.x
         if not self.quiet:
             print("completed harmonic length optimization for the m={m} minimum".format(m=minimum))
-        self.optimized_lengths[minimum] = optimized_lengths
+        self.harmonic_lengths[minimum] = optimized_lengths
 
     def _update_Xi(self, default_Xi: ndarray, minimum: int) -> ndarray:
         """Helper method for updating Xi so that the Xi matrix is not constantly regenerated."""
-        return np.array([row * self.optimized_lengths[minimum, i] for i, row in enumerate(default_Xi.T)]).T
+        return np.array([row * self.harmonic_lengths[minimum, i] for i, row in enumerate(default_Xi.T)]).T
 
     def _gradient_evals_calc_variational(self, optimized_lengths: ndarray, minimum_location: ndarray, minimum: int,
                                          EC_mat: ndarray, default_Xi: ndarray) -> ndarray:
         """Returns the gradient of evals_calc_variational to aid in the harmonic length optimization calculation"""
-        self.optimized_lengths[minimum] = optimized_lengths
+        self.harmonic_lengths[minimum] = optimized_lengths
         Xi = self._update_Xi(default_Xi, minimum)
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
@@ -872,7 +873,7 @@ class VTBBaseMethods(ABC):
                                 EC_mat: ndarray, default_Xi: ndarray) -> ndarray:
         """Function to be optimized in the minimization procedure, corresponding to the variational estimate of
         the ground state energy."""
-        self.optimized_lengths[minimum] = optimized_lengths
+        self.harmonic_lengths[minimum] = optimized_lengths
         Xi = self._update_Xi(default_Xi, minimum)
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
@@ -890,7 +891,7 @@ class VTBBaseMethods(ABC):
     def _gradient_one_state_local_inner_product(self, delta_phi: ndarray, Xi_inv: ndarray, which_length: int) -> float:
         """Returns gradient of the inner product matrix"""
         delta_phi_rotated = Xi_inv @ delta_phi
-        return (self.optimized_lengths[0, which_length]**(-1)
+        return (self.harmonic_lengths[0, which_length] ** (-1)
                 * (1j * self.nglist[which_length] * delta_phi_rotated[which_length]
                    + 0.5 * delta_phi_rotated[which_length] ** 2) * self._exp_product_coefficient(delta_phi, Xi_inv))
 
@@ -905,7 +906,7 @@ class VTBBaseMethods(ABC):
                                           minima_m: ndarray, minima_p: ndarray, which_length: int) -> ndarray:
         """Returns gradient of the kinetic matrix"""
         delta_phi_rotated = Xi_inv @ (displacement_vector + minima_p - minima_m)
-        return (-4.0*self.optimized_lengths[0, which_length]**(-1)
+        return (-4.0 * self.harmonic_lengths[0, which_length] ** (-1)
                 * (EC_mat_t[which_length, which_length] - (delta_phi_rotated @ EC_mat_t)[which_length]
                    * delta_phi_rotated[which_length]))
 
@@ -916,10 +917,10 @@ class VTBBaseMethods(ABC):
         exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_gradient = np.sum([0.25 * self.EJlist[junction]
                                      * Xi[junction, which_length] * Xi.T[which_length, junction]
-                                     * self.optimized_lengths[0, which_length]**(-1)
+                                     * self.harmonic_lengths[0, which_length] ** (-1)
                                      * (exp_i_phi_j_phi_bar[junction] + exp_i_phi_j_phi_bar[junction].conjugate())
                                      for junction in range(self.number_junctions - 1)])
-        potential_gradient += (0.25 * self.EJlist[-1] * self.optimized_lengths[0, which_length] ** (-1)
+        potential_gradient += (0.25 * self.EJlist[-1] * self.harmonic_lengths[0, which_length] ** (-1)
                                * (self.stitching_coefficients @ Xi[:, which_length]) ** 2
                                * (exp_i_stitching_phi_j_phi_bar + exp_i_stitching_phi_j_phi_bar.conjugate()))
         return potential_gradient

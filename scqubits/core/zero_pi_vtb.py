@@ -262,13 +262,13 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
         """Returns gradient of the potential matrix"""
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
-        potential_gradient = self.EL * Xi[0, which_length]**2 * self.optimized_lengths[0, which_length]**(-1)
+        potential_gradient = self.EL * Xi[0, which_length] ** 2 * self.harmonic_lengths[0, which_length] ** (-1)
         for j in range(dim):
             cosine_coeffs = np.array([(-1) ** j, 1])
             exp_i_phi_theta = self._exp_i_phi_theta_with_phi_bar(j, exp_i_phi_j, phi_bar)
             potential_gradient += (0.25 * self.EJ * (1.0 + (-1)**j * self.dEJ)
-                                   * self.optimized_lengths[0, which_length]**(-1)
-                                   * (cosine_coeffs @ Xi[:, which_length])**2
+                                   * self.harmonic_lengths[0, which_length] ** (-1)
+                                   * (cosine_coeffs @ Xi[:, which_length]) ** 2
                                    * (exp_i_phi_theta + exp_i_phi_theta.conjugate()))
         return potential_gradient
 

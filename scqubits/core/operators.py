@@ -18,19 +18,19 @@ from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
 
 
-def annihilation(dimension: int, dtype=None) -> ndarray:
+def annihilation(dimension: int) -> ndarray:
     """
     Returns a dense matrix of size dimension x dimension representing the annihilation operator in number basis.
     """
-    offdiag_elements = np.sqrt(range(1, dimension), dtype=dtype)
+    offdiag_elements = np.sqrt(range(1, dimension))
     return np.diagflat(offdiag_elements, 1)
 
 
-def creation(dimension: int, dtype=None) -> ndarray:
+def creation(dimension: int) -> ndarray:
     """
     Returns a dense matrix of size dimension x dimension representing the creation operator in number basis.
     """
-    return annihilation(dimension, dtype).T
+    return annihilation(dimension).T
 
 
 def number(dimension: int, prefactor: Union[float, complex] = None) -> ndarray:
@@ -128,9 +128,9 @@ def identity_wrap(operators, indices, identity_operator_list, sparse=False):
     ndarray
     """
     if sparse:
-        kron_function = kron_sparse_matrix_list
+        kron_function = kron_sparse
     else:
-        kron_function = kron_dense_matrix_list
+        kron_function = kron_dense
     product_list = np.copy(identity_operator_list)
     for (index, op) in zip(indices, operators):
         product_list[index] = op
@@ -138,14 +138,14 @@ def identity_wrap(operators, indices, identity_operator_list, sparse=False):
     return full_op
 
 
-def kron_dense_matrix_list(matrix_list):
+def kron_dense(matrix_list):
     output = matrix_list[0]
     for matrix in matrix_list[1:]:
         output = np.kron(output, matrix)
     return output
 
 
-def kron_sparse_matrix_list(sparse_list):
+def kron_sparse(sparse_list):
     output = sparse_list[0]
     for matrix in sparse_list[1:]:
         output = sp.sparse.kron(output, matrix, format="csr")
