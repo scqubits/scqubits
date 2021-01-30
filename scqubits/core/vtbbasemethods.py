@@ -56,9 +56,6 @@ class VTBBaseMethods(ABC):
         number of periodic degrees of freedom
     number_junctions: int
         number of junctions in the loop
-    retained_unit_cell_displacement_vectors: dict
-        dictionary of the relevant periodic continuation vectors for each minima pair. It can
-        be passed here to avoid constructing it later, a costly calculation
     harmonic_length_optimization: bool
         bool denoting whether or not to optimize the harmonic length
     optimize_all_minima: bool
@@ -93,7 +90,6 @@ class VTBBaseMethods(ABC):
                  number_degrees_freedom: int,
                  number_periodic_degrees_freedom: int,
                  number_junctions: int,
-                 retained_unit_cell_displacement_vectors: Optional[dict] = None,
                  harmonic_length_optimization: bool = False,
                  optimize_all_minima: bool = False,
                  quiet: int = 0,
@@ -106,7 +102,6 @@ class VTBBaseMethods(ABC):
         self._number_degrees_freedom = number_degrees_freedom
         self._number_periodic_degrees_freedom = number_periodic_degrees_freedom
         self._number_junctions = number_junctions
-        self.retained_unit_cell_displacement_vectors = retained_unit_cell_displacement_vectors
         self.harmonic_length_optimization = harmonic_length_optimization
         self.optimize_all_minima = optimize_all_minima
         self.quiet = quiet
@@ -115,6 +110,7 @@ class VTBBaseMethods(ABC):
         self.maximum_site_length = maximum_site_length
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.harmonic_lengths = None
+        self.initialized_optimized_harmonic_lengths = False
         self.translation_op_dict = {}
         self._evec_dtype = np.complex_
 
@@ -193,7 +189,7 @@ class VTBBaseMethods(ABC):
         omega_squared, normal_mode_eigenvectors = eigh(self.gamma_matrix(minimum_index), b=self.capacitance_matrix())
         return omega_squared, normal_mode_eigenvectors
 
-    def compare_harmonic_lengths_with_minima_separations(self) -> ndarray:
+    def compute_localization_ratios(self, retained_unit_cell_displacement_vectors: Optional[dict] = None) -> ndarray:
         """
         Returns
         -------
@@ -202,39 +198,43 @@ class VTBBaseMethods(ABC):
             If any of the values in the returned array exceed unity, then the wavefunctions are relatively spread out
             as compared to the minima separations
         """
-        if not self.retained_unit_cell_displacement_vectors:
-            self.find_relevant_unit_cell_vectors()
-        sorted_minima_dict = self.sorted_minima
-        all_minima_index_pairs = itertools.combinations_with_replacement(sorted_minima_dict.items(), 2)
-        return np.array(list(map(self._find_closest_periodic_minimum, all_minima_index_pairs)))
+        if retained_unit_cell_displacement_vectors is None:
+            retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors()
+        all_minima_index_pairs = itertools.combinations_with_replacement(self.sorted_minima.items(), 2)
+        find_closest_periodic_minimum = partial(self._find_closest_periodic_minimum,
+                                                retained_unit_cell_displacement_vectors)
+        return np.array(list(map(find_closest_periodic_minimum, all_minima_index_pairs)))
 
-    def _find_closest_periodic_minimum(self, minima_index_pair: Tuple) -> float:
+    def _find_closest_periodic_minimum(self, retained_unit_cell_displacement_vectors: dict,
+                                       minima_index_pair: Tuple) -> float:
         """Helper function comparing minima separation for given minima pair"""
-        return self._max_localization_ratio_for_minima_pair(minima_index_pair, 0)
+        return self._max_localization_ratio_for_minima_pair(minima_index_pair, 0,
+                                                            retained_unit_cell_displacement_vectors)
 
-    def _max_localization_ratio_for_minima_pair(self, minima_index_pair: Tuple, Xi_minimum_index_arg: int) -> float:
+    def _max_localization_ratio_for_minima_pair(self, minima_index_pair: Tuple, Xi_minimum_index_arg: int,
+                                                retained_unit_cell_displacement_vectors: dict) -> float:
         """Helper function comparing minima separation for given minima pair, along with the specification
         that we would like to use the Xi matrix as defined for the minimum indexed by `Xi_arg`"""
         (m, minima_m), (p, minima_p) = minima_index_pair
-        retained_unit_cell_displacement_vectors = self.retained_unit_cell_displacement_vectors[(m, p)]
-        if retained_unit_cell_displacement_vectors is None or np.allclose(retained_unit_cell_displacement_vectors, 0.0):
+        minima_pair_displacement_vectors = retained_unit_cell_displacement_vectors[(m, p)]
+        if minima_pair_displacement_vectors is None or np.allclose(minima_pair_displacement_vectors, 0.0):
             return 0.0
         Xi_inv = inv(self.Xi_matrix(minimum_index=Xi_minimum_index_arg))
         delta_inv = Xi_inv.T @ Xi_inv
         if m == p:  # Do not include equivalent minima in the same unit cell
-            retained_unit_cell_displacement_vectors = np.array([vec for vec in retained_unit_cell_displacement_vectors
-                                                                if not np.allclose(vec, 0.0)])
-        displacement_vectors = 2.0 * np.pi * retained_unit_cell_displacement_vectors + (minima_p - minima_m)
+            minima_pair_displacement_vectors = np.array([vec for vec in minima_pair_displacement_vectors
+                                                         if not np.allclose(vec, 0.0)])
+        displacement_vectors = 2.0 * np.pi * minima_pair_displacement_vectors + (minima_p - minima_m)
         minima_distances = np.linalg.norm(displacement_vectors, axis=1)
         minima_unit_vectors = displacement_vectors / np.tile(minima_distances, (self.number_degrees_freedom, 1)).T
         harmonic_lengths = np.array([(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
         return np.max(3.0 * harmonic_lengths / minima_distances / 2.0)
 
-    def Xi_matrix(self, minimum_index: int = 0) -> ndarray:
-        """ Returns Xi matrix of the normal-mode eigenvectors normalized according to \Xi^T C \Xi = \Omega^{-1}/Z0.
-
-        This matrix simultaneously diagonalizes the capacitance and effective
-        inductance matrices by a congruence transformation.
+    def Xi_matrix(self, minimum_index: int = 0, num_cpus: int = 1,
+                  retained_unit_cell_displacement_vectors: Optional[dict] = None) -> ndarray:
+        """ Returns Xi matrix of the normal-mode eigenvectors normalized
+        according to \Xi^T C \Xi = \Omega^{-1}/Z0, or equivalently \Xi^T \Gamma \Xi = \Omega/Z0. The \Xi matrix
+        simultaneously diagonalizes the capacitance and effective inductance matrices by a congruence transformation.
 
         Parameters
         ----------
@@ -245,14 +245,17 @@ class VTBBaseMethods(ABC):
         -------
         ndarray
         """
-        dim = self.number_degrees_freedom
         sorted_minima_dict = self.sorted_minima
-        if self.harmonic_lengths is None or not self.harmonic_length_optimization:
+        if retained_unit_cell_displacement_vectors is None:
+            retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        if not self.harmonic_length_optimization:
             self.harmonic_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
-        omega_squared, eigenvectors = self.eigensystem_normal_modes(minimum_index)
+        elif self.harmonic_length_optimization and not self.initialized_optimized_harmonic_lengths:
+            self._optimize_harmonic_lengths(sorted_minima_dict, retained_unit_cell_displacement_vectors)
+        omega_squared_array, eigenvectors = self.eigensystem_normal_modes(minimum_index)
         Z0 = 0.25  # units where e_charge and hbar = 1; Z0 = hbar / (2 * e)**2
-        return eigenvectors * np.tile(self.harmonic_lengths[minimum_index] * omega_squared ** (-1 / 4),
-                                      (dim, 1)) / np.sqrt(Z0)
+        return np.array([eigenvectors[:, i] * self.harmonic_lengths[minimum_index, i] * omega_squared ** (-1 / 4)
+                         * np.sqrt(1. / Z0) for i, omega_squared in enumerate(omega_squared_array)]).T
 
     def a_operator(self, dof_index: int) -> ndarray:
         """Returns the lowering operator associated with the mu^th d.o.f. in the full Hilbert space
@@ -267,9 +270,8 @@ class VTBBaseMethods(ABC):
         ndarray
         """
         dim = self.number_degrees_freedom
-        identity_operator = np.eye(self.num_exc + 1)
         identity_operator_list = np.empty((dim, self.num_exc + 1, self.num_exc + 1))
-        identity_operator_list[np.arange(dim)] = identity_operator
+        identity_operator_list[np.arange(dim)] = np.eye(self.num_exc + 1)
         return identity_wrap(np.array([annihilation(self.num_exc + 1)]),
                              np.array([dof_index]), identity_operator_list, sparse=False)
 
@@ -282,7 +284,7 @@ class VTBBaseMethods(ABC):
             a_operator_array[i] = self.a_operator(i)
         return a_operator_array
 
-    def find_relevant_unit_cell_vectors(self, num_cpus: int = 1) -> None:
+    def find_relevant_unit_cell_vectors(self, num_cpus: int = 1) -> dict:
         """Constructs a dictionary of the relevant periodic continuation vectors for each pair of minima.
 
         Parameters
@@ -302,7 +304,7 @@ class VTBBaseMethods(ABC):
                                                                                                   num_cpus)
         for m in range(1, number_of_minima):
             retained_unit_cell_displacement_vectors[(m, m)] = retained_unit_cell_displacement_vectors[(0, 0)]
-        self.retained_unit_cell_displacement_vectors = retained_unit_cell_displacement_vectors
+        return retained_unit_cell_displacement_vectors
 
     def _unit_cell_vectors_minima_pair(self, minima_diff: ndarray, Xi_inv: ndarray, num_cpus: int) -> ndarray:
         """Given a minima pair, generate and then filter the periodic continuation vectors"""
@@ -410,7 +412,7 @@ class VTBBaseMethods(ABC):
         """Helper method for building all potential operators"""
         num_junc = self.number_junctions
         num_states_per_min = self.number_states_per_minimum()
-        all_exp_i_phi_j = np.empty((num_junc, num_states_per_min, num_states_per_min))
+        all_exp_i_phi_j = np.empty((num_junc, num_states_per_min, num_states_per_min), dtype=np.complex_)
         for j in range(num_junc):
             all_exp_i_phi_j[j] = self._single_exp_i_phi_j_operator(j, Xi, a_operator_array)
         return all_exp_i_phi_j
@@ -484,63 +486,78 @@ class VTBBaseMethods(ABC):
         """BCH factor obtained from the last potential operator"""
         return np.exp(-0.25 * self.stitching_coefficients @ Xi @ Xi.T @ self.stitching_coefficients)
 
-    def n_operator(self, j: int = 0) -> ndarray:
+    def n_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
+        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        self.translation_op_dict = {}
         Xi_inv = inv(self.Xi_matrix())
         a_operator_array = self._a_operator_array()
         premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
         charge_function = partial(self._local_charge_operator, j, premultiplied_a_a_dagger, Xi_inv)
-        return self._periodic_continuation(charge_function)
+        return self._periodic_continuation(charge_function, retained_unit_cell_displacement_vectors, num_cpus)
 
-    def phi_operator(self, j: int = 0) -> ndarray:
+    def phi_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
+        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        self.translation_op_dict = {}
         Xi = self.Xi_matrix()
         a_operator_array = self._a_operator_array()
         premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
         phi_function = partial(self._local_phi_operator, j, premultiplied_a_a_dagger, Xi)
-        return self._periodic_continuation(phi_function)
+        return self._periodic_continuation(phi_function, retained_unit_cell_displacement_vectors, num_cpus)
 
-    def exp_i_phi_operator(self, j: int = 0) -> ndarray:
+    def exp_i_phi_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
+        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        self.translation_op_dict = {}
         exp_i_phi_j = self._all_exp_i_phi_j_operators(self.Xi_matrix(), self._a_operator_array())
         exp_i_phi_j_function = partial(self._local_exp_i_phi_operator, j, exp_i_phi_j)
-        return self._periodic_continuation(exp_i_phi_j_function)
+        return self._periodic_continuation(exp_i_phi_j_function, retained_unit_cell_displacement_vectors, num_cpus)
 
-    def hamiltonian(self) -> ndarray:
-        return self.transfer_matrix()
+    def hamiltonian(self, num_cpus: int = 1) -> ndarray:
+        return self.transfer_matrix(num_cpus)
 
-    def kinetic_matrix(self) -> ndarray:
+    def kinetic_matrix(self, num_cpus: int = 1) -> ndarray:
         """
         Returns
         -------
         ndarray
             Returns the kinetic energy matrix
         """
+        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        self.translation_op_dict = {}
         Xi_inv = inv(self.Xi_matrix())
         a_operator_array = self._a_operator_array()
         premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
         EC_mat_t = Xi_inv @ self.EC_matrix() @ Xi_inv.T
         kinetic_function = partial(self._local_kinetic, premultiplied_a_a_dagger, EC_mat_t, Xi_inv)
-        return self._periodic_continuation(kinetic_function)
+        return self._periodic_continuation(kinetic_function, retained_unit_cell_displacement_vectors, num_cpus)
 
-    def potential_matrix(self) -> ndarray:
+    def potential_matrix(self, num_cpus: int = 1) -> ndarray:
         """
         Returns
         -------
         ndarray
             Returns the potential energy matrix
         """
+        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        self.translation_op_dict = {}
         Xi = self.Xi_matrix()
         a_operator_array = self._a_operator_array()
         exp_i_phi_j = self._all_exp_i_phi_j_operators(Xi, a_operator_array)
         premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
         potential_function = partial(self._local_potential, exp_i_phi_j, premultiplied_a_a_dagger, Xi)
-        return self._periodic_continuation(potential_function)
+        return self._periodic_continuation(potential_function, retained_unit_cell_displacement_vectors, num_cpus)
 
-    def transfer_matrix(self) -> ndarray:
+    def transfer_matrix(self, num_cpus: int = 1) -> ndarray:
         """
         Returns
         -------
         ndarray
             Returns the transfer matrix
         """
+        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        self.translation_op_dict = {}
+        return self._transfer_matrix(retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
+
+    def _transfer_matrix(self, retained_unit_cell_displacement_vectors: dict, num_cpus: int = 1):
         Xi = self.Xi_matrix()
         Xi_inv = inv(Xi)
         a_operator_array = self._a_operator_array()
@@ -549,16 +566,22 @@ class VTBBaseMethods(ABC):
         EC_mat_t = Xi_inv @ self.EC_matrix() @ Xi_inv.T
         transfer_matrix_function = partial(self._local_kinetic_plus_potential, exp_i_phi_j,
                                            premultiplied_a_a_dagger, EC_mat_t, Xi, Xi_inv)
-        return self._periodic_continuation(transfer_matrix_function)
+        return self._periodic_continuation(transfer_matrix_function, retained_unit_cell_displacement_vectors, num_cpus)
 
-    def inner_product_matrix(self) -> ndarray:
+    def inner_product_matrix(self, num_cpus: int = 1) -> ndarray:
         """
         Returns
         -------
         ndarray
             Returns the inner product matrix
         """
-        return self._periodic_continuation(lambda x, y, z: self.identity())
+        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        self.translation_op_dict = {}
+        return self._inner_product_matrix(retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
+
+    def _inner_product_matrix(self, retained_unit_cell_displacement_vectors: dict, num_cpus: int = 1):
+        return self._periodic_continuation(lambda x, y, z: self.identity(), retained_unit_cell_displacement_vectors,
+                                           num_cpus=num_cpus)
 
     def _local_charge_operator(self, j: int, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
                                Xi_inv: ndarray, displacement_vector: ndarray,
@@ -637,7 +660,8 @@ class VTBBaseMethods(ABC):
                 + self._local_potential(exp_i_phi_j, premultiplied_a_a_dagger, Xi,
                                         displacement_vector, minima_m, minima_p))
 
-    def _periodic_continuation(self, func: Callable) -> ndarray:
+    def _periodic_continuation(self, func: Callable, retained_unit_cell_displacement_vectors: dict,
+                               num_cpus: int = 1) -> ndarray:
         """This function is the meat of the VariationalTightBinding method. Any operator whose matrix
         elements we want (the transfer matrix and inner product matrix are obvious examples)
         can be passed to this function, and the matrix elements of that operator
@@ -655,17 +679,17 @@ class VTBBaseMethods(ABC):
         -------
         ndarray
         """
-        if not self.retained_unit_cell_displacement_vectors:
-            self.find_relevant_unit_cell_vectors()
         Xi_inv = inv(self.Xi_matrix())
+        target_map = get_map_method(num_cpus)
         a_operator_array = self._a_operator_array()
         exp_a_list = self._general_translation_operators(Xi_inv, a_operator_array)
         num_states_min = self.number_states_per_minimum()
         operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex_)
         all_minima_index_pairs = list(itertools.combinations_with_replacement(self.sorted_minima.items(), 2))
         periodic_continuation_for_minima_pair = partial(self._periodic_continuation_for_minima_pair,
-                                                        func, exp_a_list, Xi_inv, a_operator_array)
-        matrix_elements = list(map(periodic_continuation_for_minima_pair, all_minima_index_pairs))
+                                                        func, exp_a_list, Xi_inv, a_operator_array,
+                                                        retained_unit_cell_displacement_vectors)
+        matrix_elements = list(target_map(periodic_continuation_for_minima_pair, all_minima_index_pairs))
         for i, ((m, minima_m), (p, minima_p)) in enumerate(all_minima_index_pairs):
             operator_matrix[m * num_states_min: (m + 1) * num_states_min,
                             p * num_states_min: (p + 1) * num_states_min] += matrix_elements[i]
@@ -674,19 +698,20 @@ class VTBBaseMethods(ABC):
 
     def _periodic_continuation_for_minima_pair(self, func: Callable, exp_a_list: Tuple[ndarray, ndarray],
                                                Xi_inv: ndarray, a_operator_array: ndarray,
-                                               minima_index_pair: Tuple) -> ndarray:
+                                               minima_index_pair: Tuple,
+                                               retained_unit_cell_displacement_vectors: dict) -> ndarray:
         """Helper method for performing the periodic continuation calculation given a minima pair."""
         ((m, minima_m), (p, minima_p)) = minima_index_pair
-        retained_unit_cell_displacement_vectors = self.retained_unit_cell_displacement_vectors[(m, p)]
+        minima_pair_displacement_vectors = retained_unit_cell_displacement_vectors[(m, p)]
         num_states_min = self.number_states_per_minimum()
-        if retained_unit_cell_displacement_vectors is not None:
+        if minima_pair_displacement_vectors is not None:
             minima_diff = minima_p - minima_m
             exp_minima_difference = self._minima_dependent_translation_operators(minima_diff, Xi_inv,
                                                                                  a_operator_array)
             displacement_vector_contribution = partial(self._displacement_vector_contribution, func, minima_m, minima_p,
                                                        exp_a_list, exp_minima_difference, Xi_inv)
             relevant_vector_contributions = sum(map(displacement_vector_contribution,
-                                                    retained_unit_cell_displacement_vectors))
+                                                    minima_pair_displacement_vectors))
         else:
             relevant_vector_contributions = np.zeros((num_states_min, num_states_min), dtype=np.complex_)
         return relevant_vector_contributions
@@ -716,25 +741,17 @@ class VTBBaseMethods(ABC):
                     m * num_states_min: (m + 1) * num_states_min] += matrix_element.conjugate().T
         return mat
 
-    def _transfer_matrix_and_inner_product(self) -> Tuple[ndarray, ndarray]:
-        """Helper method called by _esys_calc and _evals_calc that returns the transfer matrix and inner product
-        matrix but warns the user if the system is in a regime where tight-binding has questionable validity."""
-        self.find_relevant_unit_cell_vectors()
+    def _evals_esys_calc(self, evals_count: int, eigvals_only: bool, num_cpus: int = 1) -> ndarray:
+        """Helper method that wraps the try and except regarding
+        singularity/indefiniteness of the inner product matrix"""
+        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
         self.translation_op_dict = {}
-        if self.harmonic_length_optimization:
-            self.optimize_Xi_variational()
-        harmonic_length_minima_comparison = self.compare_harmonic_lengths_with_minima_separations()
+        harmonic_length_minima_comparison = self.compute_localization_ratios()
         if np.max(harmonic_length_minima_comparison) > 1.0:
             warnings.warn("Warning: large harmonic length compared to minima separation "
                           "largest is 3*l/(d/2) = {ratio})".format(ratio=np.max(harmonic_length_minima_comparison)))
-        transfer_matrix = self.transfer_matrix()
-        inner_product_matrix = self.inner_product_matrix()
-        return transfer_matrix, inner_product_matrix
-
-    def _evals_esys_calc(self, evals_count: int, eigvals_only: bool) -> ndarray:
-        """Helper method that wraps the try and except regarding
-        singularity/indefiniteness of the inner product matrix"""
-        transfer_matrix, inner_product_matrix = self._transfer_matrix_and_inner_product()
+        transfer_matrix = self._transfer_matrix(retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
+        inner_product_matrix = self._inner_product_matrix(retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
         try:
             eigs = eigh(transfer_matrix, b=inner_product_matrix,
                         eigvals_only=eigvals_only, eigvals=(0, evals_count - 1))
@@ -808,44 +825,46 @@ class VTBBaseMethods(ABC):
                 filtered_minima_list.append(minima)
         return filtered_minima_list
 
-    def optimize_Xi_variational(self) -> None:
+    def _optimize_harmonic_lengths(self, sorted_minima_dict: dict,
+                                   retained_unit_cell_displacement_vectors: dict) -> None:
         """Optimize the Xi matrix by adjusting the harmonic lengths of the ground state to minimize its energy.
         For tight-binding without squeezing, this is only done for the ansatz ground state wavefunction
         localized in the global minimum."""
-        sorted_minima_dict = self.sorted_minima
         self.harmonic_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
-        self._optimize_Xi_variational(0, sorted_minima_dict[0])
+        self._optimize_harmonic_lengths_given_minimum(0, sorted_minima_dict[0], retained_unit_cell_displacement_vectors)
         for m, _ in sorted_minima_dict.items():
             self.harmonic_lengths[m] = self.harmonic_lengths[0]
+        self.initialized_optimized_harmonic_lengths = True
 
-    def _optimize_Xi_variational(self, minimum: int = 0, minimum_location: ndarray = None) -> None:
+    def _optimize_harmonic_lengths_given_minimum(self, minimum_index: int, minimum_location: ndarray,
+                                                 retained_unit_cell_displacement_vectors: dict) -> None:
         """Perform the harmonic length optimization for a h.o. ground state wavefunction localized in a given minimum"""
-        default_Xi = self.Xi_matrix(minimum)
+        default_Xi = self.Xi_matrix(minimum_index)
         EC_mat = self.EC_matrix()
-        if not self.retained_unit_cell_displacement_vectors:
-            self.find_relevant_unit_cell_vectors()
-        optimized_lengths_result = minimize(self._evals_calc_variational, self.harmonic_lengths[minimum],
+        optimized_lengths_result = minimize(self._evals_calc_variational, self.harmonic_lengths[minimum_index],
                                             jac=self._gradient_evals_calc_variational,
-                                            args=(minimum_location, minimum, EC_mat, default_Xi), tol=1e-1)
+                                            args=(minimum_location, minimum_index, EC_mat, default_Xi,
+                                                  retained_unit_cell_displacement_vectors), tol=1e-1)
         assert optimized_lengths_result.success
         optimized_lengths = optimized_lengths_result.x
         if not self.quiet:
-            print("completed harmonic length optimization for the m={m} minimum".format(m=minimum))
-        self.harmonic_lengths[minimum] = optimized_lengths
+            print("completed harmonic length optimization for the m={m} minimum".format(m=minimum_index))
+        self.harmonic_lengths[minimum_index] = optimized_lengths
 
     def _update_Xi(self, default_Xi: ndarray, minimum: int) -> ndarray:
         """Helper method for updating Xi so that the Xi matrix is not constantly regenerated."""
         return np.array([row * self.harmonic_lengths[minimum, i] for i, row in enumerate(default_Xi.T)]).T
 
-    def _gradient_evals_calc_variational(self, optimized_lengths: ndarray, minimum_location: ndarray, minimum: int,
-                                         EC_mat: ndarray, default_Xi: ndarray) -> ndarray:
+    def _gradient_evals_calc_variational(self, optimized_lengths: ndarray, minimum_location: ndarray,
+                                         minimum_index: int, EC_mat: ndarray, default_Xi: ndarray,
+                                         retained_unit_cell_displacement_vectors: dict) -> ndarray:
         """Returns the gradient of evals_calc_variational to aid in the harmonic length optimization calculation"""
-        self.harmonic_lengths[minimum] = optimized_lengths
-        Xi = self._update_Xi(default_Xi, minimum)
+        self.harmonic_lengths[minimum_index] = optimized_lengths
+        Xi = self._update_Xi(default_Xi, minimum_index)
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
         EC_mat_t = Xi_inv @ EC_mat @ Xi_inv.T
-        displacement_vectors = 2.0*np.pi*self.retained_unit_cell_displacement_vectors[(minimum, minimum)]
+        displacement_vectors = 2.0 * np.pi * retained_unit_cell_displacement_vectors[(minimum_index, minimum_index)]
         gradient_transfer = [np.sum([self._exp_product_coefficient(displacement_vector, Xi_inv)
                                     * self._gradient_one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv,
                                                                               displacement_vector, minimum_location,
@@ -870,7 +889,8 @@ class VTBBaseMethods(ABC):
         return np.real((inner * np.array(gradient_transfer) - transfer * np.array(gradient_inner)) / inner**2)
 
     def _evals_calc_variational(self, optimized_lengths: ndarray, minimum_location: ndarray, minimum: int,
-                                EC_mat: ndarray, default_Xi: ndarray) -> ndarray:
+                                EC_mat: ndarray, default_Xi: ndarray,
+                                retained_unit_cell_displacement_vectors: dict) -> ndarray:
         """Function to be optimized in the minimization procedure, corresponding to the variational estimate of
         the ground state energy."""
         self.harmonic_lengths[minimum] = optimized_lengths
@@ -879,7 +899,8 @@ class VTBBaseMethods(ABC):
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
         EC_mat_t = Xi_inv @ EC_mat @ Xi_inv.T
         transfer, inner = self._one_state_construct_transfer_and_inner(Xi, Xi_inv, minimum_location, minimum,
-                                                                       EC_mat_t, exp_i_phi_j)
+                                                                       EC_mat_t, exp_i_phi_j,
+                                                                       retained_unit_cell_displacement_vectors)
         return np.real([transfer / inner])
 
     def _one_state_exp_i_phi_j_operators(self, Xi: ndarray) -> ndarray:
@@ -953,11 +974,11 @@ class VTBBaseMethods(ABC):
                 + self._one_state_local_potential(exp_i_phi_j, Xi, displacement_vector, minima_m, minima_p))
 
     def _one_state_construct_transfer_and_inner(self, Xi: ndarray, Xi_inv: ndarray, minimum_location: ndarray,
-                                                minimum: int, EC_mat_t: ndarray,
-                                                exp_i_phi_j: ndarray) -> Tuple[ndarray, ndarray]:
+                                                minimum_index: int, EC_mat_t: ndarray, exp_i_phi_j: ndarray,
+                                                retained_unit_cell_displacement_vectors: dict) -> Tuple:
         """Transfer matrix and inner product matrix when considering only the ground state."""
-        retained_unit_cell_displacement_vectors = 2.0 * np.pi * self.retained_unit_cell_displacement_vectors[(minimum,
-                                                                                                              minimum)]
+        retained_unit_cell_displacement_vectors = 2.0 * np.pi * retained_unit_cell_displacement_vectors[(minimum_index,
+                                                                                                         minimum_index)]
         transfer_function = partial(self._one_state_local_transfer, exp_i_phi_j, EC_mat_t, Xi, Xi_inv)
         transfer = np.sum([self._exp_product_coefficient(unit_cell_vector, Xi_inv)
                            * transfer_function(unit_cell_vector, minimum_location, minimum_location)
