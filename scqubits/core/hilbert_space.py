@@ -80,12 +80,8 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                  op1: Union[str, ndarray, csc_matrix, dia_matrix],
                  subsys2: QuantumSys,
                  op2: Union[str, ndarray, csc_matrix, dia_matrix],
-                 add_hc: bool = False,
-                 hilbertspace: 'HilbertSpace' = None
+                 add_hc: bool = False
                  ) -> None:
-        if hilbertspace:
-            warnings.warn("`hilbertspace` is no longer a parameter for initializing an InteractionTerm object.",
-                          FutureWarning)
         self.g_strength = g_strength
         self.subsys1 = subsys1
         self.op1 = op1
