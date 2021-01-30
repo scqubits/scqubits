@@ -11,7 +11,7 @@
 
 import functools
 import importlib
-from typing import List
+from typing import List, Union
 
 import numpy as np
 from qutip import Qobj
@@ -32,12 +32,11 @@ else:
     _HAS_IPYTHON = True
 
 import scqubits
-from scqubits.ui.qubit_widget import _HAS_IPYWIDGETS, _HAS_IPYTHON
 from scqubits.utils import misc as utils
 from scqubits.core.qubit_base import QubitBaseClass
 
 
-QuantumSys = Union[scqubits.core.QubitBaseClass, scqubits.core.Oscillator]
+QuantumSys = Union[QubitBaseClass, scqubits.Oscillator]
 
 
 class HilbertSpaceUi:
@@ -238,7 +237,7 @@ class HilbertSpaceUi:
 
     def subsystem_list(self) -> 'List[QuantumSys]':
         main = importlib.import_module('__main__')
-        return  [eval(subsys_name, main.__dict__) for subsys_name in self.subsys_widget.value]
+        return [eval(subsys_name, main.__dict__) for subsys_name in self.subsys_widget.value]
 
     def validated_interact_list(self):
         self.status_output.clear_output()
