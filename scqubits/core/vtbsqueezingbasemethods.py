@@ -632,20 +632,20 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         localized in the global minimum."""
         sorted_minima_dict = self.sorted_minima
         self.optimized_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
-        self._optimize_harmonic_lengths_given_minimum(0, sorted_minima_dict[0])
+        self._optimize_harmonic_lengths_minimum(0, sorted_minima_dict[0])
         Xi_global = self.Xi_matrix(minimum_index=0)
         harmonic_lengths_global = np.array([np.linalg.norm(Xi_global[:, i])
                                             for i in range(self.number_degrees_freedom)])
         for m, minimum in sorted_minima_dict.items():
             if self.optimize_all_minima and m != 0:
-                self._optimize_harmonic_lengths_given_minimum(m, minimum)
+                self._optimize_harmonic_lengths_minimum(m, minimum)
             elif m != 0:
                 Xi_local = self.Xi_matrix(minimum_index=m)
                 harmonic_lengths_local = np.array([np.linalg.norm(Xi_local[:, i])
                                                    for i in range(self.number_degrees_freedom)])
                 self.optimized_lengths[m] = harmonic_lengths_global / harmonic_lengths_local
 
-    def _optimize_harmonic_lengths_given_minimum(self, minimum_index: int = 0, minimum_location: ndarray = None) -> None:
+    def _optimize_harmonic_lengths_minimum(self, minimum_index: int = 0, minimum_location: ndarray = None) -> None:
         default_Xi = self.Xi_matrix(minimum_index)
         EC_mat = self.EC_matrix()
         if not self.retained_unit_cell_displacement_vectors:
@@ -742,15 +742,15 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         result = 4 * alpha * (epsilon @ EC_mat @ epsilon + np.trace(a_dagger_coefficient.T @ EC_mat @ a_coefficient))
         return result
 
-    def _evals_calc_variational(self, optimized_lengths: ndarray, minimum_location: ndarray, minimum: int,
+    def _evals_calc_variational(self, harmonic_lengths: ndarray, minimum_location: ndarray, minimum_index: int,
                                 EC_mat: ndarray, default_Xi: ndarray) -> ndarray:
         """Function to be optimized in the minimization procedure, corresponding to the variational estimate of
         the ground state energy."""
-        self.optimized_lengths[minimum] = optimized_lengths
-        Xi = self._update_Xi(default_Xi, minimum)
+        self.optimized_lengths[minimum_index] = harmonic_lengths
+        Xi = self._update_Xi(default_Xi, minimum_index)
         Xi_inv = inv(Xi)
         transfer, inner = self._one_state_construct_transfer_inner_squeezing(Xi, Xi_inv, minimum_location,
-                                                                             minimum, EC_mat)
+                                                                             minimum_index, EC_mat)
         return np.real([transfer / inner])
 
     def _one_state_construct_transfer_inner_squeezing(self, Xi: ndarray, Xi_inv: ndarray,

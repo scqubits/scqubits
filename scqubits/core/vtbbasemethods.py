@@ -109,7 +109,6 @@ class VTBBaseMethods(ABC):
         self.displacement_vector_cutoff = displacement_vector_cutoff
         self.maximum_site_length = maximum_site_length
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
-        self.harmonic_lengths = None
         self.initialized_optimized_harmonic_lengths = False
         self.translation_op_dict = {}
         self._evec_dtype = np.complex_
@@ -230,14 +229,15 @@ class VTBBaseMethods(ABC):
         harmonic_lengths = np.array([(unit_vec @ delta_inv @ unit_vec)**(-1/2) for unit_vec in minima_unit_vectors])
         return np.max(3.0 * harmonic_lengths / minima_distances / 2.0)
 
-    def Xi_matrix(self, minimum_index: int = 0, num_cpus: int = 1,
-                  retained_unit_cell_displacement_vectors: Optional[dict] = None) -> ndarray:
+    def Xi_matrix(self, minimum_index: int = 0, harmonic_lengths: Optional[ndarray] = None) -> ndarray:
         """ Returns Xi matrix of the normal-mode eigenvectors normalized
         according to \Xi^T C \Xi = \Omega^{-1}/Z0, or equivalently \Xi^T \Gamma \Xi = \Omega/Z0. The \Xi matrix
         simultaneously diagonalizes the capacitance and effective inductance matrices by a congruence transformation.
 
         Parameters
         ----------
+        harmonic_lengths: Optional[ndarray]
+            ndarray specifying the harmonic lengths of each mode. Useful when considering optimized harmonic lengths.
         minimum_index: int
             integer specifying which minimum to linearize around, 0<=minimum<= total number of minima
 
@@ -246,15 +246,11 @@ class VTBBaseMethods(ABC):
         ndarray
         """
         sorted_minima_dict = self.sorted_minima
-        if retained_unit_cell_displacement_vectors is None:
-            retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
-        if not self.harmonic_length_optimization:
-            self.harmonic_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
-        elif self.harmonic_length_optimization and not self.initialized_optimized_harmonic_lengths:
-            self._optimize_harmonic_lengths(sorted_minima_dict, retained_unit_cell_displacement_vectors)
+        if harmonic_lengths is None:
+            harmonic_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
         omega_squared_array, eigenvectors = self.eigensystem_normal_modes(minimum_index)
         Z0 = 0.25  # units where e_charge and hbar = 1; Z0 = hbar / (2 * e)**2
-        return np.array([eigenvectors[:, i] * self.harmonic_lengths[minimum_index, i] * omega_squared ** (-1 / 4)
+        return np.array([eigenvectors[:, i] * harmonic_lengths[minimum_index, i] * omega_squared ** (-1 / 4)
                          * np.sqrt(1. / Z0) for i, omega_squared in enumerate(omega_squared_array)]).T
 
     def a_operator(self, dof_index: int) -> ndarray:
@@ -486,30 +482,30 @@ class VTBBaseMethods(ABC):
         """BCH factor obtained from the last potential operator"""
         return np.exp(-0.25 * self.stitching_coefficients @ Xi @ Xi.T @ self.stitching_coefficients)
 
-    def n_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
+    def _abstract_VTB_operator(self, local_func: Callable, num_cpus: int = 1) -> ndarray:
         retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        if self.harmonic_length_optimization:
+            optimized_harmonic_lengths = self._optimize_harmonic_lengths(retained_unit_cell_displacement_vectors)
+        else:
+            optimized_harmonic_lengths = None
         self.translation_op_dict = {}
-        Xi_inv = inv(self.Xi_matrix())
+        Xi = self.Xi_matrix(minimum_index=0, harmonic_lengths=optimized_harmonic_lengths)
+        Xi_inv = inv(Xi)
         a_operator_array = self._a_operator_array()
         premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
-        charge_function = partial(self._local_charge_operator, j, premultiplied_a_a_dagger, Xi_inv)
-        return self._periodic_continuation(charge_function, retained_unit_cell_displacement_vectors, num_cpus)
+        exp_i_phi_j = self._all_exp_i_phi_j_operators(Xi, self._a_operator_array())
+        EC_mat_t = Xi_inv @ self.EC_matrix() @ Xi_inv.T
+        partial_local_func = partial(local_func, (Xi, Xi_inv, premultiplied_a_a_dagger, exp_i_phi_j, EC_mat_t))
+        return self._periodic_continuation(partial_local_func, retained_unit_cell_displacement_vectors, num_cpus)
+
+    def n_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
+        return self._abstract_VTB_operator(partial(self._local_charge_operator, j), num_cpus)
 
     def phi_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
-        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
-        self.translation_op_dict = {}
-        Xi = self.Xi_matrix()
-        a_operator_array = self._a_operator_array()
-        premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
-        phi_function = partial(self._local_phi_operator, j, premultiplied_a_a_dagger, Xi)
-        return self._periodic_continuation(phi_function, retained_unit_cell_displacement_vectors, num_cpus)
+        return self._abstract_VTB_operator(partial(self._local_phi_operator, j), num_cpus)
 
     def exp_i_phi_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
-        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
-        self.translation_op_dict = {}
-        exp_i_phi_j = self._all_exp_i_phi_j_operators(self.Xi_matrix(), self._a_operator_array())
-        exp_i_phi_j_function = partial(self._local_exp_i_phi_operator, j, exp_i_phi_j)
-        return self._periodic_continuation(exp_i_phi_j_function, retained_unit_cell_displacement_vectors, num_cpus)
+        return self._abstract_VTB_operator(partial(self._local_exp_i_phi_operator, j), num_cpus)
 
     def hamiltonian(self, num_cpus: int = 1) -> ndarray:
         return self.transfer_matrix(num_cpus)
@@ -521,14 +517,7 @@ class VTBBaseMethods(ABC):
         ndarray
             Returns the kinetic energy matrix
         """
-        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
-        self.translation_op_dict = {}
-        Xi_inv = inv(self.Xi_matrix())
-        a_operator_array = self._a_operator_array()
-        premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
-        EC_mat_t = Xi_inv @ self.EC_matrix() @ Xi_inv.T
-        kinetic_function = partial(self._local_kinetic, premultiplied_a_a_dagger, EC_mat_t, Xi_inv)
-        return self._periodic_continuation(kinetic_function, retained_unit_cell_displacement_vectors, num_cpus)
+        return self._abstract_VTB_operator(self._local_kinetic, num_cpus)
 
     def potential_matrix(self, num_cpus: int = 1) -> ndarray:
         """
@@ -537,14 +526,7 @@ class VTBBaseMethods(ABC):
         ndarray
             Returns the potential energy matrix
         """
-        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
-        self.translation_op_dict = {}
-        Xi = self.Xi_matrix()
-        a_operator_array = self._a_operator_array()
-        exp_i_phi_j = self._all_exp_i_phi_j_operators(Xi, a_operator_array)
-        premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
-        potential_function = partial(self._local_potential, exp_i_phi_j, premultiplied_a_a_dagger, Xi)
-        return self._periodic_continuation(potential_function, retained_unit_cell_displacement_vectors, num_cpus)
+        return self._abstract_VTB_operator(self._local_potential, num_cpus)
 
     def transfer_matrix(self, num_cpus: int = 1) -> ndarray:
         """
@@ -553,9 +535,7 @@ class VTBBaseMethods(ABC):
         ndarray
             Returns the transfer matrix
         """
-        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
-        self.translation_op_dict = {}
-        return self._transfer_matrix(retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
+        return self._abstract_VTB_operator(self._local_transfer, num_cpus)
 
     def _transfer_matrix(self, retained_unit_cell_displacement_vectors: dict, num_cpus: int = 1):
         Xi = self.Xi_matrix()
@@ -564,8 +544,8 @@ class VTBBaseMethods(ABC):
         exp_i_phi_j = self._all_exp_i_phi_j_operators(Xi, a_operator_array)
         premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
         EC_mat_t = Xi_inv @ self.EC_matrix() @ Xi_inv.T
-        transfer_matrix_function = partial(self._local_kinetic_plus_potential, exp_i_phi_j,
-                                           premultiplied_a_a_dagger, EC_mat_t, Xi, Xi_inv)
+        transfer_matrix_function = partial(self._local_transfer, (Xi, Xi_inv, premultiplied_a_a_dagger,
+                                                                  exp_i_phi_j, EC_mat_t))
         return self._periodic_continuation(transfer_matrix_function, retained_unit_cell_displacement_vectors, num_cpus)
 
     def inner_product_matrix(self, num_cpus: int = 1) -> ndarray:
@@ -575,24 +555,25 @@ class VTBBaseMethods(ABC):
         ndarray
             Returns the inner product matrix
         """
-        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
-        self.translation_op_dict = {}
-        return self._inner_product_matrix(retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
+        return self._abstract_VTB_operator(lambda precalculated_quantities, displacement_vector, minima_m, minima_p,
+                                           : self.identity(), num_cpus)
 
     def _inner_product_matrix(self, retained_unit_cell_displacement_vectors: dict, num_cpus: int = 1):
-        return self._periodic_continuation(lambda x, y, z: self.identity(), retained_unit_cell_displacement_vectors,
-                                           num_cpus=num_cpus)
+        return self._periodic_continuation(lambda displacement_vector, minima_m, minima_p: self.identity(),
+                                           retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
 
-    def _local_charge_operator(self, j: int, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-                               Xi_inv: ndarray, displacement_vector: ndarray,
+    def _local_charge_operator(self, j: int, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
+                               displacement_vector: ndarray,
                                minima_m: ndarray, minima_p: ndarray) -> ndarray:
+        _, Xi_inv, premultiplied_a_a_dagger, _, _ = precalculated_quantities
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         constant_coefficient = -0.5 * 1j * (Xi_inv.T @ Xi_inv @ (displacement_vector + minima_p - minima_m))[j]
         return (-(1j / np.sqrt(2.0)) * np.sum(Xi_inv.T[j] * (np.transpose(a, (1, 2, 0)) - a.T), axis=2)
                 + constant_coefficient * self.identity())
 
-    def _local_phi_operator(self, j: int, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-                            Xi: ndarray, displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+    def _local_phi_operator(self, j: int, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
+                            displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+        Xi, _, premultiplied_a_a_dagger, _, _ = precalculated_quantities
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         constant_coefficient = 0.5 * (displacement_vector + (minima_m + minima_p))
         return ((1.0 / np.sqrt(2.0)) * np.sum(Xi[j] * (np.transpose(a, (1, 2, 0)) + a.T), axis=2)
@@ -609,8 +590,10 @@ class VTBBaseMethods(ABC):
                                          * np.exp(1j * self.stitching_coefficients @ phi_bar))
         return exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar
 
-    def _local_exp_i_phi_operator(self, j: int, exp_i_phi_j: ndarray, displacement_vector: ndarray,
-                                  minima_m: ndarray, minima_p: ndarray) -> ndarray:
+    def _local_exp_i_phi_operator(self, j: int, precalculated_quantities: Tuple[ndarray, ndarray, Tuple,
+                                                                                ndarray, ndarray],
+                                  displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+        _, _, _, exp_i_phi_j, _ = precalculated_quantities
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
@@ -619,11 +602,11 @@ class VTBBaseMethods(ABC):
         else:
             return exp_i_phi_j_phi_bar[j]
 
-    def _local_kinetic(self, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-                       EC_mat_t: ndarray, Xi_inv: ndarray, displacement_vector: ndarray,
-                       minima_m: ndarray, minima_p: ndarray) -> ndarray:
+    def _local_kinetic(self, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
+                       displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Calculate the local kinetic contribution to the transfer matrix given two
         minima and a periodic continuation vector `displacement_vector`"""
+        _, Xi_inv, premultiplied_a_a_dagger, _, EC_mat_t = precalculated_quantities
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         delta_phi = displacement_vector + minima_p - minima_m
         delta_phi_rotated = Xi_inv @ delta_phi
@@ -636,10 +619,11 @@ class VTBBaseMethods(ABC):
         kinetic_matrix = kinetic_matrix + identity_coefficient*self.identity()
         return kinetic_matrix
 
-    def _local_potential(self, exp_i_phi_j: ndarray, premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-                         Xi: ndarray, displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+    def _local_potential(self, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
+                         displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Calculate the local potential contribution to the transfer matrix given two
         minima and a periodic continuation vector `displacement_vector`"""
+        _, _, _, exp_i_phi_j, _ = precalculated_quantities
         phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_matrix = np.sum(-0.5 * self.EJlist[: -1]
@@ -650,15 +634,12 @@ class VTBBaseMethods(ABC):
         potential_matrix = potential_matrix + np.sum(self.EJlist) * self.identity()
         return potential_matrix
 
-    def _local_kinetic_plus_potential(self, exp_i_phi_j: ndarray,
-                                      premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-                                      EC_mat_t: ndarray, Xi: ndarray, Xi_inv: ndarray,
-                                      displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+    def _local_transfer(self, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
+                        displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Calculate the local contribution to the transfer matrix given two
         minima and a periodic continuation vector `displacement_vector`"""
-        return (self._local_kinetic(premultiplied_a_a_dagger, EC_mat_t, Xi_inv, displacement_vector, minima_m, minima_p)
-                + self._local_potential(exp_i_phi_j, premultiplied_a_a_dagger, Xi,
-                                        displacement_vector, minima_m, minima_p))
+        return (self._local_kinetic(precalculated_quantities, displacement_vector, minima_m, minima_p)
+                + self._local_potential(precalculated_quantities, displacement_vector, minima_m, minima_p))
 
     def _periodic_continuation(self, func: Callable, retained_unit_cell_displacement_vectors: dict,
                                num_cpus: int = 1) -> ndarray:
@@ -698,8 +679,8 @@ class VTBBaseMethods(ABC):
 
     def _periodic_continuation_for_minima_pair(self, func: Callable, exp_a_list: Tuple[ndarray, ndarray],
                                                Xi_inv: ndarray, a_operator_array: ndarray,
-                                               minima_index_pair: Tuple,
-                                               retained_unit_cell_displacement_vectors: dict) -> ndarray:
+                                               retained_unit_cell_displacement_vectors: dict,
+                                               minima_index_pair: Tuple) -> ndarray:
         """Helper method for performing the periodic continuation calculation given a minima pair."""
         ((m, minima_m), (p, minima_p)) = minima_index_pair
         minima_pair_displacement_vectors = retained_unit_cell_displacement_vectors[(m, p)]
@@ -825,23 +806,24 @@ class VTBBaseMethods(ABC):
                 filtered_minima_list.append(minima)
         return filtered_minima_list
 
-    def _optimize_harmonic_lengths(self, sorted_minima_dict: dict,
-                                   retained_unit_cell_displacement_vectors: dict) -> None:
+    def _optimize_harmonic_lengths(self, retained_unit_cell_displacement_vectors: dict) -> ndarray:
         """Optimize the Xi matrix by adjusting the harmonic lengths of the ground state to minimize its energy.
         For tight-binding without squeezing, this is only done for the ansatz ground state wavefunction
         localized in the global minimum."""
-        self.harmonic_lengths = np.ones((len(sorted_minima_dict), self.number_degrees_freedom))
-        self._optimize_harmonic_lengths_given_minimum(0, sorted_minima_dict[0], retained_unit_cell_displacement_vectors)
-        for m, _ in sorted_minima_dict.items():
-            self.harmonic_lengths[m] = self.harmonic_lengths[0]
-        self.initialized_optimized_harmonic_lengths = True
+        sorted_minima_dict = self.sorted_minima
+        num_minima = len(sorted_minima_dict)
+        harmonic_lengths = np.ones((num_minima, self.number_degrees_freedom))
+        optimized_harmonic_lengths = self._optimize_harmonic_lengths_minimum(0, sorted_minima_dict[0],
+                                                                             retained_unit_cell_displacement_vectors)
+        harmonic_lengths[np.arange(num_minima)] = optimized_harmonic_lengths
+        return harmonic_lengths
 
-    def _optimize_harmonic_lengths_given_minimum(self, minimum_index: int, minimum_location: ndarray,
-                                                 retained_unit_cell_displacement_vectors: dict) -> None:
+    def _optimize_harmonic_lengths_minimum(self, minimum_index: int, minimum_location: ndarray,
+                                           retained_unit_cell_displacement_vectors: dict) -> ndarray:
         """Perform the harmonic length optimization for a h.o. ground state wavefunction localized in a given minimum"""
         default_Xi = self.Xi_matrix(minimum_index)
         EC_mat = self.EC_matrix()
-        optimized_lengths_result = minimize(self._evals_calc_variational, self.harmonic_lengths[minimum_index],
+        optimized_lengths_result = minimize(self._evals_calc_variational, np.ones(self.number_degrees_freedom),
                                             jac=self._gradient_evals_calc_variational,
                                             args=(minimum_location, minimum_index, EC_mat, default_Xi,
                                                   retained_unit_cell_displacement_vectors), tol=1e-1)
@@ -849,56 +831,56 @@ class VTBBaseMethods(ABC):
         optimized_lengths = optimized_lengths_result.x
         if not self.quiet:
             print("completed harmonic length optimization for the m={m} minimum".format(m=minimum_index))
-        self.harmonic_lengths[minimum_index] = optimized_lengths
+        return optimized_lengths
 
-    def _update_Xi(self, default_Xi: ndarray, minimum: int) -> ndarray:
+    @staticmethod
+    def _update_Xi(default_Xi: ndarray, harmonic_lengths) -> ndarray:
         """Helper method for updating Xi so that the Xi matrix is not constantly regenerated."""
-        return np.array([row * self.harmonic_lengths[minimum, i] for i, row in enumerate(default_Xi.T)]).T
+        return np.array([row * harmonic_lengths[i] for i, row in enumerate(default_Xi.T)]).T
 
-    def _gradient_evals_calc_variational(self, optimized_lengths: ndarray, minimum_location: ndarray,
+    def _gradient_evals_calc_variational(self, harmonic_lengths: ndarray, minimum_location: ndarray,
                                          minimum_index: int, EC_mat: ndarray, default_Xi: ndarray,
                                          retained_unit_cell_displacement_vectors: dict) -> ndarray:
         """Returns the gradient of evals_calc_variational to aid in the harmonic length optimization calculation"""
-        self.harmonic_lengths[minimum_index] = optimized_lengths
-        Xi = self._update_Xi(default_Xi, minimum_index)
+        Xi = self._update_Xi(default_Xi, harmonic_lengths)
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
         EC_mat_t = Xi_inv @ EC_mat @ Xi_inv.T
         displacement_vectors = 2.0 * np.pi * retained_unit_cell_displacement_vectors[(minimum_index, minimum_index)]
         gradient_transfer = [np.sum([self._exp_product_coefficient(displacement_vector, Xi_inv)
-                                    * self._gradient_one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv,
+                                    * self._gradient_one_state_local_transfer(Xi, Xi_inv, exp_i_phi_j, EC_mat_t,
+                                                                              harmonic_lengths, which_length,
                                                                               displacement_vector, minimum_location,
-                                                                              minimum_location, which_length)
-                                    + self._gradient_one_state_local_inner_product(displacement_vector, Xi_inv,
-                                                                                   which_length)
-                                     * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv,
+                                                                              minimum_location)
+                                    + self._gradient_one_state_local_inner_product(Xi_inv, harmonic_lengths,
+                                                                                   which_length, displacement_vector)
+                                     * self._one_state_local_transfer(Xi, Xi_inv, exp_i_phi_j, EC_mat_t,
                                                                       displacement_vector, minimum_location,
                                                                       minimum_location)
                                     for displacement_vector in displacement_vectors])
                              for which_length in range(self.number_degrees_freedom)]
         transfer = np.sum([self._exp_product_coefficient(displacement_vector, Xi_inv)
-                           * self._one_state_local_transfer(exp_i_phi_j, EC_mat_t, Xi, Xi_inv, displacement_vector,
+                           * self._one_state_local_transfer(Xi, Xi_inv, exp_i_phi_j, EC_mat_t, displacement_vector,
                                                             minimum_location, minimum_location)
                            for displacement_vector in displacement_vectors])
-        gradient_inner = [np.sum([self._gradient_one_state_local_inner_product(displacement_vector,
-                                                                               Xi_inv, which_length)
+        gradient_inner = [np.sum([self._gradient_one_state_local_inner_product(Xi_inv, harmonic_lengths,
+                                                                               which_length, displacement_vector)
                                   for displacement_vector in displacement_vectors])
                           for which_length in range(self.number_degrees_freedom)]
         inner = np.sum([self._exp_product_coefficient(displacement_vector, Xi_inv)
                         for displacement_vector in displacement_vectors])
         return np.real((inner * np.array(gradient_transfer) - transfer * np.array(gradient_inner)) / inner**2)
 
-    def _evals_calc_variational(self, optimized_lengths: ndarray, minimum_location: ndarray, minimum: int,
+    def _evals_calc_variational(self, harmonic_lengths: ndarray, minimum_location: ndarray, minimum_index: int,
                                 EC_mat: ndarray, default_Xi: ndarray,
                                 retained_unit_cell_displacement_vectors: dict) -> ndarray:
         """Function to be optimized in the minimization procedure, corresponding to the variational estimate of
         the ground state energy."""
-        self.harmonic_lengths[minimum] = optimized_lengths
-        Xi = self._update_Xi(default_Xi, minimum)
+        Xi = self._update_Xi(default_Xi, harmonic_lengths)
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
         EC_mat_t = Xi_inv @ EC_mat @ Xi_inv.T
-        transfer, inner = self._one_state_construct_transfer_and_inner(Xi, Xi_inv, minimum_location, minimum,
+        transfer, inner = self._one_state_construct_transfer_and_inner(Xi, Xi_inv, minimum_location, minimum_index,
                                                                        EC_mat_t, exp_i_phi_j,
                                                                        retained_unit_cell_displacement_vectors)
         return np.real([transfer / inner])
@@ -909,53 +891,58 @@ class VTBBaseMethods(ABC):
         exp_factors = np.array([np.exp(-0.25*np.dot(Xi[j, :], Xi.T[:, j])) for j in range(dim)])
         return np.append(exp_factors, self._BCH_factor_for_potential_stitching(Xi))
 
-    def _gradient_one_state_local_inner_product(self, delta_phi: ndarray, Xi_inv: ndarray, which_length: int) -> float:
+    def _gradient_one_state_local_inner_product(self, Xi_inv: ndarray, harmonic_lengths: ndarray, which_length: int,
+                                                displacement_vector: ndarray) -> float:
         """Returns gradient of the inner product matrix"""
-        delta_phi_rotated = Xi_inv @ delta_phi
-        return (self.harmonic_lengths[0, which_length] ** (-1)
+        delta_phi_rotated = Xi_inv @ displacement_vector
+        return (harmonic_lengths[which_length] ** (-1)
                 * (1j * self.nglist[which_length] * delta_phi_rotated[which_length]
-                   + 0.5 * delta_phi_rotated[which_length] ** 2) * self._exp_product_coefficient(delta_phi, Xi_inv))
+                   + 0.5 * delta_phi_rotated[which_length] ** 2) * self._exp_product_coefficient(displacement_vector,
+                                                                                                 Xi_inv))
 
     @staticmethod
-    def _one_state_local_kinetic(EC_mat_t: ndarray, Xi_inv: ndarray,
-                                 displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> float:
+    def _one_state_local_kinetic(Xi_inv: ndarray, EC_mat_t: ndarray, displacement_vector: ndarray,
+                                 minima_m: ndarray, minima_p: ndarray) -> float:
         """Local kinetic contribution when considering only the ground state."""
         delta_phi_rotated = Xi_inv @ (displacement_vector + minima_p - minima_m)
         return 0.5 * 4 * np.trace(EC_mat_t) - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
 
-    def _gradient_one_state_local_kinetic(self, EC_mat_t: ndarray, Xi_inv: ndarray, displacement_vector: ndarray,
-                                          minima_m: ndarray, minima_p: ndarray, which_length: int) -> ndarray:
+    @staticmethod
+    def _gradient_one_state_local_kinetic(Xi_inv: ndarray, EC_mat_t: ndarray, harmonic_lengths: ndarray,
+                                          which_length: int, displacement_vector: ndarray,
+                                          minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Returns gradient of the kinetic matrix"""
         delta_phi_rotated = Xi_inv @ (displacement_vector + minima_p - minima_m)
-        return (-4.0 * self.harmonic_lengths[0, which_length] ** (-1)
+        return (-4.0 * harmonic_lengths[which_length] ** (-1)
                 * (EC_mat_t[which_length, which_length] - (delta_phi_rotated @ EC_mat_t)[which_length]
                    * delta_phi_rotated[which_length]))
 
-    def _gradient_one_state_local_potential(self, exp_i_phi_j: ndarray, displacement_vector: ndarray, minima_m: ndarray,
-                                            minima_p: ndarray, Xi: ndarray, which_length: int) -> ndarray:
+    def _gradient_one_state_local_potential(self, Xi: ndarray, exp_i_phi_j: ndarray, harmonic_lengths: ndarray,
+                                            which_length: int, displacement_vector: ndarray,
+                                            minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Returns gradient of the potential matrix"""
         phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
         potential_gradient = np.sum([0.25 * self.EJlist[junction]
                                      * Xi[junction, which_length] * Xi.T[which_length, junction]
-                                     * self.harmonic_lengths[0, which_length] ** (-1)
+                                     * harmonic_lengths[which_length] ** (-1)
                                      * (exp_i_phi_j_phi_bar[junction] + exp_i_phi_j_phi_bar[junction].conjugate())
                                      for junction in range(self.number_junctions - 1)])
-        potential_gradient += (0.25 * self.EJlist[-1] * self.harmonic_lengths[0, which_length] ** (-1)
+        potential_gradient += (0.25 * self.EJlist[-1] * harmonic_lengths[which_length] ** (-1)
                                * (self.stitching_coefficients @ Xi[:, which_length]) ** 2
                                * (exp_i_stitching_phi_j_phi_bar + exp_i_stitching_phi_j_phi_bar.conjugate()))
         return potential_gradient
 
-    def _gradient_one_state_local_transfer(self, exp_i_phi_j: ndarray, EC_mat_t: ndarray, Xi: ndarray, Xi_inv: ndarray,
-                                           displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray,
-                                           which_length: int) -> ndarray:
+    def _gradient_one_state_local_transfer(self, Xi: ndarray, Xi_inv: ndarray, exp_i_phi_j: ndarray, EC_mat_t: ndarray,
+                                           harmonic_lengths: ndarray, which_length: int, displacement_vector: ndarray,
+                                           minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Returns gradient of the transfer matrix"""
-        return (self._gradient_one_state_local_potential(exp_i_phi_j, displacement_vector, minima_m,
-                                                         minima_p, Xi, which_length)
-                + self._gradient_one_state_local_kinetic(EC_mat_t, Xi_inv, displacement_vector, minima_m,
-                                                         minima_p, which_length))
+        return (self._gradient_one_state_local_potential(Xi, exp_i_phi_j, harmonic_lengths, which_length,
+                                                         displacement_vector, minima_m, minima_p)
+                + self._gradient_one_state_local_kinetic(Xi_inv, EC_mat_t, harmonic_lengths, which_length,
+                                                         displacement_vector, minima_m, minima_p))
 
-    def _one_state_local_potential(self, exp_i_phi_j: ndarray, Xi: ndarray, displacement_vector: ndarray,
+    def _one_state_local_potential(self, Xi: ndarray, exp_i_phi_j: ndarray, displacement_vector: ndarray,
                                    minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Local potential contribution when considering only the ground state."""
         phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
@@ -967,11 +954,11 @@ class VTBBaseMethods(ABC):
                                                                     + exp_i_stitching_phi_j_phi_bar.conjugate())
         return potential
 
-    def _one_state_local_transfer(self, exp_i_phi_j: ndarray, EC_mat_t: ndarray, Xi: ndarray, Xi_inv: ndarray,
+    def _one_state_local_transfer(self, Xi: ndarray, Xi_inv: ndarray, exp_i_phi_j: ndarray, EC_mat_t: ndarray,
                                   displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
         """Local transfer contribution when considering only the ground state."""
-        return (self._one_state_local_kinetic(EC_mat_t, Xi_inv, displacement_vector, minima_m, minima_p)
-                + self._one_state_local_potential(exp_i_phi_j, Xi, displacement_vector, minima_m, minima_p))
+        return (self._one_state_local_kinetic(Xi_inv, EC_mat_t, displacement_vector, minima_m, minima_p)
+                + self._one_state_local_potential(Xi, exp_i_phi_j, displacement_vector, minima_m, minima_p))
 
     def _one_state_construct_transfer_and_inner(self, Xi: ndarray, Xi_inv: ndarray, minimum_location: ndarray,
                                                 minimum_index: int, EC_mat_t: ndarray, exp_i_phi_j: ndarray,
@@ -979,7 +966,7 @@ class VTBBaseMethods(ABC):
         """Transfer matrix and inner product matrix when considering only the ground state."""
         retained_unit_cell_displacement_vectors = 2.0 * np.pi * retained_unit_cell_displacement_vectors[(minimum_index,
                                                                                                          minimum_index)]
-        transfer_function = partial(self._one_state_local_transfer, exp_i_phi_j, EC_mat_t, Xi, Xi_inv)
+        transfer_function = partial(self._one_state_local_transfer, Xi, Xi_inv, exp_i_phi_j, EC_mat_t, )
         transfer = np.sum([self._exp_product_coefficient(unit_cell_vector, Xi_inv)
                            * transfer_function(unit_cell_vector, minimum_location, minimum_location)
                            for unit_cell_vector in retained_unit_cell_displacement_vectors])
