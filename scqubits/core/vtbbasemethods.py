@@ -483,12 +483,7 @@ class VTBBaseMethods(ABC):
         return np.exp(-0.25 * self.stitching_coefficients @ Xi @ Xi.T @ self.stitching_coefficients)
 
     def _abstract_VTB_operator(self, local_func: Callable, num_cpus: int = 1) -> ndarray:
-        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
-        if self.harmonic_length_optimization:
-            optimized_harmonic_lengths = self._optimize_harmonic_lengths(retained_unit_cell_displacement_vectors)
-        else:
-            optimized_harmonic_lengths = None
-        self.translation_op_dict = {}
+        retained_unit_cell_displacement_vectors, optimized_harmonic_lengths = self._initialize_VTB(num_cpus)
         Xi = self.Xi_matrix(minimum_index=0, harmonic_lengths=optimized_harmonic_lengths)
         Xi_inv = inv(Xi)
         a_operator_array = self._a_operator_array()
@@ -496,7 +491,17 @@ class VTBBaseMethods(ABC):
         exp_i_phi_j = self._all_exp_i_phi_j_operators(Xi, self._a_operator_array())
         EC_mat_t = Xi_inv @ self.EC_matrix() @ Xi_inv.T
         partial_local_func = partial(local_func, (Xi, Xi_inv, premultiplied_a_a_dagger, exp_i_phi_j, EC_mat_t))
-        return self._periodic_continuation(partial_local_func, retained_unit_cell_displacement_vectors, num_cpus)
+        return self._periodic_continuation(partial_local_func, retained_unit_cell_displacement_vectors,
+                                           optimized_harmonic_lengths, num_cpus)
+
+    def _initialize_VTB(self, num_cpus: int = 1):
+        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        if self.harmonic_length_optimization:
+            optimized_harmonic_lengths = self._optimize_harmonic_lengths(retained_unit_cell_displacement_vectors)
+        else:
+            optimized_harmonic_lengths = None
+        self.translation_op_dict = {}
+        return retained_unit_cell_displacement_vectors, optimized_harmonic_lengths
 
     def n_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
         return self._abstract_VTB_operator(partial(self._local_charge_operator, j), num_cpus)
@@ -537,8 +542,9 @@ class VTBBaseMethods(ABC):
         """
         return self._abstract_VTB_operator(self._local_transfer, num_cpus)
 
-    def _transfer_matrix(self, retained_unit_cell_displacement_vectors: dict, num_cpus: int = 1):
-        Xi = self.Xi_matrix()
+    def _transfer_matrix(self, retained_unit_cell_displacement_vectors: dict, optimized_harmonic_lengths: ndarray,
+                         num_cpus: int = 1):
+        Xi = self.Xi_matrix(0, harmonic_lengths=optimized_harmonic_lengths)
         Xi_inv = inv(Xi)
         a_operator_array = self._a_operator_array()
         exp_i_phi_j = self._all_exp_i_phi_j_operators(Xi, a_operator_array)
@@ -546,7 +552,8 @@ class VTBBaseMethods(ABC):
         EC_mat_t = Xi_inv @ self.EC_matrix() @ Xi_inv.T
         transfer_matrix_function = partial(self._local_transfer, (Xi, Xi_inv, premultiplied_a_a_dagger,
                                                                   exp_i_phi_j, EC_mat_t))
-        return self._periodic_continuation(transfer_matrix_function, retained_unit_cell_displacement_vectors, num_cpus)
+        return self._periodic_continuation(transfer_matrix_function, retained_unit_cell_displacement_vectors,
+                                           optimized_harmonic_lengths, num_cpus)
 
     def inner_product_matrix(self, num_cpus: int = 1) -> ndarray:
         """
@@ -558,9 +565,11 @@ class VTBBaseMethods(ABC):
         return self._abstract_VTB_operator(lambda precalculated_quantities, displacement_vector, minima_m, minima_p,
                                            : self.identity(), num_cpus)
 
-    def _inner_product_matrix(self, retained_unit_cell_displacement_vectors: dict, num_cpus: int = 1):
+    def _inner_product_matrix(self, retained_unit_cell_displacement_vectors: dict, optimized_harmonic_lengths: ndarray,
+                              num_cpus: int = 1):
         return self._periodic_continuation(lambda displacement_vector, minima_m, minima_p: self.identity(),
-                                           retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
+                                           retained_unit_cell_displacement_vectors, optimized_harmonic_lengths,
+                                           num_cpus=num_cpus)
 
     def _local_charge_operator(self, j: int, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
                                displacement_vector: ndarray,
@@ -642,7 +651,7 @@ class VTBBaseMethods(ABC):
                 + self._local_potential(precalculated_quantities, displacement_vector, minima_m, minima_p))
 
     def _periodic_continuation(self, func: Callable, retained_unit_cell_displacement_vectors: dict,
-                               num_cpus: int = 1) -> ndarray:
+                               optimized_harmonic_lengths: ndarray, num_cpus: int = 1) -> ndarray:
         """This function is the meat of the VariationalTightBinding method. Any operator whose matrix
         elements we want (the transfer matrix and inner product matrix are obvious examples)
         can be passed to this function, and the matrix elements of that operator
@@ -660,7 +669,7 @@ class VTBBaseMethods(ABC):
         -------
         ndarray
         """
-        Xi_inv = inv(self.Xi_matrix())
+        Xi_inv = inv(self.Xi_matrix(0, optimized_harmonic_lengths))
         target_map = get_map_method(num_cpus)
         a_operator_array = self._a_operator_array()
         exp_a_list = self._general_translation_operators(Xi_inv, a_operator_array)
@@ -726,13 +735,19 @@ class VTBBaseMethods(ABC):
         """Helper method that wraps the try and except regarding
         singularity/indefiniteness of the inner product matrix"""
         retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
+        if self.harmonic_length_optimization:
+            optimized_harmonic_lengths = self._optimize_harmonic_lengths(retained_unit_cell_displacement_vectors)
+        else:
+            optimized_harmonic_lengths = None
         self.translation_op_dict = {}
         harmonic_length_minima_comparison = self.compute_localization_ratios()
         if np.max(harmonic_length_minima_comparison) > 1.0:
             warnings.warn("Warning: large harmonic length compared to minima separation "
                           "largest is 3*l/(d/2) = {ratio})".format(ratio=np.max(harmonic_length_minima_comparison)))
-        transfer_matrix = self._transfer_matrix(retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
-        inner_product_matrix = self._inner_product_matrix(retained_unit_cell_displacement_vectors, num_cpus=num_cpus)
+        transfer_matrix = self._transfer_matrix(retained_unit_cell_displacement_vectors, optimized_harmonic_lengths,
+                                                num_cpus=num_cpus)
+        inner_product_matrix = self._inner_product_matrix(retained_unit_cell_displacement_vectors,
+                                                          optimized_harmonic_lengths, num_cpus=num_cpus)
         try:
             eigs = eigh(transfer_matrix, b=inner_product_matrix,
                         eigvals_only=eigvals_only, eigvals=(0, evals_count - 1))

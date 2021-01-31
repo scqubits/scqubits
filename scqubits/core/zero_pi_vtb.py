@@ -313,14 +313,14 @@ class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
         return np.array(exp_i_list)
 
     def _local_potential_squeezing_function(self, Xi: ndarray, Xi_inv: ndarray,
-                                            phi_neighbor: ndarray, minima_m: ndarray, minima_p: ndarray,
+                                            displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray,
                                             disentangled_squeezing_matrices: Tuple,
                                             delta_rho_matrices: Tuple,
                                             exp_a_dagger_a: ndarray, minima_pair_results: Tuple
                                             ) -> ndarray:
         dim = self.number_degrees_freedom
-        delta_phi = phi_neighbor + minima_p - minima_m
-        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        delta_phi = displacement_vector + minima_p - minima_m
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         exp_i_list, harmonic_minima_pair_results = minima_pair_results
         exp_i_phi_list = []
         for j in range(dim):
@@ -333,11 +333,11 @@ class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
                                                                                       delta_rho_matrices,
                                                                                       np.array(exp_i_phi_list))
                                    for j in range(dim)], axis=0)
-        potential_matrix += self._local_potential_harmonic_squeezing(Xi, Xi_inv, phi_neighbor, minima_m, minima_p,
+        potential_matrix += self._local_potential_harmonic_squeezing(Xi, Xi_inv, displacement_vector, minima_m, minima_p,
                                                                      disentangled_squeezing_matrices,
                                                                      delta_rho_matrices, exp_a_dagger_a,
                                                                      harmonic_minima_pair_results, phi_bar)
-        potential_matrix += (self._local_contribution_identity_squeezing(Xi_inv, phi_neighbor, minima_m, minima_p,
+        potential_matrix += (self._local_contribution_identity_squeezing(Xi_inv, displacement_vector, minima_m, minima_p,
                                                                          disentangled_squeezing_matrices,
                                                                          delta_rho_matrices, exp_a_dagger_a,
                                                                          minima_pair_results)
