@@ -35,28 +35,35 @@ evals_2 = CMVG.eigenvals()
 evals_3 = CMVS.eigenvals()
 evals_4 = CMVGS.eigenvals()
 
+def run_tests(CM_instance, CM_string):
+    specdata_1 = CM_instance.eigenvals(evals_count=12, filename='../scqubits/tests/data/'+CM_string+'_1.hdf5')
+    read_1 = qubit.read(filename='../scqubits/tests/data/'+CM_string+'_1.hdf5')
+    read_1.add_data(transfer_matrix=CM_instance.transfer_matrix())
+    sorted_minima_list = []
+    minima_vals = CM_instance.sorted_minima.values()
+    for elem in minima_vals:
+        sorted_minima_list.append(elem)
+    read_1.add_data(sorted_minima=np.array(sorted_minima_list))
+    read_1.add_data(gamma_matrix=CM_instance.gamma_matrix())
+    read_1.add_data(eigensystem_normal_modes=CM_instance.eigensystem_normal_modes())
+    read_1.add_data(Xi_matrix=CM_instance.Xi_matrix())
+    read_1.add_data(kinetic_matrix=CM_instance.kinetic_matrix())
+    read_1.add_data(potential_matrix=CM_instance.potential_matrix())
+    read_1.add_data(inner_product_matrix=CM_instance.inner_product_matrix())
+    qubit.write(read_1, filename='../scqubits/tests/data/'+CM_string+'_1.hdf5')
+    specdata_2 = CM_instance.eigensys(evals_count=4, filename='../scqubits/tests/data/'+CM_string+'_2.hdf5')
+    read_1 = qubit.read(filename='../scqubits/tests/data/'+CM_string+'_2.hdf5')
+    specdata_4 = CM_instance.get_spectrum_vs_paramvals(param_name='flux', param_vals=flux_list, evals_count=4, get_eigenstates=True,
+                                               filename='../scqubits/tests/data/'+CM_string+'_4.hdf5')
+#    specdata_5 = CM_instance.matrixelement_table('n_operator', operator_args={'j': 0},
+#                                         filename='../scqubits/tests/data/'+CM_string+'_5.hdf5')
 
-specdata_1 = CMV.eigenvals(evals_count=12, filename='../scqubits/tests/data/currentmirrorvtb_1.hdf5')
-read_1 = qubit.read(filename='../scqubits/tests/data/currentmirrorvtb_1.hdf5')
-read_1.add_data(transfer_matrix=CMV.transfer_matrix())
-read_1.add_data(sorted_minima=CMV.sorted_minima())
-read_1.add_data(gamma_matrix=CMV.gamma_matrix())
-read_1.add_data(eigensystem_normal_modes=CMV.eigensystem_normal_modes())
-read_1.add_data(Xi_matrix=CMV.Xi_matrix())
-read_1.add_data(nearest_neighbors=CMV.nearest_neighbors)
-read_1.add_data(kinetic_matrix=CMV.kinetic_matrix())
-read_1.add_data(potential_matrix=CMV.potential_matrix())
-read_1.add_data(inner_product_matrix=CMV.inner_product_matrix())
-qubit.write(read_1, filename='../scqubits/tests/data/currentmirrorvtb_1.hdf5')
-specdata_2 = CMV.eigensys(evals_count=4, filename='../scqubits/tests/data/currentmirrorvtb_2.hdf5')
-read_1 = qubit.read(filename='../scqubits/tests/data/currentmirrorvtb_2.hdf5')
-specdata_4 = CMV.get_spectrum_vs_paramvals(param_name='flux', param_vals=flux_list, evals_count=4, get_eigenstates=True,
-                                           filename='../scqubits/tests/data/currentmirrorvtb_4.hdf5')
-specdata_5 = CMV.matrixelement_table('n_operator', operator_args={'j': 0},
-                                     filename='../scqubits/tests/data/currentmirrorvtb_5.hdf5')
+def run_tests_ED(CM_instance):
+    specdata_1_CM = CM_instance.eigenvals(evals_count=12, filename='../scqubits/tests/data/currentmirror_1.hdf5')
+    specdata_2_CM = CM_instance.eigensys(evals_count=4, filename='../scqubits/tests/data/currentmirror_2.hdf5')
+    specdata_4_CM = CM_instance.get_spectrum_vs_paramvals(param_name='flux', param_vals=flux_list, evals_count=4, get_eigenstates=True,
+                                                 filename='../scqubits/tests/data/currentmirror_4.hdf5')
+    matelem_CM = CM_instance.matrixelement_table('charge_number_operator', evals_count=10, filename='../scqubits/tests/data/currentmirror_5.hdf5')
 
-# specdata_1_CM = CM.eigenvals(evals_count=12, filename='../scqubits/tests/data/currentmirror_1.hdf5')
-# specdata_2_CM = CM.eigensys(evals_count=4, filename='../scqubits/tests/data/currentmirror_2.hdf5')
-# specdata_4_CM = CM.get_spectrum_vs_paramvals(param_name='flux', param_vals=flux_list, evals_count=4, get_eigenstates=True,
-#                                              filename='../scqubits/tests/data/currentmirror_4.hdf5')
-# matelem_CM = CM.matrixelement_table('charge_number_operator', evals_count=10, filename='../scqubits/tests/data/currentmirror_5.hdf5')
+
+run_tests(CMVS, 'currentmirrorvtbsqueezing')

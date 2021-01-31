@@ -233,15 +233,6 @@ class VTBTestFunctions(StandardTests):
         reference_Xi_matrix = specdata.Xi_matrix
         assert np.allclose(np.abs(reference_Xi_matrix), np.abs(Xi_matrix))
 
-    # def test_relevant_periodic_continuation_vectors(self, io_type):
-    #     testname = self.file_str + '_1.' + io_type
-    #     specdata = SpectrumData.create_from_file(DATADIR + testname)
-    #     self.qbt = self.qbt_type(**specdata.system_params)
-    #     self.qbt.find_relevant_periodic_continuation_vectors()
-    #     reference_nearest_neighbors = specdata.nearest_neighbors
-    #     for key in reference_nearest_neighbors:
-    #         assert np.allclose(reference_nearest_neighbors[key], self.qbt.nearest_neighbors[key])
-
     def test_kinetic_matrix(self, io_type):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)

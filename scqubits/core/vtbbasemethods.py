@@ -410,7 +410,7 @@ class VTBBaseMethods(ABC):
         """Helper method for building all potential operators"""
         num_junc = self.number_junctions
         num_states_per_min = self.number_states_per_minimum()
-        all_exp_i_phi_j = np.empty((num_junc, num_states_per_min, num_states_per_min))
+        all_exp_i_phi_j = np.empty((num_junc, num_states_per_min, num_states_per_min), dtype=np.complex_)
         for j in range(num_junc):
             all_exp_i_phi_j[j] = self._single_exp_i_phi_j_operator(j, Xi, a_operator_array)
         return all_exp_i_phi_j
