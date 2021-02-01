@@ -128,11 +128,11 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         phi_b = fluxonium_b.phi_operator()
         n_a = fluxonium_a.n_operator()
         n_b = fluxonium_b.n_operator()
-        interaction_term_1 = InteractionTerm(g_strength=0.5 * self.ELa, subsys1=fluxonium_a, op1=phi_a,
+        interaction_term_1 = InteractionTerm(g_strength=-0.5 * self.ELa, subsys1=fluxonium_a, op1=phi_a,
                                              subsys2=h_o_plus, op2=self.phi_plus())
         interaction_term_2 = InteractionTerm(g_strength=-0.5 * self.ELb, subsys1=fluxonium_b, op1=phi_b,
                                              subsys2=h_o_plus, op2=self.phi_plus())
-        interaction_term_3 = InteractionTerm(g_strength=0.5 * self.ELa, subsys1=fluxonium_a, op1=phi_a,
+        interaction_term_3 = InteractionTerm(g_strength=-0.5 * self.ELa, subsys1=fluxonium_a, op1=phi_a,
                                              subsys2=fluxonium_minus, op2=phi_minus)
         interaction_term_4 = InteractionTerm(g_strength=0.5 * self.ELb, subsys1=fluxonium_b, op1=phi_b,
                                              subsys2=fluxonium_minus, op2=phi_minus)
@@ -161,6 +161,19 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
                                                                            * (0.5 * chi_m + 1.0 / EL_tilda))))
         return flux_shift_qubit(self.ELa) / (2.0 * np.pi), flux_shift_qubit(self.ELb) / (2.0 * np.pi)
 
+    def chi_minus(self):
+        fluxonium_minus = self.fluxonium_minus()
+        evals_minus, evecs_minus = fluxonium_minus.eigensys(evals_count=fluxonium_minus.truncated_dim)
+        phi_minus_mat = get_matrixelement_table(fluxonium_minus.phi_operator(), evecs_minus)
+        return sum(abs(phi_minus_mat[0, m]) ** 2 / (evals_minus[m] - evals_minus[0])
+                   for m in range(1, fluxonium_minus.truncated_dim))
+
+    def fluxonium_minus_gs_expect(self):
+        fluxonium_minus = self.fluxonium_minus()
+        evals_minus, evecs_minus = fluxonium_minus.eigensys(evals_count=1)
+        phi_minus_mat = get_matrixelement_table(fluxonium_minus.phi_operator(), evecs_minus)
+        return np.real(phi_minus_mat[0, 0])
+
     def _setup_effective_calculation(self):
         fluxonium_a = self.fluxonium_a()
         fluxonium_b = self.fluxonium_b()
@@ -173,7 +186,7 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         fluxonium_a.EL = self.ELa - E_La_shift
         E_Lb_shift = self.ELb ** 2 * (0.5 * chi_m + 1.0 / self.EL_tilda())
         fluxonium_b.EL = self.ELb - E_Lb_shift
-        J = self.ELa * self.ELb * (1.0 / (self.EL_tilda()) - 0.5 * chi_m)
+        J = self.ELa * self.ELb * ( 0.5 * chi_m - 1.0 / (self.EL_tilda()))
         return fluxonium_a, fluxonium_b, J, E_La_shift, E_Lb_shift
 
     def schrieffer_wolff_born_oppenheimer_effective_hamiltonian(self):
@@ -267,13 +280,22 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
 
     def born_oppenheimer_effective_hamiltonian(self):
         fluxonium_a, fluxonium_b, J, E_La_shift, E_Lb_shift = self._setup_effective_calculation()
+        g_s_expect = self.fluxonium_minus_gs_expect()
+        EL_bar = fluxonium_a.EL
+#        flux_shift = 0.5 * g_s_expect * self.ELa * (1 + (J / EL_bar)) / (EL_bar * (1 - (J / EL_bar)**2))
+#        flux_a, flux_b = 2.0 * np.pi * self.flux_a - flux_shift, 2.0 * np.pi * self.flux_b - flux_shift
+        fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
+        fluxonium_a.truncated_dim, fluxonium_b.truncated_dim = 2, 2
         hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
+        H_0 = hilbert_space.hamiltonian()
         phi_a_ops, n_a_ops = self._single_hamiltonian_effective(fluxonium_a, hilbert_space)
         phi_b_ops, n_b_ops = self._single_hamiltonian_effective(fluxonium_b, hilbert_space)
-        hamiltonian_a = hilbert_space.diag_hamiltonian(fluxonium_a)
-        hamiltonian_b = hilbert_space.diag_hamiltonian(fluxonium_b)
-        hamiltonian_ab = J * (phi_a_ops * phi_b_ops) - 8.0 * self.off_diagonal_charging() * n_a_ops * n_b_ops
-        return hamiltonian_a + hamiltonian_b + hamiltonian_ab
+        H_a = phi_a_ops * (2.0 * np.pi * (0.5 - self.flux_a) * EL_bar - 2.0 * np.pi * (0.5 - self.flux_b) * J
+                           - 0.5 * self.ELa * g_s_expect)
+        H_b = - phi_b_ops * (2.0 * np.pi * (0.5 - self.flux_b) * EL_bar - 2.0 * np.pi * (0.5 - self.flux_a) * J
+                             - 0.5 * self.ELb * g_s_expect)
+        H_ab = J * (phi_a_ops * phi_b_ops) - 8.0 * self.off_diagonal_charging() * n_a_ops * n_b_ops
+        return H_0 + H_a + H_b + H_ab
 
     @staticmethod
     def _single_hamiltonian_effective(fluxonium_instance, hilbert_space):
