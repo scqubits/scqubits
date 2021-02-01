@@ -33,49 +33,47 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scqubits.utils.spectrum_utils import matrix_element
 
 
-# —Double Cooper pair tunneling qubit ————————————————————————
+# -Double Cooper pair tunneling qubit ----------------------------------------------------------------------------------
 class Dcp(base.QubitBaseClass, serializers.Serializable):
-    r"""double Cooper pair tunneling qubit
+    r"""Double Cooper Pair Tunneling Qubit
 
     | [1] Smith et al., NPJ Quantum Inf. 6, 8 (2020) http://www.nature.com/articles/s41534-019-0231-2
 
     .. math::
 
-        H H_\text{dcp} = 4E_\text{C}[2n_\phi^2+\frac{1}{2}(n_\varphi-N_\text{g}-n_\theta)^2+xn_\theta^2]
+        H = 4E_\text{C}[2n_\phi^2+\frac{1}{2}(n_\varphi-N_\text{g}-n_\theta)^2+xn_\theta^2]
                            +E_\text{L}(\frac{1}{4}\phi^2+\theta^2)
                            -2E_\text{J}\cos(\varphi)\cos(\frac{\phi}{2}+\frac{\varphi_\text{ext}}{2})
 
-    The employed basis are harmonic basis for :math:`\phi,\theta` and charge basis for :math:`\varphi`. The cosine term in the
-    potential is handled via matrix exponentiation. Initialize with, for example::
-
-        qubit = Dcp(EJ=15.0, EC=2.0, EL=1.0, x=0.02, dC=0, dL=0, dJ=0, flux=0.5, Ng=0, N0=7, q0=30, p0=7)
+    The Hamiltonian is formed with harmonic basis for :math:`\phi,\theta` variables and charge basis for :math:`\varphi`
+    variable.
 
     Parameters
     ----------
     EJ: float
-        Josephson energy
+        Josephson energy of the two junctions
     EC: float
-        charging energy
+        charging energy of the two junctions
     EL: float
-        inductive energy
+        inductive energy of the two inductors
     x: float
         ratio of the junction capacitance to the shunt capacitance x = C_J / C_shunt
     dC: float
-        disorder in capacitance, i.e., EC / (1 \pm dC)
+        disorder in charging energy, i.e., `EC / (1 \pm dC)`
     dL: float
-        disorder in inductance, i.e., EL / (1 \pm dL)
+        disorder in inductive energy, i.e., `EL / (1 \pm dL)`
     dJ: float
-        disorder in junction energy, i.e., EJ * (1 \pm dJ)
+        disorder in junction energy, i.e., `EJ * (1 \pm dJ)`
     flux: float
         external magnetic flux in angular units, 2pi corresponds to one flux quantum
     Ng: float
         offset charge
     N0: int
-        number of charge states used in diagonalization, -N0 <= n_\varphi <= N0
+        number of charge states, `-N0 <= n_\varphi <= N0`
     q0: int
-        number of harmonic oscillator basis used in diagonalization of \theta
+        number of harmonic oscillator basis for `\theta` variable
     p0: int
-        number of harmonic oscillator basis used in diagonalization of \phi
+        number of harmonic oscillator basis for `\phi` variable
     truncated_dim: int, optional
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
@@ -1292,15 +1290,15 @@ class Dcp(base.QubitBaseClass, serializers.Serializable):
     def q_cap(self, energy):
         """Frequency dependent quality factor of capacitance"""
         # Devoret paper
-        # q_cap_0 = 1 * 1e6
-        # return q_cap_0 * (6 / energy) ** 0.7
+        q_cap_0 = 1 * 1e6
+        return q_cap_0 * (6 / energy) ** 0.7
 
         # Schuster paper
         # return 1 / (8e-6)
 
         # Vlad paper
-        q_cap_0 = 1/ (3 * 1e-6 )
-        return q_cap_0 * (6 / energy) ** 0.15
+        # q_cap_0 = 1/ (3 * 1e-6 )
+        # return q_cap_0 * (6 / energy) ** 0.15
 
     # def t1_cap_loss(self, dl_list):
     #     """Return the 1/T1 due to capcitive loss"""

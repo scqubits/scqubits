@@ -24,12 +24,10 @@ import scqubits.utils.spectrum_utils as spec_utils
 import scqubits.utils.spectrum_utils as matele_utils
 import scqubits.core.harmonic_osc as osc
 import scqubits.core.operators as op
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import matplotlib.pyplot as plt
 
 
 # — Inductively-shunted Rhombus circuit ————————————————————————
-class FullProtomon(base.QubitBaseClass, serializers.Serializable):
+class DisorderFullProtomon(base.QubitBaseClass, serializers.Serializable):
     r"""inductively-shunted Rhombus qubit, with the harmonic mode in the ground state
 
     Parameters
@@ -52,12 +50,15 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         photon temperature
     """
 
-    def __init__(self, EJ, EC, ECP, EL, ELA, flux_c, flux_d, kbt):
+    def __init__(self, EJ, EC, ECP, EL, ELA, dC, dL, dJ, flux_c, flux_d, kbt):
         self.EJ = EJ
         self.EC = EC
         self.ECP = ECP
         self.EL = EL
         self.ELA = ELA
+        self.dC = dC
+        self.dL = dL
+        self.dJ = dJ
         self.flux_c = flux_c
         self.flux_d = flux_d
         self.kbt = kbt * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # input temperature unit mK
@@ -109,7 +110,8 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         return self.zeta_cut
 
     def zeta_plasma(self):
-        return np.sqrt(4 * 4 * self.ECP * (0.5 * self.ELA + self.EL))
+        return np.sqrt(
+            4 * 4 * self.ECP * (0.5 * self.ELA + 0.5 * self.EL / (1 - self.dL) + 0.5 * self.EL / (1 + self.dL)))
 
     def zeta_osc(self):
         """
@@ -117,7 +119,7 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         -------
         float
             Returns the oscillator strength of :math:`zeta' degree of freedom."""
-        return (4 * self.ECP / (0.5 * self.ELA + self.EL)) ** 0.25
+        return (4 * self.ECP / (0.5 * self.ELA + 0.5 * self.EL / (1 - self.dL) + 0.5 * self.EL / (1 + self.dL))) ** 0.25
 
     def hilbertdim(self):
         """
@@ -202,24 +204,24 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         """
         return self._kron3(self._n_phi_operator(), self._identity_zeta(), self._identity_theta())
 
-    def _cos_phi_div_operator(self, div):
+    def _cos_phi_div_operator(self, div, off):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`\\cos \\phi/div` operator
+            Returns the :math:`\\cos (\\phi+off)/div` operator
         """
-        cos_phi_div_vals = np.cos(self.phi_grid.make_linspace() / div)
+        cos_phi_div_vals = np.cos((self.phi_grid.make_linspace() + off) / div)
         return sparse.dia_matrix((cos_phi_div_vals, [0]), shape=(self.dim_phi(), self.dim_phi())).tocsc()
 
-    def _sin_phi_div_operator(self, div):
+    def _sin_phi_div_operator(self, div, off):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`\\sin \\phi/div` operator
+            Returns the :math:`\\sin (\\phi+off)/div` operator
         """
-        sin_phi_div_vals = np.sin(self.phi_grid.make_linspace() / div)
+        sin_phi_div_vals = np.sin((self.phi_grid.make_linspace() + off) / div)
         return sparse.dia_matrix((sin_phi_div_vals, [0]), shape=(self.dim_phi(), self.dim_phi())).tocsc()
 
     def _theta_operator(self):
@@ -259,24 +261,24 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         """
         return self._kron3(self._identity_phi(), self._identity_zeta(), self._n_theta_operator())
 
-    def _cos_theta_div_operator(self, div):
+    def _cos_theta_div_operator(self, div, off):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`\\cos \\theta/div` operator
+            Returns the :math:`\\cos (\\theta+off)/div` operator
         """
-        cos_theta_div_vals = np.cos(self.theta_grid.make_linspace() / div)
+        cos_theta_div_vals = np.cos((self.theta_grid.make_linspace() + off) / div)
         return sparse.dia_matrix((cos_theta_div_vals, [0]), shape=(self.dim_theta(), self.dim_theta())).tocsc()
 
-    def _sin_theta_div_operator(self, div):
+    def _sin_theta_div_operator(self, div, off):
         """
         Returns
         -------
         ndarray
-            Returns the :math:`\\sin \\theta/div` operator
+            Returns the :math:`\\sin (\\theta+off)/div` operator
         """
-        sin_theta_div_vals = np.sin(self.theta_grid.make_linspace() / div)
+        sin_theta_div_vals = np.sin((self.theta_grid.make_linspace() + off) / div)
         return sparse.dia_matrix((sin_theta_div_vals, [0]), shape=(self.dim_theta(), self.dim_theta())).tocsc()
 
     def _kron3(self, mat1, mat2, mat3):
@@ -328,25 +330,53 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         """
         return self._kron3(self._identity_phi(), self._identity_zeta(), self._identity_theta())
 
+    # def hamiltonian(self):
+    #     zeta_osc = self._kron3(self._identity_phi(), op.number_sparse(self.dim_zeta(), self.zeta_plasma()),
+    #                            self._identity_theta())
+    #
+    #     phi_kinetic = self.phi_grid.second_derivative_matrix(prefactor=- 2.0 * self.EC)
+    #     theta_kinetic = self.theta_grid.second_derivative_matrix(prefactor=- 2.0 * self.EC)
+    #     tot_kinetic = self._kron3(phi_kinetic, self._identity_zeta(), self._identity_theta()) + self._kron3(
+    #         self._identity_phi(), self._identity_zeta(), theta_kinetic)
+    #
+    #     phi_ind = self.EL * (self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux_c) ** 2
+    #     theta_ind = self.EL * (self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) ** 2
+    #     coupling_ind = - 2 * self.EL * (
+    #                 self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) * self.zeta_operator()
+    #
+    #     # note the 2EJ constant term is added to be consistent with the 'LM' option in eigensolver
+    #     phi_theta_junction = - 2 * self.EJ * self._kron3(self._cos_phi_div_operator(1.0), self._identity_zeta(),
+    #                                                      self._cos_theta_div_operator(
+    #                                                          1.0)) + 2 * self.EJ * self.total_identity()
+    #     return zeta_osc + tot_kinetic + phi_ind + theta_ind + coupling_ind + phi_theta_junction
+
     def hamiltonian(self):
         zeta_osc = self._kron3(self._identity_phi(), op.number_sparse(self.dim_zeta(), self.zeta_plasma()),
                                self._identity_theta())
 
-        phi_kinetic = self.phi_grid.second_derivative_matrix(prefactor=- 2.0 * self.EC)
-        theta_kinetic = self.theta_grid.second_derivative_matrix(prefactor=- 2.0 * self.EC)
+        phi_kinetic = self.phi_grid.second_derivative_matrix(prefactor=- 2.0 * self.EC / (1 - self.dC ** 2))
+        theta_kinetic = self.theta_grid.second_derivative_matrix(prefactor=- 2.0 * self.EC / (1 - self.dC ** 2))
+        cross_kinetic = - 4 * self.dC * self.EC / (1 - self.dC ** 2) * self.n_phi_operator() * self.n_theta_operator()
         tot_kinetic = self._kron3(phi_kinetic, self._identity_zeta(), self._identity_theta()) + self._kron3(
-            self._identity_phi(), self._identity_zeta(), theta_kinetic)
+            self._identity_phi(), self._identity_zeta(), theta_kinetic) + cross_kinetic
 
-        phi_ind = self.EL * (self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux_c) ** 2
-        theta_ind = self.EL * (self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) ** 2
-        coupling_ind = - 2 * self.EL * (
-                    self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) * self.zeta_operator()
+        diag_ind = 0.5 * (self.EL / (1 - self.dL) + self.EL / (1 + self.dL)) * (
+                self.phi_operator() ** 2 + self.theta_operator() ** 2)
+        off_ind = self.EL / (1 - self.dL) * (
+                self.phi_operator() * self.theta_operator() - self.theta_operator() * self.zeta_operator() - self.phi_operator() * self.zeta_operator())
+        off_ind += self.EL / (1 + self.dL) * (
+                - self.phi_operator() * self.theta_operator() - self.theta_operator() * self.zeta_operator() + self.phi_operator() * self.zeta_operator())
+        total_ind = diag_ind + off_ind
 
-        # note the 2EJ constant term is added to be consistent with the 'LM' option in eigensolver
-        phi_theta_junction = - 2 * self.EJ * self._kron3(self._cos_phi_div_operator(1.0), self._identity_zeta(),
-                                                         self._cos_theta_div_operator(
-                                                             1.0)) + 2 * self.EJ * self.total_identity()
-        return zeta_osc + tot_kinetic + phi_ind + theta_ind + coupling_ind + phi_theta_junction
+        junction = - 2 * self.EJ * self._kron3(self._cos_phi_div_operator(1.0, 2 * np.pi * self.flux_c),
+                                               self._identity_zeta(),
+                                               self._cos_theta_div_operator(1.0,
+                                                                            2 * np.pi * self.flux_d)) + self.dJ * 2 * self.EJ * self._kron3(
+            self._sin_phi_div_operator(1.0, 2 * np.pi * self.flux_c), self._identity_zeta(),
+            self._sin_theta_div_operator(1.0, 2 * np.pi * self.flux_d)) + 2 * self.EJ * (
+                               1 + np.abs(self.dJ)) * self.total_identity()
+
+        return zeta_osc + tot_kinetic + total_ind + junction
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
@@ -705,181 +735,3 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
                   ' ms')
 
         return np.array([t2_current, t2_flux_c, t2_flux_d, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot])
-
-    def dispersive_shift(self, w_readout, beta_phi, beta_zeta, beta_theta, cutoff, ratio_plot=False):
-        """
-        Calculate the dispersive shift
-        :param w_readout: frequency of the readout
-        :param beta_phi: capacitive coupling ratio for phi modes
-        :param beta_zeta: capacitive coupling ratio for zeta modes
-        :param beta_theta: capacitive coupling ratio for theta modes
-        :param cutoff: states involved in the calculation
-        :return: table containing dispersive shift for each state
-        """
-        factor = 0.8
-        eigsys = self.eigensys(evals_count=cutoff)
-        energy = eigsys[0]
-        states = eigsys[1]
-
-        tab_energy_diff = np.zeros((cutoff, cutoff))
-        energy_diff_ij = np.zeros((cutoff, cutoff - 1))
-        energy_diff_ji = np.zeros((cutoff, cutoff - 1))
-        for i in range(cutoff):
-            tab_energy_diff[i, :] = energy[i] - energy - w_readout
-            energy_diff_ij[i, :] = np.delete(energy[i] - energy, i) - w_readout
-            energy_diff_ji[i, :] = np.delete(energy - energy[i], i) - w_readout
-
-        tab_g_coupling = np.zeros((cutoff, cutoff), dtype=np.complex_)
-        ds_table = np.zeros((cutoff, 1))
-        if beta_zeta == 0 and beta_theta == 0:
-            matelem_phi = self.get_matelements_vs_paramvals('n_phi_operator', 'ph', [0],
-                                                            evals_count=cutoff)
-            for i in range(cutoff):
-                ds_table[i] = np.sum(np.abs(np.delete(matelem_phi.matrixelem_table[
-                                                      0, i, :], i) * beta_phi) ** 2 * (
-                                             1 / energy_diff_ij[i] - 1 / energy_diff_ji[i]))
-            tab_g_coupling = matelem_phi.matrixelem_table[0, :, :] * factor * beta_phi
-        elif beta_zeta == 0 and beta_phi == 0:
-            matelem_theta = self.get_matelements_vs_paramvals('n_theta_operator', 'ph', [0],
-                                                              evals_count=cutoff)
-            for i in range(cutoff):
-                ds_table[i] = np.sum(np.abs(np.delete(matelem_theta.matrixelem_table[
-                                                      0, i, :], i) * beta_theta) ** 2 * (
-                                             1 / energy_diff_ij[i] - 1 / energy_diff_ji[i]))
-            tab_g_coupling = matelem_theta.matrixelem_table[0, :, :] * factor * beta_theta
-        elif beta_theta == 0 and beta_phi == 0:
-            matelem_zeta = self.get_matelements_vs_paramvals('n_zeta_operator', 'ph', [0],
-                                                              evals_count=cutoff)
-            for i in range(cutoff):
-                ds_table[i] = np.sum(np.abs(np.delete(matelem_zeta.matrixelem_table[
-                                                      0, i, :], i) * beta_zeta) ** 2 * (
-                                             1 / energy_diff_ij[i] - 1 / energy_diff_ji[i]))
-            tab_g_coupling = matelem_zeta.matrixelem_table[0, :, :] * factor * beta_zeta
-        else:   # take care of the random phase
-            for i in range(cutoff):
-                for j in range(cutoff):
-                    if i != j:
-                        ds_temp = matele_utils.matrix_element(states[:, i], self.n_phi_operator(),
-                                                              states[:, j]) * beta_phi + matele_utils.matrix_element(
-                            states[:, i], self.n_theta_operator(), states[:, j]) * beta_theta + + matele_utils.matrix_element(
-                            states[:, i], self.n_zeta_operator(), states[:, j]) * beta_zeta
-                        ds_table[i] += np.abs(ds_temp) ** 2 * (1 / (eigsys[0][i] - eigsys[0][j] - w_readout) - 1 / (
-                                eigsys[0][j] - eigsys[0][i] - w_readout))
-                        tab_g_coupling[i, j] = ds_temp * factor
-
-        if ratio_plot is True:
-            ratio = np.abs(tab_g_coupling / tab_energy_diff)
-            fig, axes = plt.subplots(figsize=(4, 4))
-            im = axes.imshow(ratio, extent=[0, cutoff - 1, 0, cutoff - 1],
-                             cmap=plt.cm.viridis, vmin=0.01, vmax=1, origin='lower', aspect='auto')
-            divider = make_axes_locatable(axes)
-            cax = divider.append_axes("right", size="2%", pad=0.05)
-            fig.colorbar(im, cax=cax)
-            axes.set_title(r'$|g_{ij}/\Delta_{ij}|$')
-            axes.set_xlabel('i')
-            axes.set_ylabel('j')
-
-        return ds_table * factor ** 2, np.abs(tab_g_coupling / tab_energy_diff), energy, np.abs(tab_g_coupling)
-
-
-    def get_t1_capacitive_loss_channel(self, init_state):
-        """
-        T1 capacitive loss of one particular state
-        """
-        cutoff = init_state + 4
-        energy = self._evals_calc(cutoff)
-        energy_diff = energy[init_state] - energy
-        energy_diff = np.delete(energy_diff, init_state)
-
-        matelem_1 = self.get_matelements_vs_paramvals('charge_jj_1_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[0,
-                    init_state, :]
-        matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('charge_jj_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[0,
-                    init_state, :]
-        matelem_2 = np.delete(matelem_2, init_state)
-
-        s_vv_1 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-        s_vv_2 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-
-        gamma1_cap_1 = np.abs(matelem_1) ** 2 * s_vv_1
-        gamma1_cap_2 = np.abs(matelem_2) ** 2 * s_vv_2
-
-        gamma1_cap_tot = gamma1_cap_1 + gamma1_cap_2
-        return 1 / (gamma1_cap_tot) * 1e-6
-
-    def get_t1_inductive_loss_channel(self, init_state):
-        """
-        T1 inductive loss of one particular state
-        """
-        cutoff = init_state + 4
-        energy = self._evals_calc(cutoff)
-        energy_diff = energy[init_state] - energy
-        energy_diff = np.delete(energy_diff, init_state)
-
-        matelem_1 = self.get_matelements_vs_paramvals('phase_ind_1_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
-        matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('phase_ind_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
-        matelem_2 = np.delete(matelem_2, init_state)
-        matelem_a = self.get_matelements_vs_paramvals('phase_ind_a_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
-        matelem_a = np.delete(matelem_a, init_state)
-
-        s_ii_1 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-        s_ii_2 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-        s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-
-        gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
-        gamma1_ind_2 = np.abs(matelem_2) ** 2 * s_ii_2
-        gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
-
-        gamma1_ind_tot = gamma1_ind_1 + gamma1_ind_2 + gamma1_ind_a
-        return 1 / (gamma1_ind_tot) * 1e-6
-
-    def get_t1_qp_loss_channel(self, init_state):
-        """
-        T1 quasiparticle loss of one particular state
-        """
-        cutoff = init_state + 4
-        energy = self._evals_calc(cutoff)
-        energy_diff = energy[init_state] - energy
-        energy_diff = np.delete(energy_diff, init_state)
-
-        matelem_1 = self.get_matelements_vs_paramvals('sin_phase_jj_1_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
-        matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('sin_phase_jj_2_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
-        matelem_2 = np.delete(matelem_2, init_state)
-
-        s_qp_1 = self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_qp_2 = self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-
-        gamma1_qp_1 = np.abs(matelem_1) ** 2 * s_qp_1
-        gamma1_qp_2 = np.abs(matelem_2) ** 2 * s_qp_2
-
-        gamma1_qp_tot = gamma1_qp_1 + gamma1_qp_2
-        return 1 / (gamma1_qp_tot) * 1e-6
-
-    def get_noise_channel(self, init_state):
-        inductive_loss = self.get_t1_inductive_loss_channel(init_state)
-        capacitive_loss = self.get_t1_capacitive_loss_channel(init_state)
-        qp_loss = self.get_t1_qp_loss_channel(init_state)
-
-        return 1/(1/inductive_loss + 1/capacitive_loss + 1/qp_loss)
-
-    def parity_operator(self):
-        return self.n_phi_operator() + self.n_theta_operator() + self.n_zeta_operator()
-
