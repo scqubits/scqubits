@@ -734,12 +734,7 @@ class VTBBaseMethods(ABC):
     def _evals_esys_calc(self, evals_count: int, eigvals_only: bool, num_cpus: int = 1) -> ndarray:
         """Helper method that wraps the try and except regarding
         singularity/indefiniteness of the inner product matrix"""
-        retained_unit_cell_displacement_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
-        if self.harmonic_length_optimization:
-            optimized_harmonic_lengths = self._optimize_harmonic_lengths(retained_unit_cell_displacement_vectors)
-        else:
-            optimized_harmonic_lengths = None
-        self.translation_op_dict = {}
+        retained_unit_cell_displacement_vectors,  optimized_harmonic_lengths = self._initialize_VTB(num_cpus)
         harmonic_length_minima_comparison = self.compute_localization_ratios()
         if np.max(harmonic_length_minima_comparison) > 1.0:
             warnings.warn("Warning: large harmonic length compared to minima separation "
