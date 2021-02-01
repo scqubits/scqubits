@@ -3,7 +3,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from functools import partial, reduce
-from typing import Callable, List, Tuple, Optional
+from typing import Callable, List, Tuple, Optional, Union
 
 import numpy as np
 from numpy import ndarray
@@ -92,6 +92,7 @@ class VTBBaseMethods(ABC):
                  number_junctions: int,
                  harmonic_length_optimization: bool = False,
                  optimize_all_minima: bool = False,
+                 use_global_min_harmonic_lengths: bool = False,
                  quiet: int = 0,
                  grid: Grid1d = Grid1d(-6 * np.pi, 6 * np.pi, 200),
                  displacement_vector_cutoff: float = 1e-15,
@@ -103,7 +104,12 @@ class VTBBaseMethods(ABC):
         self._number_periodic_degrees_freedom = number_periodic_degrees_freedom
         self._number_junctions = number_junctions
         self.harmonic_length_optimization = harmonic_length_optimization
+        if optimize_all_minima and use_global_min_harmonic_lengths:
+            raise ValueError("Cannot optimize the harmonic lengths of all minima and use the "
+                             "harmonic lengths defined in the global minimum")
         self.optimize_all_minima = optimize_all_minima
+        self.use_global_min_harmonic_lengths = use_global_min_harmonic_lengths
+
         self.quiet = quiet
         self.extended_grid = grid
         self.displacement_vector_cutoff = displacement_vector_cutoff
@@ -274,8 +280,8 @@ class VTBBaseMethods(ABC):
     def _a_operator_array(self) -> ndarray:
         """Helper method to return a list of annihilation operator matrices for each mode"""
         dim = self.number_degrees_freedom
-        num_states_per_minimum = self.number_states_per_minimum()
-        a_operator_array = np.empty((dim, num_states_per_minimum, num_states_per_minimum))
+        num_states_per_min = self.number_states_per_minimum()
+        a_operator_array = np.empty((dim, num_states_per_min, num_states_per_min))
         for i in range(dim):
             a_operator_array[i] = self.a_operator(i)
         return a_operator_array
@@ -295,23 +301,20 @@ class VTBBaseMethods(ABC):
         all_minima_index_pairs = itertools.combinations(sorted_minima_dict.items(), 2)
         retained_unit_cell_displacement_vectors[(0, 0)] = self._unit_cell_vectors_minima_pair(0.0, Xi_inv, num_cpus)
         for ((m, minima_m), (p, minima_p)) in all_minima_index_pairs:
-            minima_diff = Xi_inv @ (minima_p - minima_m)
-            retained_unit_cell_displacement_vectors[(m, p)] = self._unit_cell_vectors_minima_pair(minima_diff, Xi_inv,
-                                                                                                  num_cpus)
+            rotated_minima_diff = Xi_inv @ (minima_p - minima_m)
+            retained_unit_cell_displacement_vectors[(m, p)] = self._unit_cell_vectors_minima_pair(rotated_minima_diff,
+                                                                                                  Xi_inv, num_cpus)
         for m in range(1, number_of_minima):
             retained_unit_cell_displacement_vectors[(m, m)] = retained_unit_cell_displacement_vectors[(0, 0)]
         return retained_unit_cell_displacement_vectors
 
-    def _unit_cell_vectors_minima_pair(self, minima_diff: ndarray, Xi_inv: ndarray, num_cpus: int) -> ndarray:
+    def _unit_cell_vectors_minima_pair(self, rotated_minima_diff: Union[ndarray, float],
+                                       Xi_inv: ndarray, num_cpus: int) -> ndarray:
         """Given a minima pair, generate and then filter the periodic continuation vectors"""
         target_map = get_map_method(num_cpus)
-        dim_extended = self.number_extended_degrees_freedom
-        filtered_vectors = list(target_map(partial(self._generate_and_filter_unit_cell_vectors, minima_diff, Xi_inv),
-                                           np.arange(1, self.maximum_periodic_vector_length + 1)))
-        zero_vec = np.zeros(self.number_periodic_degrees_freedom)
-        if self._filter_single_vector(minima_diff, Xi_inv, zero_vec):
-            filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), zero_vec)))
-        return self._stack_filtered_vectors(filtered_vectors)
+        return self._stack_filtered_vectors(list(target_map(partial(self._generate_and_filter_unit_cell_vectors,
+                                                                    rotated_minima_diff, Xi_inv),
+                                                            np.arange(0, self.maximum_periodic_vector_length + 1))))
 
     @staticmethod
     def _stack_filtered_vectors(filtered_vectors: List) -> Optional[ndarray]:
@@ -347,15 +350,15 @@ class VTBBaseMethods(ABC):
         for filtered_vec in new_vectors:
             filtered_vectors.append(np.concatenate((np.zeros(dim_extended, dtype=int), filtered_vec)))
 
-    def _filter_single_vector(self, minima_diff: ndarray, Xi_inv: ndarray, unit_cell_vector: ndarray) -> bool:
+    def _filter_single_vector(self, rotated_minima_diff: ndarray, Xi_inv: ndarray, unit_cell_vector: ndarray) -> bool:
         """Helper function that does the filtering. Matrix elements are suppressed by a
         gaussian exponential factor, and we filter those that are suppressed below a cutoff.
         Assumption is that extended degrees of freedom precede the periodic d.o.f.
         """
         displacement_vector = 2.0 * np.pi * np.concatenate((np.zeros(self.number_extended_degrees_freedom),
                                                             unit_cell_vector))
-        gaussian_overlap_argument = Xi_inv @ displacement_vector + minima_diff
-        gaussian_overlap = np.exp(-0.25*np.dot(gaussian_overlap_argument, gaussian_overlap_argument))
+        gaussian_overlap_argument = Xi_inv @ displacement_vector + rotated_minima_diff
+        gaussian_overlap = np.exp(-0.25 * gaussian_overlap_argument @ gaussian_overlap_argument)
         return gaussian_overlap > self.displacement_vector_cutoff
 
     def identity(self) -> ndarray:
@@ -406,10 +409,9 @@ class VTBBaseMethods(ABC):
 
     def _all_exp_i_phi_j_operators(self, Xi: ndarray, a_operator_array: ndarray) -> ndarray:
         """Helper method for building all potential operators"""
-        num_junc = self.number_junctions
         num_states_per_min = self.number_states_per_minimum()
-        all_exp_i_phi_j = np.empty((num_junc, num_states_per_min, num_states_per_min), dtype=np.complex_)
-        for j in range(num_junc):
+        all_exp_i_phi_j = np.empty((self.number_junctions, num_states_per_min, num_states_per_min), dtype=np.complex_)
+        for j in range(self.number_junctions):
             all_exp_i_phi_j[j] = self._single_exp_i_phi_j_operator(j, Xi, a_operator_array)
         return all_exp_i_phi_j
 
@@ -420,7 +422,7 @@ class VTBBaseMethods(ABC):
         in each degree of freedom, so that any translation can be built from these by an appropriate
         call to np.matrix_power. Note that we need only use lowering operators, because raising operators can
         be constructed by transposition. We construct both positive and negative 2pi translations to
-        avoid costly calls to `inv` later."""
+        avoid costly calls to `inv` later, which happen implicitly in np.matrix_power."""
         dim = self.number_degrees_freedom
         num_states_per_min = self.number_states_per_minimum()
         exp_a_list = np.empty((dim, num_states_per_min, num_states_per_min))
@@ -462,14 +464,14 @@ class VTBBaseMethods(ABC):
         return translation_op_a_dagger, translation_op_a
 
     def _matrix_power_helper(self, translation_op_with_power: Tuple):
-        (j, exp_a_list, exp_a_minus_list, unit_cell_displacement) = translation_op_with_power
-        if (j, unit_cell_displacement) in self.translation_op_dict:
-            return self.translation_op_dict[(j, unit_cell_displacement)]
-        elif unit_cell_displacement > 0:
-            translation_operator = matrix_power(exp_a_list, unit_cell_displacement)
+        (j, exp_a_list, exp_a_minus_list, unit_cell_vector) = translation_op_with_power
+        if (j, unit_cell_vector) in self.translation_op_dict:
+            return self.translation_op_dict[(j, unit_cell_vector)]
+        elif unit_cell_vector > 0:
+            translation_operator = matrix_power(exp_a_list, unit_cell_vector)
         else:
-            translation_operator = matrix_power(exp_a_minus_list, -unit_cell_displacement)
-        self.translation_op_dict[(j, unit_cell_displacement)] = translation_operator
+            translation_operator = matrix_power(exp_a_minus_list, -unit_cell_vector)
+        self.translation_op_dict[(j, unit_cell_vector)] = translation_operator
         return translation_operator
 
     def _exp_product_coefficient(self, delta_phi: ndarray, Xi_inv: ndarray) -> ndarray:
@@ -673,7 +675,7 @@ class VTBBaseMethods(ABC):
         target_map = get_map_method(num_cpus)
         a_operator_array = self._a_operator_array()
         exp_a_list = self._general_translation_operators(Xi_inv, a_operator_array)
-        num_states_min = self.number_states_per_minimum()
+        num_states_per_min = self.number_states_per_minimum()
         operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex_)
         all_minima_index_pairs = list(itertools.combinations_with_replacement(self.sorted_minima.items(), 2))
         periodic_continuation_for_minima_pair = partial(self._periodic_continuation_for_minima_pair,
@@ -681,8 +683,8 @@ class VTBBaseMethods(ABC):
                                                         retained_unit_cell_displacement_vectors)
         matrix_elements = list(target_map(periodic_continuation_for_minima_pair, all_minima_index_pairs))
         for i, ((m, minima_m), (p, minima_p)) in enumerate(all_minima_index_pairs):
-            operator_matrix[m * num_states_min: (m + 1) * num_states_min,
-                            p * num_states_min: (p + 1) * num_states_min] += matrix_elements[i]
+            operator_matrix[m * num_states_per_min: (m + 1) * num_states_per_min,
+                            p * num_states_per_min: (p + 1) * num_states_per_min] += matrix_elements[i]
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
 
@@ -693,7 +695,7 @@ class VTBBaseMethods(ABC):
         """Helper method for performing the periodic continuation calculation given a minima pair."""
         ((m, minima_m), (p, minima_p)) = minima_index_pair
         minima_pair_displacement_vectors = retained_unit_cell_displacement_vectors[(m, p)]
-        num_states_min = self.number_states_per_minimum()
+        num_states_per_min = self.number_states_per_minimum()
         if minima_pair_displacement_vectors is not None:
             minima_diff = minima_p - minima_m
             exp_minima_difference = self._minima_dependent_translation_operators(minima_diff, Xi_inv,
@@ -703,7 +705,7 @@ class VTBBaseMethods(ABC):
             relevant_vector_contributions = sum(map(displacement_vector_contribution,
                                                     minima_pair_displacement_vectors))
         else:
-            relevant_vector_contributions = np.zeros((num_states_min, num_states_min), dtype=np.complex_)
+            relevant_vector_contributions = np.zeros((num_states_per_min, num_states_per_min), dtype=np.complex_)
         return relevant_vector_contributions
 
     def _displacement_vector_contribution(self, func: Callable, minima_m: ndarray, minima_p: ndarray,
@@ -722,13 +724,13 @@ class VTBBaseMethods(ABC):
         """Return a fully Hermitian matrix, assuming that the input matrix has been
         populated with the upper right blocks"""
         sorted_minima_dict = self.sorted_minima
-        num_states_min = self.number_states_per_minimum()
+        num_states_per_min = self.number_states_per_minimum()
         for m, _ in sorted_minima_dict.items():
             for p in range(m + 1, len(sorted_minima_dict)):
-                matrix_element = mat[m * num_states_min: (m + 1) * num_states_min,
-                                     p * num_states_min: (p + 1) * num_states_min]
-                mat[p * num_states_min: (p + 1) * num_states_min,
-                    m * num_states_min: (m + 1) * num_states_min] += matrix_element.conjugate().T
+                matrix_element = mat[m * num_states_per_min: (m + 1) * num_states_per_min,
+                                     p * num_states_per_min: (p + 1) * num_states_per_min]
+                mat[p * num_states_per_min: (p + 1) * num_states_per_min,
+                    m * num_states_per_min: (m + 1) * num_states_per_min] += matrix_element.conjugate().T
         return mat
 
     def _evals_esys_calc(self, evals_count: int, eigvals_only: bool, num_cpus: int = 1) -> ndarray:
@@ -1054,8 +1056,8 @@ class VTBBaseMethods(ABC):
     def state_amplitudes_function(self, i, evecs, which):
         """Helper method for wavefunction returning the matrix of state amplitudes
         that can be overridden in the case of a global excitation cutoff"""
-        total_num_states = self.number_states_per_minimum()
-        return np.real(np.reshape(evecs[i * total_num_states: (i + 1) * total_num_states, which],
+        num_states_per_min = self.number_states_per_minimum()
+        return np.real(np.reshape(evecs[i * num_states_per_min: (i + 1) * num_states_per_min, which],
                                   (self.num_exc + 1, self.num_exc + 1)))
 
     def wavefunction_amplitudes_function(self, state_amplitudes, normal_mode_1, normal_mode_2):
