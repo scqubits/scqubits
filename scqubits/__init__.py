@@ -33,7 +33,6 @@ from scqubits.core.protomon import Protomon
 from scqubits.core.protomon_ver_0 import Protomon_ver_0
 from scqubits.core.protomon_full import FullProtomon
 from scqubits.core.protomon_full_disorder import DisorderFullProtomon
-from scqubits.core.cosine_two_phi_qubit import CosineTwoPhiQubit
 from scqubits.core.dcpr_dc import Dcpr_dc
 from scqubits.core.rhombus import Rhombus
 from scqubits.core.dcp_tri import Dcptri
