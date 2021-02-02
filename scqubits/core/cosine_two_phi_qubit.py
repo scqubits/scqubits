@@ -11,16 +11,17 @@
 
 import math
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
-from scqubits.core.noise import NoisySystem
+from scqubits.core.noise import NoisySystem, NOISE_PARAMS, calc_therm_ratio
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from scqubits.core.storage import WaveFunctionOnGrid
-
+from abc import ABC, abstractmethod
+import scqubits.core.units as units
 
 import numpy as np
 from scipy import sparse
@@ -42,10 +43,137 @@ import scqubits.utils.plot_defaults as defaults
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scqubits.utils.spectrum_utils import matrix_element
 
+
 # -Cosine two phi qubit noise class
 
-class NoisyCosineTwoPhiQubit(NoisySystem):
-    pass
+class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
+    @abstractmethod
+    def phi_1_operator(self) -> csc_matrix:
+        pass
+
+    @abstractmethod
+    def phi_2_operator(self) -> csc_matrix:
+        pass
+
+    @abstractmethod
+    def N_1_operator(self) -> csc_matrix:
+        pass
+
+    @abstractmethod
+    def N_2_operator(self) -> csc_matrix:
+        pass
+
+    def q_ind(self, energy) -> float:
+        """Frequency dependent quality factor of inductance"""
+        q_ind_0 = 500 * 1e6
+        kbt = 20 * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # temperature unit mK
+        return q_ind_0 * kn(0, 0.5 / 2.0 / kbt) * np.sinh(0.5 / 2.0 / kbt) / kn(0,
+                                                                                energy / 2.0 / kbt) / np.sinh(
+            energy / 2.0 / kbt)
+
+    def t1_capacitive(self,
+                      i: int = 1,
+                      j: int = 0,
+                      Q_cap: Union[float, Callable] = None,
+                      T: float = NOISE_PARAMS['T'],
+                      total: bool = True,
+                      esys: Tuple[ndarray, ndarray] = None,
+                      get_rate: bool = False,
+                      **kwargs
+                      ) -> float:
+        r"""
+        :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
+
+        References:  Nguyen et al (2019), Smith et al (2020)
+
+        Parameters
+        ----------
+        i: int >=0
+            state index that along with j defines a transition (i->j)
+        j: int >=0
+            state index that along with i defines a transition (i->j)
+        Q_cap
+            capacitive quality factor; a fixed value or function of `omega`
+        T:
+            temperature in Kelvin
+        total:
+            if False return a time/rate associated with a transition from state i to state j.
+            if True return a time/rate associated with both i to j and j to i transitions
+        esys:
+            evals, evecs tuple
+        get_rate:
+            get rate or time
+
+        Returns
+        -------
+        time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
+        """
+        if 't1_capacitive' not in self.supported_noise_channels():
+            raise RuntimeError("Noise channel 't1_capacitive' is not supported in this system.")
+
+        if Q_cap is None:
+            # See Smith et al (2020)
+            def q_cap_fun(omega):
+                return 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7
+        elif callable(Q_cap):  # Q_cap is a function of omega
+            q_cap_fun = Q_cap
+        else:  # Q_cap is given as a number
+            def q_cap_fun(omega):
+                return Q_cap
+
+        def spectral_density1(omega):
+            therm_ratio = calc_therm_ratio(omega, T)
+            s1 = 2 * 8 * self.EC / (1 - self.dC) / q_cap_fun(omega) * (1 / np.tanh(0.5 * np.abs(therm_ratio))) / (
+                    1 + np.exp(-therm_ratio))
+            s1 *= 2 * np.pi  # We assume that system energies are given in units of frequency
+            return s1
+
+        def spectral_density2(omega):
+            therm_ratio = calc_therm_ratio(omega, T)
+            s2 = 2 * 8 * self.EC / (1 + self.dC) / q_cap_fun(omega) * (1 / np.tanh(0.5 * np.abs(therm_ratio))) / (
+                    1 + np.exp(-therm_ratio))
+            s2 *= 2 * np.pi  # We assume that system energies are given in units of frequency
+            return s2
+
+        noise_op1 = self.N_1_operator()  # type: ignore
+        noise_op2 = self.N_2_operator()  # type: ignore
+
+        if get_rate:
+            return self.t1(i=i,
+                           j=j,
+                           noise_op=noise_op1,
+                           spectral_density=spectral_density1,
+                           total=total,
+                           esys=esys,
+                           get_rate=get_rate,
+                           **kwargs) + self.t1(i=i,
+                                               j=j,
+                                               noise_op=noise_op2,
+                                               spectral_density=spectral_density2,
+                                               total=total,
+                                               esys=esys,
+                                               get_rate=get_rate,
+                                               **kwargs)
+        else:
+            return 1 / (1 / self.t1(i=i,
+                                    j=j,
+                                    noise_op=noise_op1,
+                                    spectral_density=spectral_density1,
+                                    total=total,
+                                    esys=esys,
+                                    get_rate=get_rate,
+                                    **kwargs) +
+                        1 / self.t1(i=i,
+                                    j=j,
+                                    noise_op=noise_op2,
+                                    spectral_density=spectral_density2,
+                                    total=total,
+                                    esys=esys,
+                                    get_rate=get_rate,
+                                    **kwargs))
+
 
 # -Cosine two phi qubit ----------------------------------------------------------------------------------
 class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosineTwoPhiQubit):
@@ -679,7 +807,8 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
              [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
         wavefunc.amplitudes = amplitude_modifier(
             spec_utils.standardize_phases(wavefunc.amplitudes.reshape(phi_grid.pt_count, varphi_grid.pt_count)))
-        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, xlabel=r'$\varphi$', ylabel=r'$\phi$', **kwargs)
+        return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, xlabel=r'$\varphi$', ylabel=r'$\phi$',
+                                   **kwargs)
 
     def disorder(self) -> csc_matrix:
         """
@@ -721,13 +850,6 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
         """
         return - self.theta_operator() - self.phi_operator() / 2.0
 
-    def q_ind(self, energy) -> float:
-        """Frequency dependent quality factor of inductance"""
-        q_ind_0 = 500 * 1e6
-        return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt) * np.sinh(0.5 / 2.0 / self.kbt) / kn(0,
-                                                                                          energy / 2.0 / self.kbt) / np.sinh(
-            energy / 2.0 / self.kbt)
-
     def N_1_operator(self) -> csc_matrix:
         """
         Returns
@@ -745,19 +867,6 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
             operator represents charge on junction 2
         """
         return self.n_phi_operator() - 0.5 * (self.n_varphi_operator() - self.n_theta_operator())
-
-    def q_cap(self, energy) -> float:
-        """Frequency dependent quality factor of capacitance"""
-        # Devoret paper
-        q_cap_0 = 1 * 1e6
-        return q_cap_0 * (6 / energy) ** 0.7
-
-        # Schuster paper
-        # return 1 / (8e-6)
-
-        # Vlad paper
-        # q_cap_0 = 1/ (3 * 1e-6 )
-        # return q_cap_0 * (6 / energy) ** 0.15
 
     def get_t1_capacitive_loss(self, para_name, para_vals):
         energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
