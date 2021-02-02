@@ -22,6 +22,7 @@ import scqubits.settings
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer
+from scqubits.core.cosine_two_phi_qubit import CosineTwoPhiQubit
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.generic_qubit import GenericQubit
