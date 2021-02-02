@@ -22,6 +22,7 @@ from numpy import ndarray
 from scqubits.core.storage import WaveFunctionOnGrid
 from abc import ABC, abstractmethod
 import scqubits.core.units as units
+import scipy as sp
 
 import numpy as np
 from scipy import sparse
@@ -63,13 +64,115 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
     def N_2_operator(self) -> csc_matrix:
         pass
 
-    def q_ind(self, energy) -> float:
-        """Frequency dependent quality factor of inductance"""
-        q_ind_0 = 500 * 1e6
-        kbt = 20 * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # temperature unit mK
-        return q_ind_0 * kn(0, 0.5 / 2.0 / kbt) * np.sinh(0.5 / 2.0 / kbt) / kn(0,
-                                                                                energy / 2.0 / kbt) / np.sinh(
-            energy / 2.0 / kbt)
+    @abstractmethod
+    def n_theta_operator(self) -> csc_matrix:
+        pass
+
+    def t1_inductive(self,
+                     i: int = 1,
+                     j: int = 0,
+                     Q_ind: Union[float, Callable] = None,
+                     T: float = NOISE_PARAMS['T'],
+                     total: bool = True,
+                     esys: Tuple[ndarray, ndarray] = None,
+                     get_rate: bool = False,
+                     **kwargs
+                     ) -> float:
+        r"""
+        :math:`T_1` due to inductive dissipation in a superinductor.
+
+        References: Nguyen et al (2019), Smith et al (2020)
+
+        Parameters
+        ----------
+        i: int >=0
+            state index that along with j defines a transition (i->j)
+        j: int >=0
+            state index that along with i defines a transition (i->j)
+        Q_ind:
+            inductive quality factor; a fixed value or function of `omega`
+        T:
+            temperature in Kelvin
+        total:
+            if False return a time/rate associated with a transition from state i to state j.
+            if True return a time/rate associated with both i to j and j to i transitions
+        esys:
+            evals, evecs tuple
+        get_rate:
+            get rate or time
+
+        Returns
+        -------
+        time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+        """
+        if 't1_inductive' not in self.supported_noise_channels():
+            raise RuntimeError("Noise channel 't1_inductive' is not supported in this system.")
+
+        if Q_ind is None:
+            # See Smith et al (2020)
+            def q_ind_fun(omega):
+                therm_ratio = abs(calc_therm_ratio(omega, T))
+                therm_ratio_500MHz = calc_therm_ratio(2 * np.pi * 500e6, T, omega_in_standard_units=True)
+                return 500e6 * (sp.special.kv(0, 1/2 * therm_ratio_500MHz) * np.sinh(1/2 * therm_ratio_500MHz)) \
+                    / (sp.special.kv(0, 1/2 * therm_ratio) * np.sinh(1/2 * therm_ratio))   \
+
+        elif callable(Q_ind):  # Q_ind is a function of omega
+            q_ind_fun = Q_ind
+
+        else:  # Q_ind is given as a number
+            def q_ind_fun(omega):
+                return Q_ind
+
+        def spectral_density1(omega):
+            therm_ratio = calc_therm_ratio(omega, T)
+            s = 2 * self.EL / (1 - self.dL) / q_ind_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s *= 2 * np.pi  # We assume that system energies are given in units of frequency
+            return s
+
+        noise_op1 = self.phi_1_operator()   # type: ignore
+
+        def spectral_density2(omega):
+            therm_ratio = calc_therm_ratio(omega, T)
+            s = 2 * self.EL / (1 + self.dL) / q_ind_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s *= 2 * np.pi  # We assume that system energies are given in units of frequency
+            return s
+
+        noise_op2 = self.phi_2_operator()   # type: ignore
+
+        if get_rate:
+            return self.t1(i=i,
+                           j=j,
+                           noise_op=noise_op1,
+                           spectral_density=spectral_density1,
+                           total=total,
+                           esys=esys,
+                           get_rate=get_rate,
+                           **kwargs) + self.t1(i=i,
+                                               j=j,
+                                               noise_op=noise_op2,
+                                               spectral_density=spectral_density2,
+                                               total=total,
+                                               esys=esys,
+                                               get_rate=get_rate,
+                                               **kwargs)
+        else:
+            return 1 / (1 / self.t1(i=i,
+                                    j=j,
+                                    noise_op=noise_op1,
+                                    spectral_density=spectral_density1,
+                                    total=total,
+                                    esys=esys,
+                                    get_rate=get_rate,
+                                    **kwargs) +
+                        1 / self.t1(i=i,
+                                    j=j,
+                                    noise_op=noise_op2,
+                                    spectral_density=spectral_density2,
+                                    total=total,
+                                    esys=esys,
+                                    get_rate=get_rate,
+                                    **kwargs))
 
     def t1_capacitive(self,
                       i: int = 1,
@@ -173,6 +276,76 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
                                     esys=esys,
                                     get_rate=get_rate,
                                     **kwargs))
+
+    def t1_purcell(self,
+                      i: int = 1,
+                      j: int = 0,
+                      Q_cap: Union[float, Callable] = None,
+                      T: float = NOISE_PARAMS['T'],
+                      total: bool = True,
+                      esys: Tuple[ndarray, ndarray] = None,
+                      get_rate: bool = False,
+                      **kwargs
+                      ) -> float:
+        r"""
+        :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
+
+        References:  Nguyen et al (2019), Smith et al (2020)
+
+        Parameters
+        ----------
+        i: int >=0
+            state index that along with j defines a transition (i->j)
+        j: int >=0
+            state index that along with i defines a transition (i->j)
+        Q_cap
+            capacitive quality factor; a fixed value or function of `omega`
+        T:
+            temperature in Kelvin
+        total:
+            if False return a time/rate associated with a transition from state i to state j.
+            if True return a time/rate associated with both i to j and j to i transitions
+        esys:
+            evals, evecs tuple
+        get_rate:
+            get rate or time
+
+        Returns
+        -------
+        time or rate: float
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+
+        """
+        if 't1_capacitive' not in self.supported_noise_channels():
+            raise RuntimeError("Noise channel 't1_capacitive' is not supported in this system.")
+
+        if Q_cap is None:
+            # See Smith et al (2020)
+            def q_cap_fun(omega):
+                return 1e6 * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7
+        elif callable(Q_cap):  # Q_cap is a function of omega
+            q_cap_fun = Q_cap
+        else:  # Q_cap is given as a number
+            def q_cap_fun(omega):
+                return Q_cap
+
+        def spectral_density(omega):
+            therm_ratio = calc_therm_ratio(omega, T)
+            s = 2 * 8 * self.EC * self.x / q_cap_fun(omega) * (1 / np.tanh(0.5 * np.abs(therm_ratio))) / (
+                    1 + np.exp(-therm_ratio))
+            s *= 2 * np.pi  # We assume that system energies are given in units of frequency
+            return s
+
+        noise_op = self.n_theta_operator()  # type: ignore
+
+        return self.t1(i=i,
+                       j=j,
+                       noise_op=noise_op,
+                       spectral_density=spectral_density,
+                       total=total,
+                       esys=esys,
+                       get_rate=get_rate,
+                       **kwargs)
 
 
 # -Cosine two phi qubit ----------------------------------------------------------------------------------
@@ -285,7 +458,8 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
             'tphi_1_over_f_flux',
             'tphi_1_over_f_charge',
             't1_capacitive',
-            't1_inductive'
+            't1_inductive',
+            't1_purcell'
         ]
 
     def dim_phi(self) -> int:
@@ -868,41 +1042,10 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
         """
         return self.n_phi_operator() - 0.5 * (self.n_varphi_operator() - self.n_theta_operator())
 
-    def get_t1_capacitive_loss(self, para_name, para_vals):
-        energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
-                 :, 1]
-        matele_1 = self.get_matelements_vs_paramvals('N_1_operator', para_name, para_vals,
-                                                     evals_count=2).matrixelem_table[:, 0, 1]
-        matele_2 = self.get_matelements_vs_paramvals('N_2_operator', para_name, para_vals,
-                                                     evals_count=2).matrixelem_table[:, 0, 1]
-        s_vv_1 = 2 * np.pi * 16 * self.EC / (1 - self.dC) / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
-        s_vv_2 = 2 * np.pi * 16 * self.EC / (1 + self.dC) / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
-        gamma1_cap_1 = np.abs(matele_1) ** 2 * s_vv_1
-        gamma1_cap_2 = np.abs(matele_2) ** 2 * s_vv_2
-        return 1 / (gamma1_cap_1 + gamma1_cap_2) * 1e-6
 
-    def get_t1_purcell(self, para_name, para_vals):
-        energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
-                 :, 1]
-        matele = self.get_matelements_vs_paramvals('n_theta_operator', para_name, para_vals,
-                                                   evals_count=2).matrixelem_table[:, 0, 1]
-        # note here only matters the shunt capacitance, so EC*x
-        s_vv = 2 * np.pi * 16 * self.EC * self.x / self.q_cap(energy) / np.tanh(energy / 2.0 / self.kbt)
-        gamma1_purcell = np.abs(matele) ** 2 * s_vv
-        return 1 / gamma1_purcell * 1e-6
 
-    def get_t1_inductive_loss(self, para_name, para_vals):
-        energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[
-                 :, 1]
-        matele_1 = self.get_matelements_vs_paramvals('phi_1_operator', para_name, para_vals,
-                                                     evals_count=2).matrixelem_table[:, 0, 1]
-        matele_2 = self.get_matelements_vs_paramvals('phi_2_operator', para_name, para_vals,
-                                                     evals_count=2).matrixelem_table[:, 0, 1]
-        s_ii_1 = 2 * np.pi * 2 * self.EL / (1 - self.dL) / self.q_ind(energy) / np.tanh(energy / 2.0 / self.kbt)
-        s_ii_2 = 2 * np.pi * 2 * self.EL / (1 + self.dL) / self.q_ind(energy) / np.tanh(energy / 2.0 / self.kbt)
-        gamma1_ind_1 = np.abs(matele_1) ** 2 * s_ii_1
-        gamma1_ind_2 = np.abs(matele_2) ** 2 * s_ii_2
-        return 1 / (gamma1_ind_1 + gamma1_ind_2) * 1e-6
+
+
 
     def get_t2_charge_noise(self, para_name, para_vals):
         original_ng = self.Ng
@@ -997,19 +1140,3 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
     #                                                  evals_count=2).matrixelem_table[:, 1, 1]
     #     matele = np.abs(matele_0 - matele_1)
     #     return np.abs(1 / (5e-7 * self.EJ * matele) * 1e-6) / (2 * np.pi)  # unit in ms
-
-    def print_noise(self):
-        t2_charge = self.get_t2_charge_noise('dC', np.array([0]))
-        t2_current = self.get_t2_current_noise('dC', np.array([0]))
-        t2_flux = self.get_t2_flux_noise('dC', np.array([0]))
-        t1_cap = self.get_t1_capacitive_loss('dC', np.array([0]))
-        t1_purcell = self.get_t1_purcell('dC', np.array([0]))
-        t1_ind = self.get_t1_inductive_loss('dC', np.array([0]))
-        t1_tot = 1 / (1 / t1_cap + 1 / t1_ind + 1 / t1_purcell)
-        t2_tot = 1 / (1 / t2_current + 1 / t2_charge + 1 / t2_flux + 1 / t1_tot / 2)
-
-        return print(' T2_charge =', t2_charge, ' ms', '\n T2_current =', t2_current, ' ms', '\n T2_flux =', t2_flux,
-                     ' ms', '\n T1_cap =',
-                     t1_cap, ' ms', '\n T1_Purcell =',
-                     t1_purcell, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1 =', t1_tot, ' ms', '\n T2 =', t2_tot,
-                     ' ms')
