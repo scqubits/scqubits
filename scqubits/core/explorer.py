@@ -46,7 +46,7 @@ class Explorer:
     def __init__(self, sweep, evals_count, figsize=(10, 8)):
         self.param_name = sweep.param_name
         self.param_vals = sweep.param_vals
-        self.param_count = sweep.paramvals_count
+        self.param_count = sweep.slot_count
         self.sweep = sweep
         self.evals_count = evals_count
         self.figsize = figsize

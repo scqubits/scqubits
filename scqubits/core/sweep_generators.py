@@ -39,7 +39,7 @@ def compute_custom_data_sweep(sweep, func, **kwargs):
     ndarray
     """
     return np.asarray([func(sweep, param_index, **kwargs)
-                       for param_index in tqdm(range(sweep.paramvals_count), desc='data sweep', leave=False,
+                       for param_index in tqdm(range(sweep.slot_count), desc='data sweep', leave=False,
                                                disable=settings.PROGRESSBAR_DISABLED)])
 
 
@@ -130,7 +130,7 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
     SpectrumData
     """
     lookup = sweep.lookup
-    param_count = sweep.paramvals_count
+    param_count = sweep.slot_count
     evals_count = sweep.evals_count
     diff_eigenenergy_table = np.empty(shape=(param_count, evals_count))
 
@@ -169,7 +169,7 @@ def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     target_states_list = spec_utils.generate_target_states_list(sweep, initial_state_labels)
     difference_energies_table = []
 
-    for param_index in range(sweep.paramvals_count):
+    for param_index in range(sweep.slot_count):
         difference_energies = []
         initial_energy = lookup.energy_bare_index(initial_state_labels, param_index)
         for target_labels in target_states_list:
