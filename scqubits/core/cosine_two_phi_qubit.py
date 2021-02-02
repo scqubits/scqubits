@@ -28,7 +28,6 @@ import numpy as np
 from scipy import sparse
 from scipy.sparse.linalg import expm, eigsh
 from scipy.special import kn
-import matplotlib.pyplot as plt
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -40,9 +39,6 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
-import scqubits.utils.plot_defaults as defaults
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from scqubits.utils.spectrum_utils import matrix_element
 
 
 # -Cosine two phi qubit noise class
@@ -316,8 +312,8 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
-        if 't1_capacitive' not in self.supported_noise_channels():
-            raise RuntimeError("Noise channel 't1_capacitive' is not supported in this system.")
+        if 't1_purcell' not in self.supported_noise_channels():
+            raise RuntimeError("Noise channel 't1_purcell' is not supported in this system.")
 
         if Q_cap is None:
             # See Smith et al (2020)
@@ -1046,97 +1042,21 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
 
 
 
+    # TODO: 1/f noise
+    def d_hamiltonian_d_flux(self) -> csc_matrix:
+        phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
+            self.flux * np.pi)
+        junction_mat = 1 / 2 * self.EJ * self._kron3(phi_flux_term, self._identity_theta(),
+                                                  self._cos_varphi_operator()) + 2 * self.EJ * self.total_identity()
+        return junction_mat
 
-    def get_t2_charge_noise(self, para_name, para_vals):
-        original_ng = self.Ng
-        self.Ng = 0.0
-        energy_ng_0 = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
-                                                     subtract_ground=True).energy_table[:, 1]
-        self.Ng = 0.5
-        energy_ng_5 = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
-                                                     subtract_ground=True).energy_table[:, 1]
-        self.Ng = original_ng
-        epsilon = np.abs(energy_ng_5 - energy_ng_0)
-        return 1.49734 / epsilon * 1e-6  # unit in ms
+    def d_hamiltonian_d_EJ(self) -> csc_matrix:
+        phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
+            self.flux * np.pi)
+        junction_mat = - 2 * self._kron3(phi_flux_term, self._identity_theta(),
+                                                  self._cos_varphi_operator()) + 2 * self.EJ * self.total_identity()
+        return junction_mat
 
-    # TODO: noise calculated by derivative of energy
-    def get_t2_flux_noise(self, para_name, para_vals):
-        # orginal_flux = getattr(self, 'flux')
-        # delta = 1e-7
-        # pts = 11
-        # flux_list = np.linspace(0.5 - delta, 0.5 + delta, pts)
-        # energy = np.zeros((pts, para_vals.size))
-        # for i in range(pts):
-        #     setattr(self, 'flux', flux_list[i])
-        #     energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
-        #                                                   subtract_ground=True).energy_table[:, 1]
-        # second_derivative = np.gradient(np.gradient(energy, flux_list, axis=0), flux_list, axis=0)[
-        #                     int(np.round(pts / 2)), :]
-        # setattr(self, 'flux', orginal_flux)
-        # return np.abs(1 / (9e-12 * second_derivative) * 1e-6) / (2 * np.pi)  # unit in ms
+    def d_hamiltonian_d_ng(self) -> csc_matrix:
+        return 0
 
-        orginal_flux = getattr(self, 'flux')
-        delta = 1e-6
-        pts = 51
-        flux_list = np.linspace(orginal_flux - delta, orginal_flux + delta, pts)
-        energy = np.zeros((pts, para_vals.size))
-        for i in range(pts):
-            setattr(self, 'flux', flux_list[i])
-            energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
-                                                          subtract_ground=True).energy_table[:, 1]
-        first_derivative = np.gradient(energy, flux_list, axis=0)[int(np.round(pts / 2)), :]
-        second_derivative = np.gradient(np.gradient(energy, flux_list, axis=0), flux_list, axis=0)[
-                            int(np.round(pts / 2)), :]
-        setattr(self, 'flux', orginal_flux)
-
-        first_order = 3e-6 * first_derivative
-        second_order = 9e-12 * second_derivative
-        # print(first_order)
-        # print(second_order)
-        # print(first_derivative)
-        return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
-
-    def get_t2_current_noise(self, para_name, para_vals):
-        orginal_ej = self.EJ
-        delta = 1e-7
-        pts = 11
-        ej_list = np.linspace(orginal_ej - delta, orginal_ej + delta, pts)
-        energy = np.zeros((pts, para_vals.size))
-        for i in range(pts):
-            self.EJ = ej_list[i]
-            energy[i, :] = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2,
-                                                          subtract_ground=True).energy_table[:, 1]
-        first_derivative = np.gradient(energy, ej_list, axis=0)[int(np.round(pts / 2)), :]
-        self.EJ = orginal_ej
-        return np.abs(1 / (5e-7 * orginal_ej * first_derivative) * 1e-6) / (2 * np.pi)  # unit in ms
-
-    # #TODO: noise calculated by derivative of Hamiltonian
-    # def _flux_noise_opertor(self):
-    #     phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
-    #         self.flux * np.pi)
-    #     junction_mat = 1 / 2 * self.EJ * self._kron3(phi_flux_term, self._identity_theta(),
-    #                                               self._cos_varphi_operator()) + 2 * self.EJ * self.total_identity()
-    #     return junction_mat
-    #
-    # def _current_noise_opertor(self):
-    #     phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
-    #         self.flux * np.pi)
-    #     junction_mat = - 2 * self._kron3(phi_flux_term, self._identity_theta(),
-    #                                               self._cos_varphi_operator()) + 2 * self.EJ * self.total_identity()
-    #     return junction_mat
-    #
-    # def get_t2_flux_noise(self, para_name, para_vals):
-    #     matele_0 = self.get_matelements_vs_paramvals('_flux_noise_opertor', para_name, para_vals,
-    #                                                  evals_count=2).matrixelem_table[:, 0, 0]
-    #     matele_1 = self.get_matelements_vs_paramvals('_flux_noise_opertor', para_name, para_vals,
-    #                                                  evals_count=2).matrixelem_table[:, 1, 1]
-    #     matele = np.abs(matele_0 - matele_1)
-    #     return np.abs(1 / (9e-12 * matele) * 1e-6) / (2 * np.pi)  # unit in ms
-    #
-    # def get_t2_current_noise(self, para_name, para_vals):
-    #     matele_0 = self.get_matelements_vs_paramvals('_current_noise_opertor', para_name, para_vals,
-    #                                                  evals_count=2).matrixelem_table[:, 0, 0]
-    #     matele_1 = self.get_matelements_vs_paramvals('_current_noise_opertor', para_name, para_vals,
-    #                                                  evals_count=2).matrixelem_table[:, 1, 1]
-    #     matele = np.abs(matele_0 - matele_1)
-    #     return np.abs(1 / (5e-7 * self.EJ * matele) * 1e-6) / (2 * np.pi)  # unit in ms
