@@ -172,7 +172,7 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
     def gamma_matrix(self, minimum_index: int = 0) -> ndarray:
         dim = self.number_degrees_freedom
         gamma_matrix = np.zeros((dim, dim))
-        min_loc = self.sorted_minima[minimum_index]
+        min_loc = self.sorted_minima_dict[minimum_index]
         Phi0 = 1. / (2 * 1.)  # units where e_charge = 1.
         phi_location = min_loc[0]
         theta_location = min_loc[1]

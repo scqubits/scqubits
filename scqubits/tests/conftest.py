@@ -307,7 +307,7 @@ class VTBTestFunctions(StandardTests):
         testname = self.file_str + '_1.' + io_type
         specdata = SpectrumData.create_from_file(DATADIR + testname)
         self.qbt = self.qbt_type(**specdata.system_params)
-        sorted_minima_dict = self.qbt.sorted_minima
+        sorted_minima_dict = self.qbt.sorted_minima_dict
         retained_unit_cell_displacement_vectors = self.qbt.find_relevant_unit_cell_vectors()
         Xi = self.qbt.Xi_matrix()
         EC_mat = self.qbt.EC_matrix()

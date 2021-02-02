@@ -40,7 +40,7 @@ def run_tests(CM_instance, CM_string):
     read_1 = qubit.read(filename='../scqubits/tests/data/'+CM_string+'_1.hdf5')
     read_1.add_data(transfer_matrix=CM_instance.transfer_matrix())
     sorted_minima_list = []
-    minima_vals = CM_instance.sorted_minima.values()
+    minima_vals = CM_instance.sorted_minima_dict.values()
     for elem in minima_vals:
         sorted_minima_list.append(elem)
     read_1.add_data(sorted_minima=np.array(sorted_minima_list))
