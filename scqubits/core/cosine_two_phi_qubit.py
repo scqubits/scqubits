@@ -11,7 +11,7 @@
 
 import math
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from typing import Any, Dict, List, Tuple, Union, Callable
 
 from scqubits.core.noise import NoisySystem, NOISE_PARAMS, calc_therm_ratio
 from scipy.sparse.csc import csc_matrix
@@ -110,8 +110,8 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
             def q_ind_fun(omega):
                 therm_ratio = abs(calc_therm_ratio(omega, T))
                 therm_ratio_500MHz = calc_therm_ratio(2 * np.pi * 500e6, T, omega_in_standard_units=True)
-                return 500e6 * (sp.special.kv(0, 1/2 * therm_ratio_500MHz) * np.sinh(1/2 * therm_ratio_500MHz)) \
-                    / (sp.special.kv(0, 1/2 * therm_ratio) * np.sinh(1/2 * therm_ratio))   \
+                return 500e6 * (sp.special.kv(0, 1 / 2 * therm_ratio_500MHz) * np.sinh(1 / 2 * therm_ratio_500MHz)) / (
+                        sp.special.kv(0, 1 / 2 * therm_ratio) * np.sinh(1 / 2 * therm_ratio))
 
         elif callable(Q_ind):  # Q_ind is a function of omega
             q_ind_fun = Q_ind
@@ -122,19 +122,21 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
 
         def spectral_density1(omega):
             therm_ratio = calc_therm_ratio(omega, T)
-            s = 2 * self.EL / (1 - self.dL) / q_ind_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s = 2 * self.EL / (1 - self.dL) / q_ind_fun(omega) * (1 / np.tanh(0.5 * np.abs(therm_ratio))) / (
+                    1 + np.exp(-therm_ratio))
             s *= 2 * np.pi  # We assume that system energies are given in units of frequency
             return s
 
-        noise_op1 = self.phi_1_operator()   # type: ignore
+        noise_op1 = self.phi_1_operator()  # type: ignore
 
         def spectral_density2(omega):
             therm_ratio = calc_therm_ratio(omega, T)
-            s = 2 * self.EL / (1 + self.dL) / q_ind_fun(omega) * (1/np.tanh(0.5 * np.abs(therm_ratio))) / (1 + np.exp(-therm_ratio))
+            s = 2 * self.EL / (1 + self.dL) / q_ind_fun(omega) * (1 / np.tanh(0.5 * np.abs(therm_ratio))) / (
+                    1 + np.exp(-therm_ratio))
             s *= 2 * np.pi  # We assume that system energies are given in units of frequency
             return s
 
-        noise_op2 = self.phi_2_operator()   # type: ignore
+        noise_op2 = self.phi_2_operator()  # type: ignore
 
         if get_rate:
             return self.t1(i=i,
@@ -274,17 +276,17 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
                                     **kwargs))
 
     def t1_purcell(self,
-                      i: int = 1,
-                      j: int = 0,
-                      Q_cap: Union[float, Callable] = None,
-                      T: float = NOISE_PARAMS['T'],
-                      total: bool = True,
-                      esys: Tuple[ndarray, ndarray] = None,
-                      get_rate: bool = False,
-                      **kwargs
-                      ) -> float:
+                   i: int = 1,
+                   j: int = 0,
+                   Q_cap: Union[float, Callable] = None,
+                   T: float = NOISE_PARAMS['T'],
+                   total: bool = True,
+                   esys: Tuple[ndarray, ndarray] = None,
+                   get_rate: bool = False,
+                   **kwargs
+                   ) -> float:
         r"""
-        :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
+        :math:`T_1` due to dielectric dissipation in the shunt capacitances.
 
         References:  Nguyen et al (2019), Smith et al (2020)
 
@@ -431,7 +433,7 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
             'EL': 1.0,
             'x': 0.02,
             'dC': 0.0,
-            'dL': 0.3,
+            'dL': 0.6,
             'dJ': 0.0,
             'flux': 0.5,
             'Ng': 0.0,
@@ -452,7 +454,7 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
         return [
             'tphi_1_over_f_cc',
             'tphi_1_over_f_flux',
-            'tphi_1_over_f_charge',
+            'tphi_1_over_f_ng',
             't1_capacitive',
             't1_inductive',
             't1_purcell'
@@ -637,64 +639,6 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
         sin_phi_op += sin_phi_op.conj().T
         return sin_phi_op
 
-    def _exp_i_phi_4_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-        ndarray
-            `e^{i*phi/4}` operator in the harmonic oscillator basis"""
-        exponent = 1j * self._phi_operator() * 0.25
-        return expm(exponent)
-
-    def _cos_phi_4_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-        ndarray
-            `cos phi/4` operator in the harmonic oscillator basis"""
-        cos_phi_op = 0.5 * self._exp_i_phi_4_operator()
-        cos_phi_op += cos_phi_op.conj().T
-        return cos_phi_op
-
-    def _sin_phi_4_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-        ndarray
-            `sin phi/2` operator in the harmonic oscillator basis"""
-        sin_phi_op = -1j * 0.5 * self._exp_i_phi_4_operator()
-        sin_phi_op += sin_phi_op.conj().T
-        return sin_phi_op
-
-    def _exp_i_theta_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-        ndarray
-             `e^{i theta}` operator in the harmonic oscillator basis"""
-        exponent = 1j * self._theta_operator()
-        return expm(exponent)
-
-    def _cos_theta_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-        ndarray
-            `cos theta` operator in the harmonic oscillator basis"""
-        cos_phi_op = 0.5 * self._exp_i_theta_operator()
-        cos_phi_op += cos_phi_op.conj().T
-        return cos_phi_op
-
-    def _sin_theta_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-        ndarray
-            `sin theta` operator in the harmonic oscillator basis"""
-        sin_phi_op = -1j * 0.5 * self._exp_i_theta_operator()
-        sin_phi_op += sin_phi_op.conj().T
-        return sin_phi_op
-
     def _n_varphi_operator(self) -> dia_matrix:
         """
         Returns
@@ -815,6 +759,28 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
 
         hamiltonian_mat = phi_osc_mat + theta_osc_mat + cross_kinetic_mat + junction_mat
         return hamiltonian_mat
+
+    def disorder(self) -> csc_matrix:
+        """
+        Return disordered part of Hamiltonian
+
+        Returns
+        -------
+        ndarray
+        """
+        disorder_l = - self._dis_el() * self.dL * self._kron3(self._phi_operator(), self._theta_operator(),
+                                                              self._identity_varphi())
+
+        phi_flux_term = self._sin_phi_2_operator() * np.cos(self.flux * np.pi) + self._cos_phi_2_operator() * np.sin(
+            self.flux * np.pi)
+        disorder_j = 2 * self.EJ * self.dJ * self._kron3(phi_flux_term, self._identity_theta(),
+                                                         self._sin_varphi_operator())
+
+        n_varphi_ng_mat = self.n_varphi_operator() - self.total_identity() * self.Ng
+        n_theta_mat = self._kron3(self._n_phi_operator(), self._n_theta_operator(), self._identity_varphi())
+        disorder_c = - 8 * self._dis_ec() * self.dC * (n_varphi_ng_mat - n_theta_mat)
+
+        return disorder_l + disorder_j + disorder_c
 
     def potential(self, varphi, phi) -> float:
         """
@@ -980,28 +946,6 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, xlabel=r'$\varphi$', ylabel=r'$\phi$',
                                    **kwargs)
 
-    def disorder(self) -> csc_matrix:
-        """
-        Return disordered part of Hamiltonian
-
-        Returns
-        -------
-        ndarray
-        """
-        disorder_l = - self._dis_el() * self.dL * self._kron3(self._phi_operator(), self._theta_operator(),
-                                                              self._identity_varphi())
-
-        phi_flux_term = self._sin_phi_2_operator() * np.cos(self.flux * np.pi) + self._cos_phi_2_operator() * np.sin(
-            self.flux * np.pi)
-        disorder_j = 2 * self.EJ * self.dJ * self._kron3(phi_flux_term, self._identity_theta(),
-                                                         self._sin_varphi_operator())
-
-        n_varphi_ng_mat = self.n_varphi_operator() - self.total_identity() * self.Ng
-        n_theta_mat = self._kron3(self._n_phi_operator(), self._n_theta_operator(), self._identity_varphi())
-        disorder_c = - 8 * self._dis_ec() * self.dC * (n_varphi_ng_mat - n_theta_mat)
-
-        return disorder_l + disorder_j + disorder_c
-
     def phi_1_operator(self) -> csc_matrix:
         """
         Returns
@@ -1038,25 +982,32 @@ class CosineTwoPhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCosi
         """
         return self.n_phi_operator() - 0.5 * (self.n_varphi_operator() - self.n_theta_operator())
 
-
-
-
-
-    # TODO: 1/f noise
     def d_hamiltonian_d_flux(self) -> csc_matrix:
-        phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
+        phi_flux_term = self._sin_phi_2_operator() * np.cos(self.flux * np.pi) + self._cos_phi_2_operator() * np.sin(
             self.flux * np.pi)
-        junction_mat = 1 / 2 * self.EJ * self._kron3(phi_flux_term, self._identity_theta(),
-                                                  self._cos_varphi_operator()) + 2 * self.EJ * self.total_identity()
-        return junction_mat
+        junction_mat = 2 * self.EJ * self._kron3(phi_flux_term, self._identity_theta(),
+                                                 self._cos_varphi_operator()) * np.pi
+
+        dis_phi_flux_term = self._cos_phi_2_operator() * np.cos(
+            self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
+            self.flux * np.pi)
+        dis_junction_mat = 2 * self.dJ * self.EJ * self._kron3(dis_phi_flux_term, self._identity_theta(),
+                                                               self._sin_varphi_operator()) * np.pi
+        return junction_mat + dis_junction_mat
 
     def d_hamiltonian_d_EJ(self) -> csc_matrix:
         phi_flux_term = self._cos_phi_2_operator() * np.cos(self.flux * np.pi) - self._sin_phi_2_operator() * np.sin(
             self.flux * np.pi)
         junction_mat = - 2 * self._kron3(phi_flux_term, self._identity_theta(),
-                                                  self._cos_varphi_operator()) + 2 * self.EJ * self.total_identity()
-        return junction_mat
+                                         self._cos_varphi_operator())
+
+        dis_phi_flux_term = self._sin_phi_2_operator() * np.cos(
+            self.flux * np.pi) + self._cos_phi_2_operator() * np.sin(
+            self.flux * np.pi)
+        dis_junction_mat = 2 * self.dJ * self._kron3(dis_phi_flux_term, self._identity_theta(),
+                                                     self._sin_varphi_operator())
+        return junction_mat + dis_junction_mat
 
     def d_hamiltonian_d_ng(self) -> csc_matrix:
-        return 0
-
+        return 8 * self.EC * self.dC / (1 - self.dC ** 2) * self.n_phi_operator() - 4 * self.EC * (
+                    self.n_varphi_operator() - self.Ng - self.n_theta_operator())
