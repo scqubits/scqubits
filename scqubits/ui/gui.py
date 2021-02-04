@@ -136,7 +136,7 @@ class GUI:
     #Initialization Methods -------------------------------------------------------------------------------------------------
     def initialize_qubit(self, qubit_name: str) -> None:
         """Initializes self.active_qubit to the user's choice
-        using the default parameters of chosen qubit.
+        using the chosen qubit's default parameters.
 
         Parameters
         ----------
@@ -155,8 +155,8 @@ class GUI:
         self.active_qubit = QubitClass(**init_params)
 
     def set_qubit(self, qubit_name: str) -> None:
-        """Initializes the qubit and creates all the necessary widgets
-        for the GUI.
+        """Sets up the chosen qubit to be the active qubit 
+        and updates the defaults and widgets accordingly.
 
         Parameters
         ----------
@@ -170,7 +170,7 @@ class GUI:
         self.create_qubit_params_widgets()
 
     def get_operators(self) -> List[ str ]:
-        """Return a list of operators.
+        """Returns a list of operators for the active_qubit.
         Note that this list omits any operators that start with "_".
 
         Returns
@@ -185,7 +185,7 @@ class GUI:
         return operator_list
 
     def get_plot_choices(self) -> List[ str ]:
-        """Return a list of plot choices.
+        """Return a list of plot choices for the active qubit.
         
         Returns
         -------
@@ -394,7 +394,6 @@ class GUI:
     def fluxqubit_wavefunction_interactive(self, 
         eigenvalue: Union[ List[ int ], int ], 
         mode_value: str, 
-        manual_scale_tf: bool,
         **params: Dict[ str, Union[ float, int ] ]) -> None:  
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_wavefunction().
 
@@ -532,6 +531,12 @@ class GUI:
             display(image_box)
     
     def energy_scan_qubit_plot(self) -> widgets.interactive:
+        """Returns evals_vs_paramvals_interactive
+
+        Returns
+        -------
+        widgets.interactive
+        """
         self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = True
 
         if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(self.active_qubit, scq.FullZeroPi):
@@ -555,6 +560,12 @@ class GUI:
         return qubit_plot_interactive
 
     def matelem_scan_qubit_plot(self) -> widgets.interactive:
+        """Returns matelem_vs_paramvals_interactive
+
+        Returns
+        -------
+        widgets.interactive
+        """
         self.qubit_plot_options_widgets['mode_dropdown'].value = self.active_defaults['mode_matrixelem']
         self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = True
 
@@ -581,6 +592,12 @@ class GUI:
         return qubit_plot_interactive
 
     def wavefunction_qubit_plot(self) -> widgets.interactive:
+        """Returns wavefunction_interactive
+
+        Returns
+        -------
+        widgets.interactive
+        """
         if isinstance(self.active_qubit, scq.FullZeroPi):
             qubit_plot_interactive = None
         else:
@@ -604,7 +621,6 @@ class GUI:
                                 self.fluxqubit_wavefunction_interactive,  
                                 eigenvalue = which_widget,
                                 mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
-                                manual_scale_tf = self.qubit_plot_options_widgets['manual_scale_checkbox'],
                                 **self.qubit_params_widgets)
             else:
                 qubit_plot_interactive = widgets.interactive(
@@ -618,6 +634,12 @@ class GUI:
         return qubit_plot_interactive
 
     def matelem_qubit_plot(self) -> widgets.interactive:
+        """Returns matrixelements_interactive
+
+        Returns
+        -------
+        widgets.interactive
+        """
         self.qubit_plot_options_widgets['mode_dropdown'].value = self.active_defaults['mode_matrixelem']
         self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = False
 
@@ -668,8 +690,8 @@ class GUI:
 
         Parameters
         ----------
-        qubit_plot_interactive: widgets.interactive
-            Current interactive chosen.
+        qubit_plot_interactive: 
+
         """
         if qubit_plot_interactive is None:
             display('FullZeroPi currently does not have Wavefunctions implemented.')
@@ -691,6 +713,17 @@ class GUI:
         display(qubit_plot_interactive)
 
     def create_qubit_plot_interactive(self, plot_value: str) -> widgets.interactive:
+        """Returns an interactive widget based off of current plot choice
+
+        Parameters
+        ----------
+        plot_value:
+
+        Returns
+        -------
+        widgets.interactive
+
+        """
         if plot_value == 'Energy spectrum':
             return self.energy_scan_qubit_plot()
         elif plot_value == 'Matrix element scan':
@@ -903,7 +936,7 @@ class GUI:
         widget_list.append(VBox([*qubit_plot_interactive.children[initial_index:-1]]))
         
         return widget_list
-        
+
     def create_GUI(self) -> Tuple[ widgets.VBox, widgets.interactive_output ]:
         """Creates an interactive (e.g. the buttons at the top) that 
         interacts with qubit_plot_interactive.
