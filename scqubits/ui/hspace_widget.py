@@ -46,6 +46,7 @@ class HilbertSpaceUi:
         self.interactions_dict = {}
 
         # == subsystems panel =========================================================
+        label = ipywidgets.Label(
             value="Select all HilbertSpace\n subsystems (Ctrl-Click)"
         )
         self.subsys_refresh_button = ipywidgets.Button(
