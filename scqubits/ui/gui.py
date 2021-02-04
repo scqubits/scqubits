@@ -41,7 +41,7 @@ class GUI:
             'scan_param': 'ng',
             'operator': 'n_operator',
             'ncut': {'min': 10, 'max': 50},
-            'scale': 2.7135246640928474
+            'scale': 1
         }
         tunabletransmon_defaults = {**global_defaults,
             'scan_param': 'flux',
@@ -49,14 +49,14 @@ class GUI:
             'EJmax': global_defaults['EJ'],
             'd': {'min': 0, 'max': 1},
             'ncut': {'min': 10, 'max': 50},
-            'scale': 3.47803091548252
+            'scale': 1
         }
         fluxonium_defaults = {**global_defaults,
             'scan_param': 'flux',
             'operator': 'n_operator',
             'EL': {'min': 1e-10, 'max': 30},
             'cutoff': {'min': 10, 'max': 120},
-            'scale': 8.200261546865713
+            'scale': 1
         }
         fluxqubit_defaults = {**global_defaults,
             'scan_param': 'flux',
@@ -747,78 +747,71 @@ class GUI:
                                 output)
         display(qubit_plot_interactive)
 
-    def create_qubit_plot_interactive(self, 
-        qubit_value: str, 
-        qubit_info: bool, 
-        plot_value: str) -> None:
-        """Creates the interactive and then displays it.
+    def display_qubit_info(self, qubit_info: bool) -> None:
+        """
 
         Parameters
         ----------
-        qubit_value:
-            Current qubit chosen.
-
-        qubit_info:
-
-        plot_value:
-            Current plot option chosen
-        """       
-        self.set_qubit(qubit_value)
-
+        qubit_info: bool
+        """
         if qubit_info:
             image_box = widgets.Box(layout = Layout(justify_content = 'center'))
             image_box.children = [ self.qubit_plot_options_widgets['qubit_info_image_widget'] ]
             display(image_box)
-            
-        if plot_value == 'Energy spectrum':
-            self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = True
+    
+    def energy_scan_interactive(self) -> widgets.interactive:
+        self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = True
 
-            if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(self.active_qubit, scq.FullZeroPi):
-                qubit_plot_interactive = widgets.interactive(
-                    self.zeropi_evals_vs_paramvals_interactive,
-                    scan_value = self.qubit_plot_options_widgets['scan_dropdown'], 
-                    scan_range = self.qubit_plot_options_widgets['scan_range_slider'], 
-                    grid_range = self.qubit_plot_options_widgets['grid_range_slider'],
-                    subtract_ground_tf = self.qubit_plot_options_widgets['subtract_ground_checkbox'], 
-                    eigenvalue_amount_value = self.qubit_plot_options_widgets['eigenvalue_amount_slider'], 
-                    **self.qubit_params_widgets)
-            else:
-                qubit_plot_interactive = widgets.interactive(
-                    self.evals_vs_paramvals_interactive,
-                    scan_value = self.qubit_plot_options_widgets['scan_dropdown'], 
-                    scan_range = self.qubit_plot_options_widgets['scan_range_slider'], 
-                    subtract_ground_tf = self.qubit_plot_options_widgets['subtract_ground_checkbox'], 
-                    eigenvalue_amount_value = self.qubit_plot_options_widgets['eigenvalue_amount_slider'], 
-                    **self.qubit_params_widgets)
+        if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(self.active_qubit, scq.FullZeroPi):
+            qubit_plot_interactive = widgets.interactive(
+                self.zeropi_evals_vs_paramvals_interactive,
+                scan_value = self.qubit_plot_options_widgets['scan_dropdown'], 
+                scan_range = self.qubit_plot_options_widgets['scan_range_slider'], 
+                grid_range = self.qubit_plot_options_widgets['grid_range_slider'],
+                subtract_ground_tf = self.qubit_plot_options_widgets['subtract_ground_checkbox'], 
+                eigenvalue_amount_value = self.qubit_plot_options_widgets['eigenvalue_amount_slider'], 
+                **self.qubit_params_widgets)
+        else:
+            qubit_plot_interactive = widgets.interactive(
+                self.evals_vs_paramvals_interactive,
+                scan_value = self.qubit_plot_options_widgets['scan_dropdown'], 
+                scan_range = self.qubit_plot_options_widgets['scan_range_slider'], 
+                subtract_ground_tf = self.qubit_plot_options_widgets['subtract_ground_checkbox'], 
+                eigenvalue_amount_value = self.qubit_plot_options_widgets['eigenvalue_amount_slider'], 
+                **self.qubit_params_widgets)
 
-        elif plot_value == 'Matrix element scan':
-            self.qubit_plot_options_widgets['mode_dropdown'].value = self.active_defaults['mode_matrixelem']
-            self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = True
+        return qubit_plot_interactive
 
-            if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(self.active_qubit, scq.FullZeroPi):
-                qubit_plot_interactive = widgets.interactive(
-                    self.zeropi_matelem_vs_paramvals_interactive, 
-                    operator_value = self.qubit_plot_options_widgets['operator_dropdown'],
-                    scan_value = self.qubit_plot_options_widgets['scan_dropdown'], 
-                    scan_range = self.qubit_plot_options_widgets['scan_range_slider'], 
-                    grid_range = self.qubit_plot_options_widgets['grid_range_slider'],
-                    matrix_element_amount_value = self.qubit_plot_options_widgets['matrix_element_amount_slider'], 
-                    mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
-                    **self.qubit_params_widgets)
-            else:
-                qubit_plot_interactive = widgets.interactive(
-                    self.matelem_vs_paramvals_interactive, 
-                    operator_value = self.qubit_plot_options_widgets['operator_dropdown'],
-                    scan_value = self.qubit_plot_options_widgets['scan_dropdown'], 
-                    scan_range = self.qubit_plot_options_widgets['scan_range_slider'], 
-                    matrix_element_amount_value = self.qubit_plot_options_widgets['matrix_element_amount_slider'], 
-                    mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
-                    **self.qubit_params_widgets)
-                
-        elif plot_value == 'Wavefunctions' and qubit_value == 'FullZeroPi':
+    def matelem_scan_interactive(self) -> widgets.interactive:
+        self.qubit_plot_options_widgets['mode_dropdown'].value = self.active_defaults['mode_matrixelem']
+        self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = True
+
+        if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(self.active_qubit, scq.FullZeroPi):
+            qubit_plot_interactive = widgets.interactive(
+                self.zeropi_matelem_vs_paramvals_interactive, 
+                operator_value = self.qubit_plot_options_widgets['operator_dropdown'],
+                scan_value = self.qubit_plot_options_widgets['scan_dropdown'], 
+                scan_range = self.qubit_plot_options_widgets['scan_range_slider'], 
+                grid_range = self.qubit_plot_options_widgets['grid_range_slider'],
+                matrix_element_amount_value = self.qubit_plot_options_widgets['matrix_element_amount_slider'], 
+                mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
+                **self.qubit_params_widgets)
+        else:
+            qubit_plot_interactive = widgets.interactive(
+                self.matelem_vs_paramvals_interactive, 
+                operator_value = self.qubit_plot_options_widgets['operator_dropdown'],
+                scan_value = self.qubit_plot_options_widgets['scan_dropdown'], 
+                scan_range = self.qubit_plot_options_widgets['scan_range_slider'], 
+                matrix_element_amount_value = self.qubit_plot_options_widgets['matrix_element_amount_slider'], 
+                mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
+                **self.qubit_params_widgets)
+
+        return qubit_plot_interactive
+
+    def wavefunctions_interactive(self) -> widgets.interactive:
+        if isinstance(self.active_qubit, scq.FullZeroPi):
             qubit_plot_interactive = None
-            
-        elif plot_value == 'Wavefunctions' and qubit_value != 'FullZeroPi':
+        else:
             self.qubit_plot_options_widgets['mode_dropdown'].value = self.active_defaults['mode_wavefunc']
             self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = False
 
@@ -849,30 +842,63 @@ class GUI:
                                 manual_scale_tf = self.qubit_plot_options_widgets['manual_scale_checkbox'],
                                 scale_value = self.qubit_plot_options_widgets['wavefunction_scale_slider'],
                                 **self.qubit_params_widgets)
+        
+        return qubit_plot_interactive
 
+    def matelem_interactive(self) -> widgets.interactive:
+        self.qubit_plot_options_widgets['mode_dropdown'].value = self.active_defaults['mode_matrixelem']
+        self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = False
+
+        if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(self.active_qubit, scq.FullZeroPi):
+            qubit_plot_interactive = widgets.interactive(
+                                            self.zeropi_matrixelements_interactive, 
+                                            operator_value = self.qubit_plot_options_widgets['operator_dropdown'],                                                  
+                                            eigenvalue_amount_value = self.qubit_plot_options_widgets['eigenvalue_amount_slider'], 
+                                            mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
+                                            grid_range = self.qubit_plot_options_widgets['grid_range_slider'],
+                                            show_numbers_tf = self.qubit_plot_options_widgets['show_numbers_checkbox'],
+                                            show3d_tf = self.qubit_plot_options_widgets['show3d_checkbox'],
+                                            **self.qubit_params_widgets)
+        else:
+            qubit_plot_interactive = widgets.interactive(
+                                            self.matrixelements_interactive, 
+                                            operator_value = self.qubit_plot_options_widgets['operator_dropdown'],                                                  
+                                            eigenvalue_amount_value = self.qubit_plot_options_widgets['eigenvalue_amount_slider'], 
+                                            mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
+                                            show_numbers_tf = self.qubit_plot_options_widgets['show_numbers_checkbox'],
+                                            show3d_tf = self.qubit_plot_options_widgets['show3d_checkbox'],
+                                            **self.qubit_params_widgets)
+        return qubit_plot_interactive
+
+    def create_qubit_plot_interactive(self, plot_value: str) -> widgets.interactive:
+        if plot_value == 'Energy spectrum':
+            return self.energy_scan_interactive()
+        elif plot_value == 'Matrix element scan':
+            return self.matelem_scan_interactive()
+        elif plot_value == 'Wavefunctions':
+            return self.wavefunction_interactive()
         elif plot_value == 'Matrix elements':
-            self.qubit_plot_options_widgets['mode_dropdown'].value = self.active_defaults['mode_matrixelem']
-            self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = False
+            return self.matelem_interactive()
 
-            if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(self.active_qubit, scq.FullZeroPi):
-                qubit_plot_interactive = widgets.interactive(
-                                                self.zeropi_matrixelements_interactive, 
-                                                operator_value = self.qubit_plot_options_widgets['operator_dropdown'],                                                  
-                                                eigenvalue_amount_value = self.qubit_plot_options_widgets['eigenvalue_amount_slider'], 
-                                                mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
-                                                grid_range = self.qubit_plot_options_widgets['grid_range_slider'],
-                                                show_numbers_tf = self.qubit_plot_options_widgets['show_numbers_checkbox'],
-                                                show3d_tf = self.qubit_plot_options_widgets['show3d_checkbox'],
-                                                **self.qubit_params_widgets)
-            else:
-                qubit_plot_interactive = widgets.interactive(
-                                                self.matrixelements_interactive, 
-                                                operator_value = self.qubit_plot_options_widgets['operator_dropdown'],                                                  
-                                                eigenvalue_amount_value = self.qubit_plot_options_widgets['eigenvalue_amount_slider'], 
-                                                mode_value = self.qubit_plot_options_widgets['mode_dropdown'],
-                                                show_numbers_tf = self.qubit_plot_options_widgets['show_numbers_checkbox'],
-                                                show3d_tf = self.qubit_plot_options_widgets['show3d_checkbox'],
-                                                **self.qubit_params_widgets)
+    def display_qubit_plot_interactive(self, 
+        qubit_value: str, 
+        qubit_info: bool, 
+        plot_value: str) -> None:
+        """Creates the interactive and then displays it.
+
+        Parameters
+        ----------
+        qubit_value:
+            Current qubit chosen.
+
+        qubit_info:
+
+        plot_value:
+            Current plot option chosen
+        """       
+        self.set_qubit(qubit_value)
+        self.display_qubit_info(qubit_info)
+        qubit_plot_interactive = self.create_qubit_plot_interactive(plot_value)
         self.display_interactive(qubit_plot_interactive)
 
     def create_GUI(self) -> Tuple[ widgets.VBox, widgets.interactive_output ]:
@@ -890,7 +916,7 @@ class GUI:
         qubit_and_plot_choice_widgets = widgets.VBox([qubit_choice_hbox, plot_choice_hbox])
         
         qubit_and_plot_choice_interactive = widgets.interactive_output(
-                                            self.create_qubit_plot_interactive,
+                                            self.display_qubit_plot_interactive,
                                             {'qubit_value': self.qubit_and_plot_choice_widgets['qubit_buttons'],
                                             'qubit_info': self.qubit_and_plot_choice_widgets['show_qubitinfo_checkbox'],
                                             'plot_value': self.qubit_and_plot_choice_widgets['plot_buttons']})
