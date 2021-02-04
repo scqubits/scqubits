@@ -9,18 +9,15 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-
 import functools
 import itertools
 import weakref
+
 from abc import ABC
 from collections import Mapping
-from typing import Any, Callable, Dict, Iterable, List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
-from numpy import ndarray
-from qutip.qobj import Qobj
-
 import scqubits as scq
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -32,6 +29,9 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
+
+from numpy import ndarray
+from qutip.qobj import Qobj
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.qubit_base import QubitBaseClass
@@ -52,7 +52,7 @@ QuantumSys = Union[QubitBaseClass, Oscillator]
 Number = Union[int, float, complex]
 
 
-class NamedSlotsSliceable:
+class NamedSliceableSlots:
     """
     This mixin class applies to multi-dimensional arrays, for which the leading M dimensions are each associated with
     a slot name and a corresponding array of slot values (float or complex or str). All standard slicing of the
@@ -99,13 +99,16 @@ class NamedSlotsSliceable:
     A special treatment is reserved for a pure string entry in position 0: this string will be directly converted into
     an index via the corresponding values_by_slotindex.
     """
+
     values_by_slotname: Dict[str, Iterable]
     values_by_slotindex: Dict[int, Iterable]
     slotname_by_slotindex: Dict[str, int]
     slotindex_by_slotname: Dict[int, str]
     data_callback: Union[ndarray, Callable]
 
-    def __getitem__(self, multi_index: Union[Number, Tuple[Union[Number, slice], ...]]) -> Any:
+    def __getitem__(
+        self, multi_index: Union[Number, Tuple[Union[Number, slice], ...]]
+    ) -> Any:
         """Overwrites the magic method for element selection and slicing to support the extended slicing options."""
         if not isinstance(multi_index, tuple):
             multi_index = (multi_index,)
@@ -114,9 +117,9 @@ class NamedSlotsSliceable:
             return self.data_callback(self.convert_to_standard_multi_index(multi_index))
         return self.data_callback[self.convert_to_standard_multi_index(multi_index)]
 
-    def convert_slotnames_to_indices(self,
-                                     multi_index: Tuple[Union[Number, slice], ...]
-                                     ) -> Tuple[Union[Number, slice], ...]:
+    def convert_slotnames_to_indices(
+        self, multi_index: Tuple[Union[Number, slice], ...]
+    ) -> Tuple[Union[Number, slice], ...]:
         """Converts a name-based multi-index into a position-based multi-index."""
         converted_multi_index = [slice(None)] * self.slot_count
         for this_slice in multi_index:
@@ -129,15 +132,19 @@ class NamedSlotsSliceable:
                     converted_slice = slice(this_slice.stop, this_slice.step)
                 converted_multi_index[index] = converted_slice
             except (AttributeError, KeyError):
-                raise Exception("Slicing error: could not convert slot-name based slices to ordinary slices.")
+                raise Exception(
+                    "Slicing error: could not convert slot-name based slices to ordinary slices."
+                )
         return tuple(converted_multi_index)
 
-    def convert_to_standard_multi_index(self,
-                                        multi_index: Tuple[Union[Number, slice], ...]
-                                        ) -> Tuple[Union[int, slice], ...]:
+    def convert_to_standard_multi_index(
+        self, multi_index: Tuple[Union[Number, slice], ...]
+    ) -> Tuple[Union[int, slice], ...]:
         """Takes an extended-syntax multi-index_entry and converts it to a standard position-based multi-index_entry
         with only integer-valued indices."""
-        index_entry = multi_index[0]  # inspect first index_entry to determine whether multi-index_entry is name-based
+        index_entry = multi_index[
+            0
+        ]  # inspect first index_entry to determine whether multi-index_entry is name-based
         if isinstance(index_entry, slice) and isinstance(index_entry.start, str):
             # Multi-index_entry is name-based (slices with a str as the start attribute)
             # -> convert to position-based multi-index_entry
@@ -155,22 +162,30 @@ class NamedSlotsSliceable:
             elif isinstance(index_entry, (float, complex)):
                 # individual value-based index_entry
                 value = index_entry
-                processed_multi_index[position] = self.get_index_closest_value(value,
-                                                                               self.values_by_slotindex[position])
+                processed_multi_index[position] = self.get_index_closest_value(
+                    value, self.values_by_slotindex[position]
+                )
             elif isinstance(index_entry, str) and position == 0:
-                processed_multi_index[position] = np.where(self.values_by_slotindex[0] == index_entry)[0]
+                processed_multi_index[position] = np.where(
+                    self.values_by_slotindex[0] == index_entry
+                )[0]
             elif isinstance(index_entry, slice):
                 # slice objects must be checked for internal value-based entries in start and stop attributes
-                this_slice = (index_entry if self.is_standard_slice(index_entry)
-                              else self.convert_to_standard_slice(index_entry, position))
+                this_slice = (
+                    index_entry
+                    if self.is_standard_slice(index_entry)
+                    else self.convert_to_standard_slice(index_entry, position)
+                )
                 processed_multi_index[position] = this_slice
         return tuple(processed_multi_index)
 
     def is_standard_slice(self, this_slice: slice) -> bool:
         """Checks whether slice is standard, i.e., all entries for start, stop, and step are integers."""
-        if (isinstance(this_slice.start, (int, type(None))) and
-                isinstance(this_slice.stop, (int, type(None))) and
-                isinstance(this_slice.step, (int, type(None)))):
+        if (
+            isinstance(this_slice.start, (int, type(None)))
+            and isinstance(this_slice.stop, (int, type(None)))
+            and isinstance(this_slice.step, (int, type(None)))
+        ):
             return True
         return False
 
@@ -199,27 +214,35 @@ class NamedSlotsSliceable:
         return location
 
 
-class NamedSlotsArray(np.ndarray, NamedSlotsSliceable):
+class NamedSlotsNdarray(np.ndarray, NamedSliceableSlots):
     def __new__(cls, input_array: np.ndarray, values_by_name: Dict[str, Iterable]):
         obj = np.asarray(input_array).view(cls)
         obj.values_by_slotname = values_by_name
-        obj.slotindex_by_slotname = {name: index for index, name in enumerate(values_by_name.keys())}
-        obj.slotname_by_slotindex = {index: name for name, index in obj.slotindex_by_slotname.items()}
-        obj.values_by_slotindex = {obj.slotindex_by_slotname[name]: values_by_name[name]
-                                   for name in values_by_name.keys()}
+        obj.slotindex_by_slotname = {
+            name: index for index, name in enumerate(values_by_name.keys())
+        }
+        obj.slotname_by_slotindex = {
+            index: name for name, index in obj.slotindex_by_slotname.items()
+        }
+        obj.values_by_slotindex = {
+            obj.slotindex_by_slotname[name]: values_by_name[name]
+            for name in values_by_name.keys()
+        }
         obj.data_callback = None
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
-        self.values_by_name = getattr(obj, 'values_by_slotname', None)
-        self.slotindex_by_slotname = getattr(obj, 'slotindex_by_slotname', None)
-        self.slotname_by_slotindex = getattr(obj, 'slotname_by_slotindex', None)
-        self.values_by_index = getattr(obj, 'values_by_slotindex', None)
-        self.data_callback = getattr(obj, 'data_callback', None)
+        self.values_by_name = getattr(obj, "values_by_slotname", None)
+        self.slotindex_by_slotname = getattr(obj, "slotindex_by_slotname", None)
+        self.slotname_by_slotindex = getattr(obj, "slotname_by_slotindex", None)
+        self.values_by_index = getattr(obj, "values_by_slotindex", None)
+        self.data_callback = getattr(obj, "data_callback", None)
 
-    def __getitem__(self, multi_index: Union[Number, Tuple[Union[Number, slice], ...]]) -> Any:
+    def __getitem__(
+        self, multi_index: Union[Number, Tuple[Union[Number, slice], ...]]
+    ) -> Any:
         """Overwrites the magic method for element selection and slicing to support the extended slicing options."""
         if not isinstance(multi_index, tuple):
             multi_index = (multi_index,)
@@ -227,24 +250,63 @@ class NamedSlotsArray(np.ndarray, NamedSlotsSliceable):
 
 
 class Sweep1(Mapping):
-    def __init__(self,
-                 hilbertspace: HilbertSpace,
-                 paramvals_by_name: Dict[str, ndarray],
-                 sweep_generators: Dict[str, Callable],
-                 evals_count=6,
-                 subsys_update_info: Dict[str, List[QuantumSys]] = None,
-                 generate_spectrum_lookups=True,
-                 autorun=settings.AUTORUN_SWEEP
-                 ):
+    """
+    Sweep acts like a dictionary
+    {
+      'evals': NamedSlotsNdarray
+      'evecs': NamedSlotsNdArray
+      'lookup': NamedSlotsNdArray (?)
+      '<observable1>': NamedSlotsNdarray
+      '<observable2>': NamedSlotsNdarray
+      ...
+    }
+
+    Parameters
+    ----------
+    hilbertspace:
+    paramvals_by_name:
+    sweep_generators:
+    evals_count:
+        number of dressed eigenvalues/eigenstates to keep. (The number of bare eigenvalues/eigenstates is determined
+        for each subsystem by `truncated_dim`.)
+    subsys_update_info:
+        To speed up calculations, the user may provide information on specifying which subsystems are being updated
+        for each of the given parameter sweeps. This information is specified by a dictionary of the following form:
+        {
+         '<parameter name 1>': [<subsystem a>],
+         '<parameter name 2>': [<subsystem b>, <subsystem c>, ...],
+          ...
+        }
+        This indicates that changes in <parameter name 1> only require updates of <subsystem a> while leaving other
+        subsystems unchanged. Similarly, sweeping <parameter name 2> affects <subsystem b>, <subsystem c> etc.
+
+    generate_spectrum_lookup:
+    autorun:
+    num_cpus:
+        number of CPUS requested for computing the sweep (default value settings.NUM_CPUS)
+    """
+
+    def __init__(
+        self,
+        hilbertspace: HilbertSpace,
+        paramvals_by_name: Dict[str, ndarray],
+        sweep_generators: Dict[str, Callable],
+        evals_count: int = 6,
+        subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
+        generate_spectrum_lookup: bool = True,
+        autorun: bool = settings.AUTORUN_SWEEP,
+        num_cpus: int = settings.NUM_CPUS,
+    ):
         # self.values_by_slotname = paramvals_by_name
         # self.slotindex_by_slotname = {name: index for index, name in enumerate(self.values_by_slotname.keys())}
         # self.slotname_by_slotindex = {index: name for name, index in self.slotindex_by_slotname.items()}
         # self.values_by_slotindex = {self.slotindex_by_slotname[name]: self.values_by_slotname[name]
         #                             for name in self.values_by_slotname.keys()}
 
-        # loop_order = loop_order or list(paramvals_by_name.keys())
-        self._paramvals_by_name = paramvals_by_name   # OrderedDict([(name, paramvals_by_name[name]) for name in loop_order])
-        self._paramvals_count_by_name = {name: len(paramvals_by_name[name]) for name in paramvals_by_name.keys()}
+        self._paramvals_by_name = paramvals_by_name
+        self._paramvals_count_by_name = {
+            name: len(paramvals_by_name[name]) for name in paramvals_by_name.keys()
+        }
         self._hilbertspace = hilbertspace
         self._system_info = hilbertspace.__str__()
         self._sweep_generators = sweep_generators
@@ -253,64 +315,82 @@ class Sweep1(Mapping):
         self._subsys_update_info = subsys_update_info
         # self._shape = tuple([len(value) for value in self.values_by_slotindex.values()])
         self._spectrum_lookup = None
-        self._data: Dict[str, Optional[NamedSlotsArray]]
-        self._data['spec_lookup'] = None
+        self._data: Dict[str, Optional[NamedSlotsNdarray]]
+        self._data["spec_lookup"] = None
 
         if autorun:
             self.generate_sweeps()
 
     def set_loop_order(self):
-        performance_cost = {scq.FullZeroPi: 50,
-                            scq.ZeroPi: 20,
-                            scq.FluxQubit: 20,
-                            scq.Fluxonium: 4,
-                            scq.TunableTransmon: 2,
-                            scq.Transmon: 2,
-                            scq.Oscillator: 1}
+        performance_cost = {
+            scq.FullZeroPi: 50,
+            scq.ZeroPi: 20,
+            scq.FluxQubit: 20,
+            scq.Fluxonium: 4,
+            scq.TunableTransmon: 2,
+            scq.Transmon: 2,
+            scq.Oscillator: 1,
+        }
 
         def nested_loop_cost(paramnames_ordering):
             outermost_paramname = paramnames_ordering[0]
             outermost_iterations = len(self._paramvals_by_name[outermost_paramname])
-            cost_per_iteration = sum([performance_cost[type(subsys)]
-                                      for subsys in self._update_subsys_list[outermost_paramname]])
+            cost_per_iteration = sum(
+                [
+                    performance_cost[type(subsys)]
+                    for subsys in self._update_subsys_list[outermost_paramname]
+                ]
+            )
             if len(paramnames_ordering) == 1:
                 return outermost_iterations * cost_per_iteration
-            return outermost_iterations * (cost_per_iteration + nested_loop_cost(paramnames_ordering[1:]))
+            return outermost_iterations * (
+                cost_per_iteration + nested_loop_cost(paramnames_ordering[1:])
+            )
 
-        paramname_permutations = itertools.permutations(list(self._paramvals_by_name.keys()))
-        loop_costs = [(paramname_list, nested_loop_cost(paramname_list)) for paramname_list in paramname_permutations]
+        paramname_permutations = itertools.permutations(
+            list(self._paramvals_by_name.keys())
+        )
+        loop_costs = [
+            (paramname_list, nested_loop_cost(paramname_list))
+            for paramname_list in paramname_permutations
+        ]
         loop_order = sorted(loop_costs, key=lambda item: item[1])[0][0]
         return loop_order
 
-    def recursive_loops(self,
-                        paramvals_list: List[Iterable],
-                        sweep_name: str,
-                        sweep_func: Callable,
-                        param_indices: Tuple[int, ...] = tuple(),
-                        param_values: Tuple[Iterable, ...] = tuple()
-                        ) -> None:
+    def recursive_loops(
+        self,
+        paramvals_list: List[Iterable],
+        sweep_name: str,
+        sweep_func: Callable,
+        param_indices: Tuple[int, ...] = tuple(),
+        param_values: Tuple[Iterable, ...] = tuple(),
+    ) -> None:
         loop_count = len(paramvals_list)
         if loop_count == 1:
             for index, value in enumerate(paramvals_list[0]):
-                self._data[sweep_name] = sweep_func(param_indices + (index,),
-                                                    param_values + (value,),
-                                                    self._data['spec_lookup'])
+                self._data[sweep_name] = sweep_func(
+                    param_indices + (index,),
+                    param_values + (value,),
+                    self._data["spec_lookup"],
+                )
         else:
             for index, value in enumerate(paramvals_list[0]):
-                recursive_loops(paramvals_list[1:],
-                                sweep_name,
-                                sweep_func,
-                                param_indices + (index,),
-                                param_values + (value,))
+                recursive_loops(
+                    paramvals_list[1:],
+                    sweep_name,
+                    sweep_func,
+                    param_indices + (index,),
+                    param_values + (value,),
+                )
 
     def generate_sweeps(self):
         if self._subsys_update_info is None:
             loop_order = list(self._paramvals_by_name.keys())
         else:
             loop_order = self.set_loop_order()
-        self._data['evals'], self._data['evecs'] = self.generate_eigensystem_sweep()
+        self._data["evals"], self._data["evecs"] = self.generate_eigensystem_sweep()
         if spec_lookup:
-            self._data['spectrum_lookup'] = self.generate_spectrumlookup_sweep()
+            self._data["spectrum_lookup"] = self.generate_spectrumlookup_sweep()
         for sweep_name, sweep_generator in self._sweep_generators.items():
             self._data[sweep_name] = self.custom_sweep(sweep_generator)
 
@@ -333,20 +413,29 @@ class Sweep1(Mapping):
         return iter(self._data)
 
 
-class Sweep(NamedSlotsSliceable):
-    def __init__(self,
-                 paramvals_by_name: Dict[str, Iterable],
-                 sweep_generators: Dict[str, Callable],
-                 system_info: str,
-                 evals_count=6,
-                 autorun=True
-                 ):
-        self.values_by_slotname = {'data': ['evals', 'evecs', 'spec_lookup'] + list(sweep_generators.keys())}
+class Sweep(NamedSliceableSlots):
+    def __init__(
+        self,
+        paramvals_by_name: Dict[str, Iterable],
+        sweep_generators: Dict[str, Callable],
+        system_info: str,
+        evals_count=6,
+        autorun=True,
+    ):
+        self.values_by_slotname = {
+            "data": ["evals", "evecs", "spec_lookup"] + list(sweep_generators.keys())
+        }
         self.values_by_slotname.update(paramvals_by_name)
-        self.slotindex_by_slotname = {name: index for index, name in enumerate(self.values_by_slotname.keys())}
-        self.slotname_by_slotindex = {index: name for name, index in self.slotindex_by_slotname.items()}
-        self.values_by_slotindex = {self.slotindex_by_slotname[name]: self.values_by_slotname[name]
-                                    for name in self.values_by_slotname.keys()}
+        self.slotindex_by_slotname = {
+            name: index for index, name in enumerate(self.values_by_slotname.keys())
+        }
+        self.slotname_by_slotindex = {
+            index: name for name, index in self.slotindex_by_slotname.items()
+        }
+        self.values_by_slotindex = {
+            self.slotindex_by_slotname[name]: self.values_by_slotname[name]
+            for name in self.values_by_slotname.keys()
+        }
 
         self._system_info = system_info
         self._generator_info = list(sweep_generators.keys())
@@ -355,39 +444,56 @@ class Sweep(NamedSlotsSliceable):
         self.data_callback = self.return_sliced_data
 
     @classmethod
-    def create_from_data(cls,
-                         paramvals_by_name: Dict[str, Iterable],
-                         data_by_name: Dict[str, Iterable],
-                         system_info: str
-                         ):
+    def create_from_data(
+        cls,
+        paramvals_by_name: Dict[str, Iterable],
+        data_by_name: Dict[str, Iterable],
+        system_info: str,
+    ):
         # shape = [len(data_by_name)] + [len(paramvals) for paramvals in paramvals_by_name.values()]
-        evals_count = data_by_name['evals'].shape[-1]
+        evals_count = data_by_name["evals"].shape[-1]
         sweep_generators = {name: None for name in data_by_name.keys()}
-        new_sweep = Sweep(paramvals_by_name, sweep_generators, system_info, evals_count=evals_count, autorun=False)
+        new_sweep = Sweep(
+            paramvals_by_name,
+            sweep_generators,
+            system_info,
+            evals_count=evals_count,
+            autorun=False,
+        )
         new_sweep._data_array = np.empty(shape=new_sweep._shape, dtype=object)
 
     def __str__(self):
-        info = "Sweep\n" \
-               "=========================\n\n" \
-               "This sweep was generated as a scan over the following parameter(s): {}\n" \
-               "The arrays specifying the parameter-value sets can be accessed via\n" \
-               "    <ParameterSweep obj>['<label>']['<parameter name>']\n" \
-               "Custom data was computed with the generating function:\n\n" \
-               "{}\n\n" \
-               "The sweep is based on the following composite quantum system:\n" \
-               "{}".format(str(list(self.values_by_slotname.keys())),
-                           self.generator_info,
-                           self.system_info)
+        info = (
+            "Sweep\n"
+            "=========================\n\n"
+            "This sweep was generated as a scan over the following parameter(s): {}\n"
+            "The arrays specifying the parameter-value sets can be accessed via\n"
+            "    <ParameterSweep obj>['<label>']['<parameter name>']\n"
+            "Custom data was computed with the generating function:\n\n"
+            "{}\n\n"
+            "The sweep is based on the following composite quantum system:\n"
+            "{}".format(
+                str(list(self.values_by_slotname.keys())),
+                self.generator_info,
+                self.system_info,
+            )
+        )
         return info
 
-    def return_sliced_data(self, multi_index: Tuple[Union[int, slice], ...]) -> 'Sweep':
-        sliced_paramvals_by_name = {self.slotname_by_slotindex[index]: self.values_by_slotindex[index][this_slice]
-                                    for index, this_slice in enumerate(multi_index[:self.slot_count])}
-        return Sweep(paramvals_by_name=sliced_paramvals_by_name,
-                     eigenenergies=self.eigenenergies[multi_index],
-                     eigenstates=self.eigenstates[multi_index],
-                     spectrum_lookup_data=self.spectrum_lookup_data[multi_index],
-                     custom_data=self.custom_data)
+    def return_sliced_data(self, multi_index: Tuple[Union[int, slice], ...]) -> "Sweep":
+        sliced_paramvals_by_name = {
+            self.slotname_by_slotindex[index]: self.values_by_slotindex[index][
+                this_slice
+            ]
+            for index, this_slice in enumerate(multi_index[: self.slot_count])
+        }
+        return Sweep(
+            paramvals_by_name=sliced_paramvals_by_name,
+            eigenenergies=self.eigenenergies[multi_index],
+            eigenstates=self.eigenstates[multi_index],
+            spectrum_lookup_data=self.spectrum_lookup_data[multi_index],
+            custom_data=self.custom_data,
+        )
         return sliced_data
 
     # VISUALIZATION METHODS MAY WANT TO GO HERE
@@ -423,6 +529,7 @@ class ParameterSweepBase(ABC):
     """
     The ParameterSweepBase class is an abstract base class for ParameterSweep and StoredSweep
     """
+
     hilbertspace = descriptors.ReadOnlyProperty()
     _sweeps: Dict[str, Sweep] = {}
 
@@ -457,7 +564,9 @@ class ParameterSweepBase(ABC):
         return self._hilbertspace.subsystem_count
 
 
-class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable):
+class ParameterSweep(
+    ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
+):
     """
     The ParameterSweep class helps generate spectral and associated data for a composite quantum system, when one or
     multiple external parameter(s), such as flux, is/are swept over some given interval of values. Upon initialization,
@@ -491,15 +600,18 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         number of CPUS requested for computing the sweep (default value settings.NUM_CPUS)
     """
 
-    def __init__(self,
-                 label: str,
-                 hilbertspace: hspace.HilbertSpace,
-                 evals_count: int,
-                 paramvals_by_name: Dict[str, Iterable],
-                 sweep_generator: Callable[[Union[float, ndarray]], Dict[str, Union[Number, ndarray]]],
-                 fixed_subsys_list: Optional[List[QuantumSys]] = None,
-                 num_cpus: int = settings.NUM_CPUS
-                 ):
+    def __init__(
+        self,
+        label: str,
+        hilbertspace: hspace.HilbertSpace,
+        evals_count: int,
+        paramvals_by_name: Dict[str, Iterable],
+        sweep_generator: Callable[
+            [Union[float, ndarray]], Dict[str, Union[Number, ndarray]]
+        ],
+        fixed_subsys_list: Optional[List[QuantumSys]] = None,
+        num_cpus: int = settings.NUM_CPUS,
+    ):
         self._hilbertspace = hilbertspace
 
         # The following quantities reflect the current sweep being generated
@@ -515,8 +627,8 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
 
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
-        dispatch.CENTRAL_DISPATCH.register('PARAMETERSWEEP_UPDATE', self)
-        dispatch.CENTRAL_DISPATCH.register('HILBERTSPACE_UPDATE', self)
+        dispatch.CENTRAL_DISPATCH.register("PARAMETERSWEEP_UPDATE", self)
+        dispatch.CENTRAL_DISPATCH.register("HILBERTSPACE_UPDATE", self)
 
         # generate the spectral data sweep
         if settings.AUTORUN_SWEEP:
@@ -525,21 +637,26 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
     def create_generator(self, generator_string: str):
         raise NotImplementedError
 
-    def add_sweep(self,
-                  label: str,
-                  evals_count: int,
-                  paramvals_by_name: Dict[str, Iterable],
-                  sweep_generator: Callable[[Union[float, ndarray]], Dict[str, Union[Number, ndarray]]],
-                  fixed_subsys_list: List[QuantumSys] = None,
-                  num_cpus: int = settings.NUM_CPUS
-                  ) -> None:
-        self.__init__(label,
-                      self.hilbertspace,
-                      evals_count,
-                      paramvals_by_name,
-                      sweep_generator,
-                      fixed_subsys_list,
-                      num_cpus)
+    def add_sweep(
+        self,
+        label: str,
+        evals_count: int,
+        paramvals_by_name: Dict[str, Iterable],
+        sweep_generator: Callable[
+            [Union[float, ndarray]], Dict[str, Union[Number, ndarray]]
+        ],
+        fixed_subsys_list: List[QuantumSys] = None,
+        num_cpus: int = settings.NUM_CPUS,
+    ) -> None:
+        self.__init__(
+            label,
+            self.hilbertspace,
+            evals_count,
+            paramvals_by_name,
+            sweep_generator,
+            fixed_subsys_list,
+            num_cpus,
+        )
 
     def run(self) -> None:
         """Top-level method for generating all parameter sweep data"""
@@ -547,7 +664,9 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         settings.DISPATCH_ENABLED = False
         bare_specdata_list = self._compute_bare_specdata_sweep()
         dressed_specdata = self._compute_dressed_specdata_sweep(bare_specdata_list)
-        self._lookup = spec_lookup.SpectrumLookup(self, dressed_specdata, bare_specdata_list)
+        self._lookup = spec_lookup.SpectrumLookup(
+            self, dressed_specdata, bare_specdata_list
+        )
         settings.DISPATCH_ENABLED = True
 
     # HilbertSpace: methods for CentralDispatch ----------------------------------------------------
@@ -623,38 +742,71 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         """
         Pre-calculates all bare spectral data needed for the interactive explorer display.
         """
-        bare_eigendata_constant = [self._compute_bare_spectrum_constant()] * self.param_count
+        bare_eigendata_constant = [
+            self._compute_bare_spectrum_constant()
+        ] * self.param_count
         target_map = cpu_switch.get_map_method(self.num_cpus)
-        with utils.InfoBar("Parallel compute bare eigensys [num_cpus={}]".format(self.num_cpus), self.num_cpus):
+        with utils.InfoBar(
+            "Parallel compute bare eigensys [num_cpus={}]".format(self.num_cpus),
+            self.num_cpus,
+        ):
             bare_eigendata_varying = list(
-                target_map(self._compute_bare_spectrum_varying,
-                           tqdm(self.param_vals, desc='Bare spectra', leave=False, disable=self.tqdm_disabled))
+                target_map(
+                    self._compute_bare_spectrum_varying,
+                    tqdm(
+                        self.param_vals,
+                        desc="Bare spectra",
+                        leave=False,
+                        disable=self.tqdm_disabled,
+                    ),
+                )
             )
-        bare_specdata_list = self._recast_bare_eigendata(bare_eigendata_constant, bare_eigendata_varying)
+        bare_specdata_list = self._recast_bare_eigendata(
+            bare_eigendata_constant, bare_eigendata_varying
+        )
         del bare_eigendata_constant
         del bare_eigendata_varying
         return bare_specdata_list
 
-    def _compute_dressed_specdata_sweep(self, bare_specdata_list: List[SpectrumData]) -> SpectrumData:
+    def _compute_dressed_specdata_sweep(
+        self, bare_specdata_list: List[SpectrumData]
+    ) -> SpectrumData:
         """
         Calculates and returns all dressed spectral data.
         """
-        self._bare_hamiltonian_constant = self._compute_bare_hamiltonian_constant(bare_specdata_list)
+        self._bare_hamiltonian_constant = self._compute_bare_hamiltonian_constant(
+            bare_specdata_list
+        )
         param_indices = range(self.param_count)
-        func = functools.partial(self._compute_dressed_eigensystem, bare_specdata_list=bare_specdata_list)
+        func = functools.partial(
+            self._compute_dressed_eigensystem, bare_specdata_list=bare_specdata_list
+        )
         target_map = cpu_switch.get_map_method(self.num_cpus)
 
-        with utils.InfoBar("Parallel compute dressed eigensys [num_cpus={}]".format(self.num_cpus), self.num_cpus):
-            dressed_eigendata = list(target_map(func, tqdm(param_indices, desc='Dressed spectrum', leave=False,
-                                                           disable=self.tqdm_disabled)))
+        with utils.InfoBar(
+            "Parallel compute dressed eigensys [num_cpus={}]".format(self.num_cpus),
+            self.num_cpus,
+        ):
+            dressed_eigendata = list(
+                target_map(
+                    func,
+                    tqdm(
+                        param_indices,
+                        desc="Dressed spectrum",
+                        leave=False,
+                        disable=self.tqdm_disabled,
+                    ),
+                )
+            )
         dressed_specdata = self._recast_dressed_eigendata(dressed_eigendata)
         del dressed_eigendata
         return dressed_specdata
 
-    def _recast_bare_eigendata(self,
-                               static_eigendata: List[List[Tuple[ndarray, ndarray]]],
-                               bare_eigendata: List[List[Tuple[ndarray, ndarray]]]
-                               ) -> List[SpectrumData]:
+    def _recast_bare_eigendata(
+        self,
+        static_eigendata: List[List[Tuple[ndarray, ndarray]]],
+        bare_eigendata: List[List[Tuple[ndarray, ndarray]]],
+    ) -> List[SpectrumData]:
         specdata_list = []
         for index, subsys in enumerate(self._hilbertspace):
             if subsys in self.subsys_update_list:
@@ -665,35 +817,47 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
             dim = subsys.hilbertdim()
             esys_dtype = subsys._evec_dtype
 
-            energy_table = np.empty(shape=(self.param_count, evals_count), dtype=np.float_)
-            state_table = np.empty(shape=(self.param_count, dim, evals_count), dtype=esys_dtype)
+            energy_table = np.empty(
+                shape=(self.param_count, evals_count), dtype=np.float_
+            )
+            state_table = np.empty(
+                shape=(self.param_count, dim, evals_count), dtype=esys_dtype
+            )
             for j in range(self.param_count):
                 energy_table[j] = eigendata[j][index][0]
                 state_table[j] = eigendata[j][index][1]
-            specdata_list.append(storage.SpectrumData(energy_table,
-                                                      system_params={},
-                                                      param_name=self.param_name,
-                                                      param_vals=self.param_vals,
-                                                      state_table=state_table))
+            specdata_list.append(
+                storage.SpectrumData(
+                    energy_table,
+                    system_params={},
+                    param_name=self.param_name,
+                    param_vals=self.param_vals,
+                    state_table=state_table,
+                )
+            )
         return specdata_list
 
-    def _recast_dressed_eigendata(self,
-                                  dressed_eigendata: List[Tuple[ndarray, QutipEigenstates]]
-                                  ) -> SpectrumData:
+    def _recast_dressed_eigendata(
+        self, dressed_eigendata: List[Tuple[ndarray, QutipEigenstates]]
+    ) -> SpectrumData:
         evals_count = self.evals_count
         energy_table = np.empty(shape=(self.param_count, evals_count), dtype=np.float_)
         state_table = []  # for dressed states, entries are Qobj
         for j in range(self.param_count):
             energy_table[j] = np.real_if_close(dressed_eigendata[j][0])
             state_table.append(dressed_eigendata[j][1])
-        specdata = storage.SpectrumData(energy_table,
-                                        system_params={},
-                                        param_name=self.param_name,
-                                        param_vals=self.param_vals,
-                                        state_table=state_table)
+        specdata = storage.SpectrumData(
+            energy_table,
+            system_params={},
+            param_name=self.param_name,
+            param_vals=self.param_vals,
+            state_table=state_table,
+        )
         return specdata
 
-    def _compute_bare_hamiltonian_constant(self, bare_specdata_list: List[SpectrumData]) -> Qobj:
+    def _compute_bare_hamiltonian_constant(
+        self, bare_specdata_list: List[SpectrumData]
+    ) -> Qobj:
         """
         Returns
         -------
@@ -706,7 +870,9 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
                 static_hamiltonian += self._hilbertspace.diag_hamiltonian(subsys, evals)
         return static_hamiltonian
 
-    def _compute_bare_hamiltonian_varying(self, bare_specdata_list: List[SpectrumData], param_index: int) -> Qobj:
+    def _compute_bare_hamiltonian_varying(
+        self, bare_specdata_list: List[SpectrumData], param_index: int
+    ) -> Qobj:
         """
         Parameters
         ----------
@@ -739,7 +905,9 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
                 eigendata.append(None)  # type: ignore
         return eigendata
 
-    def _compute_bare_spectrum_varying(self, param_val: float) -> List[Tuple[ndarray, ndarray]]:
+    def _compute_bare_spectrum_varying(
+        self, param_val: float
+    ) -> List[Tuple[ndarray, ndarray]]:
         """
         For given external parameter value obtain the bare eigenspectra of each bare subsystem that is affected by
         changes in the external parameter. Formulated to be used with Pool.map()
@@ -754,32 +922,41 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
             if subsys in self.subsys_update_list:
                 evals_count = subsys.truncated_dim
                 subsys_index = self._hilbertspace.get_subsys_index(subsys)
-                eigendata.append(self._hilbertspace[subsys_index].eigensys(evals_count=evals_count))
+                eigendata.append(
+                    self._hilbertspace[subsys_index].eigensys(evals_count=evals_count)
+                )
             else:
                 eigendata.append(None)  # type: ignore
         return eigendata
 
-    def _compute_dressed_eigensystem(self,
-                                     param_index: int,
-                                     bare_specdata_list: List[SpectrumData]
-                                     ) -> Tuple[ndarray, QutipEigenstates]:
-        hamiltonian = (self._bare_hamiltonian_constant +
-                       self._compute_bare_hamiltonian_varying(bare_specdata_list, param_index))
+    def _compute_dressed_eigensystem(
+        self, param_index: int, bare_specdata_list: List[SpectrumData]
+    ) -> Tuple[ndarray, QutipEigenstates]:
+        hamiltonian = (
+            self._bare_hamiltonian_constant
+            + self._compute_bare_hamiltonian_varying(bare_specdata_list, param_index)
+        )
 
         for interaction_term in self._hilbertspace.interaction_list:
-            evecs1 = self._lookup_bare_eigenstates(param_index, interaction_term.subsys1, bare_specdata_list)
-            evecs2 = self._lookup_bare_eigenstates(param_index, interaction_term.subsys2, bare_specdata_list)
-            hamiltonian += self._hilbertspace.interactionterm_hamiltonian(interaction_term,
-                                                                          evecs1=evecs1, evecs2=evecs2)
+            evecs1 = self._lookup_bare_eigenstates(
+                param_index, interaction_term.subsys1, bare_specdata_list
+            )
+            evecs2 = self._lookup_bare_eigenstates(
+                param_index, interaction_term.subsys2, bare_specdata_list
+            )
+            hamiltonian += self._hilbertspace.interactionterm_hamiltonian(
+                interaction_term, evecs1=evecs1, evecs2=evecs2
+            )
         evals, evecs = hamiltonian.eigenstates(eigvals=self.evals_count)
         evecs = evecs.view(qutip_serializer.QutipEigenstates)
         return evals, evecs
 
-    def _lookup_bare_eigenstates(self,
-                                 param_index: int,
-                                 subsys: QuantumSys,
-                                 bare_specdata_list: List[SpectrumData]
-                                 ) -> ndarray:
+    def _lookup_bare_eigenstates(
+        self,
+        param_index: int,
+        subsys: QuantumSys,
+        bare_specdata_list: List[SpectrumData],
+    ) -> ndarray:
         """
         Parameters
         ----------
@@ -799,31 +976,36 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
 
 
-class StoredSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable):
-    param_name = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_vals = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    evals_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
+class StoredSweep(
+    ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
+):
+    param_name = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    param_vals = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    param_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    evals_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
     lookup = descriptors.ReadOnlyProperty()
 
-    def __init__(self,
-                 param_name: str,
-                 param_vals: ndarray,
-                 evals_count: int,
-                 hilbertspace: HilbertSpace,
-                 dressed_specdata: SpectrumData,
-                 bare_specdata_list: List[SpectrumData]
-                 ) -> None:
+    def __init__(
+        self,
+        param_name: str,
+        param_vals: ndarray,
+        evals_count: int,
+        hilbertspace: HilbertSpace,
+        dressed_specdata: SpectrumData,
+        bare_specdata_list: List[SpectrumData],
+    ) -> None:
         self.param_name = param_name
         self.param_vals = param_vals
         self.param_count = len(param_vals)
         self.evals_count = evals_count
         self._hilbertspace = hilbertspace
-        self._lookup = spec_lookup.SpectrumLookup(hilbertspace, dressed_specdata, bare_specdata_list, auto_run=False)
+        self._lookup = spec_lookup.SpectrumLookup(
+            hilbertspace, dressed_specdata, bare_specdata_list, auto_run=False
+        )
 
     # StoredSweep: file IO methods ---------------------------------------------------------------
     @classmethod
-    def deserialize(cls, iodata: 'IOData') -> 'StoredSweep':
+    def deserialize(cls, iodata: "IOData") -> "StoredSweep":
         """
         Take the given IOData and return an instance of the described class, initialized with the data stored in
         io_data.
@@ -837,23 +1019,26 @@ class StoredSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Seria
         StoredSweep
         """
         data_dict = iodata.as_kwargs()
-        lookup = data_dict.pop('_lookup')
-        data_dict['dressed_specdata'] = lookup._dressed_specdata
-        data_dict['bare_specdata_list'] = lookup._bare_specdata_list
+        lookup = data_dict.pop("_lookup")
+        data_dict["dressed_specdata"] = lookup._dressed_specdata
+        data_dict["bare_specdata_list"] = lookup._bare_specdata_list
         new_storedsweep = StoredSweep(**data_dict)
         new_storedsweep._lookup = lookup
-        new_storedsweep._lookup._hilbertspace = weakref.proxy(new_storedsweep._hilbertspace)
+        new_storedsweep._lookup._hilbertspace = weakref.proxy(
+            new_storedsweep._hilbertspace
+        )
         return new_storedsweep
 
     # StoredSweep: other methods
     def get_hilbertspace(self) -> HilbertSpace:
         return self._hilbertspace
 
-    def new_sweep(self,
-                  subsys_update_list: List[QuantumSys],
-                  update_hilbertspace: Callable,
-                  num_cpus: int = settings.NUM_CPUS
-                  ) -> ParameterSweep:
+    def new_sweep(
+        self,
+        subsys_update_list: List[QuantumSys],
+        update_hilbertspace: Callable,
+        num_cpus: int = settings.NUM_CPUS,
+    ) -> ParameterSweep:
         return ParameterSweep(
             self.param_name,
             self.param_vals,
@@ -861,5 +1046,5 @@ class StoredSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Seria
             self._hilbertspace,
             subsys_update_list,
             update_hilbertspace,
-            num_cpus
+            num_cpus,
         )
