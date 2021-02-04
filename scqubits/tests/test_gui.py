@@ -1,4 +1,5 @@
-# gui.py
+# test_gui.py
+# meant to be run with 'pytest'
 #
 # This file is part of scqubits.
 #
@@ -9,6 +10,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+#
+# ASK JENS ABOUT SETTING UP PYTEST
+#
 
 import inspect
 

@@ -12,10 +12,12 @@
 import cmath
 import math
 import os
-from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
+
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 import numpy as np
 import scipy as sp
+
 from numpy import ndarray
 
 import scqubits.core.constants as constants
@@ -26,6 +28,7 @@ import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
+
 from scqubits.core.noise import NoisySystem
 
 if TYPE_CHECKING:
@@ -33,6 +36,7 @@ if TYPE_CHECKING:
 
 
 # —Fluxonium qubit ————————————————————————
+
 
 class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the fluxonium qubit. Hamiltonian
@@ -57,20 +61,21 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
-    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    cutoff = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
-    def __init__(self, 
-                 EJ: float,
-                 EC: float, 
-                 EL: float,
-                 flux: float,
-                 cutoff: int,
-                 truncated_dim: int = 6
-                 ) -> None:
+    def __init__(
+        self,
+        EJ: float,
+        EC: float,
+        EL: float,
+        flux: float,
+        cutoff: int,
+        truncated_dim: int = 6,
+    ) -> None:
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
@@ -79,29 +84,33 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
-        self._default_grid = discretization.Grid1d(-4.5*np.pi, 4.5*np.pi, 151)
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/fluxonium.jpg')
+        self._default_grid = discretization.Grid1d(-4.5 * np.pi, 4.5 * np.pi, 151)
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/fluxonium.jpg"
+        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            'EJ': 8.9,
-            'EC': 2.5,
-            'EL': 0.5,
-            'flux': 0.0,
-            'cutoff': 110,
-            'truncated_dim': 10
+            "EJ": 8.9,
+            "EC": 2.5,
+            "EL": 0.5,
+            "flux": 0.0,
+            "cutoff": 110,
+            "truncated_dim": 10,
         }
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
-        return ['tphi_1_over_f_cc', 
-                'tphi_1_over_f_flux',
-                't1_capacitive',
-                't1_charge_impedance', 
-                't1_flux_bias_line',
-                't1_inductive',
-                't1_quasiparticle_tunneling']
+        return [
+            "tphi_1_over_f_cc",
+            "tphi_1_over_f_flux",
+            "t1_capacitive",
+            "t1_charge_impedance",
+            "t1_flux_bias_line",
+            "t1_inductive",
+            "t1_quasiparticle_tunneling",
+        ]
 
     def phi_osc(self) -> float:
         """
@@ -126,7 +135,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             Returns the phi operator in the LC harmonic oscillator basis
         """
         dimension = self.hilbertdim()
-        return (op.creation(dimension) + op.annihilation(dimension)) * self.phi_osc() / math.sqrt(2)
+        return (
+            (op.creation(dimension) + op.annihilation(dimension))
+            * self.phi_osc()
+            / math.sqrt(2)
+        )
 
     def n_operator(self) -> ndarray:
         """
@@ -135,7 +148,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             Returns the :math:`n = - i d/d\\phi` operator in the LC harmonic oscillator basis
         """
         dimension = self.hilbertdim()
-        return 1j * (op.creation(dimension) - op.annihilation(dimension)) / (self.phi_osc() * math.sqrt(2))
+        return (
+            1j
+            * (op.creation(dimension) - op.annihilation(dimension))
+            / (self.phi_osc() * math.sqrt(2))
+        )
 
     def exp_i_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
         """
@@ -178,7 +195,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
-        return np.real(hamiltonian_mat)  # use np.real to remove rounding errors from matrix exponential,
+        return np.real(
+            hamiltonian_mat
+        )  # use np.real to remove rounding errors from matrix exponential,
         # fluxonium Hamiltonian in harm. osc. basis is real-valued
 
     def d_hamiltonian_d_EJ(self) -> ndarray:
@@ -186,14 +205,14 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
         The flux is grouped as in the Hamiltonian. 
         """
-        return - self.cos_phi_operator(1,  2 * np.pi * self.flux)
+        return -self.cos_phi_operator(1, 2 * np.pi * self.flux)
 
     def d_hamiltonian_d_flux(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to `flux`.
 
         Flux is grouped as in the Hamiltonian. 
         """
-        return -2 * np.pi * self.EJ * self.sin_phi_operator(1,  2 * np.pi * self.flux)
+        return -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux)
 
     def hilbertdim(self) -> int:
         """
@@ -213,13 +232,13 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         -------
         float or ndarray
         """
-        return 0.5 * self.EL * phi * phi - self.EJ * np.cos(phi + 2.0 * np.pi * self.flux)
+        return 0.5 * self.EL * phi * phi - self.EJ * np.cos(
+            phi + 2.0 * np.pi * self.flux
+        )
 
-    def wavefunction(self,
-                     esys: Tuple[ndarray, ndarray],
-                     which: int = 0,
-                     phi_grid: 'Grid1d' = None
-                     ) -> storage.WaveFunction:
+    def wavefunction(
+        self, esys: Tuple[ndarray, ndarray], which: int = 0, phi_grid: "Grid1d" = None
+    ) -> storage.WaveFunction:
         """Returns a fluxonium wave function in `phi` basis
 
         Parameters
@@ -245,8 +264,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_wavefunc_amplitudes = np.zeros(phi_grid.pt_count, dtype=np.complex_)
         phi_osc = self.phi_osc()
         for n in range(dim):
-            phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[n] \
-                                       * osc.harm_osc_wavefunction(n, phi_basis_labels, phi_osc)
-        return storage.WaveFunction(basis_labels=phi_basis_labels,
-                                    amplitudes=phi_wavefunc_amplitudes,
-                                    energy=evals[which])
+            phi_wavefunc_amplitudes += wavefunc_osc_basis_amplitudes[
+                n
+            ] * osc.harm_osc_wavefunction(n, phi_basis_labels, phi_osc)
+        return storage.WaveFunction(
+            basis_labels=phi_basis_labels,
+            amplitudes=phi_wavefunc_amplitudes,
+            energy=evals[which],
+        )
