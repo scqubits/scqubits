@@ -35,17 +35,20 @@ class VTBBaseMethods(ABC):
 
     .. math::
 
-        U=-EJ[1]\cos(\phi_1)-EJ[2]\cos(\phi_2)-...-EJ[N]\cos(bc[1]\phi_1+bc[2]\phi_2+...-2\pi f),
+        U=-EJ[1]\cos(\phi_1)-EJ[2]\cos(\phi_2)-...-EJ[N]
+        \cos(bc[1]\phi_1+bc[2]\phi_2+...-2\pi f),
 
     where the array :math:`bc` denotes the coefficients of terms in the stitching term.
-    Extension of this module to circuits that include inductors is possible and is implemented for the
+    Extension of this module to circuits that include inductors
+    is possible and is implemented for the
     zero-pi qubit in zero_pi_vtb.py.
 
     To implement a new qubit class using tight-binding states, the user's class
     must inherit VTBBaseMethods and also define the methods build_capacitance_matrix(),
     build_EC_matrix(), find_minima(), which contain the qubit
      specific information defining the capacitance matrix,
-    the charging energy matrix, and a method to find all inequivalent minima, respectively.
+    the charging energy matrix, and a method to
+     find all inequivalent minima, respectively.
     See current_mirror_vtb.py, flux_qubit_vtb.py and zero_pi_vtb.py for examples.
 
     Parameters
@@ -53,7 +56,8 @@ class VTBBaseMethods(ABC):
     num_exc: int
         number of excitations kept in each mode
     maximum_periodic_vector_length: int
-        Maximum Manhattan length of a unit cell vector. This should be varied to ensure convergence.
+        Maximum Manhattan length of a unit cell vector.
+        This should be varied to ensure convergence.
     number_degrees_freedom: int
         number of degrees of freedom of the circuit
     number_periodic_degrees_freedom: int
@@ -67,11 +71,13 @@ class VTBBaseMethods(ABC):
         VariationalTightBindingSqueezing) denoting whether or
         not to optimize the harmonic lengths in all minima
     quiet: int
-        flag whether or not to print out information regarding completion of intermediate tasks
+        flag whether or not to print out information
+        regarding completion of intermediate tasks
     grid: Grid1d
         grid for wavefunction plotting that will be used for extended d.o.f.
     displacement_vector_cutoff: float
-        criteria for relevant unit cell vectors. If the overlap of two multidimensional Gaussian
+        criteria for relevant unit cell vectors.
+        If the overlap of two multidimensional Gaussian
         wavefunctions is less than this, the unit cell vector is not relevant.
     maximum_site_length: int
         maximum displacement allowed for each coordinate of a unit cell vector.
@@ -105,7 +111,8 @@ class VTBBaseMethods(ABC):
         maximum_site_length: int = 2,
     ) -> None:
         self.num_exc = num_exc
-        # TODO rename to maximum_unit_cell_vector_length (avoiding to not break ability to read old specdata files)
+        # TODO rename to maximum_unit_cell_vector_length
+        #  (avoiding to not break ability to read old specdata files)
         self.maximum_periodic_vector_length = maximum_periodic_vector_length
         self._number_degrees_freedom = number_degrees_freedom
         self._number_periodic_degrees_freedom = number_periodic_degrees_freedom
@@ -170,7 +177,8 @@ class VTBBaseMethods(ABC):
         Parameters
         ----------
         minimum_index: int
-            integer specifying which minimum to linearize around, 0<=minimum<= total number of minima
+            integer specifying which minimum to linearize around,
+            0<=minimum<= total number of minima
 
         Returns
         -------
@@ -195,7 +203,8 @@ class VTBBaseMethods(ABC):
         Parameters
         ----------
         minimum_index: int
-            integer specifying which minimum to linearize around, 0<=minimum<= total number of minima
+            integer specifying which minimum to linearize around,
+            0<=minimum<= total number of minima
 
         Returns
         -------
@@ -213,8 +222,10 @@ class VTBBaseMethods(ABC):
         Returns
         -------
         ndarray
-            ratio of harmonic lengths to minima separations, providing a measure of the validity of tight binding.
-            If any of the values in the returned array exceed unity, then the wavefunctions are relatively spread out
+            ratio of harmonic lengths to minima separations, providing
+            a measure of the validity of tight binding.
+            If any of the values in the returned array exceed unity, then
+            the wavefunctions are relatively spread out
             as compared to the minima separations
         """
         if relevant_unit_cell_vectors is None:
@@ -243,8 +254,10 @@ class VTBBaseMethods(ABC):
         Xi_minimum_index_arg: int,
         relevant_unit_cell_vectors: dict,
     ) -> float:
-        """Helper function comparing minima separation for given minima pair, along with the specification
-        that we would like to use the Xi matrix as defined for the minimum indexed by `Xi_arg`"""
+        """Helper function comparing minima separation for
+        given minima pair, along with the specification
+        that we would like to use the Xi matrix as defined
+        for the minimum indexed by `Xi_arg`"""
         (m, minima_m), (p, minima_p) = minima_index_pair
         minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m, p)]
         if minima_pair_displacement_vectors is None or np.allclose(
@@ -289,9 +302,11 @@ class VTBBaseMethods(ABC):
         Parameters
         ----------
         minimum_index: int
-            integer specifying which minimum to linearize around, 0<=minimum<= total number of minima
+            integer specifying which minimum to linearize around,
+            0<=minimum<= total number of minima
         harmonic_lengths: Optional[ndarray]
-            ndarray specifying the harmonic lengths of each mode. Useful when considering optimized harmonic lengths.
+            ndarray specifying the harmonic lengths of each mode.
+            Useful when considering optimized harmonic lengths.
 
         Returns
         -------
@@ -315,7 +330,8 @@ class VTBBaseMethods(ABC):
         ).T
 
     def a_operator(self, dof_index: int) -> ndarray:
-        """Returns the lowering operator associated with the mu^th d.o.f. in the full Hilbert space
+        """Returns the lowering operator associated
+        with the mu^th d.o.f. in the full Hilbert space
 
         Parameters
         ----------
@@ -337,7 +353,8 @@ class VTBBaseMethods(ABC):
         )
 
     def _a_operator_array(self) -> ndarray:
-        """Helper method to return a list of annihilation operator matrices for each mode"""
+        """Helper method to return a list of annihilation
+        operator matrices for each mode"""
         dim = self.number_degrees_freedom
         num_states_per_min = self.number_states_per_minimum()
         a_operator_array = np.empty((dim, num_states_per_min, num_states_per_min))
@@ -348,13 +365,19 @@ class VTBBaseMethods(ABC):
     def find_relevant_unit_cell_vectors(
         self, num_cpus: int = 1
     ) -> Dict[Tuple[int, int], ndarray]:
-        """Constructs a dictionary of the relevant unit cell vectors for each pair of minima. By unit cell vector
-        we are referring to the vector that points from the first unit cell to another unit cell. This is done
+        """Constructs a dictionary of the relevant unit cell
+        vectors for each pair of minima. By unit cell vector
+        we are referring to the vector that points from the
+         first unit cell to another unit cell. This is done
         by generating all possible unit cell vectors, given the cutoffs specified by
-        self.maximum_periodic_vector_length, which specifies the maximum Manhattan length of a unit cell vector,
-        and self.maximum_site_length, which specifies the maximum entry allowed in a unit cell vector. We first
-        generate the unit cell vectors with all positive entries, then perform all possible reflections
-        of those vectors and consider each vector individually. This is done for each pair of minima in turn.
+        self.maximum_periodic_vector_length, which specifies
+        the maximum Manhattan length of a unit cell vector,
+        and self.maximum_site_length, which specifies the maximum
+        entry allowed in a unit cell vector. We first
+        generate the unit cell vectors with all positive entries,
+         then perform all possible reflections
+        of those vectors and consider each vector individually.
+        This is done for each pair of minima in turn.
 
         Parameters
         ----------
@@ -372,11 +395,16 @@ class VTBBaseMethods(ABC):
             relevant_unit_cell_vectors[(m_index, m_index)] = relevant_unit_cell_vectors[
                 (0, 0)
             ]
-        # JENS: it isn't clear to me how a named tuple would help here - from what I've read namedtuples
-        # doesn't seem to fit my use case of "collections" of data. For example I could create
-        # Minimum = namedtuple('Minimum', 'index location'), but I would be interested in collections
-        # of such minima, which I would want to refer to by their index, which brings me back to a dictionary.
-        # Perhaps I am missing something, but I'm not sure that sort of data structure works here.
+        # JENS: it isn't clear to me how a named tuple would
+        # help here - from what I've read namedtuples
+        # doesn't seem to fit my use case of "collections" of
+        # data. For example I could create
+        # Minimum = namedtuple('Minimum', 'index location'),
+        # but I would be interested in collections
+        # of such minima, which I would want to refer to by
+        # their index, which brings me back to a dictionary.
+        # Perhaps I am missing something, but I'm not sure
+        # that sort of data structure works here.
         all_minima_location_index_pairs = itertools.combinations(
             sorted_minima_dict.items(), 2
         )
@@ -407,7 +435,8 @@ class VTBBaseMethods(ABC):
 
     @staticmethod
     def _stack_filtered_vectors(filtered_vectors: List) -> Optional[ndarray]:
-        """Helper function for stacking together unit cell vectors of different Manhattan lengths"""
+        """Helper function for stacking together unit
+        cell vectors of different Manhattan lengths"""
         filtered_vectors = list(filter(lambda x: len(x) != 0, filtered_vectors))
         if filtered_vectors:
             return np.vstack(filtered_vectors)
@@ -417,14 +446,16 @@ class VTBBaseMethods(ABC):
     def _generate_and_filter_unit_cell_vectors(
         self, minima_diff: ndarray, Xi_inv: ndarray, unit_cell_vector_length: int
     ) -> ndarray:
-        """Helper function that generates and filters periodic vectors of a given Manhattan length.
-        Inspired by the algorithm described in J. M. Zhang and R. X. Dong, European Journal
-        of Physics 31, 591 (2010) for generating all vectors of a given Manhattan length (specified here
-        by periodic_vector_length) with only positive entries. We make two modifications here to the
-        underlying algorithm: the first is that we need to also generate vectors with negative entries,
-        to obtain all possible unit cell vectors. The second is that we don't consider vectors with entries larger
-        than self.maximum_site_length. We have found empirically that nominally "short" vectors with entries
-        in specific sites that are large don't contribute."""
+        """Helper function that generates and filters periodic vectors of a
+        given Manhattan length. Inspired by the algorithm described in J. M. Zhang
+        and R. X. Dong, European Journal of Physics 31, 591 (2010) for generating
+        all vectors of a given Manhattan length (specified here by
+        periodic_vector_length) with only positive entries. We make two modifications
+        here to the underlying algorithm: the first is that we need to also generate
+        vectors with negative entries, to obtain all possible unit cell vectors. The
+        second is that we don't consider vectors with entries larger than
+        self.maximum_site_length. We have found empirically that nominally "short"
+        vectors with entries in specific sites that are large don't contribute."""
         filtered_vectors = []
         prev_unit_cell_vec = np.zeros(self.number_periodic_degrees_freedom, dtype=int)
         prev_unit_cell_vec[0] = unit_cell_vector_length
@@ -452,7 +483,8 @@ class VTBBaseMethods(ABC):
         Xi_inv: ndarray,
         filtered_vectors: List,
     ) -> None:
-        """Helper function where given a specific vector, generate all possible reflections and filter those"""
+        """Helper function where given a specific vector, generate all
+        possible reflections and filter those"""
         filter_function = partial(self._filter_single_vector, minima_diff, Xi_inv)
         relevant_vectors = filter(filter_function, reflect_vectors(unit_cell_vector))
         for filtered_vec in relevant_vectors:
@@ -469,8 +501,9 @@ class VTBBaseMethods(ABC):
         self, minima_diff: ndarray, Xi_inv: ndarray, unit_cell_vector: ndarray
     ) -> bool:
         """Helper function that does the filtering. Matrix elements are suppressed by a
-        gaussian exponential factor, and we filter those that are suppressed below a cutoff.
-        Assumption is that extended degrees of freedom precede the periodic d.o.f.
+        gaussian exponential factor, and we filter those that are suppressed below a
+        cutoff. Assumption is that extended degrees of freedom precede the periodic
+        d.o.f.
         """
         displacement_vector = (
             2.0
@@ -486,7 +519,8 @@ class VTBBaseMethods(ABC):
         return gaussian_overlap > self.displacement_vector_cutoff
 
     def _identity(self) -> ndarray:
-        """Returns the identity matrix whose dimensions are the same as self.number_states_per_minimum()"""
+        """Returns the identity matrix whose dimensions are the same as
+        self.number_states_per_minimum()"""
         return np.eye(int(self.number_states_per_minimum()))
 
     def number_states_per_minimum(self) -> int:
@@ -511,7 +545,8 @@ class VTBBaseMethods(ABC):
     def _premultiplied_a_a_dagger(
         a_operator_array: ndarray,
     ) -> Tuple[ndarray, ndarray, ndarray]:
-        """Helper method for premultiplying creation and annihilation operators (multiplications are expensive)"""
+        """Helper method for premultiplying creation and annihilation operators
+        (multiplications are expensive)"""
         return (
             a_operator_array,
             a_operator_array @ a_operator_array,
@@ -521,8 +556,9 @@ class VTBBaseMethods(ABC):
     def _single_exp_i_phi_j_operator(
         self, j: int, Xi: ndarray, a_operator_array: ndarray
     ) -> ndarray:
-        r"""Returns operator :math:`\exp(i\phi_{j})`. If `j` specifies the stitching term, which is
-        assumed to be the last junction, then that is constructed based on the stitching coefficients."""
+        r"""Returns operator :math:`\exp(i\phi_{j})`. If `j` specifies the stitching
+         term, which is assumed to be the last junction, then that is constructed
+         based on the stitching coefficients."""
         if j == self.number_junctions - 1:
             exp_i_phi_j_a = expm(
                 1j
@@ -564,11 +600,13 @@ class VTBBaseMethods(ABC):
         self, Xi_inv: ndarray, a_operator_array: ndarray
     ) -> Tuple[ndarray, ndarray]:
         """Helper method that performs matrix exponentiation to aid in the
-        future construction of translation operators. The resulting matrices yield a 2pi translation
-        in each degree of freedom, so that any translation can be built from these by an appropriate
-        call to np.matrix_power. Note that we need only use lowering operators, because raising operators can
-        be constructed by transposition. We construct both positive and negative 2pi translations to
-        avoid costly calls to `inv` later, which happen implicitly in np.matrix_power."""
+        future construction of translation operators. The resulting matrices yield a
+        2pi translation in each degree of freedom, so that any translation can be
+        built from these by an appropriate call to np.matrix_power. Note that we need
+        only use lowering operators, because raising operators can be constructed by
+        transposition. We construct both positive and negative 2pi translations to
+        avoid costly calls to `inv` later, which happen implicitly in
+        np.matrix_power."""
         dim = self.number_degrees_freedom
         num_states_per_min = self.number_states_per_minimum()
         exp_a_list = np.empty((dim, num_states_per_min, num_states_per_min))
@@ -590,8 +628,9 @@ class VTBBaseMethods(ABC):
         self, minima_diff: ndarray, Xi_inv: ndarray, a_operator_array: ndarray
     ) -> Tuple[ndarray, ndarray]:
         """Helper method that performs matrix exponentiation to aid in the
-        future construction of translation operators. This part of the translation operator accounts
-        for the differing location of minima within a single unit cell."""
+        future construction of translation operators. This part of the translation
+        operator accounts for the differing location of minima within a single unit
+        cell."""
         exp_a_minima_difference = expm(
             np.sum(
                 (-minima_diff @ Xi_inv.T)
@@ -611,9 +650,9 @@ class VTBBaseMethods(ABC):
         exp_minima_difference: Tuple[ndarray, ndarray],
         unit_cell_vector: ndarray,
     ) -> Tuple[ndarray, ndarray]:
-        """Helper method that builds translation operators using matrix_power and the pre-exponentiated
-        translation operators that define 2pi translations. Note that this function is currently the
-        speed bottleneck."""
+        """Helper method that builds translation operators using matrix_power and the
+        pre-exponentiated translation operators that define 2pi translations. Note
+        that this function is currently the speed bottleneck."""
         exp_a_list, exp_a_minus_list = exp_list
         exp_a_minima_difference, exp_a_dagger_minima_difference = exp_minima_difference
         ops_with_power_for_a_dagger = zip(
@@ -643,10 +682,11 @@ class VTBBaseMethods(ABC):
     def _matrix_power_helper(
         self, translation_op_with_power: Tuple[int, ndarray, ndarray, int]
     ) -> ndarray:
-        """Helper method that actually returns translation operators. If the translation operator has
-        been built before and stored, use that result. Additionally if the translation is given by
-        a negative integer, take advantage of having built a pre-exponentiated operator with -2\pi
-        argument to avoid a costly call to inv."""
+        """Helper method that actually returns translation operators. If the translation
+        operator has been built before and stored, use that result. Additionally if
+        the translation is given by a negative integer, take advantage of having
+        built a pre-exponentiated operator with -2\pi argument to avoid a costly call to
+        inv."""
         (j, exp_a_list, exp_a_minus_list, unit_cell_vector) = translation_op_with_power
         if (j, unit_cell_vector) in self.translation_op_dict:
             return self.translation_op_dict[(j, unit_cell_vector)]
@@ -658,8 +698,8 @@ class VTBBaseMethods(ABC):
         return translation_operator
 
     def _exp_product_coefficient(self, delta_phi: ndarray, Xi_inv: ndarray) -> ndarray:
-        """Returns overall multiplicative factor, including offset charge and Gaussian suppression BCH factor
-        from the translation operators"""
+        """Returns overall multiplicative factor, including offset charge and Gaussian
+        suppression BCH factor from the translation operators"""
         delta_phi_rotated = Xi_inv @ delta_phi
         return np.exp(-1j * self.nglist @ delta_phi) * np.exp(
             -0.25 * delta_phi_rotated @ delta_phi_rotated
@@ -678,14 +718,18 @@ class VTBBaseMethods(ABC):
     def _abstract_VTB_operator(
         self, local_func: Callable, num_cpus: int = 1
     ) -> ndarray:
-        """Factory for building a VTB operator. local_func represents the local contribution
-        to the operator, taking into account normal ordering. local func must have the signature
-        local_func(precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
-                   displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray)
-        where precalculated_quantities = (Xi, Xi_inv, premultiplied_a_a_dagger, exp_i_phi_j, EC_mat_t)
-        defined below. These are all expensive quantities to calculate over and over again for each
-        displacement_vector, but do not depend on the displacement_vector, therefore are calculated once
-        and extracted when needed. Obviously, for example, exp_i_phi_j is not necessary for the kinetic
+        """Factory for building a VTB operator. local_func represents the local
+        contribution to the operator, taking into account normal ordering. local func
+        must have the signature
+        local_func(precalculated_quantities: Tuple[ndarray, ndarray,
+         Tuple, ndarray, ndarray], displacement_vector: ndarray, minima_m: ndarray,
+         minima_p: ndarray)
+        where precalculated_quantities = (Xi, Xi_inv, premultiplied_a_a_dagger,
+                                          exp_i_phi_j, EC_mat_t)
+        defined below. These are all expensive quantities to calculate over and over
+        again for each displacement_vector, but do not depend on the
+        displacement_vector, therefore are calculated once and extracted when needed.
+        Obviously, for example, exp_i_phi_j is not necessary for the kinetic
         calculation, but is passed nonetheless for consistency.
         """
         relevant_unit_cell_vectors, harmonic_lengths = self._initialize_VTB(num_cpus)
@@ -744,8 +788,8 @@ class VTBBaseMethods(ABC):
             Number of CPUS/cores employed in underlying calculation.
         Returns
         -------
-            :math:`\\phi` operator in the basis of VTB states. Note that this is only defined for degrees
-            of freedom dof_index that are extended
+            :math:`\\phi` operator in the basis of VTB states. Note that this is only
+            defined for degrees of freedom dof_index that are extended
         """
         if dof_index >= self.number_extended_degrees_freedom:
             raise ValueError(
@@ -835,7 +879,11 @@ class VTBBaseMethods(ABC):
             Returns the inner product matrix
         """
         return self._abstract_VTB_operator(
-            lambda precalculated_quantities, displacement_vector, minima_m, minima_p,: self._identity(),
+            lambda precalculated_quantities,
+            displacement_vector,
+            minima_m,
+            minima_p:
+            self._identity(),
             num_cpus,
         )
 
@@ -845,10 +893,12 @@ class VTBBaseMethods(ABC):
         harmonic_lengths: ndarray,
         num_cpus: int = 1,
     ):
-        """To be called in conjunction with _inner_product_matrix, it is expected that _initialize_VTB
-        has already been called. In an eigenvalue calculation, one must calculate both the transfer matrix and the
-        inner product matrix, but the translation operators, relevant unit cell vectors and harmonic lengths
-        will be the same for both. Therefore those calculations need only be performed once."""
+        """To be called in conjunction with _inner_product_matrix, it is expected that
+        _initialize_VTB has already been called. In an eigenvalue calculation,
+        one must calculate both the transfer matrix and the inner product matrix,
+        but the translation operators, relevant unit cell vectors and harmonic lengths
+        will be the same for both. Therefore those calculations need only be performed
+        once."""
         Xi = self.Xi_matrix(0, harmonic_lengths=harmonic_lengths)
         Xi_inv = inv(Xi)
         a_operator_array = self._a_operator_array()
@@ -872,8 +922,8 @@ class VTBBaseMethods(ABC):
         harmonic_lengths: ndarray,
         num_cpus: int = 1,
     ):
-        """See _transfer_matrix documentation. Calculate the inner product matrix with pre-calculated
-        relevant unit cell vectors and harmonic lengths"""
+        """See _transfer_matrix documentation. Calculate the inner product matrix with
+        pre-calculated relevant unit cell vectors and harmonic lengths"""
         return self._periodic_continuation(
             lambda displacement_vector, minima_m, minima_p: self._identity(),
             relevant_unit_cell_vectors,
@@ -929,8 +979,8 @@ class VTBBaseMethods(ABC):
         minima_m: ndarray,
         minima_p: ndarray,
     ) -> ndarray:
-        r"""Calculate the local contribution to the :math:`e^{i \\phi}` operator given two
-        minima and a unit cell vector `displacement_vector`"""
+        r"""Calculate the local contribution to the :math:`e^{i \\phi}` operator given
+         two minima and a unit cell vector `displacement_vector`"""
         _, _, _, exp_i_phi_j, _ = precalculated_quantities
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
@@ -1040,20 +1090,23 @@ class VTBBaseMethods(ABC):
         harmonic_lengths: ndarray,
         num_cpus: int = 1,
     ) -> ndarray:
-        """This function is the meat of the VariationalTightBinding method, performing the summation
-        over unit cell vectors for each pair of minima and constructing the resulting operator
+        """This function is the meat of the VariationalTightBinding method, performing
+        the summation over unit cell vectors for each pair of minima and constructing
+        the resulting operator
         ::
                 [M_{0, 0} M_{0, 1} ...  M_{0, N_{\text{min}}} ]
             M = [M_{1, 0} M_{1, 1} ...          \vdot         ]
                 [ \vdot            \ddot                      ]
                 [M_{N_{\text{min}}, 0} ...    M_{N_{\text{min}},N_{\text{min}} }]
 
-        where `M_{ij}` refers to the matrix block calculated for the pair of minima `i`, `j`
+        where `M_{ij}` refers to the matrix block calculated for the pair
+        of minima `i`, `j`
         Parameters
         ----------
         local_func: Callable
-            function that takes three arguments (displacement_vector, minima_m, minima_p) and returns the
-            relevant operator with dimension NxN, where N=self.number_states_per_minimum().
+            function that takes three arguments (displacement_vector, minima_m,
+             minima_p) and returns the relevant operator with dimension NxN,
+             where N=self.number_states_per_minimum().
         relevant_unit_cell_vectors: Dict[Tuple[int, int], ndarray]
             Dictionary of the relevant unit cell vectors for each pair of minima
         harmonic_lengths: ndarray
@@ -1089,8 +1142,8 @@ class VTBBaseMethods(ABC):
         )
         for i, ((m, minima_m), (p, minima_p)) in enumerate(all_minima_index_pairs):
             operator_matrix[
-                m * num_states_per_min : (m + 1) * num_states_per_min,
-                p * num_states_per_min : (p + 1) * num_states_per_min,
+                m * num_states_per_min: (m + 1) * num_states_per_min,
+                p * num_states_per_min: (p + 1) * num_states_per_min,
             ] += matrix_elements[i]
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
@@ -1104,7 +1157,8 @@ class VTBBaseMethods(ABC):
         relevant_unit_cell_vectors: dict,
         minima_index_pair: Tuple,
     ) -> ndarray:
-        """Helper method for performing the periodic continuation calculation given a minima pair."""
+        """Helper method for performing the periodic continuation calculation given a
+        minima pair."""
         ((m, minima_m), (p, minima_p)) = minima_index_pair
         minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m, p)]
         num_states_per_min = self.number_states_per_minimum()
@@ -1163,12 +1217,12 @@ class VTBBaseMethods(ABC):
         for m, _ in sorted_minima_dict.items():
             for p in range(m + 1, len(sorted_minima_dict)):
                 matrix_element = mat[
-                    m * num_states_per_min : (m + 1) * num_states_per_min,
-                    p * num_states_per_min : (p + 1) * num_states_per_min,
+                    m * num_states_per_min: (m + 1) * num_states_per_min,
+                    p * num_states_per_min: (p + 1) * num_states_per_min,
                 ]
                 mat[
-                    p * num_states_per_min : (p + 1) * num_states_per_min,
-                    m * num_states_per_min : (m + 1) * num_states_per_min,
+                    p * num_states_per_min: (p + 1) * num_states_per_min,
+                    m * num_states_per_min: (m + 1) * num_states_per_min,
                 ] += matrix_element.conjugate().T
         return mat
 
@@ -1310,9 +1364,10 @@ class VTBBaseMethods(ABC):
         return filtered_minima_list
 
     def _optimize_harmonic_lengths(self, relevant_unit_cell_vectors: dict) -> ndarray:
-        """Optimize the Xi matrix by adjusting the harmonic lengths of the ground state to minimize its energy.
-        For tight-binding without squeezing, this is only done for the ansatz ground state wavefunction
-        localized in the global minimum."""
+        """Optimize the Xi matrix by adjusting the harmonic lengths of the ground state
+        to minimize its energy.  For tight-binding without squeezing, this is only
+        done for the ansatz ground state wavefunction localized in the global
+        minimum."""
         sorted_minima_dict = self.sorted_minima_dict
         num_minima = len(sorted_minima_dict)
         harmonic_lengths = np.ones((num_minima, self.number_degrees_freedom))
@@ -1328,7 +1383,8 @@ class VTBBaseMethods(ABC):
         minimum_location: ndarray,
         relevant_unit_cell_vectors: dict,
     ) -> ndarray:
-        """Perform the harmonic length optimization for a h.o. ground state wavefunction localized in a given minimum"""
+        """Perform the harmonic length optimization for a h.o. ground state wavefunction
+         localized in a given minimum"""
         default_Xi = self.Xi_matrix(minimum_index)
         EC_mat = self.EC_matrix()
         optimized_lengths_result = minimize(
@@ -1356,7 +1412,8 @@ class VTBBaseMethods(ABC):
 
     @staticmethod
     def _update_Xi(default_Xi: ndarray, harmonic_lengths) -> ndarray:
-        """Helper method for updating Xi so that the Xi matrix is not constantly regenerated."""
+        """Helper method for updating Xi so that the Xi
+        matrix is not constantly regenerated."""
         return np.array(
             [row * harmonic_lengths[i] for i, row in enumerate(default_Xi.T)]
         ).T
@@ -1370,7 +1427,8 @@ class VTBBaseMethods(ABC):
         default_Xi: ndarray,
         relevant_unit_cell_vectors: dict,
     ) -> ndarray:
-        """Returns the gradient of evals_calc_variational to aid in the harmonic length optimization calculation"""
+        """Returns the gradient of evals_calc_variational to aid in
+        the harmonic length optimization calculation"""
         Xi = self._update_Xi(default_Xi, harmonic_lengths)
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
@@ -1456,8 +1514,8 @@ class VTBBaseMethods(ABC):
         default_Xi: ndarray,
         relevant_unit_cell_vectors: dict,
     ) -> ndarray:
-        """Function to be optimized in the minimization procedure, corresponding to the variational estimate of
-        the ground state energy."""
+        """Function to be optimized in the minimization procedure, corresponding to the
+        variational estimate of the ground state energy."""
         Xi = self._update_Xi(default_Xi, harmonic_lengths)
         Xi_inv = inv(Xi)
         exp_i_phi_j = self._one_state_exp_i_phi_j_operators(Xi)
@@ -1474,7 +1532,8 @@ class VTBBaseMethods(ABC):
         return np.real([transfer / inner])
 
     def _one_state_exp_i_phi_j_operators(self, Xi: ndarray) -> ndarray:
-        r"""Helper method for building :math:`\exp(i\phi_{j})` when no excitations are kept."""
+        r"""Helper method for building :math:`\exp(i\phi_{j})` when no
+        excitations are kept."""
         dim = self.number_degrees_freedom
         exp_factors = np.array(
             [np.exp(-0.25 * np.dot(Xi[j, :], Xi.T[:, j])) for j in range(dim)]
@@ -1666,7 +1725,8 @@ class VTBBaseMethods(ABC):
         exp_i_phi_j: ndarray,
         relevant_unit_cell_vectors: dict,
     ) -> Tuple:
-        """Transfer matrix and inner product matrix when considering only the ground state."""
+        """Transfer matrix and inner product matrix when considering
+        only the ground state."""
         minima_pair_displacement_vectors = (
             2.0 * np.pi * relevant_unit_cell_vectors[(minimum_index, minimum_index)]
         )
@@ -1682,7 +1742,8 @@ class VTBBaseMethods(ABC):
                 for displacement_vector in minima_pair_displacement_vectors
             ]
         )
-        # Need to include displacement_vector + minimum_location - minimum_location for completeness
+        # Need to include displacement_vector + minimum_location -
+        # minimum_location for completeness
         inner_product = np.sum(
             [
                 self._exp_product_coefficient(displacement_vector, Xi_inv)
@@ -1790,7 +1851,7 @@ class VTBBaseMethods(ABC):
         num_states_per_min = self.number_states_per_minimum()
         return np.real(
             np.reshape(
-                evecs[i * num_states_per_min : (i + 1) * num_states_per_min, which],
+                evecs[i * num_states_per_min: (i + 1) * num_states_per_min, which],
                 (self.num_exc + 1, self.num_exc + 1),
             )
         )
@@ -1824,9 +1885,11 @@ class VTBBaseMethods(ABC):
         which: int, optional
             index of wave function to be plotted (default value = (0)
         mode: str, optional
-            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
+            choices as specified in `constants.MODE_FUNC_DICT`
+            (default value = 'abs_sqr')
         zero_calibrate: bool, optional
-            if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
+            if True, colors are adjusted to use zero wavefunction amplitude as the
+            neutral color in the palette
         **kwargs:
             plot options
 
