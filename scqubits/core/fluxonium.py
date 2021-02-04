@@ -12,7 +12,7 @@
 import cmath
 import math
 import os
-from typing import Any, Dict, List, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 import numpy as np
 import scipy as sp
@@ -63,9 +63,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, 
+    def __init__(self,
                  EJ: float,
-                 EC: float, 
+                 EC: float,
                  EL: float,
                  flux: float,
                  cutoff: int,
@@ -95,10 +95,10 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
-        return ['tphi_1_over_f_cc', 
+        return ['tphi_1_over_f_cc',
                 'tphi_1_over_f_flux',
                 't1_capacitive',
-                't1_charge_impedance', 
+                't1_charge_impedance',
                 't1_flux_bias_line',
                 't1_inductive',
                 't1_quasiparticle_tunneling']
@@ -184,14 +184,14 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def d_hamiltonian_d_EJ(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to `EJ`.
 
-        The flux is grouped as in the Hamiltonian. 
+        The flux is grouped as in the Hamiltonian.
         """
         return - self.cos_phi_operator(1,  2 * np.pi * self.flux)
 
     def d_hamiltonian_d_flux(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to `flux`.
 
-        Flux is grouped as in the Hamiltonian. 
+        Flux is grouped as in the Hamiltonian.
         """
         return -2 * np.pi * self.EJ * self.sin_phi_operator(1,  2 * np.pi * self.flux)
 
@@ -270,3 +270,37 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             'ylabel': ylabel
         }
         return options
+
+
+class FluxoniumFluxWithHarmonic(Fluxonium):
+    def __init__(self, EJ: float,
+                 EC: float,
+                 EL: float,
+                 flux: float,
+                 cutoff: int,
+                 truncated_dim: int = 6):
+        Fluxonium.__init__(self, EJ, EC, EL, flux, cutoff, truncated_dim)
+
+    def hamiltonian(self) -> ndarray:
+        """Construct Hamiltonian matrix in harmonic-oscillator basis
+        """
+        dimension = self.hilbertdim()
+        lc_osc_matrix = np.diag([i * self.E_plasma() for i in range(dimension)])
+        lc_osc_matrix += -self.EL * 2.0 * np.pi * self.flux * self.phi_operator()
+
+        exp_matrix = self.exp_i_phi_operator()
+        hamiltonian_mat = lc_osc_matrix - self.EJ * 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+        return np.real(hamiltonian_mat)
+
+    def potential(self, phi: Union[float, ndarray]) -> ndarray:
+        """Fluxonium potential evaluated at `phi`.
+
+        Parameters
+        ----------
+            float value of the phase variable `phi`
+
+        Returns
+        -------
+        float or ndarray
+        """
+        return 0.5 * self.EL * (phi - 2.0 * np.pi * self.flux)**2 - self.EJ * np.cos(phi)

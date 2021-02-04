@@ -1,5 +1,5 @@
 from itertools import product
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from numpy import ndarray
@@ -9,7 +9,7 @@ from scipy.optimize import minimize
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
-from scqubits import VTBBaseMethods, VTBBaseMethodsSqueezing, Grid1d
+from scqubits import Grid1d, VTBBaseMethods, VTBBaseMethodsSqueezing
 from scqubits.core.hashing import Hashing
 from scqubits.core.zeropi import ZeroPi
 

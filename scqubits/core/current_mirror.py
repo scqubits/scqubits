@@ -1,17 +1,18 @@
 import itertools
 import os
-from typing import Dict, Any, Tuple, List
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import scipy as sp
 from numpy import ndarray
-from scipy.sparse import eye, diags
-from scipy.sparse.linalg import eigsh, LinearOperator
+from scipy.sparse import diags, eye
+from scipy.sparse.linalg import LinearOperator, eigsh
 
 import scqubits.core.descriptors as descriptors
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.hashing_charge_basis import HashingChargeBasis, ChargeBasisLinearOperator
+from scqubits.core.hashing_charge_basis import (ChargeBasisLinearOperator,
+                                                HashingChargeBasis)
 from scqubits.core.noise import NoisySystem
 from scqubits.core.operators import identity_wrap
 from scqubits.utils.spectrum_utils import order_eigensystem

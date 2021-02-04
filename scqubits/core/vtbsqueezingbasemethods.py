@@ -1,12 +1,12 @@
 import itertools
 from functools import partial, reduce
-from typing import Tuple, Callable, Optional
+from typing import Callable, Optional, Tuple
 
 import numpy as np
 import scipy as sp
 from numpy import ndarray
 from numpy.linalg import matrix_power
-from scipy.linalg import LinAlgError, inv, expm, logm, det
+from scipy.linalg import LinAlgError, det, expm, inv, logm
 from scipy.optimize import minimize
 from scipy.special import factorial
 

@@ -7,7 +7,6 @@ import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits import Transmon, VTBBaseMethods
 
-
 # -Transmon using VariationalTightBinding
 
 class TransmonVTB(VTBBaseMethods, Transmon, base.QubitBaseClass, serializers.Serializable):

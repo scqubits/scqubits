@@ -1,5 +1,5 @@
 import itertools
-from typing import Callable, List, Tuple, Optional
+from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 from numpy import ndarray

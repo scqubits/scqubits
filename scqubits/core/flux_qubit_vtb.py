@@ -1,4 +1,4 @@
-from typing import Callable, List, Dict, Any, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 from numpy import ndarray
@@ -9,8 +9,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.hashing import Hashing
 from scqubits.core.noise import NOISE_PARAMS
-from scqubits.core.vtbsqueezingbasemethods import VTBBaseMethodsSqueezing
 from scqubits.core.vtbbasemethods import VTBBaseMethods
+from scqubits.core.vtbsqueezingbasemethods import VTBBaseMethodsSqueezing
 
 
 class FluxQubitVTB(VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.Serializable):

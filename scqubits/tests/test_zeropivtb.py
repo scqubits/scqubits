@@ -1,8 +1,7 @@
 import numpy as np
 import pytest
 
-from scqubits import ZeroPi
-from scqubits import ZeroPiVTB
+from scqubits import ZeroPi, ZeroPiVTB
 from scqubits.tests.conftest import VTBTestFunctions
 
 

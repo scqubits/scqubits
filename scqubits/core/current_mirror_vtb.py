@@ -1,5 +1,5 @@
 import math
-from typing import Callable, Any, Dict
+from typing import Any, Callable, Dict
 
 import numpy as np
 from numpy import ndarray
