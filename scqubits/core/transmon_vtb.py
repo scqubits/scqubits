@@ -67,7 +67,7 @@ class TransmonVTB(VTBBaseMethods, Transmon, base.QubitBaseClass, serializers.Ser
         phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
         exp_i_phi_j = exp_i_phi_j * np.exp(1j * phi_bar[0])
         potential_matrix = -0.5 * self.EJlist[0] * (exp_i_phi_j + exp_i_phi_j.conjugate())
-        potential_matrix += self.EJlist[0] * self.identity()
+        potential_matrix += self.EJlist[0] * self._identity()
         return potential_matrix
 
     def EC_matrix(self) -> ndarray:

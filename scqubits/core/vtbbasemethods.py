@@ -114,7 +114,6 @@ class VTBBaseMethods(ABC):
         self.displacement_vector_cutoff = displacement_vector_cutoff
         self.maximum_site_length = maximum_site_length
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
-        self.initialized_optimized_harmonic_lengths = False
         self.translation_op_dict = {}
         self._evec_dtype = np.complex_
 
@@ -264,7 +263,7 @@ class VTBBaseMethods(ABC):
         Parameters
         ----------
         dof_index: int
-            which degree of freedom, 0<=mu<=self.number_degrees_freedom
+            which degree of freedom, 0<=dof_index<=self.number_degrees_freedom
 
         Returns
         -------
@@ -375,12 +374,8 @@ class VTBBaseMethods(ABC):
         gaussian_overlap = np.exp(-0.25 * gaussian_overlap_argument @ gaussian_overlap_argument)
         return gaussian_overlap > self.displacement_vector_cutoff
 
-    def identity(self) -> ndarray:
-        """
-        Returns
-        -------
-        ndarray
-            Returns the identity matrix whose dimensions are the same as self.a_operator(mu)
+    def _identity(self) -> ndarray:
+        """Returns the identity matrix whose dimensions are the same as self.number_states_per_minimum()
         """
         return np.eye(int(self.number_states_per_minimum()))
 
@@ -389,7 +384,7 @@ class VTBBaseMethods(ABC):
         Returns
         -------
         int
-            Returns the number of states displaced into each local minimum
+            Returns the number of states in each local minimum
         """
         return (self.num_exc + 1)**self.number_degrees_freedom
 
@@ -467,21 +462,25 @@ class VTBBaseMethods(ABC):
         speed bottleneck."""
         exp_a_list, exp_a_minus_list = exp_list
         exp_a_minima_difference, exp_a_dagger_minima_difference = exp_minima_difference
-        translation_a_dagger_with_power = zip(np.arange(self.number_degrees_freedom), exp_a_list, exp_a_minus_list,
-                                              unit_cell_vector.astype(int))
-        translation_a_with_power = zip(np.arange(self.number_degrees_freedom), exp_a_list, exp_a_minus_list,
-                                       -unit_cell_vector.astype(int))
-        translation_op_a_dagger = (reduce(np.matmul, map(self._matrix_power_helper, translation_a_dagger_with_power)).T
+        ops_with_power_for_a_dagger = zip(np.arange(self.number_degrees_freedom), exp_a_list,
+                                          exp_a_minus_list, unit_cell_vector.astype(int))
+        ops_with_power_for_a = zip(np.arange(self.number_degrees_freedom), exp_a_list,
+                                   exp_a_minus_list, -unit_cell_vector.astype(int))
+        translation_op_a_dagger = (reduce(np.matmul, map(self._matrix_power_helper, ops_with_power_for_a_dagger)).T
                                    @ exp_a_dagger_minima_difference)
-        translation_op_a = (reduce(np.matmul, map(self._matrix_power_helper, translation_a_with_power))
+        translation_op_a = (reduce(np.matmul, map(self._matrix_power_helper, ops_with_power_for_a))
                             @ exp_a_minima_difference)
         return translation_op_a_dagger, translation_op_a
 
-    def _matrix_power_helper(self, translation_op_with_power: Tuple):
+    def _matrix_power_helper(self, translation_op_with_power: Tuple[int, ndarray, ndarray, int]) -> ndarray:
+        """Helper method that actually returns translation operators. If the translation operator has
+        been built before and stored, use that result. Additionally if the translation is given by
+        a negative integer, take advantage of having built a pre-exponentiated operator with -2\pi
+        argument to avoid a costly call to inv."""
         (j, exp_a_list, exp_a_minus_list, unit_cell_vector) = translation_op_with_power
         if (j, unit_cell_vector) in self.translation_op_dict:
             return self.translation_op_dict[(j, unit_cell_vector)]
-        elif unit_cell_vector > 0:
+        elif unit_cell_vector >= 0:
             translation_operator = matrix_power(exp_a_list, unit_cell_vector)
         else:
             translation_operator = matrix_power(exp_a_minus_list, -unit_cell_vector)
@@ -490,7 +489,7 @@ class VTBBaseMethods(ABC):
 
     def _exp_product_coefficient(self, delta_phi: ndarray, Xi_inv: ndarray) -> ndarray:
         """Returns overall multiplicative factor, including offset charge and Gaussian suppression BCH factor
-        from the periodic continuation (translation) operators"""
+        from the translation operators"""
         delta_phi_rotated = Xi_inv @ delta_phi
         return np.exp(-1j * self.nglist @ delta_phi) * np.exp(-0.25 * delta_phi_rotated @ delta_phi_rotated)
 
@@ -499,8 +498,18 @@ class VTBBaseMethods(ABC):
         return np.exp(-0.25 * self.stitching_coefficients @ Xi @ Xi.T @ self.stitching_coefficients)
 
     def _abstract_VTB_operator(self, local_func: Callable, num_cpus: int = 1) -> ndarray:
-        relevant_unit_cell_vectors, optimized_harmonic_lengths = self._initialize_VTB(num_cpus)
-        Xi = self.Xi_matrix(minimum_index=0, harmonic_lengths=optimized_harmonic_lengths)
+        """Factory for building a VTB operator. local_func represents the local contribution
+        to the operator, taking into account normal ordering. local func must have the signature
+        local_func(precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
+                   displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray)
+        where precalculated_quantities = (Xi, Xi_inv, premultiplied_a_a_dagger, exp_i_phi_j, EC_mat_t)
+        defined below. These are all expensive quantities to calculate over and over again for each
+        displacement_vector, but do not depend on the displacement_vector, therefore are calculated once
+        and extracted when needed. Obviously, for example, exp_i_phi_j is not necessary for the kinetic
+        calculation, but is passed nonetheless for consistency.
+        """
+        relevant_unit_cell_vectors, harmonic_lengths = self._initialize_VTB(num_cpus)
+        Xi = self.Xi_matrix(minimum_index=0, harmonic_lengths=harmonic_lengths)
         Xi_inv = inv(Xi)
         a_operator_array = self._a_operator_array()
         premultiplied_a_a_dagger = self._premultiplied_a_a_dagger(a_operator_array)
@@ -508,31 +517,82 @@ class VTBBaseMethods(ABC):
         EC_mat_t = Xi_inv @ self.EC_matrix() @ Xi_inv.T
         partial_local_func = partial(local_func, (Xi, Xi_inv, premultiplied_a_a_dagger, exp_i_phi_j, EC_mat_t))
         return self._periodic_continuation(partial_local_func, relevant_unit_cell_vectors,
-                                           optimized_harmonic_lengths, num_cpus)
+                                           harmonic_lengths, num_cpus)
 
-    def _initialize_VTB(self, num_cpus: int = 1):
+    def _initialize_VTB(self, num_cpus: int = 1) -> Tuple[Dict[Tuple[int, int], ndarray], ndarray]:
+        """Initialization when building a VTB operator"""
         relevant_unit_cell_vectors = self.find_relevant_unit_cell_vectors(num_cpus=num_cpus)
         if self.harmonic_length_optimization:
-            optimized_harmonic_lengths = self._optimize_harmonic_lengths(relevant_unit_cell_vectors)
+            harmonic_lengths = self._optimize_harmonic_lengths(relevant_unit_cell_vectors)
         else:
-            optimized_harmonic_lengths = None
+            harmonic_lengths = None
         self.translation_op_dict = {}
-        return relevant_unit_cell_vectors, optimized_harmonic_lengths
+        return relevant_unit_cell_vectors, harmonic_lengths
 
-    def n_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
-        return self._abstract_VTB_operator(partial(self._local_charge_operator, j), num_cpus)
+    def n_operator(self, dof_index: int = 0, num_cpus: int = 1) -> ndarray:
+        """
+        Parameters
+        ----------
+        dof_index: int
+            which degree of freedom, 0<=dof_index<=self.number_degrees_freedom
+        num_cpus: int
+            Number of CPUS/cores employed in underlying calculation.
+        Returns
+        -------
+            Charge operator in the basis of VTB states
+        """
+        return self._abstract_VTB_operator(partial(self._local_charge_operator, dof_index), num_cpus)
 
-    def phi_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
-        return self._abstract_VTB_operator(partial(self._local_phi_operator, j), num_cpus)
+    def phi_operator(self, dof_index: int = 0, num_cpus: int = 1) -> ndarray:
+        """
+        Parameters
+        ----------
+        dof_index: int
+            which degree of freedom, 0<=dof_index<self.number_extended_degrees_freedom
+        num_cpus: int
+            Number of CPUS/cores employed in underlying calculation.
+        Returns
+        -------
+            :math:`\\phi` operator in the basis of VTB states. Note that this is only defined for degrees
+            of freedom dof_index that are extended
+        """
+        if dof_index >= self.number_extended_degrees_freedom:
+            raise ValueError("phi_operator is only defined for extended degrees of freedom")
+        return self._abstract_VTB_operator(partial(self._local_phi_operator, dof_index), num_cpus)
 
-    def exp_i_phi_operator(self, j: int = 0, num_cpus: int = 1) -> ndarray:
-        return self._abstract_VTB_operator(partial(self._local_exp_i_phi_operator, j), num_cpus)
+    def exp_i_phi_operator(self, dof_index: int = 0, num_cpus: int = 1) -> ndarray:
+        """
+        Parameters
+        ----------
+        dof_index: int
+            which degree of freedom, 0<=dof_index<=self.number_degrees_freedom
+        num_cpus: int
+            Number of CPUS/cores employed in underlying calculation.
+        Returns
+        -------
+            :math:`e^{i \\phi}` operator in the basis of VTB states.
+        """
+        return self._abstract_VTB_operator(partial(self._local_exp_i_phi_operator, dof_index), num_cpus)
 
     def hamiltonian(self, num_cpus: int = 1) -> ndarray:
+        """
+        Parameters
+        ----------
+        num_cpus: int
+            Number of CPUS/cores employed in underlying calculation.
+        Returns
+        -------
+        ndarray
+            Returns the transfer matrix
+        """
         return self.transfer_matrix(num_cpus)
 
     def kinetic_matrix(self, num_cpus: int = 1) -> ndarray:
         """
+        Parameters
+        ----------
+        num_cpus: int
+            Number of CPUS/cores employed in underlying calculation.
         Returns
         -------
         ndarray
@@ -542,6 +602,10 @@ class VTBBaseMethods(ABC):
 
     def potential_matrix(self, num_cpus: int = 1) -> ndarray:
         """
+        Parameters
+        ----------
+        num_cpus: int
+            Number of CPUS/cores employed in underlying calculation.
         Returns
         -------
         ndarray
@@ -551,6 +615,10 @@ class VTBBaseMethods(ABC):
 
     def transfer_matrix(self, num_cpus: int = 1) -> ndarray:
         """
+        Parameters
+        ----------
+        num_cpus: int
+            Number of CPUS/cores employed in underlying calculation.
         Returns
         -------
         ndarray
@@ -558,9 +626,27 @@ class VTBBaseMethods(ABC):
         """
         return self._abstract_VTB_operator(self._local_transfer, num_cpus)
 
-    def _transfer_matrix(self, relevant_unit_cell_vectors: dict, optimized_harmonic_lengths: ndarray,
+    def inner_product_matrix(self, num_cpus: int = 1) -> ndarray:
+        """
+        Parameters
+        ----------
+        num_cpus: int
+            Number of CPUS/cores employed in underlying calculation.
+        Returns
+        -------
+        ndarray
+            Returns the inner product matrix
+        """
+        return self._abstract_VTB_operator(lambda precalculated_quantities, displacement_vector, minima_m, minima_p,
+                                           : self._identity(), num_cpus)
+
+    def _transfer_matrix(self, relevant_unit_cell_vectors: dict, harmonic_lengths: ndarray,
                          num_cpus: int = 1):
-        Xi = self.Xi_matrix(0, harmonic_lengths=optimized_harmonic_lengths)
+        """To be called in conjunction with _inner_product_matrix, it is expected that _initialize_VTB
+        has already been called. In an eigenvalue calculation, one must calculate both the transfer matrix and the
+        inner product matrix, but the translation operators, relevant unit cell vectors and harmonic lengths
+        will be the same for both. Therefore those calculations need only be performed once."""
+        Xi = self.Xi_matrix(0, harmonic_lengths=harmonic_lengths)
         Xi_inv = inv(Xi)
         a_operator_array = self._a_operator_array()
         exp_i_phi_j = self._all_exp_i_phi_j_operators(Xi, a_operator_array)
@@ -569,40 +655,50 @@ class VTBBaseMethods(ABC):
         transfer_matrix_function = partial(self._local_transfer, (Xi, Xi_inv, premultiplied_a_a_dagger,
                                                                   exp_i_phi_j, EC_mat_t))
         return self._periodic_continuation(transfer_matrix_function, relevant_unit_cell_vectors,
-                                           optimized_harmonic_lengths, num_cpus)
+                                           harmonic_lengths, num_cpus)
 
-    def inner_product_matrix(self, num_cpus: int = 1) -> ndarray:
-        """
-        Returns
-        -------
-        ndarray
-            Returns the inner product matrix
-        """
-        return self._abstract_VTB_operator(lambda precalculated_quantities, displacement_vector, minima_m, minima_p,
-                                           : self.identity(), num_cpus)
-
-    def _inner_product_matrix(self, relevant_unit_cell_vectors: dict, optimized_harmonic_lengths: ndarray,
+    def _inner_product_matrix(self, relevant_unit_cell_vectors: dict, harmonic_lengths: ndarray,
                               num_cpus: int = 1):
-        return self._periodic_continuation(lambda displacement_vector, minima_m, minima_p: self.identity(),
-                                           relevant_unit_cell_vectors, optimized_harmonic_lengths,
+        """See _transfer_matrix documentation. Calculate the inner product matrix with pre-calculated
+        relevant unit cell vectors and harmonic lengths"""
+        return self._periodic_continuation(lambda displacement_vector, minima_m, minima_p: self._identity(),
+                                           relevant_unit_cell_vectors, harmonic_lengths,
                                            num_cpus=num_cpus)
 
     def _local_charge_operator(self, j: int, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
                                displacement_vector: ndarray,
                                minima_m: ndarray, minima_p: ndarray) -> ndarray:
+        r"""Calculate the local contribution to the charge operator given two
+        minima and a unit cell vector `displacement_vector`"""
         _, Xi_inv, premultiplied_a_a_dagger, _, _ = precalculated_quantities
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         constant_coefficient = -0.5 * 1j * (Xi_inv.T @ Xi_inv @ (displacement_vector + minima_p - minima_m))[j]
         return (-(1j / np.sqrt(2.0)) * np.sum(Xi_inv.T[j] * (np.transpose(a, (1, 2, 0)) - a.T), axis=2)
-                + constant_coefficient * self.identity())
+                + constant_coefficient * self._identity())
 
     def _local_phi_operator(self, j: int, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
                             displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+        r"""Calculate the local contribution to the `\phi` operator given two
+        minima and a unit cell vector `displacement_vector`"""
         Xi, _, premultiplied_a_a_dagger, _, _ = precalculated_quantities
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         constant_coefficient = 0.5 * (displacement_vector + (minima_m + minima_p))
         return ((1.0 / np.sqrt(2.0)) * np.sum(Xi[j] * (np.transpose(a, (1, 2, 0)) + a.T), axis=2)
-                + constant_coefficient[j] * self.identity())
+                + constant_coefficient[j] * self._identity())
+
+    def _local_exp_i_phi_operator(self, j: int, precalculated_quantities: Tuple[ndarray, ndarray, Tuple,
+                                                                                ndarray, ndarray],
+                                  displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
+        r"""Calculate the local contribution to the :math:`e^{i \\phi}` operator given two
+        minima and a unit cell vector `displacement_vector`"""
+        _, _, _, exp_i_phi_j, _ = precalculated_quantities
+        dim = self.number_degrees_freedom
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
+        exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
+        if j == dim:
+            return exp_i_stitching_phi_j_phi_bar
+        else:
+            return exp_i_phi_j_phi_bar[j]
 
     def _exp_i_phi_j_with_phi_bar(self, exp_i_phi_j: ndarray, phi_bar: ndarray) -> Tuple[ndarray, ndarray]:
         """Returns exp_i_phi_j operators including the local contribution of phi_bar"""
@@ -614,18 +710,6 @@ class VTBBaseMethods(ABC):
         exp_i_stitching_phi_j_phi_bar = (exp_i_phi_j[-1] * np.exp(1j * 2.0 * np.pi * self.flux)
                                          * np.exp(1j * self.stitching_coefficients @ phi_bar))
         return exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar
-
-    def _local_exp_i_phi_operator(self, j: int, precalculated_quantities: Tuple[ndarray, ndarray, Tuple,
-                                                                                ndarray, ndarray],
-                                  displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
-        _, _, _, exp_i_phi_j, _ = precalculated_quantities
-        dim = self.number_degrees_freedom
-        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
-        exp_i_phi_j_phi_bar, exp_i_stitching_phi_j_phi_bar = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
-        if j == dim:
-            return exp_i_stitching_phi_j_phi_bar
-        else:
-            return exp_i_phi_j_phi_bar[j]
 
     def _local_kinetic(self, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
                        displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray) -> ndarray:
@@ -641,7 +725,7 @@ class VTBBaseMethods(ABC):
         kinetic_matrix = np.sum(np.diag(EC_mat_t) * local_kinetic_diagonal, axis=2)
         identity_coefficient = (0.5 * 4 * np.trace(EC_mat_t)
                                 - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated)
-        kinetic_matrix = kinetic_matrix + identity_coefficient*self.identity()
+        kinetic_matrix = kinetic_matrix + identity_coefficient*self._identity()
         return kinetic_matrix
 
     def _local_potential(self, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
@@ -656,7 +740,7 @@ class VTBBaseMethods(ABC):
                                      + np.transpose(exp_i_phi_j_phi_bar, (1, 2, 0)).conjugate()), axis=2)
         potential_matrix = potential_matrix - 0.5 * self.EJlist[-1] * (exp_i_stitching_phi_j_phi_bar
                                                                        + exp_i_stitching_phi_j_phi_bar.conjugate())
-        potential_matrix = potential_matrix + np.sum(self.EJlist) * self.identity()
+        potential_matrix = potential_matrix + np.sum(self.EJlist) * self._identity()
         return potential_matrix
 
     def _local_transfer(self, precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
@@ -666,26 +750,34 @@ class VTBBaseMethods(ABC):
         return (self._local_kinetic(precalculated_quantities, displacement_vector, minima_m, minima_p)
                 + self._local_potential(precalculated_quantities, displacement_vector, minima_m, minima_p))
 
-    def _periodic_continuation(self, func: Callable, relevant_unit_cell_vectors: dict,
-                               optimized_harmonic_lengths: ndarray, num_cpus: int = 1) -> ndarray:
-        """This function is the meat of the VariationalTightBinding method. Any operator whose matrix
-        elements we want (the transfer matrix and inner product matrix are obvious examples)
-        can be passed to this function, and the matrix elements of that operator
-        will be returned.
+    def _periodic_continuation(self, local_func: Callable, relevant_unit_cell_vectors: Dict[Tuple[int, int], ndarray],
+                               harmonic_lengths: ndarray, num_cpus: int = 1) -> ndarray:
+        """This function is the meat of the VariationalTightBinding method, performing the summation
+        over unit cell vectors for each pair of minima and constructing the resulting operator
+        ::
+                [M_{0, 0} M_{0, 1} ...  M_{0, N_{\text{min}}} ]
+            M = [M_{1, 0} M_{1, 1} ...          \vdot         ]
+                [ \vdot            \ddot                      ]
+                [M_{N_{\text{min}}, 0} ...    M_{N_{\text{min}},N_{\text{min}} }]
 
+        where `M_{ij}` refers to the matrix block calculated for the pair of minima `i`, `j`
         Parameters
         ----------
-        func: method
+        local_func: Callable
             function that takes three arguments (displacement_vector, minima_m, minima_p) and returns the
-            relevant operator with dimension NxN, where N is the number of states
-            displaced into each minimum. For instance to find the inner product matrix,
-            we use the function self._inner_product_operator(displacement_vector, minima_m, minima_p) -> self.identity
+            relevant operator with dimension NxN, where N=self.number_states_per_minimum().
+        relevant_unit_cell_vectors: Dict[Tuple[int, int], ndarray]
+            Dictionary of the relevant unit cell vectors for each pair of minima
+        harmonic_lengths: ndarray
+            harmonic lengths to be passed to the Xi matrix
+        num_cpus: int
+            Number of CPUS/cores employed in underlying calculation.
 
         Returns
         -------
         ndarray
         """
-        Xi_inv = inv(self.Xi_matrix(0, optimized_harmonic_lengths))
+        Xi_inv = inv(self.Xi_matrix(0, harmonic_lengths))
         target_map = get_map_method(num_cpus)
         a_operator_array = self._a_operator_array()
         exp_a_list = self._general_translation_operators(Xi_inv, a_operator_array)
@@ -693,7 +785,7 @@ class VTBBaseMethods(ABC):
         operator_matrix = np.zeros((self.hilbertdim(), self.hilbertdim()), dtype=np.complex_)
         all_minima_index_pairs = list(itertools.combinations_with_replacement(self.sorted_minima_dict.items(), 2))
         periodic_continuation_for_minima_pair = partial(self._periodic_continuation_for_minima_pair,
-                                                        func, exp_a_list, Xi_inv, a_operator_array,
+                                                        local_func, exp_a_list, Xi_inv, a_operator_array,
                                                         relevant_unit_cell_vectors)
         matrix_elements = list(target_map(periodic_continuation_for_minima_pair, all_minima_index_pairs))
         for i, ((m, minima_m), (p, minima_p)) in enumerate(all_minima_index_pairs):
@@ -750,15 +842,15 @@ class VTBBaseMethods(ABC):
     def _evals_esys_calc(self, evals_count: int, eigvals_only: bool, num_cpus: int = 1) -> ndarray:
         """Helper method that wraps the try and except regarding
         singularity/indefiniteness of the inner product matrix"""
-        relevant_unit_cell_vectors,  optimized_harmonic_lengths = self._initialize_VTB(num_cpus)
+        relevant_unit_cell_vectors,  harmonic_lengths = self._initialize_VTB(num_cpus)
         harmonic_length_minima_comparison = self.compute_localization_ratios()
         if np.max(harmonic_length_minima_comparison) > 1.0:
             warnings.warn("Warning: large harmonic length compared to minima separation "
                           "largest is 3*l/(d/2) = {ratio})".format(ratio=np.max(harmonic_length_minima_comparison)))
-        transfer_matrix = self._transfer_matrix(relevant_unit_cell_vectors, optimized_harmonic_lengths,
+        transfer_matrix = self._transfer_matrix(relevant_unit_cell_vectors, harmonic_lengths,
                                                 num_cpus=num_cpus)
         inner_product_matrix = self._inner_product_matrix(relevant_unit_cell_vectors,
-                                                          optimized_harmonic_lengths, num_cpus=num_cpus)
+                                                          harmonic_lengths, num_cpus=num_cpus)
         try:
             eigs = eigh(transfer_matrix, b=inner_product_matrix,
                         eigvals_only=eigvals_only, eigvals=(0, evals_count - 1))
@@ -801,22 +893,24 @@ class VTBBaseMethods(ABC):
         _, sorted_minima_array = self._sorted_potential_values_and_minima()
         return {minimum_index: minimum_location for minimum_index, minimum_location in enumerate(sorted_minima_array)}
 
-    def _normalize_minimum_inside_pi_range(self, minimum: ndarray) -> ndarray:
+    def _normalize_minimum_inside_pi_range(self, minimum_location: ndarray) -> ndarray:
         """Helper method for defining the unit cell from -pi to pi rather than the less symmetric 0 to 2pi"""
         num_extended = self.number_extended_degrees_freedom
-        extended_coordinates = minimum[0: num_extended]
-        periodic_coordinates = np.mod(minimum, 2 * np.pi * np.ones_like(minimum))[num_extended:]
+        extended_coordinates = minimum_location[0: num_extended]
+        periodic_coordinates = np.mod(minimum_location, 2 * np.pi * np.ones_like(minimum_location))[num_extended:]
         periodic_coordinates = np.array([elem - 2 * np.pi if elem > np.pi else elem for elem in periodic_coordinates])
         return np.concatenate((extended_coordinates, periodic_coordinates))
 
-    def _check_if_new_minima(self, new_minima: ndarray, minima_list: List) -> bool:
+    def _check_if_new_minima(self, new_minima_location: ndarray, minima_list: List) -> bool:
         """Helper method for find_minima, checking if new_minima is already represented in minima_list. If so,
         _check_if_new_minima returns False.
         """
         num_extended = self.number_extended_degrees_freedom
-        for minimum in minima_list:
-            extended_coordinates = np.array(minimum[0:num_extended] - new_minima[0:num_extended])
-            periodic_coordinates = np.mod(minimum - new_minima, 2*np.pi*np.ones_like(minimum))[num_extended:]
+        for minimum_location in minima_list:
+            extended_coordinates = np.array(minimum_location[0:num_extended]
+                                            - new_minima_location[0:num_extended])
+            periodic_coordinates = np.mod(minimum_location - new_minima_location,
+                                          2 * np.pi * np.ones_like(minimum_location))[num_extended:]
             diff_array_bool_extended = [True if np.allclose(elem, 0.0, atol=1e-3) else False
                                         for elem in extended_coordinates]
             diff_array_bool_periodic = [True if (np.allclose(elem, 0.0, atol=1e-3)
@@ -1044,15 +1138,15 @@ class VTBBaseMethods(ABC):
 
         wavefunction_amplitudes = np.zeros_like(np.outer(phi_1_vec, phi_2_vec), dtype=np.complex_).T
 
-        for i, minimum in sorted_minima_dict.items():
+        for minimum_index, minimum_location in sorted_minima_dict.items():
             unit_cell_vectors = itertools.product(np.arange(-self.maximum_periodic_vector_length,
                                                             self.maximum_periodic_vector_length + 1),
                                                   repeat=dim_periodic)
             unit_cell_vector = next(unit_cell_vectors, -1)
             while unit_cell_vector != -1:
                 displacement_vector = 2.0 * np.pi * np.concatenate((np.zeros(dim_extended), unit_cell_vector))
-                phi_offset = displacement_vector - minimum
-                state_amplitudes = self.state_amplitudes_function(i, evecs, which)
+                phi_offset = displacement_vector - minimum_location
+                state_amplitudes = self.state_amplitudes_function(minimum_index, evecs, which)
                 phi_1_with_offset = phi_1_vec + phi_offset[0]
                 phi_2_with_offset = phi_2_vec + phi_offset[1]
                 normal_mode_1 = np.add.outer(Xi_inv[0, 0]*phi_1_with_offset, Xi_inv[0, 1]*phi_2_with_offset)

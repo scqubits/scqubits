@@ -218,10 +218,10 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
         dim = self.number_degrees_freedom
         a, a_a, a_dagger_a = premultiplied_a_and_a_dagger
         harmonic_contribution = np.sum([0.5 * self.EL * Xi[0, i]
-                                        * Xi.T[i, 0] * (a_a[i] + a_a[i].T + 2.0 * a_dagger_a[i] + self.identity())
+                                        * Xi.T[i, 0] * (a_a[i] + a_a[i].T + 2.0 * a_dagger_a[i] + self._identity())
                                         + np.sqrt(2.0) * self.EL * Xi[0, i] * (a[i] + a[i].T) * phi_bar[0]
                                         for i in range(dim)], axis=0)
-        harmonic_contribution += self.EL * phi_bar[0]**2 * self.identity()
+        harmonic_contribution += self.EL * phi_bar[0]**2 * self._identity()
         return harmonic_contribution
 
     def _local_potential(self, exp_i_phi_list: ndarray, premultiplied_a_and_a_dagger: Tuple,
@@ -233,7 +233,7 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
             exp_i_phi_theta = self._exp_i_phi_theta_with_phi_bar(j, exp_i_phi_list, phi_bar)
             potential_matrix += (-0.5 * self.EJ * (1.0 + (-1)**j * self.dEJ)
                                  * (exp_i_phi_theta + exp_i_phi_theta.conjugate()))
-        potential_matrix += 2.0 * self.EJ * self.identity()
+        potential_matrix += 2.0 * self.EJ * self._identity()
         return potential_matrix
 
     def _one_state_local_potential(self, exp_i_phi_j: ndarray, Xi: ndarray,
