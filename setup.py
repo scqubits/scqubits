@@ -20,10 +20,10 @@ Matplotlib.
 
 import os
 import sys
+
 import setuptools
 
-
-DOCLINES = __doc__.split('\n')
+DOCLINES = __doc__.split("\n")
 
 CLASSIFIERS = """\
 Development Status :: 5 - Production/Stable
@@ -47,34 +47,33 @@ MINOR = 3
 MICRO = 2
 ISRELEASED = True
 
-VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
+VERSION = "%d.%d.%d" % (MAJOR, MINOR, MICRO)
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(CURRENT_DIR, "requirements.txt")) as requirements:
     INSTALL_REQUIRES = requirements.read().splitlines()
 
 
-EXTRAS_REQUIRE = {'graphics': ['matplotlib-label-lines (>=0.3.6)'],
-                  'explorer': ['ipywidgets (>=7.5)'],
-                  'h5-support': ['h5py (>=2.10)'],
-                  'pathos': ['pathos', 'dill'],
-                  'fitting': ['lmfit']}
+EXTRAS_REQUIRE = {
+    "graphics": ["matplotlib-label-lines (>=0.3.6)"],
+    "explorer": ["ipywidgets (>=7.5)"],
+    "h5-support": ["h5py (>=2.10)"],
+    "pathos": ["pathos", "dill"],
+    "fitting": ["lmfit"],
+}
 
-TESTS_REQUIRE = ['h5py (>=2.7.1)',
-                 'pathos',
-                 'dill',
-                 'ipywidgets',
-                 'pytest',
-                 'lmfit']
+TESTS_REQUIRE = ["h5py (>=2.7.1)", "pathos", "dill", "ipywidgets", "pytest", "lmfit"]
 
-PACKAGES = ['scqubits',
-            'scqubits/core',
-            'scqubits/tests',
-            'scqubits/utils',
-            'scqubits/ui',
-            'scqubits/io_utils']
+PACKAGES = [
+    "scqubits",
+    "scqubits/core",
+    "scqubits/tests",
+    "scqubits/utils",
+    "scqubits/ui",
+    "scqubits/io_utils",
+]
 
-PYTHON_VERSION = '>=3.6'
+PYTHON_VERSION = ">=3.6"
 
 
 NAME = "scqubits"
@@ -85,7 +84,7 @@ DESCRIPTION = DOCLINES[0]
 LONG_DESCRIPTION = "\n".join(DOCLINES[2:])
 KEYWORDS = "superconducting qubits"
 URL = "https://scqubits.readthedocs.io"
-CLASSIFIERS = [_f for _f in CLASSIFIERS.split('\n') if _f]
+CLASSIFIERS = [_f for _f in CLASSIFIERS.split("\n") if _f]
 PLATFORMS = ["Linux", "Mac OSX", "Unix", "Windows"]
 
 
@@ -95,26 +94,33 @@ def git_short_hash():
     except OSError:
         git_str = ""
     else:
-        if git_str == '+':   # fixes setuptools PEP issues with versioning
-            git_str = ''
+        if git_str == "+":  # fixes setuptools PEP issues with versioning
+            git_str = ""
     return git_str
 
 
 FULLVERSION = VERSION
 if not ISRELEASED:
-    FULLVERSION += '.dev'+str(MICRO)+git_short_hash()
+    FULLVERSION += ".dev" + str(MICRO) + git_short_hash()
 
 
-def write_version_py(filename='scqubits/version.py'):
+def write_version_py(filename="scqubits/version.py"):
     cnt = """\
 # THIS FILE IS GENERATED FROM scqubits SETUP.PY
 short_version = '%(version)s'
 version = '%(fullversion)s'
 release = %(isrelease)s
 """
-    versionfile = open(filename, 'w')
+    versionfile = open(filename, "w")
     try:
-        versionfile.write(cnt % {'version': VERSION, 'fullversion': FULLVERSION, 'isrelease': str(ISRELEASED)})
+        versionfile.write(
+            cnt
+            % {
+                "version": VERSION,
+                "fullversion": FULLVERSION,
+                "isrelease": str(ISRELEASED),
+            }
+        )
     finally:
         versionfile.close()
 
@@ -122,30 +128,31 @@ release = %(isrelease)s
 local_path = os.path.dirname(os.path.abspath(sys.argv[0]))
 os.chdir(local_path)
 sys.path.insert(0, local_path)
-sys.path.insert(0, os.path.join(local_path, 'scqubits'))  # to retrieve _version
+sys.path.insert(0, os.path.join(local_path, "scqubits"))  # to retrieve _version
 
 # always rewrite _version
-if os.path.exists('scqubits/version.py'):
-    os.remove('scqubits/version.py')
+if os.path.exists("scqubits/version.py"):
+    os.remove("scqubits/version.py")
 write_version_py()
 
-setuptools.setup(name=NAME,
-                 version=FULLVERSION,
-                 packages=PACKAGES,
-                 author=AUTHOR,
-                 author_email=AUTHOR_EMAIL,
-                 license=LICENSE,
-                 description=DESCRIPTION,
-                 long_description=LONG_DESCRIPTION,
-                 keywords=KEYWORDS,
-                 url=URL,
-                 classifiers=CLASSIFIERS,
-                 platforms=PLATFORMS,
-                 install_requires=INSTALL_REQUIRES,
-                 extras_require=EXTRAS_REQUIRE,
-                 tests_require=TESTS_REQUIRE,
-                 zip_safe=False,
-                 include_package_data=True,
-                 python_requires=PYTHON_VERSION,
-                 **EXTRA_KWARGS
-                 )
+setuptools.setup(
+    name=NAME,
+    version=FULLVERSION,
+    packages=PACKAGES,
+    author=AUTHOR,
+    author_email=AUTHOR_EMAIL,
+    license=LICENSE,
+    description=DESCRIPTION,
+    long_description=LONG_DESCRIPTION,
+    keywords=KEYWORDS,
+    url=URL,
+    classifiers=CLASSIFIERS,
+    platforms=PLATFORMS,
+    install_requires=INSTALL_REQUIRES,
+    extras_require=EXTRAS_REQUIRE,
+    tests_require=TESTS_REQUIRE,
+    zip_safe=False,
+    include_package_data=True,
+    python_requires=PYTHON_VERSION,
+    **EXTRA_KWARGS
+)

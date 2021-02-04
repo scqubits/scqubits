@@ -12,20 +12,24 @@
 import numpy as np
 
 # supported file types
-FILE_TYPES = ['.h5 | .hdf5',
-              '.csv']
+FILE_TYPES = [".h5 | .hdf5", ".csv"]
 
 # helper functions for plotting wave functions
-MODE_FUNC_DICT = {'abs_sqr': (lambda x: np.abs(x)**2),
-                  'abs': np.abs,
-                  'real': np.real,
-                  'imag': np.imag}
+MODE_FUNC_DICT = {
+    "abs_sqr": (lambda x: np.abs(x) ** 2),
+    "abs": np.abs,
+    "real": np.real,
+    "imag": np.imag,
+}
 
-# the following string manipulations are used in automatic generation of default ylabels of wavefunction plots
-MODE_STR_DICT = {'abs_sqr': (lambda x: '$|$' + x + '$|^2$'),
-                 'abs': (lambda x: '$|$' + x + '$|$'),
-                 'real': (lambda x: 'Re ' + x),
-                 'imag': (lambda x: 'Im ' + x)}
+# the following string manipulations are used in automatic generation of default
+# ylabels of wavefunction plots
+MODE_STR_DICT = {
+    "abs_sqr": (lambda x: "$|$" + x + "$|^2$"),
+    "abs": (lambda x: "$|$" + x + "$|$"),
+    "real": (lambda x: "Re " + x),
+    "imag": (lambda x: "Im " + x),
+}
 
 # enumerate variables for zero-pi qubit
 PHI_INDEX = 0

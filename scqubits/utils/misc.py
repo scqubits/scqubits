@@ -11,6 +11,7 @@
 
 import ast
 import functools
+
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
@@ -49,8 +50,8 @@ def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]
 
 def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
     """
-    For two given subsystem states, return the full-system bare state label obtained by placing all remaining
-    subsys_list in their ground states.
+    For two given subsystem states, return the full-system bare state label obtained
+    by placing all remaining subsys_list in their ground states.
 
     Parameters
     ----------
@@ -59,10 +60,9 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
     *args:
         each argument is a tuple of the form (subsys_index, label)
 
-    Returns
-    -------
-        Suppose there are 5 subsys_list in total. Let (subsys_index1=0, label1=3), (subsys_index2=2, label2=1). Then the
-        returned bare-state tuple is: (3,0,1,0,0)
+    Returns ------- Suppose there are 5 subsys_list in total. Let (subsys_index1=0,
+    label1=3), (subsys_index2=2, label2=1). Then the returned bare-state tuple is:
+    (3,0,1,0,0)
     """
     bare_labels = [0] * subsystem_count
     for subsys_index, label in args:
@@ -72,7 +72,7 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
 
 def drop_private_keys(full_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Filter for entries in the full dictionary that have numerical values"""
-    return {key: value for key, value in full_dict.items() if key[0] != '_'}
+    return {key: value for key, value in full_dict.items() if key[0] != "_"}
 
 
 class InfoBar:
@@ -92,20 +92,27 @@ class InfoBar:
         self.tqdm_bar: tqdm = None
 
     def __enter__(self) -> None:
-        self.tqdm_bar = tqdm(total=0, disable=(self.num_cpus == 1), leave=False, desc=self.desc, bar_format="{desc}")
+        self.tqdm_bar = tqdm(
+            total=0,
+            disable=(self.num_cpus == 1),
+            leave=False,
+            desc=self.desc,
+            bar_format="{desc}",
+        )
 
     def __exit__(self, *args) -> None:
         self.tqdm_bar.close()
 
 
 class Required:
-    """Decorator class, ensuring that a given requirement or set of requirements is fulfilled.
+    """Decorator class, ensuring that a given requirement or set of requirements is
+    fulfilled.
 
     Parameters
     ----------
     dict {str: bool}
-        All bool conditions have to be True to pass. The provided str keys are used to display information on what
-        condition is failing.
+        All bool conditions have to be True to pass. The provided str keys are used to
+        display information on what condition is failing.
     """
 
     def __init__(self, **requirements) -> None:
@@ -118,10 +125,14 @@ class Required:
             if all(self.requirements_bools):
                 return func(*args, **kwargs)
             else:
-                raise Exception("ImportError: use of this method requires the optional package(s): {}. If you wish to "
-                                "use this functionality, the corresponding package(s) must be installed manually. "
-                                "(Installation via `conda install -c conda-forge <packagename>` or "
-                                "`pip install <packagename>` is recommended.)".format(self.requirements_names))
+                raise Exception(
+                    "ImportError: use of this method requires the optional package(s):"
+                    " {}. If you wish to use this functionality, the corresponding"
+                    " package(s) must be installed manually. (Installation via `conda"
+                    " install -c conda-forge <packagename>` or `pip install"
+                    " <packagename>` is recommended.)".format(self.requirements_names)
+                )
+
         return decorated_func
 
 
@@ -137,5 +148,6 @@ def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
-    # Qutip's `.eigenstates()` returns an object-valued ndarray, each entry of which is a Qobj ket.
+    # Qutip's `.eigenstates()` returns an object-valued ndarray, each entry of which
+    # is a Qobj ket.
     return np.asarray(qobj_ket.data.todense())

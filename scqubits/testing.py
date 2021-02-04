@@ -19,4 +19,4 @@ def run():
     Run the pytest scripts for scqubits.
     """
     # runs tests in scqubits.tests directory
-    pytest.main(['-v', TESTDIR])
+    pytest.main(["-v", TESTDIR])
