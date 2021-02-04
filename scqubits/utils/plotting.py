@@ -179,19 +179,48 @@ def wavefunction1d(wavefuncs: Union['WaveFunction', 'List[WaveFunction]'],
     offset_list = [offset] if not isinstance(offset, (list, np.ndarray)) else offset
     wavefunc_list = [wavefuncs] if not isinstance(wavefuncs, list) else wavefuncs
 
+    scale_constant = renormalization_factor(wavefunc_list[0], potential_vals)
+    for wavefunc in wavefunc_list:
+        wavefunc.amplitudes *= scale_constant
+
+    scale_factor = scaling or defaults.set_wavefunction_scaling(wavefunc_list, potential_vals)
+
     for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
         x_vals = wavefunction.basis_labels
-        y_vals = energy_offset + scaling * wavefunction.amplitudes
+        y_vals = energy_offset + scale_factor * wavefunction.amplitudes
         offset_vals = [energy_offset] * len(x_vals)
 
         axes.plot(x_vals, y_vals, **_extract_kwargs_options(kwargs, 'plot'))
-        axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)\
+        axes.fill_between(x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True)
 
     if potential_vals is not None:
         axes.plot(x_vals, potential_vals, color='gray', **_extract_kwargs_options(kwargs, 'plot'))
 
     _process_options(fig, axes, **kwargs)
     return fig, axes
+
+
+def renormalization_factor(wavefunc: 'WaveFunction', potential_vals: np.ndarray) -> float:
+    """
+    Takes the amplitudes of one wavefunction and the potential values to scale the dimensionless amplitude to a
+    (pseudo-)energy that allows us to plot wavefunctions and energies in the same plot.
+
+    Parameters
+    ----------
+    wavefunc:
+        ndarray of wavefunction amplitudes
+    potential_vals:
+        array of potential energy values (that determine the energy range on the y axis
+
+    Returns
+    -------
+    renormalization factor that converts the wavefunction amplitudes into energy units
+    """
+    FILL_FACTOR = 0.1
+    energy_range = np.max(potential_vals) - np.min(potential_vals)
+    amplitude_range = np.max(wavefunc.amplitudes) - np.min(wavefunc.amplitudes)
+
+    return FILL_FACTOR * energy_range / amplitude_range
 
 
 def wavefunction1d_discrete(wavefunc: 'WaveFunction',
