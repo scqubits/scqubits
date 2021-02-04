@@ -759,7 +759,7 @@ class GUI:
             image_box.children = [ self.qubit_plot_options_widgets['qubit_info_image_widget'] ]
             display(image_box)
     
-    def energy_scan_interactive(self) -> widgets.interactive:
+    def energy_scan_qubit_plot(self) -> widgets.interactive:
         self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = True
 
         if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(self.active_qubit, scq.FullZeroPi):
@@ -782,7 +782,7 @@ class GUI:
 
         return qubit_plot_interactive
 
-    def matelem_scan_interactive(self) -> widgets.interactive:
+    def matelem_scan_qubit_plot(self) -> widgets.interactive:
         self.qubit_plot_options_widgets['mode_dropdown'].value = self.active_defaults['mode_matrixelem']
         self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = True
 
@@ -808,7 +808,7 @@ class GUI:
 
         return qubit_plot_interactive
 
-    def wavefunctions_interactive(self) -> widgets.interactive:
+    def wavefunction_qubit_plot(self) -> widgets.interactive:
         if isinstance(self.active_qubit, scq.FullZeroPi):
             qubit_plot_interactive = None
         else:
@@ -845,7 +845,7 @@ class GUI:
         
         return qubit_plot_interactive
 
-    def matelem_interactive(self) -> widgets.interactive:
+    def matelem_qubit_plot(self) -> widgets.interactive:
         self.qubit_plot_options_widgets['mode_dropdown'].value = self.active_defaults['mode_matrixelem']
         self.qubit_params_widgets[self.qubit_plot_options_widgets['scan_dropdown'].value].disabled = False
 
@@ -872,13 +872,13 @@ class GUI:
 
     def create_qubit_plot_interactive(self, plot_value: str) -> widgets.interactive:
         if plot_value == 'Energy spectrum':
-            return self.energy_scan_interactive()
+            return self.energy_scan_qubit_plot()
         elif plot_value == 'Matrix element scan':
-            return self.matelem_scan_interactive()
+            return self.matelem_scan_qubit_plot()
         elif plot_value == 'Wavefunctions':
-            return self.wavefunction_interactive()
+            return self.wavefunction_qubit_plot()
         elif plot_value == 'Matrix elements':
-            return self.matelem_interactive()
+            return self.matelem_qubit_plot()
 
     def display_qubit_plot_interactive(self, 
         qubit_value: str, 
