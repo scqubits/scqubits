@@ -11,10 +11,13 @@
 
 
 import functools
+import weakref
+
 from abc import ABC
-from typing import Any, Callable, Dict, List, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
+
 from numpy import ndarray
 from qutip.qobj import Qobj
 
@@ -23,12 +26,12 @@ import scqubits.core.descriptors as descriptors
 import scqubits.core.hilbert_space as hspace
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
-import scqubits.io_utils.fileio as io
 import scqubits.io_utils.fileio_qutip as qutip_serializer
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
+
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.qubit_base import QubitBaseClass
@@ -37,7 +40,7 @@ from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 if TYPE_CHECKING:
-    from scqubits.io_utils.fileio import Serializable, IOData
+    from scqubits.io_utils.fileio import IOData
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -52,10 +55,11 @@ class ParameterSweepBase(ABC):
     """
     The ParameterSweepBase class is an abstract base class for ParameterSweep and StoredSweep
     """
-    param_name = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_vals = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    evals_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
+
+    param_name = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    param_vals = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    param_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    evals_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
     lookup = descriptors.ReadOnlyProperty()
     _hilbertspace: hspace.HilbertSpace
 
@@ -85,11 +89,12 @@ class ParameterSweepBase(ABC):
     def dressed_specdata(self) -> SpectrumData:
         return self.lookup._dressed_specdata
 
-    def _lookup_bare_eigenstates(self,
-                                 param_index: int,
-                                 subsys: QuantumSys,
-                                 bare_specdata_list: List[SpectrumData]
-                                 ) -> Union[ndarray, List[QutipEigenstates]]:
+    def _lookup_bare_eigenstates(
+        self,
+        param_index: int,
+        subsys: QuantumSys,
+        bare_specdata_list: List[SpectrumData],
+    ) -> Union[ndarray, List[QutipEigenstates]]:
         """
         Parameters
         ----------
@@ -114,10 +119,14 @@ class ParameterSweepBase(ABC):
 
     def new_datastore(self, **kwargs) -> DataStore:
         """Return DataStore object with system/sweep information obtained from self."""
-        return storage.DataStore(self.system_params, self.param_name, self.param_vals, **kwargs)
+        return storage.DataStore(
+            self.system_params, self.param_name, self.param_vals, **kwargs
+        )
 
 
-class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable):
+class ParameterSweep(
+    ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
+):
     """
     The ParameterSweep class helps generate spectral and associated data for a composite quantum system, as an externa,
     parameter, such as flux, is swept over some given interval of values. Upon initialization, these data are calculated
@@ -142,23 +151,25 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
     num_cpus:
         number of CPUS requested for computing the sweep (default value settings.NUM_CPUS)
     """
-    param_name = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_vals = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    evals_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    subsys_update_list = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    update_hilbertspace = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
+
+    param_name = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    param_vals = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    param_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    evals_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    subsys_update_list = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    update_hilbertspace = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
     lookup = descriptors.ReadOnlyProperty()
 
-    def __init__(self,
-                 param_name: str,
-                 param_vals: ndarray,
-                 evals_count: int,
-                 hilbertspace: HilbertSpace,
-                 subsys_update_list: List[QuantumSys],
-                 update_hilbertspace: Callable,
-                 num_cpus: int = settings.NUM_CPUS
-                 ) -> None:
+    def __init__(
+        self,
+        param_name: str,
+        param_vals: ndarray,
+        evals_count: int,
+        hilbertspace: HilbertSpace,
+        subsys_update_list: List[QuantumSys],
+        update_hilbertspace: Callable,
+        num_cpus: int = settings.NUM_CPUS,
+    ) -> None:
         self.param_name = param_name
         self.param_vals = param_vals
         self.param_count = len(param_vals)
@@ -172,8 +183,8 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
 
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
-        dispatch.CENTRAL_DISPATCH.register('PARAMETERSWEEP_UPDATE', self)
-        dispatch.CENTRAL_DISPATCH.register('HILBERTSPACE_UPDATE', self)
+        dispatch.CENTRAL_DISPATCH.register("PARAMETERSWEEP_UPDATE", self)
+        dispatch.CENTRAL_DISPATCH.register("HILBERTSPACE_UPDATE", self)
 
         # generate the spectral data sweep
         if settings.AUTORUN_SWEEP:
@@ -181,13 +192,16 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
 
     def run(self) -> None:
         """Top-level method for generating all parameter sweep data"""
-        self.cause_dispatch()   # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
+        self.cause_dispatch()  # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
         settings.DISPATCH_ENABLED = False
         bare_specdata_list = self._compute_bare_specdata_sweep()
         dressed_specdata = self._compute_dressed_specdata_sweep(bare_specdata_list)
-        self._lookup = spec_lookup.SpectrumLookup(self, dressed_specdata, bare_specdata_list)
+        self._lookup = spec_lookup.SpectrumLookup(
+            self, dressed_specdata, bare_specdata_list
+        )
         settings.DISPATCH_ENABLED = True
 
+    # HilbertSpace: methods for CentralDispatch ----------------------------------------------------
     def cause_dispatch(self) -> None:
         self.update_hilbertspace(self.param_vals[0])
 
@@ -205,49 +219,128 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         **kwargs
         """
         if self._lookup is not None:
-            if event == 'HILBERTSPACE_UPDATE' and sender is self._hilbertspace:
+            if event == "HILBERTSPACE_UPDATE" and sender is self._hilbertspace:
                 self._lookup._out_of_sync = True
                 # print('Lookup table now out of sync')
-            elif event == 'PARAMETERSWEEP_UPDATE' and sender is self:
+            elif event == "PARAMETERSWEEP_UPDATE" and sender is self:
                 self._lookup._out_of_sync = True
                 # print('Lookup table now out of sync')
 
+    # ParameterSweep: file IO methods ---------------------------------------------------------------
+    @classmethod
+    def deserialize(cls, iodata: "IOData") -> "StoredSweep":
+        """
+        Take the given IOData and return an instance of the described class, initialized with the data stored in
+        io_data.
+
+        Parameters
+        ----------
+        iodata: IOData
+
+        Returns
+        -------
+        StoredSweep
+        """
+        data_dict = iodata.as_kwargs()
+        lookup = data_dict.pop("_lookup")
+        data_dict["dressed_specdata"] = lookup._dressed_specdata
+        data_dict["bare_specdata_list"] = lookup._bare_specdata_list
+        new_storedsweep = StoredSweep(**data_dict)
+        new_storedsweep._lookup = lookup
+        return new_storedsweep
+
+    def serialize(self) -> "IOData":
+        """
+        Convert the content of the current class instance into IOData format.
+
+        Returns
+        -------
+        IOData
+        """
+        if self._lookup is None:
+            raise ValueError("Nothing to save - no lookup data has been generated yet.")
+
+        initdata = {
+            "param_name": self.param_name,
+            "param_vals": self.param_vals,
+            "evals_count": self.evals_count,
+            "hilbertspace": self._hilbertspace,
+            "_lookup": self._lookup,
+        }
+        iodata = serializers.dict_serialize(initdata)
+        iodata.typename = "StoredSweep"
+        return iodata
+
+    # ParameterSweep: private methods for generating the sweep -------------------------------------------------
     def _compute_bare_specdata_sweep(self) -> List[SpectrumData]:
         """
         Pre-calculates all bare spectral data needed for the interactive explorer display.
         """
-        bare_eigendata_constant = [self._compute_bare_spectrum_constant()] * self.param_count
+        bare_eigendata_constant = [
+            self._compute_bare_spectrum_constant()
+        ] * self.param_count
         target_map = cpu_switch.get_map_method(self.num_cpus)
-        with utils.InfoBar("Parallel compute bare eigensys [num_cpus={}]".format(self.num_cpus), self.num_cpus):
+        with utils.InfoBar(
+            "Parallel compute bare eigensys [num_cpus={}]".format(self.num_cpus),
+            self.num_cpus,
+        ):
             bare_eigendata_varying = list(
-                target_map(self._compute_bare_spectrum_varying,
-                           tqdm(self.param_vals, desc='Bare spectra', leave=False, disable=self.tqdm_disabled))
+                target_map(
+                    self._compute_bare_spectrum_varying,
+                    tqdm(
+                        self.param_vals,
+                        desc="Bare spectra",
+                        leave=False,
+                        disable=self.tqdm_disabled,
+                    ),
+                )
             )
-        bare_specdata_list = self._recast_bare_eigendata(bare_eigendata_constant, bare_eigendata_varying)
+        bare_specdata_list = self._recast_bare_eigendata(
+            bare_eigendata_constant, bare_eigendata_varying
+        )
         del bare_eigendata_constant
         del bare_eigendata_varying
         return bare_specdata_list
 
-    def _compute_dressed_specdata_sweep(self, bare_specdata_list: List[SpectrumData]) -> SpectrumData:
+    def _compute_dressed_specdata_sweep(
+        self, bare_specdata_list: List[SpectrumData]
+    ) -> SpectrumData:
         """
         Calculates and returns all dressed spectral data.
         """
-        self._bare_hamiltonian_constant = self._compute_bare_hamiltonian_constant(bare_specdata_list)
+        self._bare_hamiltonian_constant = self._compute_bare_hamiltonian_constant(
+            bare_specdata_list
+        )
         param_indices = range(self.param_count)
-        func = functools.partial(self._compute_dressed_eigensystem, bare_specdata_list=bare_specdata_list)
+        func = functools.partial(
+            self._compute_dressed_eigensystem, bare_specdata_list=bare_specdata_list
+        )
         target_map = cpu_switch.get_map_method(self.num_cpus)
 
-        with utils.InfoBar("Parallel compute dressed eigensys [num_cpus={}]".format(self.num_cpus), self.num_cpus):
-            dressed_eigendata = list(target_map(func, tqdm(param_indices, desc='Dressed spectrum', leave=False,
-                                                           disable=self.tqdm_disabled)))
+        with utils.InfoBar(
+            "Parallel compute dressed eigensys [num_cpus={}]".format(self.num_cpus),
+            self.num_cpus,
+        ):
+            dressed_eigendata = list(
+                target_map(
+                    func,
+                    tqdm(
+                        param_indices,
+                        desc="Dressed spectrum",
+                        leave=False,
+                        disable=self.tqdm_disabled,
+                    ),
+                )
+            )
         dressed_specdata = self._recast_dressed_eigendata(dressed_eigendata)
         del dressed_eigendata
         return dressed_specdata
 
-    def _recast_bare_eigendata(self,
-                               static_eigendata: List[List[Tuple[ndarray, ndarray]]],
-                               bare_eigendata: List[List[Tuple[ndarray, ndarray]]]
-                               ) -> List[SpectrumData]:
+    def _recast_bare_eigendata(
+        self,
+        static_eigendata: List[List[Tuple[ndarray, ndarray]]],
+        bare_eigendata: List[List[Tuple[ndarray, ndarray]]],
+    ) -> List[SpectrumData]:
         specdata_list = []
         for index, subsys in enumerate(self._hilbertspace):
             if subsys in self.subsys_update_list:
@@ -258,35 +351,47 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
             dim = subsys.hilbertdim()
             esys_dtype = subsys._evec_dtype
 
-            energy_table = np.empty(shape=(self.param_count, evals_count), dtype=np.float_)
-            state_table = np.empty(shape=(self.param_count, dim, evals_count), dtype=esys_dtype)
+            energy_table = np.empty(
+                shape=(self.param_count, evals_count), dtype=np.float_
+            )
+            state_table = np.empty(
+                shape=(self.param_count, dim, evals_count), dtype=esys_dtype
+            )
             for j in range(self.param_count):
                 energy_table[j] = eigendata[j][index][0]
                 state_table[j] = eigendata[j][index][1]
-            specdata_list.append(storage.SpectrumData(energy_table,
-                                                      system_params={},
-                                                      param_name=self.param_name,
-                                                      param_vals=self.param_vals,
-                                                      state_table=state_table))
+            specdata_list.append(
+                storage.SpectrumData(
+                    energy_table,
+                    system_params={},
+                    param_name=self.param_name,
+                    param_vals=self.param_vals,
+                    state_table=state_table,
+                )
+            )
         return specdata_list
 
-    def _recast_dressed_eigendata(self,
-                                  dressed_eigendata: List[Tuple[ndarray, QutipEigenstates]]
-                                  ) -> SpectrumData:
+    def _recast_dressed_eigendata(
+        self, dressed_eigendata: List[Tuple[ndarray, QutipEigenstates]]
+    ) -> SpectrumData:
         evals_count = self.evals_count
         energy_table = np.empty(shape=(self.param_count, evals_count), dtype=np.float_)
         state_table = []  # for dressed states, entries are Qobj
         for j in range(self.param_count):
             energy_table[j] = np.real_if_close(dressed_eigendata[j][0])
             state_table.append(dressed_eigendata[j][1])
-        specdata = storage.SpectrumData(energy_table,
-                                        system_params={},
-                                        param_name=self.param_name,
-                                        param_vals=self.param_vals,
-                                        state_table=state_table)
+        specdata = storage.SpectrumData(
+            energy_table,
+            system_params={},
+            param_name=self.param_name,
+            param_vals=self.param_vals,
+            state_table=state_table,
+        )
         return specdata
 
-    def _compute_bare_hamiltonian_constant(self, bare_specdata_list: List[SpectrumData]) -> Qobj:
+    def _compute_bare_hamiltonian_constant(
+        self, bare_specdata_list: List[SpectrumData]
+    ) -> Qobj:
         """
         Returns
         -------
@@ -299,7 +404,9 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
                 static_hamiltonian += self._hilbertspace.diag_hamiltonian(subsys, evals)
         return static_hamiltonian
 
-    def _compute_bare_hamiltonian_varying(self, bare_specdata_list: List[SpectrumData], param_index: int) -> Qobj:
+    def _compute_bare_hamiltonian_varying(
+        self, bare_specdata_list: List[SpectrumData], param_index: int
+    ) -> Qobj:
         """
         Parameters
         ----------
@@ -332,7 +439,9 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
                 eigendata.append(None)  # type: ignore
         return eigendata
 
-    def _compute_bare_spectrum_varying(self, param_val: float) -> List[Tuple[ndarray, ndarray]]:
+    def _compute_bare_spectrum_varying(
+        self, param_val: float
+    ) -> List[Tuple[ndarray, ndarray]]:
         """
         For given external parameter value obtain the bare eigenspectra of each bare subsystem that is affected by
         changes in the external parameter. Formulated to be used with Pool.map()
@@ -346,33 +455,42 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         for subsys in self._hilbertspace:
             if subsys in self.subsys_update_list:
                 evals_count = subsys.truncated_dim
-                subsys_index = self._hilbertspace.index(subsys)
-                eigendata.append(self._hilbertspace[subsys_index].eigensys(evals_count=evals_count))
+                subsys_index = self._hilbertspace.get_subsys_index(subsys)
+                eigendata.append(
+                    self._hilbertspace[subsys_index].eigensys(evals_count=evals_count)
+                )
             else:
                 eigendata.append(None)  # type: ignore
         return eigendata
 
-    def _compute_dressed_eigensystem(self,
-                                     param_index: int,
-                                     bare_specdata_list: List[SpectrumData]
-                                     ) -> Tuple[ndarray, QutipEigenstates]:
-        hamiltonian = (self._bare_hamiltonian_constant +
-                       self._compute_bare_hamiltonian_varying(bare_specdata_list, param_index))
+    def _compute_dressed_eigensystem(
+        self, param_index: int, bare_specdata_list: List[SpectrumData]
+    ) -> Tuple[ndarray, QutipEigenstates]:
+        hamiltonian = (
+            self._bare_hamiltonian_constant
+            + self._compute_bare_hamiltonian_varying(bare_specdata_list, param_index)
+        )
 
         for interaction_term in self._hilbertspace.interaction_list:
-            evecs1 = self._lookup_bare_eigenstates(param_index, interaction_term.subsys1, bare_specdata_list)
-            evecs2 = self._lookup_bare_eigenstates(param_index, interaction_term.subsys2, bare_specdata_list)
-            hamiltonian += self._hilbertspace.interactionterm_hamiltonian(interaction_term,
-                                                                          evecs1=evecs1, evecs2=evecs2)
+            evecs1 = self._lookup_bare_eigenstates(
+                param_index, interaction_term.subsys1, bare_specdata_list
+            )
+            evecs2 = self._lookup_bare_eigenstates(
+                param_index, interaction_term.subsys2, bare_specdata_list
+            )
+            hamiltonian += self._hilbertspace.interactionterm_hamiltonian(
+                interaction_term, evecs1=evecs1, evecs2=evecs2
+            )
         evals, evecs = hamiltonian.eigenstates(eigvals=self.evals_count)
         evecs = evecs.view(qutip_serializer.QutipEigenstates)
         return evals, evecs
 
-    def _lookup_bare_eigenstates(self,
-                                 param_index: int,
-                                 subsys: QuantumSys,
-                                 bare_specdata_list: List[SpectrumData]
-                                 ) -> ndarray:
+    def _lookup_bare_eigenstates(
+        self,
+        param_index: int,
+        subsys: QuantumSys,
+        bare_specdata_list: List[SpectrumData],
+    ) -> ndarray:
         """
         Parameters
         ----------
@@ -391,8 +509,37 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         subsys_index = self.get_subsys_index(subsys)
         return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
 
+
+class StoredSweep(
+    ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
+):
+    param_name = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    param_vals = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    param_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    evals_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    lookup = descriptors.ReadOnlyProperty()
+
+    def __init__(
+        self,
+        param_name: str,
+        param_vals: ndarray,
+        evals_count: int,
+        hilbertspace: HilbertSpace,
+        dressed_specdata: SpectrumData,
+        bare_specdata_list: List[SpectrumData],
+    ) -> None:
+        self.param_name = param_name
+        self.param_vals = param_vals
+        self.param_count = len(param_vals)
+        self.evals_count = evals_count
+        self._hilbertspace = hilbertspace
+        self._lookup = spec_lookup.SpectrumLookup(
+            hilbertspace, dressed_specdata, bare_specdata_list, auto_run=False
+        )
+
+    # StoredSweep: file IO methods ---------------------------------------------------------------
     @classmethod
-    def deserialize(cls, iodata: 'IOData') -> 'Serializable':
+    def deserialize(cls, iodata: "IOData") -> "StoredSweep":
         """
         Take the given IOData and return an instance of the described class, initialized with the data stored in
         io_data.
@@ -405,65 +552,27 @@ class ParameterSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Se
         -------
         StoredSweep
         """
-        return cls(**iodata.as_kwargs())
+        data_dict = iodata.as_kwargs()
+        lookup = data_dict.pop("_lookup")
+        data_dict["dressed_specdata"] = lookup._dressed_specdata
+        data_dict["bare_specdata_list"] = lookup._bare_specdata_list
+        new_storedsweep = StoredSweep(**data_dict)
+        new_storedsweep._lookup = lookup
+        new_storedsweep._lookup._hilbertspace = weakref.proxy(
+            new_storedsweep._hilbertspace
+        )
+        return new_storedsweep
 
-    def serialize(self) -> 'IOData':
-        """
-        Convert the content of the current class instance into IOData format.
-
-        Returns
-        -------
-        IOData
-        """
-        if self._lookup is None:
-            raise ValueError('Nothing to save - no lookup data has been generated yet.')
-
-        initdata = {'param_name': self.param_name,
-                    'param_vals': self.param_vals,
-                    'evals_count': self.evals_count,
-                    'hilbertspace': self._hilbertspace,
-                    'dressed_specdata': self._lookup._dressed_specdata,
-                    'bare_specdata_list': self._lookup._bare_specdata_list}
-        iodata = serializers.dict_serialize(initdata)
-        iodata.typename = 'StoredSweep'
-        return iodata
-
-    def filewrite(self, filename: str):
-        """Convenience method bound to the class. Simply accesses the `write` function.
-        """
-        io.write(self, filename)
-
-
-class StoredSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable):
-    param_name = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_vals = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    param_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    evals_count = descriptors.WatchedProperty('PARAMETERSWEEP_UPDATE')
-    lookup = descriptors.ReadOnlyProperty()
-
-    def __init__(self,
-                 param_name: str,
-                 param_vals: ndarray,
-                 evals_count: int,
-                 hilbertspace: HilbertSpace,
-                 dressed_specdata: SpectrumData,
-                 bare_specdata_list: List[SpectrumData]
-                 ) -> None:
-        self.param_name = param_name
-        self.param_vals = param_vals
-        self.param_count = len(param_vals)
-        self.evals_count = evals_count
-        self._hilbertspace = hilbertspace
-        self._lookup = spec_lookup.SpectrumLookup(hilbertspace, dressed_specdata, bare_specdata_list)
-
+    # StoredSweep: other methods
     def get_hilbertspace(self) -> HilbertSpace:
         return self._hilbertspace
 
-    def new_sweep(self,
-                  subsys_update_list: List[QuantumSys],
-                  update_hilbertspace: Callable,
-                  num_cpus: int = settings.NUM_CPUS
-                  ) -> ParameterSweep:
+    def new_sweep(
+        self,
+        subsys_update_list: List[QuantumSys],
+        update_hilbertspace: Callable,
+        num_cpus: int = settings.NUM_CPUS,
+    ) -> ParameterSweep:
         return ParameterSweep(
             self.param_name,
             self.param_vals,
@@ -471,5 +580,5 @@ class StoredSweep(ParameterSweepBase, dispatch.DispatchClient, serializers.Seria
             self._hilbertspace,
             subsys_update_list,
             update_hilbertspace,
-            num_cpus
+            num_cpus,
         )

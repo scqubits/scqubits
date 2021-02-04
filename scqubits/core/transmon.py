@@ -11,9 +11,11 @@
 
 import math
 import os
+
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -26,12 +28,13 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
 
-
 # —Cooper pair box / transmon——————————————————————————————————————————————
+
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is represented in dense form in the number
@@ -53,18 +56,14 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
-    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ng = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
-    def __init__(self,
-                 EJ: float,
-                 EC: float,
-                 ng: float,
-                 ncut: int,
-                 truncated_dim: int = 6
-                 ) -> None:
+    def __init__(
+        self, EJ: float, EC: float, ng: float, ncut: int, truncated_dim: int = 6
+    ) -> None:
         self.EJ = EJ
         self.EC = EC
         self.ng = ng
@@ -74,29 +73,27 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/fixed-transmon.jpg')
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/fixed-transmon.jpg"
+        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        return {
-            'EJ': 15.0,
-            'EC': 0.3,
-            'ng': 0.0,
-            'ncut': 30,
-            'truncated_dim': 10
-        }
+        return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
-        return ['tphi_1_over_f_cc', 
-                'tphi_1_over_f_ng',
-                't1_capacitive',
-                't1_charge_impedance']
+        return [
+            "tphi_1_over_f_cc",
+            "tphi_1_over_f_ng",
+            "t1_capacitive",
+            "t1_charge_impedance",
+        ]
 
     def effective_noise_channels(self) -> List[str]:
         """Return a default list of channels used when calculating effective t1 and t2 nosie."""
         noise_channels = self.supported_noise_channels()
-        noise_channels.remove('t1_charge_impedance')
+        noise_channels.remove("t1_charge_impedance")
         return noise_channels
 
     def n_operator(self) -> ndarray:
@@ -126,15 +123,20 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def hamiltonian(self) -> ndarray:
         """Returns Hamiltonian in charge basis"""
         dimension = self.hilbertdim()
-        hamiltonian_mat = np.diag([4.0 * self.EC * (ind - self.ncut - self.ng) ** 2 for ind in range(dimension)])
+        hamiltonian_mat = np.diag(
+            [
+                4.0 * self.EC * (ind - self.ncut - self.ng) ** 2
+                for ind in range(dimension)
+            ]
+        )
         ind = np.arange(dimension - 1)
-        hamiltonian_mat[ind, ind+1] = -self.EJ / 2.0
-        hamiltonian_mat[ind+1, ind] = -self.EJ / 2.0
+        hamiltonian_mat[ind, ind + 1] = -self.EJ / 2.0
+        hamiltonian_mat[ind + 1, ind] = -self.EJ / 2.0
         return hamiltonian_mat
 
     def d_hamiltonian_d_ng(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to charge offset `ng`."""
-        return -8*self.EC*self.n_operator()
+        return -8 * self.EC * self.n_operator()
 
     def d_hamiltonian_d_EJ(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to EJ."""
@@ -154,13 +156,14 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         return -self.EJ * np.cos(phi)
 
-    def plot_n_wavefunction(self,
-                            esys: Tuple[ndarray, ndarray] = None,
-                            mode: str = 'real',
-                            which: int = 0,
-                            nrange: Tuple[int, int] = None,
-                            **kwargs
-                            ) -> Tuple[Figure, Axes]:
+    def plot_n_wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        mode: str = "real",
+        which: int = 0,
+        nrange: Tuple[int, int] = None,
+        **kwargs
+    ) -> Tuple[Figure, Axes]:
         """Plots transmon wave function in charge basis
 
         Parameters
@@ -181,47 +184,34 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         n_wavefunc.amplitudes = amplitude_modifier(n_wavefunc.amplitudes)
-        kwargs = {**defaults.wavefunction1d_discrete(mode), **kwargs}    # if any duplicates, later ones survive
+        kwargs = {
+            **defaults.wavefunction1d_discrete(mode),
+            **kwargs,
+        }  # if any duplicates, later ones survive
         return plot.wavefunction1d_discrete(n_wavefunc, xlim=nrange, **kwargs)
 
-    def wavefunction1d_defaults(self,
-                                mode: str,
-                                evals: ndarray,
-                                wavefunc_count: int
-                                ) -> Dict[str, Any]:
-        """Plot defaults for plotting.wavefunction1d.
-
-        Parameters
-        ----------
-        mode:
-            amplitude modifier, needed to give the correct default y label
-        evals:
-            eigenvalues to include in plot
-        wavefunc_count:
-        """
-        ylabel = r'$\psi_j(\varphi)$'
-        ylabel = constants.MODE_STR_DICT[mode](ylabel)
-        options = {
-            'xlabel': r'$\varphi$',
-            'ylabel': ylabel
-        }
-        return options
-
-    def plot_phi_wavefunction(self,
-                              esys: Tuple[ndarray, ndarray] = None,
-                              which: int = 0,
-                              phi_grid: Grid1d = None,
-                              mode: str = 'abs_sqr',
-                              scaling: float = None,
-                              **kwargs
-                              ) -> Tuple[Figure, Axes]:
+    def plot_phi_wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        phi_grid: Grid1d = None,
+        mode: str = "abs_sqr",
+        scaling: float = None,
+        **kwargs
+    ) -> Tuple[Figure, Axes]:
         """Alias for plot_wavefunction"""
-        return self.plot_wavefunction(esys=esys, which=which, phi_grid=phi_grid, mode=mode, scaling=scaling, **kwargs)
+        return self.plot_wavefunction(
+            esys=esys,
+            which=which,
+            phi_grid=phi_grid,
+            mode=mode,
+            scaling=scaling,
+            **kwargs
+        )
 
-    def numberbasis_wavefunction(self,
-                                 esys: Tuple[ndarray, ndarray] = None,
-                                 which: int = 0
-                                 ) -> WaveFunction:
+    def numberbasis_wavefunction(
+        self, esys: Tuple[ndarray, ndarray] = None, which: int = 0
+    ) -> WaveFunction:
         """Return the transmon wave function in number basis. The specific index of the wave function to be returned is
         `which`.
 
@@ -241,11 +231,12 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         n_vals = np.arange(-self.ncut, self.ncut + 1)
         return storage.WaveFunction(n_vals, evecs[:, which], evals[which])
 
-    def wavefunction(self,
-                     esys: Tuple[ndarray, ndarray] = None,
-                     which: int = 0,
-                     phi_grid: Grid1d = None
-                     ) -> WaveFunction:
+    def wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        phi_grid: Grid1d = None,
+    ) -> WaveFunction:
         """Return the transmon wave function in phase basis. The specific index of the wavefunction is `which`.
         `esys` can be provided, but if set to `None` then it is calculated on the fly.
 
@@ -271,15 +262,19 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_basis_labels = phi_grid.make_linspace()
         phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
         for k in range(phi_grid.pt_count):
-            phi_wavefunc_amplitudes[k] = ((1j**which / math.sqrt(2 * np.pi)) *
-                                          np.sum(n_wavefunc.amplitudes *
-                                                 np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)))
-        return storage.WaveFunction(basis_labels=phi_basis_labels,
-                                    amplitudes=phi_wavefunc_amplitudes,
-                                    energy=evals[which])
+            phi_wavefunc_amplitudes[k] = (1j ** which / math.sqrt(2 * np.pi)) * np.sum(
+                n_wavefunc.amplitudes
+                * np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)
+            )
+        return storage.WaveFunction(
+            basis_labels=phi_basis_labels,
+            amplitudes=phi_wavefunc_amplitudes,
+            energy=evals[which],
+        )
 
 
 # — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
+
 
 class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in dense form in the number
@@ -310,19 +305,20 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
-    EJmax = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    d = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJmax = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    d = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
-    def __init__(self,
-                 EJmax: float,
-                 EC: float,
-                 d: float,
-                 flux: float,
-                 ng: float,
-                 ncut: int,
-                 truncated_dim: int = 6
-                 ) -> None:
+    def __init__(
+        self,
+        EJmax: float,
+        EC: float,
+        d: float,
+        flux: float,
+        ng: float,
+        ncut: int,
+        truncated_dim: int = 6,
+    ) -> None:
         self.EJmax = EJmax
         self.EC = EC
         self.d = d
@@ -334,38 +330,53 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'qubit_img/tunable-transmon.jpg')
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/tunable-transmon.jpg"
+        )
 
     @property
     def EJ(self) -> float:  # type: ignore
         """This is the effective, flux dependent Josephson energy, playing the role of EJ
         in the parent class `Transmon`"""
-        return self.EJmax * np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2)
+        return self.EJmax * np.sqrt(
+            np.cos(np.pi * self.flux) ** 2
+            + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
+        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            'EJmax': 20.0,
-            'EC': 0.3,
-            'd': 0.01,
-            'flux': 0.0,
-            'ng': 0.0,
-            'ncut': 30,
-            'truncated_dim': 10
+            "EJmax": 20.0,
+            "EC": 0.3,
+            "d": 0.01,
+            "flux": 0.0,
+            "ng": 0.0,
+            "ncut": 30,
+            "truncated_dim": 10,
         }
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
-        return ['tphi_1_over_f_flux', 
-                'tphi_1_over_f_cc', 
-                'tphi_1_over_f_ng',
-                't1_capacitive',
-                't1_flux_bias_line',
-                't1_charge_impedance']
+        return [
+            "tphi_1_over_f_flux",
+            "tphi_1_over_f_cc",
+            "tphi_1_over_f_ng",
+            "t1_capacitive",
+            "t1_flux_bias_line",
+            "t1_charge_impedance",
+        ]
 
     def d_hamiltonian_d_flux(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to `flux`."""
-        return np.pi * self.EJmax * np.cos(np.pi * self.flux) * np.sin(np.pi * self.flux) * (self.d**2 - 1) \
-                / np.sqrt(np.cos(np.pi * self.flux)**2 + self.d**2 * np.sin(np.pi * self.flux)**2) \
-                * self.cos_phi_operator()
+        return (
+            np.pi
+            * self.EJmax
+            * np.cos(np.pi * self.flux)
+            * np.sin(np.pi * self.flux)
+            * (self.d ** 2 - 1)
+            / np.sqrt(
+                np.cos(np.pi * self.flux) ** 2
+                + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
+            )
+            * self.cos_phi_operator()
+        )

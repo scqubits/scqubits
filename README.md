@@ -12,6 +12,7 @@ Internally, numerics within scqubits is carried out with the help of Numpy and S
 Matplotlib.
 
 [![CodeFactor](https://www.codefactor.io/repository/github/scqubits/scqubits/badge)](https://www.codefactor.io/repository/github/scqubits/scqubits)
+[![codecov](https://codecov.io/gh/scqubits/scqubits/branch/master/graph/badge.svg?token=PUBXSHF6HU)](https://codecov.io/gh/scqubits/scqubits)
 
 
 Download and Installation
