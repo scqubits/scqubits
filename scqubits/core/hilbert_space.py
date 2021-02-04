@@ -12,7 +12,6 @@
 import functools
 import warnings
 import weakref
-
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -27,7 +26,6 @@ from typing import (
 
 import numpy as np
 import qutip as qt
-
 from numpy import ndarray
 from qutip.qobj import Qobj
 from scipy.sparse import csc_matrix, dia_matrix
@@ -44,7 +42,6 @@ import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
-
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import SpectrumData
@@ -231,7 +228,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new HilbertSpace
-        object. """
+        object."""
         return {
             "subsystem_list": self._subsystems,
             "interaction_list": self.interaction_list,

@@ -11,8 +11,10 @@ from scipy.sparse.linalg import LinearOperator, eigsh
 import scqubits.core.descriptors as descriptors
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.hashing_charge_basis import (ChargeBasisLinearOperator,
-                                                HashingChargeBasis)
+from scqubits.core.hashing_charge_basis import (
+    ChargeBasisLinearOperator,
+    HashingChargeBasis,
+)
 from scqubits.core.noise import NoisySystem
 from scqubits.core.operators import identity_wrap
 from scqubits.utils.spectrum_utils import order_eigensystem
@@ -76,27 +78,28 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
     truncated_dim: int, optional
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
-    N = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    N = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     number_degrees_freedom = descriptors.ReadOnlyProperty()
-    ECB = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJlist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    nglist = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    ECB = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ECg = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJlist = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    nglist = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
-    def __init__(self,
-                 N: int,
-                 ECB: float,
-                 ECJ: float,
-                 ECg: float,
-                 EJlist: ndarray,
-                 nglist: ndarray,
-                 flux: float,
-                 ncut: int,
-                 truncated_dim: int = None
-                 ) -> None:
+    def __init__(
+        self,
+        N: int,
+        ECB: float,
+        ECJ: float,
+        ECg: float,
+        EJlist: ndarray,
+        nglist: ndarray,
+        flux: float,
+        ncut: int,
+        truncated_dim: int = None,
+    ) -> None:
         self.N = N
         self._number_degrees_freedom = 2 * N - 1
         self.ECB = ECB
@@ -109,25 +112,27 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/currentmirror.png')
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_pngs/currentmirror.png"
+        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            'N': 3,
-            'ECB': 0.2,
-            'ECJ': 20.0/2.7,
-            'ECg': 20.0,
-            'EJlist': np.array(6*[18.95]),
-            'nglist': np.array(5*[0.0]),
-            'flux': 0.0,
-            'ncut': 10,
-            'truncated_dim': 6
+            "N": 3,
+            "ECB": 0.2,
+            "ECJ": 20.0 / 2.7,
+            "ECg": 20.0,
+            "EJlist": np.array(6 * [18.95]),
+            "nglist": np.array(5 * [0.0]),
+            "flux": 0.0,
+            "ncut": 10,
+            "truncated_dim": 6,
         }
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
-        return ['']
+        return [""]
 
     def potential(self, phi_array: ndarray) -> ndarray:
         """Potential evaluated at the location specified by phi_array.
@@ -142,8 +147,10 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         float
         """
         dim = self.number_degrees_freedom
-        pot_sum = np.sum([- self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
-        pot_sum += (-self.EJlist[-1] * np.cos(np.sum([phi_array[i] for i in range(dim)]) + 2*np.pi*self.flux))
+        pot_sum = np.sum([-self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
+        pot_sum += -self.EJlist[-1] * np.cos(
+            np.sum([phi_array[i] for i in range(dim)]) + 2 * np.pi * self.flux
+        )
         pot_sum += np.sum(self.EJlist)
         return pot_sum
 
@@ -156,16 +163,16 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             ndarray
         """
         N = self.N
-        CB = 1. / (2.*self.ECB)
-        CJ = 1. / (2.*self.ECJ)
-        Cg = 1. / (2.*self.ECg)
+        CB = 1.0 / (2.0 * self.ECB)
+        CJ = 1.0 / (2.0 * self.ECJ)
+        Cg = 1.0 / (2.0 * self.ECg)
 
-        C_matrix = np.diagflat([Cg + 2*CJ + CB for _ in range(2*N)], 0)
-        C_matrix += np.diagflat([-CJ for _ in range(2*N - 1)], +1)
-        C_matrix += np.diagflat([-CJ for _ in range(2*N - 1)], -1)
+        C_matrix = np.diagflat([Cg + 2 * CJ + CB for _ in range(2 * N)], 0)
+        C_matrix += np.diagflat([-CJ for _ in range(2 * N - 1)], +1)
+        C_matrix += np.diagflat([-CJ for _ in range(2 * N - 1)], -1)
         C_matrix += np.diagflat([-CB for _ in range(N)], +N)
         C_matrix += np.diagflat([-CB for _ in range(N)], -N)
-        C_matrix[0, -1] = C_matrix[-1, 0] = - CJ
+        C_matrix[0, -1] = C_matrix[-1, 0] = -CJ
 
         V_m_inv = sp.linalg.inv(self._build_V_m())
         C_matrix = np.matmul(V_m_inv.T, np.matmul(C_matrix, V_m_inv))
@@ -184,9 +191,9 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
     def _build_V_m(self) -> ndarray:
         """Builds the matrix necessary for the coordinate transformation"""
         N = self.N
-        V_m = np.diagflat([-1 for _ in range(2*N)], 0)
-        V_m += np.diagflat([1 for _ in range(2*N - 1)], 1)
-        V_m[-1] = np.array([1 for _ in range(2*N)])
+        V_m = np.diagflat([-1 for _ in range(2 * N)], 0)
+        V_m += np.diagflat([1 for _ in range(2 * N - 1)], 1)
+        V_m[-1] = np.array([1 for _ in range(2 * N)])
         return V_m
 
     def harmonic_modes(self) -> ndarray:
@@ -196,31 +203,41 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         -------
         ndarray
         """
-        CB = 1. / (2. * self.ECB)
-        CJ = 1. / (2. * self.ECJ)
-        Cg = 1. / (2. * self.ECg)
+        CB = 1.0 / (2.0 * self.ECB)
+        CJ = 1.0 / (2.0 * self.ECJ)
+        Cg = 1.0 / (2.0 * self.ECg)
         omega_list = np.zeros(self.number_degrees_freedom)
-        for mu in range(1, self.number_degrees_freedom+1):
-            potential_contribution = (4.0*self.EJlist[0]*np.sin(np.pi*mu/(2*self.N))**2)
-            kinetic_contribution = Cg + 4*CJ*np.sin(np.pi*mu/(2*self.N))**2 + (1 - (-1)**mu)*CB
-            omega_mu = 2*np.sqrt(potential_contribution/kinetic_contribution)
-            omega_list[mu-1] = omega_mu
+        for mu in range(1, self.number_degrees_freedom + 1):
+            potential_contribution = (
+                4.0 * self.EJlist[0] * np.sin(np.pi * mu / (2 * self.N)) ** 2
+            )
+            kinetic_contribution = (
+                Cg
+                + 4 * CJ * np.sin(np.pi * mu / (2 * self.N)) ** 2
+                + (1 - (-1) ** mu) * CB
+            )
+            omega_mu = 2 * np.sqrt(potential_contribution / kinetic_contribution)
+            omega_list[mu - 1] = omega_mu
         return omega_list
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
-        evals = eigsh(hamiltonian_mat, k=evals_count, which='SA', return_eigenvectors=False)
+        evals = eigsh(
+            hamiltonian_mat, k=evals_count, which="SA", return_eigenvectors=False
+        )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = eigsh(hamiltonian_mat, k=evals_count, which='SA', return_eigenvectors=True)
+        evals, evecs = eigsh(
+            hamiltonian_mat, k=evals_count, which="SA", return_eigenvectors=True
+        )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
-    
+
     def hilbertdim(self) -> int:
         """Return Hilbert space dimension."""
-        return (2*self.ncut+1)**self.number_degrees_freedom
+        return (2 * self.ncut + 1) ** self.number_degrees_freedom
 
     def hamiltonian(self) -> ndarray:
         """Returns the Hamiltonian employing the charge number basis for all :math:`2\cdot N - 1` d.o.f.
@@ -231,16 +248,27 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         """
         dim = self.number_degrees_freedom
         EC_matrix = self.EC_matrix()
-        H = 0.*self.identity_operator()
+        H = 0.0 * self.identity_operator()
         for j, k in itertools.product(range(dim), range(dim)):
-            H += 4*EC_matrix[j, k]*((self.n_operator(j) - self.nglist[j] * self.identity_operator())
-                                    @ (self.n_operator(k) - self.nglist[k] * self.identity_operator()))
+            H += (
+                4
+                * EC_matrix[j, k]
+                * (
+                    (self.n_operator(j) - self.nglist[j] * self.identity_operator())
+                    @ (self.n_operator(k) - self.nglist[k] * self.identity_operator())
+                )
+            )
         for j in range(dim):
-            H += (-self.EJlist[j]/2.)*(self.exp_i_phi_j_operator(j) + self.exp_i_phi_j_operator(j).conj().T)
-            H += self.EJlist[j]*self.identity_operator()
-        H += (-self.EJlist[-1] / 2.) * (np.exp(1j*2*np.pi*self.flux) * self.exp_i_phi_stitching_term().conj().T
-                                        + np.exp(-1j*2*np.pi*self.flux) * self.exp_i_phi_stitching_term())
-        H += self.EJlist[-1]*self.identity_operator()
+            H += (-self.EJlist[j] / 2.0) * (
+                self.exp_i_phi_j_operator(j) + self.exp_i_phi_j_operator(j).conj().T
+            )
+            H += self.EJlist[j] * self.identity_operator()
+        H += (-self.EJlist[-1] / 2.0) * (
+            np.exp(1j * 2 * np.pi * self.flux)
+            * self.exp_i_phi_stitching_term().conj().T
+            + np.exp(-1j * 2 * np.pi * self.flux) * self.exp_i_phi_stitching_term()
+        )
+        H += self.EJlist[-1] * self.identity_operator()
         return H
 
     def _identity_operator(self) -> ndarray:
@@ -259,7 +287,12 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         return identity_wrap([], [], self._identity_operator_list(), sparse=True)
 
     def _n_operator(self) -> ndarray:
-        return diags([i for i in range(-self.ncut, self.ncut + 1, 1)], offsets=0, format="csr", dtype=np.complex_)
+        return diags(
+            [i for i in range(-self.ncut, self.ncut + 1, 1)],
+            offsets=0,
+            format="csr",
+            dtype=np.complex_,
+        )
 
     def n_operator(self, j: int = 0) -> ndarray:
         """Returns charge number operator :math:`n_{j}` in the full Hilbert space
@@ -274,10 +307,12 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             ndarray
         """
         number_operator = self._n_operator()
-        return identity_wrap([number_operator], [j], self._identity_operator_list(), sparse=True)
+        return identity_wrap(
+            [number_operator], [j], self._identity_operator_list(), sparse=True
+        )
 
     def _exp_i_phi_j_operator(self) -> ndarray:
-        return eye(2*self.ncut + 1, k=-1, format="csr", dtype=np.complex_)
+        return eye(2 * self.ncut + 1, k=-1, format="csr", dtype=np.complex_)
 
     def exp_i_phi_j_operator(self, j: int = 0) -> ndarray:
         """Returns the operator :math:`\exp(i\phi_{j})` in the full Hilbert space
@@ -292,7 +327,9 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             ndarray
         """
         exp_i_phi_j = self._exp_i_phi_j_operator()
-        return identity_wrap([exp_i_phi_j], [j], self._identity_operator_list(), sparse=True)
+        return identity_wrap(
+            [exp_i_phi_j], [j], self._identity_operator_list(), sparse=True
+        )
 
     def exp_i_phi_stitching_term(self) -> ndarray:
         """Returns the operator associated with the last Josephson junction,
@@ -305,41 +342,71 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         dim = self.number_degrees_freedom
         exp_i_phi_op = self._exp_i_phi_j_operator()
         identity_operator_list = self._identity_operator_list()
-        return identity_wrap([exp_i_phi_op for _ in range(dim)],
-                             [j for j in range(dim)], identity_operator_list, sparse=True)
+        return identity_wrap(
+            [exp_i_phi_op for _ in range(dim)],
+            [j for j in range(dim)],
+            identity_operator_list,
+            sparse=True,
+        )
 
 
 class CurrentMirrorGlobal(HashingChargeBasis, CurrentMirror):
-    def __init__(self,
-                 N: int,
-                 ECB: float,
-                 ECJ: float,
-                 ECg: float,
-                 EJlist: ndarray,
-                 nglist: ndarray,
-                 flux: float,
-                 num_exc: int,
-                 truncated_dim: int = None
-                 ) -> None:
+    def __init__(
+        self,
+        N: int,
+        ECB: float,
+        ECJ: float,
+        ECg: float,
+        EJlist: ndarray,
+        nglist: ndarray,
+        flux: float,
+        num_exc: int,
+        truncated_dim: int = None,
+    ) -> None:
         self.num_exc = num_exc
         HashingChargeBasis.__init__(self)
-        CurrentMirror.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=0, truncated_dim=truncated_dim)
+        CurrentMirror.__init__(
+            self,
+            N,
+            ECB,
+            ECJ,
+            ECg,
+            EJlist,
+            nglist,
+            flux,
+            ncut=0,
+            truncated_dim=truncated_dim,
+        )
 
 
 class CurrentMirrorLinearOperator(ChargeBasisLinearOperator, CurrentMirror):
-    def __init__(self,
-                 N: int,
-                 ECB: float,
-                 ECJ: float,
-                 ECg: float,
-                 EJlist: ndarray,
-                 nglist: ndarray,
-                 flux: float,
-                 ncut: int,
-                 truncated_dim: int = None
-                 ) -> None:
-        CurrentMirror.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=ncut, truncated_dim=truncated_dim)
-        ChargeBasisLinearOperator.__init__(self, ncut=ncut, number_degrees_freedom=2*N - 1)
+    def __init__(
+        self,
+        N: int,
+        ECB: float,
+        ECJ: float,
+        ECg: float,
+        EJlist: ndarray,
+        nglist: ndarray,
+        flux: float,
+        ncut: int,
+        truncated_dim: int = None,
+    ) -> None:
+        CurrentMirror.__init__(
+            self,
+            N,
+            ECB,
+            ECJ,
+            ECg,
+            EJlist,
+            nglist,
+            flux,
+            ncut=ncut,
+            truncated_dim=truncated_dim,
+        )
+        ChargeBasisLinearOperator.__init__(
+            self, ncut=ncut, number_degrees_freedom=2 * N - 1
+        )
         self.dtype = np.complex_
         self.shape = (self.hilbertdim(), self.hilbertdim())
 
@@ -352,27 +419,49 @@ class CurrentMirrorLinearOperator(ChargeBasisLinearOperator, CurrentMirror):
         """
         dim = self.number_degrees_freedom
         EC_matrix = self.EC_matrix()
-        result_vec = (-self.EJlist[-1] / 2.) * (np.exp(1j * 2 * np.pi * self.flux) * self.exp_i_phi_stitching_term(vec)
-                                          + np.exp(-1j * 2 * np.pi * self.flux) * self.exp_m_i_phi_stitching_term(vec))
+        result_vec = (-self.EJlist[-1] / 2.0) * (
+            np.exp(1j * 2 * np.pi * self.flux) * self.exp_i_phi_stitching_term(vec)
+            + np.exp(-1j * 2 * np.pi * self.flux) * self.exp_m_i_phi_stitching_term(vec)
+        )
         result_vec += self.EJlist[-1] * self.identity_operator(vec)
         for j, k in itertools.product(range(dim), range(dim)):
             n_k_vec = self.n_operator(k, vec)
-            result_vec += 4*EC_matrix[j, k] * self.nglist[j] * self.nglist[k] * self.identity_operator(vec)
-            result_vec += -4*EC_matrix[j, k] * self.nglist[k] * self.n_operator(j, vec)
+            result_vec += (
+                4
+                * EC_matrix[j, k]
+                * self.nglist[j]
+                * self.nglist[k]
+                * self.identity_operator(vec)
+            )
+            result_vec += (
+                -4 * EC_matrix[j, k] * self.nglist[k] * self.n_operator(j, vec)
+            )
             result_vec += -4 * EC_matrix[j, k] * self.nglist[j] * n_k_vec
-            result_vec += 4*EC_matrix[j, k] * self.n_operator(j, n_k_vec)
+            result_vec += 4 * EC_matrix[j, k] * self.n_operator(j, n_k_vec)
         for j in range(dim):
-            result_vec += (-self.EJlist[j]/2.)*(self.exp_i_phi_j_operator(j, vec) + self.exp_m_i_phi_j_operator(j, vec))
-            result_vec += self.EJlist[j]*self.identity_operator(vec)
+            result_vec += (-self.EJlist[j] / 2.0) * (
+                self.exp_i_phi_j_operator(j, vec) + self.exp_m_i_phi_j_operator(j, vec)
+            )
+            result_vec += self.EJlist[j] * self.identity_operator(vec)
         return result_vec
 
     def _evals_calc(self, evals_count: int) -> ndarray:
-        ham_op = LinearOperator((self.hilbertdim(), self.hilbertdim()), dtype=np.complex_, matvec=self._matvec)
-        evals = eigsh(ham_op, k=evals_count, which='SA', return_eigenvectors=False)
+        ham_op = LinearOperator(
+            (self.hilbertdim(), self.hilbertdim()),
+            dtype=np.complex_,
+            matvec=self._matvec,
+        )
+        evals = eigsh(ham_op, k=evals_count, which="SA", return_eigenvectors=False)
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        ham_op = LinearOperator((self.hilbertdim(), self.hilbertdim()), dtype=np.complex_, matvec=self._matvec)
-        evals, evecs = eigsh(ham_op, k=evals_count, which='SA', return_eigenvectors=True)
+        ham_op = LinearOperator(
+            (self.hilbertdim(), self.hilbertdim()),
+            dtype=np.complex_,
+            matvec=self._matvec,
+        )
+        evals, evecs = eigsh(
+            ham_op, k=evals_count, which="SA", return_eigenvectors=True
+        )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs

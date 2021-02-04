@@ -12,7 +12,6 @@
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
-
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse.dia import dia_matrix

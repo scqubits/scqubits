@@ -11,7 +11,6 @@
 
 
 import warnings
-
 from typing import List
 
 # Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)

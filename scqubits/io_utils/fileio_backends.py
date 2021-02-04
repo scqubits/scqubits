@@ -16,12 +16,10 @@ import ast
 import csv
 import os
 import re
-
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
-
 from numpy import ndarray
 
 import scqubits.io_utils.fileio as io
@@ -29,7 +27,6 @@ import scqubits.utils.misc as utils
 
 try:
     import h5py
-
     from h5py import AttributeManager, File, Group
 except ImportError:
     _HAS_H5PY = False

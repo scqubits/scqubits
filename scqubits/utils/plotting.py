@@ -13,13 +13,11 @@ import functools
 import operator
 import os
 import warnings
-
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -676,6 +674,7 @@ def matelem_vs_paramvals(
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)
     return fig, axes
 
+
 def harm_osc_wavefunction(n, x):
     """For given quantum number n=0,1,2,... return the value of the harmonic oscillator wave function
     :math:`\\psi_n(x) = N H_n(x) \\exp(-x^2/2)`, N being the proper normalization factor. It is assumed
@@ -692,7 +691,12 @@ def harm_osc_wavefunction(n, x):
     float or ndarray
         value(s) of harmonic oscillator wave function
     """
-    return (2.0 ** n * gamma(n + 1.0)) ** (-0.5) * np.pi ** (-0.25) * eval_hermite(n, x) * np.exp(-x ** 2 / 2.)
+    return (
+        (2.0 ** n * gamma(n + 1.0)) ** (-0.5)
+        * np.pi ** (-0.25)
+        * eval_hermite(n, x)
+        * np.exp(-(x ** 2) / 2.0)
+    )
 
 
 def multiply_two_harm_osc_functions(n1, n2, x1, x2):

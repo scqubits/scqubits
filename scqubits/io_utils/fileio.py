@@ -13,11 +13,9 @@ Helper routines for writing data to files.
 """
 
 import os
-
 from typing import TYPE_CHECKING, Any, Callable, Dict, Union
 
 import h5py
-
 from numpy import ndarray
 
 import scqubits.core.constants as const

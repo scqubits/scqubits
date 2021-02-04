@@ -29,7 +29,6 @@ else:
     _HAS_IPYTHON = True
 
 import scqubits
-
 from scqubits.ui.qubit_widget import _HAS_IPYTHON, _HAS_IPYWIDGETS
 from scqubits.utils import misc as utils
 

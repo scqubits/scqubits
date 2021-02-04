@@ -11,11 +11,9 @@
 
 import os
 import warnings
-
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -33,7 +31,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
-
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunctionOnGrid

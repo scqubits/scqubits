@@ -23,11 +23,9 @@ Matplotlib.
 #######################################################################################################################
 
 import warnings
-
 from typing import Any, Type, Union
 
 import matplotlib as mpl
-
 from cycler import cycler
 
 

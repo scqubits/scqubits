@@ -14,14 +14,12 @@ Provides the base classes for qubits
 
 import functools
 import inspect
-
 from abc import ABC, ABCMeta, abstractmethod
 from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
-
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -31,7 +29,6 @@ import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
-
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
@@ -542,7 +539,9 @@ class QubitBaseClass(QuantumSystem, ABC):
         **kwargs:
             standard plotting option (see separate documentation)
         """
-        matrixelem_array = self.matrixelement_table(operator, operator_args, evecs, evals_count)
+        matrixelem_array = self.matrixelement_table(
+            operator, operator_args, evecs, evals_count
+        )
         if not show3d:
             return plot.matrix2d(
                 matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs
@@ -592,7 +591,12 @@ class QubitBaseClass(QuantumSystem, ABC):
             evals_count = max(flattened_list) + 1
 
         specdata = self.get_matelements_vs_paramvals(
-            operator, param_name, param_vals, operator_args, evals_count=evals_count, num_cpus=num_cpus
+            operator,
+            param_name,
+            param_vals,
+            operator_args,
+            evals_count=evals_count,
+            num_cpus=num_cpus,
         )
         return plot.matelem_vs_paramvals(
             specdata, select_elems=select_elems, mode=mode, **kwargs

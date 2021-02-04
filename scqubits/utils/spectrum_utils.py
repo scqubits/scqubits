@@ -10,18 +10,17 @@
 ############################################################################
 
 import cmath
-
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
-
 from scipy.sparse import csc_matrix, dia_matrix
 
 if TYPE_CHECKING:
     from scqubits import Oscillator, ParameterSweep, SpectrumData
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
+
 import scipy as sp
 from scipy.linalg import ordqz
 
@@ -377,17 +376,26 @@ def recast_esys_mapdata(
     return eigenenergy_table, eigenstate_table
 
 
-def solve_generalized_eigenvalue_problem_with_QZ(hamiltonian, inner_product, evals_count, eigvals_only=True):
+def solve_generalized_eigenvalue_problem_with_QZ(
+    hamiltonian, inner_product, evals_count, eigvals_only=True
+):
     AA, BB, alpha, beta, Q, Z = ordqz(hamiltonian, inner_product)
     alpha_max = np.max(np.abs(alpha))
     beta_max = np.max(np.abs(beta))
     # filter ill-conditioned eigenvalues (alpha and beta values both small)
-    alpha, beta = list(zip(*filter(lambda x: np.abs(x[0]) > 0.001 * alpha_max
-                                   and np.abs(x[1]) > 0.001 * beta_max, zip(alpha, beta))))
+    alpha, beta = list(
+        zip(
+            *filter(
+                lambda x: np.abs(x[0]) > 0.001 * alpha_max
+                and np.abs(x[1]) > 0.001 * beta_max,
+                zip(alpha, beta),
+            )
+        )
+    )
     evals = np.array(alpha) / np.array(beta)
     index = np.argsort(np.real(list(filter(lambda a: np.real(a) > 0, evals))))
-    evals = np.real(evals[index][0: evals_count])
-    evecs = Z[:, index][:, 0: evals_count]
+    evals = np.real(evals[index][0:evals_count])
+    evecs = Z[:, index][:, 0:evals_count]
     if eigvals_only:
         return evals
     else:
@@ -399,7 +407,7 @@ def compare_spectra_nnz(qbt_type, specdata, specdata_exact, num_compare):
     qbt = qbt_type(**specdata.system_params)
     test_energies = specdata.energy_table[:, 0:num_compare]
     exact_energies = specdata_exact.energy_table[:, 0:num_compare]
-    relative_deviation = np.abs(test_energies-exact_energies)/exact_energies
+    relative_deviation = np.abs(test_energies - exact_energies) / exact_energies
     setattr(qbt, specdata.param_name, specdata.param_vals[0])
     try:
         ham = qbt.transfer_matrix()

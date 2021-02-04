@@ -11,15 +11,12 @@
 
 import os
 import warnings
-
 from typing import Any, Dict, Tuple, Union
 
 import numpy as np
 import scipy as sp
-
 from numpy import ndarray
-from scipy.special import gamma, eval_hermite
-
+from scipy.special import eval_hermite, gamma
 
 import scqubits.core.operators as op
 import scqubits.core.qubit_base as base

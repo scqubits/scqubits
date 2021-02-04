@@ -12,13 +12,11 @@
 import itertools
 import warnings
 import weakref
-
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, List, Tuple, Union
 
 import numpy as np
 import qutip as qt
-
 from numpy import ndarray
 from qutip import Qobj
 

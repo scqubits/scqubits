@@ -13,13 +13,11 @@ Helper classes for writing data to files.
 """
 
 import inspect
-
 from abc import ABC, ABCMeta
 from numbers import Number
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
-
 from numpy import ndarray
 from scipy.sparse import csc_matrix
 

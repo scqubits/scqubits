@@ -13,8 +13,10 @@ from scqubits.core.vtbbasemethods import VTBBaseMethods
 from scqubits.core.vtbsqueezingbasemethods import VTBBaseMethodsSqueezing
 
 
-class FluxQubitVTB(VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.Serializable):
-    r""" Flux Qubit using VTB
+class FluxQubitVTB(
+    VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.Serializable
+):
+    r"""Flux Qubit using VTB
 
     See class FluxQubit for documentation on the qubit itself.
 
@@ -24,29 +26,51 @@ class FluxQubitVTB(VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.S
     _check_if_new_minima: Callable
     _normalize_minimum_inside_pi_range: Callable
 
-    def __init__(self,
-                 EJ1: float,
-                 EJ2: float,
-                 EJ3: float,
-                 ECJ1: float,
-                 ECJ2: float,
-                 ECJ3: float,
-                 ECg1: float,
-                 ECg2: float,
-                 ng1: float,
-                 ng2: float,
-                 flux: float,
-                 num_exc: int,
-                 maximum_periodic_vector_length: int,
-                 truncated_dim: int = None,
-                 **kwargs
-                 ) -> None:
-        VTBBaseMethods.__init__(self, num_exc, maximum_periodic_vector_length,
-                                number_degrees_freedom=2, number_periodic_degrees_freedom=2,
-                                number_junctions=3, **kwargs)
-        FluxQubit.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, 0, truncated_dim)
+    def __init__(
+        self,
+        EJ1: float,
+        EJ2: float,
+        EJ3: float,
+        ECJ1: float,
+        ECJ2: float,
+        ECJ3: float,
+        ECg1: float,
+        ECg2: float,
+        ng1: float,
+        ng2: float,
+        flux: float,
+        num_exc: int,
+        maximum_periodic_vector_length: int,
+        truncated_dim: int = None,
+        **kwargs
+    ) -> None:
+        VTBBaseMethods.__init__(
+            self,
+            num_exc,
+            maximum_periodic_vector_length,
+            number_degrees_freedom=2,
+            number_periodic_degrees_freedom=2,
+            number_junctions=3,
+            **kwargs
+        )
+        FluxQubit.__init__(
+            self,
+            EJ1,
+            EJ2,
+            EJ3,
+            ECJ1,
+            ECJ2,
+            ECJ3,
+            ECg1,
+            ECg2,
+            ng1,
+            ng2,
+            flux,
+            0,
+            truncated_dim,
+        )
         self._stitching_coefficients = np.array([+1, -1])
-        delattr(self, 'ncut')
+        delattr(self, "ncut")
 
     def EC_matrix(self):
         return super(VTBBaseMethods, self).EC_matrix()
@@ -84,27 +108,27 @@ class FluxQubitVTB(VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.S
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            'EJ1': 1.0,
-            'EJ2': 1.0,
-            'EJ3': 0.8,
-            'ECJ1': 1.0 / 10.0,
-            'ECJ2': 1.0 / 10.0,
-            'ECJ3': 1.0 / (10.0 * 0.8),
-            'ECg1': 5.0,
-            'ECg2': 5.0,
-            'ng1': 0.0,
-            'ng2': 0.0,
-            'flux': 0.46,
-            'num_exc': 3,
-            'maximum_periodic_vector_length': 8,
-            'truncated_dim': 6
+            "EJ1": 1.0,
+            "EJ2": 1.0,
+            "EJ3": 0.8,
+            "ECJ1": 1.0 / 10.0,
+            "ECJ2": 1.0 / 10.0,
+            "ECJ3": 1.0 / (10.0 * 0.8),
+            "ECg1": 5.0,
+            "ECg2": 5.0,
+            "ng1": 0.0,
+            "ng2": 0.0,
+            "flux": 0.46,
+            "num_exc": 3,
+            "maximum_periodic_vector_length": 8,
+            "truncated_dim": 6,
         }
 
     def set_EJlist(self, EJlist) -> None:
         self.EJ1 = EJlist[0]
         self.EJ2 = EJlist[1]
         self.EJ3 = EJlist[2]
-        self.__dict__['EJlist'] = EJlist
+        self.__dict__["EJlist"] = EJlist
 
     def get_EJlist(self) -> ndarray:
         return np.array([self.EJ1, self.EJ2, self.EJ3])
@@ -114,7 +138,7 @@ class FluxQubitVTB(VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.S
     def set_nglist(self, nglist) -> None:
         self.ng1 = nglist[0]
         self.ng2 = nglist[1]
-        self.__dict__['nglist'] = nglist
+        self.__dict__["nglist"] = nglist
 
     def get_nglist(self) -> ndarray:
         return np.array([self.ng1, self.ng2])
@@ -148,110 +172,165 @@ class FluxQubitVTB(VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.S
     def d_hamiltonian_d_EJ3(self) -> ndarray:
         raise NotImplementedError("Not implemented yet for tight binding")
 
-    def tphi_1_over_f_cc(self,
-                         A_noise: float = NOISE_PARAMS['A_cc'],
-                         i: int = 0,
-                         j: int = 1,
-                         esys: Tuple[ndarray, ndarray] = None,
-                         get_rate: bool = False,
-                         **kwargs
-                         ) -> float:
+    def tphi_1_over_f_cc(
+        self,
+        A_noise: float = NOISE_PARAMS["A_cc"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
         raise NotImplementedError("Not implemented yet for tight binding")
 
-    def tphi_1_over_f_cc1(self,
-                          A_noise: float = NOISE_PARAMS['A_cc'],
-                          i: int = 0,
-                          j: int = 1,
-                          esys: Tuple[ndarray, ndarray] = None,
-                          get_rate: bool = False,
-                          **kwargs
-                          ) -> float:
+    def tphi_1_over_f_cc1(
+        self,
+        A_noise: float = NOISE_PARAMS["A_cc"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
         raise NotImplementedError("Not implemented yet for tight binding")
 
-    def tphi_1_over_f_cc2(self,
-                          A_noise: float = NOISE_PARAMS['A_cc'],
-                          i: int = 0,
-                          j: int = 1,
-                          esys: Tuple[ndarray, ndarray] = None,
-                          get_rate: bool = False,
-                          **kwargs
-                          ) -> float:
+    def tphi_1_over_f_cc2(
+        self,
+        A_noise: float = NOISE_PARAMS["A_cc"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
         raise NotImplementedError("Not implemented yet for tight binding")
 
-    def tphi_1_over_f_cc3(self,
-                          A_noise: float = NOISE_PARAMS['A_cc'],
-                          i: int = 0,
-                          j: int = 1,
-                          esys: Tuple[ndarray, ndarray] = None,
-                          get_rate: bool = False,
-                          **kwargs
-                          ) -> float:
+    def tphi_1_over_f_cc3(
+        self,
+        A_noise: float = NOISE_PARAMS["A_cc"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
         raise NotImplementedError("Not implemented yet for tight binding")
 
 
 class FluxQubitVTBSqueezing(VTBBaseMethodsSqueezing, FluxQubitVTB):
-    def __init__(self,
-                 EJ1: float,
-                 EJ2: float,
-                 EJ3: float,
-                 ECJ1: float,
-                 ECJ2: float,
-                 ECJ3: float,
-                 ECg1: float,
-                 ECg2: float,
-                 ng1: float,
-                 ng2: float,
-                 flux: float,
-                 num_exc: int,
-                 maximum_periodic_vector_length: int,
-                 truncated_dim: int = None,
-                 **kwargs
-                 ) -> None:
-        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, num_exc,
-                              maximum_periodic_vector_length, truncated_dim, **kwargs)
+    def __init__(
+        self,
+        EJ1: float,
+        EJ2: float,
+        EJ3: float,
+        ECJ1: float,
+        ECJ2: float,
+        ECJ3: float,
+        ECg1: float,
+        ECg2: float,
+        ng1: float,
+        ng2: float,
+        flux: float,
+        num_exc: int,
+        maximum_periodic_vector_length: int,
+        truncated_dim: int = None,
+        **kwargs
+    ) -> None:
+        FluxQubitVTB.__init__(
+            self,
+            EJ1,
+            EJ2,
+            EJ3,
+            ECJ1,
+            ECJ2,
+            ECJ3,
+            ECg1,
+            ECg2,
+            ng1,
+            ng2,
+            flux,
+            num_exc,
+            maximum_periodic_vector_length,
+            truncated_dim,
+            **kwargs
+        )
 
 
 class FluxQubitVTBGlobal(Hashing, FluxQubitVTB):
-    def __init__(self,
-                 EJ1: float,
-                 EJ2: float,
-                 EJ3: float,
-                 ECJ1: float,
-                 ECJ2: float,
-                 ECJ3: float,
-                 ECg1: float,
-                 ECg2: float,
-                 ng1: float,
-                 ng2: float,
-                 flux: float,
-                 num_exc: int,
-                 maximum_periodic_vector_length: int,
-                 truncated_dim: int = None,
-                 **kwargs
-                 ) -> None:
+    def __init__(
+        self,
+        EJ1: float,
+        EJ2: float,
+        EJ3: float,
+        ECJ1: float,
+        ECJ2: float,
+        ECJ3: float,
+        ECg1: float,
+        ECg2: float,
+        ng1: float,
+        ng2: float,
+        flux: float,
+        num_exc: int,
+        maximum_periodic_vector_length: int,
+        truncated_dim: int = None,
+        **kwargs
+    ) -> None:
         Hashing.__init__(self)
-        FluxQubitVTB.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, num_exc,
-                              maximum_periodic_vector_length, truncated_dim, **kwargs)
+        FluxQubitVTB.__init__(
+            self,
+            EJ1,
+            EJ2,
+            EJ3,
+            ECJ1,
+            ECJ2,
+            ECJ3,
+            ECg1,
+            ECg2,
+            ng1,
+            ng2,
+            flux,
+            num_exc,
+            maximum_periodic_vector_length,
+            truncated_dim,
+            **kwargs
+        )
 
 
 class FluxQubitVTBGlobalSqueezing(Hashing, FluxQubitVTBSqueezing):
-    def __init__(self,
-                 EJ1: float,
-                 EJ2: float,
-                 EJ3: float,
-                 ECJ1: float,
-                 ECJ2: float,
-                 ECJ3: float,
-                 ECg1: float,
-                 ECg2: float,
-                 ng1: float,
-                 ng2: float,
-                 flux: float,
-                 num_exc: int,
-                 maximum_periodic_vector_length: int,
-                 truncated_dim: int = None,
-                 **kwargs
-                 ) -> None:
+    def __init__(
+        self,
+        EJ1: float,
+        EJ2: float,
+        EJ3: float,
+        ECJ1: float,
+        ECJ2: float,
+        ECJ3: float,
+        ECg1: float,
+        ECg2: float,
+        ng1: float,
+        ng2: float,
+        flux: float,
+        num_exc: int,
+        maximum_periodic_vector_length: int,
+        truncated_dim: int = None,
+        **kwargs
+    ) -> None:
         Hashing.__init__(self)
-        FluxQubitVTBSqueezing.__init__(self, EJ1, EJ2, EJ3, ECJ1, ECJ2, ECJ3, ECg1, ECg2, ng1, ng2, flux, num_exc,
-                                       maximum_periodic_vector_length, truncated_dim, **kwargs)
+        FluxQubitVTBSqueezing.__init__(
+            self,
+            EJ1,
+            EJ2,
+            EJ3,
+            ECJ1,
+            ECJ2,
+            ECJ3,
+            ECg1,
+            ECg2,
+            ng1,
+            ng2,
+            flux,
+            num_exc,
+            maximum_periodic_vector_length,
+            truncated_dim,
+            **kwargs
+        )

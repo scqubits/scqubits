@@ -13,7 +13,6 @@
 import logging
 import warnings
 import weakref
-
 from typing import Callable
 from weakref import WeakKeyDictionary
 

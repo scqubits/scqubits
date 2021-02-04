@@ -28,7 +28,9 @@ def reflect_vectors(vec: ndarray) -> ndarray:
     reflected_vec_list = []
     nonzero_indices = np.nonzero(vec)
     nonzero_vec = vec[nonzero_indices]
-    multiplicative_factors = itertools.product(np.array([1, -1]), repeat=len(nonzero_vec))
+    multiplicative_factors = itertools.product(
+        np.array([1, -1]), repeat=len(nonzero_vec)
+    )
     for factor in multiplicative_factors:
         reflected_vec = np.copy(vec)
         np.put(reflected_vec, nonzero_indices, np.multiply(nonzero_vec, factor))
@@ -44,37 +46,183 @@ class Hashing:
     paper
     [1] J. M. Zhang and R. X. Dong, European Journal of Physics 31, 591 (2010).
     """
+
     num_exc: int  # up to and including the number of global excitations to keep
     number_degrees_freedom: int  # number of degrees of freedom of the system
 
     def __init__(self) -> None:
-        self.sqrt_prime_list = np.sqrt([2, 3, 5, 7, 11, 13, 17, 19, 23,
-                                        29, 31, 37, 41, 43, 47, 53, 59,
-                                        61, 67, 71, 73, 79, 83, 89, 97,
-                                        101, 103, 107, 109, 113, 127,
-                                        131, 137, 139, 149, 151, 157,
-                                        163, 167, 173, 179, 181, 191,
-                                        193, 197, 199, 211, 223, 227,
-                                        229, 233, 239, 241, 251, 257,
-                                        263, 269, 271, 277, 281, 283,
-                                        293, 307, 311, 313, 317, 331,
-                                        337, 347, 349, 353, 359, 367,
-                                        373, 379, 383, 389, 397, 401,
-                                        409, 419, 421, 431, 433, 439,
-                                        443, 449, 457, 461, 463, 467,
-                                        479, 487, 491, 499, 503, 509,
-                                        521, 523, 541, 547, 557, 563,
-                                        569, 571, 577, 587, 593, 599,
-                                        601, 607, 613, 617, 619, 631,
-                                        641, 643, 647, 653, 659, 661,
-                                        673, 677, 683, 691, 701, 709,
-                                        719, 727, 733, 739, 743, 751,
-                                        757, 761, 769, 773, 787, 797,
-                                        809, 811, 821, 823, 827, 829,
-                                        839, 853, 857, 859, 863, 877,
-                                        881, 883, 887, 907, 911, 919,
-                                        929, 937, 941, 947, 953, 967,
-                                        971, 977, 983, 991, 997])
+        self.sqrt_prime_list = np.sqrt(
+            [
+                2,
+                3,
+                5,
+                7,
+                11,
+                13,
+                17,
+                19,
+                23,
+                29,
+                31,
+                37,
+                41,
+                43,
+                47,
+                53,
+                59,
+                61,
+                67,
+                71,
+                73,
+                79,
+                83,
+                89,
+                97,
+                101,
+                103,
+                107,
+                109,
+                113,
+                127,
+                131,
+                137,
+                139,
+                149,
+                151,
+                157,
+                163,
+                167,
+                173,
+                179,
+                181,
+                191,
+                193,
+                197,
+                199,
+                211,
+                223,
+                227,
+                229,
+                233,
+                239,
+                241,
+                251,
+                257,
+                263,
+                269,
+                271,
+                277,
+                281,
+                283,
+                293,
+                307,
+                311,
+                313,
+                317,
+                331,
+                337,
+                347,
+                349,
+                353,
+                359,
+                367,
+                373,
+                379,
+                383,
+                389,
+                397,
+                401,
+                409,
+                419,
+                421,
+                431,
+                433,
+                439,
+                443,
+                449,
+                457,
+                461,
+                463,
+                467,
+                479,
+                487,
+                491,
+                499,
+                503,
+                509,
+                521,
+                523,
+                541,
+                547,
+                557,
+                563,
+                569,
+                571,
+                577,
+                587,
+                593,
+                599,
+                601,
+                607,
+                613,
+                617,
+                619,
+                631,
+                641,
+                643,
+                647,
+                653,
+                659,
+                661,
+                673,
+                677,
+                683,
+                691,
+                701,
+                709,
+                719,
+                727,
+                733,
+                739,
+                743,
+                751,
+                757,
+                761,
+                769,
+                773,
+                787,
+                797,
+                809,
+                811,
+                821,
+                823,
+                827,
+                829,
+                839,
+                853,
+                857,
+                859,
+                863,
+                877,
+                881,
+                883,
+                887,
+                907,
+                911,
+                919,
+                929,
+                937,
+                941,
+                947,
+                953,
+                967,
+                971,
+                977,
+                983,
+                991,
+                997,
+            ]
+        )
 
     def gen_basis_vectors(self) -> ndarray:
         """Generate all basis vectors"""
@@ -85,25 +233,35 @@ class Hashing:
         such as those with negative entries (see CurrentMirrorGlobal)"""
         sites = self.number_degrees_freedom
         vector_list = [np.zeros(sites)]
-        for total_exc in range(1, self.num_exc + 1):  # No excitation number conservation as in [1]
+        for total_exc in range(
+            1, self.num_exc + 1
+        ):  # No excitation number conservation as in [1]
             previous_vector = np.zeros(sites)
             previous_vector[0] = total_exc
-            vector_list = self._append_similar_vectors(vector_list, previous_vector, func)
-            while previous_vector[-1] != total_exc:  # step through until the last entry is total_exc
+            vector_list = self._append_similar_vectors(
+                vector_list, previous_vector, func
+            )
+            while (
+                previous_vector[-1] != total_exc
+            ):  # step through until the last entry is total_exc
                 next_vector = generate_next_vector(previous_vector, total_exc)
-                vector_list = self._append_similar_vectors(vector_list, next_vector, func)
+                vector_list = self._append_similar_vectors(
+                    vector_list, next_vector, func
+                )
                 previous_vector = next_vector
         return np.array(vector_list)
 
     @staticmethod
-    def _append_similar_vectors(vector_list: List, vec: ndarray, func: Callable) -> List:
+    def _append_similar_vectors(
+        vector_list: List, vec: ndarray, func: Callable
+    ) -> List:
         similar_vectors = func(vec)
         for vec in similar_vectors:
             vector_list.append(vec)
         return vector_list
 
     def a_operator(self, i: int) -> ndarray:
-        """ Construct the lowering operator for mode `i`.
+        """Construct the lowering operator for mode `i`.
 
         Parameters
         ----------
@@ -122,12 +280,20 @@ class Hashing:
             if vec[i] >= 1:
                 temp_coefficient = np.sqrt(vec[i])
                 basis_index = self._find_lowered_vector(vec, i, tags, index_array)
-                if basis_index is not None:  # Should not be the case here, only an issue for charge basis
+                if (
+                    basis_index is not None
+                ):  # Should not be the case here, only an issue for charge basis
                     a[basis_index, w] = temp_coefficient
         return a
 
-    def _find_lowered_vector(self, vector: ndarray, i: int, tags: ndarray, index_array: ndarray,
-                             raised_or_lowered="lowered") -> Optional[int]:
+    def _find_lowered_vector(
+        self,
+        vector: ndarray,
+        i: int,
+        tags: ndarray,
+        index_array: ndarray,
+        raised_or_lowered="lowered",
+    ) -> Optional[int]:
         if raised_or_lowered == "lowered":
             pm_1 = -1
         elif raised_or_lowered == "raised":
@@ -146,12 +312,16 @@ class Hashing:
     def number_states_per_minimum(self) -> int:
         """Using the global excitation scheme the total number of states
         per minimum is given by the hockey-stick identity"""
-        return int(comb(self.num_exc + self.number_degrees_freedom, self.number_degrees_freedom))
+        return int(
+            comb(
+                self.num_exc + self.number_degrees_freedom, self.number_degrees_freedom
+            )
+        )
 
     def _hash(self, vector: ndarray) -> ndarray:
         """Generate the (unique) identifier for a given vector `vector`"""
         dim = len(vector)
-        return np.sum(self.sqrt_prime_list[0: dim] * vector)
+        return np.sum(self.sqrt_prime_list[0:dim] * vector)
 
     def _gen_tags(self, basis_vectors: ndarray) -> Tuple[ndarray, ndarray]:
         """Generate the identifiers for all basis vectors `basis_vectors`"""
@@ -164,11 +334,11 @@ class Hashing:
     def state_amplitudes_function(self, i: int, evecs: ndarray, which: int) -> ndarray:
         """Overrides method in VCHOS, appropriate for the global excitation cutoff scheme."""
         total_num_states = self.number_states_per_minimum()
-        return np.real(evecs[i * total_num_states: (i + 1) * total_num_states, which])
+        return np.real(evecs[i * total_num_states : (i + 1) * total_num_states, which])
 
-    def wavefunction_amplitudes_function(self, state_amplitudes: ndarray,
-                                         normal_mode_1: ndarray,
-                                         normal_mode_2: ndarray) -> ndarray:
+    def wavefunction_amplitudes_function(
+        self, state_amplitudes: ndarray, normal_mode_1: ndarray, normal_mode_2: ndarray
+    ) -> ndarray:
         """Overrides method in VCHOS, appropriate for the global excitation cutoff scheme."""
         total_num_states = self.number_states_per_minimum()
         basis_vectors = self.gen_basis_vectors()
@@ -177,6 +347,8 @@ class Hashing:
             basis_vector = basis_vectors[j]
             s1 = int(basis_vector[0])
             s2 = int(basis_vector[1])
-            ho_2d = plot.multiply_two_harm_osc_functions(s1, s2, normal_mode_1, normal_mode_2)
+            ho_2d = plot.multiply_two_harm_osc_functions(
+                s1, s2, normal_mode_1, normal_mode_2
+            )
             wavefunction_amplitudes += state_amplitudes[j] * ho_2d.T
         return wavefunction_amplitudes

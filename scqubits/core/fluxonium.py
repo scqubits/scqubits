@@ -12,12 +12,10 @@
 import cmath
 import math
 import os
-
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 import numpy as np
 import scipy as sp
-
 from numpy import ndarray
 
 import scqubits.core.constants as constants
@@ -28,7 +26,6 @@ import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
-
 from scqubits.core.noise import NoisySystem
 
 if TYPE_CHECKING:
@@ -192,7 +189,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def hamiltonian(self) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu
-        et al., PRB 87, 024510 (2013) """
+        et al., PRB 87, 024510 (2013)"""
         dimension = self.hilbertdim()
         diag_elements = [i * self.E_plasma() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
@@ -283,23 +280,27 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
 
 class FluxoniumFluxWithHarmonic(Fluxonium):
-    def __init__(self, EJ: float,
-                 EC: float,
-                 EL: float,
-                 flux: float,
-                 cutoff: int,
-                 truncated_dim: int = 6):
+    def __init__(
+        self,
+        EJ: float,
+        EC: float,
+        EL: float,
+        flux: float,
+        cutoff: int,
+        truncated_dim: int = 6,
+    ):
         Fluxonium.__init__(self, EJ, EC, EL, flux, cutoff, truncated_dim)
 
     def hamiltonian(self) -> ndarray:
-        """Construct Hamiltonian matrix in harmonic-oscillator basis
-        """
+        """Construct Hamiltonian matrix in harmonic-oscillator basis"""
         dimension = self.hilbertdim()
         lc_osc_matrix = np.diag([i * self.E_plasma() for i in range(dimension)])
         lc_osc_matrix += -self.EL * 2.0 * np.pi * self.flux * self.phi_operator()
 
         exp_matrix = self.exp_i_phi_operator()
-        hamiltonian_mat = lc_osc_matrix - self.EJ * 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+        hamiltonian_mat = lc_osc_matrix - self.EJ * 0.5 * (
+            exp_matrix + exp_matrix.conjugate().T
+        )
         return np.real(hamiltonian_mat)
 
     def potential(self, phi: Union[float, ndarray]) -> ndarray:
@@ -313,4 +314,6 @@ class FluxoniumFluxWithHarmonic(Fluxonium):
         -------
         float or ndarray
         """
-        return 0.5 * self.EL * (phi - 2.0 * np.pi * self.flux)**2 - self.EJ * np.cos(phi)
+        return 0.5 * self.EL * (phi - 2.0 * np.pi * self.flux) ** 2 - self.EJ * np.cos(
+            phi
+        )

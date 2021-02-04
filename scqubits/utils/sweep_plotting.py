@@ -13,7 +13,6 @@
 from typing import TYPE_CHECKING, List, Tuple, Union
 
 import numpy as np
-
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 

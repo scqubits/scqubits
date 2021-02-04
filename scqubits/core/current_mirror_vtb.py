@@ -12,8 +12,10 @@ from scqubits import CurrentMirror, VTBBaseMethods, VTBBaseMethodsSqueezing
 from scqubits.core.hashing import Hashing
 
 
-class CurrentMirrorVTB(VTBBaseMethods, CurrentMirror, base.QubitBaseClass, serializers.Serializable):
-    r""" Current Mirror using VTB
+class CurrentMirrorVTB(
+    VTBBaseMethods, CurrentMirror, base.QubitBaseClass, serializers.Serializable
+):
+    r"""Current Mirror using VTB
 
     See class CurrentMirror for documentation on the qubit itself.
 
@@ -23,28 +25,36 @@ class CurrentMirrorVTB(VTBBaseMethods, CurrentMirror, base.QubitBaseClass, seria
     _check_if_new_minima: Callable
     _normalize_minimum_inside_pi_range: Callable
 
-    def __init__(self,
-                 N: int,
-                 ECB: float,
-                 ECJ: float,
-                 ECg: float,
-                 EJlist: ndarray,
-                 nglist: ndarray,
-                 flux: float,
-                 num_exc: int,
-                 maximum_periodic_vector_length: int,
-                 truncated_dim: int = None,
-                 **kwargs
-                 ) -> None:
-        VTBBaseMethods.__init__(self, num_exc, maximum_periodic_vector_length,
-                                number_degrees_freedom=2 * N - 1,
-                                number_periodic_degrees_freedom=2 * N - 1,
-                                number_junctions=2 * N, **kwargs)
-        CurrentMirror.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, 0, truncated_dim)
+    def __init__(
+        self,
+        N: int,
+        ECB: float,
+        ECJ: float,
+        ECg: float,
+        EJlist: ndarray,
+        nglist: ndarray,
+        flux: float,
+        num_exc: int,
+        maximum_periodic_vector_length: int,
+        truncated_dim: int = None,
+        **kwargs
+    ) -> None:
+        VTBBaseMethods.__init__(
+            self,
+            num_exc,
+            maximum_periodic_vector_length,
+            number_degrees_freedom=2 * N - 1,
+            number_periodic_degrees_freedom=2 * N - 1,
+            number_junctions=2 * N,
+            **kwargs
+        )
+        CurrentMirror.__init__(
+            self, N, ECB, ECJ, ECg, EJlist, nglist, flux, 0, truncated_dim
+        )
         self._EJlist = EJlist
         self._nglist = nglist
         self._stitching_coefficients = np.ones(2 * N - 1)
-        delattr(self, 'ncut')
+        delattr(self, "ncut")
 
     def EC_matrix(self):
         return super(VTBBaseMethods, self).EC_matrix()
@@ -53,7 +63,7 @@ class CurrentMirrorVTB(VTBBaseMethods, CurrentMirror, base.QubitBaseClass, seria
         return super(VTBBaseMethods, self).capacitance_matrix()
 
     def set_EJlist(self, EJlist) -> None:
-        self.__dict__['EJlist'] = EJlist
+        self.__dict__["EJlist"] = EJlist
 
     def get_EJlist(self) -> ndarray:
         return self._EJlist
@@ -61,7 +71,7 @@ class CurrentMirrorVTB(VTBBaseMethods, CurrentMirror, base.QubitBaseClass, seria
     EJlist = property(get_EJlist, set_EJlist)
 
     def set_nglist(self, nglist) -> None:
-        self.__dict__['nglist'] = nglist
+        self.__dict__["nglist"] = nglist
 
     def get_nglist(self) -> ndarray:
         return self._nglist
@@ -71,16 +81,16 @@ class CurrentMirrorVTB(VTBBaseMethods, CurrentMirror, base.QubitBaseClass, seria
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            'N': 2,
-            'ECB': 0.2,
-            'ECJ': 20.0 / 2.7,
-            'ECg': 20.0,
-            'EJlist': np.array(4 * [18.95]),
-            'nglist': np.array(3 * [0.0]),
-            'flux': 0.0,
-            'num_exc': 2,
-            'maximum_periodic_vector_length': 8,
-            'truncated_dim': 6
+            "N": 2,
+            "ECB": 0.2,
+            "ECJ": 20.0 / 2.7,
+            "ECg": 20.0,
+            "EJlist": np.array(4 * [18.95]),
+            "nglist": np.array(3 * [0.0]),
+            "flux": 0.0,
+            "num_exc": 2,
+            "maximum_periodic_vector_length": 8,
+            "truncated_dim": 6,
         }
 
     def convert_node_ng_to_junction_ng(self, node_nglist: ndarray) -> ndarray:
@@ -102,23 +112,47 @@ class CurrentMirrorVTB(VTBBaseMethods, CurrentMirror, base.QubitBaseClass, seria
         minima_holder = []
         N = self.N
         for m in range(int(math.ceil(N / 2)) + 1):
-            guess_pos = np.array([np.pi * (m - self.flux) / N for _ in range(self.number_degrees_freedom)])
-            guess_neg = np.array([np.pi * (-m - self.flux) / N for _ in range(self.number_degrees_freedom)])
-            result_pos = minimize(self.vtb_potential, guess_pos, options={'disp': False})
-            result_neg = minimize(self.vtb_potential, guess_neg, options={'disp': False})
-            new_minimum_pos = (self._check_if_new_minima(result_pos.x, minima_holder)
-                               and self._check_if_second_derivative_potential_positive(result_pos.x))
+            guess_pos = np.array(
+                [
+                    np.pi * (m - self.flux) / N
+                    for _ in range(self.number_degrees_freedom)
+                ]
+            )
+            guess_neg = np.array(
+                [
+                    np.pi * (-m - self.flux) / N
+                    for _ in range(self.number_degrees_freedom)
+                ]
+            )
+            result_pos = minimize(
+                self.vtb_potential, guess_pos, options={"disp": False}
+            )
+            result_neg = minimize(
+                self.vtb_potential, guess_neg, options={"disp": False}
+            )
+            new_minimum_pos = self._check_if_new_minima(
+                result_pos.x, minima_holder
+            ) and self._check_if_second_derivative_potential_positive(result_pos.x)
             if new_minimum_pos and result_pos.success:
-                minima_holder.append(self._normalize_minimum_inside_pi_range(result_pos.x))
-            new_minimum_neg = (self._check_if_new_minima(result_neg.x, minima_holder)
-                               and self._check_if_second_derivative_potential_positive(result_neg.x))
+                minima_holder.append(
+                    self._normalize_minimum_inside_pi_range(result_pos.x)
+                )
+            new_minimum_neg = self._check_if_new_minima(
+                result_neg.x, minima_holder
+            ) and self._check_if_second_derivative_potential_positive(result_neg.x)
             if new_minimum_neg and result_neg.success:
-                minima_holder.append(self._normalize_minimum_inside_pi_range(result_neg.x))
+                minima_holder.append(
+                    self._normalize_minimum_inside_pi_range(result_neg.x)
+                )
         return np.array(minima_holder)
 
-    def _check_if_second_derivative_potential_positive(self, phi_array: ndarray) -> bool:
+    def _check_if_second_derivative_potential_positive(
+        self, phi_array: ndarray
+    ) -> bool:
         """Helper method for determining whether the location specified by `phi_array` is a minimum."""
-        second_derivative = np.round(-(self.vtb_potential(phi_array) - np.sum(self.EJlist)), decimals=3)
+        second_derivative = np.round(
+            -(self.vtb_potential(phi_array) - np.sum(self.EJlist)), decimals=3
+        )
         return second_derivative > 0.0
 
     def vtb_potential(self, phi_array: ndarray) -> float:
@@ -127,53 +161,95 @@ class CurrentMirrorVTB(VTBBaseMethods, CurrentMirror, base.QubitBaseClass, seria
 
 
 class CurrentMirrorVTBSqueezing(VTBBaseMethodsSqueezing, CurrentMirrorVTB):
-    def __init__(self,
-                 N: int,
-                 ECB: float,
-                 ECJ: float,
-                 ECg: float,
-                 EJlist: ndarray,
-                 nglist: ndarray,
-                 flux: float,
-                 num_exc: int,
-                 maximum_periodic_vector_length: int,
-                 truncated_dim: int = None,
-                 **kwargs) -> None:
-        CurrentMirrorVTB.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, num_exc,
-                                  maximum_periodic_vector_length, truncated_dim, **kwargs)
+    def __init__(
+        self,
+        N: int,
+        ECB: float,
+        ECJ: float,
+        ECg: float,
+        EJlist: ndarray,
+        nglist: ndarray,
+        flux: float,
+        num_exc: int,
+        maximum_periodic_vector_length: int,
+        truncated_dim: int = None,
+        **kwargs
+    ) -> None:
+        CurrentMirrorVTB.__init__(
+            self,
+            N,
+            ECB,
+            ECJ,
+            ECg,
+            EJlist,
+            nglist,
+            flux,
+            num_exc,
+            maximum_periodic_vector_length,
+            truncated_dim,
+            **kwargs
+        )
 
 
 class CurrentMirrorVTBGlobal(Hashing, CurrentMirrorVTB):
-    def __init__(self,
-                 N: int,
-                 ECB: float,
-                 ECJ: float,
-                 ECg: float,
-                 EJlist: ndarray,
-                 nglist: ndarray,
-                 flux: float,
-                 num_exc: int,
-                 maximum_periodic_vector_length: int,
-                 truncated_dim: int = None,
-                 **kwargs):
+    def __init__(
+        self,
+        N: int,
+        ECB: float,
+        ECJ: float,
+        ECg: float,
+        EJlist: ndarray,
+        nglist: ndarray,
+        flux: float,
+        num_exc: int,
+        maximum_periodic_vector_length: int,
+        truncated_dim: int = None,
+        **kwargs
+    ):
         Hashing.__init__(self)
-        CurrentMirrorVTB.__init__(self, N, ECB, ECJ, ECg, EJlist, nglist, flux, num_exc,
-                                  maximum_periodic_vector_length, truncated_dim, **kwargs)
+        CurrentMirrorVTB.__init__(
+            self,
+            N,
+            ECB,
+            ECJ,
+            ECg,
+            EJlist,
+            nglist,
+            flux,
+            num_exc,
+            maximum_periodic_vector_length,
+            truncated_dim,
+            **kwargs
+        )
 
 
 class CurrentMirrorVTBGlobalSqueezing(Hashing, CurrentMirrorVTBSqueezing):
-    def __init__(self,
-                 N: int,
-                 ECB: float,
-                 ECJ: float,
-                 ECg: float,
-                 EJlist: ndarray,
-                 nglist: ndarray,
-                 flux: float,
-                 num_exc: int,
-                 maximum_periodic_vector_length: int,
-                 truncated_dim: int = None,
-                 **kwargs) -> None:
+    def __init__(
+        self,
+        N: int,
+        ECB: float,
+        ECJ: float,
+        ECg: float,
+        EJlist: ndarray,
+        nglist: ndarray,
+        flux: float,
+        num_exc: int,
+        maximum_periodic_vector_length: int,
+        truncated_dim: int = None,
+        **kwargs
+    ) -> None:
         Hashing.__init__(self)
-        CurrentMirrorVTBSqueezing.__init__(self,  N, ECB, ECJ, ECg, EJlist, nglist, flux, num_exc,
-                                           maximum_periodic_vector_length, truncated_dim, **kwargs)
+        CurrentMirrorVTBSqueezing.__init__(
+            self,
+            N,
+            ECB,
+            ECJ,
+            ECg,
+            EJlist,
+            nglist,
+            flux,
+            num_exc,
+            maximum_periodic_vector_length,
+            truncated_dim,
+            **kwargs
+        )

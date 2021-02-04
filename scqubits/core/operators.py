@@ -13,7 +13,6 @@ from typing import Union
 
 import numpy as np
 import scipy as sp
-
 from numpy import ndarray
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix

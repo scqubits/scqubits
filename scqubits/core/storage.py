@@ -17,7 +17,6 @@ from numpy import ndarray
 
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
-
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 if TYPE_CHECKING:

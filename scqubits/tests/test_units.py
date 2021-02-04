@@ -13,7 +13,6 @@
 import pytest
 
 import scqubits as scq
-
 from scqubits import Transmon
 
 

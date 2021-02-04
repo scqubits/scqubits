@@ -13,7 +13,6 @@
 import numpy as np
 
 import scqubits as qubit
-
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
 
