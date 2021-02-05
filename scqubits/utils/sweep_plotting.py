@@ -10,9 +10,10 @@
 ############################################################################
 
 
-from typing import List, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 import numpy as np
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
@@ -21,16 +22,18 @@ import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
 if TYPE_CHECKING:
-    from scqubits import Oscillator, ParameterSweep, Grid1d, DataStore, SpectrumData
+    from scqubits import DataStore, Grid1d, Oscillator, ParameterSweep, SpectrumData
     from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass, QubitBaseClass1d
+
     QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
-def bare_spectrum(sweep: 'ParameterSweep',
-                  subsys: 'QuantumSys',
-                  which: Union[int, List[int]] = -1,
-                  **kwargs
-                  ) -> Tuple[Figure, Axes]:
+def bare_spectrum(
+    sweep: "ParameterSweep",
+    subsys: "QuantumSys",
+    which: Union[int, List[int]] = -1,
+    **kwargs
+) -> Tuple[Figure, Axes]:
     """
     Plots energy spectrum of bare system `subsys` for given ParameterSweep `sweep`.
 
@@ -51,7 +54,7 @@ def bare_spectrum(sweep: 'ParameterSweep',
     return specdata.plot_evals_vs_paramvals(which=which, **kwargs)
 
 
-def dressed_spectrum(sweep: 'ParameterSweep', **kwargs) -> Tuple[Figure, Axes]:
+def dressed_spectrum(sweep: "ParameterSweep", **kwargs) -> Tuple[Figure, Axes]:
     """
     Plots energy spectrum of dressed system
 
@@ -61,11 +64,14 @@ def dressed_spectrum(sweep: 'ParameterSweep', **kwargs) -> Tuple[Figure, Axes]:
     **kwargs:
         standard plotting option (see separate documentation)
     """
-    return sweep.dressed_specdata.plot_evals_vs_paramvals(subtract_ground=True,
-                                                          **defaults.dressed_spectrum(sweep, **kwargs))
+    return sweep.dressed_specdata.plot_evals_vs_paramvals(
+        subtract_ground=True, **defaults.dressed_spectrum(sweep, **kwargs)
+    )
 
 
-def difference_spectrum(sweep: 'ParameterSweep', initial_state_ind: int = 0, **kwargs) -> Tuple[Figure, Axes]:
+def difference_spectrum(
+    sweep: "ParameterSweep", initial_state_ind: int = 0, **kwargs
+) -> Tuple[Figure, Axes]:
     """
     Plots a transition energy spectrum with reference to the given initial_state_ind, obtained by taking energy
     differences of the eigenenergy spectrum.
@@ -77,13 +83,17 @@ def difference_spectrum(sweep: 'ParameterSweep', initial_state_ind: int = 0, **k
     **kwargs:
         standard plotting option (see separate documentation)
     """
-    return sweep_gen.generate_diffspec_sweep(sweep, initial_state_ind).plot_evals_vs_paramvals(**kwargs)
+    return sweep_gen.generate_diffspec_sweep(
+        sweep, initial_state_ind
+    ).plot_evals_vs_paramvals(**kwargs)
 
 
-def n_photon_qubit_spectrum(sweep: 'ParameterSweep',
-                            photonnumber: int,
-                            initial_state_labels: Tuple[int, ...],
-                            **kwargs) -> Tuple[Figure, Axes]:
+def n_photon_qubit_spectrum(
+    sweep: "ParameterSweep",
+    photonnumber: int,
+    initial_state_labels: Tuple[int, ...],
+    **kwargs
+) -> Tuple[Figure, Axes]:
     """
     Plots the n-photon qubit transition spectrum.
 
@@ -97,17 +107,20 @@ def n_photon_qubit_spectrum(sweep: 'ParameterSweep',
     **kwargs:
         standard plotting option (see separate documentation)
     """
-    label_list, specdata = sweep_gen.generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels)
+    label_list, specdata = sweep_gen.generate_qubit_transitions_sweep(
+        sweep, photonnumber, initial_state_labels
+    )
     return specdata.plot_evals_vs_paramvals(label_list=label_list, **kwargs)
 
 
-def bare_wavefunction(sweep: 'ParameterSweep',
-                      param_val: float,
-                      subsys: 'QubitBaseClass1d',
-                      which: Union[int, List[int]] = -1,
-                      phi_grid: 'Grid1d' = None,
-                      **kwargs
-                      ) -> Tuple[Figure, Axes]:
+def bare_wavefunction(
+    sweep: "ParameterSweep",
+    param_val: float,
+    subsys: "QubitBaseClass1d",
+    which: Union[int, List[int]] = -1,
+    phi_grid: "Grid1d" = None,
+    **kwargs
+) -> Tuple[Figure, Axes]:
     """
     Plot bare wavefunctions for given parameter value and subsystem.
 
@@ -130,10 +143,12 @@ def bare_wavefunction(sweep: 'ParameterSweep',
     param_index = np.searchsorted(sweep.param_vals, param_val)
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
     evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]
-    return subsys.plot_wavefunction(esys=(evals, evecs), which=which, mode='real', phi_grid=phi_grid, **kwargs)
+    return subsys.plot_wavefunction(
+        esys=(evals, evecs), which=which, mode="real", phi_grid=phi_grid, **kwargs
+    )
 
 
-def chi(datastore: 'DataStore', **kwargs) -> Tuple[Figure, Axes]:
+def chi(datastore: "DataStore", **kwargs) -> Tuple[Figure, Axes]:
     """
     Plot dispersive shifts chi_j for a given pair of qubit and oscillator.
 
@@ -148,10 +163,15 @@ def chi(datastore: 'DataStore', **kwargs) -> Tuple[Figure, Axes]:
     xdata = datastore.param_vals
     state_count = ydata.shape[1]
     label_list = list(range(state_count))
-    return plot.data_vs_paramvals(xdata, ydata, label_list=label_list, **defaults.chi(datastore.param_name, **kwargs))
+    return plot.data_vs_paramvals(
+        xdata,
+        ydata,
+        label_list=label_list,
+        **defaults.chi(datastore.param_name, **kwargs)
+    )
 
 
-def kerr(datastore: 'DataStore', qubit_level=None, **kwargs) -> Tuple[Figure, Axes]:
+def kerr(datastore: "DataStore", qubit_level=None, **kwargs) -> Tuple[Figure, Axes]:
     """
     Plot dispersive Kerr energy for a given pair of qubit and oscillator.
 
@@ -166,10 +186,14 @@ def kerr(datastore: 'DataStore', qubit_level=None, **kwargs) -> Tuple[Figure, Ax
     xdata = datastore.param_vals
     state_count = len(ydata)
     label_list = list(range(state_count)) if qubit_level is None else None
-    return plot.data_vs_paramvals(xdata, ydata.T, label_list=label_list) # , **defaults.chi(datastore.param_name, **kwargs))
+    return plot.data_vs_paramvals(
+        xdata, ydata.T, label_list=label_list
+    )  # , **defaults.chi(datastore.param_name, **kwargs))
 
 
-def chi_01(datastore: 'DataStore', param_index: int = 0, **kwargs) -> Tuple[Figure, Axes]:
+def chi_01(
+    datastore: "DataStore", param_index: int = 0, **kwargs
+) -> Tuple[Figure, Axes]:
     """
     Plot the dispersive shift chi01 for a given pair of qubit and oscillator.
 
@@ -184,16 +208,20 @@ def chi_01(datastore: 'DataStore', param_index: int = 0, **kwargs) -> Tuple[Figu
     ydata = datastore.chi
     xdata = datastore.param_vals
     yval = ydata[param_index]
-    return plot.data_vs_paramvals(xdata,
-                                  ydata,
-                                  label_list=None,
-                                  **defaults.chi01(datastore.param_name, yval, **kwargs))
+    return plot.data_vs_paramvals(
+        xdata,
+        ydata,
+        label_list=None,
+        **defaults.chi01(datastore.param_name, yval, **kwargs)
+    )
 
 
-def charge_matrixelem(specdata: 'SpectrumData',
-                      qbt_index_subsys: Tuple[int, 'QuantumSystem'],
-                      initial_state_idx: int = 0,
-                      **kwargs) -> Tuple[Figure, Axes]:
+def charge_matrixelem(
+    specdata: "SpectrumData",
+    qbt_index_subsys: Tuple[int, "QuantumSystem"],
+    initial_state_idx: int = 0,
+    **kwargs
+) -> Tuple[Figure, Axes]:
     """
 
     Parameters
@@ -207,6 +235,12 @@ def charge_matrixelem(specdata: 'SpectrumData',
         standard plotting option (see separate documentation)
     """
     (qbt_index, qbt_subsys) = qbt_index_subsys
-    label_list = [(initial_state_idx, final_idx) for final_idx in range(qbt_subsys.truncated_dim)]
-    return plot.matelem_vs_paramvals(specdata, select_elems=label_list, mode='abs',
-                                     **defaults.charge_matrixelem(specdata.param_name or '', **kwargs))
+    label_list = [
+        (initial_state_idx, final_idx) for final_idx in range(qbt_subsys.truncated_dim)
+    ]
+    return plot.matelem_vs_paramvals(
+        specdata,
+        select_elems=label_list,
+        mode="abs",
+        **defaults.charge_matrixelem(specdata.param_name or "", **kwargs)
+    )

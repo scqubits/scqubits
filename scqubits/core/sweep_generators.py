@@ -38,9 +38,17 @@ def compute_custom_data_sweep(sweep, func, **kwargs):
     -------
     ndarray
     """
-    return np.asarray([func(sweep, param_index, **kwargs)
-                       for param_index in tqdm(range(sweep.slot_count), desc='data sweep', leave=False,
-                                               disable=settings.PROGRESSBAR_DISABLED)])
+    return np.asarray(
+        [
+            func(sweep, param_index, **kwargs)
+            for param_index in tqdm(
+                range(sweep.slot_count),
+                desc="data sweep",
+                leave=False,
+                disable=settings.PROGRESSBAR_DISABLED,
+            )
+        ]
+    )
 
 
 def generate_chi_sweep(sweep):
@@ -62,8 +70,12 @@ def generate_chi_sweep(sweep):
     for (osc_index, osc_subsys) in osc_subsys_list:
         for (qbt_index, qubit_subsys) in qbt_subsys_list:
             data_dict[(osc_index, qbt_index)] = sweep.new_datastore(
-                chi=compute_custom_data_sweep(sweep, observable.dispersive_chi, qubit_subsys=qubit_subsys,
-                                              osc_subsys=osc_subsys)
+                chi=compute_custom_data_sweep(
+                    sweep,
+                    observable.dispersive_chi,
+                    qubit_subsys=qubit_subsys,
+                    osc_subsys=osc_subsys,
+                )
             )
     return data_dict
 
@@ -87,8 +99,12 @@ def generate_kerr_sweep(sweep):
     for (osc_index, osc_subsys) in osc_subsys_list:
         for (qbt_index, qubit_subsys) in qbt_subsys_list:
             data_dict[(osc_index, qbt_index)] = sweep.new_datastore(
-                kerr=compute_custom_data_sweep(sweep, observable.dispersive_kerr, qubit_subsys=qubit_subsys,
-                                               osc_subsys=osc_subsys)
+                kerr=compute_custom_data_sweep(
+                    sweep,
+                    observable.dispersive_kerr,
+                    qubit_subsys=qubit_subsys,
+                    osc_subsys=osc_subsys,
+                )
             )
     return data_dict
 
@@ -107,9 +123,13 @@ def generate_charge_matrixelem_sweep(sweep):
     """
     data_dict = dict()
     for qbt_index, subsys in sweep.qbt_subsys_list:
-        if type(subsys).__name__ in ['Transmon', 'Fluxonium']:
-            data = compute_custom_data_sweep(sweep, observable.qubit_matrixelement, qubit_subsys=subsys,
-                                             qubit_operator=subsys.n_operator())
+        if type(subsys).__name__ in ["Transmon", "Fluxonium"]:
+            data = compute_custom_data_sweep(
+                sweep,
+                observable.qubit_matrixelement,
+                qubit_subsys=subsys,
+                qubit_operator=subsys.n_operator(),
+            )
             datastore = sweep.new_datastore(matrixelem_table=data)
             data_dict[(qbt_index, subsys)] = datastore
     return data_dict
@@ -134,8 +154,12 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
     evals_count = sweep.evals_count
     diff_eigenenergy_table = np.empty(shape=(param_count, evals_count))
 
-    for param_index in tqdm(range(param_count), desc="difference spectrum", leave=False,
-                            disable=settings.PROGRESSBAR_DISABLED):
+    for param_index in tqdm(
+        range(param_count),
+        desc="difference spectrum",
+        leave=False,
+        disable=settings.PROGRESSBAR_DISABLED,
+    ):
         eigenenergies = sweep.dressed_specdata.energy_table[param_index]
         if isinstance(initial_state_ind, int):
             eigenenergy_index = initial_state_ind
@@ -143,7 +167,9 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
             eigenenergy_index = lookup.dressed_index(initial_state_ind, param_index)
         diff_eigenenergies = eigenenergies - eigenenergies[eigenenergy_index]
         diff_eigenenergy_table[param_index] = diff_eigenenergies
-    return storage.SpectrumData(diff_eigenenergy_table, sweep.system_params, sweep.param_name, sweep.param_vals)
+    return storage.SpectrumData(
+        diff_eigenenergy_table, sweep.system_params, sweep.param_name, sweep.param_vals
+    )
 
 
 def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
@@ -166,7 +192,9 @@ def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     """
     lookup = sweep.lookup
 
-    target_states_list = spec_utils.generate_target_states_list(sweep, initial_state_labels)
+    target_states_list = spec_utils.generate_target_states_list(
+        sweep, initial_state_labels
+    )
     difference_energies_table = []
 
     for param_index in range(sweep.slot_count):
@@ -177,9 +205,13 @@ def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
             if target_energy is None or initial_energy is None:
                 difference_energies.append(np.NaN)
             else:
-                difference_energies.append((target_energy - initial_energy) / photonnumber)
+                difference_energies.append(
+                    (target_energy - initial_energy) / photonnumber
+                )
         difference_energies_table.append(difference_energies)
 
     data = np.asarray(difference_energies_table)
-    specdata = storage.SpectrumData(data, sweep.system_params, sweep.param_name, sweep.param_vals)
+    specdata = storage.SpectrumData(
+        data, sweep.system_params, sweep.param_name, sweep.param_vals
+    )
     return target_states_list, specdata

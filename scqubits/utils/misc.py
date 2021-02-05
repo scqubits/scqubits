@@ -11,6 +11,7 @@
 
 import ast
 import functools
+
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
@@ -72,7 +73,7 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
 
 def drop_private_keys(full_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Filter for entries in the full dictionary that have numerical values"""
-    return {key: value for key, value in full_dict.items() if key[0] != '_'}
+    return {key: value for key, value in full_dict.items() if key[0] != "_"}
 
 
 class InfoBar:
@@ -92,7 +93,13 @@ class InfoBar:
         self.tqdm_bar: tqdm = None
 
     def __enter__(self) -> None:
-        self.tqdm_bar = tqdm(total=0, disable=(self.num_cpus == 1), leave=False, desc=self.desc, bar_format="{desc}")
+        self.tqdm_bar = tqdm(
+            total=0,
+            disable=(self.num_cpus == 1),
+            leave=False,
+            desc=self.desc,
+            bar_format="{desc}",
+        )
 
     def __exit__(self, *args) -> None:
         self.tqdm_bar.close()
@@ -118,10 +125,15 @@ class Required:
             if all(self.requirements_bools):
                 return func(*args, **kwargs)
             else:
-                raise Exception("ImportError: use of this method requires the optional package(s): {}. If you wish to "
-                                "use this functionality, the corresponding package(s) must be installed manually. "
-                                "(Installation via `conda install -c conda-forge <packagename>` or "
-                                "`pip install <packagename>` is recommended.)".format(self.requirements_names))
+                raise Exception(
+                    "ImportError: use of this method requires the optional package(s): {}. If you wish to "
+                    "use this functionality, the corresponding package(s) must be installed manually. "
+                    "(Installation via `conda install -c conda-forge <packagename>` or "
+                    "`pip install <packagename>` is recommended.)".format(
+                        self.requirements_names
+                    )
+                )
+
         return decorated_func
 
 

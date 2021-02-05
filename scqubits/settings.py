@@ -23,15 +23,22 @@ Matplotlib.
 #######################################################################################################################
 
 import warnings
-from typing import Type, Union, Any
+
+from typing import Any, Type, Union
 
 import matplotlib as mpl
+
 from cycler import cycler
 
 
 # Set format for output of warnings
-def warning_on_one_line(message: Union[Warning, str], category: Type[Warning], filename: str,
-                        lineno: int, line: str = None) -> str:
+def warning_on_one_line(
+    message: Union[Warning, str],
+    category: Type[Warning],
+    filename: str,
+    lineno: int,
+    line: str = None,
+) -> str:
     return "{}: {}\n {}: {}".format(category.__name__, message, filename, lineno)
 
 
@@ -41,7 +48,7 @@ warnings.formatwarning = warning_on_one_line
 # a switch for displaying of progress bar; default: show only in ipython
 PROGRESSBAR_DISABLED = False
 
-if hasattr(__builtins__, '__IPYTHON__'):
+if hasattr(__builtins__, "__IPYTHON__"):
     IN_IPYTHON = True
 else:
     PROGRESSBAR_DISABLED = True
@@ -62,31 +69,35 @@ NUM_CPUS = 1
 # Select multiprocessing library
 # Options:  'multiprocessing'
 #           'pathos'
-MULTIPROC = 'pathos'
+MULTIPROC = "pathos"
 
 # Matplotlib options ---------------------------------------------------------------------------------------------------
 # set custom matplotlib color cycle
-mpl.rcParams['axes.prop_cycle'] = cycler(color=["#016E82",
-                                                "#333795",
-                                                "#2E5EAC",
-                                                "#4498D3",
-                                                "#CD85B9",
-                                                "#45C3D1",
-                                                "#AA1D3F",
-                                                "#F47752",
-                                                "#19B35A",
-                                                "#EDE83B",
-                                                "#ABD379",
-                                                "#F9E6BE"])
+mpl.rcParams["axes.prop_cycle"] = cycler(
+    color=[
+        "#016E82",
+        "#333795",
+        "#2E5EAC",
+        "#4498D3",
+        "#CD85B9",
+        "#45C3D1",
+        "#AA1D3F",
+        "#F47752",
+        "#19B35A",
+        "#EDE83B",
+        "#ABD379",
+        "#F9E6BE",
+    ]
+)
 
 # set matplotlib defaults
-mpl.rcParams['font.family'] = "sans-serif"
-mpl.rcParams['font.sans-serif'] = "Arial, Helvetica, DejaVu Sans"
-mpl.rcParams['figure.dpi'] = 150
-mpl.rcParams['font.size'] = 11
-mpl.rcParams['axes.labelsize'] = 11
-mpl.rcParams['xtick.labelsize'] = 10
-mpl.rcParams['ytick.labelsize'] = 10
+mpl.rcParams["font.family"] = "sans-serif"
+mpl.rcParams["font.sans-serif"] = "Arial, Helvetica, DejaVu Sans"
+mpl.rcParams["figure.dpi"] = 150
+mpl.rcParams["font.size"] = 11
+mpl.rcParams["axes.labelsize"] = 11
+mpl.rcParams["xtick.labelsize"] = 10
+mpl.rcParams["ytick.labelsize"] = 10
 
 # toggle top and right axes on and off
 DESPINE = True

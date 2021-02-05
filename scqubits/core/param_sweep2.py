@@ -15,9 +15,23 @@ import weakref
 
 from abc import ABC
 from collections import Mapping
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import numpy as np
+
+from numpy import ndarray
+from qutip.qobj import Qobj
+
 import scqubits as scq
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -30,8 +44,6 @@ import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 
-from numpy import ndarray
-from qutip.qobj import Qobj
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.qubit_base import QubitBaseClass
@@ -54,18 +66,22 @@ Number = Union[int, float, complex]
 
 class NamedSliceableSlots:
     """
-    This mixin class applies to multi-dimensional arrays, for which the leading M dimensions are each associated with
-    a slot name and a corresponding array of slot values (float or complex or str). All standard slicing of the
-    multi-dimensional array with integer-valued indices is supported as usual, e.g.
+    This mixin class applies to multi-dimensional arrays, for which the leading M
+    dimensions are each associated with a slot name and a corresponding array of slot
+    values (float or complex or str). All standard slicing of the multi-dimensional
+    array with integer-valued indices is supported as usual, e.g.
 
         some_array[0, 3:-1, -4, ::2]
 
-    Slicing of the multi-dimensional array associated with named sets of values is extended in two ways:
+    Slicing of the multi-dimensional array associated with named sets of values is
+    extended in two ways:
 
     (1) Value-based slicing
-    Integer indices other than the `step` index may be replaced by a float or a complex number or a str. This prompts a
-    lookup and substitution by the integer index representing the location of the closest element (as measured by the
-    absolute value of the difference for numbers, and an exact match for str) in the set of slot values.
+    Integer indices other than the `step` index may be
+    replaced by a float or a complex number or a str. This prompts a lookup and
+    substitution by the integer index representing the location of the closest
+    element (as measured by the absolute value of the difference for numbers,
+    and an exact match for str) in the set of slot values.
 
     As an example, consider the situation of two named value sets
 
@@ -79,25 +95,28 @@ class NamedSliceableSlots:
 
 
     (2) Name-based slicing
-    Sometimes, it is convenient to refer to one of the slots by its name rather than its position within
-    the multiple sets. As an example, let
+    Sometimes, it is convenient to refer to one of the slots
+    by its name rather than its position within the multiple sets. As an example, let
 
         values_by_slotname = {'ng': np.asarray([-0.1, 0.0, 0.1, 0.2]),
                              'flux': np.asarray([-1.0, -0.5, 0.0, 0.5, 1.0])}
 
-    If we are interested in the slice of `some_array` obtained by setting 'flux' to a value or the value associated with
-    a given index, we can now use:
+    If we are interested in the slice of `some_array` obtained by setting 'flux' to a
+    value or the value associated with a given index, we can now use:
 
         some_array['flux':0.5]            -->    some_array[:, 1]
         some_array['flux'::2, 'ng':-1]    -->    some_array[-1, :2]
 
-    Name-based slicing has the format `<name str>:start:stop`  where `start` and `stop` may be integers or make use of
-    value-based slicing. Note: the `step` option is not available in name-based slicing. Name-based and
-    standard position-based slicing cannot be combined: `some_array['name1':3, 2:4]` is not supported. For such mixed-
-    mode slicing, use several stages of slicing as in `some_array['name1':3][2:4]`.
+    Name-based slicing has the format `<name str>:start:stop`  where `start` and
+    `stop` may be integers or make use of value-based slicing. Note: the `step`
+    option is not available in name-based slicing. Name-based and standard
+    position-based slicing cannot be combined: `some_array['name1':3, 2:4]` is not
+    supported. For such mixed- mode slicing, use several stages of slicing as in
+    `some_array['name1':3][2:4]`.
 
-    A special treatment is reserved for a pure string entry in position 0: this string will be directly converted into
-    an index via the corresponding values_by_slotindex.
+    A special treatment is reserved for a pure string entry in position 0: this
+    string will be directly converted into an index via the corresponding
+    values_by_slotindex.
     """
 
     values_by_slotname: Dict[str, Iterable]
@@ -109,7 +128,8 @@ class NamedSliceableSlots:
     def __getitem__(
         self, multi_index: Union[Number, Tuple[Union[Number, slice], ...]]
     ) -> Any:
-        """Overwrites the magic method for element selection and slicing to support the extended slicing options."""
+        """Overwrites the magic method for element selection and slicing to support
+        the extended slicing options. """
         if not isinstance(multi_index, tuple):
             multi_index = (multi_index,)
 
@@ -133,28 +153,32 @@ class NamedSliceableSlots:
                 converted_multi_index[index] = converted_slice
             except (AttributeError, KeyError):
                 raise Exception(
-                    "Slicing error: could not convert slot-name based slices to ordinary slices."
+                    "Slicing error: could not convert slot-name based slices to "
+                    "ordinary slices."
                 )
         return tuple(converted_multi_index)
 
     def convert_to_standard_multi_index(
         self, multi_index: Tuple[Union[Number, slice], ...]
     ) -> Tuple[Union[int, slice], ...]:
-        """Takes an extended-syntax multi-index_entry and converts it to a standard position-based multi-index_entry
-        with only integer-valued indices."""
-        index_entry = multi_index[
-            0
-        ]  # inspect first index_entry to determine whether multi-index_entry is name-based
+        """Takes an extended-syntax multi-index_entry and converts it to a standard
+        position-based multi-index_entry with only integer-valued indices. """
+
+        # inspect first index_entry to determine whether multi-index_entry is name-based
+        index_entry = multi_index[0]
+
         if isinstance(index_entry, slice) and isinstance(index_entry.start, str):
             # Multi-index_entry is name-based (slices with a str as the start attribute)
             # -> convert to position-based multi-index_entry
             multi_index = self.convert_slotnames_to_indices(multi_index)
             processed_multi_index = [slice(None)] * self.slot_count
         else:
-            # Multi-index_entry is position based (nothing to do, just convert to list further to be processed)
+            # Multi-index_entry is position based (nothing to do, just convert to
+            # list further to be processed)
             processed_multi_index = list(multi_index)
 
-        # Check for value-based indices and slice entries, and convert to standard indices
+        # Check for value-based indices and slice entries, and convert to standard
+        # indices
         for position, index_entry in enumerate(multi_index):
             if isinstance(index_entry, int):
                 # all int entries are taken as standard indices
@@ -170,7 +194,8 @@ class NamedSliceableSlots:
                     self.values_by_slotindex[0] == index_entry
                 )[0]
             elif isinstance(index_entry, slice):
-                # slice objects must be checked for internal value-based entries in start and stop attributes
+                # slice objects must be checked for internal value-based entries in
+                # start and stop attributes
                 this_slice = (
                     index_entry
                     if self.is_standard_slice(index_entry)
@@ -180,7 +205,8 @@ class NamedSliceableSlots:
         return tuple(processed_multi_index)
 
     def is_standard_slice(self, this_slice: slice) -> bool:
-        """Checks whether slice is standard, i.e., all entries for start, stop, and step are integers."""
+        """Checks whether slice is standard, i.e., all entries for start, stop,
+        and step are integers. """
         if (
             isinstance(this_slice.start, (int, type(None)))
             and isinstance(this_slice.stop, (int, type(None)))
@@ -190,8 +216,9 @@ class NamedSliceableSlots:
         return False
 
     def convert_to_standard_slice(self, this_slice: slice, range_index) -> slice:
-        """Takes a single slice object that includes value-based entries and converts them into
-        integer indices reflecting the position of the closest element in the given value set."""
+        """Takes a single slice object that includes value-based entries and converts
+        them into integer indices reflecting the position of the closest element in
+        the given value set. """
         start = this_slice.start
         stop = this_slice.stop
         step = this_slice.step
@@ -243,7 +270,8 @@ class NamedSlotsNdarray(np.ndarray, NamedSliceableSlots):
     def __getitem__(
         self, multi_index: Union[Number, Tuple[Union[Number, slice], ...]]
     ) -> Any:
-        """Overwrites the magic method for element selection and slicing to support the extended slicing options."""
+        """Overwrites the magic method for element selection and slicing to support
+        the extended slicing options. """
         if not isinstance(multi_index, tuple):
             multi_index = (multi_index,)
         return super().__getitem__(self.convert_to_standard_multi_index(multi_index))
@@ -253,11 +281,13 @@ class Sweep1(Mapping):
     """
     Sweep acts like a dictionary
     {
-      'evals': NamedSlotsNdarray
-      'evecs': NamedSlotsNdArray
-      'lookup': NamedSlotsNdArray (?)
-      '<observable1>': NamedSlotsNdarray
-      '<observable2>': NamedSlotsNdarray
+      'evals': NamedSlotsNdarray,
+      'evecs': NamedSlotsNdarray,
+      'bare_evals': NamedSlotsNdarray,
+      'bare_evecs': NamedSlotsNdarray,
+      'lookup': NamedSlotsNdArray (?),
+      '<observable1>': NamedSlotsNdarray,
+      '<observable2>': NamedSlotsNdarray,
       ...
     }
 
@@ -267,23 +297,26 @@ class Sweep1(Mapping):
     paramvals_by_name:
     sweep_generators:
     evals_count:
-        number of dressed eigenvalues/eigenstates to keep. (The number of bare eigenvalues/eigenstates is determined
-        for each subsystem by `truncated_dim`.)
+        number of dressed eigenvalues/eigenstates to keep. (The number of bare
+        eigenvalues/eigenstates is determined for each subsystem by `truncated_dim`.)
     subsys_update_info:
-        To speed up calculations, the user may provide information on specifying which subsystems are being updated
-        for each of the given parameter sweeps. This information is specified by a dictionary of the following form:
+        To speed up calculations, the user may provide information on specifying which
+        subsystems are being updated for each of the given parameter sweeps. This
+        information is specified by a dictionary of the following form:
         {
          '<parameter name 1>': [<subsystem a>],
          '<parameter name 2>': [<subsystem b>, <subsystem c>, ...],
           ...
         }
-        This indicates that changes in <parameter name 1> only require updates of <subsystem a> while leaving other
-        subsystems unchanged. Similarly, sweeping <parameter name 2> affects <subsystem b>, <subsystem c> etc.
+        This indicates that changes in <parameter name 1> only require updates of
+        <subsystem a> while leaving other subsystems unchanged. Similarly, sweeping
+        <parameter name 2> affects <subsystem b>, <subsystem c> etc.
 
     generate_spectrum_lookup:
     autorun:
     num_cpus:
-        number of CPUS requested for computing the sweep (default value settings.NUM_CPUS)
+        number of CPUS requested for computing the sweep
+        (default value settings.NUM_CPUS)
     """
 
     def __init__(
@@ -296,12 +329,7 @@ class Sweep1(Mapping):
         generate_spectrum_lookup: bool = True,
         autorun: bool = settings.AUTORUN_SWEEP,
         num_cpus: int = settings.NUM_CPUS,
-    ):
-        # self.values_by_slotname = paramvals_by_name
-        # self.slotindex_by_slotname = {name: index for index, name in enumerate(self.values_by_slotname.keys())}
-        # self.slotname_by_slotindex = {index: name for name, index in self.slotindex_by_slotname.items()}
-        # self.values_by_slotindex = {self.slotindex_by_slotname[name]: self.values_by_slotname[name]
-        #                             for name in self.values_by_slotname.keys()}
+    ) -> None:
 
         self._paramvals_by_name = paramvals_by_name
         self._paramvals_count_by_name = {
@@ -313,7 +341,6 @@ class Sweep1(Mapping):
         self._generator_info = str(list(sweep_generators.keys()))
         self._evals_count = evals_count
         self._subsys_update_info = subsys_update_info
-        # self._shape = tuple([len(value) for value in self.values_by_slotindex.values()])
         self._spectrum_lookup = None
         self._data: Dict[str, Optional[NamedSlotsNdarray]]
         self._data["spec_lookup"] = None
@@ -377,7 +404,6 @@ class Sweep1(Mapping):
             for index, value in enumerate(paramvals_list[0]):
                 recursive_loops(
                     paramvals_list[1:],
-                    sweep_name,
                     sweep_func,
                     param_indices + (index,),
                     param_values + (value,),
@@ -388,17 +414,55 @@ class Sweep1(Mapping):
             loop_order = list(self._paramvals_by_name.keys())
         else:
             loop_order = self.set_loop_order()
-        self._data["evals"], self._data["evecs"] = self.generate_eigensystem_sweep()
+
+        self._data["bare_evals"], self._data["bare_evecs"] = self.bare_spectrum_sweep()
+        self._data["evals"], self._data["evecs"] = self.spectrum_sweep()
+
         if spec_lookup:
-            self._data["spectrum_lookup"] = self.generate_spectrumlookup_sweep()
+            self._data["spectrum_lookup"] = self.spectrumlookup_sweep()
+
         for sweep_name, sweep_generator in self._sweep_generators.items():
             self._data[sweep_name] = self.custom_sweep(sweep_generator)
 
     def custom_sweep(self, sweep_generator: Callable):
         pass
 
-    def eigensystem_sweep(self):
-        pass
+    def bare_spectrum_sweep(
+        self,
+    ) -> Dict[QuantumSys, Tuple[NamedSlotsNdarray, NamedSlotsNdarray]]:
+        """
+        The bare energy spectra are computed according to the following scheme. 
+        1. Perform a loop over all subsystems to separately obtain the bare energy
+            eigenvalues and eigenstates for each subsystem.
+        2. For each given subsystem, determine an appropriate ordering of the 
+            parameter value sweeps.
+        3. If `update_subsystem_info` is given, remove those sweeps that leave the 
+            subsystem fixed.
+        4. If num_cpus > 1, parallelize the innermost loop. (May not be optimal.)
+        
+        Returns
+        -------
+            dictionary of the following form:
+            {
+                <subsys1>: (NamedSlotsNdarray[p1, p2, ...],  # bare evals
+                            NamedSlotsNdarray[p1, p2, ...])  # bare evecs
+            }
+        """
+        paramvals_list = list(self._paramvals_by_name.values())
+        paramvals_counts = [len(paramvals) for paramvals in paramvals_list]
+        truncated_dims = [subsys.truncated_dim for subsys in self._hilbertspace]
+
+        bare_spectrum = {
+            subsys: (NamedSlotsNdarray(np.empty(shape=paramvals_counts +
+                                                      truncated_dims[index])),
+                     NamedSlotsNdarray(np.empty(shape=paramvals_counts +
+                                                      truncated_dims[index])),
+            for index, subsys in enumerate(self._hilbertspace)
+        }
+
+        for subsystem in self._hilbertspace:
+            bare_spectrum[subsystem] = 0
+            self.recursive_loops(paramvals_list, "bare_eigensystem")
 
     def __getitem__(self, key):
         if isinstance(key, str):
