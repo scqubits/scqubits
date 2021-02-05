@@ -10,7 +10,7 @@
 ############################################################################
 
 
-from typing import Dict, List, Optional, Union, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import numpy as np
 

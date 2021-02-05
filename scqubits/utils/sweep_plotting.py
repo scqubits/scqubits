@@ -10,7 +10,7 @@
 ############################################################################
 
 
-from typing import List, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 import numpy as np
 from matplotlib.axes import Axes

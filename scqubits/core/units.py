@@ -13,7 +13,6 @@
 import warnings
 from typing import List
 
-
 # Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)
 # Often, system units need to be converted to "standard units", which are considered to be `[Hz]` or `2pi/[s]`
 _current_units = 'GHz'

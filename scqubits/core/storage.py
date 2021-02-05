@@ -9,7 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure

@@ -29,7 +29,6 @@ import scqubits.utils.spectrum_utils as spec_utils
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 
-
 # - ZeroPi noise class
 
 class NoisyFullZeroPi(NoisySystem):

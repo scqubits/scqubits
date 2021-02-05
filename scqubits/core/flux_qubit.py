@@ -29,7 +29,6 @@ import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
-
 # -Flux qubit noise class
 
 class NoisyFluxQubit(NoisySystem, ABC):

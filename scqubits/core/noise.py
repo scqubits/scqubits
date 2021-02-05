@@ -27,7 +27,6 @@ import scqubits.settings as settings
 import scqubits.utils.plotting as plotting
 from scqubits.core.storage import SpectrumData
 
-
 # Helpers for units conversion
 
 

@@ -16,7 +16,7 @@ import pytest
 
 from scqubits import FullZeroPi
 from scqubits.core.storage import SpectrumData
-from scqubits.tests.conftest import BaseTest, DATADIR
+from scqubits.tests.conftest import DATADIR, BaseTest
 
 
 @pytest.mark.usefixtures("io_type")

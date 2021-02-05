@@ -10,13 +10,13 @@
 ############################################################################
 
 import cmath
-from typing import List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
-from numpy import ndarray
 import qutip as qt
-from qutip import Qobj
 import scipy.sparse.csc as sp_sparse
+from numpy import ndarray
+from qutip import Qobj
 
 if TYPE_CHECKING:
     from scqubits import SpectrumData, Oscillator, ParameterSweep

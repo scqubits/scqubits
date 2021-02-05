@@ -30,7 +30,6 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
 
-
 # —Cooper pair box / transmon——————————————————————————————————————————————
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):

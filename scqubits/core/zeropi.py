@@ -35,7 +35,6 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunctionOnGrid
 
-
 # - ZeroPi noise class
 
 class NoisyZeroPi(NoisySystem):

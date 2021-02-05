@@ -13,9 +13,12 @@
 import functools
 import weakref
 from abc import ABC
-from typing import Any, Callable, Dict, List, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
+from numpy import ndarray
+from qutip.qobj import Qobj
+
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.hilbert_space as hspace
@@ -26,9 +29,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
-
-from numpy import ndarray
-from qutip.qobj import Qobj
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.qubit_base import QubitBaseClass
