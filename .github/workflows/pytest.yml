@@ -4,17 +4,15 @@ on: [push]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
       matrix:
-        python-version: [3.6,
-                         3.7,
-                         3.8]
-
+        python-version: [3.6, 3.7, 3.8]
     steps:
     - uses: actions/checkout@v1
+      with:
+        ref: jk-scaling
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
