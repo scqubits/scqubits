@@ -12,10 +12,22 @@
 import functools
 import warnings
 import weakref
-from typing import Any, Callable, Dict, Iterator, List, Optional, TYPE_CHECKING, Tuple, Union
+
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import qutip as qt
+
 from numpy import ndarray
 from qutip.qobj import Qobj
 from scipy.sparse import csc_matrix, dia_matrix
@@ -32,6 +44,7 @@ import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
+
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import SpectrumData
@@ -68,20 +81,22 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     add_hc:
         If set to True, the interaction Hamiltonian is of type 2, and the Hermitean conjugate is added.
     """
-    g_strength = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    subsys1 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    subsys2 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    op1 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
-    op2 = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
 
-    def __init__(self,
-                 g_strength: Union[float, complex],
-                 subsys1: QuantumSys,
-                 op1: Union[str, ndarray, csc_matrix, dia_matrix],
-                 subsys2: QuantumSys,
-                 op2: Union[str, ndarray, csc_matrix, dia_matrix],
-                 add_hc: bool = False
-                 ) -> None:
+    g_strength = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
+    subsys1 = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
+    subsys2 = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
+    op1 = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
+    op2 = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
+
+    def __init__(
+        self,
+        g_strength: Union[float, complex],
+        subsys1: QuantumSys,
+        op1: Union[str, ndarray, csc_matrix, dia_matrix],
+        subsys2: QuantumSys,
+        op2: Union[str, ndarray, csc_matrix, dia_matrix],
+        add_hc: bool = False,
+    ) -> None:
         self.g_strength = g_strength
         self.subsys1 = subsys1
         self.op1 = op1
@@ -89,25 +104,27 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         self.op2 = op2
         self.add_hc = add_hc
 
-        self._init_params.remove('hilbertspace')
+        self._init_params.remove("hilbertspace")
 
     def __repr__(self) -> str:
         init_dict = {name: getattr(self, name) for name in self._init_params}
-        return type(self).__name__ + f'(**{init_dict!r})'
+        return type(self).__name__ + f"(**{init_dict!r})"
 
     def __str__(self) -> str:
         indent_length = 25
-        name_prepend = 'InteractionTerm'.ljust(indent_length, '-') + '|\n'
+        name_prepend = "InteractionTerm".ljust(indent_length, "-") + "|\n"
 
-        output = ''
+        output = ""
         for param_name in self._init_params:
             param_content = getattr(self, param_name).__repr__()
-            if '\n' in param_content:
-                length = min(param_content.rfind('\n') - 1, 30)
+            if "\n" in param_content:
+                length = min(param_content.rfind("\n") - 1, 30)
                 param_content = param_content[:length]
-                param_content += ' ...'
+                param_content += " ..."
 
-            output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name),param_content)
+            output += "{0}| {1}: {2}\n".format(
+                " " * indent_length, str(param_name), param_content
+            )
         return name_prepend + output
 
 
@@ -117,15 +134,17 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     establishes the interface to qutip. Returned operators are of the `qutip.Qobj` type. The class also provides methods
     for obtaining eigenvalues, absorption and emission spectra as a function of an external parameter.
     """
+
     osc_subsys_list = descriptors.ReadOnlyProperty()
     qbt_subsys_list = descriptors.ReadOnlyProperty()
     lookup = descriptors.ReadOnlyProperty()
-    interaction_list = descriptors.WatchedProperty('INTERACTIONLIST_UPDATE')
+    interaction_list = descriptors.WatchedProperty("INTERACTIONLIST_UPDATE")
 
-    def __init__(self,
-                 subsystem_list: List[QuantumSys],
-                 interaction_list: List[InteractionTerm] = None
-                 ) -> None:
+    def __init__(
+        self,
+        subsystem_list: List[QuantumSys],
+        interaction_list: List[InteractionTerm] = None,
+    ) -> None:
         self._subsystems: Tuple[QuantumSys, ...] = tuple(subsystem_list)
         if interaction_list:
             self.interaction_list = tuple(interaction_list)
@@ -133,14 +152,20 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             self.interaction_list = []
 
         self._lookup: Optional[spec_lookup.SpectrumLookup] = None
-        self._osc_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
-                                 if isinstance(subsys, osc.Oscillator)]
-        self._qbt_subsys_list = [(index, subsys) for (index, subsys) in enumerate(self)
-                                 if not isinstance(subsys, osc.Oscillator)]
+        self._osc_subsys_list = [
+            (index, subsys)
+            for (index, subsys) in enumerate(self)
+            if isinstance(subsys, osc.Oscillator)
+        ]
+        self._qbt_subsys_list = [
+            (index, subsys)
+            for (index, subsys) in enumerate(self)
+            if not isinstance(subsys, osc.Oscillator)
+        ]
 
-        dispatch.CENTRAL_DISPATCH.register('QUANTUMSYSTEM_UPDATE', self)
-        dispatch.CENTRAL_DISPATCH.register('INTERACTIONTERM_UPDATE', self)
-        dispatch.CENTRAL_DISPATCH.register('INTERACTIONLIST_UPDATE', self)
+        dispatch.CENTRAL_DISPATCH.register("QUANTUMSYSTEM_UPDATE", self)
+        dispatch.CENTRAL_DISPATCH.register("INTERACTIONTERM_UPDATE", self)
+        dispatch.CENTRAL_DISPATCH.register("INTERACTIONLIST_UPDATE", self)
 
     def __getitem__(self, index: int) -> QuantumSys:
         return self._subsystems[index]
@@ -150,44 +175,44 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     def __repr__(self) -> str:
         init_dict = self.get_initdata()
-        return type(self).__name__ + f'(**{init_dict!r})'
+        return type(self).__name__ + f"(**{init_dict!r})"
 
     def __str__(self) -> str:
-        output = 'HilbertSpace:  subsystems\n'
-        output += '-------------------------\n'
+        output = "HilbertSpace:  subsystems\n"
+        output += "-------------------------\n"
         for subsystem in self:
-            output += '\n' + str(subsystem) + '\n'
+            output += "\n" + str(subsystem) + "\n"
         if self.interaction_list:
-            output += '\n\n'
-            output += 'HilbertSpace:  interaction terms\n'
-            output += '--------------------------------\n'
+            output += "\n\n"
+            output += "HilbertSpace:  interaction terms\n"
+            output += "--------------------------------\n"
             for interaction_term in self.interaction_list:
-                output += '\n' + str(interaction_term) + '\n'
+                output += "\n" + str(interaction_term) + "\n"
         return output
 
     ###############################################################################################
     # HilbertSpace: file IO methods
     ###############################################################################################
     @classmethod
-    def deserialize(cls, io_data: 'IOData') -> 'HilbertSpace':
+    def deserialize(cls, io_data: "IOData") -> "HilbertSpace":
         """
         Take the given IOData and return an instance of the described class, initialized with the data stored in
         io_data.
         """
         alldata_dict = io_data.as_kwargs()
-        lookup = alldata_dict.pop('_lookup', None)
+        lookup = alldata_dict.pop("_lookup", None)
         new_hilbertspace = cls(**alldata_dict)
         new_hilbertspace._lookup = lookup
         if lookup is not None:
             new_hilbertspace._lookup._hilbertspace = weakref.proxy(new_hilbertspace)
         return new_hilbertspace
 
-    def serialize(self) -> 'IOData':
+    def serialize(self) -> "IOData":
         """
         Convert the content of the current class instance into IOData format.
         """
         initdata = {name: getattr(self, name) for name in self._init_params}
-        initdata['_lookup'] = self._lookup
+        initdata["_lookup"] = self._lookup
         iodata = serializers.dict_serialize(initdata)
         iodata.typename = type(self).__name__
         return iodata
@@ -195,13 +220,16 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new HilbertSpace object.
         """
-        return {'subsystem_list': self._subsystems, 'interaction_list': self.interaction_list}
+        return {
+            "subsystem_list": self._subsystems,
+            "interaction_list": self.interaction_list,
+        }
 
     ###############################################################################################
     # HilbertSpace: creation via GUI
     ###############################################################################################
     @classmethod
-    def create(cls) -> 'HilbertSpace':
+    def create(cls) -> "HilbertSpace":
         hilbertspace = cls([])
         scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)  # type: ignore
         return hilbertspace
@@ -209,20 +237,16 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     ###############################################################################################
     # HilbertSpace: methods for CentralDispatch
     ###############################################################################################
-    def receive(self,
-                event: str,
-                sender: Any,
-                **kwargs
-                ) -> None:
+    def receive(self, event: str, sender: Any, **kwargs) -> None:
         if self._lookup is not None:
-            if event == 'QUANTUMSYSTEM_UPDATE' and sender in self:
-                self.broadcast('HILBERTSPACE_UPDATE')
+            if event == "QUANTUMSYSTEM_UPDATE" and sender in self:
+                self.broadcast("HILBERTSPACE_UPDATE")
                 self._lookup._out_of_sync = True
-            elif event == 'INTERACTIONTERM_UPDATE' and sender in self.interaction_list:
-                self.broadcast('HILBERTSPACE_UPDATE')
+            elif event == "INTERACTIONTERM_UPDATE" and sender in self.interaction_list:
+                self.broadcast("HILBERTSPACE_UPDATE")
                 self._lookup._out_of_sync = True
-            elif event == 'INTERACTIONLIST_UPDATE' and sender is self:
-                self.broadcast('HILBERTSPACE_UPDATE')
+            elif event == "INTERACTIONLIST_UPDATE" and sender is self:
+                self.broadcast("HILBERTSPACE_UPDATE")
                 self._lookup._out_of_sync = True
 
     ###############################################################################################
@@ -260,17 +284,23 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         bare_specdata_list = []
         for index, subsys in enumerate(self):
             evals, evecs = subsys.eigensys(evals_count=subsys.truncated_dim)
-            bare_specdata_list.append(storage.SpectrumData(energy_table=[evals],
-                                                           state_table=[evecs],
-                                                           system_params=subsys.get_initdata()))
+            bare_specdata_list.append(
+                storage.SpectrumData(
+                    energy_table=[evals],
+                    state_table=[evecs],
+                    system_params=subsys.get_initdata(),
+                )
+            )
 
         evals, evecs = self.eigensys(evals_count=self.dimension)
-        dressed_specdata = storage.SpectrumData(energy_table=[evals],
-                                                state_table=[evecs],
-                                                system_params=self.get_initdata())
-        self._lookup = spec_lookup.SpectrumLookup(self,
-                                                  bare_specdata_list=bare_specdata_list,
-                                                  dressed_specdata=dressed_specdata)
+        dressed_specdata = storage.SpectrumData(
+            energy_table=[evals], state_table=[evecs], system_params=self.get_initdata()
+        )
+        self._lookup = spec_lookup.SpectrumLookup(
+            self,
+            bare_specdata_list=bare_specdata_list,
+            dressed_specdata=dressed_specdata,
+        )
 
     ###############################################################################################
     # HilbertSpace: energy spectrum
@@ -303,19 +333,15 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
         return evals, evecs
 
-    def _esys_for_paramval(self,
-                           paramval: float,
-                           update_hilbertspace: Callable,
-                           evals_count: int
-                           ) -> Tuple[ndarray, QutipEigenstates]:
+    def _esys_for_paramval(
+        self, paramval: float, update_hilbertspace: Callable, evals_count: int
+    ) -> Tuple[ndarray, QutipEigenstates]:
         update_hilbertspace(paramval)
         return self.eigensys(evals_count)
 
-    def _evals_for_paramval(self,
-                            paramval: float,
-                            update_hilbertspace: Callable,
-                            evals_count: int
-                            ) -> ndarray:
+    def _evals_for_paramval(
+        self, paramval: float, update_hilbertspace: Callable, evals_count: int
+    ) -> ndarray:
         update_hilbertspace(paramval)
         return self.eigenvals(evals_count)
 
@@ -352,16 +378,23 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         if not self.interaction_list:
             return 0
 
-        hamiltonian = [self.interactionterm_hamiltonian(term) for term in self.interaction_list]
+        hamiltonian = [
+            self.interactionterm_hamiltonian(term) for term in self.interaction_list
+        ]
         return sum(hamiltonian)
 
-    def interactionterm_hamiltonian(self,
-                                    interactionterm: InteractionTerm,
-                                    evecs1: ndarray = None,
-                                    evecs2: ndarray = None
-                                    ) -> Qobj:
-        interaction_op1 = self.identity_wrap(interactionterm.op1, interactionterm.subsys1, evecs=evecs1)
-        interaction_op2 = self.identity_wrap(interactionterm.op2, interactionterm.subsys2, evecs=evecs2)
+    def interactionterm_hamiltonian(
+        self,
+        interactionterm: InteractionTerm,
+        evecs1: ndarray = None,
+        evecs2: ndarray = None,
+    ) -> Qobj:
+        interaction_op1 = self.identity_wrap(
+            interactionterm.op1, interactionterm.subsys1, evecs=evecs1
+        )
+        interaction_op2 = self.identity_wrap(
+            interactionterm.op2, interactionterm.subsys2, evecs=evecs2
+        )
         hamiltonian = interactionterm.g_strength * interaction_op1 * interaction_op2
         if interactionterm.add_hc:
             return hamiltonian + hamiltonian.dag()
@@ -385,7 +418,10 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     def get_bare_hamiltonian(self) -> Qobj:
         """Deprecated, use `bare_hamiltonian()` instead."""
-        warnings.warn('get_bare_hamiltonian() is deprecated, use bare_hamiltonian() instead', FutureWarning)
+        warnings.warn(
+            "get_bare_hamiltonian() is deprecated, use bare_hamiltonian() instead",
+            FutureWarning,
+        )
         return self.bare_hamiltonian()
 
     def get_hamiltonian(self):
@@ -395,12 +431,13 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     ###############################################################################################
     # HilbertSpace: identity wrapping, operators
     ###############################################################################################
-    def identity_wrap(self,
-                      operator: Union[str, ndarray, csc_matrix, dia_matrix, Qobj],
-                      subsystem: QuantumSys,
-                      op_in_eigenbasis: bool = False,
-                      evecs: ndarray = None
-                      ) -> Qobj:
+    def identity_wrap(
+        self,
+        operator: Union[str, ndarray, csc_matrix, dia_matrix, Qobj],
+        subsystem: QuantumSys,
+        op_in_eigenbasis: bool = False,
+        evecs: ndarray = None,
+    ) -> Qobj:
         """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
 
         Parameters
@@ -416,8 +453,12 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         evecs:
             internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
         """
-        subsys_operator = spec_utils.convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
-        operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in self]
+        subsys_operator = spec_utils.convert_operator_to_qobj(
+            operator, subsystem, op_in_eigenbasis, evecs
+        )
+        operator_identitywrap_list = [
+            qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in self
+        ]
         subsystem_index = self.get_subsys_index(subsystem)
         operator_identitywrap_list[subsystem_index] = subsys_operator
         return qt.tensor(operator_identitywrap_list)
@@ -450,7 +491,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             subsystem in which Hubbard operator acts
         """
         dim = subsystem.truncated_dim
-        operator = (qt.states.basis(dim, j) * qt.states.basis(dim, k).dag())
+        operator = qt.states.basis(dim, j) * qt.states.basis(dim, k).dag()
         return self.identity_wrap(operator, subsystem)
 
     def annihilate(self, subsystem: QuantumSys) -> Qobj:
@@ -462,20 +503,21 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             specifies subsystem in which annihilation operator acts
         """
         dim = subsystem.truncated_dim
-        operator = (qt.destroy(dim))
+        operator = qt.destroy(dim)
         return self.identity_wrap(operator, subsystem)
 
     ###############################################################################################
     # HilbertSpace: spectrum sweep
     ###############################################################################################
-    def get_spectrum_vs_paramvals(self,
-                                  param_vals: ndarray,
-                                  update_hilbertspace: Callable,
-                                  evals_count: int = 10,
-                                  get_eigenstates: bool = False,
-                                  param_name: str = "external_parameter",
-                                  num_cpus: int = settings.NUM_CPUS
-                                  ) -> SpectrumData:
+    def get_spectrum_vs_paramvals(
+        self,
+        param_vals: ndarray,
+        update_hilbertspace: Callable,
+        evals_count: int = 10,
+        get_eigenstates: bool = False,
+        param_name: str = "external_parameter",
+        num_cpus: int = settings.NUM_CPUS,
+    ) -> SpectrumData:
         """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as a function of a parameter.
         Parameter values are specified as a list or array in `param_vals`. The Hamiltonian `hamiltonian_func`
         must be a function of that particular parameter, and is expected to internally set subsystem parameters.
@@ -499,23 +541,57 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """
         target_map = cpu_switch.get_map_method(num_cpus)
         if get_eigenstates:
-            func = functools.partial(self._esys_for_paramval, update_hilbertspace=update_hilbertspace,
-                                     evals_count=evals_count)
-            with utils.InfoBar("Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus), num_cpus):
-                eigensystem_mapdata = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
-                                                                 disable=(num_cpus > 1))))
-            eigenvalue_table, eigenstate_table = spec_utils.recast_esys_mapdata(eigensystem_mapdata)
+            func = functools.partial(
+                self._esys_for_paramval,
+                update_hilbertspace=update_hilbertspace,
+                evals_count=evals_count,
+            )
+            with utils.InfoBar(
+                "Parallel computation of eigenvalues [num_cpus={}]".format(num_cpus),
+                num_cpus,
+            ):
+                eigensystem_mapdata = list(
+                    target_map(
+                        func,
+                        tqdm(
+                            param_vals,
+                            desc="Spectral data",
+                            leave=False,
+                            disable=(num_cpus > 1),
+                        ),
+                    )
+                )
+            eigenvalue_table, eigenstate_table = spec_utils.recast_esys_mapdata(
+                eigensystem_mapdata
+            )
         else:
-            func = functools.partial(self._evals_for_paramval, update_hilbertspace=update_hilbertspace,
-                                     evals_count=evals_count)
-            with utils.InfoBar("Parallel computation of eigensystems [num_cpus={}]".format(num_cpus), num_cpus):
-                eigenvalue_table = list(target_map(func, tqdm(param_vals, desc='Spectral data', leave=False,
-                                                              disable=(num_cpus > 1))))
+            func = functools.partial(
+                self._evals_for_paramval,
+                update_hilbertspace=update_hilbertspace,
+                evals_count=evals_count,
+            )
+            with utils.InfoBar(
+                "Parallel computation of eigensystems [num_cpus={}]".format(num_cpus),
+                num_cpus,
+            ):
+                eigenvalue_table = list(
+                    target_map(
+                        func,
+                        tqdm(
+                            param_vals,
+                            desc="Spectral data",
+                            leave=False,
+                            disable=(num_cpus > 1),
+                        ),
+                    )
+                )
             eigenvalue_table = np.asarray(eigenvalue_table)
             eigenstate_table = None  # type: ignore
 
-        return storage.SpectrumData(eigenvalue_table,
-                                    self.get_initdata(),
-                                    param_name,
-                                    param_vals,
-                                    state_table=eigenstate_table)
+        return storage.SpectrumData(
+            eigenvalue_table,
+            self.get_initdata(),
+            param_name,
+            param_vals,
+            state_table=eigenstate_table,
+        )

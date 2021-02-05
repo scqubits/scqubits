@@ -13,6 +13,7 @@
 import logging
 import warnings
 import weakref
+
 from typing import Callable
 from weakref import WeakKeyDictionary
 
@@ -25,12 +26,12 @@ import scqubits.settings as settings
 
 
 EVENTS = [
-    'QUANTUMSYSTEM_UPDATE',
-    'GRID_UPDATE',
-    'INTERACTIONTERM_UPDATE',
-    'INTERACTIONLIST_UPDATE',
-    'HILBERTSPACE_UPDATE',
-    'PARAMETERSWEEP_UPDATE'
+    "QUANTUMSYSTEM_UPDATE",
+    "GRID_UPDATE",
+    "INTERACTIONTERM_UPDATE",
+    "INTERACTIONLIST_UPDATE",
+    "HILBERTSPACE_UPDATE",
+    "PARAMETERSWEEP_UPDATE",
 ]
 
 
@@ -38,8 +39,12 @@ class CentralDispatch:
     """
     Primary class managing the central dispatch system.
     """
+
     def __init__(self):
-        self.clients_dict = {event: weakref.WeakKeyDictionary() for event in EVENTS}    # central dispatch information
+        self.clients_dict = {
+            event: weakref.WeakKeyDictionary() for event in EVENTS
+        }  # central dispatch information
+
     # For each event, store a dict that maps the clients registered for that event to their callback routines
     # The objects are keys in the inner dict, implemented as a WeakKeyDictionary to allow deletion/garbage collection
     # when object should expire. Callback methods are stored as weakref.WeakMethod for the same reason.
@@ -58,11 +63,9 @@ class CentralDispatch:
         """
         return self.clients_dict[event]
 
-    def register(self,
-                 event: str,
-                 who: 'DispatchClient',
-                 callback: Callable = None
-                 ) -> None:
+    def register(
+        self, event: str, who: "DispatchClient", callback: Callable = None
+    ) -> None:
         """
         Register object `who` for event `event`. (This modifies `clients_dict`.)
 
@@ -75,9 +78,11 @@ class CentralDispatch:
         callback: method, optional
             custom callback method other than `.receive()`
         """
-        logging.debug("Registering {} for {}. welcome.".format(type(who).__name__, event))
+        logging.debug(
+            "Registering {} for {}. welcome.".format(type(who).__name__, event)
+        )
         if callback is None:
-            callback_ref = getattr(who, 'receive')
+            callback_ref = getattr(who, "receive")
             # For purposes of garbage collection, this should preferably be:
             # callback_ref = weakref.WeakMethod(getattr(who, 'receive'))
             # However, as of 06/12/20, pathos balks on this on Windows (while Linux is passing).
@@ -92,7 +97,7 @@ class CentralDispatch:
             # so may have to revisit this issue if necessary.
         self.get_clients_dict(event)[who] = callback_ref
 
-    def unregister(self, event: str, who: 'DispatchClient') -> None:
+    def unregister(self, event: str, who: "DispatchClient") -> None:
         """Unregister object `who` from event `event`.  (This modifies `clients_dict`.)
 
         Parameters
@@ -104,7 +109,7 @@ class CentralDispatch:
         """
         del self.get_clients_dict(event)[who]
 
-    def unregister_object(self,  who: 'DispatchClient') -> None:
+    def unregister_object(self, who: "DispatchClient") -> None:
         """Unregister object `who` from all events.  (This modifies `clients_dict`.)
 
           Parameters
@@ -115,11 +120,7 @@ class CentralDispatch:
         for event in self.clients_dict:
             self.get_clients_dict(event).pop(who, None)
 
-    def _dispatch(self,
-                  event: str,
-                  sender: 'DispatchClient',
-                  **kwargs
-                  ) -> None:
+    def _dispatch(self, event: str, sender: "DispatchClient", **kwargs) -> None:
         """Issue a dispatch for `event` coming from `sender.
 
         Parameters
@@ -131,12 +132,16 @@ class CentralDispatch:
         **kwargs
         """
         for client, callback_ref in self.get_clients_dict(event).items():
-            logging.debug("Central dispatch calling {} about {}.".format(type(client).__name__, event))
+            logging.debug(
+                "Central dispatch calling {} about {}.".format(
+                    type(client).__name__, event
+                )
+            )
             callback_ref(event, sender=sender, **kwargs)
             # When using WeakMethod references, this should rather be:
             # callback_ref()(event, sender=sender, **kwargs)
 
-    def listen(self, caller: 'DispatchClient', event: str, **kwargs) -> None:
+    def listen(self, caller: "DispatchClient", event: str, **kwargs) -> None:
         """Receive message from client `caller` for event `event`. If dispatch is globally enabled, trigger a dispatch
         to all clients registered for event.
 
@@ -158,6 +163,7 @@ CENTRAL_DISPATCH = CentralDispatch()
 
 class DispatchClient:
     """Base class inherited by objects participating in central dispatch."""
+
     def broadcast(self, event: str, **kwargs) -> None:
         """Request a broadcast from CENTRAL_DISPATCH reporting `event`.
 
@@ -170,7 +176,7 @@ class DispatchClient:
         logging.debug("Client {} broadcasting {}".format(type(self).__name__, event))
         CENTRAL_DISPATCH.listen(self, event, **kwargs)
 
-    def receive(self, event: str, sender: 'DispatchClient', **kwargs) -> None:
+    def receive(self, event: str, sender: "DispatchClient", **kwargs) -> None:
         """Receive a message from CENTRAL_DISPATCH and initiate action on it.
 
         Parameters

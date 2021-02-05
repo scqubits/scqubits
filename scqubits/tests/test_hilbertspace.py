@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 
 import scqubits as scq
+
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.sweep_generators import generate_diffspec_sweep
@@ -24,7 +25,7 @@ from scqubits.utils.spectrum_utils import absorption_spectrum, get_matrixelement
 class TestHilbertSpace:
     @pytest.fixture(autouse=True)
     def set_tmpdir(self, request):
-        setattr(self, 'tmpdir', request.getfixturevalue('tmpdir'))
+        setattr(self, "tmpdir", request.getfixturevalue("tmpdir"))
 
     @staticmethod
     def hilbertspace_initialize():
@@ -33,20 +34,13 @@ class TestHilbertSpace:
             EC=0.2,
             ng=0.0,
             ncut=40,
-            truncated_dim=3  # after diagonalization, we will keep 3 levels
+            truncated_dim=3,  # after diagonalization, we will keep 3 levels
         )
 
-        CPB2 = scq.Transmon(
-            EJ=3.0,
-            EC=1.0,
-            ng=0.0,
-            ncut=10,
-            truncated_dim=4
-        )
+        CPB2 = scq.Transmon(EJ=3.0, EC=1.0, ng=0.0, ncut=10, truncated_dim=4)
 
         resonator = scq.Oscillator(
-            E_osc=6.0,
-            truncated_dim=4  # up to 3 photons (0,1,2,3)
+            E_osc=6.0, truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
 
         # Form a list of all components making up the Hilbert space.
@@ -61,7 +55,7 @@ class TestHilbertSpace:
             op1=CPB1.n_operator(),
             subsys1=CPB1,
             op2=resonator.creation_operator() + resonator.annihilation_operator(),
-            subsys2=resonator
+            subsys2=resonator,
         )
 
         interaction2 = InteractionTerm(
@@ -69,7 +63,7 @@ class TestHilbertSpace:
             op1=CPB2.n_operator(),
             subsys1=CPB2,
             op2=resonator.creation_operator() + resonator.annihilation_operator(),
-            subsys2=resonator
+            subsys2=resonator,
         )
 
         interaction_list = [interaction1, interaction2]
@@ -92,7 +86,7 @@ class TestHilbertSpace:
             op1=fluxonium.n_operator(),
             subsys1=fluxonium,
             op2=zpifull.n_theta_operator(),
-            subsys2=zpifull
+            subsys2=zpifull,
         )
 
         interaction_list = [interaction1]
@@ -114,13 +108,29 @@ class TestHilbertSpace:
         dim2 = transmon2.truncated_dim
         _, evecs1 = transmon1.eigensys(dim1)
         _, evecs2 = transmon2.eigensys(dim2)
-        gmat1 = g1 * get_matrixelement_table(transmon1.n_operator(), evecs1)  # coupling constants for transmon1
-        gmat2 = g2 * get_matrixelement_table(transmon2.n_operator(), evecs2)  # and for transmon2
+        gmat1 = g1 * get_matrixelement_table(
+            transmon1.n_operator(), evecs1
+        )  # coupling constants for transmon1
+        gmat2 = g2 * get_matrixelement_table(
+            transmon2.n_operator(), evecs2
+        )  # and for transmon2
         hbd = hilbertspc.hubbard_operator
         a = hilbertspc.annihilate(resonator)
         hamiltonian0 = h1 + h2 + hres
-        vcpb1 = sum([gmat1[j][k] * hbd(j, k, transmon1) for j in range(dim1) for k in range(dim1)])
-        vcpb2 = sum([gmat2[j][k] * hbd(j, k, transmon2) for j in range(dim2) for k in range(dim2)])
+        vcpb1 = sum(
+            [
+                gmat1[j][k] * hbd(j, k, transmon1)
+                for j in range(dim1)
+                for k in range(dim1)
+            ]
+        )
+        vcpb2 = sum(
+            [
+                gmat2[j][k] * hbd(j, k, transmon2)
+                for j in range(dim2)
+                for k in range(dim2)
+            ]
+        )
         hamiltonian1 = (vcpb1 + vcpb2) * (a + a.dag())
         return hamiltonian0 + hamiltonian1
 
@@ -135,12 +145,28 @@ class TestHilbertSpace:
         dim2 = transmon2.truncated_dim
         _, evecs1 = transmon1.eigensys(dim1)
         _, evecs2 = transmon2.eigensys(dim2)
-        gmat1 = g1 * get_matrixelement_table(transmon1.n_operator(), evecs1)  # coupling constants for transmon1
-        gmat2 = g2 * get_matrixelement_table(transmon2.n_operator(), evecs2)  # and for transmon2
+        gmat1 = g1 * get_matrixelement_table(
+            transmon1.n_operator(), evecs1
+        )  # coupling constants for transmon1
+        gmat2 = g2 * get_matrixelement_table(
+            transmon2.n_operator(), evecs2
+        )  # and for transmon2
         hbd = hilbertspc.hubbard_operator
         a = hilbertspc.annihilate(resonator)
-        vcpb1 = sum([gmat1[j][k] * hbd(j, k, transmon1) for j in range(dim1) for k in range(dim1)])
-        vcpb2 = sum([gmat2[j][k] * hbd(j, k, transmon2) for j in range(dim2) for k in range(dim2)])
+        vcpb1 = sum(
+            [
+                gmat1[j][k] * hbd(j, k, transmon1)
+                for j in range(dim1)
+                for k in range(dim1)
+            ]
+        )
+        vcpb2 = sum(
+            [
+                gmat2[j][k] * hbd(j, k, transmon2)
+                for j in range(dim2)
+                for k in range(dim2)
+            ]
+        )
 
         transmon1.EJ = 40.0 * np.cos(np.pi * flux)
         h1 = hilbertspc.diag_hamiltonian(transmon1)
@@ -149,15 +175,9 @@ class TestHilbertSpace:
         return h1 + h2 + hres + (vcpb1 + vcpb2) * (a + a.dag())
 
     def hamiltonian_use_addhc(self):
-        res1 = scq.Oscillator(
-            E_osc=6.0,
-            truncated_dim=4  # up to 3 photons (0,1,2,3)
-        )
+        res1 = scq.Oscillator(E_osc=6.0, truncated_dim=4)  # up to 3 photons (0,1,2,3)
 
-        res2 = scq.Oscillator(
-            E_osc=5.5,
-            truncated_dim=7
-        )
+        res2 = scq.Oscillator(E_osc=5.5, truncated_dim=7)
 
         # Form a list of all components making up the Hilbert space.
         hilbertspace = HilbertSpace([res1, res2])
@@ -170,7 +190,7 @@ class TestHilbertSpace:
             subsys1=res1,
             op2=res2.creation_operator(),
             subsys2=res2,
-            add_hc=True
+            add_hc=True,
         )
 
         interaction_list = [interaction1]
@@ -188,24 +208,64 @@ class TestHilbertSpace:
     def test_HilbertSpace_diagonalize_hamiltonian(self):
         hamiltonian = self.build_hamiltonian()
 
-        evals_reference = np.asarray([-36.9898613, -32.2485069, -31.31250908, -31.00035225,
-                                      -29.18345776, -26.26664068, -25.32975243, -25.01086732,
-                                      -24.44211916, -23.50612209, -23.19649424, -21.58197308,
-                                      -20.28449459, -19.9790977, -19.34686735, -19.01220621,
-                                      -18.46278662, -17.52590027, -17.2084294, -16.84047711,
-                                      -15.90462096, -15.54530262, -14.25509299, -13.99415794,
-                                      -13.33019265, -12.48208655, -12.1727023, -11.54418665,
-                                      -11.25656601, -10.81121745, -9.87458635, -9.51009429,
-                                      -8.00925198, -6.50020557, -6.19030846, -5.57523232,
-                                      -4.78354995, -4.57123207, -3.84547113, -3.58389199,
-                                      -2.01787739, -0.20685665, 1.17306434, 1.46098501,
-                                      2.09778458, 5.73747149, 7.49164636, 13.4096702])
+        evals_reference = np.asarray(
+            [
+                -36.9898613,
+                -32.2485069,
+                -31.31250908,
+                -31.00035225,
+                -29.18345776,
+                -26.26664068,
+                -25.32975243,
+                -25.01086732,
+                -24.44211916,
+                -23.50612209,
+                -23.19649424,
+                -21.58197308,
+                -20.28449459,
+                -19.9790977,
+                -19.34686735,
+                -19.01220621,
+                -18.46278662,
+                -17.52590027,
+                -17.2084294,
+                -16.84047711,
+                -15.90462096,
+                -15.54530262,
+                -14.25509299,
+                -13.99415794,
+                -13.33019265,
+                -12.48208655,
+                -12.1727023,
+                -11.54418665,
+                -11.25656601,
+                -10.81121745,
+                -9.87458635,
+                -9.51009429,
+                -8.00925198,
+                -6.50020557,
+                -6.19030846,
+                -5.57523232,
+                -4.78354995,
+                -4.57123207,
+                -3.84547113,
+                -3.58389199,
+                -2.01787739,
+                -0.20685665,
+                1.17306434,
+                1.46098501,
+                2.09778458,
+                5.73747149,
+                7.49164636,
+                13.4096702,
+            ]
+        )
 
         evals_calculated = hamiltonian.eigenenergies()
         assert np.allclose(evals_calculated, evals_reference)
 
     def test_HilbertSpace_get_spectrum_vs_paramvals(self, num_cpus):
-        scq.settings.MULTIPROC = 'pathos'
+        scq.settings.MULTIPROC = "pathos"
         hilbertspc = self.hilbertspace_initialize()
         [transmon1, transmon2, resonator] = hilbertspc
 
@@ -213,13 +273,34 @@ class TestHilbertSpace:
             transmon1.EJ = 40.0 * np.cos(np.pi * flux)
 
         flux_list = np.linspace(-0.1, 0.6, 100)
-        specdata = hilbertspc.get_spectrum_vs_paramvals(flux_list, update_func, evals_count=15,
-                                                        get_eigenstates=True, num_cpus=num_cpus)
-        specdata.filewrite(filename=self.tmpdir + 'test.hdf5')
+        specdata = hilbertspc.get_spectrum_vs_paramvals(
+            flux_list,
+            update_func,
+            evals_count=15,
+            get_eigenstates=True,
+            num_cpus=num_cpus,
+        )
+        specdata.filewrite(filename=self.tmpdir + "test.hdf5")
 
-        reference_evals = np.array([-35.61652712, -30.87517395, -29.93917493, -29.62790643, -27.95527403, -24.89419514,
-                                    -23.95730396, -23.63931249, -23.21394042, -22.27794233, -21.96970863, -20.49874123,
-                                    -18.91294047, -18.60576359, -17.97530778])
+        reference_evals = np.array(
+            [
+                -35.61652712,
+                -30.87517395,
+                -29.93917493,
+                -29.62790643,
+                -27.95527403,
+                -24.89419514,
+                -23.95730396,
+                -23.63931249,
+                -23.21394042,
+                -22.27794233,
+                -21.96970863,
+                -20.49874123,
+                -18.91294047,
+                -18.60576359,
+                -17.97530778,
+            ]
+        )
         calculated_evals = specdata.energy_table[2]
 
         assert np.allclose(reference_evals, calculated_evals)
@@ -228,56 +309,89 @@ class TestHilbertSpace:
         hilbertspace = self.hilbertspace_initialize()
         evals, _ = hilbertspace.hamiltonian().eigenstates()
 
-        evals_reference = np.asarray([-36.9898613, -32.2485069, -31.31250908, -31.00035225,
-                                      -29.18345776, -26.26664068, -25.32975243, -25.01086732,
-                                      -24.44211916, -23.50612209, -23.19649424, -21.58197308,
-                                      -20.28449459, -19.9790977, -19.34686735, -19.01220621,
-                                      -18.46278662, -17.52590027, -17.2084294, -16.84047711,
-                                      -15.90462096, -15.54530262, -14.25509299, -13.99415794,
-                                      -13.33019265, -12.48208655, -12.1727023, -11.54418665,
-                                      -11.25656601, -10.81121745, -9.87458635, -9.51009429,
-                                      -8.00925198, -6.50020557, -6.19030846, -5.57523232,
-                                      -4.78354995, -4.57123207, -3.84547113, -3.58389199,
-                                      -2.01787739, -0.20685665, 1.17306434, 1.46098501,
-                                      2.09778458, 5.73747149, 7.49164636, 13.4096702])
+        evals_reference = np.asarray(
+            [
+                -36.9898613,
+                -32.2485069,
+                -31.31250908,
+                -31.00035225,
+                -29.18345776,
+                -26.26664068,
+                -25.32975243,
+                -25.01086732,
+                -24.44211916,
+                -23.50612209,
+                -23.19649424,
+                -21.58197308,
+                -20.28449459,
+                -19.9790977,
+                -19.34686735,
+                -19.01220621,
+                -18.46278662,
+                -17.52590027,
+                -17.2084294,
+                -16.84047711,
+                -15.90462096,
+                -15.54530262,
+                -14.25509299,
+                -13.99415794,
+                -13.33019265,
+                -12.48208655,
+                -12.1727023,
+                -11.54418665,
+                -11.25656601,
+                -10.81121745,
+                -9.87458635,
+                -9.51009429,
+                -8.00925198,
+                -6.50020557,
+                -6.19030846,
+                -5.57523232,
+                -4.78354995,
+                -4.57123207,
+                -3.84547113,
+                -3.58389199,
+                -2.01787739,
+                -0.20685665,
+                1.17306434,
+                1.46098501,
+                2.09778458,
+                5.73747149,
+                7.49164636,
+                13.4096702,
+            ]
+        )
         assert np.allclose(evals, evals_reference)
 
     def test_HilbertSpace_fileIO(self):
         hilbertspc = self.hilbertspace_initialize_2()
         hilbertspc.generate_lookup()
-        hilbertspc.filewrite(self.tmpdir + 'test.h5')
-        hilbertspc_copy = scq.read(self.tmpdir + 'test.h5')
+        hilbertspc.filewrite(self.tmpdir + "test.h5")
+        hilbertspc_copy = scq.read(self.tmpdir + "test.h5")
 
 
 @pytest.mark.usefixtures("num_cpus")
 class TestParameterSweep:
     @pytest.fixture(autouse=True)
     def set_tmpdir(self, request):
-        setattr(self, 'tmpdir', request.getfixturevalue('tmpdir'))
+        setattr(self, "tmpdir", request.getfixturevalue("tmpdir"))
 
     def initialize(self, num_cpus):
         # Set up the components / subspaces of our Hilbert space
-        scq.settings.MULTIPROC = 'pathos'
+        scq.settings.MULTIPROC = "pathos"
 
         CPB1 = scq.Transmon(
             EJ=40.0,
             EC=0.2,
             ng=0.0,
             ncut=40,
-            truncated_dim=3  # after diagonalization, we will keep 3 levels
+            truncated_dim=3,  # after diagonalization, we will keep 3 levels
         )
 
-        CPB2 = scq.Transmon(
-            EJ=3.0,
-            EC=1.0,
-            ng=0.0,
-            ncut=10,
-            truncated_dim=4
-        )
+        CPB2 = scq.Transmon(EJ=3.0, EC=1.0, ng=0.0, ncut=10, truncated_dim=4)
 
         resonator = scq.Oscillator(
-            E_osc=6.0,
-            truncated_dim=4  # up to 3 photons (0,1,2,3)
+            E_osc=6.0, truncated_dim=4  # up to 3 photons (0,1,2,3)
         )
 
         # Form a list of all components making up the Hilbert space.
@@ -291,7 +405,7 @@ class TestParameterSweep:
             op1=CPB1.n_operator(),
             subsys1=CPB1,
             op2=resonator.creation_operator() + resonator.annihilation_operator(),
-            subsys2=resonator
+            subsys2=resonator,
         )
 
         interaction2 = InteractionTerm(
@@ -299,16 +413,18 @@ class TestParameterSweep:
             op1=CPB2.n_operator(),
             subsys1=CPB2,
             op2=resonator.creation_operator() + resonator.annihilation_operator(),
-            subsys2=resonator
+            subsys2=resonator,
         )
 
         interaction_list = [interaction1, interaction2]
         hilbertspace.interaction_list = interaction_list
 
-        param_name = 'flux'  # name of varying external parameter
+        param_name = "flux"  # name of varying external parameter
         param_vals = np.linspace(-0.1, 0.6, 100)  # parameter values
 
-        subsys_update_list = [CPB1]  # list of HilbertSpace subsys_list which are affected by parameter changes
+        subsys_update_list = [
+            CPB1
+        ]  # list of HilbertSpace subsys_list which are affected by parameter changes
 
         def update_hilbertspace(param_val):  # function that shows how Hilbert space
             # components are updated
@@ -321,22 +437,40 @@ class TestParameterSweep:
             hilbertspace=hilbertspace,
             subsys_update_list=subsys_update_list,
             update_hilbertspace=update_hilbertspace,
-            num_cpus=num_cpus
+            num_cpus=num_cpus,
         )
         return sweep
 
     def test_ParameterSweep(self, num_cpus):
         sweep = self.initialize(num_cpus)
 
-        specdata = absorption_spectrum(generate_diffspec_sweep(sweep, initial_state_ind=0))
+        specdata = absorption_spectrum(
+            generate_diffspec_sweep(sweep, initial_state_ind=0)
+        )
         calculated_energies = specdata.energy_table[5]
 
-        reference_energies = np.array([0., 4.74135372, 5.6773522, 5.98902462, 7.72420838, 10.72273595, 11.65962582,
-                                       11.97802377, 12.46554431, 13.40154194, 13.71041554, 15.24359501, 16.70439594,
-                                       17.01076356, 17.64202619])
+        reference_energies = np.array(
+            [
+                0.0,
+                4.74135372,
+                5.6773522,
+                5.98902462,
+                7.72420838,
+                10.72273595,
+                11.65962582,
+                11.97802377,
+                12.46554431,
+                13.40154194,
+                13.71041554,
+                15.24359501,
+                16.70439594,
+                17.01076356,
+                17.64202619,
+            ]
+        )
         assert np.allclose(reference_energies, calculated_energies)
 
     def test_ParameterSweep_fileIO(self, num_cpus):
         sweep = self.initialize(num_cpus)
-        sweep.filewrite(self.tmpdir + 'test.h5')
-        sweep_copy = scq.read(self.tmpdir + 'test.h5')
+        sweep.filewrite(self.tmpdir + "test.h5")
+        sweep_copy = scq.read(self.tmpdir + "test.h5")
