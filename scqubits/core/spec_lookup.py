@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from scqubits import HilbertSpace, ParameterSweep, SpectrumData
     from scqubits.core.qubit_base import QuantumSystem
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
+    from scqubits.io_utils.fileio import IOData
 
 
 def check_sync_status(func: Callable) -> Callable:
