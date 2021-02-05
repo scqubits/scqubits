@@ -58,7 +58,9 @@ def annihilation_sparse(dimension: int) -> csc_matrix:
     in the format of a scipy sparse.csc_matrix.
     """
     offdiag_elements = np.sqrt(range(dimension))
-    return sp.sparse.dia_matrix((offdiag_elements, [1]), shape=(dimension, dimension)).tocsc()
+    return sp.sparse.dia_matrix(
+        (offdiag_elements, [1]), shape=(dimension, dimension)
+    ).tocsc()
 
 
 def creation_sparse(dimension: int) -> csc_matrix:
@@ -68,7 +70,9 @@ def creation_sparse(dimension: int) -> csc_matrix:
     return annihilation_sparse(dimension).transpose().tocsc()
 
 
-def number_sparse(dimension: int, prefactor: Union[float, complex] = None) -> dia_matrix:
+def number_sparse(
+    dimension: int, prefactor: Union[float, complex] = None
+) -> dia_matrix:
     """Number operator matrix of size dimension x dimension in sparse matrix representation. An additional prefactor
     can be directly included in the generation of the matrix by supplying 'prefactor'.
 
@@ -84,7 +88,9 @@ def number_sparse(dimension: int, prefactor: Union[float, complex] = None) -> di
     diag_elements = np.arange(dimension, dtype=np.float_)
     if prefactor:
         diag_elements *= prefactor
-    return sp.sparse.dia_matrix((diag_elements, [0]), shape=(dimension, dimension), dtype=np.float_)
+    return sp.sparse.dia_matrix(
+        (diag_elements, [0]), shape=(dimension, dimension), dtype=np.float_
+    )
 
 
 def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
@@ -102,7 +108,7 @@ def hubbard_sparse(j1: int, j2: int, dimension: int) -> csc_matrix:
     """
     hubbardmat = sp.sparse.dok_matrix((dimension, dimension), dtype=np.float_)
     hubbardmat[j1, j2] = 1.0
-    return hubbardmat.asformat('csc')
+    return hubbardmat.asformat("csc")
 
 
 def sigma_x() -> np.ndarray:

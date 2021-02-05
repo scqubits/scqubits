@@ -22,12 +22,13 @@ if TYPE_CHECKING:
     from scqubits.core.qubit_base import QubitBaseClass
 
 
-def dispersive_chi(sweep: 'ParameterSweep',
-                   param_index: int,
-                   qubit_subsys: 'QubitBaseClass',
-                   osc_subsys: 'Oscillator',
-                   chi_indices: Tuple[int, int] = None
-                   ) -> Union[float, ndarray]:
+def dispersive_chi(
+    sweep: "ParameterSweep",
+    param_index: int,
+    qubit_subsys: "QubitBaseClass",
+    osc_subsys: "Oscillator",
+    chi_indices: Tuple[int, int] = None,
+) -> Union[float, ndarray]:
     r"""For a given ParameterSweep, calculate dispersive shift data for a single value of the external parameter. The
     dispersive shift relates to a qubit subsystem coupled to an oscillator subsystem. :math:`\chi_j` is the shift of
     qubit level :math:`j` due to the addition of a photon in the oscillator. It is calculated here from the exact
@@ -60,8 +61,12 @@ def dispersive_chi(sweep: 'ParameterSweep',
     omega = osc_subsys.E_osc
     # chi_j = E_1j - E_0j - omega
     for j in chi_range:
-        bare_0j = utils.make_bare_labels(sweep.subsystem_count, (qubitsys_index, j), (oscsys_index, 0))
-        bare_1j = utils.make_bare_labels(sweep.subsystem_count, (qubitsys_index, j), (oscsys_index, 1))
+        bare_0j = utils.make_bare_labels(
+            sweep.subsystem_count, (qubitsys_index, j), (oscsys_index, 0)
+        )
+        bare_1j = utils.make_bare_labels(
+            sweep.subsystem_count, (qubitsys_index, j), (oscsys_index, 1)
+        )
         energy_0j = sweep.lookup.energy_bare_index(bare_0j, param_index)
         energy_1j = sweep.lookup.energy_bare_index(bare_1j, param_index)
         if energy_0j and energy_1j:
@@ -74,11 +79,12 @@ def dispersive_chi(sweep: 'ParameterSweep',
     return chi_values
 
 
-def qubit_matrixelement(sweep: 'ParameterSweep',
-                        param_index: int,
-                        qubit_subsys: 'QubitBaseClass',
-                        qubit_operator: ndarray
-                        ) -> ndarray:
+def qubit_matrixelement(
+    sweep: "ParameterSweep",
+    param_index: int,
+    qubit_subsys: "QubitBaseClass",
+    qubit_operator: ndarray,
+) -> ndarray:
     """
     For given ParameterSweep and parameter_index, calculate the matrix elements for the provided qubit operator.
 

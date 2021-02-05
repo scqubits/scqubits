@@ -20,16 +20,17 @@ class ReadOnlyProperty:
     """
     Descriptor for read-only properties (stored in xxx._name)
     """
+
     def __set_name__(self, owner, name: str):
-        self.name = '_' + name
+        self.name = "_" + name
 
     def __get__(self, instance, *args, **kwargs):
-        if instance is None:   # when accessed on class level rather than instance level
+        if instance is None:  # when accessed on class level rather than instance level
             return self
         return instance.__dict__[self.name]
 
     def __set__(self, instance, value):
-        raise AttributeError('Property is for reading only, cannot assign to it.')
+        raise AttributeError("Property is for reading only, cannot assign to it.")
 
 
 class WatchedProperty:
@@ -47,7 +48,10 @@ class WatchedProperty:
         custom attribute name to be used (default: name from defining property in instance class,
         obtained in __set_name__
     """
-    def __init__(self, event: str, inner_object_name: str = None, attr_name: str = None) -> None:
+
+    def __init__(
+        self, event: str, inner_object_name: str = None, attr_name: str = None
+    ) -> None:
         self.event = event
         self.inner = inner_object_name
         self.attr_name = attr_name
@@ -57,7 +61,7 @@ class WatchedProperty:
         self.attr_name = self.attr_name or name
 
     def __get__(self, instance: object, owner: Any) -> Any:
-        if instance is None:   # when accessed on class level rather than instance level
+        if instance is None:  # when accessed on class level rather than instance level
             # raise TypeError("Descriptor only applies to instances, not to class itself.")
             return self
 

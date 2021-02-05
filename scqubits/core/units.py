@@ -15,22 +15,16 @@ from typing import List
 
 # Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)
 # Often, system units need to be converted to "standard units", which are considered to be `[Hz]` or `2pi/[s]`
-_current_units = 'GHz'
+_current_units = "GHz"
 
 # Units that we currently support
-_supported_units = ['GHz', 'MHz', 'kHz', 'Hz']
+_supported_units = ["GHz", "MHz", "kHz", "Hz"]
 
 # Numerical factor between a given unit and Hz
-_units_factor = {'GHz': 1e9,
-                 'MHz': 1e6,
-                 'kHz': 1e3,
-                 'Hz': 1.0}
+_units_factor = {"GHz": 1e9, "MHz": 1e6, "kHz": 1e3, "Hz": 1.0}
 
 # labels for time units obtained from 1/frequency units
-_units_time_labels = {'GHz': r"$ns$",
-                      'MHz': r"$\mu s$",
-                      'kHz': r"$ms$",
-                      'Hz': r"$s$"}
+_units_time_labels = {"GHz": r"$ns$", "MHz": r"$\mu s$", "kHz": r"$ms$", "Hz": r"$s$"}
 
 
 def get_units() -> str:
@@ -48,11 +42,18 @@ def set_units(units: str) -> str:
     if QuantumSystem._quantumsystem_counter > 0:
         with warnings.catch_warnings():
             warnings.simplefilter("always")
-            warnings.warn("Changing units (by calling set_units()) after initializing qubit instances "
-                          "is likely to cause unintended inconsistencies.", UserWarning)
+            warnings.warn(
+                "Changing units (by calling set_units()) after initializing qubit instances "
+                "is likely to cause unintended inconsistencies.",
+                UserWarning,
+            )
 
     if units not in _supported_units:
-        raise ValueError("Unsupported system units given. Must be one of: {}".format(str(_supported_units)))
+        raise ValueError(
+            "Unsupported system units given. Must be one of: {}".format(
+                str(_supported_units)
+            )
+        )
 
     global _current_units
     _current_units = units
@@ -63,7 +64,11 @@ def get_units_time_label(units: str = None) -> str:
     """Get a latex representation of 1/units"""
     units = units or _current_units
     if units not in _supported_units:
-        raise ValueError("Unsupported system units given. Must be one of: {}".format(str(_supported_units)))
+        raise ValueError(
+            "Unsupported system units given. Must be one of: {}".format(
+                str(_supported_units)
+            )
+        )
 
     return _units_time_labels[units]
 
@@ -117,5 +122,7 @@ def units_scale_factor(units: str = None) -> float:
     units = _current_units if units is None else units
 
     if units not in _supported_units:
-        raise ValueError("Unsupported units given. Must be one of: {}".format(str(_supported_units)))
+        raise ValueError(
+            "Unsupported units given. Must be one of: {}".format(str(_supported_units))
+        )
     return _units_factor[units]

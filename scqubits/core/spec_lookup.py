@@ -34,10 +34,14 @@ def check_sync_status(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(self, *args, **kwargs):
         if self._out_of_sync:
-            warnings.warn("SCQUBITS\nSpectrum lookup data is out of sync with systems originally involved in generating"
-                          " it. This will generally lead to incorrect results. Consider regenerating the lookup data "
-                          "using <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()", Warning)
+            warnings.warn(
+                "SCQUBITS\nSpectrum lookup data is out of sync with systems originally involved in generating"
+                " it. This will generally lead to incorrect results. Consider regenerating the lookup data "
+                "using <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()",
+                Warning,
+            )
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -61,18 +65,25 @@ class SpectrumLookup(serializers.Serializable):
     auto_run:
         boolean variable that determines whether the lookup data is immediately generated upon initialization
     """
-    def __init__(self,
-                 framework: 'Union[ParameterSweep, HilbertSpace, None]',
-                 dressed_specdata: 'SpectrumData',
-                 bare_specdata_list: List['SpectrumData'],
-                 auto_run: bool = True
-                 ) -> None:
+
+    def __init__(
+        self,
+        framework: "Union[ParameterSweep, HilbertSpace, None]",
+        dressed_specdata: "SpectrumData",
+        bare_specdata_list: List["SpectrumData"],
+        auto_run: bool = True,
+    ) -> None:
         self._dressed_specdata = dressed_specdata
         self._bare_specdata_list = bare_specdata_list
         self._canonical_bare_labels: List[Tuple[int, ...]]
         self._dressed_indices: List[List[Union[int, None]]]
         self._out_of_sync = False
-        self._init_params = ['_dressed_specdata', '_bare_specdata_list', '_canonical_bare_labels', '_dressed_indices']
+        self._init_params = [
+            "_dressed_specdata",
+            "_bare_specdata_list",
+            "_canonical_bare_labels",
+            "_dressed_indices",
+        ]
 
         # Store ParameterSweep and/or HilbertSpace objects only as weakref.proxy objects to avoid circular references
         # that would prevent objects from expiring appropriately and being garbage collected
@@ -91,22 +102,28 @@ class SpectrumLookup(serializers.Serializable):
 
     def run(self):
         self._canonical_bare_labels = self._generate_bare_labels()
-        self._dressed_indices = self._generate_mappings()  # lists of as many elements as there are parameter values.
+        self._dressed_indices = (
+            self._generate_mappings()
+        )  # lists of as many elements as there are parameter values.
         # For HilbertSpace objects the above is a single-element list.
 
     @classmethod
-    def deserialize(cls, io_data: 'IOData') -> 'SpectrumLookup':
+    def deserialize(cls, io_data: "IOData") -> "SpectrumLookup":
         """
         Take the given IOData and return an instance of the described class, initialized with the data stored in
         io_data.
         """
         alldata_dict = io_data.as_kwargs()
-        new_spectrum_lookup = cls(framework=None,
-                                  dressed_specdata=alldata_dict['_dressed_specdata'],
-                                  bare_specdata_list=alldata_dict['_bare_specdata_list'],
-                                  auto_run=False)
-        new_spectrum_lookup._canonical_bare_labels = alldata_dict['_canonical_bare_labels']
-        new_spectrum_lookup._dressed_indices = alldata_dict['_dressed_indices']
+        new_spectrum_lookup = cls(
+            framework=None,
+            dressed_specdata=alldata_dict["_dressed_specdata"],
+            bare_specdata_list=alldata_dict["_bare_specdata_list"],
+            auto_run=False,
+        )
+        new_spectrum_lookup._canonical_bare_labels = alldata_dict[
+            "_canonical_bare_labels"
+        ]
+        new_spectrum_lookup._dressed_indices = alldata_dict["_dressed_indices"]
         return new_spectrum_lookup
 
     def _generate_bare_labels(self) -> List[Tuple[int, ...]]:
@@ -126,7 +143,9 @@ class SpectrumLookup(serializers.Serializable):
         for subsys_index in range(subsys_count):
             basis_label_ranges.append(range(dim_list[subsys_index]))
 
-        basis_labels_list = list(itertools.product(*basis_label_ranges))   # generate list of bare basis states (tuples)
+        basis_labels_list = list(
+            itertools.product(*basis_label_ranges)
+        )  # generate list of bare basis states (tuples)
         return basis_labels_list
 
     def _generate_mappings(self) -> List[List[Union[int, None]]]:
@@ -160,20 +179,26 @@ class SpectrumLookup(serializers.Serializable):
         -------
             dressed-state indices
         """
-        overlap_matrix = spec_utils.convert_esys_to_ndarray(self._dressed_specdata.state_table[param_index])
+        overlap_matrix = spec_utils.convert_esys_to_ndarray(
+            self._dressed_specdata.state_table[param_index]
+        )
 
         dressed_indices: List[Union[int, None]] = []
-        for bare_basis_index in range(self._hilbertspace.dimension):   # for given bare basis index, find dressed index
+        for bare_basis_index in range(
+            self._hilbertspace.dimension
+        ):  # for given bare basis index, find dressed index
             max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
             max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
-            if max_overlap < 0.5:     # overlap too low, make no assignment
+            if max_overlap < 0.5:  # overlap too low, make no assignment
                 dressed_indices.append(None)
             else:
                 dressed_indices.append(max_position)
         return dressed_indices
 
     @check_sync_status
-    def dressed_index(self, bare_labels: Tuple[int, ...], param_index: int = 0) -> Union[int, None]:
+    def dressed_index(
+        self, bare_labels: Tuple[int, ...], param_index: int = 0
+    ) -> Union[int, None]:
         """
         For given bare product state return the corresponding dressed-state index.
 
@@ -195,7 +220,9 @@ class SpectrumLookup(serializers.Serializable):
         return self._dressed_indices[param_index][lookup_position]
 
     @check_sync_status
-    def bare_index(self, dressed_index: int, param_index: int = 0) -> Union[Tuple[int, ...], None]:
+    def bare_index(
+        self, dressed_index: int, param_index: int = 0
+    ) -> Union[Tuple[int, ...], None]:
         """
         For given dressed index, look up the corresponding bare index.
 
@@ -212,7 +239,7 @@ class SpectrumLookup(serializers.Serializable):
         return basis_labels
 
     @check_sync_status
-    def dressed_eigenstates(self, param_index: int = 0) -> List['QutipEigenstates']:
+    def dressed_eigenstates(self, param_index: int = 0) -> List["QutipEigenstates"]:
         """
         Return the list of dressed eigenvectors
 
@@ -243,7 +270,9 @@ class SpectrumLookup(serializers.Serializable):
         return self._dressed_specdata.energy_table[param_index]
 
     @check_sync_status
-    def energy_bare_index(self, bare_tuple: Tuple[int, ...], param_index: int = 0) -> Union[float, None]:
+    def energy_bare_index(
+        self, bare_tuple: Tuple[int, ...], param_index: int = 0
+    ) -> Union[float, None]:
         """
         Look up dressed energy most closely corresponding to the given bare-state labels
 
@@ -282,7 +311,9 @@ class SpectrumLookup(serializers.Serializable):
         return self._dressed_specdata.energy_table[param_index][dressed_index]
 
     @check_sync_status
-    def bare_eigenstates(self, subsys: 'QuantumSystem', param_index: int = 0) -> ndarray:
+    def bare_eigenstates(
+        self, subsys: "QuantumSystem", param_index: int = 0
+    ) -> ndarray:
         """
         Return ndarray of bare eigenstates for given subsystem and parameter index.
         Eigenstates are expressed in the basis internal to the subsystem.
@@ -292,7 +323,9 @@ class SpectrumLookup(serializers.Serializable):
         return self._bare_specdata_list[subsys_index].state_table[param_index]
 
     @check_sync_status
-    def bare_eigenenergies(self, subsys: 'QuantumSystem', param_index: int = 0) -> ndarray:
+    def bare_eigenenergies(
+        self, subsys: "QuantumSystem", param_index: int = 0
+    ) -> ndarray:
         """
         Return list of bare eigenenergies for given subsystem.
 

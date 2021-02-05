@@ -31,6 +31,7 @@ from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
 # -Flux qubit noise class
 
+
 class NoisyFluxQubit(NoisySystem, ABC):
     @abstractmethod
     def d_hamiltonian_d_EJ1(self) -> ndarray:
@@ -48,16 +49,17 @@ class NoisyFluxQubit(NoisySystem, ABC):
     def supported_noise_channels(self) -> List[str]:
         pass
 
-    def tphi_1_over_f_cc1(self, 
-                          A_noise: float = NOISE_PARAMS['A_cc'],
-                          i: int = 0,
-                          j: int = 1,
-                          esys: Tuple[ndarray, ndarray] = None, 
-                          get_rate: bool = False, 
-                          **kwargs
-                          ) -> float:
+    def tphi_1_over_f_cc1(
+        self,
+        A_noise: float = NOISE_PARAMS["A_cc"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
         r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
+        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with
         Josephson energy :math:`EJ1`.
 
         Parameters
@@ -77,27 +79,32 @@ class NoisyFluxQubit(NoisySystem, ABC):
         -------
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
         """
-        if 'tphi_1_over_f_cc1' not in self.supported_noise_channels():
-            raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc1' is not supported in this system.")
+        if "tphi_1_over_f_cc1" not in self.supported_noise_channels():
+            raise RuntimeError(
+                "Critical current noise channel 'tphi_1_over_f_cc1' is not supported in this system."
+            )
 
-        return self.tphi_1_over_f(A_noise=A_noise,
-                                  i=i, 
-                                  j=j, 
-                                  noise_op=self.d_hamiltonian_d_EJ1(),
-                                  esys=esys, 
-                                  get_rate=get_rate, 
-                                  **kwargs)
+        return self.tphi_1_over_f(
+            A_noise=A_noise,
+            i=i,
+            j=j,
+            noise_op=self.d_hamiltonian_d_EJ1(),
+            esys=esys,
+            get_rate=get_rate,
+            **kwargs
+        )
 
-    def tphi_1_over_f_cc2(self, 
-                          A_noise: float = NOISE_PARAMS['A_cc'], 
-                          i: int = 0,
-                          j: int = 1,
-                          esys: Tuple[ndarray, ndarray] = None, 
-                          get_rate: bool = False,
-                          **kwargs
-                          ) -> float:
+    def tphi_1_over_f_cc2(
+        self,
+        A_noise: float = NOISE_PARAMS["A_cc"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
         r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
+        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with
         Josephson energy :math:`EJ2`.
 
         Parameters
@@ -118,27 +125,32 @@ class NoisyFluxQubit(NoisySystem, ABC):
             :math:`T_{\phi}` time or rate:
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
         """
-        if 'tphi_1_over_f_cc2' not in self.supported_noise_channels():
-            raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc2' is not supported in this system.")
+        if "tphi_1_over_f_cc2" not in self.supported_noise_channels():
+            raise RuntimeError(
+                "Critical current noise channel 'tphi_1_over_f_cc2' is not supported in this system."
+            )
 
-        return self.tphi_1_over_f(A_noise=A_noise, 
-                                  i=i, 
-                                  j=j, 
-                                  noise_op=self.d_hamiltonian_d_EJ2(),
-                                  esys=esys,
-                                  get_rate=get_rate, 
-                                  **kwargs)
+        return self.tphi_1_over_f(
+            A_noise=A_noise,
+            i=i,
+            j=j,
+            noise_op=self.d_hamiltonian_d_EJ2(),
+            esys=esys,
+            get_rate=get_rate,
+            **kwargs
+        )
 
-    def tphi_1_over_f_cc3(self,
-                          A_noise: float = NOISE_PARAMS['A_cc'],
-                          i: int = 0,
-                          j: int = 1,
-                          esys: Tuple[ndarray, ndarray] = None,
-                          get_rate: bool = False,
-                          **kwargs
-                          ) -> float:
+    def tphi_1_over_f_cc3(
+        self,
+        A_noise: float = NOISE_PARAMS["A_cc"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
         r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
+        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with
         Josephson energy :math:`EJ3`.
 
         Parameters
@@ -158,27 +170,32 @@ class NoisyFluxQubit(NoisySystem, ABC):
         -------
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
         """
-        if 'tphi_1_over_f_cc3' not in self.supported_noise_channels():
-            raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc3' is not supported in this system.")
+        if "tphi_1_over_f_cc3" not in self.supported_noise_channels():
+            raise RuntimeError(
+                "Critical current noise channel 'tphi_1_over_f_cc3' is not supported in this system."
+            )
 
-        return self.tphi_1_over_f(A_noise=A_noise,
-                                  i=i, 
-                                  j=j, 
-                                  noise_op=self.d_hamiltonian_d_EJ3(),
-                                  esys=esys, 
-                                  get_rate=get_rate, 
-                                  **kwargs)
+        return self.tphi_1_over_f(
+            A_noise=A_noise,
+            i=i,
+            j=j,
+            noise_op=self.d_hamiltonian_d_EJ3(),
+            esys=esys,
+            get_rate=get_rate,
+            **kwargs
+        )
 
-    def tphi_1_over_f_cc(self,                           
-                         A_noise: float = NOISE_PARAMS['A_cc'],
-                         i: int = 0,
-                         j: int = 1,
-                         esys: Tuple[ndarray, ndarray] = None,
-                         get_rate: bool = False,
-                         **kwargs
-                         ) -> float:
+    def tphi_1_over_f_cc(
+        self,
+        A_noise: float = NOISE_PARAMS["A_cc"],
+        i: int = 0,
+        j: int = 1,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
+    ) -> float:
         r"""Calculate the 1/f dephasing time (or rate) due to critical current noise from all three Josephson junctions
-        :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The combined noise is calculated by summing the rates from the 
+        :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The combined noise is calculated by summing the rates from the
         individual contributions.
 
         Parameters
@@ -198,19 +215,28 @@ class NoisyFluxQubit(NoisySystem, ABC):
         -------
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
         """
-        if 'tphi_1_over_f_cc' not in self.supported_noise_channels():
-            raise RuntimeError("Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system.")
+        if "tphi_1_over_f_cc" not in self.supported_noise_channels():
+            raise RuntimeError(
+                "Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system."
+            )
 
-        rate = self.tphi_1_over_f_cc1(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
-        rate += self.tphi_1_over_f_cc2(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
-        rate += self.tphi_1_over_f_cc3(A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs)
+        rate = self.tphi_1_over_f_cc1(
+            A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs
+        )
+        rate += self.tphi_1_over_f_cc2(
+            A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs
+        )
+        rate += self.tphi_1_over_f_cc3(
+            A_noise=A_noise, i=i, j=j, esys=esys, get_rate=True, **kwargs
+        )
         if get_rate:
             return rate
         else:
-            return 1/rate if rate != 0 else np.inf
+            return 1 / rate if rate != 0 else np.inf
 
 
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
+
 
 class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     r"""Flux Qubit
@@ -256,34 +282,35 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
 
-    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    EJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECJ3 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ECg2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ng2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    ncut = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ3 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ECJ1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ECJ2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ECJ3 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ECg1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ECg2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ng1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ng2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
-    def __init__(self, 
-                 EJ1: float,
-                 EJ2: float, 
-                 EJ3: float,
-                 ECJ1: float,
-                 ECJ2: float,
-                 ECJ3: float,
-                 ECg1: float,
-                 ECg2: float,
-                 ng1: float,
-                 ng2: float,
-                 flux: float,
-                 ncut: int,
-                 truncated_dim: int = 6
-                 ) -> None:
+    def __init__(
+        self,
+        EJ1: float,
+        EJ2: float,
+        EJ3: float,
+        ECJ1: float,
+        ECJ2: float,
+        ECJ3: float,
+        ECg1: float,
+        ECg2: float,
+        ng1: float,
+        ng2: float,
+        flux: float,
+        ncut: int,
+        truncated_dim: int = 6,
+    ) -> None:
         self.EJ1 = EJ1
         self.EJ2 = EJ2
         self.EJ3 = EJ3
@@ -299,62 +326,71 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
-        self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)    # for plotting in phi_j basis
-        self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_img/flux-qubit.jpg')
+        self._default_grid = discretization.Grid1d(
+            -np.pi / 2, 3 * np.pi / 2, 100
+        )  # for plotting in phi_j basis
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/flux-qubit.jpg"
+        )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            'EJ1': 1.0,
-            'EJ2': 1.0,
-            'EJ3': 0.8,
-            'ECJ1': 0.016,
-            'ECJ2': 0.016,
-            'ECJ3': 0.021,
-            'ECg1': 0.83,
-            'ECg2': 0.83,
-            'ng1': 0.0,
-            'ng2': 0.0,
-            'flux': 0.4,
-            'ncut': 10,
-            'truncated_dim': 10
+            "EJ1": 1.0,
+            "EJ2": 1.0,
+            "EJ3": 0.8,
+            "ECJ1": 0.016,
+            "ECJ2": 0.016,
+            "ECJ3": 0.021,
+            "ECg1": 0.83,
+            "ECg2": 0.83,
+            "ng1": 0.0,
+            "ng2": 0.0,
+            "flux": 0.4,
+            "ncut": 10,
+            "truncated_dim": 10,
         }
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
-        return ['tphi_1_over_f_cc1',
-                'tphi_1_over_f_cc2',
-                'tphi_1_over_f_cc3',
-                'tphi_1_over_f_cc',
-                # 'tphi_1_over_f_ng1',
-                # 'tphi_1_over_f_ng2',
-                # 'tphi_1_over_f_ng',
-                ]
+        return [
+            "tphi_1_over_f_cc1",
+            "tphi_1_over_f_cc2",
+            "tphi_1_over_f_cc3",
+            "tphi_1_over_f_cc",
+            # 'tphi_1_over_f_ng1',
+            # 'tphi_1_over_f_ng2',
+            # 'tphi_1_over_f_ng',
+        ]
 
     def EC_matrix(self) -> ndarray:
         """Return the charging energy matrix"""
         Cmat = np.zeros((2, 2))
-        CJ1 = 1. / (2 * self.ECJ1)  # capacitances in units where e is set to 1
-        CJ2 = 1. / (2 * self.ECJ2)
-        CJ3 = 1. / (2 * self.ECJ3)
-        Cg1 = 1. / (2 * self.ECg1)
-        Cg2 = 1. / (2 * self.ECg2)
+        CJ1 = 1.0 / (2 * self.ECJ1)  # capacitances in units where e is set to 1
+        CJ2 = 1.0 / (2 * self.ECJ2)
+        CJ3 = 1.0 / (2 * self.ECJ3)
+        Cg1 = 1.0 / (2 * self.ECg1)
+        Cg2 = 1.0 / (2 * self.ECg2)
 
         Cmat[0, 0] = CJ1 + CJ3 + Cg1
         Cmat[1, 1] = CJ2 + CJ3 + Cg2
         Cmat[0, 1] = -CJ3
         Cmat[1, 0] = -CJ3
 
-        return np.linalg.inv(Cmat) / 2.
+        return np.linalg.inv(Cmat) / 2.0
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
-        evals = sp.linalg.eigh(hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=True)
+        evals = sp.linalg.eigh(
+            hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=True
+        )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sp.linalg.eigh(hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=False)
+        evals, evecs = sp.linalg.eigh(
+            hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=False
+        )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
@@ -364,33 +400,82 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     def potential(self, phi1: ndarray, phi2: ndarray) -> ndarray:
         """Return value of the potential energy at phi1 and phi2, disregarding constants."""
-        return (-self.EJ1 * np.cos(phi1) - self.EJ2 * np.cos(phi2)
-                - self.EJ3 * np.cos(2.0 * np.pi * self.flux + phi1 - phi2))
+        return (
+            -self.EJ1 * np.cos(phi1)
+            - self.EJ2 * np.cos(phi2)
+            - self.EJ3 * np.cos(2.0 * np.pi * self.flux + phi1 - phi2)
+        )
 
     def kineticmat(self) -> ndarray:
         """Return the kinetic energy matrix."""
         ECmat = self.EC_matrix()
 
-        kinetic_mat = 4.0 * ECmat[0, 0] * np.kron(np.matmul(self._n_operator() - self.ng1 * self._identity(),
-                                                            self._n_operator() - self.ng1 * self._identity()),
-                                                  self._identity())
-        kinetic_mat += 4.0 * ECmat[1, 1] * np.kron(self._identity(),
-                                                   np.matmul(self._n_operator() - self.ng2 * self._identity(),
-                                                             self._n_operator() - self.ng2 * self._identity()))
-        kinetic_mat += 4.0 * (ECmat[0, 1] + ECmat[1, 0]) * np.kron(self._n_operator() - self.ng1 * self._identity(),
-                                                                   self._n_operator() - self.ng2 * self._identity())
+        kinetic_mat = (
+            4.0
+            * ECmat[0, 0]
+            * np.kron(
+                np.matmul(
+                    self._n_operator() - self.ng1 * self._identity(),
+                    self._n_operator() - self.ng1 * self._identity(),
+                ),
+                self._identity(),
+            )
+        )
+        kinetic_mat += (
+            4.0
+            * ECmat[1, 1]
+            * np.kron(
+                self._identity(),
+                np.matmul(
+                    self._n_operator() - self.ng2 * self._identity(),
+                    self._n_operator() - self.ng2 * self._identity(),
+                ),
+            )
+        )
+        kinetic_mat += (
+            4.0
+            * (ECmat[0, 1] + ECmat[1, 0])
+            * np.kron(
+                self._n_operator() - self.ng1 * self._identity(),
+                self._n_operator() - self.ng2 * self._identity(),
+            )
+        )
         return kinetic_mat
 
     def potentialmat(self) -> ndarray:
         """Return the potential energy matrix for the potential."""
-        potential_mat = -0.5 * self.EJ1 * np.kron(self._exp_i_phi_operator() + self._exp_i_phi_operator().T,
-                                                  self._identity())
-        potential_mat += -0.5 * self.EJ2 * np.kron(self._identity(),
-                                                   self._exp_i_phi_operator() + self._exp_i_phi_operator().T)
-        potential_mat += -0.5 * self.EJ3 * (np.exp(1j * 2 * np.pi * self.flux)
-                                            * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T))
-        potential_mat += -0.5 * self.EJ3 * (np.exp(-1j * 2 * np.pi * self.flux)
-                                            * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator()))
+        potential_mat = (
+            -0.5
+            * self.EJ1
+            * np.kron(
+                self._exp_i_phi_operator() + self._exp_i_phi_operator().T,
+                self._identity(),
+            )
+        )
+        potential_mat += (
+            -0.5
+            * self.EJ2
+            * np.kron(
+                self._identity(),
+                self._exp_i_phi_operator() + self._exp_i_phi_operator().T,
+            )
+        )
+        potential_mat += (
+            -0.5
+            * self.EJ3
+            * (
+                np.exp(1j * 2 * np.pi * self.flux)
+                * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)
+            )
+        )
+        potential_mat += (
+            -0.5
+            * self.EJ3
+            * (
+                np.exp(-1j * 2 * np.pi * self.flux)
+                * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
+            )
+        )
         return potential_mat
 
     def hamiltonian(self) -> ndarray:
@@ -399,18 +484,31 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     def d_hamiltonian_d_EJ1(self) -> ndarray:
         """Returns operator representing a derivittive of the Hamiltonian with respect to EJ1."""
-        return -0.5 * np.kron(self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity())
+        return -0.5 * np.kron(
+            self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity()
+        )
 
     def d_hamiltonian_d_EJ2(self) -> ndarray:
         """Returns operator representing a derivittive of the Hamiltonian with respect to EJ2."""
-        return -0.5 * np.kron(self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T)
+        return -0.5 * np.kron(
+            self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T
+        )
 
     def d_hamiltonian_d_EJ3(self) -> ndarray:
         """Returns operator representing a derivittive of the Hamiltonian with respect to EJ3."""
-        return (-0.5 * (np.exp(1j * 2 * np.pi * self.flux)
-                                            * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)))\
-               + (-0.5 * (np.exp(-1j * 2 * np.pi * self.flux)
-                                            * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())))
+        return (
+            -0.5
+            * (
+                np.exp(1j * 2 * np.pi * self.flux)
+                * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)
+            )
+        ) + (
+            -0.5
+            * (
+                np.exp(-1j * 2 * np.pi * self.flux)
+                * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
+            )
+        )
 
     def _n_operator(self) -> ndarray:
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
@@ -466,11 +564,12 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         sin_op += sin_op.conj().T
         return sin_op
 
-    def plot_potential(self,
-                       phi_grid: discretization.Grid1d = None,
-                       contour_vals: ndarray = None,
-                       **kwargs
-                       ) -> Tuple[Figure, Axes]:
+    def plot_potential(
+        self,
+        phi_grid: discretization.Grid1d = None,
+        contour_vals: ndarray = None,
+        **kwargs
+    ) -> Tuple[Figure, Axes]:
         """
         Draw contour plot of the potential energy.
 
@@ -485,15 +584,18 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         """
         phi_grid = phi_grid or self._default_grid
         x_vals = y_vals = phi_grid.make_linspace()
-        if 'figsize' not in kwargs:
-            kwargs['figsize'] = (5, 5)
-        return plot.contours(x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs)
+        if "figsize" not in kwargs:
+            kwargs["figsize"] = (5, 5)
+        return plot.contours(
+            x_vals, y_vals, self.potential, contour_vals=contour_vals, **kwargs
+        )
 
-    def wavefunction(self,
-                     esys: Tuple[ndarray, ndarray] = None,
-                     which: int = 0,
-                     phi_grid: discretization.Grid1d = None
-                     ) -> storage.WaveFunctionOnGrid:
+    def wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        phi_grid: discretization.Grid1d = None,
+    ) -> storage.WaveFunctionOnGrid:
         """
         Return a flux qubit wave function in phi1, phi2 basis
 
@@ -524,18 +626,25 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         wavefunc_amplitudes = np.matmul(wavefunc_amplitudes, a_2_phi)
         wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
 
-        grid2d = discretization.GridSpec(np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
-                                                     [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
+        grid2d = discretization.GridSpec(
+            np.asarray(
+                [
+                    [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                    [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                ]
+            )
+        )
         return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_wavefunction(self,
-                          esys: Tuple[ndarray, ndarray] = None,
-                          which: int = 0,
-                          phi_grid: discretization.Grid1d = None,
-                          mode: str = 'abs',
-                          zero_calibrate: bool = True,
-                          **kwargs
-                          ) -> Tuple[Figure, Axes]:
+    def plot_wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        phi_grid: discretization.Grid1d = None,
+        mode: str = "abs",
+        zero_calibrate: bool = True,
+        **kwargs
+    ) -> Tuple[Figure, Axes]:
         """Plots 2d phase-basis wave function.
 
         Parameters
@@ -556,6 +665,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
         wavefunc = self.wavefunction(esys, phi_grid=phi_grid, which=which)
         wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
-        if 'figsize' not in kwargs:
-            kwargs['figsize'] = (5, 5)
+        if "figsize" not in kwargs:
+            kwargs["figsize"] = (5, 5)
         return plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
