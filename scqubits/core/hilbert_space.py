@@ -13,7 +13,6 @@
 
 # TODO: Have an example of a given interaction term that is NOT an InteractionTerm object in the HilbertSpace examples
 
-
 import functools
 import warnings
 from typing import Any, Callable, Dict, Iterator, Optional, Tuple, List, Union
@@ -54,6 +53,8 @@ SubsysOperator = namedtuple("SubsysOperator", ['operator', 'subsystem'])
 
 class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
     """
+    Deprecated, will not work in future versions. Please look into InteractionTerm instead.
+
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
     the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
     1. V = g A B, where A, B are Hermitean operators in two specified subsys_list,
@@ -87,6 +88,9 @@ class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
                  add_hc: bool = False,
                  hilbertspace: 'HilbertSpace' = None
                  ) -> None:
+        warnings.warn(
+            "Future use of InteractionTerm will require arguments in a different format, see help(InteractionTerm).",
+            FutureWarning)
         if hilbertspace:
             warnings.warn("`hilbertspace` is no longer a parameter for initializing an InteractionTerm object.",
                           FutureWarning)
@@ -118,6 +122,7 @@ class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
             output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name), param_content)
         return name_prepend + output
 
+
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
     Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
@@ -137,11 +142,31 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     add_hc:
         If set to True, the interaction Hamiltonian is of type 2, and the Hermitian conjugate is added.
     """
+
     g_strength = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
     operator_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
     subsystem_list = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
     add_hc = descriptors.WatchedProperty('INTERACTIONTERM_UPDATE')
 
+    def __new__(cls,
+                g_strength: Union[float, complex],
+                operator_list: List[Tuple[Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str], QuantumSys]] = None,
+                subsystem_list: List[QuantumSys] = None,
+                subsys1: QuantumSys = None,
+                op1: Union[str, ndarray, csc_matrix, dia_matrix] = None,
+                subsys2: QuantumSys = None,
+                op2: Union[str, ndarray, csc_matrix, dia_matrix] = None,
+                hilbertspace: 'HilbertSpace' = None,
+                add_hc: bool = False
+                ):
+        if op1:
+            return InteractionTermLegacy(g_strength=g_strength,
+                                         op1=op1, subsys1=subsys1,
+                                         op2=op2, subsys2=subsys2,
+                                         hilbertspace=hilbertspace,
+                                         add_hc=add_hc)
+        else:
+            super().__new__(cls)
 
     def __init__(self,
                  g_strength: Union[float, complex],
@@ -153,14 +178,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         self.operator_list = [(SubsysOperator(operator[0], operator[1])) for operator in operator_list]
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
-        hamiltonian = g_strength
-        qoperator_list = self.idwrap(self.operator_list, subsystem_list)
-        for op in qoperator_list:
-            hamiltonian *= op
-        if add_hc:
-            self.hamiltonian = hamiltonian + hamiltonian.dag()
-        else:
-            self.hamiltonian = hamiltonian
+        self.qoperator_list = self.idwrap(self.operator_list, subsystem_list)
 
     def __repr__(self) -> str:
         init_dict = {name: getattr(self, name) for name in self._init_params}
@@ -175,16 +193,28 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     def __getitem__(self, index: int) -> QuantumSys:
         return self.subsystem_list[index]
 
-    def convert_operators(self, op_list: list) -> list:
+    def hamiltonian(self):
+        hamiltonian = self.g_strength
+        for op in self.qoperator_list:
+            hamiltonian *= op
+        if self.add_hc:
+            return hamiltonian + hamiltonian.dag()
+        else:
+            return hamiltonian
+
+    @staticmethod
+    def convert_operators(op_list: list) -> list:
         new_operators = [spec_utils.convert_operator_to_qobj(item.operator, item.subsystem,
                                                              op_in_eigenbasis=False, evecs=None)
                          for item in op_list]
         return new_operators
 
-    def idwrap(self, operator_list: list, subsystem_list: list) -> list:
+    @staticmethod
+    def idwrap(operator_list: list, subsystem_list: list) -> list:
         id_wrapped_operators = [spec_utils.identity_wrap(item.operator, item.subsystem, subsystem_list)
                                 for item in operator_list]
         return id_wrapped_operators
+
 
 class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     """
@@ -236,11 +266,6 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         self.add_hc = add_hc
         qoperator_dict = self.id_wrap(self.operator_dict, subsystem_list)
         self.add_to_variables(qoperator_dict)
-        hamiltonian = self.run_string_code(str_expression)
-        if not add_hc:
-            self.hamiltonian = hamiltonian
-        else:
-            self.hamiltonian = hamiltonian + hamiltonian.dag()
 
     def __repr__(self) -> str:
         init_dict = {name: getattr(self, name) for name in self._init_params}
@@ -258,7 +283,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
                 param_content = param_content[:length]
                 param_content += ' ...'
 
-            output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name),param_content)
+            output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name), param_content)
         return name_prepend + output
 
     def add_to_variables(self, op_dict: dict) -> None:
@@ -281,6 +306,13 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
                          for (key, value) in op_dict.items()}
         return new_operators
 
+    def hamiltonian(self):
+        hamiltonian = self.run_string_code(self.str_expression)
+        if not self.add_hc:
+            return hamiltonian
+        else:
+            return hamiltonian + hamiltonian.dag()
+
 
 class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     """Class holding information about the full Hilbert space, usually composed of multiple subsys_list.
@@ -292,6 +324,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     qbt_subsys_list = descriptors.ReadOnlyProperty()
     lookup = descriptors.ReadOnlyProperty()
     interaction_list = descriptors.WatchedProperty('INTERACTIONLIST_UPDATE')
+
     def __init__(self,
                  subsystem_list: List[QuantumSys],
                  interaction_list: List[InteractionTerm] = None
@@ -413,7 +446,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return hamiltonian_mat.eigenenergies(eigvals=evals_count)
 
     def eigensys(self, evals_count: int = 6) -> Tuple[ndarray, QutipEigenstates]:
-        """Calculates eigenvalues and eigenvectore of the full Hamiltonian using `qutip.Qob.eigenstates()`.
+        """Calculates eigenvalues and eigenvectors of the full Hamiltonian using `qutip.Qob.eigenstates()`.
 
         Parameters
         ----------
@@ -526,6 +559,8 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     def interaction_hamiltonian(self) -> Qobj:
         """
+        Deprecated, will be changed in future versions.
+
         Returns
         -------
             interaction Hamiltonian
@@ -534,23 +569,26 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             return 0
 
         operator_list = []
-        # TODO: Should this be list comp or is it too complex?
         for term in self.interaction_list:
             if isinstance(term, InteractionTerm) or isinstance(term, InteractionTermStr):
-                operator_list.append(term.hamiltonian)
+                operator_list.append(term.hamiltonian())
             elif isinstance(term, InteractionTermLegacy):
                 interactionlegacy_hamiltonian = self.interactiontermlegacy_hamiltonian(term)
                 operator_list.append(interactionlegacy_hamiltonian)
-            else:
+            elif isinstance(term, Qobj):
                 operator_list.append(term)
+            else:
+                pass
+            # TODO: Type error here?
         hamiltonian = sum(operator_list)
         return hamiltonian
 
     def interactiontermlegacy_hamiltonian(self,
-                                    interactionterm: InteractionTermLegacy,
-                                    evecs1: ndarray = None,
-                                    evecs2: ndarray = None
-                                    ) -> Qobj:
+                                          interactionterm: InteractionTermLegacy,
+                                          evecs1: ndarray = None,
+                                          evecs2: ndarray = None
+                                          ) -> Qobj:
+        """Deprecated, will not work in future versions."""
         interaction_op1 = spec_utils.identity_wrap(interactionterm.op1, interactionterm.subsys1,
                                                    self.subsys_list, evecs=evecs1)
         interaction_op2 = spec_utils.identity_wrap(interactionterm.op2, interactionterm.subsys2,
