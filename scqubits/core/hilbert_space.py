@@ -9,9 +9,6 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-# TODO: Clean up this doc and then branch for the zombie version
-
-# TODO: Have an example of a given interaction term that is NOT an InteractionTerm object in the HilbertSpace examples
 
 import functools
 import warnings
@@ -159,7 +156,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                 hilbertspace: 'HilbertSpace' = None,
                 add_hc: bool = False
                 ):
-        if op1:
+        if subsys1:
             return InteractionTermLegacy(g_strength=g_strength,
                                          op1=op1, subsys1=subsys1,
                                          op2=op2, subsys2=subsys2,
@@ -286,7 +283,8 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
             output += "{0}| {1}: {2}\n".format(' ' * indent_length, str(param_name), param_content)
         return name_prepend + output
 
-    def add_to_variables(self, op_dict: dict) -> None:
+    @staticmethod
+    def add_to_variables(op_dict: dict) -> None:
         for (key, value) in op_dict.items():
             globals()[key] = value
 
@@ -301,7 +299,8 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         answer = eval(string)
         return answer
 
-    def id_wrap(self, op_dict: dict, subsys_list: list) -> dict:
+    @staticmethod
+    def id_wrap(op_dict: dict, subsys_list: list) -> dict:
         new_operators = {key: spec_utils.identity_wrap(value.operator, value.subsystem, subsys_list)
                          for (key, value) in op_dict.items()}
         return new_operators
@@ -578,8 +577,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             elif isinstance(term, Qobj):
                 operator_list.append(term)
             else:
-                pass
-            # TODO: Type error here?
+                raise TypeError("Expected a type of InteractionTerm, InteractionTermStr, or Qobj.")
         hamiltonian = sum(operator_list)
         return hamiltonian
 
