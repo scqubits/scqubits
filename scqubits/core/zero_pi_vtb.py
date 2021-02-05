@@ -7,14 +7,17 @@ from scipy.linalg import expm, inv
 from scipy.optimize import minimize
 
 import scqubits.core.qubit_base as base
+import scqubits.core.vtbbasemethods as vtb
+import scqubits.core.vtbsqueezingbasemethods as vtbs
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
-from scqubits import Grid1d, VTBBaseMethods, VTBBaseMethodsSqueezing
+from scqubits import Grid1d
 from scqubits.core.hashing import Hashing
 from scqubits.core.zeropi import ZeroPi
 
 
-class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Serializable):
+class ZeroPiVTB(vtb.VTBBaseMethods, ZeroPi, base.QubitBaseClass,
+                serializers.Serializable):
     r""" Zero Pi using VTB
 
     See class ZeroPi for documentation on the qubit itself.
@@ -40,7 +43,7 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
                  **kwargs
                  ) -> None:
         ZeroPi.__init__(self, EJ, EL, ECJ, EC, ng, flux, Grid1d(1, 2, 3), 0, dEJ, dCJ, ECS, truncated_dim)
-        VTBBaseMethods.__init__(self, num_exc, maximum_periodic_vector_length,
+        vtb.VTBBaseMethods.__init__(self, num_exc, maximum_periodic_vector_length,
                                 number_degrees_freedom=2, number_periodic_degrees_freedom=1,
                                 number_junctions=2, **kwargs)
         self.phi_extent = phi_extent
@@ -273,7 +276,7 @@ class ZeroPiVTB(VTBBaseMethods, ZeroPi, base.QubitBaseClass, serializers.Seriali
         return potential_gradient
 
 
-class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
+class ZeroPiVTBSqueezing(vtbs.VTBBaseMethodsSqueezing, ZeroPiVTB):
     def __init__(self,
                  EJ: float,
                  EL: float,
@@ -328,19 +331,19 @@ class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
             exp_i_phi_list.append(exp_i_list[j] * np.prod([np.exp(1j * cosine_coeffs[i] * phi_bar[i])
                                                            for i in range(dim)])
                                   * np.exp((-1)**(j+1) * 1j * np.pi * self.flux))
-        potential_matrix = np.sum([self._local_contribution_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
-                                                                                      disentangled_squeezing_matrices,
-                                                                                      delta_rho_matrices,
-                                                                                      np.array(exp_i_phi_list))
+        potential_matrix = np.sum([self._local_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
+                                                                         disentangled_squeezing_matrices,
+                                                                         delta_rho_matrices,
+                                                                         np.array(exp_i_phi_list))
                                    for j in range(dim)], axis=0)
         potential_matrix += self._local_potential_harmonic_squeezing(Xi, Xi_inv, displacement_vector, minima_m, minima_p,
                                                                      disentangled_squeezing_matrices,
                                                                      delta_rho_matrices, exp_a_dagger_a,
                                                                      harmonic_minima_pair_results, phi_bar)
-        potential_matrix += (self._local_contribution_identity_squeezing(Xi_inv, displacement_vector, minima_m, minima_p,
-                                                                         disentangled_squeezing_matrices,
-                                                                         delta_rho_matrices, exp_a_dagger_a,
-                                                                         minima_pair_results)
+        potential_matrix += (self._local_identity_squeezing(Xi_inv, displacement_vector, minima_m, minima_p,
+                                                            disentangled_squeezing_matrices,
+                                                            delta_rho_matrices, exp_a_dagger_a,
+                                                            minima_pair_results)
                              * np.sum(self.EJlist))
         return potential_matrix
 
@@ -389,11 +392,11 @@ class ZeroPiVTBSqueezing(VTBBaseMethodsSqueezing, ZeroPiVTB):
         potential_matrix += exp_a_dagger_a * x_coefficient * self.EL
         return potential_matrix, xa, dx, xa_coefficient, dx_coefficient
 
-    def _local_contribution_single_junction_squeezing(self, j: int, delta_phi: ndarray,
-                                                      Xi: ndarray, Xi_inv: ndarray,
-                                                      disentangled_squeezing_matrices: Tuple,
-                                                      delta_rho_matrices: Tuple, exp_i_phi_list: ndarray
-                                                      ) -> ndarray:
+    def _local_single_junction_squeezing(self, j: int, delta_phi: ndarray,
+                                         Xi: ndarray, Xi_inv: ndarray,
+                                         disentangled_squeezing_matrices: Tuple,
+                                         delta_rho_matrices: Tuple, exp_i_phi_list: ndarray
+                                         ) -> ndarray:
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         cosine_coeffs = np.array([(-1)**j, 1])

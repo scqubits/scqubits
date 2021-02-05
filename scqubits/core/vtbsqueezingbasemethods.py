@@ -369,8 +369,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                                    @ translation_a)
         return matrix_element
 
-    def _construct_kinetic_alpha_epsilon_squeezing(self, Xi_inv: ndarray, delta_phi: ndarray,
-                                                   rho_prime: ndarray, delta_rho: ndarray) -> Tuple:
+    def _kinetic_alpha_epsilon_squeezing(self, Xi_inv: ndarray, delta_phi: ndarray,
+                                         rho_prime: ndarray, delta_rho: ndarray) -> Tuple:
         """Construct the `alpha` and `epsilon` variables necessary for the kinetic matrix."""
         arg_exp_a_dag = delta_phi @ Xi_inv.T / np.sqrt(2.)
         arg_exp_a = -arg_exp_a_dag
@@ -443,7 +443,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         kinetic_matrix_minima_pair, xa, dx, xa_coefficient, dx_coefficient = minima_pair_results
-        alpha, epsilon = self._construct_kinetic_alpha_epsilon_squeezing(Xi_inv, delta_phi, rho_prime, delta_rho)
+        alpha, epsilon = self._kinetic_alpha_epsilon_squeezing(Xi_inv, delta_phi, rho_prime, delta_rho)
         e_xa_coefficient = epsilon @ xa_coefficient
         e_dx_coefficient = epsilon @ dx_coefficient
         return alpha * (np.sum(8 * np.transpose(xa, axes=(1, 2, 0)) * e_xa_coefficient
@@ -500,7 +500,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
     def _inner_product_matrix(self, relevant_unit_cell_vectors: dict, optimized_harmonic_lengths: ndarray,
                               num_cpus: int = 1):
         Xi_inv = inv(self.Xi_matrix(0, optimized_harmonic_lengths))
-        local_identity_func = partial(self._local_contribution_identity_squeezing, (None, Xi_inv, None))
+        local_identity_func = partial(self._local_identity_squeezing, (None, Xi_inv, None))
         return self._periodic_continuation(lambda x, y, z: None, local_identity_func,
                                            relevant_unit_cell_vectors,
                                            optimized_harmonic_lengths, num_cpus)
@@ -558,26 +558,26 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         exp_i_phi_list = np.array([exp_i_list[i] * np.exp(1j * phi_bar[i]) for i in range(dim)])
         exp_i_phi_sum_op = (exp_i_sum * np.exp(1j * 2.0 * np.pi * self.flux)
                             * np.exp(np.sum(1j * self.stitching_coefficients * phi_bar)))
-        potential_matrix = np.sum([self._local_contribution_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
-                                                                                      disentangled_squeezing_matrices,
-                                                                                      delta_rho_matrices,
-                                                                                      exp_i_phi_list)
-                                   for j in range(dim)], axis=0)
-        potential_matrix += self._local_contribution_stitching_squeezing(delta_phi, Xi, Xi_inv,
+        potential_matrix = np.sum([self._local_single_junction_squeezing(j, delta_phi, Xi, Xi_inv,
                                                                          disentangled_squeezing_matrices,
                                                                          delta_rho_matrices,
-                                                                         exp_i_phi_sum_op)
-        potential_matrix += (self._local_contribution_identity_squeezing(precalculated_quantities, displacement_vector,
-                                                                         minima_m, minima_p,
-                                                                         disentangled_squeezing_matrices,
-                                                                         delta_rho_matrices, exp_a_dagger_a,
-                                                                         minima_pair_results)
+                                                                         exp_i_phi_list)
+                                   for j in range(dim)], axis=0)
+        potential_matrix += self._local_stitching_squeezing(delta_phi, Xi, Xi_inv,
+                                                            disentangled_squeezing_matrices,
+                                                            delta_rho_matrices,
+                                                            exp_i_phi_sum_op)
+        potential_matrix += (self._local_identity_squeezing(precalculated_quantities, displacement_vector,
+                                                            minima_m, minima_p,
+                                                            disentangled_squeezing_matrices,
+                                                            delta_rho_matrices, exp_a_dagger_a,
+                                                            minima_pair_results)
                              * np.sum(self.EJlist))
         return potential_matrix
 
-    def _local_contribution_stitching_squeezing(self, delta_phi: ndarray, Xi: ndarray, Xi_inv: ndarray,
-                                                disentangled_squeezing_matrices: Tuple,
-                                                delta_rho_matrices: Tuple, exp_i_sum: ndarray) -> ndarray:
+    def _local_stitching_squeezing(self, delta_phi: ndarray, Xi: ndarray, Xi_inv: ndarray,
+                                   disentangled_squeezing_matrices: Tuple,
+                                   delta_rho_matrices: Tuple, exp_i_sum: ndarray) -> ndarray:
         """Local contribution to the potential due to the stitching term"""
         dim = self.number_degrees_freedom
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
@@ -590,10 +590,10 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         potential_matrix *= self._BCH_factor_for_potential_stitching(Xi)
         return potential_matrix
 
-    def _local_contribution_single_junction_squeezing(self, j: int, delta_phi: ndarray, Xi: ndarray,
-                                                      Xi_inv: ndarray, disentangled_squeezing_matrices: Tuple,
-                                                      delta_rho_matrices: Tuple, exp_i_phi_list: ndarray
-                                                      ) -> ndarray:
+    def _local_single_junction_squeezing(self, j: int, delta_phi: ndarray, Xi: ndarray,
+                                         Xi_inv: ndarray, disentangled_squeezing_matrices: Tuple,
+                                         delta_rho_matrices: Tuple, exp_i_phi_list: ndarray
+                                         ) -> ndarray:
         """Local contribution to the potential due to `\cos(\phi_j)`"""
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
@@ -613,10 +613,10 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         return self._potential_operators_squeezing(precalculated_quantities, exp_a_dagger_a,
                                                    disentangled_squeezing_matrices, delta_rho_matrices)
 
-    def _local_contribution_identity_squeezing(self, precalculated_quantities: Tuple, displacement_vector: ndarray,
-                                               minima_m: ndarray, minima_p: ndarray,
-                                               disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple,
-                                               exp_a_dagger_a: ndarray, minima_pair_results: Tuple) -> ndarray:
+    def _local_identity_squeezing(self, precalculated_quantities: Tuple, displacement_vector: ndarray,
+                                  minima_m: ndarray, minima_p: ndarray,
+                                  disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple,
+                                  exp_a_dagger_a: ndarray, minima_pair_results: Tuple) -> ndarray:
         """Local contribution to the identity matrix in the presence of squeezing."""
         _ = minima_pair_results
         _, Xi_inv, _ = precalculated_quantities
@@ -636,7 +636,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         ndarray
         """
         return self._abstract_VTB_operator(lambda p, x, y, z: None,
-                                           self._local_contribution_identity_squeezing, num_cpus)
+                                           self._local_identity_squeezing, num_cpus)
 
     def _exp_product_coefficient_squeezing(self, displacement_vector: ndarray, Xi_inv: ndarray,
                                            sigma: ndarray, sigma_prime: ndarray) -> ndarray:
@@ -717,9 +717,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                                             ) -> ndarray:
         """Local identity contribution when considering only the ground state."""
         _, _, _, _, Xi_global_inv = precalculated_quantities
-        return self._local_contribution_identity_squeezing((_, Xi_global_inv, _), displacement_vector,
-                                                           minima_m, minima_p, disentangled_squeezing_matrices,
-                                                           delta_rho_matrices, np.array([1.0]), ())
+        return self._local_identity_squeezing((_, Xi_global_inv, _), displacement_vector,
+                                              minima_m, minima_p, disentangled_squeezing_matrices,
+                                              delta_rho_matrices, np.array([1.0]), ())
 
     def _one_state_local_transfer_squeezing(self, precalculated_quantities: Tuple,
                                             displacement_vector: ndarray, minima_m: ndarray, minima_p: ndarray,
@@ -753,20 +753,20 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         exp_i_phi_list = np.array([np.exp(1j * phi_bar[i]) for i in range(dim)])
         exp_i_phi_sum_op = (np.exp(1j * 2.0 * np.pi * self.flux)
                             * np.prod([np.exp(1j * self.stitching_coefficients[i] * phi_bar[i]) for i in range(dim)]))
-        potential_matrix = np.sum([self._local_contribution_single_junction_squeezing(j, delta_phi, Xi_global,
-                                                                                      Xi_global_inv,
-                                                                                      disentangled_squeezing_matrices,
-                                                                                      delta_rho_matrices,
-                                                                                      exp_i_phi_list)
-                                   for j in range(dim)], axis=0)
-        potential_matrix += self._local_contribution_stitching_squeezing(delta_phi, Xi_global, Xi_global_inv,
+        potential_matrix = np.sum([self._local_single_junction_squeezing(j, delta_phi, Xi_global,
+                                                                         Xi_global_inv,
                                                                          disentangled_squeezing_matrices,
                                                                          delta_rho_matrices,
-                                                                         exp_i_phi_sum_op)
-        potential_matrix += (self._local_contribution_identity_squeezing((None, Xi_global_inv, None), displacement_vector,
-                                                                         minima_m, minima_p,
-                                                                         disentangled_squeezing_matrices,
-                                                                         delta_rho_matrices, np.array([1.0]), ())
+                                                                         exp_i_phi_list)
+                                   for j in range(dim)], axis=0)
+        potential_matrix += self._local_stitching_squeezing(delta_phi, Xi_global, Xi_global_inv,
+                                                            disentangled_squeezing_matrices,
+                                                            delta_rho_matrices,
+                                                            exp_i_phi_sum_op)
+        potential_matrix += (self._local_identity_squeezing((None, Xi_global_inv, None), displacement_vector,
+                                                            minima_m, minima_p,
+                                                            disentangled_squeezing_matrices,
+                                                            delta_rho_matrices, np.array([1.0]), ())
                              * np.sum(self.EJlist))
         return potential_matrix
 
@@ -780,7 +780,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         rho, rho_prime, sigma, sigma_prime, tau, tau_prime = disentangled_squeezing_matrices
         delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         a_coefficient, a_dagger_coefficient = linear_coefficient_matrices
-        alpha, epsilon = self._construct_kinetic_alpha_epsilon_squeezing(Xi_global_inv, delta_phi, rho_prime, delta_rho)
+        alpha, epsilon = self._kinetic_alpha_epsilon_squeezing(Xi_global_inv, delta_phi, rho_prime, delta_rho)
         result = 4 * alpha * (epsilon @ EC_mat @ epsilon + np.trace(a_dagger_coefficient.T @ EC_mat @ a_coefficient))
         return result
 
@@ -794,14 +794,14 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         Xi = self._update_Xi(default_Xi, harmonic_lengths)
         Xi_inv = inv(Xi)
         precalculated_quantities = (Xi, Xi_inv, EC_mat, Xi_global, Xi_global_inv)
-        transfer, inner = self._one_state_construct_transfer_inner_squeezing(precalculated_quantities, minimum_location,
-                                                                             minimum_index,
-                                                                             relevant_unit_cell_vectors)
+        transfer, inner = self._one_state_transfer_inner_squeezing(precalculated_quantities, minimum_location,
+                                                                   minimum_index,
+                                                                   relevant_unit_cell_vectors)
         return np.real(transfer / inner)
 
-    def _one_state_construct_transfer_inner_squeezing(self, precalculated_quantities: Tuple,
-                                                      minimum_location: ndarray, minimum_index: int,
-                                                      relevant_unit_cell_vectors: dict) -> Tuple:
+    def _one_state_transfer_inner_squeezing(self, precalculated_quantities: Tuple,
+                                            minimum_location: ndarray, minimum_index: int,
+                                            relevant_unit_cell_vectors: dict) -> Tuple:
         """Transfer matrix and inner product matrix when considering only the ground state."""
         minima_pair_displacement_vectors = 2.0 * np.pi * relevant_unit_cell_vectors[(minimum_index,
                                                                                      minimum_index)]

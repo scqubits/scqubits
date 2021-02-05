@@ -5,16 +5,16 @@ from numpy import ndarray
 from scipy.optimize import minimize
 
 import scqubits.core.qubit_base as base
+import scqubits.core.vtbbasemethods as vtb
+import scqubits.core.vtbsqueezingbasemethods as vtbs
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.hashing import Hashing
 from scqubits.core.noise import NOISE_PARAMS
-from scqubits.core.vtbbasemethods import VTBBaseMethods
-from scqubits.core.vtbsqueezingbasemethods import VTBBaseMethodsSqueezing
 
 
 class FluxQubitVTB(
-    VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.Serializable
+    vtb.VTBBaseMethods, FluxQubit, base.QubitBaseClass, serializers.Serializable
 ):
     r"""Flux Qubit using VTB
 
@@ -44,7 +44,7 @@ class FluxQubitVTB(
         truncated_dim: int = None,
         **kwargs
     ) -> None:
-        VTBBaseMethods.__init__(
+        vtb.VTBBaseMethods.__init__(
             self,
             num_exc,
             maximum_periodic_vector_length,
@@ -73,10 +73,10 @@ class FluxQubitVTB(
         delattr(self, "ncut")
 
     def EC_matrix(self):
-        return super(VTBBaseMethods, self).EC_matrix()
+        return super(vtb.VTBBaseMethods, self).EC_matrix()
 
     def capacitance_matrix(self):
-        return super(VTBBaseMethods, self).capacitance_matrix()
+        return super(vtb.VTBBaseMethods, self).capacitance_matrix()
 
     def _ramp(self, k: int, minima_holder: List) -> Tuple[List, bool]:
         """Helper function for find_minima"""
@@ -217,7 +217,7 @@ class FluxQubitVTB(
         raise NotImplementedError("Not implemented yet for tight binding")
 
 
-class FluxQubitVTBSqueezing(VTBBaseMethodsSqueezing, FluxQubitVTB):
+class FluxQubitVTBSqueezing(vtbs.VTBBaseMethodsSqueezing, FluxQubitVTB):
     def __init__(
         self,
         EJ1: float,

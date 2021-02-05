@@ -264,8 +264,9 @@ class HilbertSpaceUi:
                 except (AttributeError, SyntaxError, NameError):
                     with self.status_output:
                         print(
-                            "Error: operator {} is not defined or has a syntax error."
-                            .format(operator_str)
+                            "Error: operator {} is not defined or has a syntax error.".format(
+                                operator_str
+                            )
                         )
                     return False
                 if not isinstance(instance, np.ndarray):

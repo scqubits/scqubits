@@ -7,13 +7,15 @@ from scipy.linalg import inv
 from scipy.optimize import minimize
 
 import scqubits.core.qubit_base as base
+import scqubits.core.vtbbasemethods as vtb
+import scqubits.core.vtbsqueezingbasemethods as vtbs
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits import CurrentMirror, VTBBaseMethods, VTBBaseMethodsSqueezing
+from scqubits import CurrentMirror
 from scqubits.core.hashing import Hashing
 
 
 class CurrentMirrorVTB(
-    VTBBaseMethods, CurrentMirror, base.QubitBaseClass, serializers.Serializable
+    vtb.VTBBaseMethods, CurrentMirror, base.QubitBaseClass, serializers.Serializable
 ):
     r"""Current Mirror using VTB
 
@@ -39,7 +41,7 @@ class CurrentMirrorVTB(
         truncated_dim: int = None,
         **kwargs
     ) -> None:
-        VTBBaseMethods.__init__(
+        vtb.VTBBaseMethods.__init__(
             self,
             num_exc,
             maximum_periodic_vector_length,
@@ -57,10 +59,10 @@ class CurrentMirrorVTB(
         delattr(self, "ncut")
 
     def EC_matrix(self):
-        return super(VTBBaseMethods, self).EC_matrix()
+        return super(vtb.VTBBaseMethods, self).EC_matrix()
 
     def capacitance_matrix(self):
-        return super(VTBBaseMethods, self).capacitance_matrix()
+        return super(vtb.VTBBaseMethods, self).capacitance_matrix()
 
     def set_EJlist(self, EJlist) -> None:
         self.__dict__["EJlist"] = EJlist
@@ -160,7 +162,7 @@ class CurrentMirrorVTB(
         return self.potential(phi_array)
 
 
-class CurrentMirrorVTBSqueezing(VTBBaseMethodsSqueezing, CurrentMirrorVTB):
+class CurrentMirrorVTBSqueezing(vtbs.VTBBaseMethodsSqueezing, CurrentMirrorVTB):
     def __init__(
         self,
         N: int,

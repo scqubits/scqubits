@@ -58,8 +58,6 @@ from scqubits.core.units import (
     show_supported_units,
     to_standard_units,
 )
-from scqubits.core.vtbbasemethods import VTBBaseMethods
-from scqubits.core.vtbsqueezingbasemethods import VTBBaseMethodsSqueezing
 from scqubits.core.zero_pi_vtb import ZeroPiVTB, ZeroPiVTBGlobal, ZeroPiVTBSqueezing
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi

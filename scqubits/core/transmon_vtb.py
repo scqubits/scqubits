@@ -4,14 +4,15 @@ import numpy as np
 from numpy import ndarray
 
 import scqubits.core.qubit_base as base
+import scqubits.core.vtbbasemethods as vtb
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits import Transmon, VTBBaseMethods
+from scqubits import Transmon
 
 # -Transmon using VariationalTightBinding
 
 
 class TransmonVTB(
-    VTBBaseMethods, Transmon, base.QubitBaseClass, serializers.Serializable
+    vtb.VTBBaseMethods, Transmon, base.QubitBaseClass, serializers.Serializable
 ):
     def __init__(
         self,
@@ -23,7 +24,7 @@ class TransmonVTB(
         truncated_dim: int = None,
         **kwargs
     ) -> None:
-        VTBBaseMethods.__init__(
+        vtb.VTBBaseMethods.__init__(
             self,
             num_exc,
             maximum_periodic_vector_length,

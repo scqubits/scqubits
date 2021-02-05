@@ -557,8 +557,8 @@ class VTBBaseMethods(ABC):
         self, j: int, Xi: ndarray, a_operator_array: ndarray
     ) -> ndarray:
         r"""Returns operator :math:`\exp(i\phi_{j})`. If `j` specifies the stitching
-         term, which is assumed to be the last junction, then that is constructed
-         based on the stitching coefficients."""
+        term, which is assumed to be the last junction, then that is constructed
+        based on the stitching coefficients."""
         if j == self.number_junctions - 1:
             exp_i_phi_j_a = expm(
                 1j
@@ -879,11 +879,7 @@ class VTBBaseMethods(ABC):
             Returns the inner product matrix
         """
         return self._abstract_VTB_operator(
-            lambda precalculated_quantities,
-            displacement_vector,
-            minima_m,
-            minima_p:
-            self._identity(),
+            lambda precalculated_quantities, displacement_vector, minima_m, minima_p: self._identity(),
             num_cpus,
         )
 
@@ -980,7 +976,7 @@ class VTBBaseMethods(ABC):
         minima_p: ndarray,
     ) -> ndarray:
         r"""Calculate the local contribution to the :math:`e^{i \\phi}` operator given
-         two minima and a unit cell vector `displacement_vector`"""
+        two minima and a unit cell vector `displacement_vector`"""
         _, _, _, exp_i_phi_j, _ = precalculated_quantities
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
@@ -1142,8 +1138,8 @@ class VTBBaseMethods(ABC):
         )
         for i, ((m, minima_m), (p, minima_p)) in enumerate(all_minima_index_pairs):
             operator_matrix[
-                m * num_states_per_min: (m + 1) * num_states_per_min,
-                p * num_states_per_min: (p + 1) * num_states_per_min,
+                m * num_states_per_min : (m + 1) * num_states_per_min,
+                p * num_states_per_min : (p + 1) * num_states_per_min,
             ] += matrix_elements[i]
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
@@ -1217,12 +1213,12 @@ class VTBBaseMethods(ABC):
         for m, _ in sorted_minima_dict.items():
             for p in range(m + 1, len(sorted_minima_dict)):
                 matrix_element = mat[
-                    m * num_states_per_min: (m + 1) * num_states_per_min,
-                    p * num_states_per_min: (p + 1) * num_states_per_min,
+                    m * num_states_per_min : (m + 1) * num_states_per_min,
+                    p * num_states_per_min : (p + 1) * num_states_per_min,
                 ]
                 mat[
-                    p * num_states_per_min: (p + 1) * num_states_per_min,
-                    m * num_states_per_min: (m + 1) * num_states_per_min,
+                    p * num_states_per_min : (p + 1) * num_states_per_min,
+                    m * num_states_per_min : (m + 1) * num_states_per_min,
                 ] += matrix_element.conjugate().T
         return mat
 
@@ -1384,7 +1380,7 @@ class VTBBaseMethods(ABC):
         relevant_unit_cell_vectors: dict,
     ) -> ndarray:
         """Perform the harmonic length optimization for a h.o. ground state wavefunction
-         localized in a given minimum"""
+        localized in a given minimum"""
         default_Xi = self.Xi_matrix(minimum_index)
         EC_mat = self.EC_matrix()
         optimized_lengths_result = minimize(
@@ -1851,7 +1847,7 @@ class VTBBaseMethods(ABC):
         num_states_per_min = self.number_states_per_minimum()
         return np.real(
             np.reshape(
-                evecs[i * num_states_per_min: (i + 1) * num_states_per_min, which],
+                evecs[i * num_states_per_min : (i + 1) * num_states_per_min, which],
                 (self.num_exc + 1, self.num_exc + 1),
             )
         )
