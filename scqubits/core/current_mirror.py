@@ -11,10 +11,8 @@ from scipy.sparse.linalg import LinearOperator, eigsh
 import scqubits.core.descriptors as descriptors
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.hashing_charge_basis import (
-    ChargeBasisLinearOperator,
-    HashingChargeBasis,
-)
+from scqubits.core.hashing_charge_basis import (ChargeBasisLinearOperator,
+                                                HashingChargeBasis)
 from scqubits.core.noise import NoisySystem
 from scqubits.core.operators import identity_wrap
 from scqubits.utils.spectrum_utils import order_eigensystem
@@ -129,6 +127,13 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             "ncut": 10,
             "truncated_dim": 6,
         }
+
+    @classmethod
+    def create(cls) -> "CurrentMirror":
+        """Use ipywidgets to create a new class instance"""
+        init_params = cls.default_params()
+        instance = cls(**init_params)
+        return instance
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""

@@ -17,11 +17,9 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.hashing import generate_next_vector, reflect_vectors
 from scqubits.core.operators import annihilation, identity_wrap
 from scqubits.utils.cpu_switch import get_map_method
-from scqubits.utils.spectrum_utils import (
-    order_eigensystem,
-    solve_generalized_eigenvalue_problem_with_QZ,
-    standardize_phases,
-)
+from scqubits.utils.spectrum_utils import (order_eigensystem,
+                                           solve_generalized_eigenvalue_problem_with_QZ,
+                                           standardize_phases)
 
 
 class VTBBaseMethods(ABC):

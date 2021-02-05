@@ -116,7 +116,7 @@ class BaseTest:
 
         assert np.allclose(evals_reference, calculated_spectrum.energy_table)
         assert np.allclose(
-            np.abs(evecs_reference), np.abs(calculated_spectrum.state_table), atol=1e-07
+            np.abs(evecs_reference), np.abs(calculated_spectrum.state_table), atol=1e-06
         )
 
     def matrixelement_table(self, io_type, op, matelem_reference, op_arg=None):
