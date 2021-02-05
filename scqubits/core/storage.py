@@ -9,7 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -17,6 +17,7 @@ from numpy import ndarray
 
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
+
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 if TYPE_CHECKING:
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 
 
 # —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
+
 
 class WaveFunction:
     """Container for wave function amplitudes defined for a specific basis. Optionally, a corresponding
@@ -38,17 +40,17 @@ class WaveFunction:
     energy:
         energy of the wave function
     """
-    def __init__(self,
-                 basis_labels: ndarray,
-                 amplitudes: ndarray,
-                 energy: float = None
-                 ) -> None:
+
+    def __init__(
+        self, basis_labels: ndarray, amplitudes: ndarray, energy: float = None
+    ) -> None:
         self.basis_labels = basis_labels
         self.amplitudes = amplitudes
         self.energy = energy
 
 
 # —WaveFunctionOnGrid class—————————————————————————————————————————————————————————————————————————————————————————————
+
 
 class WaveFunctionOnGrid:
     """Container for wave function amplitudes defined on a coordinate grid (arbitrary dimensions).
@@ -63,11 +65,10 @@ class WaveFunctionOnGrid:
     energy:
         energy corresponding to the wave function
     """
-    def __init__(self,
-                 gridspec: 'GridSpec',
-                 amplitudes: ndarray,
-                 energy: float = None
-                 ) -> None:
+
+    def __init__(
+        self, gridspec: "GridSpec", amplitudes: ndarray, energy: float = None
+    ) -> None:
         self.gridspec = gridspec
         self.amplitudes = amplitudes
         self.energy = energy
@@ -90,25 +91,29 @@ class DataStore(serializers.Serializable):
     **kwargs:
         keyword arguments for data to be stored: ``dataname=data``, where data should be an array-like object
     """
-    def __init__(self,
-                 system_params: Dict[str, Any],
-                 param_name: str = None,
-                 param_vals: ndarray = None,
-                 **kwargs
-                 ) -> None:
+
+    def __init__(
+        self,
+        system_params: Dict[str, Any],
+        param_name: str = None,
+        param_vals: ndarray = None,
+        **kwargs
+    ) -> None:
         self.system_params = system_params
         self.param_name = param_name
         self.param_vals = param_vals
         if isinstance(param_vals, ndarray):
             self.param_count = len(self.param_vals)  # type: ignore
         else:
-            self.param_count = 1   # just one value if there is no parameter sweep
+            self.param_count = 1  # just one value if there is no parameter sweep
 
         self._datanames = []  # stores names of additional datasets
         for dataname, data in kwargs.items():
             setattr(self, dataname, data)
             self._datanames.append(dataname)
-            self._init_params.append(dataname)  # register additional dataset for file IO
+            self._init_params.append(
+                dataname
+            )  # register additional dataset for file IO
 
     def add_data(self, **kwargs) -> None:
         """
@@ -123,10 +128,13 @@ class DataStore(serializers.Serializable):
         for dataname, data in kwargs.items():
             setattr(self, dataname, data)
             self._datanames.append(dataname)
-            self._init_params.append(dataname)   # register additional dataset for file IO
+            self._init_params.append(
+                dataname
+            )  # register additional dataset for file IO
 
 
 # —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
+
 
 class SpectrumData(DataStore):
     """Container holding energy and state data as a function of a particular parameter that is varied.
@@ -149,40 +157,45 @@ class SpectrumData(DataStore):
     matrixelem_table:
         matrix element data stored for each `param_vals` point
     """
+
     # mark for file serializers purposes:
-    def __init__(self,
-                 energy_table: ndarray,
-                 system_params: Dict[str, Any],
-                 param_name: str = None,
-                 param_vals: ndarray = None,
-                 state_table: Union[List[QutipEigenstates], ndarray, List[ndarray]] = None,
-                 matrixelem_table: ndarray = None,
-                 **kwargs
-                 ) -> None:
+    def __init__(
+        self,
+        energy_table: ndarray,
+        system_params: Dict[str, Any],
+        param_name: str = None,
+        param_vals: ndarray = None,
+        state_table: Union[List[QutipEigenstates], ndarray, List[ndarray]] = None,
+        matrixelem_table: ndarray = None,
+        **kwargs
+    ) -> None:
         self.system_params = system_params
         self.param_name = param_name
         self.param_vals = param_vals
         self.energy_table = energy_table
         self.state_table = state_table
         self.matrixelem_table: ndarray = matrixelem_table
-        super().__init__(system_params=system_params,
-                         param_name=param_name,
-                         param_vals=param_vals,
-                         energy_table=energy_table,
-                         state_table=state_table,
-                         matrixelem_table=matrixelem_table,
-                         **kwargs)
+        super().__init__(
+            system_params=system_params,
+            param_name=param_name,
+            param_vals=param_vals,
+            energy_table=energy_table,
+            state_table=state_table,
+            matrixelem_table=matrixelem_table,
+            **kwargs
+        )
 
     def subtract_ground(self) -> None:
         """Subtract ground state energies from spectrum"""
         self.energy_table -= self.energy_table[:, 0]
 
-    def plot_evals_vs_paramvals(self,
-                                which: Union[int, List[int]] = -1,
-                                subtract_ground: bool = False,
-                                label_list: List[str] = None,
-                                **kwargs
-                                ) -> 'Tuple[Figure, Axes]':
+    def plot_evals_vs_paramvals(
+        self,
+        which: Union[int, List[int]] = -1,
+        subtract_ground: bool = False,
+        label_list: List[str] = None,
+        **kwargs
+    ) -> "Tuple[Figure, Axes]":
         """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
 
         Parameters
@@ -201,5 +214,10 @@ class SpectrumData(DataStore):
         -------
             Figure and Axes objects for further processing
         """
-        return plot.evals_vs_paramvals(self, which=which, subtract_ground=subtract_ground,
-                                       label_list=label_list, **kwargs)
+        return plot.evals_vs_paramvals(
+            self,
+            which=which,
+            subtract_ground=subtract_ground,
+            label_list=label_list,
+            **kwargs
+        )
