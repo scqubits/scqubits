@@ -349,6 +349,15 @@ class Sweep1(Mapping):
             self.generate_sweeps()
 
     def set_loop_order(self):
+        """
+        Establish the ordering of parameter sweeps to optimize the runtime based on
+        heuristics of performance for different qubit subsystems. (Note This estimate is
+        rather simplistic.)
+
+        Returns
+        -------
+
+        """
         performance_cost = {
             scq.FullZeroPi: 50,
             scq.ZeroPi: 20,
@@ -359,7 +368,23 @@ class Sweep1(Mapping):
             scq.Oscillator: 1,
         }
 
-        def nested_loop_cost(paramnames_ordering):
+        def nested_loop_cost(paramnames_ordering: List[str]) -> int:
+            """
+            Based on heuristic performance cost for individual Hilbert space
+            subsystems, attempt to establish a ranking among the ordering of loops
+            according to anticipated runtime.
+
+            Parameters
+            ----------
+            paramnames_ordering
+                list of parameter sweep names suggesting an ordering for which the
+                heuristic runtime cost is to be estimated
+
+            Returns
+            -------
+                integer number representing the estimated runtime cost given the
+                provided parameter sweep order
+            """
             outermost_paramname = paramnames_ordering[0]
             outermost_iterations = len(self._paramvals_by_name[outermost_paramname])
             cost_per_iteration = sum(
@@ -377,12 +402,14 @@ class Sweep1(Mapping):
         paramname_permutations = itertools.permutations(
             list(self._paramvals_by_name.keys())
         )
-        loop_costs = [
+        paramorderings_and_costs = [
             (paramname_list, nested_loop_cost(paramname_list))
             for paramname_list in paramname_permutations
         ]
-        loop_order = sorted(loop_costs, key=lambda item: item[1])[0][0]
-        return loop_order
+        optimal_param_ordering = sorted(
+            paramorderings_and_costs, key=lambda item: item[1]
+        )[0][0]
+        return optimal_param_ordering
 
     def recursive_loops(
         self,
@@ -452,17 +479,18 @@ class Sweep1(Mapping):
         paramvals_counts = [len(paramvals) for paramvals in paramvals_list]
         truncated_dims = [subsys.truncated_dim for subsys in self._hilbertspace]
 
-        bare_spectrum = {
-            subsys: (NamedSlotsNdarray(np.empty(shape=paramvals_counts +
-                                                      truncated_dims[index])),
-                     NamedSlotsNdarray(np.empty(shape=paramvals_counts +
-                                                      truncated_dims[index])),
-            for index, subsys in enumerate(self._hilbertspace)
-        }
+        # bare_spectrum = {
+        #     subsys: (NamedSlotsNdarray(np.empty(shape=paramvals_counts +
+        #                                               truncated_dims[index])),
+        #              NamedSlotsNdarray(np.empty(shape=paramvals_counts +
+        #                                               truncated_dims[index]))
+        #     for index, subsys in enumerate(self._hilbertspace)
+        # }
 
-        for subsystem in self._hilbertspace:
-            bare_spectrum[subsystem] = 0
-            self.recursive_loops(paramvals_list, "bare_eigensystem")
+        # for subsystem in self._hilbertspace:
+        #     bare_spectrum[subsystem] = 0
+        #
+        #     self.recursive_loops(paramvals_list, "bare_eigensystem")
 
     def __getitem__(self, key):
         if isinstance(key, str):
