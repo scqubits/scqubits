@@ -9,7 +9,13 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: 3.7
-      - name: Install Black
+      - name: Install latest Black version
         run: pip install black
       - name: Run black --check --diff .
         run: black --check --diff .
+      - name: If check fails, attempt Black 19.1 check instead
+        if: failure()
+        run: |
+          pip uninstall black
+          pip install black==19.1
+          black --check --diff .
