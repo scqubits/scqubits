@@ -133,13 +133,13 @@ class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
 
     def __str__(self) -> str:
         indent_length = 25
-        name_prepend = "InteractionTerm".ljust(indent_length, "-") + "|\n"
+        name_prepend = "InteractionTermLegacy".ljust(indent_length, "-") + "|\n"
 
         output = ""
         for param_name in self._init_params:
             param_content = getattr(self, param_name).__repr__()
-            if "\n" in param_content:
-                length = min(param_content.rfind("\n") - 1, 30)
+            if "\n" in param_content or len(param_content) > 50:
+                length = min(param_content.rfind("\n") - 1, 50)
                 param_content = param_content[:length]
                 param_content += " ..."
 
@@ -189,7 +189,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         op2: Union[str, ndarray, csc_matrix, dia_matrix] = None,
         hilbertspace: "HilbertSpace" = None,
         add_hc: bool = False,
-    ):
+    ) -> Union["InteractionTerm", InteractionTermLegacy]:
         if subsys1:
             return InteractionTermLegacy(
                 g_strength=g_strength,
@@ -201,7 +201,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                 add_hc=add_hc,
             )
         else:
-            super().__new__(cls)
+            return super().__new__(cls)
 
     def __init__(
         self,
@@ -225,10 +225,21 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         return type(self).__name__ + f"(**{init_dict!r})"
 
     def __str__(self) -> str:
-        output = type(self).__name__.upper() + "\n ———— PARAMETERS ————"
+        indent_length = 25
+        name_prepend = "InteractionTerm".ljust(indent_length, "-") + "|\n"
+
+        output = ""
         for param_name in self._init_params:
-            output += "\n" + str(param_name) + "\t: " + str(getattr(self, param_name))
-        return output + "\n"
+            param_content = getattr(self, param_name).__repr__()
+            if "\n" in param_content or len(param_content) > 50:
+                length = min(param_content.rfind("\n") - 1, 50)
+                param_content = param_content[:length]
+                param_content += " ..."
+
+            output += "{0}| {1}: {2}\n".format(
+                " " * indent_length, str(param_name), param_content
+            )
+        return name_prepend + output
 
     def __getitem__(self, index: int) -> QuantumSys:
         return self.subsystem_list[index]
@@ -330,13 +341,13 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
 
     def __str__(self) -> str:
         indent_length = 25
-        name_prepend = "InteractionTerm".ljust(indent_length, "-") + "|\n"
+        name_prepend = "InteractionTermStr".ljust(indent_length, "-") + "|\n"
 
         output = ""
         for param_name in self._init_params:
             param_content = getattr(self, param_name).__repr__()
-            if "\n" in param_content:
-                length = min(param_content.rfind("\n") - 1, 30)
+            if "\n" in param_content or len(param_content) > 50:
+                length = min(param_content.rfind("\n") - 1, 50)
                 param_content = param_content[:length]
                 param_content += " ..."
 
