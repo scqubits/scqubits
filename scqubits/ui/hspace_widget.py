@@ -38,7 +38,6 @@ import scqubits
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.utils import misc as utils
 
-
 QuantumSys = Union[QubitBaseClass, scqubits.Oscillator]
 
 

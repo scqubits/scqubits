@@ -29,7 +29,6 @@ else:
     _HAS_IPYTHON = True
 
 
-
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
 def create_widget(
     callback_func: Callable, init_params: Dict[str, Any], image_filename: str = None

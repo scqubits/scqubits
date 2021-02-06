@@ -18,7 +18,6 @@ import qutip as qt
 
 from numpy import ndarray
 from qutip import Qobj
-
 from scipy.sparse import csc_matrix, dia_matrix
 
 if TYPE_CHECKING:
@@ -27,6 +26,7 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
     QuantumSys = Union[QubitBaseClass, Oscillator]
+
 
 def order_eigensystem(
     evals: np.ndarray, evecs: np.ndarray
@@ -341,7 +341,10 @@ def generate_target_states_list(
         from the spectral data
     """
     target_states_list = []
-    for subsys_index, qbt_subsys in sweep.qbt_subsys_list:  # iterate through qubit subsys_list
+    for (
+        subsys_index,
+        qbt_subsys,
+    ) in sweep.qbt_subsys_list:  # iterate through qubit subsys_list
         assert qbt_subsys.truncated_dim is not None
         initial_qbt_state = initial_state_labels[subsys_index]
         for state_label in range(initial_qbt_state + 1, qbt_subsys.truncated_dim):
@@ -376,12 +379,13 @@ def recast_esys_mapdata(
     return eigenenergy_table, eigenstate_table
 
 
-def identity_wrap(operator: Union[str, ndarray, Qobj],
-                  subsystem: 'QuantumSys',
-                  subsys_list: List['QuantumSys'],
-                  op_in_eigenbasis: bool = False,
-                  evecs: ndarray = None
-                  ) -> Qobj:
+def identity_wrap(
+    operator: Union[str, ndarray, Qobj],
+    subsystem: "QuantumSys",
+    subsys_list: List["QuantumSys"],
+    op_in_eigenbasis: bool = False,
+    evecs: ndarray = None,
+) -> Qobj:
     """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
 
     Parameters
@@ -399,8 +403,12 @@ def identity_wrap(operator: Union[str, ndarray, Qobj],
     evecs:
         internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
     """
-    subsys_operator = convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
-    operator_identitywrap_list = [qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list]
+    subsys_operator = convert_operator_to_qobj(
+        operator, subsystem, op_in_eigenbasis, evecs
+    )
+    operator_identitywrap_list = [
+        qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list
+    ]
     subsystem_index = subsys_list.index(subsystem)
     operator_identitywrap_list[subsystem_index] = subsys_operator
     return qt.tensor(operator_identitywrap_list)

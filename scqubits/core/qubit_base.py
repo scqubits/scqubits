@@ -647,7 +647,6 @@ class QubitBaseClass(QuantumSystem, ABC):
 # —QubitBaseClass1d——————————————————————————————————————————————————————————————————
 
 
-
 class QubitBaseClass1d(QubitBaseClass):
     """Base class for superconducting qubit objects with one degree of freedom.
     Provide general mechanisms and routines for plotting spectra, matrix elements,

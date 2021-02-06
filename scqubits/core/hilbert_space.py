@@ -14,6 +14,7 @@ import functools
 import warnings
 import weakref
 
+from collections import namedtuple
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -25,8 +26,6 @@ from typing import (
     Tuple,
     Union,
 )
-from collections import namedtuple
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -589,13 +588,13 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return evals, evecs
 
     def _esys_for_paramval(
-            self, paramval: float, update_hilbertspace: Callable, evals_count: int
+        self, paramval: float, update_hilbertspace: Callable, evals_count: int
     ) -> Tuple[ndarray, QutipEigenstates]:
         update_hilbertspace(paramval)
         return self.eigensys(evals_count)
 
     def _evals_for_paramval(
-            self, paramval: float, update_hilbertspace: Callable, evals_count: int
+        self, paramval: float, update_hilbertspace: Callable, evals_count: int
     ) -> ndarray:
         update_hilbertspace(paramval)
         return self.eigenvals(evals_count)
@@ -645,7 +644,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             ):
                 operator_list.append(term.hamiltonian())
             elif isinstance(term, InteractionTermLegacy):
-                interactionlegacy_hamiltonian = self.interactiontermlegacy_hamiltonian(
+                interactionlegacy_hamiltonian = self.interactionterm_hamiltonian(
                     term
                 )
                 operator_list.append(interactionlegacy_hamiltonian)
@@ -658,7 +657,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         hamiltonian = sum(operator_list)
         return hamiltonian
 
-    def interactiontermlegacy_hamiltonian(
+    def interactionterm_hamiltonian(
         self,
         interactionterm: InteractionTermLegacy,
         evecs1: ndarray = None,
