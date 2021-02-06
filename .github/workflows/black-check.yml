@@ -17,5 +17,5 @@ jobs:
         if: failure()
         run: |
           pip uninstall --yes black
-          pip install black==19.1
+          pip install black==19.10b0
           black --check --diff .
