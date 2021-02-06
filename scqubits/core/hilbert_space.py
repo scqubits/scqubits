@@ -644,9 +644,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             ):
                 operator_list.append(term.hamiltonian())
             elif isinstance(term, InteractionTermLegacy):
-                interactionlegacy_hamiltonian = self.interactionterm_hamiltonian(
-                    term
-                )
+                interactionlegacy_hamiltonian = self.interactionterm_hamiltonian(term)
                 operator_list.append(interactionlegacy_hamiltonian)
             elif isinstance(term, Qobj):
                 operator_list.append(term)
