@@ -11,6 +11,7 @@
 
 
 import functools
+import importlib
 import warnings
 import weakref
 
@@ -368,8 +369,9 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         return string
 
     def run_string_code(self, string: str) -> Qobj:
+        main = importlib.import_module("__main__")
         string = self.replace_string(string)
-        answer = eval(string)
+        answer = eval(string, main.__dict__)
         return answer
 
     @staticmethod
