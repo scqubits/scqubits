@@ -94,10 +94,10 @@ class HilbertSpaceUi:
 
         # == Panel for specifying an InteractionTerm ==================================
         self.op1_widget = ipywidgets.Text(
-            description="op1", placeholder="e.g., <subsys1>.phi_operator()"
+            description="op1", placeholder="e.g., phi_operator()"
         )
         self.op2_widget = ipywidgets.Text(
-            description="op2", placeholder="e.g., <subsys2>.creation_operator()"
+            description="op2", placeholder="e.g., creation_operator()"
         )
         self.op1subsys_widget = ipywidgets.Dropdown(
             options=self.subsys_widget.value, description="subsys1", disabled=False
@@ -302,9 +302,12 @@ class HilbertSpaceUi:
                         )
                     return False
             operator_str_list = [interaction_term["op1"], interaction_term["op2"]]
-            for operator_str in operator_str_list:
+            for subsys_str, operator_str in zip(
+                [interaction_term["subsys1"], interaction_term["subsys2"]],
+                operator_str_list,
+            ):
                 try:
-                    instance = eval(operator_str, main.__dict__)
+                    instance = eval(subsys_str + "." + operator_str, main.__dict__)
                 except (AttributeError, SyntaxError, NameError):
                     with self.status_output:
                         print(
@@ -321,10 +324,14 @@ class HilbertSpaceUi:
                         )
                     return False
 
-            op1 = eval(operator_str_list[0], main.__dict__)
-            op2 = eval(operator_str_list[1], main.__dict__)
             subsys1 = eval(interaction_term["subsys1"], main.__dict__)
             subsys2 = eval(interaction_term["subsys2"], main.__dict__)
+            op1 = eval(
+                interaction_term["subsys1"] + "." + operator_str_list[0], main.__dict__
+            )
+            op2 = eval(
+                interaction_term["subsys2"] + "." + operator_str_list[1], main.__dict__
+            )
 
             if self.current_interaction_type() == "InteractionTerm":
                 operator_list = [(op1, subsys1), (op2, subsys2)]
