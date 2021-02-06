@@ -45,12 +45,14 @@ class CentralDispatch:
             event: weakref.WeakKeyDictionary() for event in EVENTS
         }  # central dispatch information
 
-    # For each event, store a dict that maps the clients registered for that event to their callback routines
-    # The objects are keys in the inner dict, implemented as a WeakKeyDictionary to allow deletion/garbage collection
-    # when object should expire. Callback methods are stored as weakref.WeakMethod for the same reason.
+    # For each event, store a dict that maps the clients registered for that event to
+    # their callback routines The objects are keys in the inner dict, implemented as
+    # a WeakKeyDictionary to allow deletion/garbage collection when object should
+    # expire. Callback methods are stored as weakref.WeakMethod for the same reason.
 
     def get_clients_dict(self, event: str) -> WeakKeyDictionary:
-        """For given `event`, return the dict mapping each registered client to their callback routine
+        """For given `event`, return the dict mapping each registered client to their
+        callback routine
 
         Parameters
         ----------
@@ -84,17 +86,18 @@ class CentralDispatch:
         if callback is None:
             callback_ref = getattr(who, "receive")
             # For purposes of garbage collection, this should preferably be:
-            # callback_ref = weakref.WeakMethod(getattr(who, 'receive'))
-            # However, as of 06/12/20, pathos balks on this on Windows (while Linux is passing).
-            # Note that reference to callback methods is likely to prevent proper garbage collection,
-            # so may have to revisit this issue if necessary.
+            # callback_ref = weakref.WeakMethod(getattr(who, 'receive')) However,
+            # as of 06/12/20, pathos balks on this on Windows (while Linux is
+            # passing). Note that reference to callback methods is likely to prevent
+            # proper garbage collection, so may have to revisit this issue if
+            # necessary.
         else:
             callback_ref = callback
             # For purposes of garbage collection, this should preferably be:
-            # callback_ref = weakref.WeakMethod(callback)
-            # However, as of 06/12/20, pathos balks on this on Windows (while Linux is passing).
-            # Note that the reference to callback methods is likely to prevent proper garbage collection,
-            # so may have to revisit this issue if necessary.
+            # callback_ref = weakref.WeakMethod(callback) However, as of 06/12/20,
+            # pathos balks on this on Windows (while Linux is passing). Note that the
+            # reference to callback methods is likely to prevent proper garbage
+            # collection, so may have to revisit this issue if necessary.
         self.get_clients_dict(event)[who] = callback_ref
 
     def unregister(self, event: str, who: "DispatchClient") -> None:
@@ -112,11 +115,11 @@ class CentralDispatch:
     def unregister_object(self, who: "DispatchClient") -> None:
         """Unregister object `who` from all events.  (This modifies `clients_dict`.)
 
-          Parameters
-          ----------
-          who: DispatchClient
-              object to be unregistered
-          """
+        Parameters
+        ----------
+        who: DispatchClient
+            object to be unregistered
+        """
         for event in self.clients_dict:
             self.get_clients_dict(event).pop(who, None)
 
@@ -142,8 +145,8 @@ class CentralDispatch:
             # callback_ref()(event, sender=sender, **kwargs)
 
     def listen(self, caller: "DispatchClient", event: str, **kwargs) -> None:
-        """Receive message from client `caller` for event `event`. If dispatch is globally enabled, trigger a dispatch
-        to all clients registered for event.
+        """Receive message from client `caller` for event `event`. If dispatch is
+        globally enabled, trigger a dispatch to all clients registered for event.
 
         Parameters
         ----------
@@ -190,8 +193,9 @@ class DispatchClient:
         warnings.warn("`receive() method not implemented for {}".format(self))
 
     def __del__(self) -> None:
-        # Garbage collection will invoke this at undetermined time. `if` clauses below prevent exceptions upon program
-        # exit. (`logging` and `CENTRAL_DISPATCH` may have already been removed.)
+        # Garbage collection will invoke this at undetermined time. `if` clauses
+        # below prevent exceptions upon program exit. (`logging` and
+        # `CENTRAL_DISPATCH` may have already been removed.)
         if logging:
             logging.debug("Unregistering {}. au revoir.".format(type(self).__name__))
         if CENTRAL_DISPATCH:

@@ -60,8 +60,7 @@ class QutipEigenstates(np.ndarray, Serializable):
         return io.IOData(typename, io_attributes, io_ndarrays, objects=None)
 
     def filewrite(self, filename: str):
-        """Convenience method bound to the class. Simply accesses the `write` function.
-        """
+        """Convenience method bound to the class. Simply accesses the `write` function."""
         import scqubits.io_utils.fileio as io
 
         io.write(self, filename)

@@ -31,8 +31,8 @@ class TestSpectrumLookup:
         CPB2 = qubit.Transmon(EJ=30.0, EC=0.15, ng=0.0, ncut=10, truncated_dim=4)
 
         resonator = qubit.Oscillator(
-            E_osc=6.0, truncated_dim=4  # up to 3 photons (0,1,2,3)
-        )
+            E_osc=6.0, truncated_dim=4
+        )  # up to 3 photons (0,1,2,3)
 
         # Form a list of all components making up the Hilbert space.
         hilbertspace = HilbertSpace([CPB1, CPB2, resonator])
@@ -40,7 +40,6 @@ class TestSpectrumLookup:
         g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
         g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
 
-        # TODO: Change this
         interaction1 = InteractionTerm(
             g_strength=g1,
             op1=CPB1.n_operator(),
@@ -193,15 +192,15 @@ class TestParameterSweep:
         CPB2 = qubit.Transmon(EJ=30.0, EC=0.15, ng=0.0, ncut=10, truncated_dim=4)
 
         resonator = qubit.Oscillator(
-            E_osc=6.0, truncated_dim=4  # up to 3 photons (0,1,2,3)
-        )
+            E_osc=6.0, truncated_dim=4
+        )  # up to 3 photons (0,1,2,3)
 
         # Form a list of all components making up the Hilbert space.
         hilbertspace = HilbertSpace([CPB1, CPB2, resonator])
 
         g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
         g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
-        # TODO: Change this
+
         interaction1 = InteractionTerm(
             g_strength=g1,
             op1=CPB1.n_operator(),

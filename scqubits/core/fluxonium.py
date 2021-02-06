@@ -39,10 +39,11 @@ if TYPE_CHECKING:
 
 
 class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
-    r"""Class for the fluxonium qubit. Hamiltonian
-    :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi+\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
-    is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
-    potential is handled via matrix exponentiation. Initialize with, for example::
+    r"""Class for the fluxonium qubit. Hamiltonian :math:`H_\text{fl}=-4E_\text{
+    C}\partial_\phi^2-E_\text{J}\cos(\phi+\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
+    is represented in dense form. The employed basis is the EC-EL harmonic oscillator
+    basis. The cosine term in the potential is handled via matrix exponentiation.
+    Initialize with, for example::
 
         qubit = Fluxonium(EJ=1.0, EC=2.0, EL=0.3, flux=0.2, cutoff=120)
 
@@ -116,7 +117,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         Returns
         -------
-            Returns oscillator length for the LC oscillator composed of the fluxonium inductance and capacitance.
+            Returns oscillator length for the LC oscillator composed of the fluxonium
+             inductance and capacitance.
         """
         return (8.0 * self.EC / self.EL) ** 0.25  # LC oscillator length
 
@@ -145,7 +147,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         Returns
         -------
-            Returns the :math:`n = - i d/d\\phi` operator in the LC harmonic oscillator basis
+            Returns the :math:`n = - i d/d\\phi` operator in the LC harmonic
+            oscillator basis
         """
         dimension = self.hilbertdim()
         return (
@@ -158,7 +161,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         Returns
         -------
-            Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the LC harmonic oscillator basis,
+            Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the
+            LC harmonic oscillator basis,
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
         exponent = 1j * (alpha * self.phi_operator())
@@ -168,7 +172,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         Returns
         -------
-            Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis,
+            Returns the :math:`\\cos (\\alpha \\phi + \\beta)` operator in the LC
+            harmonic oscillator basis,
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
         exp_matrix = self.exp_i_phi_operator(alpha, beta)
@@ -178,15 +183,16 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         Returns
         -------
-            Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the LC harmonic oscillator basis
+            Returns the :math:`\\sin (\\alpha \\phi + \\beta)` operator in the
+            LC harmonic oscillator basis
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
         exp_matrix = self.exp_i_phi_operator(alpha, beta)
         return -1j * 0.5 * (exp_matrix - exp_matrix.conjugate().T)
 
     def hamiltonian(self) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
-        """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu et al., PRB 87, 024510 (2013)
-        """
+        """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu
+        et al., PRB 87, 024510 (2013) """
         dimension = self.hilbertdim()
         diag_elements = [i * self.E_plasma() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
@@ -201,16 +207,18 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         # fluxonium Hamiltonian in harm. osc. basis is real-valued
 
     def d_hamiltonian_d_EJ(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to `EJ`.
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `EJ`.
 
-        The flux is grouped as in the Hamiltonian. 
+        The flux is grouped as in the Hamiltonian.
         """
         return -self.cos_phi_operator(1, 2 * np.pi * self.flux)
 
     def d_hamiltonian_d_flux(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to `flux`.
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `flux`.
 
-        Flux is grouped as in the Hamiltonian. 
+        Flux is grouped as in the Hamiltonian.
         """
         return -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux)
 

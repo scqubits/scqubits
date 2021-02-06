@@ -73,8 +73,8 @@ def difference_spectrum(
     sweep: "ParameterSweep", initial_state_ind: int = 0, **kwargs
 ) -> Tuple[Figure, Axes]:
     """
-    Plots a transition energy spectrum with reference to the given initial_state_ind, obtained by taking energy
-    differences of the eigenenergy spectrum.
+    Plots a transition energy spectrum with reference to the given initial_state_ind,
+    obtained by taking energy differences of the eigenenergy spectrum.
 
     Parameters
     ----------
@@ -131,8 +131,8 @@ def bare_wavefunction(
         value of the external parameter
     subsys:
     which:
-        default: -1, signals to plot all wavefunctions; int>0: plot wavefunctions 0..int-1; list(int) plot specific
-        wavefunctions
+        default: -1, signals to plot all wavefunctions;
+        int>0: plot wavefunctions 0..int-1; list(int) plot specific wavefunctions
     phi_grid:
         used for setting a custom grid for phi; if None use self._default_grid
     **kwargs:

@@ -44,8 +44,8 @@ def set_units(units: str) -> str:
         with warnings.catch_warnings():
             warnings.simplefilter("always")
             warnings.warn(
-                "Changing units (by calling set_units()) after initializing qubit instances "
-                "is likely to cause unintended inconsistencies.",
+                "Changing units (by calling set_units()) after initializing qubit"
+                " instances is likely to cause unintended inconsistencies.",
                 UserWarning,
             )
 
