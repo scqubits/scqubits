@@ -46,7 +46,7 @@ class HilbertSpaceUi:
         self.interactions_dict = {}
 
         # == subsystems panel ==========================================================================================
-        label = ipywidgets.Label(value="Select all HilbertSpace\n subsystems (Ctrl-Click)")
+        label = ipywidgets.Label(value="Select subsystems (Ctrl-Click)")
         self.subsys_refresh_button = ipywidgets.Button(icon='refresh', layout=ipywidgets.Layout(width='35px'))
         self.subsys_toprow = ipywidgets.HBox([label, self.subsys_refresh_button])
 
@@ -54,7 +54,8 @@ class HilbertSpaceUi:
             options=list(self.subsys_candidates_dict.keys()),
             rows=10,
             description='',
-            disabled=False
+            disabled=False,
+            layout=ipywidgets.Layout(width='220px')
         )
         self.subsys_box = ipywidgets.VBox([self.subsys_toprow, self.subsys_widget])
 
@@ -97,7 +98,23 @@ class HilbertSpaceUi:
             self.g_widget,
             self.addhc_widget
         ])
-        self.interact_box.layout.display = 'none'
+        #self.interact_box.layout.display = 'none'
+
+        self.string_expr_widget = ipywidgets.Text(description='expression', placeholder='e.g., EJ * cos(op1 - op2)')
+        self.interact2_box = ipywidgets.VBox([
+            ipywidgets.Label(value="Specify interaction"),
+            self.string_expr_widget,
+            self.op1_widget,
+            self.op2_widget,
+            self.addhc_widget
+        ])
+
+
+        self.tabs_select_interact_type = ipywidgets.Tab(layout=ipywidgets.Layout(width='350px'))
+        self.tabs_select_interact_type.children = [self.interact_box, self.interact2_box]
+        self.tabs_select_interact_type.set_title(0, 'g * op1 * op2')
+        self.tabs_select_interact_type.set_title(1, 'Python expression')
+        self.tabs_select_interact_type.layout.display = 'none'
 
         # == Central run button, status output field ===================================================================
         self.run_button = ipywidgets.Button(description='Create HilbertSpace object',
@@ -105,7 +122,7 @@ class HilbertSpaceUi:
         self.status_output = ipywidgets.Output()
 
         # == Wrap everything into boxes ================================================================================
-        self.all_panels = ipywidgets.HBox([self.subsys_box, self.interact_list_box, self.interact_box],
+        self.all_panels = ipywidgets.HBox([self.subsys_box, self.interact_list_box, self.tabs_select_interact_type],
                                           layout=ipywidgets.Layout(grid_gap='50px'))
         self.ui = ipywidgets.VBox([self.all_panels, self.run_button, self.status_output])
 
@@ -159,7 +176,8 @@ class HilbertSpaceUi:
         self.current_interaction_key = 'term {}'.format(self.interactions_count)
         self.interactions_dict[self.current_interaction_key] = self.empty_interaction_term()
         self.interact_list_widget.options = list(self.interactions_dict.keys())
-        self.interact_box.layout.display = 'flex'
+        # self.interact_box.layout.display = 'flex'
+        self.tabs_select_interact_type.layout.display = 'flex'
 
     def del_interaction_term(self, *args):
         if len(list(self.interactions_dict.keys())) > 0:
@@ -171,7 +189,8 @@ class HilbertSpaceUi:
         else:
             self.current_interaction_key = ''
             self.interact_list_widget.options = []
-            self.interact_box.layout.display = 'none'
+            # self.interact_box.layout.display = 'none'
+            self.tabs_select_interact_type.layout.display = 'none'
 
     def current_interact_change(self, *args):
         if not self.current_interaction_key:
