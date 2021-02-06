@@ -10,11 +10,13 @@
 ############################################################################
 
 import cmath
+
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
-import scipy.sparse.csc as sp_sparse
+from scipy.sparse import csc_matrix, dia_matrix
+
 from numpy import ndarray
 from qutip import Qobj
 
@@ -87,7 +89,7 @@ def standardize_sign(real_array: np.ndarray) -> np.ndarray:
 
 
 def matrix_element(state1: Union[np.ndarray, qt.Qobj],
-                   operator: Union[np.ndarray, sp_sparse.csc_matrix, qt.Qobj],
+                   operator: Union[np.ndarray, csc_matrix, qt.Qobj],
                    state2: Union[np.ndarray, qt.Qobj]) -> Union[float, complex]:
     """Calculate the matrix element `<state1|operator|state2>`.
 
@@ -121,8 +123,8 @@ def matrix_element(state1: Union[np.ndarray, qt.Qobj],
     return np.vdot(vec1, op_matrix.dot(vec2))  # No, operator is sparse. Must use its own 'dot' method.
 
 
-def get_matrixelement_table(operator: Union[np.ndarray, sp_sparse.csc_matrix, qt.Qobj],
-                            state_table: Union[np.ndarray, sp_sparse.csc_matrix, qt.Qobj]) -> np.ndarray:
+def get_matrixelement_table(operator: Union[np.ndarray, csc_matrix, qt.Qobj],
+                            state_table: Union[np.ndarray, csc_matrix, qt.Qobj]) -> np.ndarray:
     """Calculates a table of matrix elements.
 
     Parameters
@@ -266,7 +268,7 @@ def convert_operator_to_qobj(operator: Union[np.ndarray, qt.Qobj, str],
                              evecs: Optional[np.ndarray]) -> qt.Qobj:
     if isinstance(operator, qt.Qobj):
         return operator
-    if isinstance(operator, np.ndarray):
+    if isinstance(operator, (np.ndarray, csc_matrix, dia_matrix)):
         return convert_ndarray_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)

@@ -12,11 +12,13 @@
 
 import functools
 import warnings
+
 from collections import namedtuple
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
+
 from numpy import ndarray
 from qutip.qobj import Qobj
 from scipy.sparse.csc import csc_matrix
@@ -34,6 +36,7 @@ import scqubits.ui.hspace_widget
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
+
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import SpectrumData
@@ -304,8 +307,10 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         }
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
+        # TODO: Change ID wrap method name
         qoperator_dict = self.id_wrap(self.operator_dict, subsystem_list)
         self.add_to_variables(qoperator_dict)
+        # TODO: Change add to variables to use qoperator dict
 
     def __repr__(self) -> str:
         init_dict = {name: getattr(self, name) for name in self._init_params}
@@ -356,8 +361,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         hamiltonian = self.run_string_code(self.str_expression)
         if not self.add_hc:
             return hamiltonian
-        else:
-            return hamiltonian + hamiltonian.dag()
+        return hamiltonian + hamiltonian.dag()
 
 
 class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
@@ -645,7 +649,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             ):
                 operator_list.append(term.hamiltonian())
             elif isinstance(term, InteractionTermLegacy):
-                interactionlegacy_hamiltonian = self.interactiontermlegacy_hamiltonian(
+                interactionlegacy_hamiltonian = self.interactionterm_hamiltonian(
                     term
                 )
                 operator_list.append(interactionlegacy_hamiltonian)
@@ -653,12 +657,13 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                 operator_list.append(term)
             else:
                 raise TypeError(
-                    "Expected a type of InteractionTerm, InteractionTermStr, or Qobj."
+                    "Expected an instance of InteractionTerm, InteractionTermStr, "
+                    "or Qobj."
                 )
         hamiltonian = sum(operator_list)
         return hamiltonian
 
-    def interactiontermlegacy_hamiltonian(
+    def interactionterm_hamiltonian(
         self,
         interactionterm: InteractionTermLegacy,
         evecs1: ndarray = None,
