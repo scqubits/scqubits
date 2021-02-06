@@ -368,7 +368,7 @@ class Sweep1(Mapping):
             scq.Oscillator: 1,
         }
 
-        def nested_loop_cost(paramnames_ordering: List[str]) -> int:
+        def nested_loop_cost(paramnames_ordered: List[str]) -> int:
             """
             Based on heuristic performance cost for individual Hilbert space
             subsystems, attempt to establish a ranking among the ordering of loops
@@ -376,7 +376,7 @@ class Sweep1(Mapping):
 
             Parameters
             ----------
-            paramnames_ordering
+            paramnames_ordered
                 list of parameter sweep names suggesting an ordering for which the
                 heuristic runtime cost is to be estimated
 
@@ -385,7 +385,7 @@ class Sweep1(Mapping):
                 integer number representing the estimated runtime cost given the
                 provided parameter sweep order
             """
-            outermost_paramname = paramnames_ordering[0]
+            outermost_paramname = paramnames_ordered[0]
             outermost_iterations = len(self._paramvals_by_name[outermost_paramname])
             cost_per_iteration = sum(
                 [
@@ -393,10 +393,10 @@ class Sweep1(Mapping):
                     for subsys in self._update_subsys_list[outermost_paramname]
                 ]
             )
-            if len(paramnames_ordering) == 1:
+            if len(paramnames_ordered) == 1:
                 return outermost_iterations * cost_per_iteration
             return outermost_iterations * (
-                cost_per_iteration + nested_loop_cost(paramnames_ordering[1:])
+                cost_per_iteration + nested_loop_cost(paramnames_ordered[1:])
             )
 
         paramname_permutations = itertools.permutations(
