@@ -333,6 +333,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
         qoperator_dict = self.id_wrap(self.operator_dict, subsystem_list)
+        # TODO: change add to variables
         self.add_to_variables(qoperator_dict)
 
     def __repr__(self) -> str:
@@ -661,7 +662,8 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                 operator_list.append(term)
             else:
                 raise TypeError(
-                    "Expected a type of InteractionTerm, InteractionTermStr, or Qobj."
+                    "Expected an instance of InteractionTerm, InteractionTermStr, "
+                    "or Qobj."
                 )
         hamiltonian = sum(operator_list)
         return hamiltonian
