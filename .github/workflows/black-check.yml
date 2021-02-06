@@ -16,6 +16,6 @@ jobs:
       - name: If check fails, attempt Black 19.1 check instead
         if: failure()
         run: |
-          pip uninstall black
+          pip uninstall --yes black
           pip install black==19.1
           black --check --diff .
