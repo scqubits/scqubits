@@ -1,4 +1,4 @@
-name: autoblack
+name: black-check-latest
 on: [pull_request, push]
 jobs:
   build:
@@ -13,9 +13,3 @@ jobs:
         run: pip install black
       - name: Run black --check --diff .
         run: black --check --diff .
-      - name: If check fails, attempt Black 19.1 check instead
-        if: failure()
-        run: |
-          pip uninstall --yes black
-          pip install black==19.10b0
-          black --check --diff .
