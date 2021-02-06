@@ -471,7 +471,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new HilbertSpace
-        object. """
+        object."""
         return {
             "subsystem_list": self._subsystems,
             "interaction_list": self.interaction_list,

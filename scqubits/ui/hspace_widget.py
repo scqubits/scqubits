@@ -43,7 +43,7 @@ QuantumSys = Union[QubitBaseClass, scqubits.Oscillator]
 
 class HilbertSpaceUi:
     """Class for setup and display of the ipywidget used for creation of a
-    HilbertSpace object. """
+    HilbertSpace object."""
 
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
     def __init__(self):
