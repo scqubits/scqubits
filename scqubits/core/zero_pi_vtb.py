@@ -251,10 +251,10 @@ class ZeroPiVTB(
         )
 
     def _single_exp_i_phi_j_operator(
-        self, j: int, Xi: ndarray, a_operator_list: ndarray
+        self, dof_index: int, Xi: ndarray, a_operator_list: ndarray
     ) -> ndarray:
         dim = self.number_degrees_freedom
-        cosine_coeffs = np.array([(-1) ** j, 1])
+        cosine_coeffs = np.array([(-1) ** dof_index, 1])
         exp_i_phi_theta_a_component = expm(
             np.sum(
                 [
@@ -266,7 +266,7 @@ class ZeroPiVTB(
             )
         )
         return (
-            self._BCH_factor(j, Xi)
+            self._BCH_factor(dof_index, Xi)
             * exp_i_phi_theta_a_component.T
             @ exp_i_phi_theta_a_component
         )
@@ -314,21 +314,22 @@ class ZeroPiVTB(
 
     def _local_potential(
         self,
-        exp_i_phi_list: ndarray,
-        premultiplied_a_and_a_dagger: Tuple,
-        Xi: ndarray,
-        phi_neighbor: ndarray,
+        precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
+        displacement_vector: ndarray,
         minima_m: ndarray,
         minima_p: ndarray,
     ) -> ndarray:
+        (Xi, Xi_inv, premultiplied_a_a_dagger, exp_i_phi_j,
+         _) = precalculated_quantities
         dim = self.number_degrees_freedom
-        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
-        potential_matrix = self._harmonic_contribution_to_potential(
-            premultiplied_a_and_a_dagger, Xi, phi_bar
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
+        potential_matrix = 0.0 + 0.0j
+        potential_matrix += self._harmonic_contribution_to_potential(
+            premultiplied_a_a_dagger, Xi, phi_bar
         )
         for j in range(dim):
             exp_i_phi_theta = self._exp_i_phi_theta_with_phi_bar(
-                j, exp_i_phi_list, phi_bar
+                j, exp_i_phi_j, phi_bar
             )
             potential_matrix += (
                 -0.5
@@ -341,14 +342,14 @@ class ZeroPiVTB(
 
     def _one_state_local_potential(
         self,
-        exp_i_phi_j: ndarray,
         Xi: ndarray,
-        phi_neighbor: ndarray,
+        exp_i_phi_j: ndarray,
+        displacement_vector: ndarray,
         minima_m: ndarray,
         minima_p: ndarray,
     ) -> ndarray:
         dim = self.number_degrees_freedom
-        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         potential_matrix = self.EL * (phi_bar[0] ** 2 + 0.5 * (Xi @ Xi.T)[0, 0])
         for j in range(dim):
             exp_i_phi_theta = self._exp_i_phi_theta_with_phi_bar(
@@ -377,20 +378,21 @@ class ZeroPiVTB(
 
     def _gradient_one_state_local_potential(
         self,
+        Xi: ndarray,
         exp_i_phi_j: ndarray,
-        phi_neighbor: ndarray,
+        harmonic_lengths: ndarray,
+        which_length: int,
+        displacement_vector: ndarray,
         minima_m: ndarray,
         minima_p: ndarray,
-        Xi: ndarray,
-        which_length: int,
     ) -> ndarray:
         """Returns gradient of the potential matrix"""
         dim = self.number_degrees_freedom
-        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         potential_gradient = (
             self.EL
             * Xi[0, which_length] ** 2
-            * self.harmonic_lengths[0, which_length] ** (-1)
+            * harmonic_lengths[which_length] ** (-1)
         )
         for j in range(dim):
             cosine_coeffs = np.array([(-1) ** j, 1])
@@ -401,7 +403,7 @@ class ZeroPiVTB(
                 0.25
                 * self.EJ
                 * (1.0 + (-1) ** j * self.dEJ)
-                * self.harmonic_lengths[0, which_length] ** (-1)
+                * harmonic_lengths[which_length] ** (-1)
                 * (cosine_coeffs @ Xi[:, which_length]) ** 2
                 * (exp_i_phi_theta + exp_i_phi_theta.conjugate())
             )
@@ -544,16 +546,19 @@ class ZeroPiVTBSqueezing(vtbs.VTBBaseMethodsSqueezing, ZeroPiVTB):
             harmonic_minima_pair_results,
             phi_bar,
         )
-        potential_matrix += self._local_identity_squeezing(
-            Xi_inv,
-            displacement_vector,
-            minima_m,
-            minima_p,
-            disentangled_squeezing_matrices,
-            delta_rho_matrices,
-            exp_a_dagger_a,
-            minima_pair_results,
-        ) * np.sum(self.EJlist)
+        potential_matrix += (
+            self._local_identity_squeezing(
+                Xi_inv,
+                displacement_vector,
+                minima_m,
+                minima_p,
+                disentangled_squeezing_matrices,
+                delta_rho_matrices,
+                exp_a_dagger_a,
+                minima_pair_results,
+            )
+            * np.sum(self.EJlist)
+        )
         return potential_matrix
 
     def _minima_pair_potential_squeezing(

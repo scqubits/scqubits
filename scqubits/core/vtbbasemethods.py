@@ -2,7 +2,7 @@ import itertools
 import warnings
 from abc import ABC, abstractmethod
 from functools import partial, reduce
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Any
 
 import numpy as np
 from numpy import ndarray
@@ -17,9 +17,11 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.hashing import generate_next_vector, reflect_vectors
 from scqubits.core.operators import annihilation, identity_wrap
 from scqubits.utils.cpu_switch import get_map_method
-from scqubits.utils.spectrum_utils import (order_eigensystem,
-                                           solve_generalized_eigenvalue_problem_with_QZ,
-                                           standardize_phases)
+from scqubits.utils.spectrum_utils import (
+    order_eigensystem,
+    solve_generalized_eigenvalue_problem_with_QZ,
+    standardize_phases,
+)
 
 
 class VTBBaseMethods(ABC):
@@ -552,12 +554,12 @@ class VTBBaseMethods(ABC):
         )  # a, a * a, a^{\dagger} * a
 
     def _single_exp_i_phi_j_operator(
-        self, j: int, Xi: ndarray, a_operator_array: ndarray
+        self, dof_index: int, Xi: ndarray, a_operator_array: ndarray
     ) -> ndarray:
         r"""Returns operator :math:`\exp(i\phi_{j})`. If `j` specifies the stitching
         term, which is assumed to be the last junction, then that is constructed
         based on the stitching coefficients."""
-        if j == self.number_junctions - 1:
+        if dof_index == self.number_junctions - 1:
             exp_i_phi_j_a = expm(
                 1j
                 * np.sum(
@@ -572,10 +574,11 @@ class VTBBaseMethods(ABC):
         else:
             exp_i_phi_j_a = expm(
                 1j
-                * np.sum(Xi[j] * np.transpose(a_operator_array, (1, 2, 0)), axis=2)
+                * np.sum(Xi[dof_index] * np.transpose(a_operator_array, (1, 2, 0)),
+                         axis=2)
                 / np.sqrt(2.0)
             )
-            BCH_factor = np.exp(-0.25 * Xi[j] @ Xi[j])
+            BCH_factor = np.exp(-0.25 * Xi[dof_index] @ Xi[dof_index])
         exp_i_phi_j_a_dagger_component = exp_i_phi_j_a.T
         return BCH_factor * exp_i_phi_j_a_dagger_component @ exp_i_phi_j_a
 
@@ -927,7 +930,7 @@ class VTBBaseMethods(ABC):
 
     def _local_charge_operator(
         self,
-        j: int,
+        dof_index: int,
         precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
         displacement_vector: ndarray,
         minima_m: ndarray,
@@ -940,17 +943,18 @@ class VTBBaseMethods(ABC):
         constant_coefficient = (
             -0.5
             * 1j
-            * (Xi_inv.T @ Xi_inv @ (displacement_vector + minima_p - minima_m))[j]
+            * (Xi_inv.T @ Xi_inv @ (displacement_vector + minima_p - minima_m))[
+                dof_index]
         )
         return (
             -(1j / np.sqrt(2.0))
-            * np.sum(Xi_inv.T[j] * (np.transpose(a, (1, 2, 0)) - a.T), axis=2)
+            * np.sum(Xi_inv.T[dof_index] * (np.transpose(a, (1, 2, 0)) - a.T), axis=2)
             + constant_coefficient * self._identity()
         )
 
     def _local_phi_operator(
         self,
-        j: int,
+        dof_index: int,
         precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
         displacement_vector: ndarray,
         minima_m: ndarray,
@@ -962,12 +966,12 @@ class VTBBaseMethods(ABC):
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
         constant_coefficient = 0.5 * (displacement_vector + (minima_m + minima_p))
         return (1.0 / np.sqrt(2.0)) * np.sum(
-            Xi[j] * (np.transpose(a, (1, 2, 0)) + a.T), axis=2
-        ) + constant_coefficient[j] * self._identity()
+            Xi[dof_index] * (np.transpose(a, (1, 2, 0)) + a.T), axis=2
+        ) + constant_coefficient[dof_index] * self._identity()
 
     def _local_exp_i_phi_operator(
         self,
-        j: int,
+        dof_index: int,
         precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
         displacement_vector: ndarray,
         minima_m: ndarray,
@@ -982,10 +986,10 @@ class VTBBaseMethods(ABC):
             exp_i_phi_j_phi_bar,
             exp_i_stitching_phi_j_phi_bar,
         ) = self._exp_i_phi_j_with_phi_bar(exp_i_phi_j, phi_bar)
-        if j == dim:
+        if dof_index == dim:
             return exp_i_stitching_phi_j_phi_bar
         else:
-            return exp_i_phi_j_phi_bar[j]
+            return exp_i_phi_j_phi_bar[dof_index]
 
     def _exp_i_phi_j_with_phi_bar(
         self, exp_i_phi_j: ndarray, phi_bar: ndarray
@@ -1136,8 +1140,8 @@ class VTBBaseMethods(ABC):
         )
         for i, ((m, minima_m), (p, minima_p)) in enumerate(all_minima_index_pairs):
             operator_matrix[
-                m * num_states_per_min : (m + 1) * num_states_per_min,
-                p * num_states_per_min : (p + 1) * num_states_per_min,
+                m * num_states_per_min: (m + 1) * num_states_per_min,
+                p * num_states_per_min: (p + 1) * num_states_per_min,
             ] += matrix_elements[i]
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
@@ -1211,12 +1215,12 @@ class VTBBaseMethods(ABC):
         for m, _ in sorted_minima_dict.items():
             for p in range(m + 1, len(sorted_minima_dict)):
                 matrix_element = mat[
-                    m * num_states_per_min : (m + 1) * num_states_per_min,
-                    p * num_states_per_min : (p + 1) * num_states_per_min,
+                    m * num_states_per_min: (m + 1) * num_states_per_min,
+                    p * num_states_per_min: (p + 1) * num_states_per_min,
                 ]
                 mat[
-                    p * num_states_per_min : (p + 1) * num_states_per_min,
-                    m * num_states_per_min : (m + 1) * num_states_per_min,
+                    p * num_states_per_min: (p + 1) * num_states_per_min,
+                    m * num_states_per_min: (m + 1) * num_states_per_min,
                 ] += matrix_element.conjugate().T
         return mat
 
@@ -1845,7 +1849,7 @@ class VTBBaseMethods(ABC):
         num_states_per_min = self.number_states_per_minimum()
         return np.real(
             np.reshape(
-                evecs[i * num_states_per_min : (i + 1) * num_states_per_min, which],
+                evecs[i * num_states_per_min: (i + 1) * num_states_per_min, which],
                 (self.num_exc + 1, self.num_exc + 1),
             )
         )

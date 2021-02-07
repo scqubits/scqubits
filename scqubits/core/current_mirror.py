@@ -11,8 +11,10 @@ from scipy.sparse.linalg import LinearOperator, eigsh
 import scqubits.core.descriptors as descriptors
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.hashing_charge_basis import (ChargeBasisLinearOperator,
-                                                HashingChargeBasis)
+from scqubits.core.hashing_charge_basis import (
+    ChargeBasisLinearOperator,
+    HashingChargeBasis,
+)
 from scqubits.core.noise import NoisySystem
 from scqubits.core.operators import identity_wrap
 from scqubits.utils.spectrum_utils import order_eigensystem
@@ -137,7 +139,17 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
 
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
-        return [""]
+        return [
+            "tphi_1_over_f_flux",
+        ]
+
+    def d_hamiltonian_d_flux(self) -> ndarray:
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `flux`.
+
+        Flux is grouped as in the Hamiltonian.
+        """
+        return -2 * np.pi * self.EJlist[-1] * self.sin_phi_stitching_term(self.flux)
 
     def potential(self, phi_array: ndarray) -> ndarray:
         """Potential evaluated at the location specified by phi_array.
@@ -353,6 +365,24 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             identity_operator_list,
             sparse=True,
         )
+
+    def cos_phi_stitching_term(self, flux: float) -> ndarray:
+        """
+        Returns
+        -------
+        """
+        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(-1j * 2.0 *
+                                                                       np.pi * flux)
+        return 0.5 * (exp_i_phi_stitching + exp_i_phi_stitching.conj().T)
+
+    def sin_phi_stitching_term(self, flux: float) -> ndarray:
+        """
+        Returns
+        -------
+        """
+        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(-1j * 2.0 *
+                                                                       np.pi * flux)
+        return -1j * 0.5 * (exp_i_phi_stitching - exp_i_phi_stitching.conj().T)
 
 
 class CurrentMirrorGlobal(HashingChargeBasis, CurrentMirror):

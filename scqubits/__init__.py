@@ -18,19 +18,29 @@ within scqubits is carried out with the help of Numpy and Scipy; plotting capabi
 import warnings
 
 import scqubits.settings
+
 # core
 from scqubits.core.central_dispatch import CentralDispatch
-from scqubits.core.current_mirror import (CurrentMirror, CurrentMirrorGlobal,
-                                          CurrentMirrorLinearOperator)
-from scqubits.core.current_mirror_vtb import (CurrentMirrorVTB, CurrentMirrorVTBGlobal,
-                                              CurrentMirrorVTBGlobalSqueezing,
-                                              CurrentMirrorVTBSqueezing)
+from scqubits.core.current_mirror import (
+    CurrentMirror,
+    CurrentMirrorGlobal,
+    CurrentMirrorLinearOperator,
+)
+from scqubits.core.current_mirror_vtb import (
+    CurrentMirrorVTB,
+    CurrentMirrorVTBGlobal,
+    CurrentMirrorVTBGlobalSqueezing,
+    CurrentMirrorVTBSqueezing,
+)
 from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
-from scqubits.core.flux_qubit_vtb import (FluxQubitVTB, FluxQubitVTBGlobal,
-                                          FluxQubitVTBGlobalSqueezing,
-                                          FluxQubitVTBSqueezing)
+from scqubits.core.flux_qubit_vtb import (
+    FluxQubitVTB,
+    FluxQubitVTBGlobal,
+    FluxQubitVTBGlobalSqueezing,
+    FluxQubitVTBSqueezing,
+)
 from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxWithHarmonic
 from scqubits.core.generic_qubit import GenericQubit
 from scqubits.core.harmonic_osc import Oscillator
@@ -40,11 +50,18 @@ from scqubits.core.param_sweep import ParameterSweep, StoredSweep
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.transmon_vtb import TransmonVTB
-from scqubits.core.units import (from_standard_units, get_units, get_units_time_label,
-                                 set_units, show_supported_units, to_standard_units)
+from scqubits.core.units import (
+    from_standard_units,
+    get_units,
+    get_units_time_label,
+    set_units,
+    show_supported_units,
+    to_standard_units,
+)
 from scqubits.core.zero_pi_vtb import ZeroPiVTB, ZeroPiVTBGlobal, ZeroPiVTBSqueezing
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
+
 # file IO
 from scqubits.io_utils.fileio import read, write
 

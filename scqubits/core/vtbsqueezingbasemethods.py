@@ -42,7 +42,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         M_matrix = self._squeezing_M(minimum_index, Xi, Xi_prime)
         dim = self.number_degrees_freedom
         u = M_matrix[0:dim, 0:dim]
-        v = M_matrix[dim: 2 * dim, 0:dim]
+        v = M_matrix[dim : 2 * dim, 0:dim]
         rho = inv(u) @ v
         sigma = logm(u)
         tau = v @ inv(u)
@@ -140,16 +140,16 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                 eigvec_holder[:, k] = new_evec_1
                 eigvec_holder[:, k + 1] = new_evec_2
         u = eigvec_holder[0:dim, 0:dim]
-        v = eigvec_holder[dim: 2 * dim, 0:dim]
-        eigvec_holder[0:dim, dim: 2 * dim] = v
-        eigvec_holder[dim: 2 * dim, dim: 2 * dim] = u
+        v = eigvec_holder[dim : 2 * dim, 0:dim]
+        eigvec_holder[0:dim, dim : 2 * dim] = v
+        eigvec_holder[dim : 2 * dim, dim : 2 * dim] = u
         return eigval_holder, eigvec_holder
 
     def _normalize_symplectic_eigensystem_squeezing(
         self, eigvals: ndarray, eigvec: ndarray
     ) -> Tuple:
         """Enforce commutation relations so that Bogoliubov transformation is
-        symplectic """
+        symplectic"""
         dim = self.number_degrees_freedom
         for col in range(dim):
             a = np.sum([eigvec[row, col] for row in range(2 * dim)])
@@ -168,9 +168,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             )
             eigvec[:, vec] *= a
         A = eigvec[0:dim, 0:dim]
-        B = eigvec[dim: 2 * dim, 0:dim]
-        eigvec[dim: 2 * dim, dim: 2 * dim] = A
-        eigvec[0:dim, dim: 2 * dim] = B
+        B = eigvec[dim : 2 * dim, 0:dim]
+        eigvec[dim : 2 * dim, dim : 2 * dim] = A
+        eigvec[0:dim, dim : 2 * dim] = B
         return eigvals, eigvec
 
     def _find_closest_periodic_minimum(
@@ -270,7 +270,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_diff: ndarray,
         Xi: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple
+        delta_rho_matrices: Tuple,
     ) -> Tuple:
         """Helper method that performs matrix exponentiation to aid in the
         future construction of translation operators. The resulting matrices yield a
@@ -315,7 +315,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_diff: ndarray,
         Xi: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple
+        delta_rho_matrices: Tuple,
     ) -> Tuple:
         """Helper method that performs matrix exponentiation to aid in the
         future construction of translation operators. This part of the translation
@@ -404,7 +404,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         a_operator_array: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple
+        delta_rho_matrices: Tuple,
     ) -> Tuple:
         """Helper method for building the bilinear operators necessary for constructing
         the Hamiltonian in the presence of squeezing."""
@@ -557,7 +557,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             operator_matrix[
                 m * num_states_min : (m + 1) * num_states_min,
                 p * num_states_min : (p + 1) * num_states_min,
-            ] += (matrix_element * scale)
+            ] += (
+                matrix_element * scale
+            )
         operator_matrix = self._populate_hermitian_matrix(operator_matrix)
         return operator_matrix
 
@@ -1014,16 +1016,19 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             delta_rho_matrices,
             exp_i_phi_sum_op,
         )
-        potential_matrix += self._local_identity_squeezing(
-            precalculated_quantities,
-            displacement_vector,
-            minima_m,
-            minima_p,
-            disentangled_squeezing_matrices,
-            delta_rho_matrices,
-            exp_a_dagger_a,
-            minima_pair_results,
-        ) * np.sum(self.EJlist)
+        potential_matrix += (
+            self._local_identity_squeezing(
+                precalculated_quantities,
+                displacement_vector,
+                minima_m,
+                minima_p,
+                disentangled_squeezing_matrices,
+                delta_rho_matrices,
+                exp_a_dagger_a,
+                minima_pair_results,
+            )
+            * np.sum(self.EJlist)
+        )
         return potential_matrix
 
     def _local_stitching_squeezing(
@@ -1101,7 +1106,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         precalculated_quantities: Tuple,
         exp_a_dagger_a: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple
+        delta_rho_matrices: Tuple,
     ) -> Tuple:
         """Return data necessary for constructing the potential matrix that only depends
         on the minima pair, and not on the specific periodic continuation operator."""
@@ -1121,7 +1126,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         disentangled_squeezing_matrices: Tuple,
         delta_rho_matrices: Tuple,
         exp_a_dagger_a: ndarray,
-        minima_pair_results: Tuple
+        minima_pair_results: Tuple,
     ) -> ndarray:
         """Local contribution to the identity matrix in the presence of squeezing."""
         _ = minima_pair_results
@@ -1458,7 +1463,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         default_Xi: ndarray,
         relevant_unit_cell_vectors: dict,
         Xi_global: ndarray,
-        Xi_global_inv: ndarray
+        Xi_global_inv: ndarray,
     ) -> ndarray:
         """Function to be optimized in the minimization procedure, corresponding to the
         variational estimate of the ground state energy."""
@@ -1478,7 +1483,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         precalculated_quantities: Tuple,
         minimum_location: ndarray,
         minimum_index: int,
-        relevant_unit_cell_vectors: dict
+        relevant_unit_cell_vectors: dict,
     ) -> Tuple:
         """Transfer matrix and inner product matrix when considering
         only the ground state."""
