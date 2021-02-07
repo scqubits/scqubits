@@ -12,7 +12,12 @@
 import functools
 import importlib
 
+from typing import List, Union
+
 import numpy as np
+
+from qutip import Qobj
+from scipy.sparse import csc_matrix
 
 try:
     import ipywidgets
@@ -30,13 +35,15 @@ else:
 
 import scqubits
 
-from scqubits.ui.qubit_widget import _HAS_IPYTHON, _HAS_IPYWIDGETS
+from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.utils import misc as utils
+
+QuantumSys = Union[QubitBaseClass, scqubits.Oscillator]
 
 
 class HilbertSpaceUi:
     """Class for setup and display of the ipywidget used for creation of a
-    HilbertSpace object. """
+    HilbertSpace object."""
 
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
     def __init__(self):
@@ -48,9 +55,7 @@ class HilbertSpaceUi:
         self.interactions_dict = {}
 
         # == subsystems panel =========================================================
-        label = ipywidgets.Label(
-            value="Select all HilbertSpace\n subsystems (Ctrl-Click)"
-        )
+        label = ipywidgets.Label(value="Select subsystems (Ctrl-Click)")
         self.subsys_refresh_button = ipywidgets.Button(
             icon="refresh", layout=ipywidgets.Layout(width="35px")
         )
@@ -61,6 +66,7 @@ class HilbertSpaceUi:
             rows=10,
             description="",
             disabled=False,
+            layout=ipywidgets.Layout(width="220px"),
         )
         self.subsys_box = ipywidgets.VBox([self.subsys_toprow, self.subsys_widget])
 
@@ -88,10 +94,10 @@ class HilbertSpaceUi:
 
         # == Panel for specifying an InteractionTerm ==================================
         self.op1_widget = ipywidgets.Text(
-            description="op1", placeholder="e.g., <subsys1>.n_operator()"
+            description="op1", placeholder="e.g., phi_operator()"
         )
         self.op2_widget = ipywidgets.Text(
-            description="op2", placeholder="e.g., <subsys2>.creation_operator()"
+            description="op2", placeholder="e.g., creation_operator()"
         )
         self.op1subsys_widget = ipywidgets.Dropdown(
             options=self.subsys_widget.value, description="subsys1", disabled=False
@@ -104,7 +110,7 @@ class HilbertSpaceUi:
             description="add_hc", options=["False", "True"]
         )
 
-        self.interact_box = ipywidgets.VBox(
+        self.interact_box1 = ipywidgets.VBox(
             [
                 ipywidgets.Label(value="Specify interaction"),
                 self.op1subsys_widget,
@@ -115,7 +121,32 @@ class HilbertSpaceUi:
                 self.addhc_widget,
             ]
         )
-        self.interact_box.layout.display = "none"
+
+        self.string_expr_widget = ipywidgets.Text(
+            description="expression", placeholder="e.g., EJ * cos(op1 - op2)"
+        )
+        self.interact_box2 = ipywidgets.VBox(
+            [
+                ipywidgets.Label(value="Specify interaction"),
+                self.string_expr_widget,
+                self.op1_widget,
+                self.op1subsys_widget,
+                self.op2_widget,
+                self.op2subsys_widget,
+                self.addhc_widget,
+            ]
+        )
+
+        self.tabs_select_interact_type = ipywidgets.Tab(
+            layout=ipywidgets.Layout(width="350px")
+        )
+        self.tabs_select_interact_type.children = [
+            self.interact_box1,
+            self.interact_box2,
+        ]
+        self.tabs_select_interact_type.set_title(0, "g * op1 * op2")
+        self.tabs_select_interact_type.set_title(1, "Python expression")
+        self.tabs_select_interact_type.layout.display = "none"
 
         # == Central run button, status output field ==================================
         self.run_button = ipywidgets.Button(
@@ -126,7 +157,7 @@ class HilbertSpaceUi:
 
         # == Wrap everything into boxes ===============================================
         self.all_panels = ipywidgets.HBox(
-            [self.subsys_box, self.interact_list_box, self.interact_box],
+            [self.subsys_box, self.interact_list_box, self.tabs_select_interact_type],
             layout=ipywidgets.Layout(grid_gap="50px"),
         )
         self.ui = ipywidgets.VBox(
@@ -135,6 +166,11 @@ class HilbertSpaceUi:
 
         # == Make GUI connections =====================================================
         self.connect_ui()
+
+    def current_interaction_type(self) -> str:
+        interaction_types = {0: "InteractionTerm", 1: "InteractionTermStr"}
+        tab_index = self.tabs_select_interact_type.selected_index
+        return interaction_types[tab_index]
 
     def connect_ui(self):
         def on_subsys_selected(change):
@@ -165,16 +201,12 @@ class HilbertSpaceUi:
         return candidates_dict
 
     def finish(self, callback_func, *args, **kwargs):
-        main = importlib.import_module("__main__")
-        subsystem_list = [
-            eval(subsys_name, main.__dict__) for subsys_name in self.subsys_widget.value
-        ]
         interaction_list = self.validated_interact_list()
         if interaction_list is False:
             return None
         with self.status_output:
             print("HilbertSpace instance created.")
-        callback_func(subsystem_list, interaction_list)
+        callback_func(self.subsystem_list(), interaction_list)
 
     def set_data(self, **kwargs):
         self.set_interact_term(**kwargs)
@@ -190,7 +222,7 @@ class HilbertSpaceUi:
             self.current_interaction_key
         ] = self.empty_interaction_term()
         self.interact_list_widget.options = list(self.interactions_dict.keys())
-        self.interact_box.layout.display = "flex"
+        self.tabs_select_interact_type.layout.display = "flex"
 
     def del_interaction_term(self, *args):
         if len(list(self.interactions_dict.keys())) > 0:
@@ -202,7 +234,7 @@ class HilbertSpaceUi:
         else:
             self.current_interaction_key = ""
             self.interact_list_widget.options = []
-            self.interact_box.layout.display = "none"
+            self.tabs_select_interact_type.layout.display = "none"
 
     def current_interact_change(self, *args):
         if not self.current_interaction_key:
@@ -215,6 +247,7 @@ class HilbertSpaceUi:
         self.op2subsys_widget.value = interact_params["subsys2"]
         self.g_widget.value = interact_params["g_strength"]
         self.addhc_widget.value = interact_params["add_hc"]
+        self.string_expr_widget.value = interact_params["string_expr"]
 
     @staticmethod
     def empty_interaction_term():
@@ -225,6 +258,7 @@ class HilbertSpaceUi:
             "subsys2": None,
             "g_strength": 0.0,
             "add_hc": "False",
+            "string_expr": "",
         }
 
     def widgets_dict(self):
@@ -236,13 +270,21 @@ class HilbertSpaceUi:
             "subsys2": self.op2subsys_widget,
             "g_strength": self.g_widget,
             "add_hc": self.addhc_widget,
+            "string_expr": self.string_expr_widget,
         }
 
-    def validated_interact_list(self):
+    def subsystem_list(self) -> "List[QuantumSys]":
         main = importlib.import_module("__main__")
+        return [
+            eval(subsys_name, main.__dict__) for subsys_name in self.subsys_widget.value
+        ]
 
+    def validated_interact_list(self):
         self.status_output.clear_output()
-        subsys_list = self.subsys_widget.value
+
+        main = importlib.import_module("__main__")
+        subsysname_list = self.subsys_widget.value
+
         interaction_list = []
         for interaction_term in self.interactions_dict.values():
             for param_name in ["subsys1", "subsys2"]:
@@ -250,28 +292,30 @@ class HilbertSpaceUi:
                     with self.status_output:
                         print("Error: {} not specified.".format(param_name))
                     return False
-                if interaction_term[param_name] not in subsys_list:
+                if interaction_term[param_name] not in subsysname_list:
                     with self.status_output:
                         print(
                             "Error: subsystem operator '{}' is not consistent "
-                            "with HilbertSpace subsys_list.".format(
+                            "with HilbertSpace subsysname_list.".format(
                                 interaction_term[param_name]
                             )
                         )
                     return False
             operator_str_list = [interaction_term["op1"], interaction_term["op2"]]
-            for operator_str in operator_str_list:
+            for subsys_str, operator_str in zip(
+                [interaction_term["subsys1"], interaction_term["subsys2"]],
+                operator_str_list,
+            ):
                 try:
-                    instance = eval(operator_str, main.__dict__)
+                    instance = eval(subsys_str + "." + operator_str, main.__dict__)
                 except (AttributeError, SyntaxError, NameError):
                     with self.status_output:
                         print(
-                            "Error: operator {} is not defined or has a syntax error.".format(
-                                operator_str
-                            )
+                            "Error: operator {} is not defined or has a "
+                            "syntax error.".format(operator_str)
                         )
                     return False
-                if not isinstance(instance, np.ndarray):
+                if not isinstance(instance, (np.ndarray, csc_matrix, Qobj)):
                     with self.status_output:
                         print(
                             "Type mismatch: '{}' is not a valid operator.".format(
@@ -279,31 +323,49 @@ class HilbertSpaceUi:
                             )
                         )
                     return False
-            interaction_list.append(
-                scqubits.InteractionTerm(
-                    g_strength=interaction_term["g_strength"],
-                    op1=eval(operator_str_list[0], main.__dict__),
-                    subsys1=eval(interaction_term["subsys1"], main.__dict__),
-                    op2=eval(operator_str_list[1], main.__dict__),
-                    subsys2=eval(interaction_term["subsys2"], main.__dict__),
-                    add_hc=(interaction_term["add_hc"] == "True"),
+
+            subsys1 = eval(interaction_term["subsys1"], main.__dict__)
+            subsys2 = eval(interaction_term["subsys2"], main.__dict__)
+            op1_str = interaction_term["subsys1"] + "." + operator_str_list[0]
+            op2_str = interaction_term["subsys2"] + "." + operator_str_list[1]
+            op1 = eval(op1_str, main.__dict__)
+            op2 = eval(op2_str, main.__dict__)
+
+            if self.current_interaction_type() == "InteractionTerm":
+                operator_list = [(op1, subsys1), (op2, subsys2)]
+                interaction_list.append(
+                    scqubits.InteractionTerm(
+                        g_strength=interaction_term["g_strength"],
+                        operator_list=operator_list,
+                        subsystem_list=self.subsystem_list(),
+                        add_hc=(interaction_term["add_hc"] == "True"),
+                    )
                 )
-            )
+            else:  # current interaction type is 'InteractionTermStr'
+                operator_dict = {"op1": (op1, subsys1), "op2": (op2, subsys2)}
+                interaction_list.append(
+                    scqubits.InteractionTermStr(
+                        str_expression=self.string_expr_widget.value,
+                        operator_dict=operator_dict,
+                        subsystem_list=self.subsystem_list(),
+                        add_hc=(interaction_term["add_hc"] == "True"),
+                    )
+                )
         return interaction_list
 
 
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
 def create_hilbertspace_widget(callback_func):
     """
-    Display ipywidgets interface for creating a HilbertSpace object. Typically, this function will be called by
-    `HilbertSpace.create()``.
+    Display ipywidgets interface for creating a HilbertSpace object. Typically,
+    this function will be called by `HilbertSpace.create()``.
 
 
     Parameters
     ----------
     callback_func: function
-        Function that receives the subsystem and interaction data from the widget. Typically, this is
-        ``HilbertSpace.__init__()``
+        Function that receives the subsystem and interaction data from the widget.
+        Typically, this is ``HilbertSpace.__init__()``
     """
     ui_view = HilbertSpaceUi()
 

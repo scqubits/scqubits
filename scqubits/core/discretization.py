@@ -46,22 +46,17 @@ def band_matrix(
     has_corners: bool = False,
 ) -> dia_matrix:
     """
-    Returns a dim x dim sparse matrix with constant diagonals of values `band_coeffs[0]`, `band_coeffs[1]`, ...
-    along the (off-)diagonals specified by the offsets `band_offsets[0]`, `band_offsets[1]`, ... The `has_corners`
-    option allows generation of band matrices with corner elements, in which lower off-diagonals wrap into the top
-    right corner and upper off-diagonals wrap into the bottom left corner.
-    Parameters
-    ----------
-    band_coeffs:
-        each element of band_coeffs is a number to be assigned as a constant to the (off-)diagonals
-    band_offsets:
-        offsets specifying the positions of the (off-)diagonals
-    dim:
-        dimension of the matrix
-    dtype:
-        if not specified, dtype is inferred from the dtype of `band_vecs`
-    has_corners:
-        if set to True, the off diagonals are wrapped into the opposing corners of the matrix
+    Returns a dim x dim sparse matrix with constant diagonals of values `band_coeffs[
+    0]`, `band_coeffs[1]`, ... along the (off-)diagonals specified by the offsets
+    `band_offsets[0]`, `band_offsets[1]`, ... The `has_corners` option allows
+    generation of band matrices with corner elements, in which lower off-diagonals
+    wrap into the top right corner and upper off-diagonals wrap into the bottom left
+    corner. Parameters ---------- band_coeffs: each element of band_coeffs is a
+    number to be assigned as a constant to the (off-)diagonals band_offsets: offsets
+    specifying the positions of the (off-)diagonals dim: dimension of the matrix
+    dtype: if not specified, dtype is inferred from the dtype of `band_vecs`
+    has_corners: if set to True, the off diagonals are wrapped into the opposing
+    corners of the matrix
     """
     ones_vector = np.ones(dim)
     vectors = [ones_vector * number for number in band_coeffs]
@@ -84,8 +79,9 @@ def band_matrix(
 
 
 class Grid1d(dispatch.DispatchClient, serializers.Serializable):
-    """Data structure and methods for setting up discretized 1d coordinate grid, generating corresponding derivative
-    matrices.
+    """Data structure and methods for setting up discretized 1d coordinate grid,
+    generating corresponding derivative matrices.
+
     Parameters
     ----------
     min_val:
@@ -110,11 +106,12 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         return type(self).__name__ + f"({init_dict!r})"
 
     def __str__(self) -> str:
-        output = "    Grid1d ......"
+        output = "Grid1d -----[ "
         for param_name, param_val in sorted(
             utils.drop_private_keys(self.__dict__).items()
         ):
-            output += "\n" + str(param_name) + "\t: " + str(param_val)
+            output += str(param_name) + ": " + str(param_val) + ",  "
+        output = output[:-3] + " ]"
         return output
 
     def __eq__(self, other: Any) -> bool:

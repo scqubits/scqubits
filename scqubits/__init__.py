@@ -25,8 +25,14 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
+from scqubits.core.generic_qubit import GenericQubit
 from scqubits.core.harmonic_osc import Oscillator
-from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
+from scqubits.core.hilbert_space import (
+    HilbertSpace,
+    InteractionTerm,
+    InteractionTermLegacy,
+    InteractionTermStr,
+)
 from scqubits.core.noise import calc_therm_ratio
 from scqubits.core.param_sweep import ParameterSweep, StoredSweep
 from scqubits.core.storage import DataStore, SpectrumData

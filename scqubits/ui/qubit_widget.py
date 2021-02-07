@@ -11,6 +11,9 @@
 
 from typing import Any, Callable, Dict
 
+import scqubits.core.units as units
+import scqubits.utils.misc as utils
+
 try:
     import ipywidgets
 except ImportError:
@@ -24,9 +27,6 @@ except ImportError:
     _HAS_IPYTHON = False
 else:
     _HAS_IPYTHON = True
-
-import scqubits.core.units as units
-import scqubits.utils.misc as utils
 
 
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)

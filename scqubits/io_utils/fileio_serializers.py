@@ -39,7 +39,7 @@ class Serializable(ABC):
 
     def __new__(cls: Any, *args, **kwargs) -> "Serializable":
         """Modified `__new__` to set up `cls._init_params`. The latter is used to record which of the `__init__`
-         parameters are to be stored/read in file IO."""
+        parameters are to be stored/read in file IO."""
         cls._init_params = get_init_params(cls)
         return super().__new__(cls)
 
@@ -68,8 +68,7 @@ class Serializable(ABC):
         return iodata
 
     def filewrite(self, filename: str) -> None:
-        """Convenience method bound to the class. Simply accesses the `write` function.
-        """
+        """Convenience method bound to the class. Simply accesses the `write` function."""
         import scqubits.io_utils.fileio as io
 
         io.write(self, filename)

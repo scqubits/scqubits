@@ -12,6 +12,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+import scqubits.core.sweep_generators as swp
+import scqubits.utils.explorer_panels as panels
+import scqubits.utils.misc as utils
+
 try:
     import ipywidgets
 except ImportError:
@@ -26,16 +30,13 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
-import scqubits.core.sweep_generators as swp
-import scqubits.utils.explorer_panels as panels
-import scqubits.utils.misc as utils
-
 
 class Explorer:
     """
-    This class allows interactive exploration of coupled quantum systems. The generate() method pre-calculates spectral
-    data as a function of a given parameter, which can then be displayed and modified by sliders (when inside jupyter
-    notebook or jupyter lab).
+    This class allows interactive exploration of coupled quantum systems. The
+    generate() method pre-calculates spectral data as a function of a given
+    parameter, which can then be displayed and modified by sliders (when inside
+    jupyter notebook or jupyter lab).
 
     Parameters
     ----------

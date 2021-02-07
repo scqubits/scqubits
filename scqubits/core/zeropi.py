@@ -241,8 +241,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def set_ECS(self, value) -> None:
         warnings.warn(
-            "It is not possible to directly set ECS (except in initialization). Instead, set EC or ECJ, "
-            "or use set_EC_via_ECS() to update EC indirectly.",
+            "It is not possible to directly set ECS (except in initialization)."
+            " Instead, set EC or ECJ, or use set_EC_via_ECS() to update EC indirectly.",
             Warning,
         )
 

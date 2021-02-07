@@ -29,8 +29,9 @@ _default_evals_count = 6
 def harm_osc_wavefunction(
     n: int, x: Union[float, ndarray], losc: float
 ) -> Union[float, ndarray]:
-    """For given quantum number n=0,1,2,... return the value of the harmonic oscillator wave function
-    :math:`\\psi_n(x) = N H_n(x/l_{osc}) \\exp(-x^2/2l_{osc})`, N being the proper normalization factor.
+    """For given quantum number n=0,1,2,... return the value of the harmonic
+    oscillator wave function :math:`\\psi_n(x) = N H_n(x/l_{osc}) \\exp(-x^2/2l_{
+    osc})`, N being the proper normalization factor.
 
     Parameters
     ----------
@@ -53,7 +54,7 @@ def harm_osc_wavefunction(
     )
 
 
-# —Oscillator class—————————————————————————————————————————————————————————————————————————————————————————————————————
+# —Oscillator class———————————————————————————————————————————————————————————————————
 
 
 class Oscillator(base.QuantumSystem, serializers.Serializable):
@@ -69,10 +70,12 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         self._evec_dtype = np.float_
         self.truncated_dim: int = truncated_dim
 
-        # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
+        # Support for omega will be rolled back eventually. For now allow with
+        # deprecation warnings.
         if omega:
             warnings.warn(
-                "To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.",
+                "To avoid confusion about 2pi factors, use of omega is deprecated. Use"
+                " E_osc instead.",
                 FutureWarning,
             )
             self.E_osc = omega
@@ -92,16 +95,19 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return {"E_osc": 5.0, "truncated_dim": 10}
 
     def get_omega(self) -> float:
-        # Support for omega will be rolled back eventually. For now allow with deprecation warnings.
+        # Support for omega will be rolled back eventually. For now allow with
+        # deprecation warnings.
         warnings.warn(
-            "To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.",
+            "To avoid confusion about 2pi factors, use of omega is deprecated. Use"
+            " E_osc instead.",
             FutureWarning,
         )
         return self.E_osc
 
     def set_omega(self, value: float):
         warnings.warn(
-            "To avoid confusion about 2pi factors, use of omega is deprecated. Use E_osc instead.",
+            "To avoid confusion about 2pi factors, use of omega is deprecated. Use"
+            " E_osc instead.",
             FutureWarning,
         )
         self.E_osc = value
@@ -137,8 +143,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return self.eigenvals(evals_count=evals_count), evecs
 
     def hilbertdim(self) -> int:
-        """Returns Hilbert space dimension
-        """
+        """Returns Hilbert space dimension"""
         return self.truncated_dim
 
     def creation_operator(self) -> ndarray:

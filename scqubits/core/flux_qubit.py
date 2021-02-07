@@ -62,8 +62,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
         **kwargs
     ) -> float:
         r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
-        Josephson energy :math:`EJ1`.
+        Calculate the 1/f dephasing time (or rate) due to critical current noise of
+        junction associated with Josephson energy :math:`EJ1`.
 
         Parameters
         ----------
@@ -84,7 +84,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
         """
         if "tphi_1_over_f_cc1" not in self.supported_noise_channels():
             raise RuntimeError(
-                "Critical current noise channel 'tphi_1_over_f_cc1' is not supported in this system."
+                "Critical current noise channel 'tphi_1_over_f_cc1' is not supported in"
+                " this system."
             )
 
         return self.tphi_1_over_f(
@@ -107,8 +108,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
         **kwargs
     ) -> float:
         r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
-        Josephson energy :math:`EJ2`.
+        Calculate the 1/f dephasing time (or rate) due to critical current noise of
+        junction associated with Josephson energy :math:`EJ2`.
 
         Parameters
         ----------
@@ -130,7 +131,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
         """
         if "tphi_1_over_f_cc2" not in self.supported_noise_channels():
             raise RuntimeError(
-                "Critical current noise channel 'tphi_1_over_f_cc2' is not supported in this system."
+                "Critical current noise channel 'tphi_1_over_f_cc2' is not supported in"
+                " this system."
             )
 
         return self.tphi_1_over_f(
@@ -153,7 +155,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
         **kwargs
     ) -> float:
         r"""
-        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with 
+        Calculate the 1/f dephasing time (or rate) due to critical current noise of junction associated with
         Josephson energy :math:`EJ3`.
 
         Parameters
@@ -175,7 +177,8 @@ class NoisyFluxQubit(NoisySystem, ABC):
         """
         if "tphi_1_over_f_cc3" not in self.supported_noise_channels():
             raise RuntimeError(
-                "Critical current noise channel 'tphi_1_over_f_cc3' is not supported in this system."
+                "Critical current noise channel 'tphi_1_over_f_cc3' is not supported in"
+                " this system."
             )
 
         return self.tphi_1_over_f(
@@ -197,9 +200,10 @@ class NoisyFluxQubit(NoisySystem, ABC):
         get_rate: bool = False,
         **kwargs
     ) -> float:
-        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise from all three Josephson junctions
-        :math:`EJ1`, :math:`EJ2` and :math:`EJ3`. The combined noise is calculated by summing the rates from the 
-        individual contributions.
+        r"""Calculate the 1/f dephasing time (or rate) due to critical current noise
+        from all three Josephson junctions :math:`EJ1`, :math:`EJ2` and :math:`EJ3`.
+        The combined noise is calculated by summing the rates from the individual
+        contributions.
 
         Parameters
         -----------
@@ -214,13 +218,13 @@ class NoisyFluxQubit(NoisySystem, ABC):
         get_rate:
             get rate or time
 
-        Returns
-        -------
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+        Returns ------- decoherence time in units of :math:`2\pi ({\rm system\,\,
+        units})`, or rate in inverse units.
         """
         if "tphi_1_over_f_cc" not in self.supported_noise_channels():
             raise RuntimeError(
-                "Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system."
+                "Critical current noise channel 'tphi_1_over_f_cc' is not supported in"
+                " this system."
             )
 
         rate = self.tphi_1_over_f_cc1(
@@ -238,26 +242,29 @@ class NoisyFluxQubit(NoisySystem, ABC):
             return 1 / rate if rate != 0 else np.inf
 
 
-# -Flux qubit, both degrees of freedom in charge basis---------------------------------------------------------
+# -Flux qubit, both degrees of freedom in charge basis---------------------------------
 
 
 class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     r"""Flux Qubit
 
-    | [1] Orlando et al., Physical Review B, 60, 15398 (1999). https://link.aps.org/doi/10.1103/PhysRevB.60.15398
+    | [1] Orlando et al., Physical Review B, 60, 15398 (1999).
+          https://link.aps.org/doi/10.1103/PhysRevB.60.15398
 
-    The original flux qubit as defined in [1], where the junctions are allowed to have varying junction
-    energies and capacitances to allow for junction asymmetry. Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and
-    :math:`E_{J3}=\alpha E_J` where :math:`0\le \alpha \le 1`. The same relations typically hold
-    for the junction capacitances. The Hamiltonian is given by
+    The original flux qubit as defined in [1], where the junctions are allowed to
+    have varying junction energies and capacitances to allow for junction asymmetry.
+    Typically, one takes :math:`E_{J1}=E_{J2}=E_J`, and :math:`E_{J3}=\alpha E_J`
+    where :math:`0\le \alpha \le 1`. The same relations typically hold for the
+    junction capacitances. The Hamiltonian is given by
 
     .. math::
 
        H_\text{flux}=&(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
-                    -&E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f + \phi_{1} - \phi_{2}),
+                    -&E_{J}\cos\phi_{1}-E_{J}\cos\phi_{2}-\alpha E_{J}\cos(2\pi f
+                    + \phi_{1} - \phi_{2}),
 
-    where :math:`i,j\in\{1,2\}` is represented in the charge basis for both degrees of freedom.
-    Initialize with, for example::
+    where :math:`i,j\in\{1,2\}` is represented in the charge basis for both degrees
+    of freedom. Initialize with, for example::
 
         EJ = 35.0
         alpha = 0.6
@@ -274,7 +281,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     ECJ1, ECJ2, ECJ3: float
         charging energy associated with the ith junction
     ECg1, ECg2: float
-        charging energy associated with the capacitive coupling to ground for the two islands
+        charging energy associated with the capacitive coupling to ground for the
+        two islands
     ng1, ng2: float
         offset charge associated with island i
     flux: float
@@ -402,7 +410,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return (2 * self.ncut + 1) ** 2
 
     def potential(self, phi1: ndarray, phi2: ndarray) -> ndarray:
-        """Return value of the potential energy at phi1 and phi2, disregarding constants."""
+        """Return value of the potential energy at phi1 and phi2, disregarding
+        constants."""
         return (
             -self.EJ1 * np.cos(phi1)
             - self.EJ2 * np.cos(phi2)
@@ -482,23 +491,27 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return potential_mat
 
     def hamiltonian(self) -> ndarray:
-        """Return Hamiltonian in basis obtained by employing charge basis for both degrees of freedom"""
+        """Return Hamiltonian in basis obtained by employing charge basis for both
+        degrees of freedom"""
         return self.kineticmat() + self.potentialmat()
 
     def d_hamiltonian_d_EJ1(self) -> ndarray:
-        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ1."""
+        """Returns operator representing a derivittive of the Hamiltonian with
+        respect to EJ1."""
         return -0.5 * np.kron(
             self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity()
         )
 
     def d_hamiltonian_d_EJ2(self) -> ndarray:
-        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ2."""
+        """Returns operator representing a derivittive of the Hamiltonian with
+        respect to EJ2."""
         return -0.5 * np.kron(
             self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T
         )
 
     def d_hamiltonian_d_EJ3(self) -> ndarray:
-        """Returns operator representing a derivittive of the Hamiltonian with respect to EJ3."""
+        """Returns operator representing a derivittive of the Hamiltonian with
+        respect to EJ3."""
         return (
             -0.5
             * (
@@ -659,9 +672,11 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         phi_grid:
             used for setting a custom grid for phi; if None use self._default_grid
         mode:
-            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
+            choices as specified in `constants.MODE_FUNC_DICT`
+            (default value = 'abs_sqr')
         zero_calibrate:
-            if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
+            if True, colors are adjusted to use zero wavefunction amplitude as the
+            neutral color in the palette
         **kwargs:
             plot options
         """

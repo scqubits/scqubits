@@ -215,7 +215,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
-            "tphi_1_over_f_flux" "t1_bias_flux_line"
+            "tphi_1_over_f_fluxt1_bias_flux_line"
             # 't1_capacitive',
             "t1_inductive",
         ]
@@ -245,9 +245,22 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             self.broadcast("QUANTUMSYSTEM_UPDATE")
 
     def __str__(self) -> str:
-        output_str = super().__str__() + "\n\n"
-        output_str += "INTERNAL 0-Pi object: " + self._zeropi.__str__()
-        return output_str
+        output = super().__str__()
+        output = output[: output.rfind("\n")]
+        output = output[: output.rfind("\n")]
+        line_indent = output[output.rfind("\n") :]
+
+        output += (
+            line_indent
+            + " dim: {0}   --[ (theta, phi): {1} total, {2} truncated;  (zeta): {3}"
+            " ]--\n".format(
+                self.hilbertdim(),
+                self._zeropi.hilbertdim(),
+                self.zeropi_cutoff,
+                self.zeta_cutoff,
+            )
+        )
+        return output
 
     def set_EC_via_ECS(self, ECS: float) -> None:
         """Helper function to set `EC` by providing `ECS`, keeping `ECJ` constant."""
@@ -260,7 +273,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def set_E_zeta(self, value: float) -> None:
         raise ValueError(
-            "Cannot directly set `E_zeta`. Instead one can set its value through `EL` or `EC`."
+            "Cannot directly set `E_zeta`. Instead one can set its value through `EL`"
+            " or `EC`."
         )
 
     def hamiltonian(
@@ -313,24 +327,24 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
         as stored in the object. The returned operator is in the product basis
 
-        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0. 
-        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned 
+        The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
+        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
         by this function, needs to be multiplied by 1/\Phi_0.
 
         Returns
         -------
-            matrix representing the derivative of the Hamiltonian 
+            matrix representing the derivative of the Hamiltonian
         """
         return self._zeropi_operator_in_product_basis(
             self._zeropi.d_hamiltonian_d_flux(), zeropi_evecs=zeropi_evecs
         )
 
     def d_hamiltonian_d_EJ(self, zeropi_evecs: ndarray = None) -> csc_matrix:
-        r"""Calculates a derivative of the Hamiltonian w.r.t EJ. 
+        r"""Calculates a derivative of the Hamiltonian w.r.t EJ.
 
         Returns
         -------
-            matrix representing the derivative of the Hamiltonian 
+            matrix representing the derivative of the Hamiltonian
         """
         return self._zeropi_operator_in_product_basis(
             self._zeropi.d_hamiltonian_d_EJ(), zeropi_evecs=zeropi_evecs
