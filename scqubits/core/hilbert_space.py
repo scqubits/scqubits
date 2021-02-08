@@ -455,6 +455,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                 output += "\n" + str(interaction_term) + "\n"
         return output
 
+    def __len__(self):
+        return len(self._subsystems)
+
     ###################################################################################
     # HilbertSpace: file IO methods
     ###################################################################################
