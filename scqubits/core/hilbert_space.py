@@ -11,6 +11,7 @@
 
 
 import functools
+import importlib
 import warnings
 import weakref
 
@@ -138,9 +139,9 @@ class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
         output = ""
         for param_name in self._init_params:
             param_content = getattr(self, param_name).__repr__()
-            if "\n" in param_content or len(param_content) > 50:
-                length = min(param_content.rfind("\n") - 1, 50)
-                param_content = param_content[:length]
+            param_content = param_content.strip("\n")
+            if len(param_content) > 50:
+                param_content = param_content[:50]
                 param_content += " ..."
 
             output += "{0}| {1}: {2}\n".format(
@@ -231,9 +232,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         output = ""
         for param_name in self._init_params:
             param_content = getattr(self, param_name).__repr__()
-            if "\n" in param_content or len(param_content) > 50:
-                length = min(param_content.rfind("\n") - 1, 50)
-                param_content = param_content[:length]
+            param_content = param_content.strip("\n")
+            if len(param_content) > 50:
+                param_content = param_content[:50]
                 param_content += " ..."
 
             output += "{0}| {1}: {2}\n".format(
@@ -346,9 +347,9 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         output = ""
         for param_name in self._init_params:
             param_content = getattr(self, param_name).__repr__()
-            if "\n" in param_content or len(param_content) > 50:
-                length = min(param_content.rfind("\n") - 1, 50)
-                param_content = param_content[:length]
+            param_content = param_content.strip("\n")
+            if len(param_content) > 50:
+                param_content = param_content[:50]
                 param_content += " ..."
 
             output += "{0}| {1}: {2}\n".format(
@@ -367,8 +368,9 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         return string
 
     def run_string_code(self, string: str, op_dict: dict) -> Qobj:
+        main = importlib.import_module("__main__")
         string = self.replace_string(string)
-        answer = eval(string)
+        answer = eval(string, main.__dict__)
         return answer
 
     @staticmethod

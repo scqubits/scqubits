@@ -326,12 +326,10 @@ class HilbertSpaceUi:
 
             subsys1 = eval(interaction_term["subsys1"], main.__dict__)
             subsys2 = eval(interaction_term["subsys2"], main.__dict__)
-            op1 = eval(
-                interaction_term["subsys1"] + "." + operator_str_list[0], main.__dict__
-            )
-            op2 = eval(
-                interaction_term["subsys2"] + "." + operator_str_list[1], main.__dict__
-            )
+            op1_str = interaction_term["subsys1"] + "." + operator_str_list[0]
+            op2_str = interaction_term["subsys2"] + "." + operator_str_list[1]
+            op1 = eval(op1_str, main.__dict__)
+            op2 = eval(op2_str, main.__dict__)
 
             if self.current_interaction_type() == "InteractionTerm":
                 operator_list = [(op1, subsys1), (op2, subsys2)]
