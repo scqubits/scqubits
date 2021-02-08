@@ -218,7 +218,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         ]
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
-        self.qoperator_list = self.idwrap(self.operator_list, subsystem_list)
+        self.qoperator_list = self.id_wrap_all_ops(self.operator_list, subsystem_list)
 
     def __repr__(self) -> str:
         init_dict = {name: getattr(self, name) for name in self._init_params}
@@ -264,7 +264,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         return new_operators
 
     @staticmethod
-    def idwrap(operator_list: list, subsystem_list: list) -> list:
+    def id_wrap_all_ops(operator_list: list, subsystem_list: list) -> list:
         id_wrapped_operators = [
             spec_utils.identity_wrap(item.operator, item.subsystem, subsystem_list)
             for item in operator_list
@@ -301,20 +301,6 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     subsystem_list = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
     add_hc = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
 
-    qutip_dict = {
-        "cosm(": "Qobj.cosm(",
-        "expm(": "Qobj.expm(",
-        "sinm(": "Qobj.sinm(",
-        "sqrtm(": "Qobj.sqrtm(",
-        "cos(": "Qobj.cosm(",
-        "dag(": "Qobj.dag(",
-        "conj(": "Qobj.conj(",
-        "exp(": "Qobj.expm(",
-        "sin(": "Qobj.sinm(",
-        "sqrt(": "Qobj.sqrtm(",
-        "trans(": "Qobj.trans(",
-    }
-
     def __init__(
         self,
         str_expression: str,
@@ -325,6 +311,19 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         subsystem_list: List[QuantumSys],
         add_hc: bool = False,
     ) -> None:
+        self.qutip_dict = {
+            "cosm(": "Qobj.cosm(",
+            "expm(": "Qobj.expm(",
+            "sinm(": "Qobj.sinm(",
+            "sqrtm(": "Qobj.sqrtm(",
+            "cos(": "Qobj.cosm(",
+            "dag(": "Qobj.dag(",
+            "conj(": "Qobj.conj(",
+            "exp(": "Qobj.expm(",
+            "sin(": "Qobj.sinm(",
+            "sqrt(": "Qobj.sqrtm(",
+            "trans(": "Qobj.trans(",
+        }
         self.str_expression = str_expression
         self.operator_dict = {
             key: (SubsysOperator(value[0], value[1]))
@@ -332,9 +331,9 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         }
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
-        qoperator_dict = self.id_wrap(self.operator_dict, subsystem_list)
+        self.qoperator_dict = self.id_wrap_all_ops(self.operator_dict, subsystem_list)
         # TODO: change add to variables
-        self.add_to_variables(qoperator_dict)
+        self.add_to_variables(self.qoperator_dict)
 
     def __repr__(self) -> str:
         init_dict = {name: getattr(self, name) for name in self._init_params}
@@ -357,10 +356,9 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
             )
         return name_prepend + output
 
-    @staticmethod
-    def add_to_variables(op_dict: dict) -> None:
+    def add_to_variables(self, op_dict: dict) -> None:
         for (key, value) in op_dict.items():
-            globals()[key] = value
+            self.qutip_dict[key] = "op_dict['" + key + "']"
 
     def replace_string(self, string: str) -> str:
         for item, value in self.qutip_dict.items():
@@ -368,13 +366,13 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
                 string = string.replace(item, value)
         return string
 
-    def run_string_code(self, string: str) -> Qobj:
+    def run_string_code(self, string: str, op_dict: dict) -> Qobj:
         string = self.replace_string(string)
         answer = eval(string)
         return answer
 
     @staticmethod
-    def id_wrap(op_dict: dict, subsys_list: list) -> dict:
+    def id_wrap_all_ops(op_dict: dict, subsys_list: list) -> dict:
         new_operators = {
             key: spec_utils.identity_wrap(value.operator, value.subsystem, subsys_list)
             for (key, value) in op_dict.items()
@@ -382,7 +380,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         return new_operators
 
     def hamiltonian(self):
-        hamiltonian = self.run_string_code(self.str_expression)
+        hamiltonian = self.run_string_code(self.str_expression, self.qoperator_dict)
         if not self.add_hc:
             return hamiltonian
         else:
