@@ -11,6 +11,7 @@ from scipy.optimize import minimize
 from scipy.special import factorial
 
 from scqubits.core.vtbbasemethods import VTBBaseMethods
+from scqubits.utils.cpu_switch import get_map_method
 
 
 class VTBBaseMethodsSqueezing(VTBBaseMethods):
@@ -501,120 +502,168 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         _periodic_continuation to allow for squeezing"""
         Xi = self.Xi_matrix(0, optimized_harmonic_lengths)
         Xi_inv = inv(Xi)
+        target_map = get_map_method(num_cpus)
         a_operator_array = self._a_operator_array()
-        sorted_minima_dict = self.sorted_minima_dict
-        hilbertdim = self.hilbertdim()
-        num_states_min = self.number_states_per_minimum()
-        operator_matrix = np.zeros((hilbertdim, hilbertdim), dtype=np.complex128)
-        all_minima_pairs = itertools.combinations_with_replacement(
-            sorted_minima_dict, 2
+        all_minima_index_pairs = list(
+            itertools.combinations_with_replacement(self.sorted_minima_dict.items(), 2)
         )
-        for m, p in all_minima_pairs:
-            minima_diff = sorted_minima_dict[p] - sorted_minima_dict[m]
-            minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m, p)]
-            disentangled_squeezing_matrices = self._rho_sigma_tau_matrices(
-                m, p, Xi, optimized_harmonic_lengths
-            )
-            (
-                rho,
-                rho_prime,
-                sigma,
-                sigma_prime,
-                tau,
-                tau_prime,
-            ) = disentangled_squeezing_matrices
-            delta_rho_matrices = self._delta_rho_matrices(rho, rho_prime)
-            squeezing_operators = self._bilinear_squeezing_operators(
-                a_operator_array, disentangled_squeezing_matrices, delta_rho_matrices
-            )
-            exp_a_dagger_a_dagger, exp_a_dagger_a, exp_a_a = squeezing_operators
-            exp_operators = (
-                self._general_translation_operators(
-                    minima_diff, Xi, disentangled_squeezing_matrices, delta_rho_matrices
-                ),
-                self._minima_dependent_translation_operators(
-                    minima_diff, Xi, disentangled_squeezing_matrices, delta_rho_matrices
-                ),
-            )
-            minima_pair_results = minima_pair_func(
-                exp_a_dagger_a, disentangled_squeezing_matrices, delta_rho_matrices
-            )
-            scale = 1.0 / np.sqrt(
-                det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rho_prime))
-            )
-            matrix_element = self._periodic_continuation_for_minima_pair(
-                sorted_minima_dict[m],
-                sorted_minima_dict[p],
-                minima_pair_displacement_vectors,
+        wrapper_minima_pair = partial(
+            self._wrapper_minima_pair,
+            minima_pair_func,
+            local_func,
+            Xi,
+            Xi_inv,
+            optimized_harmonic_lengths,
+            a_operator_array,
+            relevant_unit_cell_vectors,
+        )
+        matrix_elements = list(target_map(wrapper_minima_pair, all_minima_index_pairs))
+        return self._construct_VTB_operator_given_blocks(
+            matrix_elements, all_minima_index_pairs
+        )
+
+    def _wrapper_minima_pair(
+        self,
+        minima_pair_func: Callable,
+        local_func: Callable,
+        Xi: ndarray,
+        Xi_inv: ndarray,
+        harmonic_lengths: ndarray,
+        a_operator_array: ndarray,
+        relevant_unit_cell_vectors: dict,
+        minima_index_pair: Tuple,
+    ):
+        ((m, minima_m), (p, minima_p)) = minima_index_pair
+        minima_diff = minima_p - minima_m
+        disentangled_squeezing_matrices = self._rho_sigma_tau_matrices(
+            m, p, Xi, harmonic_lengths
+        )
+        (
+            rho,
+            rho_prime,
+            sigma,
+            sigma_prime,
+            tau,
+            tau_prime,
+        ) = disentangled_squeezing_matrices
+        delta_rho_matrices = self._delta_rho_matrices(rho, rho_prime)
+        squeezing_operators = self._bilinear_squeezing_operators(
+            a_operator_array, disentangled_squeezing_matrices, delta_rho_matrices
+        )
+        exp_a_dagger_a_dagger, exp_a_dagger_a, exp_a_a = squeezing_operators
+        exp_operators = (
+            self._general_translation_operators(
+                minima_diff, Xi, disentangled_squeezing_matrices, delta_rho_matrices
+            ),
+            self._minima_dependent_translation_operators(
+                minima_diff, Xi, disentangled_squeezing_matrices, delta_rho_matrices
+            ),
+        )
+        minima_pair_results = minima_pair_func(
+            exp_a_dagger_a, disentangled_squeezing_matrices, delta_rho_matrices
+        )
+        scale = 1.0 / np.sqrt(
+            det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rho_prime))
+        )
+        return (
+            self._periodic_continuation_for_minima_pair(
                 local_func,
-                squeezing_operators,
                 exp_operators,
+                Xi_inv,
+                squeezing_operators,
                 disentangled_squeezing_matrices,
                 delta_rho_matrices,
+                relevant_unit_cell_vectors,
                 minima_pair_results,
-                Xi_inv,
+                minima_index_pair,
             )
-            operator_matrix[
-                m * num_states_min : (m + 1) * num_states_min,
-                p * num_states_min : (p + 1) * num_states_min,
-            ] += (
-                matrix_element * scale
-            )
-        operator_matrix = self._populate_hermitian_matrix(operator_matrix)
-        return operator_matrix
+            * scale
+        )
 
     def _periodic_continuation_for_minima_pair(
         self,
+        local_func: Callable,
+        exp_operators: Tuple,
+        Xi_inv: ndarray,
+        squeezing_operators: Tuple,
+        disentangled_squeezing_matrices: Tuple,
+        delta_rho_matrices: Tuple,
+        relevant_unit_cell_vectors: dict,
+        minima_pair_results: Tuple,
+        minima_index_pair: Tuple,
+    ):
+        ((m, minima_m), (p, minima_p)) = minima_index_pair
+        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m, p)]
+        num_states_per_min = self.number_states_per_minimum()
+        if minima_pair_displacement_vectors is not None:
+            displacement_vector_contribution = partial(
+                self._displacement_vector_contribution,
+                local_func,
+                minima_m,
+                minima_p,
+                exp_operators,
+                Xi_inv,
+                squeezing_operators,
+                disentangled_squeezing_matrices,
+                delta_rho_matrices,
+                minima_pair_results,
+            )
+            relevant_vector_contributions = sum(
+                map(displacement_vector_contribution, minima_pair_displacement_vectors)
+            )
+        else:
+            relevant_vector_contributions = np.zeros(
+                (num_states_per_min, num_states_per_min), dtype=np.complex_
+            )
+        return relevant_vector_contributions
+
+    def _displacement_vector_contribution(
+        self,
+        local_func: Callable,
         minima_m: ndarray,
         minima_p: ndarray,
-        minima_pair_displacement_vectors: ndarray,
-        local_func: Callable,
-        squeezing_operators: Tuple,
         exp_operators: Tuple,
+        Xi_inv: ndarray,
+        squeezing_operators: Tuple,
         disentangled_squeezing_matrices: Tuple,
         delta_rho_matrices: Tuple,
         minima_pair_results: Tuple,
-        Xi_inv: ndarray,
-    ):
-        num_states = self.number_states_per_minimum()
-        matrix_element = np.zeros((num_states, num_states), dtype=np.complex_)
-        if minima_pair_displacement_vectors is not None:
-            (
-                rho,
-                rho_prime,
-                sigma,
-                sigma_prime,
-                tau,
-                tau_prime,
-            ) = disentangled_squeezing_matrices
-            exp_a_dagger_a_dagger, exp_a_dagger_a, exp_a_a = squeezing_operators
-            for unit_cell_vector in minima_pair_displacement_vectors:
-                displacement_vector = 2.0 * np.pi * np.array(unit_cell_vector)
-                translation_operators = self._local_translation_operators(
-                    exp_operators, squeezing_operators, unit_cell_vector
-                )
-                translation_a_dagger, translation_a = translation_operators
-                exp_prod_coefficient = self._exp_product_coefficient_squeezing(
-                    displacement_vector + minima_p - minima_m,
-                    Xi_inv,
-                    sigma,
-                    sigma_prime,
-                )
-                matrix_element += (
-                    exp_prod_coefficient
-                    * translation_a_dagger
-                    @ local_func(
-                        displacement_vector,
-                        minima_m,
-                        minima_p,
-                        disentangled_squeezing_matrices,
-                        delta_rho_matrices,
-                        exp_a_dagger_a,
-                        minima_pair_results,
-                    )
-                    @ translation_a
-                )
-        return matrix_element
+        unit_cell_vector: ndarray,
+    ) -> ndarray:
+        displacement_vector = 2.0 * np.pi * np.array(unit_cell_vector)
+        translation_operators = self._local_translation_operators(
+            exp_operators, squeezing_operators, unit_cell_vector
+        )
+        (
+            _,
+            _,
+            sigma,
+            sigma_prime,
+            _,
+            _,
+        ) = disentangled_squeezing_matrices
+        exp_a_dagger_a_dagger, exp_a_dagger_a, exp_a_a = squeezing_operators
+        translation_a_dagger, translation_a = translation_operators
+        exp_prod_coefficient = self._exp_product_coefficient_squeezing(
+            displacement_vector + minima_p - minima_m,
+            Xi_inv,
+            sigma,
+            sigma_prime,
+        )
+        return (
+            exp_prod_coefficient
+            * translation_a_dagger
+            @ local_func(
+                displacement_vector,
+                minima_m,
+                minima_p,
+                disentangled_squeezing_matrices,
+                delta_rho_matrices,
+                exp_a_dagger_a,
+                minima_pair_results,
+            )
+            @ translation_a
+        )
 
     def _kinetic_alpha_epsilon_squeezing(
         self,
@@ -1406,16 +1455,19 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             delta_rho_matrices,
             exp_i_phi_sum_op,
         )
-        potential_matrix += self._local_identity_squeezing(
-            (None, Xi_global_inv, None),
-            displacement_vector,
-            minima_m,
-            minima_p,
-            disentangled_squeezing_matrices,
-            delta_rho_matrices,
-            np.array([1.0]),
-            (),
-        ) * np.sum(self.EJlist)
+        potential_matrix += (
+            self._local_identity_squeezing(
+                (None, Xi_global_inv, None),
+                displacement_vector,
+                minima_m,
+                minima_p,
+                disentangled_squeezing_matrices,
+                delta_rho_matrices,
+                np.array([1.0]),
+                (),
+            )
+            * np.sum(self.EJlist)
+        )
         return potential_matrix
 
     def _one_state_local_kinetic_squeezing(

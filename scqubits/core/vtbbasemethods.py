@@ -1120,10 +1120,6 @@ class VTBBaseMethods(ABC):
         target_map = get_map_method(num_cpus)
         a_operator_array = self._a_operator_array()
         exp_a_list = self._general_translation_operators(Xi_inv, a_operator_array)
-        num_states_per_min = self.number_states_per_minimum()
-        operator_matrix = np.zeros(
-            (self.hilbertdim(), self.hilbertdim()), dtype=np.complex_
-        )
         all_minima_index_pairs = list(
             itertools.combinations_with_replacement(self.sorted_minima_dict.items(), 2)
         )
@@ -1138,13 +1134,20 @@ class VTBBaseMethods(ABC):
         matrix_elements = list(
             target_map(periodic_continuation_for_minima_pair, all_minima_index_pairs)
         )
+        return self._construct_VTB_operator_given_blocks(matrix_elements,
+                                                         all_minima_index_pairs)
+
+    def _construct_VTB_operator_given_blocks(self, matrix_elements,
+                                             all_minima_index_pairs):
+        num_states_per_min = self.number_states_per_minimum()
+        hilbertdim = self.hilbertdim()
+        operator_matrix = np.zeros((hilbertdim, hilbertdim), dtype=np.complex128)
         for i, ((m, minima_m), (p, minima_p)) in enumerate(all_minima_index_pairs):
             operator_matrix[
                 m * num_states_per_min: (m + 1) * num_states_per_min,
                 p * num_states_per_min: (p + 1) * num_states_per_min,
             ] += matrix_elements[i]
-        operator_matrix = self._populate_hermitian_matrix(operator_matrix)
-        return operator_matrix
+        return self._populate_hermitian_matrix(operator_matrix)
 
     def _periodic_continuation_for_minima_pair(
         self,
