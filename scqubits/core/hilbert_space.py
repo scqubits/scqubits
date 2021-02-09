@@ -359,7 +359,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
 
     def add_to_variables(self, op_dict: dict) -> None:
         for (key, value) in op_dict.items():
-            self.qutip_dict[key] = "op_dict['" + key + "']"
+            self.qutip_dict[key] = "_op_dict['" + key + "']"
 
     def replace_string(self, string: str) -> str:
         for item, value in self.qutip_dict.items():
@@ -370,6 +370,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     def run_string_code(self, string: str, op_dict: dict) -> Qobj:
         main = importlib.import_module("__main__")
         string = self.replace_string(string)
+        main.__dict__["_op_dict"] = op_dict
         answer = eval(string, main.__dict__)
         return answer
 
