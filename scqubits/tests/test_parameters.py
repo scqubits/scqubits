@@ -11,7 +11,7 @@
 ############################################################################
 
 import numpy as np
-from scqubits.core.param_sweep2 import Parameters
+from scqubits.core.multi_sweep import Parameters
 
 
 paramvals1 = np.asarray(range(10))
