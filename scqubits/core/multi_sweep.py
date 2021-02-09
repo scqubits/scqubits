@@ -251,7 +251,8 @@ class Sweep(SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializab
                 self._out_of_sync = True
 
     def cause_dispatch(self) -> None:
-        self._update_hilbertspace(self.param_vals[0])
+        initial_parameters = tuple(paramvals[0] for paramvals in self.parameters)
+        self._update_hilbertspace(*initial_parameters)
 
     def generate_sweeps(self) -> None:
         self.cause_dispatch()  # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
@@ -262,7 +263,7 @@ class Sweep(SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializab
         if self._sweep_generators is not None:
             for sweep_name, sweep_generator in self._sweep_generators.items():
                 self._data[sweep_name] = self.custom_sweep(sweep_generator)
-        settings.DISPATCH_ENABLED = False
+        settings.DISPATCH_ENABLED = True
 
     def bare_spectrum_sweep(
         self,
