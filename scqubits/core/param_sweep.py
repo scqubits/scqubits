@@ -503,8 +503,8 @@ class ParameterSweep(
 
         Returns
         -------
-            bare eigenvectors for the specified subsystem and the external parameter fixed to the value indicated by
-            its index
+            bare eigenvectors for the specified subsystem and the external parameter
+            fixed to the value indicated by its index
         """
         subsys_index = self.get_subsys_index(subsys)
         return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore

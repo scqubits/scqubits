@@ -93,17 +93,27 @@ class HilbertSpaceUi:
         )
 
         # == Panel for specifying an InteractionTerm ==================================
-        self.op1_widget = ipywidgets.Text(
-            description="op1", placeholder="e.g., phi_operator()"
-        )
-        self.op2_widget = ipywidgets.Text(
-            description="op2", placeholder="e.g., creation_operator()"
-        )
+        # self.op1_widget = ipywidgets.Text(
+        #     description="op1", placeholder="e.g., phi_operator()"
+        # )
+        # self.op2_widget = ipywidgets.Text(
+        #     description="op2", placeholder="e.g., creation_operator()"
+        # )
         self.op1subsys_widget = ipywidgets.Dropdown(
             options=self.subsys_widget.value, description="subsys1", disabled=False
         )
         self.op2subsys_widget = ipywidgets.Dropdown(
             options=self.subsys_widget.value, description="subsys2", disabled=False
+        )
+        self.op1_ddown_widget = ipywidgets.Dropdown(
+            options=self.possible_operators(self.op1subsys_widget.value),
+            description="op1",
+            disabled=False,
+        )
+        self.op2_ddown_widget = ipywidgets.Dropdown(
+            options=self.possible_operators(self.op2subsys_widget.value),
+            description="op2",
+            disabled=False,
         )
         self.g_widget = ipywidgets.FloatText(description="g_strength")
         self.addhc_widget = ipywidgets.Dropdown(
@@ -114,9 +124,9 @@ class HilbertSpaceUi:
             [
                 ipywidgets.Label(value="Specify interaction"),
                 self.op1subsys_widget,
-                self.op1_widget,
+                self.op1_ddown_widget,
                 self.op2subsys_widget,
-                self.op2_widget,
+                self.op2_ddown_widget,
                 self.g_widget,
                 self.addhc_widget,
             ]
@@ -129,10 +139,10 @@ class HilbertSpaceUi:
             [
                 ipywidgets.Label(value="Specify interaction"),
                 self.string_expr_widget,
-                self.op1_widget,
                 self.op1subsys_widget,
-                self.op2_widget,
+                self.op1_ddown_widget,
                 self.op2subsys_widget,
+                self.op2_ddown_widget,
                 self.addhc_widget,
             ]
         )
@@ -167,6 +177,17 @@ class HilbertSpaceUi:
         # == Make GUI connections =====================================================
         self.connect_ui()
 
+    @staticmethod
+    def possible_operators(subsystem: QuantumSys) -> List[str]:
+        if subsystem is None:
+            return []
+        main = importlib.import_module("__main__")
+        return [
+            method_name + "()"
+            for method_name in dir(main.__dict__[subsystem])
+            if "_operator" in method_name and method_name[0] != "_"
+        ]
+
     def current_interaction_type(self) -> str:
         interaction_types = {0: "InteractionTerm", 1: "InteractionTermStr"}
         tab_index = self.tabs_select_interact_type.selected_index
@@ -177,6 +198,16 @@ class HilbertSpaceUi:
             self.op1subsys_widget.options = change["new"]
             self.op2subsys_widget.options = change["new"]
 
+        def on_op_subsys1_selected(change):
+            self.op1_ddown_widget.options = self.possible_operators(
+                self.op1subsys_widget.value
+            )
+
+        def on_op_subsys2_selected(change):
+            self.op2_ddown_widget.options = self.possible_operators(
+                self.op2subsys_widget.value
+            )
+
         def on_interact_list_changed(change):
             self.current_interaction_key = change["new"]
             self.current_interact_change()
@@ -186,6 +217,9 @@ class HilbertSpaceUi:
 
         self.subsys_widget.observe(on_subsys_selected, "value")
         self.interact_list_widget.observe(on_interact_list_changed, "value")
+
+        self.op1subsys_widget.observe(on_op_subsys1_selected, "value")
+        self.op2subsys_widget.observe(on_op_subsys2_selected, "value")
 
         self.subsys_refresh_button.on_click(refresh_subsys_list)
         self.interact_new_button.on_click(self.new_interaction_term)
@@ -241,10 +275,10 @@ class HilbertSpaceUi:
             return
         key = self.current_interaction_key
         interact_params = self.interactions_dict[key]
-        self.op1_widget.value = interact_params["op1"]
         self.op1subsys_widget.value = interact_params["subsys1"]
-        self.op2_widget.value = interact_params["op2"]
+        self.op1_ddown_widget.value = interact_params["op1"]
         self.op2subsys_widget.value = interact_params["subsys2"]
+        self.op2_ddown_widget.value = interact_params["op2"]
         self.g_widget.value = interact_params["g_strength"]
         self.addhc_widget.value = interact_params["add_hc"]
         self.string_expr_widget.value = interact_params["string_expr"]
@@ -252,10 +286,10 @@ class HilbertSpaceUi:
     @staticmethod
     def empty_interaction_term():
         return {
-            "op1": "",
             "subsys1": None,
-            "op2": "",
+            "op1": None,
             "subsys2": None,
+            "op2": None,
             "g_strength": 0.0,
             "add_hc": "False",
             "string_expr": "",
@@ -264,10 +298,10 @@ class HilbertSpaceUi:
     def widgets_dict(self):
         return {
             "subsys_list": self.subsys_widget,
-            "op1": self.op1_widget,
             "subsys1": self.op1subsys_widget,
-            "op2": self.op2_widget,
+            "op1": self.op1_ddown_widget,
             "subsys2": self.op2subsys_widget,
+            "op2": self.op2_ddown_widget,
             "g_strength": self.g_widget,
             "add_hc": self.addhc_widget,
             "string_expr": self.string_expr_widget,
