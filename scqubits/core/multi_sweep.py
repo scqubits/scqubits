@@ -41,31 +41,6 @@ QuantumSys = Union[QubitBaseClass, Oscillator]
 Number = Union[int, float, complex]
 
 
-def _update_subsys_compute_esys(
-    update_func: Callable, subsystem: QuantumSys, paramval_tuple: Tuple[float]
-) -> ndarray:
-    update_func(*paramval_tuple)
-    evals, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
-    esys_array = np.empty(shape=(2,), dtype=object)
-    esys_array[0] = evals
-    esys_array[1] = evecs
-    return esys_array
-
-
-def _update_and_compute_dressed_esys(
-    hilbertspace: HilbertSpace,
-    evals_count: int,
-    update_func: Callable,
-    paramval_tuple: Tuple[float],
-) -> ndarray:
-    update_func(*paramval_tuple)
-    evals, evecs = hilbertspace.eigensys(evals_count=evals_count)
-    esys_array = np.empty(shape=(2,), dtype=object)
-    esys_array[0] = evals
-    esys_array[1] = evecs
-    return esys_array
-
-
 class Parameters:
     def __init__(
         self,
@@ -89,6 +64,11 @@ class Parameters:
         if isinstance(key, slice):
             sliced_paramnames_list = self._paramnames_list[key]
             return [self._paramvals_by_name[name] for name in sliced_paramnames_list]
+        if isinstance(key, tuple):
+            return [
+                self._paramvals_by_name[self._paramnames_list[index]][key[index]]
+                for index in range(len(self))
+            ]
 
     def __len__(self):
         return len(self._paramnames_list)
@@ -106,6 +86,10 @@ class Parameters:
             name: len(self._paramvals_by_name[name])
             for name in self._paramvals_by_name.keys()
         }
+
+    @property
+    def ranges(self) -> List[Iterable]:
+        return [range(count) for count in self.counts]
 
     def index_by_name(self, name: str) -> int:
         return self._paramnames_list.index(name)
@@ -297,6 +281,16 @@ class Sweep(SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializab
             bare_spectrum, OrderedDict(slotparamvals_by_name)
         )
 
+    def _update_subsys_compute_esys(
+        update_func: Callable, subsystem: QuantumSys, paramval_tuple: Tuple[float]
+    ) -> ndarray:
+        update_func(*paramval_tuple)
+        evals, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+        esys_array = np.empty(shape=(2,), dtype=object)
+        esys_array[0] = evals
+        esys_array[1] = evecs
+        return esys_array
+
     def paramnames_no_subsys_update(self, subsystem) -> List[str]:
         if self._subsys_update_info is None:
             return []
@@ -354,6 +348,20 @@ class Sweep(SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializab
 
         return bare_eigendata
 
+    def _update_and_compute_dressed_esys(
+        self,
+        hilbertspace: HilbertSpace,
+        evals_count: int,
+        update_func: Callable,
+        paramindex_tuple: Tuple[int],
+    ) -> ndarray:
+        update_func(*paramval_tuple)
+        evals, evecs = hilbertspace.eigensys(evals_count=evals_count)
+        esys_array = np.empty(shape=(2,), dtype=object)
+        esys_array[0] = evals
+        esys_array[1] = evecs
+        return esys_array
+
     def dressed_spectrum_sweep(
         self,
     ) -> utils.NamedSlotsNdarray:
@@ -371,13 +379,13 @@ class Sweep(SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializab
         ):
             spectrum_data = target_map(
                 functools.partial(
-                    _update_and_compute_dressed_esys,
+                    self._update_and_compute_dressed_esys,
                     self._hilbertspace,
                     self._evals_count,
                     self._update_hilbertspace,
                 ),
                 tqdm(
-                    itertools.product(*self.parameters.paramvals_list),
+                    itertools.product(*self.parameters.ranges),
                     desc="Dressed spectrum",
                     leave=False,
                     disable=self.tqdm_disabled,

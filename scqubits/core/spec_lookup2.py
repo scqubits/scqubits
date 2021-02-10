@@ -266,7 +266,7 @@ class SpectrumLookupMixin:
     @check_sync_status
     def bare_eigensys(
         self, subsys: "QuantumSystem", param_indices: Optional[Tuple[int, ...]] = None
-    ) -> ndarray:
+    ) -> Dict[QuantumSystem, ndarray]:
         """
         Return ndarray of bare eigenstates for given subsystem and parameter index.
         Eigenstates are expressed in the basis internal to the subsystem.

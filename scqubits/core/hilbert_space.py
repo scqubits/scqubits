@@ -573,7 +573,11 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     ###################################################################################
     # HilbertSpace: energy spectrum
     ##################################################################################
-    def eigenvals(self, evals_count: int = 6) -> ndarray:
+    def eigenvals(
+        self,
+        evals_count: int = 6,
+        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
+    ) -> ndarray:
         """Calculates eigenvalues of the full Hamiltonian using
         `qutip.Qob.eigenenergies()`.
 
@@ -581,11 +585,18 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         ----------
         evals_count:
             number of desired eigenvalues/eigenstates
+        bare_esys:
+            optionally, the bare eigensystems for each subsystem can be provided to
+            speed up computation; these are provided in dict form via <subsys>: esys
         """
-        hamiltonian_mat = self.hamiltonian()
+        hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         return hamiltonian_mat.eigenenergies(eigvals=evals_count)
 
-    def eigensys(self, evals_count: int = 6) -> Tuple[ndarray, QutipEigenstates]:
+    def eigensys(
+        self,
+        evals_count: int = 6,
+        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
+    ) -> Tuple[ndarray, QutipEigenstates]:
         """Calculates eigenvalues and eigenvectors of the full Hamiltonian using
         `qutip.Qob.eigenstates()`.
 
@@ -593,44 +604,74 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         ----------
         evals_count:
             number of desired eigenvalues/eigenstates
+        bare_esys:
+            optionally, the bare eigensystems for each subsystem can be provided to
+            speed up computation; these are provided in dict form via <subsys>: esys
 
         Returns
         -------
             eigenvalues and eigenvectors
         """
-        hamiltonian_mat = self.hamiltonian()
+        hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
         evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
         evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
         return evals, evecs
 
     def _esys_for_paramval(
-        self, paramval: float, update_hilbertspace: Callable, evals_count: int
+        self,
+        paramval: float,
+        update_hilbertspace: Callable,
+        evals_count: int,
+        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
     ) -> Tuple[ndarray, QutipEigenstates]:
         update_hilbertspace(paramval)
-        return self.eigensys(evals_count)
+        return self.eigensys(evals_count, bare_esys=bare_esys)
 
     def _evals_for_paramval(
-        self, paramval: float, update_hilbertspace: Callable, evals_count: int
+        self,
+        paramval: float,
+        update_hilbertspace: Callable,
+        evals_count: int,
+        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
     ) -> ndarray:
         update_hilbertspace(paramval)
-        return self.eigenvals(evals_count)
+        return self.eigenvals(evals_count, bare_esys=bare_esys)
 
     ###################################################################################
     # HilbertSpace: Hamiltonian (bare, interaction, full)
     #######################################################
 
-    def hamiltonian(self) -> Qobj:
+    def hamiltonian(
+        self,
+        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
+    ) -> Qobj:
         """
+        Parameters
+        ----------
+        bare_esys:
+            optionally, the bare eigensystems for each subsystem can be provided to
+            speed up computation; these are provided in dict form via <subsys>: esys
 
         Returns
         -------
             Hamiltonian of the composite system, including the interaction between
             components
         """
-        return self.bare_hamiltonian() + self.interaction_hamiltonian()
+        hamiltonian = self.bare_hamiltonian(
+            bare_esys=bare_esys
+        ) + self.interaction_hamiltonian(bare_esys=bare_esys)
+        return hamiltonian
 
-    def bare_hamiltonian(self) -> Qobj:
+    def bare_hamiltonian(
+        self, bare_esys: Optional[Dict[QuantumSys, ndarray]] = None
+    ) -> Qobj:
         """
+        Parameters
+        ----------
+        bare_esys:
+            optionally, the bare eigensystems for each subsystem can be provided to
+            speed up computation; these are provided in dict form via <subsys>: esys
+
         Returns
         -------
             composite Hamiltonian composed of bare Hamiltonians of subsys_list
@@ -638,13 +679,24 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """
         bare_hamiltonian = 0
         for subsys in self:
-            evals = subsys.eigenvals(evals_count=subsys.truncated_dim)
+            if bare_esys is not None and subsys in bare_esys:
+                evals = bare_esys[subsys][0]
+            else:
+                evals = subsys.eigenvals(evals_count=subsys.truncated_dim)
             bare_hamiltonian += self.diag_hamiltonian(subsys, evals)
         return bare_hamiltonian
 
-    def interaction_hamiltonian(self) -> Qobj:
+    def interaction_hamiltonian(
+        self, bare_esys: Optional[Dict[QuantumSys, ndarray]] = None
+    ) -> Qobj:
         """
         Deprecated, will be changed in future versions.
+
+        Parameters
+        ----------
+        bare_esys:
+            optionally, the bare eigensystems for each subsystem can be provided to
+            speed up computation; these are provided in dict form via <subsys>: esys
 
         Returns
         -------
@@ -655,12 +707,11 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
         operator_list = []
         for term in self.interaction_list:
-            if isinstance(term, InteractionTerm) or isinstance(
-                term, InteractionTermStr
-            ):
-                operator_list.append(term.hamiltonian())
+            if isinstance(term, (InteractionTerm, InteractionTermStr)):
+                operator_list.append(term.hamiltonian(bare_esys=bare_esys))
             elif isinstance(term, InteractionTermLegacy):
-                interactionlegacy_hamiltonian = self.interactionterm_hamiltonian(term)
+                interactionlegacy_hamiltonian = self.interactionterm_hamiltonian(
+                    term, bare_esys=bare_esys)
                 operator_list.append(interactionlegacy_hamiltonian)
             elif isinstance(term, Qobj):
                 operator_list.append(term)
@@ -675,10 +726,15 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     def interactionterm_hamiltonian(
         self,
         interactionterm: InteractionTermLegacy,
-        evecs1: ndarray = None,
-        evecs2: ndarray = None,
+        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None
     ) -> Qobj:
         """Deprecated, will not work in future versions."""
+        if bare_esys is not None:
+            if interactionterm.subsys1 in bare_esys:
+                evecs1 = bare_esys[interactionterm.subsys1][1]
+            if interactionterm.subsys2 in bare_esys:
+                evecs2 = bare_esys[interactionterm.subsys2][1]
+
         interaction_op1 = spec_utils.identity_wrap(
             interactionterm.op1, interactionterm.subsys1, self.subsys_list, evecs=evecs1
         )

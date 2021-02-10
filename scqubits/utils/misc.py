@@ -11,6 +11,7 @@
 
 import ast
 import functools
+import math
 
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
@@ -279,9 +280,14 @@ class NamedSliceableSlots:
             elif isinstance(index_entry, (float, complex)):
                 # individual value-based index_entry
                 value = index_entry
-                processed_multi_index[position] = self.get_index_closest_value(
-                    value, position
-                )
+                index = self.find_index_if_value_exists(position, value)
+                if index is None:
+                    raise ValueError(
+                        "No matching entry for parameter value {} in the array.".format(
+                            value
+                        )
+                    )
+                processed_multi_index[position] = index
             elif isinstance(index_entry, str) and position == 0:
                 processed_multi_index[position] = np.where(
                     self.values_by_slotindex[0] == index_entry
@@ -332,6 +338,14 @@ class NamedSliceableSlots:
     def get_index_closest_value(self, value: Number, index: int) -> int:
         location = np.abs(self.values_by_slotindex[index] - value).argmin()
         return location
+
+    def find_index_if_value_exists(
+        self, position: int, value: Number
+    ) -> Union[int, None]:
+        location = np.abs(self.values_by_slotindex[index] - value).argmin()
+        if math.isclose(self.values_by_slotindex[index][location], value):
+            return location
+        return None
 
 
 class NamedSlotsNdarray(np.ndarray, NamedSliceableSlots):
