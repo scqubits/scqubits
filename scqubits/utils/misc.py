@@ -17,7 +17,7 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 import qutip.qobj as qt
-from numpy.core._multiarray_umath import ndarray
+from numpy import ndarray
 
 from scqubits.settings import IN_IPYTHON
 

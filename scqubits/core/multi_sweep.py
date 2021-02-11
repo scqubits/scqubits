@@ -241,7 +241,7 @@ class Sweep(SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializab
     def generate_sweeps(self) -> None:
         self.cause_dispatch()  # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
         settings.DISPATCH_ENABLED = False
-        self._data["esys_bare"] = self.bare_spectrum_sweep()
+        self._data["bare_esys"] = self.bare_spectrum_sweep()
         self._data["esys"] = self.dressed_spectrum_sweep()
         self._data["lookup"] = self.spectrum_lookup_sweep()
         if self._sweep_generators is not None:
@@ -282,7 +282,7 @@ class Sweep(SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializab
         )
 
     def _update_subsys_compute_esys(
-        update_func: Callable, subsystem: QuantumSys, paramval_tuple: Tuple[float]
+        self, update_func: Callable, subsystem: QuantumSys, paramval_tuple: Tuple[float]
     ) -> ndarray:
         update_func(*paramval_tuple)
         evals, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
@@ -324,7 +324,7 @@ class Sweep(SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializab
         ):
             bare_eigendata = target_map(
                 functools.partial(
-                    _update_subsys_compute_esys,
+                    self._update_subsys_compute_esys,
                     self._update_hilbertspace,
                     subsystem,
                 ),
@@ -355,8 +355,18 @@ class Sweep(SpectrumLookupMixin, dispatch.DispatchClient, serializers.Serializab
         update_func: Callable,
         paramindex_tuple: Tuple[int],
     ) -> ndarray:
+        paramval_tuple = self.parameters[paramindex_tuple]
         update_func(*paramval_tuple)
-        evals, evecs = hilbertspace.eigensys(evals_count=evals_count)
+
+        bare_esys = {
+            subsys: self._data["bare_esys"][
+                self._hilbertspace.get_subsys_index(subsys)
+            ][paramindex_tuple]
+            for subsys in self._hilbertspace.subsys_list
+        }
+        evals, evecs = hilbertspace.eigensys(
+            evals_count=evals_count, bare_esys=bare_esys
+        )
         esys_array = np.empty(shape=(2,), dtype=object)
         esys_array[0] = evals
         esys_array[1] = evecs

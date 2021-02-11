@@ -13,7 +13,7 @@ import itertools
 import warnings
 
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -178,9 +178,7 @@ class SpectrumLookupMixin:
         return basis_labels
 
     @check_sync_status
-    def eigensys(
-        self, param_indices: Optional[Tuple[int, ...]] = None
-    ) -> ndarray:
+    def eigensys(self, param_indices: Optional[Tuple[int, ...]] = None) -> ndarray:
         """
         Return the list of dressed eigenvectors
 
@@ -198,9 +196,7 @@ class SpectrumLookupMixin:
         return self._data["esys"][param_indices]
 
     @check_sync_status
-    def eigenvals(
-        self, param_indices: Optional[Tuple[int, ...]] = None
-    ) -> ndarray:
+    def eigenvals(self, param_indices: Optional[Tuple[int, ...]] = None) -> ndarray:
         """
         Return the array of dressed eigenenergies
 
@@ -266,7 +262,7 @@ class SpectrumLookupMixin:
     @check_sync_status
     def bare_eigensys(
         self, subsys: "QuantumSystem", param_indices: Optional[Tuple[int, ...]] = None
-    ) -> Dict[QuantumSystem, ndarray]:
+    ) -> "Dict[QuantumSystem, ndarray]":
         """
         Return ndarray of bare eigenstates for given subsystem and parameter index.
         Eigenstates are expressed in the basis internal to the subsystem.
