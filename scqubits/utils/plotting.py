@@ -19,15 +19,14 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Tuple, Un
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
 import scqubits.core.constants as constants
 import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
+
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 if TYPE_CHECKING:
     from scqubits.core.storage import SpectrumData, WaveFunction, WaveFunctionOnGrid

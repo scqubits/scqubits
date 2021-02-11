@@ -13,7 +13,6 @@
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import numpy as np
-
 import scqubits.core.constants as constants
 import scqubits.core.units as units
 

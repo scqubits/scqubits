@@ -17,8 +17,8 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 import qutip.qobj as qt
-from numpy import ndarray
 
+from numpy import ndarray
 from scqubits.settings import IN_IPYTHON
 
 if IN_IPYTHON:
@@ -339,9 +339,7 @@ class NamedSliceableSlots:
         location = np.abs(self.values_by_slotindex[index] - value).argmin()
         return location
 
-    def find_index_if_value_exists(
-        self, index: int, value: Number
-    ) -> Union[int, None]:
+    def find_index_if_value_exists(self, index: int, value: Number) -> Union[int, None]:
         location = np.abs(self.values_by_slotindex[index] - value).argmin()
         if math.isclose(self.values_by_slotindex[index][location], value):
             return location
