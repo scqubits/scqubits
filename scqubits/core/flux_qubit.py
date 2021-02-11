@@ -245,7 +245,6 @@ class NoisyFluxQubit(NoisySystem, ABC):
 # -Flux qubit, both degrees of freedom in charge basis---------------------------------
 
 
-
 class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
     r"""Flux Qubit
 

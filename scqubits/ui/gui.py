@@ -30,6 +30,8 @@ from ipywidgets import (
 )
 from matplotlib.figure import Figure
 
+from pathlib import Path
+
 import scqubits as scq
 
 from scqubits.core.qubit_base import QubitBaseClass
@@ -118,7 +120,7 @@ class GUI:
             "zeta_cutoff": {"min": 10, "max": 50},
             "scale": None,
         }
-        cosinetwophi_defaults = {
+        cosinetwophiqubit_defaults = {
             **global_defaults,
             "scan_param": "flux",
             "operator": "n_phi_operator",
@@ -140,7 +142,7 @@ class GUI:
             "FluxQubit": fluxqubit_defaults,
             "ZeroPi": zeropi_defaults,
             "FullZeroPi": fullzeropi_defaults,
-            "CosineTwoPhi": cosinetwophi_defaults
+            "CosineTwoPhiQubit": cosinetwophiqubit_defaults,
         }
         self.grid_defaults = {
             "grid_min_val": -6 * np.pi,
@@ -160,7 +162,7 @@ class GUI:
             "FluxQubit",
             "ZeroPi",
             "FullZeroPi",
-            "CosineTwoPhi"
+            "CosineTwoPhiQubit",
         ]
         self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
         self.fig: Figure
@@ -753,8 +755,10 @@ class GUI:
                 self.qubit_plot_options_widgets["scan_dropdown"].value
             ].disabled = False
 
-            if isinstance(self.active_qubit, scq.FluxQubit) or isinstance(
-                self.active_qubit, scq.ZeroPi
+            if (
+                isinstance(self.active_qubit, scq.FluxQubit)
+                or isinstance(self.active_qubit, scq.ZeroPi)
+                or isinstance(self.active_qubit, scq.CosineTwoPhiQubit)
             ):
                 which_widget = self.qubit_plot_options_widgets["fluxqubit_state_slider"]
             else:
@@ -914,7 +918,8 @@ class GUI:
         """Initializes qubit_base_params and qubit_dropdown_params.
         """
         self.qubit_base_params = dict(self.active_qubit.default_params())
-        del self.qubit_base_params["truncated_dim"]
+        if "truncated_dim" in self.qubit_base_params.keys():
+            del self.qubit_base_params["truncated_dim"]
 
         self.qubit_scan_params = dict(self.qubit_base_params)
         if "ncut" in self.qubit_scan_params.keys():
@@ -937,7 +942,6 @@ class GUI:
             ("|·|", "abs"),
             (u"|\u00B7|\u00B2", "abs_sqr"),
         ]
-
         file = open(self.active_qubit._image_filename, "rb")
         image = file.read()
 
@@ -949,7 +953,10 @@ class GUI:
                 icon="save", layout=widgets.Layout(width="35px")
             ),
             "filename_text": widgets.Text(
-                value="plot.pdf", description="", disabled=False
+                value=str(Path.cwd()) + "\plot.pdf",
+                description="",
+                disabled=False,
+                layout=Layout(width="500px"),
             ),
             "scan_dropdown": widgets.Dropdown(
                 options=scan_dropdown_list,

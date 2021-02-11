@@ -55,7 +55,6 @@ else:
 # —Generic quantum system container and Qubit base class——————————————————————————————
 
 
-
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
 
@@ -648,8 +647,6 @@ class QubitBaseClass(QuantumSystem, ABC):
 # —QubitBaseClass1d——————————————————————————————————————————————————————————————————
 
 
-
-
 class QubitBaseClass1d(QubitBaseClass):
     """Base class for superconducting qubit objects with one degree of freedom.
     Provide general mechanisms and routines for plotting spectra, matrix elements,
@@ -751,7 +748,11 @@ class QubitBaseClass1d(QubitBaseClass):
         }
         # in merging the dictionaries in the previous line: if any duplicates,
         # later ones survive
+
+        plot.wavefunction1d(
+            wavefunctions,
             potential_vals=potential_vals,
+            offset=energies,
             scaling=scaling,
             **kwargs,
         )

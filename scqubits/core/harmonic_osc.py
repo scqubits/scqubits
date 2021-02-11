@@ -57,7 +57,6 @@ def harm_osc_wavefunction(
 # —Oscillator class———————————————————————————————————————————————————————————————————
 
 
-
 class Oscillator(base.QuantumSystem, serializers.Serializable):
     """General class for mode of an oscillator/resonator."""
 

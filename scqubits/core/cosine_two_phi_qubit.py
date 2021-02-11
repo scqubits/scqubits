@@ -66,15 +66,15 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         pass
 
     def t1_inductive(
-            self,
-            i: int = 1,
-            j: int = 0,
-            Q_ind: Union[float, Callable] = None,
-            T: float = NOISE_PARAMS["T"],
-            total: bool = True,
-            esys: Tuple[ndarray, ndarray] = None,
-            get_rate: bool = False,
-            **kwargs
+        self,
+        i: int = 1,
+        j: int = 0,
+        Q_ind: Union[float, Callable] = None,
+        T: float = NOISE_PARAMS["T"],
+        total: bool = True,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to inductive dissipation in a superinductor.
@@ -117,15 +117,15 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
                     2 * np.pi * 500e6, T, omega_in_standard_units=True
                 )
                 return (
-                        500e6
-                        * (
-                                sp.special.kv(0, 1 / 2 * therm_ratio_500MHz)
-                                * np.sinh(1 / 2 * therm_ratio_500MHz)
-                        )
-                        / (
-                                sp.special.kv(0, 1 / 2 * therm_ratio)
-                                * np.sinh(1 / 2 * therm_ratio)
-                        )
+                    500e6
+                    * (
+                        sp.special.kv(0, 1 / 2 * therm_ratio_500MHz)
+                        * np.sinh(1 / 2 * therm_ratio_500MHz)
+                    )
+                    / (
+                        sp.special.kv(0, 1 / 2 * therm_ratio)
+                        * np.sinh(1 / 2 * therm_ratio)
+                    )
                 )
 
         elif callable(Q_ind):  # Q_ind is a function of omega
@@ -139,15 +139,15 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         def spectral_density1(omega):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
-                    2
-                    * self.EL
-                    / (1 - self.dL)
-                    / q_ind_fun(omega)
-                    * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
-                    / (1 + np.exp(-therm_ratio))
+                2
+                * self.EL
+                / (1 - self.dL)
+                / q_ind_fun(omega)
+                * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
+                / (1 + np.exp(-therm_ratio))
             )
             s *= (
-                    2 * np.pi
+                2 * np.pi
             )  # We assume that system energies are given in units of frequency
             return s
 
@@ -156,15 +156,15 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         def spectral_density2(omega):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
-                    2
-                    * self.EL
-                    / (1 + self.dL)
-                    / q_ind_fun(omega)
-                    * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
-                    / (1 + np.exp(-therm_ratio))
+                2
+                * self.EL
+                / (1 + self.dL)
+                / q_ind_fun(omega)
+                * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
+                / (1 + np.exp(-therm_ratio))
             )
             s *= (
-                    2 * np.pi
+                2 * np.pi
             )  # We assume that system energies are given in units of frequency
             return s
 
@@ -192,40 +192,40 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
             )
         else:
             return 1 / (
-                    1
-                    / self.t1(
-                i=i,
-                j=j,
-                noise_op=noise_op1,
-                spectral_density=spectral_density1,
-                total=total,
-                esys=esys,
-                get_rate=get_rate,
-                **kwargs
-            )
-                    + 1
-                    / self.t1(
-                i=i,
-                j=j,
-                noise_op=noise_op2,
-                spectral_density=spectral_density2,
-                total=total,
-                esys=esys,
-                get_rate=get_rate,
-                **kwargs
-            )
+                1
+                / self.t1(
+                    i=i,
+                    j=j,
+                    noise_op=noise_op1,
+                    spectral_density=spectral_density1,
+                    total=total,
+                    esys=esys,
+                    get_rate=get_rate,
+                    **kwargs
+                )
+                + 1
+                / self.t1(
+                    i=i,
+                    j=j,
+                    noise_op=noise_op2,
+                    spectral_density=spectral_density2,
+                    total=total,
+                    esys=esys,
+                    get_rate=get_rate,
+                    **kwargs
+                )
             )
 
     def t1_capacitive(
-            self,
-            i: int = 1,
-            j: int = 0,
-            Q_cap: Union[float, Callable] = None,
-            T: float = NOISE_PARAMS["T"],
-            total: bool = True,
-            esys: Tuple[ndarray, ndarray] = None,
-            get_rate: bool = False,
-            **kwargs
+        self,
+        i: int = 1,
+        j: int = 0,
+        Q_cap: Union[float, Callable] = None,
+        T: float = NOISE_PARAMS["T"],
+        total: bool = True,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
@@ -265,9 +265,8 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
             # See Smith et al (2020)
             def q_cap_fun(omega):
                 return (
-                        1e6
-                        * (2 * np.pi * 6e9 / np.abs(
-                    units.to_standard_units(omega))) ** 0.7
+                    1e6
+                    * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7
                 )
 
         elif callable(Q_cap):  # Q_cap is a function of omega
@@ -280,32 +279,32 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         def spectral_density1(omega):
             therm_ratio = calc_therm_ratio(omega, T)
             s1 = (
-                    2
-                    * 8
-                    * self.ECJ
-                    / (1 - self.dC)
-                    / q_cap_fun(omega)
-                    * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
-                    / (1 + np.exp(-therm_ratio))
+                2
+                * 8
+                * self.ECJ
+                / (1 - self.dC)
+                / q_cap_fun(omega)
+                * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
+                / (1 + np.exp(-therm_ratio))
             )
             s1 *= (
-                    2 * np.pi
+                2 * np.pi
             )  # We assume that system energies are given in units of frequency
             return s1
 
         def spectral_density2(omega):
             therm_ratio = calc_therm_ratio(omega, T)
             s2 = (
-                    2
-                    * 8
-                    * self.ECJ
-                    / (1 + self.dC)
-                    / q_cap_fun(omega)
-                    * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
-                    / (1 + np.exp(-therm_ratio))
+                2
+                * 8
+                * self.ECJ
+                / (1 + self.dC)
+                / q_cap_fun(omega)
+                * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
+                / (1 + np.exp(-therm_ratio))
             )
             s2 *= (
-                    2 * np.pi
+                2 * np.pi
             )  # We assume that system energies are given in units of frequency
             return s2
 
@@ -334,40 +333,40 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
             )
         else:
             return 1 / (
-                    1
-                    / self.t1(
-                i=i,
-                j=j,
-                noise_op=noise_op1,
-                spectral_density=spectral_density1,
-                total=total,
-                esys=esys,
-                get_rate=get_rate,
-                **kwargs
-            )
-                    + 1
-                    / self.t1(
-                i=i,
-                j=j,
-                noise_op=noise_op2,
-                spectral_density=spectral_density2,
-                total=total,
-                esys=esys,
-                get_rate=get_rate,
-                **kwargs
-            )
+                1
+                / self.t1(
+                    i=i,
+                    j=j,
+                    noise_op=noise_op1,
+                    spectral_density=spectral_density1,
+                    total=total,
+                    esys=esys,
+                    get_rate=get_rate,
+                    **kwargs
+                )
+                + 1
+                / self.t1(
+                    i=i,
+                    j=j,
+                    noise_op=noise_op2,
+                    spectral_density=spectral_density2,
+                    total=total,
+                    esys=esys,
+                    get_rate=get_rate,
+                    **kwargs
+                )
             )
 
     def t1_purcell(
-            self,
-            i: int = 1,
-            j: int = 0,
-            Q_cap: Union[float, Callable] = None,
-            T: float = NOISE_PARAMS["T"],
-            total: bool = True,
-            esys: Tuple[ndarray, ndarray] = None,
-            get_rate: bool = False,
-            **kwargs
+        self,
+        i: int = 1,
+        j: int = 0,
+        Q_cap: Union[float, Callable] = None,
+        T: float = NOISE_PARAMS["T"],
+        total: bool = True,
+        esys: Tuple[ndarray, ndarray] = None,
+        get_rate: bool = False,
+        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the shunt capacitances.
@@ -407,9 +406,8 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
             # See Smith et al (2020)
             def q_cap_fun(omega):
                 return (
-                        1e6
-                        * (2 * np.pi * 6e9 / np.abs(
-                    units.to_standard_units(omega))) ** 0.7
+                    1e6
+                    * (2 * np.pi * 6e9 / np.abs(units.to_standard_units(omega))) ** 0.7
                 )
 
         elif callable(Q_cap):  # Q_cap is a function of omega
@@ -422,15 +420,15 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         def spectral_density(omega):
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
-                    2
-                    * 8
-                    * self.EC
-                    / q_cap_fun(omega)
-                    * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
-                    / (1 + np.exp(-therm_ratio))
+                2
+                * 8
+                * self.EC
+                / q_cap_fun(omega)
+                * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
+                / (1 + np.exp(-therm_ratio))
             )
             s *= (
-                    2 * np.pi
+                2 * np.pi
             )  # We assume that system energies are given in units of frequency
             return s
 
@@ -506,19 +504,19 @@ class CosineTwoPhiQubit(
     phi_cut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
     def __init__(
-            self,
-            EJ: float,
-            ECJ: float,
-            EL: float,
-            EC: float,
-            dL: float,
-            dC: float,
-            dJ: float,
-            flux: float,
-            ng: float,
-            n_cut: int,
-            zeta_cut: int,
-            phi_cut: int,
+        self,
+        EJ: float,
+        ECJ: float,
+        EL: float,
+        EC: float,
+        dL: float,
+        dC: float,
+        dJ: float,
+        flux: float,
+        ng: float,
+        n_cut: int,
+        zeta_cut: int,
+        phi_cut: int,
     ) -> None:
         self.EJ = EJ
         self.ECJ = ECJ
@@ -539,7 +537,7 @@ class CosineTwoPhiQubit(
         self._default_theta_grid = discretization.Grid1d(-2 * np.pi, 3 * np.pi, 100)
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "qubit_pngs/cosine_two_phi_qubit.png",##                                        ASK ABOUT
+            "qubit_img/cosine_two_phi_qubit.jpg",  ##                                        ASK ABOUT
         )
 
     @staticmethod
@@ -654,9 +652,9 @@ class CosineTwoPhiQubit(
             `phi` operator in the harmonic oscillator basis"""
         dimension = self.dim_phi()
         return (
-                (op.creation(dimension) + op.annihilation(dimension))
-                * self.phi_osc()
-                / math.sqrt(2)
+            (op.creation(dimension) + op.annihilation(dimension))
+            * self.phi_osc()
+            / math.sqrt(2)
         )
 
     def phi_operator(self) -> ndarray:
@@ -675,9 +673,9 @@ class CosineTwoPhiQubit(
             `n_\phi` operator in the harmonic oscillator basis"""
         dimension = self.dim_phi()
         return (
-                1j
-                * (op.creation(dimension) - op.annihilation(dimension))
-                / (self.phi_osc() * math.sqrt(2))
+            1j
+            * (op.creation(dimension) - op.annihilation(dimension))
+            / (self.phi_osc() * math.sqrt(2))
         )
 
     def n_phi_operator(self) -> ndarray:
@@ -696,9 +694,9 @@ class CosineTwoPhiQubit(
             `zeta` operator in the harmonic oscillator basis"""
         dimension = self.dim_zeta()
         return (
-                (op.creation(dimension) + op.annihilation(dimension))
-                * self.zeta_osc()
-                / math.sqrt(2)
+            (op.creation(dimension) + op.annihilation(dimension))
+            * self.zeta_osc()
+            / math.sqrt(2)
         )
 
     def zeta_operator(self) -> ndarray:
@@ -717,9 +715,9 @@ class CosineTwoPhiQubit(
             `n_\zeta` operator in the harmonic oscillator basis"""
         dimension = self.dim_zeta()
         return (
-                1j
-                * (op.creation(dimension) - op.annihilation(dimension))
-                / (self.zeta_osc() * math.sqrt(2))
+            1j
+            * (op.creation(dimension) - op.annihilation(dimension))
+            / (self.zeta_osc() * math.sqrt(2))
         )
 
     def n_zeta_operator(self) -> ndarray:
@@ -845,21 +843,25 @@ class CosineTwoPhiQubit(
         )
 
         n_theta_ng_mat = self.n_theta_operator() - self.total_identity() * self.ng
-        cross_kinetic_mat = 2 * self._disordered_ecj() * np.matmul(n_theta_ng_mat -
-                                                                   self.n_zeta_operator(),
-                                                                   n_theta_ng_mat -
-                                                                   self.n_zeta_operator())
+        cross_kinetic_mat = (
+            2
+            * self._disordered_ecj()
+            * np.matmul(
+                n_theta_ng_mat - self.n_zeta_operator(),
+                n_theta_ng_mat - self.n_zeta_operator(),
+            )
+        )
 
         phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
         ) - self._sin_phi_operator() * np.sin(self.flux * np.pi)
         junction_mat = (
-                -2
-                * self.EJ
-                * self._kron3(
-            phi_flux_term, self._identity_zeta(), self._cos_theta_operator()
-        )
-                + 2 * self.EJ * self.total_identity()
+            -2
+            * self.EJ
+            * self._kron3(
+                phi_flux_term, self._identity_zeta(), self._cos_theta_operator()
+            )
+            + 2 * self.EJ * self.total_identity()
         )
 
         hamiltonian_mat = phi_osc_mat + zeta_osc_mat + cross_kinetic_mat + junction_mat
@@ -870,30 +872,35 @@ class CosineTwoPhiQubit(
         Return disordered part of Hamiltonian
         """
         disorder_l = (
-                -2 * self._disordered_el()
-                * self.dL
-                * self._kron3(
-            self._phi_operator(), self._zeta_operator(), self._identity_theta()
-        )
+            -2
+            * self._disordered_el()
+            * self.dL
+            * self._kron3(
+                self._phi_operator(), self._zeta_operator(), self._identity_theta()
+            )
         )
 
         phi_flux_term = self._sin_phi_operator() * np.cos(
             self.flux * np.pi
         ) + self._cos_phi_operator() * np.sin(self.flux * np.pi)
         disorder_j = (
-                2
-                * self.EJ
-                * self.dJ
-                * self._kron3(
-            phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
-        )
+            2
+            * self.EJ
+            * self.dJ
+            * self._kron3(
+                phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
+            )
         )
 
-        dis_c_opt = self._kron3(self._n_phi_operator(), self._identity_zeta(),
-                                self._n_theta_operator()) - self.n_phi_operator() * \
-                    self.ng - self._kron3(self._n_phi_operator(),
-                                          self._n_zeta_operator(),
-                                          self._identity_theta())
+        dis_c_opt = (
+            self._kron3(
+                self._n_phi_operator(), self._identity_zeta(), self._n_theta_operator()
+            )
+            - self.n_phi_operator() * self.ng
+            - self._kron3(
+                self._n_phi_operator(), self._n_zeta_operator(), self._identity_theta()
+            )
+        )
         disorder_c = -4 * self._disordered_ecj() * self.dC * dis_c_opt
         return disorder_l + disorder_j + disorder_c
 
@@ -924,17 +931,13 @@ class CosineTwoPhiQubit(
             float value of the phase variable `theta`
         """
         return (
-                self._disordered_el() * (phi * phi)
-                - 2 * self.EJ * np.cos(theta) * np.cos(phi + np.pi * self.flux)
-                + 2
-                * self.dJ
-                * self.EJ
-                * np.sin(phi + np.pi * self.flux)
-                * np.sin(theta)
+            self._disordered_el() * (phi * phi)
+            - 2 * self.EJ * np.cos(theta) * np.cos(phi + np.pi * self.flux)
+            + 2 * self.dJ * self.EJ * np.sin(phi + np.pi * self.flux) * np.sin(theta)
         )
 
     def plot_potential(
-            self, phi_grid=None, theta_grid=None, contour_vals=None, **kwargs
+        self, phi_grid=None, theta_grid=None, contour_vals=None, **kwargs
     ) -> Tuple[Figure, Axes]:
         """
         Draw contour plot of the potential energy.
@@ -966,8 +969,8 @@ class CosineTwoPhiQubit(
         Return the index of the coefficient of the wavefunction, corresponding to the indices of phi, zeta, and theta
         """
         return (
-                       index_phi * self.dim_zeta() + index_zeta
-               ) * self.dim_theta() + index_theta
+            index_phi * self.dim_zeta() + index_zeta
+        ) * self.dim_theta() + index_theta
 
     def _tensor_index_inv(self, index_evec) -> Tuple[int, int, int]:
         """
@@ -981,7 +984,7 @@ class CosineTwoPhiQubit(
         return index_phi, index_zeta, index_theta
 
     def wavefunction(
-            self, esys=None, which=0, phi_grid=None, zeta_grid=None, theta_grid=None
+        self, esys=None, which=0, phi_grid=None, zeta_grid=None, theta_grid=None
     ) -> WaveFunctionOnGrid:
         """
         Return a 3D wave function in phi, zeta, theta basis
@@ -1030,7 +1033,7 @@ class CosineTwoPhiQubit(
                 n_zeta, zeta_basis_labels, self.zeta_osc()
             )
             theta_wavefunc_amplitudes = (
-                    np.exp(-1j * num_theta * theta_basis_labels) / (2 * np.pi) ** 0.5
+                np.exp(-1j * num_theta * theta_basis_labels) / (2 * np.pi) ** 0.5
             )
             wavefunc_amplitudes += wavefunc_basis_amplitudes[n] * np.tensordot(
                 np.tensordot(phi_wavefunc_amplitudes, zeta_wavefunc_amplitudes, 0),
@@ -1050,14 +1053,14 @@ class CosineTwoPhiQubit(
         return storage.WaveFunctionOnGrid(grid3d, wavefunc_amplitudes)
 
     def plot_wavefunction(
-            self,
-            esys=None,
-            which=0,
-            phi_grid=None,
-            theta_grid=None,
-            mode="abs",
-            zero_calibrate=True,
-            **kwargs
+        self,
+        esys=None,
+        which=0,
+        phi_grid=None,
+        theta_grid=None,
+        mode="abs",
+        zero_calibrate=True,
+        **kwargs
     ) -> Tuple[Figure, Axes]:
         """
         Plots 2D wave function in `theta` and `phi` basis, at `zeta` = 0
@@ -1138,7 +1141,7 @@ class CosineTwoPhiQubit(
             operator represents charge difference across junction 1
         """
         return 0.5 * self.n_phi_operator() + 0.5 * (
-                self.n_theta_operator() - self.n_zeta_operator()
+            self.n_theta_operator() - self.n_zeta_operator()
         )
 
     def N_2_operator(self) -> ndarray:
@@ -1148,7 +1151,7 @@ class CosineTwoPhiQubit(
             operator represents charge difference across junction 2
         """
         return 0.5 * self.n_phi_operator() - 0.5 * (
-                self.n_theta_operator() - self.n_zeta_operator()
+            self.n_theta_operator() - self.n_zeta_operator()
         )
 
     def d_hamiltonian_d_flux(self) -> ndarray:
@@ -1156,25 +1159,25 @@ class CosineTwoPhiQubit(
             self.flux * np.pi
         ) + self._cos_phi_operator() * np.sin(self.flux * np.pi)
         junction_mat = (
-                2
-                * self.EJ
-                * self._kron3(
-            phi_flux_term, self._identity_zeta(), self._cos_theta_operator()
-        )
-                * np.pi
+            2
+            * self.EJ
+            * self._kron3(
+                phi_flux_term, self._identity_zeta(), self._cos_theta_operator()
+            )
+            * np.pi
         )
 
         dis_phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
         ) - self._sin_phi_operator() * np.sin(self.flux * np.pi)
         dis_junction_mat = (
-                2
-                * self.dJ
-                * self.EJ
-                * self._kron3(
-            dis_phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
-        )
-                * np.pi
+            2
+            * self.dJ
+            * self.EJ
+            * self._kron3(
+                dis_phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
+            )
+            * np.pi
         )
         return junction_mat + dis_junction_mat
 
@@ -1190,14 +1193,15 @@ class CosineTwoPhiQubit(
             self.flux * np.pi
         ) + self._cos_phi_operator() * np.sin(self.flux * np.pi)
         dis_junction_mat = (
-                2
-                * self.dJ
-                * self._kron3(
-            dis_phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
-        )
+            2
+            * self.dJ
+            * self._kron3(
+                dis_phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
+            )
         )
         return junction_mat + dis_junction_mat
 
     def d_hamiltonian_d_ng(self) -> ndarray:
         return 4 * self.dC * self._disordered_ecj() * self.n_phi_operator() - 4 * self._disordered_ecj() * (
-                self.n_theta_operator() - self.ng - self.n_zeta_operator())
+            self.n_theta_operator() - self.ng - self.n_zeta_operator()
+        )
