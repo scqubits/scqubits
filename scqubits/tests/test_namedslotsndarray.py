@@ -11,7 +11,7 @@
 ############################################################################
 
 import numpy as np
-from scqubits import NamedSlotsNdarray
+from scqubits.utils.misc import NamedSlotsNdarray
 
 paramvals1 = np.asarray(range(10))
 paramvals2 = np.linspace(0.0, 1.0, 100)
@@ -36,7 +36,8 @@ def test_name_access():
 
 def test_value_access():
     tst = NamedSlotsNdarray(data, paramvals_by_name)
-    assert np.allclose(tst['p1':0.9], data[1, :, :])
+    param_val = float(paramvals1[4])
+    assert np.allclose(tst['p1':param_val], data[4, :, :])
 
 
 def test_named_slice():

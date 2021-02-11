@@ -24,13 +24,15 @@ else:
 
 
 def compute_custom_data_sweep(sweep, func, **kwargs):
-    """Method for computing custom data as a function of the external parameter, calculated via the function `func`.
+    """Method for computing custom data as a function of the external parameter,
+    calculated via the function `func`.
 
     Parameters
     ----------
     sweep: ParameterSweep
     func: function
-        signature: `func(parametersweep, param_value, **kwargs)`, specifies how to calculate the data
+        signature: `func(parametersweep, param_value, **kwargs)`, specifies how
+        to calculate the data
     **kwargs: optional
         other parameters to be included in func
 
@@ -42,7 +44,7 @@ def compute_custom_data_sweep(sweep, func, **kwargs):
         [
             func(sweep, param_index, **kwargs)
             for param_index in tqdm(
-                range(sweep.slot_count),
+                range(sweep.param_count),
                 desc="data sweep",
                 leave=False,
                 disable=settings.PROGRESSBAR_DISABLED,
@@ -61,7 +63,7 @@ def generate_chi_sweep(sweep):
     Returns
     -------
     dict
-        (osc_index, qbt_index) -> ndarray of chi values
+        (osc_index, qbt_index) -> ndararray of chi values
     """
     osc_subsys_list = sweep.osc_subsys_list
     qbt_subsys_list = sweep.qbt_subsys_list
@@ -75,35 +77,7 @@ def generate_chi_sweep(sweep):
                     observable.dispersive_chi,
                     qubit_subsys=qubit_subsys,
                     osc_subsys=osc_subsys,
-                )
-            )
-    return data_dict
-
-
-def generate_kerr_sweep(sweep):
-    """Generate data for the Kerr shift as a function of the sweep parameter
-
-    Parameters
-    ----------
-    sweep: ParameterSweep
-
-    Returns
-    -------
-    dict
-        (osc_index, qbt_index) -> ndarray of Kerr values
-    """
-    osc_subsys_list = sweep.osc_subsys_list
-    qbt_subsys_list = sweep.qbt_subsys_list
-
-    data_dict = {}
-    for (osc_index, osc_subsys) in osc_subsys_list:
-        for (qbt_index, qubit_subsys) in qbt_subsys_list:
-            data_dict[(osc_index, qbt_index)] = sweep.new_datastore(
-                kerr=compute_custom_data_sweep(
-                    sweep,
-                    observable.dispersive_kerr,
-                    qubit_subsys=qubit_subsys,
-                    osc_subsys=osc_subsys,
+                    chi_indices=(1, 0),
                 )
             )
     return data_dict
@@ -136,21 +110,22 @@ def generate_charge_matrixelem_sweep(sweep):
 
 
 def generate_diffspec_sweep(sweep, initial_state_ind=0):
-    """Takes spectral data of energy eigenvalues and subtracts the energy of a select state, given by its state
-    index.
+    """Takes spectral data of energy eigenvalues and subtracts the energy of a select
+    state, given by its state index.
 
     Parameters
     ----------
     sweep: ParameterSweep
     initial_state_ind: int or (i1, i2, ...)
-        index of the initial state whose energy is supposed to be subtracted from the spectral data
+        index of the initial state whose energy is supposed to be subtracted from the
+        spectral data
 
     Returns
     -------
     SpectrumData
     """
     lookup = sweep.lookup
-    param_count = sweep.slot_count
+    param_count = sweep.param_count
     evals_count = sweep.evals_count
     diff_eigenenergy_table = np.empty(shape=(param_count, evals_count))
 
@@ -174,8 +149,8 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
 
 def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     """
-    Extracts energies for transitions among qubit states only, while all oscillator subsys_list maintain their
-    excitation level.
+    Extracts energies for transitions among qubit states only, while all oscillator
+    subsys_list maintain their excitation level.
 
     Parameters
     ----------
@@ -183,7 +158,8 @@ def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     photonnumber: int
         number of photons used in transition
     initial_state_labels: tuple(int1, int2, ...)
-        bare-state labels of the initial state whose energy is supposed to be subtracted from the spectral data
+        bare-state labels of the initial state whose energy is supposed to be subtracted
+        from the spectral data
 
     Returns
     -------
@@ -197,7 +173,7 @@ def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     )
     difference_energies_table = []
 
-    for param_index in range(sweep.slot_count):
+    for param_index in range(sweep.param_count):
         difference_energies = []
         initial_energy = lookup.energy_bare_index(initial_state_labels, param_index)
         for target_labels in target_states_list:

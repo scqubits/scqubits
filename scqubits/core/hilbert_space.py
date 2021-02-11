@@ -219,7 +219,6 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         ]
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
-        self.qoperator_list = self.id_wrap_all_ops(self.operator_list, subsystem_list)
 
     def __repr__(self) -> str:
         init_dict = {name: getattr(self, name) for name in self._init_params}
@@ -245,9 +244,22 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     def __getitem__(self, index: int) -> QuantumSys:
         return self.subsystem_list[index]
 
-    def hamiltonian(self):
+    def hamiltonian(
+        self,
+        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
+    ) -> ndarray:
+        """
+        Parameters
+        ----------
+        bare_esys:
+            optionally, the bare eigensystems for each subsystem can be provided to
+            speed up computation; these are provided in dict form via <subsys>: esys)
+        """
         hamiltonian = self.g_strength
-        for op in self.qoperator_list:
+        qobj_operator_list = self.id_wrap_all_ops(
+            self.operator_list, self.subsystem_list, bare_esys=bare_esys
+        )
+        for op in qobj_operator_list:
             hamiltonian *= op
         if self.add_hc:
             return hamiltonian + hamiltonian.dag()
@@ -265,11 +277,22 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         return new_operators
 
     @staticmethod
-    def id_wrap_all_ops(operator_list: list, subsystem_list: list) -> list:
-        id_wrapped_operators = [
-            spec_utils.identity_wrap(item.operator, item.subsystem, subsystem_list)
-            for item in operator_list
-        ]
+    def id_wrap_all_ops(
+        operator_list: list,
+        subsystem_list: list,
+        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
+    ) -> list:
+        id_wrapped_operators = []
+        for item in operator_list:
+            if bare_esys is not None and item.subsystem in bare_esys:
+                evecs = bare_esys[item.subsystem][1]
+            else:
+                evecs = None
+            id_wrapped_operators.append(
+                spec_utils.identity_wrap(
+                    item.operator, item.subsystem, subsystem_list, evecs=evecs
+                )
+            )
         return id_wrapped_operators
 
 
@@ -332,7 +355,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         }
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
-        self.qoperator_dict = self.id_wrap_all_ops(self.operator_dict, subsystem_list)
+        # self.qoperator_dict = self.id_wrap_all_ops(self.operator_dict, subsystem_list)
         # TODO: change add to variables
         self.add_to_variables(self.qoperator_dict)
 
@@ -382,8 +405,21 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         }
         return new_operators
 
-    def hamiltonian(self):
-        hamiltonian = self.run_string_code(self.str_expression, self.qoperator_dict)
+    def hamiltonian(
+        self,
+        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
+    ) -> Qobj:
+        """
+        Parameters
+        ----------
+        bare_esys:
+            optionally, the bare eigensystems for each subsystem can be provided to
+            speed up computation; these are provided in dict form via <subsys>: esys)
+        """
+        qoperator_dict = self.id_wrap_all_ops(
+            self.operator_dict, self.subsystem_list, bare_esys=bare_esys
+        )
+        hamiltonian = self.run_string_code(self.str_expression, qoperator_dict)
         if not self.add_hc:
             return hamiltonian
         else:
@@ -709,12 +745,21 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         for term in self.interaction_list:
             if isinstance(term, (InteractionTerm, InteractionTermStr)):
                 operator_list.append(term.hamiltonian(bare_esys=bare_esys))
-            elif isinstance(term, InteractionTermLegacy):
-                interactionlegacy_hamiltonian = self.interactionterm_hamiltonian(
-                    term, bare_esys=bare_esys)
-                operator_list.append(interactionlegacy_hamiltonian)
             elif isinstance(term, Qobj):
                 operator_list.append(term)
+            # The following is to support the legacy version of InteractionTerm
+            elif isinstance(term, InteractionTermLegacy):
+                if bare_esys is not None:
+                    if term.subsys1 in bare_esys:
+                        evecs1 = bare_esys[term.subsys1][1]
+                    if term.subsys2 in bare_esys:
+                        evecs2 = bare_esys[term.subsys2][1]
+                else:
+                    evecs1 = evecs2 = None
+                interactionlegacy_hamiltonian = self.interactionterm_hamiltonian(
+                    term, evecs1=evecs1, evecs2=evecs2
+                )
+                operator_list.append(interactionlegacy_hamiltonian)
             else:
                 raise TypeError(
                     "Expected an instance of InteractionTerm, InteractionTermStr, "
@@ -726,15 +771,10 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     def interactionterm_hamiltonian(
         self,
         interactionterm: InteractionTermLegacy,
-        bare_esys: Optional[Dict[QuantumSys, ndarray]] = None
+        evecs1: Optional[ndarray] = None,
+        evecs2: Optional[ndarray] = None,
     ) -> Qobj:
         """Deprecated, will not work in future versions."""
-        if bare_esys is not None:
-            if interactionterm.subsys1 in bare_esys:
-                evecs1 = bare_esys[interactionterm.subsys1][1]
-            if interactionterm.subsys2 in bare_esys:
-                evecs2 = bare_esys[interactionterm.subsys2][1]
-
         interaction_op1 = spec_utils.identity_wrap(
             interactionterm.op1, interactionterm.subsys1, self.subsys_list, evecs=evecs1
         )

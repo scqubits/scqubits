@@ -340,7 +340,7 @@ class NamedSliceableSlots:
         return location
 
     def find_index_if_value_exists(
-        self, position: int, value: Number
+        self, index: int, value: Number
     ) -> Union[int, None]:
         location = np.abs(self.values_by_slotindex[index] - value).argmin()
         if math.isclose(self.values_by_slotindex[index][location], value):
