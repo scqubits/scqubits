@@ -64,11 +64,12 @@ QuantumSys = Union[QubitBaseClass, Oscillator]
 
 class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
-    Class for specifying a term in the interaction Hamiltonian of a composite Hilbert space, and constructing
-    the Hamiltonian in qutip.Qobj format. The expected form of the interaction term is of two possible types:
+    Class for specifying a term in the interaction Hamiltonian of a composite Hilbert
+    space, and constructing the Hamiltonian in qutip.Qobj format. The expected form
+    of the interaction term is of two possible types:
     1. V = g A B, where A, B are Hermitean operators in two specified subsys_list,
-    2. V = g A B + h.c., where A, B may be non-Hermitean
-    
+    2. V = g A B + h.c.,  where A, B may be non-Hermitean
+
     Parameters
     ----------
     g_strength:
@@ -80,7 +81,8 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     op1, op2:
         names of operators in the two subsys_list
     add_hc:
-        If set to True, the interaction Hamiltonian is of type 2, and the Hermitean conjugate is added.
+        If set to True, the interaction Hamiltonian is of type 2, and the Hermitean
+        conjugate is added.
     """
 
     g_strength = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
@@ -101,7 +103,8 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     ) -> None:
         if hilbertspace:
             warnings.warn(
-                "`hilbertspace` is no longer a parameter for initializing an InteractionTerm object.",
+                "`hilbertspace` is no longer a parameter for initializing an"
+                " InteractionTerm object.",
                 FutureWarning,
             )
         self.g_strength = g_strength
@@ -136,10 +139,12 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
 
 class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
-    """Class holding information about the full Hilbert space, usually composed of multiple subsys_list.
-    The class provides methods to turn subsystem operators into operators acting on the full Hilbert space, and
-    establishes the interface to qutip. Returned operators are of the `qutip.Qobj` type. The class also provides methods
-    for obtaining eigenvalues, absorption and emission spectra as a function of an external parameter.
+    """Class holding information about the full Hilbert space, usually composed of
+    multiple subsys_list. The class provides methods to turn subsystem operators into
+    operators acting on the full Hilbert space, and establishes the interface to
+    qutip. Returned operators are of the `qutip.Qobj` type. The class also provides
+    methods for obtaining eigenvalues, absorption and emission spectra as a function
+    of an external parameter.
     """
 
     osc_subsys_list = descriptors.ReadOnlyProperty()
@@ -197,14 +202,14 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                 output += "\n" + str(interaction_term) + "\n"
         return output
 
-    ###############################################################################################
+    ###################################################################################
     # HilbertSpace: file IO methods
-    ###############################################################################################
+    ###################################################################################
     @classmethod
     def deserialize(cls, io_data: "IOData") -> "HilbertSpace":
         """
-        Take the given IOData and return an instance of the described class, initialized with the data stored in
-        io_data.
+        Take the given IOData and return an instance of the described class,
+        initialized with the data stored in io_data.
         """
         alldata_dict = io_data.as_kwargs()
         lookup = alldata_dict.pop("_lookup", None)
@@ -225,25 +230,25 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return iodata
 
     def get_initdata(self) -> Dict[str, Any]:
-        """Returns dict appropriate for creating/initializing a new HilbertSpace object.
-        """
+        """Returns dict appropriate for creating/initializing a new HilbertSpace
+        object. """
         return {
             "subsystem_list": self._subsystems,
             "interaction_list": self.interaction_list,
         }
 
-    ###############################################################################################
+    ###################################################################################
     # HilbertSpace: creation via GUI
-    ###############################################################################################
+    ###################################################################################
     @classmethod
     def create(cls) -> "HilbertSpace":
         hilbertspace = cls([])
         scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)  # type: ignore
         return hilbertspace
 
-    ###############################################################################################
+    ###################################################################################
     # HilbertSpace: methods for CentralDispatch
-    ###############################################################################################
+    ###################################################################################
     def receive(self, event: str, sender: Any, **kwargs) -> None:
         if self._lookup is not None:
             if event == "QUANTUMSYSTEM_UPDATE" and sender in self:
@@ -256,9 +261,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                 self.broadcast("HILBERTSPACE_UPDATE")
                 self._lookup._out_of_sync = True
 
-    ###############################################################################################
+    ###################################################################################
     # HilbertSpace: subsystems, dimensions, etc.
-    ###############################################################################################
+    ###################################################################################
     def get_subsys_index(self, subsys: QuantumSys) -> int:
         """
         Return the index of the given subsystem in the HilbertSpace.
@@ -284,9 +289,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """Returns number of subsys_list composing the joint Hilbert space"""
         return len(self._subsystems)
 
-    ###############################################################################################
+    ###################################################################################
     # HilbertSpace: generate SpectrumLookup
-    ###############################################################################################
+    ###################################################################################
     def generate_lookup(self) -> None:
         bare_specdata_list = []
         for index, subsys in enumerate(self):
@@ -309,11 +314,12 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             dressed_specdata=dressed_specdata,
         )
 
-    ###############################################################################################
+    ###################################################################################
     # HilbertSpace: energy spectrum
-    ###############################################################################################
+    ##################################################################################
     def eigenvals(self, evals_count: int = 6) -> ndarray:
-        """Calculates eigenvalues of the full Hamiltonian using `qutip.Qob.eigenenergies()`.
+        """Calculates eigenvalues of the full Hamiltonian using
+        `qutip.Qob.eigenenergies()`.
 
         Parameters
         ----------
@@ -324,7 +330,8 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return hamiltonian_mat.eigenenergies(eigvals=evals_count)
 
     def eigensys(self, evals_count: int = 6) -> Tuple[ndarray, QutipEigenstates]:
-        """Calculates eigenvalues and eigenvectors of the full Hamiltonian using `qutip.Qob.eigenstates()`.
+        """Calculates eigenvalues and eigenvectors of the full Hamiltonian using
+        `qutip.Qob.eigenstates()`.
 
         Parameters
         ----------
@@ -352,15 +359,16 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         update_hilbertspace(paramval)
         return self.eigenvals(evals_count)
 
-    ###############################################################################################
+    ###################################################################################
     # HilbertSpace: Hamiltonian (bare, interaction, full)
-    ###############################################################################################
+    ###################################################################################
     def hamiltonian(self) -> Qobj:
         """
 
         Returns
         -------
-            Hamiltonian of the composite system, including the interaction between components
+            Hamiltonian of the composite system, including the interaction between
+            components
         """
         return self.bare_hamiltonian() + self.interaction_hamiltonian()
 
@@ -368,7 +376,8 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """
         Returns
         -------
-            composite Hamiltonian composed of bare Hamiltonians of subsys_list independent of the external parameter
+            composite Hamiltonian composed of bare Hamiltonians of subsys_list
+            independent of the external parameter
         """
         bare_hamiltonian = 0
         for subsys in self:
@@ -408,7 +417,8 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return hamiltonian
 
     def diag_hamiltonian(self, subsystem: QuantumSys, evals: ndarray = None) -> Qobj:
-        """Returns a `qutip.Qobj` which has the eigenenergies of the object `subsystem` on the diagonal.
+        """Returns a `qutip.Qobj` which has the eigenenergies of the object `subsystem`
+         on the diagonal.
 
         Parameters
         ----------
@@ -435,9 +445,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """Deprecated, use `hamiltonian()` instead."""
         return self.hamiltonian()
 
-    ###############################################################################################
+    ###################################################################################
     # HilbertSpace: identity wrapping, operators
-    ###############################################################################################
+    ###################################################################################
     def identity_wrap(
         self,
         operator: Union[str, ndarray, csc_matrix, dia_matrix, Qobj],
@@ -445,18 +455,19 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         op_in_eigenbasis: bool = False,
         evecs: ndarray = None,
     ) -> Qobj:
-        """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
+        """Wrap given operator in subspace `subsystem` in identity operators to form
+        full Hilbert-space operator.
 
         Parameters
         ----------
         operator:
-            operator acting in Hilbert space of `subsystem`; if str, then this should be an operator name in
-            the subsystem, typically not in eigenbasis
+            operator acting in Hilbert space of `subsystem`; if str, then this should
+            be an operator name in the subsystem, typically not in eigenbasis
         subsystem:
             subsystem where diagonal operator is defined
         op_in_eigenbasis:
-            whether `operator` is given in the `subsystem` eigenbasis; otherwise, the internal QuantumSys basis is
-            assumed
+            whether `operator` is given in the `subsystem` eigenbasis; otherwise, the
+            internal QuantumSys basis is assumed
         evecs:
             internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
         """
@@ -471,8 +482,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return qt.tensor(operator_identitywrap_list)
 
     def diag_operator(self, diag_elements: ndarray, subsystem: QuantumSys) -> Qobj:
-        """For given diagonal elements of a diagonal operator in `subsystem`, return the `Qobj` operator for the
-        full Hilbert space (perform wrapping in identities for other subsys_list).
+        """For given diagonal elements of a diagonal operator in `subsystem`, return
+        the `Qobj` operator for the full Hilbert space (perform wrapping in
+        identities for other subsys_list).
 
         Parameters
         ----------
@@ -513,9 +525,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         operator = qt.destroy(dim)
         return self.identity_wrap(operator, subsystem)
 
-    ###############################################################################################
+    ###################################################################################
     # HilbertSpace: spectrum sweep
-    ###############################################################################################
+    ###################################################################################
     def get_spectrum_vs_paramvals(
         self,
         param_vals: ndarray,
@@ -525,26 +537,31 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         param_name: str = "external_parameter",
         num_cpus: int = settings.NUM_CPUS,
     ) -> SpectrumData:
-        """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as a function of a parameter.
-        Parameter values are specified as a list or array in `param_vals`. The Hamiltonian `hamiltonian_func`
-        must be a function of that particular parameter, and is expected to internally set subsystem parameters.
-        If a `filename` string is provided, then eigenvalue data is written to that file.
+        """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as
+        a function of a parameter. Parameter values are specified as a list or array
+        in `param_vals`. The Hamiltonian `hamiltonian_func` must be a function of
+        that particular parameter, and is expected to internally set subsystem
+        parameters. If a `filename` string is provided, then eigenvalue data is
+        written to that file.
 
         Parameters
         ----------
         param_vals:
             array of parameter values
         update_hilbertspace:
-            update_hilbertspace(param_val) specifies how a change in the external parameter affects
-            the Hilbert space components
+            update_hilbertspace(param_val) specifies how a change in the external
+            parameter affects the Hilbert space components
         evals_count:
             number of desired energy levels (default value = 10)
         get_eigenstates:
-            set to true if eigenstates should be returned as well (default value = False)
+            set to true if eigenstates should be returned as well
+            (default value = False)
         param_name:
-            name for the parameter that is varied in `param_vals` (default value = "external_parameter")
+            name for the parameter that is varied in `param_vals`
+            (default value = "external_parameter")
         num_cpus:
-            number of cores to be used for computation (default value: settings.NUM_CPUS)
+            number of cores to be used for computation
+            (default value: settings.NUM_CPUS)
         """
         target_map = cpu_switch.get_map_method(num_cpus)
         if get_eigenstates:

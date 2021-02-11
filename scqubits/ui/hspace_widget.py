@@ -46,7 +46,7 @@ class HilbertSpaceUi:
         self.current_interaction_key = ""
         self.interactions_dict = {}
 
-        # == subsystems panel ==========================================================================================
+        # == subsystems panel =========================================================
         label = ipywidgets.Label(
             value="Select all HilbertSpace\n subsystems (Ctrl-Click)"
         )
@@ -63,7 +63,7 @@ class HilbertSpaceUi:
         )
         self.subsys_box = ipywidgets.VBox([self.subsys_toprow, self.subsys_widget])
 
-        # == InteractionTerms list panel ===============================================================================
+        # == InteractionTerms list panel =============================================
         label = ipywidgets.Label(value="Interaction term(s)   ")
         self.interact_new_button = ipywidgets.Button(
             icon="plus", layout=ipywidgets.Layout(width="35px")
@@ -85,7 +85,7 @@ class HilbertSpaceUi:
             [self.interact_buttons, self.interact_list_widget]
         )
 
-        # == Panel for specifying an InteractionTerm ===================================================================
+        # == Panel for specifying an InteractionTerm =================================
         self.op1_widget = ipywidgets.Text(
             description="op1", placeholder="e.g., <subsys1>.n_operator()"
         )
@@ -116,14 +116,14 @@ class HilbertSpaceUi:
         )
         self.interact_box.layout.display = "none"
 
-        # == Central run button, status output field ===================================================================
+        # == Central run button, status output field ==================================
         self.run_button = ipywidgets.Button(
             description="Create HilbertSpace object",
             layout=ipywidgets.Layout(width="200px"),
         )
         self.status_output = ipywidgets.Output()
 
-        # == Wrap everything into boxes ================================================================================
+        # == Wrap everything into boxes ==============================================
         self.all_panels = ipywidgets.HBox(
             [self.subsys_box, self.interact_list_box, self.interact_box],
             layout=ipywidgets.Layout(grid_gap="50px"),
@@ -132,7 +132,7 @@ class HilbertSpaceUi:
             [self.all_panels, self.run_button, self.status_output]
         )
 
-        # == Make GUI connections ======================================================================================
+        # == Make GUI connections =====================================================
         self.connect_ui()
 
     def connect_ui(self):
@@ -265,9 +265,8 @@ class HilbertSpaceUi:
                 except (AttributeError, SyntaxError, NameError):
                     with self.status_output:
                         print(
-                            "Error: operator {} is not defined or has a syntax error.".format(
-                                operator_str
-                            )
+                            "Error: operator {} is not defined or has a syntax error."
+                            .format(operator_str)
                         )
                     return False
                 if not isinstance(instance, np.ndarray):
@@ -294,15 +293,15 @@ class HilbertSpaceUi:
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
 def create_hilbertspace_widget(callback_func):
     """
-    Display ipywidgets interface for creating a HilbertSpace object. Typically, this function will be called by
-    `HilbertSpace.create()``.
+    Display ipywidgets interface for creating a HilbertSpace object. Typically,
+    this function will be called by `HilbertSpace.create()``.
 
 
     Parameters
     ----------
     callback_func: function
-        Function that receives the subsystem and interaction data from the widget. Typically, this is
-        ``HilbertSpace.__init__()``
+        Function that receives the subsystem and interaction data from the widget.
+        Typically, this is ``HilbertSpace.__init__()``
     """
     ui_view = HilbertSpaceUi()
 

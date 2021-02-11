@@ -213,8 +213,9 @@ def renormalization_factor(
     wavefunc: "WaveFunction", potential_vals: np.ndarray
 ) -> float:
     """
-    Takes the amplitudes of one wavefunction and the potential values to scale the dimensionless amplitude to a
-    (pseudo-)energy that allows us to plot wavefunctions and energies in the same plot.
+    Takes the amplitudes of one wavefunction and the potential values to scale the
+    dimensionless amplitude to a (pseudo-)energy that allows us to plot wavefunctions
+    and energies in the same plot.
 
     Parameters
     ----------
@@ -236,7 +237,8 @@ def renormalization_factor(
 
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
     """
-    Plots the amplitude of a real-valued 1d wave function in a discrete basis. (Example: transmon in the charge basis.)
+    Plots the amplitude of a real-valued 1d wave function in a discrete basis.
+    (Example: transmon in the charge basis.)
 
     Parameters
     ----------
@@ -266,7 +268,8 @@ def wavefunction2d(
     wavefunc: "WaveFunctionOnGrid", zero_calibrate: bool = False, **kwargs
 ) -> Tuple[Figure, Axes]:
     """
-    Creates a density plot of the amplitude of a real-valued wave function in 2 "spatial" dimensions.
+    Creates a density plot of the amplitude of a real-valued wave function in 2
+    "spatial" dimensions.
 
     Parameters
     ----------
@@ -377,9 +380,11 @@ def matrix(
     data_matrix:
         2d matrix data
     mode:
-        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to data
+        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to
+        data
     show_numbers:
-        determines whether matrix element values are printed on top of the plot (default: False)
+        determines whether matrix element values are printed on top of the plot
+        (default: False)
     **kwargs:
         standard plotting option (see separate documentation)
 
@@ -411,7 +416,8 @@ def matrix_skyscraper(
     matrix:
         2d matrix data
     mode:
-        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to data
+        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to
+        data
     **kwargs:
         standard plotting option (see separate documentation)
 
@@ -465,16 +471,19 @@ def matrix_skyscraper(
 def matrix2d(
     matrix: np.ndarray, mode: str = "abs", show_numbers: bool = True, **kwargs
 ) -> Tuple[Figure, Axes]:
-    """Display a matrix as a color-coded 2d plot, optionally printing the numerical values of the matrix elements.
+    """Display a matrix as a color-coded 2d plot, optionally printing the numerical
+    values of the matrix elements.
 
     Parameters
     ----------
     matrix:
         2d matrix data
     mode:
-        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to data
+        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to
+        data
     show_numbers:
-        determines whether matrix element values are printed on top of the plot (default: True)
+        determines whether matrix element values are printed on top of the plot
+        (default: True)
     **kwargs:
         standard plotting option (see separate documentation)
 
@@ -585,7 +594,8 @@ def evals_vs_paramvals(
     specdata:
         object includes parameter name, values, and resulting eigenenergies
     which:
-        number of desired eigenvalues (sorted from smallest to largest); default: -1, signals all eigenvalues
+        number of desired eigenvalues (sorted from smallest to largest); default: -1,
+        signals all eigenvalues
         or: list of specific eigenvalues to include
     subtract_ground:
         whether to subtract the ground state energy
@@ -626,7 +636,8 @@ def matelem_vs_paramvals(
     specdata:
         object includes parameter name, values, and matrix elements
     select_elems:
-        either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples
+        either maximum index of desired matrix elements,
+        or list [(i1, i2), (i3, i4), ...] of index tuples
         for specific desired matrix elements
     mode:
         choice of processing function to be applied to data (default value = 'abs')
