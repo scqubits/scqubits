@@ -118,6 +118,21 @@ class GUI:
             "zeta_cutoff": {"min": 10, "max": 50},
             "scale": None,
         }
+        cosinetwophi_defaults = {
+            **global_defaults,
+            "scan_param": "flux",
+            "operator": "n_phi_operator",
+            "ncut": {"min": 5, "max": 50},
+            "EL": {"min": 1e-10, "max": 30},
+            "ECJ": global_defaults["EC"],
+            "dJ": {"min": 0, "max": 1},
+            "dL": {"min": 0, "max": 1},
+            "dC": {"min": 0, "max": 1},
+            "ncut": {"min": 10, "max": 50},
+            "zeta_cut": {"min": 10, "max": 50},
+            "phi_cut": {"min": 10, "max": 50},
+            "scale": None,
+        }
         self.qubit_defaults = {
             "Transmon": transmon_defaults,
             "TunableTransmon": tunabletransmon_defaults,
@@ -125,11 +140,12 @@ class GUI:
             "FluxQubit": fluxqubit_defaults,
             "ZeroPi": zeropi_defaults,
             "FullZeroPi": fullzeropi_defaults,
+            "CosineTwoPhi": cosinetwophi_defaults
         }
         self.grid_defaults = {
             "grid_min_val": -6 * np.pi,
             "grid_max_val": 6 * np.pi,
-            "grid_pt_count": 50,
+            "grid_pt_count": 100,
         }
         self.plot_choices = {
             "Energy spectrum": "plot_evals_vs_paramvals",
@@ -144,6 +160,7 @@ class GUI:
             "FluxQubit",
             "ZeroPi",
             "FullZeroPi",
+            "CosineTwoPhi"
         ]
         self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
         self.fig: Figure
@@ -158,9 +175,6 @@ class GUI:
         self.create_qubit_and_plot_choice_widgets()
 
         qubit_and_plot_choice_display, plot_display = self.create_GUI()
-        import os
-
-        print(os.getcwd())
         display(qubit_and_plot_choice_display, plot_display)
 
     # Initialization Methods -------------------------------------------------------------------------------------------------
