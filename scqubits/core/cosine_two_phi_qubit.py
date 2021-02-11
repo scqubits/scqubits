@@ -485,8 +485,8 @@ class CosineTwoPhiQubit(
         offset charge
     n_cut:
         number of charge states, `-n_cut <= n_\varphi <= n_cut`
-    theta_cut:                                                                                              ASK ABOUT
-        number of harmonic oscillator basis for `\theta` variable
+    zeta_cut:                                                                                              
+        number of harmonic oscillator basis for `\zeta` variable
     phi_cut:
         number of harmonic oscillator basis for `\phi` variable
     """
@@ -552,9 +552,9 @@ class CosineTwoPhiQubit(
             "dJ": 0.0,
             "flux": 0.5,
             "ng": 0.0,
-            "n_cut": 7,
-            "zeta_cut": 30,
-            "phi_cut": 7,
+            "n_cut": 2,
+            "zeta_cut": 5,
+            "phi_cut": 3,
         }
 
     @classmethod
