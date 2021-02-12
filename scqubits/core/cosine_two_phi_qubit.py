@@ -204,7 +204,8 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         **kwargs
     ) -> float:
         r"""
-        :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
+        :math:`T_1` due to dielectric dissipation in the Josephson junction
+        capacitances.
 
         References:  nguyen et al (2019), Smith et al (2020)
 
@@ -325,7 +326,7 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         **kwargs
     ) -> float:
         r"""
-        :math:`T_1` due to dielectric dissipation in the shunt capacitances.
+        :math:`T_1` due to dielectric dissipation in the shunt capacitor.
 
         References:  Nguyen et al (2019), Smith et al (2020)
 
@@ -614,10 +615,7 @@ class CosineTwoPhiQubit(
         )
 
     def phi_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-            `phi` operator in total Hilbert space"""
+        """Returns :math:`\\phi` operator in total Hilbert space"""
         return self._kron3(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         )
@@ -635,10 +633,7 @@ class CosineTwoPhiQubit(
         )
 
     def n_phi_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-            `n_phi` operator in total Hilbert space"""
+        """Returns :math:`n_\\phi` operator in total Hilbert space"""
         return self._kron3(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
         )
@@ -656,10 +651,7 @@ class CosineTwoPhiQubit(
         )
 
     def zeta_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-            `zeta` operator in total Hilbert space"""
+        """Returns :math:`\\zeta` operator in total Hilbert space"""
         return self._kron3(
             self._identity_phi(), self._zeta_operator(), self._identity_theta()
         )
@@ -677,10 +669,7 @@ class CosineTwoPhiQubit(
         )
 
     def n_zeta_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-            `n_zeta` operator in total Hilbert space"""
+        """Returns :math:`n_\\zeta` operator in total Hilbert space"""
         return self._kron3(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
         )
@@ -722,10 +711,7 @@ class CosineTwoPhiQubit(
         ).tocsc()
 
     def n_theta_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-            `n_theta` in the total Hilbert space"""
+        """Returns :math:`n_\\theta` in the total Hilbert space"""
         return self._kron3(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
         )
@@ -780,9 +766,7 @@ class CosineTwoPhiQubit(
         return sparse.eye(dimension)
 
     def total_identity(self) -> csc_matrix:
-        """
-        Returns Identity operator acting only on the total Hilbert space.
-        """
+        """Returns Identity operator acting on the total Hilbert space."""
         return self._kron3(
             self._identity_phi(), self._identity_zeta(), self._identity_theta()
         )
@@ -946,7 +930,7 @@ class CosineTwoPhiQubit(
         self, esys=None, which=0, phi_grid=None, zeta_grid=None, theta_grid=None
     ) -> WaveFunctionOnGrid:
         """
-        Return a 3D wave function in phi, zeta, theta basis
+        Return a 3D wave function in :math:`\\phi, \\zeta, \\theta` basis
 
         Parameters
         ----------
@@ -1029,7 +1013,7 @@ class CosineTwoPhiQubit(
         **kwargs
     ) -> Tuple[Figure, Axes]:
         """
-        Plots 2D wave function in `theta` and `phi` basis, at `zeta` = 0
+        Plots 2D wave function in :math:`\\theta, \\phi` basis, at :math:`\\zeta = 0`
 
         Parameters
         ----------
@@ -1085,37 +1069,21 @@ class CosineTwoPhiQubit(
         )
 
     def phi_1_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-            operator represents phase across inductor 1
-        """
+        """Returns operator represents phase across inductor 1"""
         return self.zeta_operator() - self.phi_operator()
 
     def phi_2_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-            operator represents phase across inductor 2
-        """
+        """Returns operator represents phase across inductor 2"""
         return -self.zeta_operator() - self.phi_operator()
 
     def n_1_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-            operator represents charge difference across junction 1
-        """
+        """Returns operator represents charge difference across junction 1"""
         return 0.5 * self.n_phi_operator() + 0.5 * (
             self.n_theta_operator() - self.n_zeta_operator()
         )
 
     def n_2_operator(self) -> csc_matrix:
-        """
-        Returns
-        -------
-            operator represents charge difference across junction 2
-        """
+        """Returns operator represents charge difference across junction 2"""
         return 0.5 * self.n_phi_operator() - 0.5 * (
             self.n_theta_operator() - self.n_zeta_operator()
         )
