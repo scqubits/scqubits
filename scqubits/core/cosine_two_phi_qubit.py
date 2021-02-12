@@ -412,13 +412,14 @@ class CosineTwoPhiQubit(
     | [1] Smith et al., NPJ Quantum Inf. 6, 8 (2020) http://www.nature.com/articles/s41534-019-0231-2
 
     .. math::
-    # TODO:
-        H = 4E_\text{C}[2n_\phi^2+\frac{1}{2}(n_\varphi-N_\text{g}-n_\theta)^2+xn_\theta^2]
-                           +E_\text{L}(\frac{1}{4}\phi^2+\theta^2)
-                           -2E_\text{J}\cos(\varphi)\cos(\frac{\phi}{2}+\frac{\varphi_\text{ext}}{2})
 
-    The Hamiltonian is formed with harmonic basis for :math:`\phi,\theta` variables and charge basis for :math:`\varphi`
-    variable.
+       H = & \,2 \tilde{E}_\text{CJ}n_\phi^2 + 2 \tilde{E}_\text{CJ} (n_\theta - n_\text{g} - n_\zeta)^2 + 4 E_\text{C} n_\zeta^2\\
+       & + \tilde{E}_\text{L}\left(\phi - \frac{1}{2}\varphi_\text{ext}\right)^2 + \tilde{E}_\text{L} \zeta^2 - 2 E_\text{J}\cos{\theta}\cos{\phi} \\
+       & + 2 \delta_\text{EJ} E_\text{J}\sin{\theta}\sin{\phi} \\
+       & - 4 \delta_\text{CJ} \tilde{E}_\text{CJ} n_\phi (n_\theta - n_\text{g}-n_\zeta) \\
+       & + \delta_\text{L}\tilde{E}_\text{L} (2\phi - \varphi_\text{ext})\zeta ,
+
+    where :math:`\tilde{E}_\text{CJ} = E_\text{CJ} / (1 - \delta_\text{CJ})^2` and :math:`\tilde{E}_\text{L} = E_\text{L} / (1 - \delta_\text{L})^2`. Here, the disorder is defined as follows: the inductive energy of the two inductors are :math:`E_\text{L}/(1 \pm \delta_\text{L})`; the charging energy of the two Josephson junctions are :math:`E_\text{CJ}/(1 \pm \delta_\text{CJ})`; the junction energy of the two Josephson junctions are :math:`E_\text{J} (1 \pm \delta_\text{EJ})`.
 
     Parameters
     ----------
@@ -431,21 +432,22 @@ class CosineTwoPhiQubit(
     EC:
         charging energy of the shunt capacitor
     dCJ:
-        disorder in junction charging energy, i.e., `ECJ / (1 \pm dCJ)`
+        disorder in junction charging energy
     dL:
-        disorder in inductive energy, i.e., `EL / (1 \pm dL)`
+        disorder in inductive energy
     dEJ:
-        disorder in junction energy, i.e., `EJ * (1 \pm dEJ)`
+        disorder in junction energy
     flux:
-        external magnetic flux in angular units, 2pi corresponds to one flux quantum
+        external magnetic flux in angular units, 1 corresponds to one flux
+        quantum
     ng:
         offset charge
     n_cut:
-        number of charge states, `-n_cut <= n_\varphi <= n_cut`
+        cutoff for charge basis, -``n_cut`` <= :math:`n_\varphi` <= ``n_cut``
     zeta_cut:
-        number of harmonic oscillator basis for `\theta` variable
+        number of harmonic oscillator basis for :math:`\theta` variable
     phi_cut:
-        number of harmonic oscillator basis for `\phi` variable
+        number of harmonic oscillator basis for :math`\phi` variable
     """
     EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -534,30 +536,22 @@ class CosineTwoPhiQubit(
 
     def dim_phi(self) -> int:
         """
-        Returns
-        -------
-            Hilbert space dimension of `phi` degree of freedom"""
+        Returns Hilbert space dimension of :math:`\\phi` degree of freedom"""
         return self.phi_cut
 
     def dim_zeta(self) -> int:
         """
-        Returns
-        -------
-            Hilbert space dimension of `zeta` degree of freedom"""
+        Returns Hilbert space dimension of :math:`\\zeta` degree of freedom"""
         return self.zeta_cut
 
     def dim_theta(self) -> int:
         """
-        Returns
-        -------
-            Hilbert space dimension of `theta` degree of freedom"""
+        Returns Hilbert space dimension of :math:`\\theta` degree of freedom"""
         return 2 * self.n_cut + 1
 
     def hilbertdim(self) -> int:
         """
-        Returns
-        -------
-            total Hilbert space dimension"""
+        Returns total Hilbert space dimension"""
         return self.dim_phi() * self.dim_zeta() * self.dim_theta()
 
     def _disordered_el(self) -> float:
@@ -576,30 +570,22 @@ class CosineTwoPhiQubit(
 
     def phi_osc(self) -> float:
         """
-        Returns
-        -------
-            oscillator strength of `phi` degree of freedom"""
+        Returns oscillator strength of :math:`\\phi` degree of freedom"""
         return (2 * self._disordered_ecj() / self._disordered_el()) ** 0.25
 
     def zeta_osc(self) -> float:
         """
-        Returns
-        -------
-            oscillator strength of `zeta` degree of freedom"""
+        Returns oscillator strength of :math:`\\zeta` degree of freedom"""
         return (4 * self.EC / self._disordered_el()) ** 0.25
 
     def phi_plasma(self) -> float:
         """
-        Returns
-        -------
-            plasma oscillation frequency of `phi` degree of freedom"""
+        Returns plasma oscillation frequency of :math:`\\phi` degree of freedom"""
         return math.sqrt(8.0 * self._disordered_el() * self._disordered_ecj())
 
     def zeta_plasma(self) -> float:
         """
-        Returns
-        -------
-            plasma oscillation frequency of `zeta` degree of freedom"""
+        Returns plasma oscillation frequency of :math:`\\zeta` degree of freedom"""
         return math.sqrt(16.0 * self.EC * self._disordered_el())
 
     def _phi_operator(self) -> csc_matrix:
