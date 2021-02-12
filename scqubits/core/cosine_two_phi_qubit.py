@@ -24,7 +24,6 @@ from numpy import ndarray
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
-from scipy.special import kn
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -47,23 +46,23 @@ from scqubits.core.storage import WaveFunctionOnGrid
 
 class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
     @abstractmethod
-    def phi_1_operator(self) -> ndarray:
+    def phi_1_operator(self) -> csc_matrix:
         pass
 
     @abstractmethod
-    def phi_2_operator(self) -> ndarray:
+    def phi_2_operator(self) -> csc_matrix:
         pass
 
     @abstractmethod
-    def N_1_operator(self) -> ndarray:
+    def N_1_operator(self) -> csc_matrix:
         pass
 
     @abstractmethod
-    def N_2_operator(self) -> ndarray:
+    def N_2_operator(self) -> csc_matrix:
         pass
 
     @abstractmethod
-    def n_zeta_operator(self) -> ndarray:
+    def n_zeta_operator(self) -> csc_matrix:
         pass
 
     def t1_inductive(
@@ -373,7 +372,7 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         r"""
         :math:`T_1` due to dielectric dissipation in the shunt capacitances.
 
-        References:  nguyen et al (2019), Smith et al (2020)
+        References:  Nguyen et al (2019), Smith et al (2020)
 
         Parameters
         ----------
@@ -648,19 +647,19 @@ class CosineTwoPhiQubit(
             plasma oscillation frequency of `zeta` degree of freedom"""
         return math.sqrt(16.0 * self.EC * self._disordered_el())
 
-    def _phi_operator(self) -> ndarray:
+    def _phi_operator(self) -> csc_matrix:
         """
         Returns
         -------
             `phi` operator in the harmonic oscillator basis"""
         dimension = self.dim_phi()
         return (
-                (op.creation(dimension) + op.annihilation(dimension))
+                (op.creation_sparse(dimension) + op.annihilation_sparse(dimension))
                 * self.phi_osc()
                 / math.sqrt(2)
         )
 
-    def phi_operator(self) -> ndarray:
+    def phi_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -669,7 +668,7 @@ class CosineTwoPhiQubit(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         )
 
-    def _n_phi_operator(self) -> ndarray:
+    def _n_phi_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -677,11 +676,11 @@ class CosineTwoPhiQubit(
         dimension = self.dim_phi()
         return (
                 1j
-                * (op.creation(dimension) - op.annihilation(dimension))
+                * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension))
                 / (self.phi_osc() * math.sqrt(2))
         )
 
-    def n_phi_operator(self) -> ndarray:
+    def n_phi_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -690,19 +689,19 @@ class CosineTwoPhiQubit(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
         )
 
-    def _zeta_operator(self) -> ndarray:
+    def _zeta_operator(self) -> csc_matrix:
         """
         Returns
         -------
             `zeta` operator in the harmonic oscillator basis"""
         dimension = self.dim_zeta()
         return (
-                (op.creation(dimension) + op.annihilation(dimension))
+                (op.creation_sparse(dimension) + op.annihilation_sparse(dimension))
                 * self.zeta_osc()
                 / math.sqrt(2)
         )
 
-    def zeta_operator(self) -> ndarray:
+    def zeta_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -711,7 +710,7 @@ class CosineTwoPhiQubit(
             self._identity_phi(), self._zeta_operator(), self._identity_theta()
         )
 
-    def _n_zeta_operator(self) -> ndarray:
+    def _n_zeta_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -719,11 +718,11 @@ class CosineTwoPhiQubit(
         dimension = self.dim_zeta()
         return (
                 1j
-                * (op.creation(dimension) - op.annihilation(dimension))
+                * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension))
                 / (self.zeta_osc() * math.sqrt(2))
         )
 
-    def n_zeta_operator(self) -> ndarray:
+    def n_zeta_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -732,15 +731,15 @@ class CosineTwoPhiQubit(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
         )
 
-    def _exp_i_phi_operator(self) -> ndarray:
+    def _exp_i_phi_operator(self) -> csc_matrix:
         """
         Returns
         -------
             `e^{i*phi}` operator in the  harmonic oscillator basis"""
         exponent = 1j * self._phi_operator()
-        return sp.linalg.expm(exponent)
+        return sp.sparse.linalg.expm(exponent)
 
-    def _cos_phi_operator(self) -> ndarray:
+    def _cos_phi_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -749,7 +748,7 @@ class CosineTwoPhiQubit(
         cos_phi_op += cos_phi_op.conj().T
         return cos_phi_op
 
-    def _sin_phi_operator(self) -> ndarray:
+    def _sin_phi_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -758,15 +757,16 @@ class CosineTwoPhiQubit(
         sin_phi_op += sin_phi_op.conj().T
         return sin_phi_op
 
-    def _n_theta_operator(self) -> ndarray:
+    def _n_theta_operator(self) -> csc_matrix:
         """
         Returns
         -------
             `n_theta` operator in the charge basis"""
         diag_elements = np.arange(-self.n_cut, self.n_cut + 1)
-        return np.diag(diag_elements)
+        return dia_matrix((diag_elements, [0]),
+                          shape=(self.dim_theta(), self.dim_theta())).tocsc()
 
-    def n_theta_operator(self) -> ndarray:
+    def n_theta_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -775,53 +775,56 @@ class CosineTwoPhiQubit(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
         )
 
-    def _exp_i_theta_operator(self) -> ndarray:
-        """Returns operator :math:`e^{i\\theta}` in the charge basis"""
-        dimension = self.dim_theta()
-        entries = np.repeat(1.0, dimension - 1)
-        exp_op = np.diag(entries, -1)
-        return exp_op
-
-    def _cos_theta_operator(self) -> ndarray:
+    def _cos_theta_operator(self) -> csc_matrix:
         """Returns operator :math:`\\cos \\theta` in the charge basis"""
-        cos_op = 0.5 * self._exp_i_theta_operator()
-        cos_op += cos_op.T
-        return cos_op
+        cos_op = (
+                0.5
+                * sparse.dia_matrix(
+            (np.ones(self.dim_theta()), [1]),
+            shape=(self.dim_theta(), self.dim_theta()),
+        ).tocsc()
+        )
+        return cos_op + cos_op.T
 
-    def _sin_theta_operator(self) -> ndarray:
+    def _sin_theta_operator(self) -> csc_matrix:
         """Returns operator :math:`\\sin \\varphi` in the charge basis"""
-        sin_op = -1j * 0.5 * self._exp_i_theta_operator()
-        sin_op += sin_op.conjugate().T
-        return sin_op
+        sin_op = (
+                         0.5
+                         * sparse.dia_matrix(
+                     (np.ones(self.dim_theta()), [1]),
+                     shape=(self.dim_theta(), self.dim_theta()),
+                 ).tocsc()
+                 ) * (-1j)
+        return sin_op + sin_op.T
 
-    def _kron3(self, mat1, mat2, mat3) -> ndarray:
+    def _kron3(self, mat1, mat2, mat3) -> csc_matrix:
         """
         Returns Kronecker product of three matrices
         """
-        return np.kron(np.kron(mat1, mat2), mat3)
+        return sparse.kron(sparse.kron(mat1, mat2), mat3)
 
-    def _identity_phi(self) -> ndarray:
+    def _identity_phi(self) -> csc_matrix:
         """
         Returns Identity operator acting only on the :math:`\phi` Hilbert subspace.
         """
         dimension = self.dim_phi()
-        return np.eye(dimension)
+        return sparse.eye(dimension)
 
-    def _identity_zeta(self) -> ndarray:
+    def _identity_zeta(self) -> csc_matrix:
         """
         Returns Identity operator acting only on the :math:`\zeta` Hilbert subspace.
         """
         dimension = self.dim_zeta()
-        return np.eye(dimension)
+        return sparse.eye(dimension)
 
-    def _identity_theta(self) -> ndarray:
+    def _identity_theta(self) -> csc_matrix:
         """
         Returns Identity operator acting only on the :math:`\theta` Hilbert subspace.
         """
         dimension = self.dim_theta()
-        return np.eye(dimension)
+        return sparse.eye(dimension)
 
-    def total_identity(self) -> ndarray:
+    def total_identity(self) -> csc_matrix:
         """
         Returns Identity operator acting only on the total Hilbert space.
         """
@@ -829,27 +832,25 @@ class CosineTwoPhiQubit(
             self._identity_phi(), self._identity_zeta(), self._identity_theta()
         )
 
-    def hamiltonian(self) -> ndarray:
+    def hamiltonian(self) -> csc_matrix:
         """
         Returns Cosine two phi qubit Hamiltonian
         """
         phi_osc_mat = self._kron3(
-            op.number(self.dim_phi(), self.phi_plasma()),
+            op.number_sparse(self.dim_phi(), self.phi_plasma()),
             self._identity_zeta(),
             self._identity_theta(),
         )
 
         zeta_osc_mat = self._kron3(
             self._identity_phi(),
-            op.number(self.dim_zeta(), self.zeta_plasma()),
+            op.number_sparse(self.dim_zeta(), self.zeta_plasma()),
             self._identity_theta(),
         )
 
         n_theta_ng_mat = self.n_theta_operator() - self.total_identity() * self.ng
-        cross_kinetic_mat = 2 * self._disordered_ecj() * np.matmul(n_theta_ng_mat -
-                                                                   self.n_zeta_operator(),
-                                                                   n_theta_ng_mat -
-                                                                   self.n_zeta_operator())
+        cross_kinetic_mat = 2 * self._disordered_ecj() * (
+                    n_theta_ng_mat - self.n_zeta_operator()) ** 2
 
         phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
@@ -898,17 +899,25 @@ class CosineTwoPhiQubit(
         disorder_c = -4 * self._disordered_ecj() * self.dC * dis_c_opt
         return disorder_l + disorder_j + disorder_c
 
-    def _evals_calc(self, evals_count: int) -> ndarray:
+    def _evals_calc(self, evals_count) -> ndarray:
         hamiltonian_mat = self.hamiltonian() + self.disorder()
-        evals = sp.linalg.eigh(
-            hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=True
+        evals = sparse.linalg.eigsh(
+            hamiltonian_mat,
+            k=evals_count,
+            return_eigenvectors=False,
+            sigma=0.0,
+            which="LM",
         )
         return np.sort(evals)
 
-    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+    def _esys_calc(self, evals_count) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian() + self.disorder()
-        evals, evecs = sp.linalg.eigh(
-            hamiltonian_mat, eigvals=(0, evals_count - 1), eigvals_only=False
+        evals, evecs = sparse.linalg.eigsh(
+            hamiltonian_mat,
+            k=evals_count,
+            return_eigenvectors=True,
+            sigma=0.0,
+            which="LM",
         )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
@@ -1116,7 +1125,7 @@ class CosineTwoPhiQubit(
             **kwargs
         )
 
-    def phi_1_operator(self) -> ndarray:
+    def phi_1_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -1124,7 +1133,7 @@ class CosineTwoPhiQubit(
         """
         return self.zeta_operator() - self.phi_operator()
 
-    def phi_2_operator(self) -> ndarray:
+    def phi_2_operator(self) -> csc_matrix:
         """
         Returns
         -------
@@ -1132,27 +1141,27 @@ class CosineTwoPhiQubit(
         """
         return -self.zeta_operator() - self.phi_operator()
 
-    def N_1_operator(self) -> ndarray:
+    def N_1_operator(self) -> csc_matrix:
         """
         Returns
         -------
-            operator represents charge on junction 1
+            operator represents charge difference across junction 1
         """
         return 0.5 * self.n_phi_operator() + 0.5 * (
                 self.n_theta_operator() - self.n_zeta_operator()
         )
 
-    def N_2_operator(self) -> ndarray:
+    def N_2_operator(self) -> csc_matrix:
         """
         Returns
         -------
-            operator represents charge on junction 2
+            operator represents charge difference across junction 2
         """
         return 0.5 * self.n_phi_operator() - 0.5 * (
                 self.n_theta_operator() - self.n_zeta_operator()
         )
 
-    def d_hamiltonian_d_flux(self) -> ndarray:
+    def d_hamiltonian_d_flux(self) -> csc_matrix:
         phi_flux_term = self._sin_phi_operator() * np.cos(
             self.flux * np.pi
         ) + self._cos_phi_operator() * np.sin(self.flux * np.pi)
@@ -1179,7 +1188,7 @@ class CosineTwoPhiQubit(
         )
         return junction_mat + dis_junction_mat
 
-    def d_hamiltonian_d_EJ(self) -> ndarray:
+    def d_hamiltonian_d_EJ(self) -> csc_matrix:
         phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
         ) - self._sin_phi_operator() * np.sin(self.flux * np.pi)
@@ -1199,6 +1208,6 @@ class CosineTwoPhiQubit(
         )
         return junction_mat + dis_junction_mat
 
-    def d_hamiltonian_d_ng(self) -> ndarray:
+    def d_hamiltonian_d_ng(self) -> csc_matrix:
         return 4 * self.dC * self._disordered_ecj() * self.n_phi_operator() - 4 * self._disordered_ecj() * (
                 self.n_theta_operator() - self.ng - self.n_zeta_operator())
