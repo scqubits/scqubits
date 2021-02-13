@@ -30,6 +30,7 @@ import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
@@ -219,6 +220,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             sigma=0.0,
             which="LM",
             return_eigenvectors=False,
+            v0=settings.RANDOM_ARRAY[:self.hilbertdim()]
         )
         return np.sort(evals)
 
@@ -230,9 +232,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             sigma=0.0,
             which="LM",
             return_eigenvectors=True,
+            v0=settings.RANDOM_ARRAY[:self.hilbertdim()]
         )
-        # TODO consider normalization of zeropi wavefunctions
-        # evecs /= np.sqrt(self.grid.grid_spacing())
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
