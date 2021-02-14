@@ -371,6 +371,7 @@ class NamedSlotsNdarray(np.ndarray, NamedSliceableSlots):
             obj.slotindex_by_slotname[name]: values_by_name[name]
             for name in values_by_name.keys()
         }
+        obj.paramvals_by_name = obj.values_by_slotname  # alias for user interface
         obj.data_callback = None
         return obj
 
@@ -381,6 +382,7 @@ class NamedSlotsNdarray(np.ndarray, NamedSliceableSlots):
         self.slotindex_by_slotname = getattr(obj, "slotindex_by_slotname", None)
         self.slotname_by_slotindex = getattr(obj, "slotname_by_slotindex", None)
         self.values_by_slotindex = getattr(obj, "values_by_slotindex", None)
+        self.paramvals_by_name = self.values_by_slotindex  # alias for user interface
         self.data_callback = getattr(obj, "data_callback", None)
 
     def __getitem__(
