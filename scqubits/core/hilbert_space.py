@@ -702,9 +702,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             independent of the external parameter
         """
         bare_hamiltonian = 0
-        for subsys in self:
-            if bare_esys is not None and subsys in bare_esys:
-                evals = bare_esys[subsys][0]
+        for subsys_index, subsys in enumerate(self):
+            if bare_esys is not None and subsys_index in bare_esys:
+                evals = bare_esys[subsys_index][0]
             else:
                 evals = subsys.eigenvals(evals_count=subsys.truncated_dim)
             bare_hamiltonian += self.diag_hamiltonian(subsys, evals)
