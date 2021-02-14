@@ -14,11 +14,6 @@ import os
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
-
-from numpy import ndarray
-from scipy import sparse
-from scipy.sparse.csc import csc_matrix
-
 import scqubits
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -30,6 +25,9 @@ import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
 
+from numpy import ndarray
+from scipy import sparse
+from scipy.sparse.csc import csc_matrix
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 

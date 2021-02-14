@@ -30,11 +30,6 @@ from typing import (
 
 import numpy as np
 import qutip as qt
-
-from numpy import ndarray
-from qutip.qobj import Qobj
-from scipy.sparse import csc_matrix, dia_matrix
-
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.harmonic_osc as osc
@@ -48,6 +43,9 @@ import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
+from numpy import ndarray
+from qutip.qobj import Qobj
+from scipy.sparse import csc_matrix, dia_matrix
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import SpectrumData
@@ -953,7 +951,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     ###################################################################################
     # HilbertSpace: add interaction and parsing arguments to .add_interaction
     ###################################################################################
-    def add_interaction(self, **kwargs):
+    def add_interaction(self, **kwargs) -> None:
         if "expr" in kwargs:
             interaction = self._parse_interactiontermstr(**kwargs)
         elif "qobj" in kwargs:
@@ -967,9 +965,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         if self._lookup is not None:
             self._lookup._out_of_sync = True
 
-        return self.interaction_list.append(interaction)
+        self.interaction_list.append(interaction)
 
-    def _parse_interactiontermstr(self, **kwargs):
+    def _parse_interactiontermstr(self, **kwargs) -> InteractionTermStr:
         expr = kwargs.pop("expr")
         add_hc = kwargs.pop("add_hc", None)
         const = kwargs.pop("const", None)
@@ -977,12 +975,12 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         operator_list = []
         for key in kwargs.keys():
             if re.match("op\d+$", key) is None:
-                return False, None
+                raise TypeError("Unexpected keyword argument {}.".format(key))
             operator_list.append(self._parse_op_by_name(kwargs[key]))
 
         return InteractionTermStr(expr, operator_list, const=const, add_hc=add_hc)
 
-    def _parse_interactionterm(self, **kwargs):
+    def _parse_interactionterm(self, **kwargs) -> InteractionTerm:
         keys = list(kwargs.keys())
 
         if "g_strength" in kwargs:
@@ -1002,14 +1000,14 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         operator_list = []
         for key in keys:
             if re.match("op\d+$", key) is None:
-                return False, None
+                raise TypeError("Unexpected keyword argument {}.".format(key))
             subsys_index, op = self._parse_op(kwargs[key])
             operator_list.append(self._parse_op(kwargs[key]))
 
         return InteractionTerm(g, operator_list, add_hc=add_hc)
 
     @staticmethod
-    def _parse_qobj(**kwargs):
+    def _parse_qobj(**kwargs) -> Qobj:
         if len(kwargs) > 1 or not isinstance(kwargs["qobj"], Qobj):
             return False, None
         return kwargs["qobj"]

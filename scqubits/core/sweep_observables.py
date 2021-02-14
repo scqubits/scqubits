@@ -12,11 +12,10 @@
 from typing import TYPE_CHECKING, List, Tuple, Union
 
 import numpy as np
-
-from numpy import ndarray
-
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
+
+from numpy import ndarray
 
 if TYPE_CHECKING:
     from scqubits import Oscillator, ParameterSweep

@@ -93,12 +93,6 @@ class HilbertSpaceUi:
         )
 
         # == Panel for specifying an InteractionTerm ==================================
-        # self.op1_widget = ipywidgets.Text(
-        #     description="op1", placeholder="e.g., phi_operator()"
-        # )
-        # self.op2_widget = ipywidgets.Text(
-        #     description="op2", placeholder="e.g., creation_operator()"
-        # )
         self.op1subsys_widget = ipywidgets.Dropdown(
             options=self.subsys_widget.value, description="subsys1", disabled=False
         )
@@ -358,8 +352,6 @@ class HilbertSpaceUi:
                         )
                     return False
 
-            # subsys1 = eval(interaction_term["subsys1"], main.__dict__)
-            # subsys2 = eval(interaction_term["subsys2"], main.__dict__)
             subsys1_index = subsysname_list.index(interaction_term["subsys1"])
             subsys2_index = subsysname_list.index(interaction_term["subsys2"])
             op1_str = interaction_term["subsys1"] + "." + operator_str_list[0]
@@ -409,5 +401,4 @@ def create_hilbertspace_widget(callback_func):
     finish_func = functools.partial(ui_view.finish, callback_func)
     ui_view.run_button.on_click(finish_func)
 
-    # ui_view.set_err_output(out)
     display(ui_view.ui, out)

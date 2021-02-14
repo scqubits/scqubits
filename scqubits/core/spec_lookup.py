@@ -18,13 +18,12 @@ from typing import TYPE_CHECKING, Callable, List, Tuple, Union
 
 import numpy as np
 import qutip as qt
-
-from numpy import ndarray
-from qutip import Qobj
-
 import scqubits
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.spectrum_utils as spec_utils
+
+from numpy import ndarray
+from qutip import Qobj
 
 if TYPE_CHECKING:
     from scqubits import HilbertSpace, ParameterSweep, SpectrumData

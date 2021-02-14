@@ -16,15 +16,13 @@ from collections import Mapping, OrderedDict
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
-
-from numpy import ndarray
-
 import scqubits.core.central_dispatch as dispatch
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 
+from numpy import ndarray
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.qubit_base import QubitBaseClass

@@ -11,7 +11,6 @@
 
 
 import numpy as np
-
 import scqubits.core.storage as storage
 import scqubits.core.sweep_observables as observable
 import scqubits.settings as settings

@@ -15,14 +15,6 @@ import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from numpy import ndarray
-from scipy import sparse
-from scipy.sparse.csc import csc_matrix
-from scipy.sparse.dia import dia_matrix
-
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -35,6 +27,12 @@ import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from numpy import ndarray
+from scipy import sparse
+from scipy.sparse.csc import csc_matrix
+from scipy.sparse.dia import dia_matrix
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunctionOnGrid
