@@ -19,6 +19,7 @@ import numpy as np
 import qutip.qobj as qt
 
 from numpy import ndarray
+
 from scqubits.settings import IN_IPYTHON
 
 if IN_IPYTHON:

@@ -11,11 +11,12 @@
 ############################################################################
 
 import numpy as np
+
 from scqubits.utils.misc import NamedSlotsNdarray
 
 paramvals1 = np.asarray(range(10))
 paramvals2 = np.linspace(0.0, 1.0, 100)
-paramvals_by_name = {'p1': paramvals1, 'p2': paramvals2}
+paramvals_by_name = {"p1": paramvals1, "p2": paramvals2}
 
 data = np.random.rand(len(paramvals1), len(paramvals2), 10)
 
@@ -31,15 +32,15 @@ def test_index_access():
 
 def test_name_access():
     tst = NamedSlotsNdarray(data, paramvals_by_name)
-    assert np.allclose(tst['p2':1], data[:, 1, :])
+    assert np.allclose(tst["p2":1], data[:, 1, :])
 
 
 def test_value_access():
     tst = NamedSlotsNdarray(data, paramvals_by_name)
     param_val = float(paramvals1[4])
-    assert np.allclose(tst['p1':param_val], data[4, :, :])
+    assert np.allclose(tst["p1":param_val], data[4, :, :])
 
 
 def test_named_slice():
     tst = NamedSlotsNdarray(data, paramvals_by_name)
-    assert np.allclose(tst['p2':2:-1], data[:, 2:-1, :])
+    assert np.allclose(tst["p2":2:-1], data[:, 2:-1, :])

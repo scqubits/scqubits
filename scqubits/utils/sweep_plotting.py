@@ -13,12 +13,13 @@
 from typing import TYPE_CHECKING, List, Tuple, Union
 
 import numpy as np
-import scqubits.core.sweep_generators as sweep_gen
-import scqubits.utils.plot_defaults as defaults
-import scqubits.utils.plotting as plot
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+
+import scqubits.core.sweep_generators as sweep_gen
+import scqubits.utils.plot_defaults as defaults
+import scqubits.utils.plotting as plot
 
 if TYPE_CHECKING:
     from scqubits import DataStore, Grid1d, Oscillator, ParameterSweep, SpectrumData

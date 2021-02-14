@@ -17,13 +17,12 @@ from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
-import scqubits.utils.misc as utils
-import scqubits.utils.spectrum_utils as spec_utils
-
 
 from numpy import ndarray
 from qutip import Qobj
 
+import scqubits.utils.misc as utils
+import scqubits.utils.spectrum_utils as spec_utils
 
 if TYPE_CHECKING:
     from scqubits.core.qubit_base import QuantumSystem

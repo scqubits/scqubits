@@ -220,7 +220,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             sigma=0.0,
             which="LM",
             return_eigenvectors=False,
-            v0=settings.RANDOM_ARRAY[:self.hilbertdim()]
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         return np.sort(evals)
 
@@ -232,7 +232,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             sigma=0.0,
             which="LM",
             return_eigenvectors=True,
-            v0=settings.RANDOM_ARRAY[:self.hilbertdim()]
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs

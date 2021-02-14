@@ -72,18 +72,18 @@ class TestHilbertSpace:
                 resonator: resonator.creation_operator(),
             },
             subsystem_list=[CPB1, CPB2, resonator],
-            add_hc=True
+            add_hc=True,
         )
 
         interaction2 = InteractionTerm(
             g_strength=g2,
             operator_dict={
                 CPB2: CPB2.n_operator(),
-                resonator: resonator.creation_operator() +
-                           resonator.annihilation_operator(),
+                resonator: resonator.creation_operator()
+                + resonator.annihilation_operator(),
             },
             subsystem_list=[CPB1, CPB2, resonator],
-            add_hc=False
+            add_hc=False,
         )
 
         interaction_list = [interaction1, interaction2]
@@ -126,11 +126,7 @@ class TestHilbertSpace:
             ]
         )
         vzp = sum(
-            [
-                nmat2[j][k] * hbd(j, k, zpifull)
-                for j in range(dim2)
-                for k in range(dim2)
-            ]
+            [nmat2[j][k] * hbd(j, k, zpifull) for j in range(dim2) for k in range(dim2)]
         )
         bare_hamiltonian = h1 + h2
         interaction_hamiltonian = g1 * vfl * vzp
@@ -144,11 +140,15 @@ class TestHilbertSpace:
         esys2 = zpifull.eigensys(evals_count=zpifull.truncated_dim)
         bare_esys = {fluxonium: esys1, zpifull: esys2}
 
-        bare_hamiltonian_manual, interaction_hamiltonian_manual = \
-            self.manual_hamiltonian(esys1=esys1, esys2=esys2)
+        (
+            bare_hamiltonian_manual,
+            interaction_hamiltonian_manual,
+        ) = self.manual_hamiltonian(esys1=esys1, esys2=esys2)
 
         bare_hamiltonian = hilbertspc.bare_hamiltonian()
-        interaction_hamiltonian = hilbertspc.interaction_hamiltonian(bare_esys=bare_esys)
+        interaction_hamiltonian = hilbertspc.interaction_hamiltonian(
+            bare_esys=bare_esys
+        )
         hamiltonian = hilbertspc.hamiltonian(bare_esys=bare_esys)
 
         assert bare_hamiltonian_manual == bare_hamiltonian
@@ -164,7 +164,6 @@ class TestHilbertSpace:
 
         g1 = 0.29
 
-
         interaction1 = InteractionTerm(
             g_strength=g1,
             operator_dict={
@@ -172,7 +171,7 @@ class TestHilbertSpace:
                 res2: res2.creation_operator(),
             },
             subsystem_list=[res1, res2],
-            add_hc=True
+            add_hc=True,
         )
 
         interaction_list = [interaction1]
