@@ -238,6 +238,7 @@ class NamedSliceableSlots:
         """Converts a name-based multi-index into a position-based multi-index."""
         converted_multi_index = [slice(None)] * self.slot_count
         for this_slice in multi_index:
+            assert isinstance(this_slice, slice)
             try:
                 name = this_slice.start
                 index = self.slotindex_by_slotname[name]
