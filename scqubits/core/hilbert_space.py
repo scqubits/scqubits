@@ -162,9 +162,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     ----------
     g_strength:
         coefficient parametrizing the interaction strength.
-    operator_list:
-        list of tuples of operators and their corresponding subsystems involved in the
-        interaction eg. (operator, subsystem).
+    operator_dict:
+        dictionary of operators, listed by the subsystem they correspond to,
+        i.e. {<subsys>: <op>, ...}
     subsystem_list:
         list of all subsystems relevant to the Hilbert space.
     add_hc:
@@ -173,15 +173,15 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     """
 
     g_strength = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
-    operator_list = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
+    operator_dict = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
     subsystem_list = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
     add_hc = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
 
     def __new__(
         cls,
         g_strength: Union[float, complex],
-        operator_list: List[
-            Tuple[Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str], QuantumSys]
+        operator_dict: Dict[
+            QuantumSys, Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str]
         ] = None,
         subsystem_list: List[QuantumSys] = None,
         subsys1: QuantumSys = None,
@@ -207,15 +207,16 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     def __init__(
         self,
         g_strength: Union[float, complex],
-        operator_list: List[
-            Tuple[Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str], QuantumSys]
+        operator_dict: Dict[
+            QuantumSys, Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str]
         ],
         subsystem_list: List[QuantumSys],
         add_hc: bool = False,
     ) -> None:
         self.g_strength = g_strength
         self.operator_list = [
-            (SubsysOperator(operator[0], operator[1])) for operator in operator_list
+            (SubsysOperator(operator, subsys))
+            for subsys, operator in operator_dict.items()
         ]
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
@@ -256,10 +257,10 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
             speed up computation; these are provided in dict form via <subsys>: esys)
         """
         hamiltonian = self.g_strength
-        qobj_operator_list = self.id_wrap_all_ops(
+        id_wrapped_ops = self.id_wrap_all_ops(
             self.operator_list, self.subsystem_list, bare_esys=bare_esys
         )
-        for op in qobj_operator_list:
+        for op in id_wrapped_ops:
             hamiltonian *= op
         if self.add_hc:
             return hamiltonian + hamiltonian.dag()
@@ -693,9 +694,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             Hamiltonian of the composite system, including the interaction between
             components
         """
-        hamiltonian = self.bare_hamiltonian(
-            bare_esys=bare_esys
-        ) + self.interaction_hamiltonian(bare_esys=bare_esys)
+        hamiltonian = self.bare_hamiltonian(bare_esys=bare_esys)
+        tmp = self.interaction_hamiltonian(bare_esys=bare_esys)
+        hamiltonian += self.interaction_hamiltonian(bare_esys=bare_esys)
         return hamiltonian
 
     def bare_hamiltonian(
