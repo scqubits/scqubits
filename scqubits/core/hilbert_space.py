@@ -15,7 +15,6 @@ import importlib
 import warnings
 import weakref
 
-from collections import namedtuple
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -63,7 +62,6 @@ if TYPE_CHECKING:
 
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
-SubsysOperator = namedtuple("SubsysOperator", ["operator", "subsystem"])
 
 
 class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
@@ -214,10 +212,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         add_hc: bool = False,
     ) -> None:
         self.g_strength = g_strength
-        self.operator_list = [
-            (SubsysOperator(operator, subsys))
-            for subsys, operator in operator_dict.items()
-        ]
+        self.operator_dict = operator_dict
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
 
@@ -248,7 +243,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     def hamiltonian(
         self,
         bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
-    ) -> ndarray:
+    ) -> Qobj:
         """
         Parameters
         ----------
@@ -258,14 +253,13 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         """
         hamiltonian = self.g_strength
         id_wrapped_ops = self.id_wrap_all_ops(
-            self.operator_list, self.subsystem_list, bare_esys=bare_esys
+            self.operator_dict, self.subsystem_list, bare_esys=bare_esys
         )
         for op in id_wrapped_ops:
             hamiltonian *= op
         if self.add_hc:
-            return hamiltonian + hamiltonian.dag()
-        else:
-            return hamiltonian
+            hamiltonian += hamiltonian.dag()
+        return hamiltonian
 
     @staticmethod
     def convert_operators(op_list: list) -> list:
@@ -279,19 +273,21 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
     @staticmethod
     def id_wrap_all_ops(
-        operator_list: list,
+        operator_dict: Dict[
+            QuantumSys, Union[np.ndarray, qt.Qobj, csc_matrix, dia_matrix, str]
+        ],
         subsystem_list: list,
         bare_esys: Optional[Dict[QuantumSys, ndarray]] = None,
     ) -> list:
         id_wrapped_operators = []
-        for item in operator_list:
-            if bare_esys is not None and item.subsystem in bare_esys:
-                evecs = bare_esys[item.subsystem][1]
+        for subsys, operator in operator_dict.items():
+            if bare_esys is not None and subsys in bare_esys:
+                evecs = bare_esys[subsys][1]
             else:
                 evecs = None
             id_wrapped_operators.append(
                 spec_utils.identity_wrap(
-                    item.operator, item.subsystem, subsystem_list, evecs=evecs
+                    operator, subsys, subsystem_list, evecs=evecs
                 )
             )
         return id_wrapped_operators
@@ -350,10 +346,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
             "trans(": "Qobj.trans(",
         }
         self.str_expression = str_expression
-        self.operator_dict = {
-            key: (SubsysOperator(value[0], value[1]))
-            for (key, value) in operator_dict.items()
-        }
+        self.operator_dict = operator_dict
         self.subsystem_list = subsystem_list
         self.add_hc = add_hc
         # self.qoperator_dict = self.id_wrap_all_ops(self.operator_dict, subsystem_list)
