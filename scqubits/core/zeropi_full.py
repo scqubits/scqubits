@@ -329,7 +329,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         as stored in the object. The returned operator is in the product basis
 
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
-        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
+        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expr returned
         by this function, needs to be multiplied by 1/\Phi_0.
 
         Returns
