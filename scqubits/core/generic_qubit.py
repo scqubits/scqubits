@@ -94,8 +94,10 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         table = get_matrixelement_table(operator_matrix, evecs)
         return table
 
+    @classmethod
     def create(cls) -> base.QuantumSystem:
         raise NotImplementedError
 
     def widget(self, params: Dict[str, Any] = None):
-        raise NotImplementedError
+        raise NotImplementedError("GenericQubit does not support widget-based "
+                                  "creation.")
