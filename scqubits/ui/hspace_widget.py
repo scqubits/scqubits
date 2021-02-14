@@ -133,7 +133,7 @@ class HilbertSpaceUi:
         )
 
         self.string_expr_widget = ipywidgets.Text(
-            description="expression", placeholder="e.g., EJ * cos(op1 - op2)"
+            description="expr", placeholder="e.g., EJ * cos(op1 - op2)"
         )
         self.interact_box2 = ipywidgets.VBox(
             [
@@ -155,7 +155,7 @@ class HilbertSpaceUi:
             self.interact_box2,
         ]
         self.tabs_select_interact_type.set_title(0, "g * op1 * op2")
-        self.tabs_select_interact_type.set_title(1, "Python expression")
+        self.tabs_select_interact_type.set_title(1, "Python expr")
         self.tabs_select_interact_type.layout.display = "none"
 
         # == Central run button, status output field ==================================
@@ -358,30 +358,32 @@ class HilbertSpaceUi:
                         )
                     return False
 
-            subsys1 = eval(interaction_term["subsys1"], main.__dict__)
-            subsys2 = eval(interaction_term["subsys2"], main.__dict__)
+            # subsys1 = eval(interaction_term["subsys1"], main.__dict__)
+            # subsys2 = eval(interaction_term["subsys2"], main.__dict__)
+            subsys1_index = subsysname_list.index(interaction_term["subsys1"])
+            subsys2_index = subsysname_list.index(interaction_term["subsys2"])
             op1_str = interaction_term["subsys1"] + "." + operator_str_list[0]
             op2_str = interaction_term["subsys2"] + "." + operator_str_list[1]
             op1 = eval(op1_str, main.__dict__)
             op2 = eval(op2_str, main.__dict__)
 
             if self.current_interaction_type() == "InteractionTerm":
-                operator_list = [(op1, subsys1), (op2, subsys2)]
+                operator_list = [(subsys1_index, op1), (subsys2_index, op2)]
                 interaction_list.append(
                     scqubits.InteractionTerm(
                         g_strength=interaction_term["g_strength"],
                         operator_list=operator_list,
-                        subsystem_list=self.subsystem_list(),
                         add_hc=(interaction_term["add_hc"] == "True"),
                     )
                 )
             else:  # current interaction type is 'InteractionTermStr'
-                operator_dict = {"op1": (op1, subsys1), "op2": (op2, subsys2)}
                 interaction_list.append(
                     scqubits.InteractionTermStr(
-                        str_expression=self.string_expr_widget.value,
-                        operator_dict=operator_dict,
-                        subsystem_list=self.subsystem_list(),
+                        expr=self.string_expr_widget.value,
+                        operator_list=[
+                            (subsys1_index, "op1", op1),
+                            (subsys2_index, "op2", op2),
+                        ],
                         add_hc=(interaction_term["add_hc"] == "True"),
                     )
                 )
