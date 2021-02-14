@@ -316,7 +316,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     def __init__(
         self,
         expr: str,
-        operator_list: List[Tuple[str, Union[ndarray, csc_matrix, dia_matrix], int]],
+        operator_list: List[Tuple[int, str, Union[ndarray, csc_matrix, dia_matrix]]],
         const: Optional[Dict[str, Union[float, complex]]] = None,
         add_hc: bool = False,
     ) -> None:
@@ -382,12 +382,12 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         bare_esys: Optional[Dict[int, ndarray]] = None,
     ) -> Dict[str, Qobj]:
         idwrapped_ops_by_name = {}
-        for key, op, subsys_index in self.operator_list:
+        for subsys_index, name, op in self.operator_list:
             if bare_esys and subsys_index in bare_esys:
                 evecs = bare_esys[subsys_index][1]
             else:
                 evecs = None
-            idwrapped_ops_by_name[key] = spec_utils.identity_wrap(
+            idwrapped_ops_by_name[name] = spec_utils.identity_wrap(
                 op, subsys_list[subsys_index], subsys_list, evecs=evecs
             )
         return idwrapped_ops_by_name
@@ -1016,17 +1016,17 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     def _parse_op_by_name(
         self, op_by_name
-    ) -> Tuple[str, Union[ndarray, csc_matrix, dia_matrix], int]:
+    ) -> Tuple[int, str, Union[ndarray, csc_matrix, dia_matrix]]:
         if not isinstance(op_by_name, tuple):
             raise TypeError("Cannot interpret specified operator {}".format(op_by_name))
         if len(op_by_name) == 3:
             # format expected:  (<op name as str>, <op as array>, <subsys as QuantumSystem>)
-            return op_by_name[0], op_by_name[1], self.get_subsys_index(op_by_name[2])
+            return self.get_subsys_index(op_by_name[2]), op_by_name[0], op_by_name[1]
         # format expected (<op name as str)>, <QuantumSystem.method callable>)
         return (
+            self.get_subsys_index(op_by_name[1].__self__),
             op_by_name[0],
             op_by_name[1](),
-            self.get_subsys_index(op_by_name[1].__self__),
         )
 
     def _parse_op(
