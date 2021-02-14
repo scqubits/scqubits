@@ -95,14 +95,6 @@ class CurrentMirrorVTB(
             "truncated_dim": 6,
         }
 
-    def convert_node_ng_to_junction_ng(self, node_nglist: ndarray) -> ndarray:
-        """Convert offset charge from node variables to junction variables."""
-        return inv(self._build_V_m()).T @ node_nglist.T
-
-    def convert_junction_ng_to_node_ng(self, junction_nglist: ndarray) -> ndarray:
-        """Convert offset charge from junction variables to node variables."""
-        return self._build_V_m().T @ junction_nglist.T
-
     def find_minima(self) -> ndarray:
         """Find all minima in the potential energy landscape of the current mirror.
 

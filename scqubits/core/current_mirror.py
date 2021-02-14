@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import scipy as sp
 from numpy import ndarray
+from scipy.linalg import inv
 from scipy.sparse import diags, eye
 from scipy.sparse.linalg import LinearOperator, eigsh
 
@@ -28,23 +29,26 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
     r"""Current Mirror Qubit
 
     | [1] A. Kitaev, arXiv:cond-mat/0609441. https://arxiv.org/abs/cond-mat/0609441
-    | [2] D. K. Weiss et al., Physical Review B, 100, 224507 (2019). https://doi.org/10.1103/PhysRevB.100.224507
+    | [2] D. K. Weiss et al., Physical Review B, 100, 224507 (2019).
+     https://doi.org/10.1103/PhysRevB.100.224507
 
-    The current-mirror qubit as first described in [1] and analyzed numerically in [2]. Here we diagonalize
-    the current-mirror qubit with each degree of freedom in the charge basis. We find that
-    diagonalizing the current-mirror qubit Hamiltonian is possible with :math:`N=2, 3`, where :math:`N`
-    is the number of big capacitors. For :math:`N=4` or larger, the Hamiltonian is too large to
-    store in memory. For a given :math:`N`, the number of degrees of freedom is :math:`2*N - 1`. This is because
-    while there are :math:`2*N` nodes, one variable is cyclic (corresponding to the net charge on the circuit).
-    Diagonalization then proceeds in the coordinates where this variable has been eliminated.
-    The Hamiltonian is given by
+    Class for the current-mirror qubit as first described in [1] and analyzed
+    numerically in [2]. Here we diagonalize the current-mirror qubit with each degree of
+    freedom represented in the
+    charge basis. For a given :math:`N`, the number of degrees of freedom is
+    :math:`2*N - 1`. This is because while there are :math:`2*N` nodes, one variable is
+    cyclic (corresponding to the net charge on the circuit). Diagonalization then
+    proceeds in the  coordinates where this variable has been eliminated. The
+    Hamiltonian is given by
 
     .. math::
 
        H=&\sum_{i, j=1}^{2N-1}(n_{i}-n_{gi})4(E_\text{C})_{ij}(n_{j}-n_{gj}) \\
-        -\sum_{i=1}^{2N-1}&E_{Ji}\cos\phi_{i}-E_{J2N}\cos(\sum_{i=1}^{2N-1}\phi_{i}+2\pi f),
+        -\sum_{i=1}^{2N-1}&E_{Ji}\cos\phi_{i}
+        -E_{J2N}\cos(\sum_{i=1}^{2N-1}\phi_{i}+2\pi f),
 
-    where the charging energy matrix is solved for numerically by inverting the capacitance matrix.
+    where the charging energy matrix is solved for numerically by inverting
+    the capacitance matrix.
     Initialize with, for example::
 
         N = 2
@@ -55,7 +59,8 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         EJlist = np.array([EJ for _ in range(2*N)])
         nglist = np.array([0.0 for _ in range(2*N-1)])
         flux = 0.0
-        current_mirror = qubit.CurrentMirror(N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=10, truncated_dim=6)
+        current_mirror = qubit.CurrentMirror(N, ECB, ECJ, ECg, EJlist, nglist, flux,
+                                             ncut=10, truncated_dim=6)
 
     Parameters
     ----------
@@ -68,9 +73,13 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
     ECg: float
         charging energy associated with the capacitive coupling to ground on each node
     EJlist: ndarray
-        Josephson energies associated with each junction, which are allowed to vary. Must have size `2\cdot N`
+        Josephson energies associated with each junction, which are allowed to vary.
+        Must have `2\cdot N` entries.
     nglist: ndarray
-        offset charge associated with each dynamical degree of freedom. Must have size `2\cdot N - 1`
+        offset charge associated with each dynamical degree of freedom. Must have
+        `2\cdot N - 1` entries. Helper methods are provided for converting between
+        offset charges defined in the node variables to the transformed coordinates,
+        which we refer to as the junction variables.
     flux: float
         magnetic flux through the circuit loop, measured in units of the flux quantum
     ncut: int
@@ -163,17 +172,16 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         -------
         float
         """
-        dim = self.number_degrees_freedom
-        pot_sum = np.sum([-self.EJlist[j] * np.cos(phi_array[j]) for j in range(dim)])
-        pot_sum += -self.EJlist[-1] * np.cos(
-            np.sum([phi_array[i] for i in range(dim)]) + 2 * np.pi * self.flux
+        potential_val = -self.EJlist[0:-1] * np.cos(phi_array)
+        potential_val += -self.EJlist[-1] * np.cos(
+            np.sum(phi_array) + 2 * np.pi * self.flux
         )
-        pot_sum += np.sum(self.EJlist)
-        return pot_sum
+        potential_val += np.sum(self.EJlist)
+        return potential_val
 
     def capacitance_matrix(self) -> ndarray:
-        """Returns the capacitance matrix, transforming to coordinates where the variable corresponding
-        to the total charge can be eliminated
+        """Returns the capacitance matrix, transforming to coordinates where
+        the variable corresponding to the total charge can be eliminated
 
         Returns
         -------
@@ -184,16 +192,14 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         CJ = 1.0 / (2.0 * self.ECJ)
         Cg = 1.0 / (2.0 * self.ECg)
 
-        C_matrix = np.diagflat([Cg + 2 * CJ + CB for _ in range(2 * N)], 0)
-        C_matrix += np.diagflat([-CJ for _ in range(2 * N - 1)], +1)
-        C_matrix += np.diagflat([-CJ for _ in range(2 * N - 1)], -1)
-        C_matrix += np.diagflat([-CB for _ in range(N)], +N)
-        C_matrix += np.diagflat([-CB for _ in range(N)], -N)
+        C_matrix = np.diag([Cg + 2 * CJ + CB for _ in range(2 * N)], 0)
+        C_matrix += np.diag([-CJ for _ in range(2 * N - 1)], +1)
+        C_matrix += np.diag([-CJ for _ in range(2 * N - 1)], -1)
+        C_matrix += np.diag([-CB for _ in range(N)], +N)
+        C_matrix += np.diag([-CB for _ in range(N)], -N)
         C_matrix[0, -1] = C_matrix[-1, 0] = -CJ
-
-        V_m_inv = sp.linalg.inv(self._build_V_m())
-        C_matrix = np.matmul(V_m_inv.T, np.matmul(C_matrix, V_m_inv))
-
+        coord_transform_mat_inv = inv(self._coordinate_transformation_matrix())
+        C_matrix = coord_transform_mat_inv.T @ C_matrix @ coord_transform_mat_inv
         return C_matrix[0:-1, 0:-1]
 
     def EC_matrix(self) -> ndarray:
@@ -203,18 +209,27 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         -------
             ndarray
         """
-        return 0.5 * sp.linalg.inv(self.capacitance_matrix())
+        return 0.5 * inv(self.capacitance_matrix())
 
-    def _build_V_m(self) -> ndarray:
+    def _coordinate_transformation_matrix(self) -> ndarray:
         """Builds the matrix necessary for the coordinate transformation"""
         N = self.N
-        V_m = np.diagflat([-1 for _ in range(2 * N)], 0)
-        V_m += np.diagflat([1 for _ in range(2 * N - 1)], 1)
-        V_m[-1] = np.array([1 for _ in range(2 * N)])
-        return V_m
+        coord_transform_matrix = np.diag([-1 for _ in range(2 * N)], 0)
+        coord_transform_matrix += np.diag([1 for _ in range(2 * N - 1)], 1)
+        coord_transform_matrix[-1] = np.array([1 for _ in range(2 * N)])
+        return coord_transform_matrix
+
+    def convert_node_ng_to_junction_ng(self, node_nglist: ndarray) -> ndarray:
+        """Convert offset charge from node variables to junction variables."""
+        return inv(self._coordinate_transformation_matrix()).T @ node_nglist.T
+
+    def convert_junction_ng_to_node_ng(self, junction_nglist: ndarray) -> ndarray:
+        """Convert offset charge from junction variables to node variables."""
+        return self._coordinate_transformation_matrix().T @ junction_nglist.T
 
     def harmonic_modes(self) -> ndarray:
-        """Returns the harmonic modes associated with the linearized current mirror Hamiltonian.
+        """Returns the harmonic modes associated with the
+         linearized current mirror Hamiltonian.
 
         Returns
         -------
@@ -224,17 +239,17 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         CJ = 1.0 / (2.0 * self.ECJ)
         Cg = 1.0 / (2.0 * self.ECg)
         omega_list = np.zeros(self.number_degrees_freedom)
-        for mu in range(1, self.number_degrees_freedom + 1):
+        for dof_index in range(1, self.number_degrees_freedom + 1):
             potential_contribution = (
-                4.0 * self.EJlist[0] * np.sin(np.pi * mu / (2 * self.N)) ** 2
+                4.0 * self.EJlist[0] * np.sin(np.pi * dof_index / (2 * self.N)) ** 2
             )
             kinetic_contribution = (
                 Cg
-                + 4 * CJ * np.sin(np.pi * mu / (2 * self.N)) ** 2
-                + (1 - (-1) ** mu) * CB
+                + 4 * CJ * np.sin(np.pi * dof_index / (2 * self.N)) ** 2
+                + (1 - (-1) ** dof_index) * CB
             )
-            omega_mu = 2 * np.sqrt(potential_contribution / kinetic_contribution)
-            omega_list[mu - 1] = omega_mu
+            omega = 2 * np.sqrt(potential_contribution / kinetic_contribution)
+            omega_list[dof_index - 1] = omega
         return omega_list
 
     def _evals_calc(self, evals_count: int) -> ndarray:
@@ -257,7 +272,8 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         return (2 * self.ncut + 1) ** self.number_degrees_freedom
 
     def hamiltonian(self) -> ndarray:
-        """Returns the Hamiltonian employing the charge number basis for all :math:`2\cdot N - 1` d.o.f.
+        """Returns the Hamiltonian employing the charge number
+        basis for all :math:`2\cdot N - 1` d.o.f.
 
         Returns
         -------
@@ -276,14 +292,14 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
                 )
             )
         for j in range(dim):
-            H += (-self.EJlist[j] / 2.0) * (
-                self.exp_i_phi_j_operator(j) + self.exp_i_phi_j_operator(j).conj().T
-            )
+            exp_i_phi = self.exp_i_phi_operator(j)
+            H += (-self.EJlist[j] / 2.0) * (exp_i_phi + exp_i_phi.conj().T)
             H += self.EJlist[j] * self.identity_operator()
+        exp_i_phi_stitching = self.exp_i_phi_stitching_term()
         H += (-self.EJlist[-1] / 2.0) * (
             np.exp(1j * 2 * np.pi * self.flux)
-            * self.exp_i_phi_stitching_term().conj().T
-            + np.exp(-1j * 2 * np.pi * self.flux) * self.exp_i_phi_stitching_term()
+            * exp_i_phi_stitching
+            + np.exp(-1j * 2 * np.pi * self.flux) * exp_i_phi_stitching.conj().T
         )
         H += self.EJlist[-1] * self.identity_operator()
         return H
@@ -311,12 +327,13 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             dtype=np.complex_,
         )
 
-    def n_operator(self, j: int = 0) -> ndarray:
-        """Returns charge number operator :math:`n_{j}` in the full Hilbert space
+    def n_operator(self, dof_index: int = 0) -> ndarray:
+        """Returns charge number operator :math:`n_{dof_index}` in the full Hilbert
+        space
 
         Parameters
         ----------
-        j: int
+        dof_index: int
             specifies the degree of freedom
 
         Returns
@@ -325,62 +342,82 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         """
         number_operator = self._n_operator()
         return identity_wrap(
-            [number_operator], [j], self._identity_operator_list(), sparse=True
+            [number_operator], [dof_index], self._identity_operator_list(), sparse=True
         )
 
-    def _exp_i_phi_j_operator(self) -> ndarray:
+    def _exp_i_phi_operator(self) -> ndarray:
         return eye(2 * self.ncut + 1, k=-1, format="csr", dtype=np.complex_)
 
-    def exp_i_phi_j_operator(self, j: int = 0) -> ndarray:
-        """Returns the operator :math:`\exp(i\phi_{j})` in the full Hilbert space
+    def exp_i_phi_operator(self, dof_index: int = 0) -> ndarray:
+        """Returns the operator :math:`\exp(i\phi_{dof_index})` in the full Hilbert
+        space
 
         Parameters
         ----------
-        j: int
+        dof_index: int
             specifies the degree of freedom
 
         Returns
         -------
             ndarray
         """
-        exp_i_phi_j = self._exp_i_phi_j_operator()
+        exp_i_phi_j = self._exp_i_phi_operator()
         return identity_wrap(
-            [exp_i_phi_j], [j], self._identity_operator_list(), sparse=True
+            [exp_i_phi_j], [dof_index], self._identity_operator_list(), sparse=True
         )
 
     def exp_i_phi_stitching_term(self) -> ndarray:
-        """Returns the operator associated with the last Josephson junction,
-         :math:`\exp(i\sum_{j=1}^{2N-1}\phi_{j})` in the full Hilbert space
+        r"""Returns the exponential operator associated with the stitching point
+        junction, :math:`\exp(i\sum_{dof_index=1}^{2N-1}\phi_{dof_index})` in the
+        full Hilbert space
 
         Returns
         -------
             ndarray
         """
         dim = self.number_degrees_freedom
-        exp_i_phi_op = self._exp_i_phi_j_operator()
+        exp_i_phi_op = self._exp_i_phi_operator()
         identity_operator_list = self._identity_operator_list()
         return identity_wrap(
             [exp_i_phi_op for _ in range(dim)],
-            [j for j in range(dim)],
+            [dof_index for dof_index in range(dim)],
             identity_operator_list,
             sparse=True,
         )
 
     def cos_phi_stitching_term(self, flux: float) -> ndarray:
-        """
+        r"""Returns the cosine operator associated with the stitching point
+        junction, :math:`\cos(\sum_{dof_index=1}^{2N-1}\phi_{dof_index}+2\pi flux)` in
+        the full Hilbert space
+
+        Parameters
+        ----------
+        flux: float
+            flux associated with the stitching term
+
         Returns
         -------
+            ndarray
         """
-        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(-1j * 2.0 *
+        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(1j * 2.0 *
                                                                        np.pi * flux)
         return 0.5 * (exp_i_phi_stitching + exp_i_phi_stitching.conj().T)
 
     def sin_phi_stitching_term(self, flux: float) -> ndarray:
-        """
+        r"""Returns the sine operator associated with the stitching point
+        junction, :math:`\sin(\sum_{dof_index=1}^{2N-1}\phi_{dof_index}+2\pi flux)` in
+        the full Hilbert space
+
+        Parameters
+        ----------
+        flux: float
+            flux associated with the stitching term
+
         Returns
         -------
+            ndarray
         """
-        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(-1j * 2.0 *
+        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(1j * 2.0 *
                                                                        np.pi * flux)
         return -1j * 0.5 * (exp_i_phi_stitching - exp_i_phi_stitching.conj().T)
 
