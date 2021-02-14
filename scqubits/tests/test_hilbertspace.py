@@ -38,17 +38,9 @@ class TestHilbertSpace:
 
         g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
 
-        interaction1 = InteractionTerm(
-            g_strength=g1,
-            operator_dict={
-                fluxonium: fluxonium.n_operator(),
-                zpifull: zpifull.n_theta_operator(),
-            },
-            subsystem_list=[fluxonium, zpifull],
+        hilbertspace.add_interaction(
+            g=g1, op1=fluxonium.n_operator, op2=zpifull.n_theta_operator
         )
-
-        interaction_list = [interaction1]
-        hilbertspace.interaction_list = interaction_list
         return hilbertspace
 
     @staticmethod
@@ -65,30 +57,18 @@ class TestHilbertSpace:
         g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
         g2 = 0.2  # coupling resonator-CPB2 (without charge matrix elements)
 
-        interaction1 = InteractionTerm(
-            g_strength=g1,
-            operator_dict={
-                CPB1: CPB1.n_operator(),
-                resonator: resonator.creation_operator(),
-            },
-            subsystem_list=[CPB1, CPB2, resonator],
-            add_hc=True,
+        hilbertspace.add_interaction(
+            g=g1, op1=CPB1.n_operator, op2=resonator.creation_operator, add_hc=True
         )
 
-        interaction2 = InteractionTerm(
-            g_strength=g2,
-            operator_dict={
-                CPB2: CPB2.n_operator(),
-                resonator: resonator.creation_operator()
-                + resonator.annihilation_operator(),
-            },
-            subsystem_list=[CPB1, CPB2, resonator],
-            add_hc=False,
+        hilbertspace.add_interaction(
+            g=g2,
+            op1=(CPB2.n_operator(), CPB2),
+            op2=(
+                resonator.creation_operator() + resonator.annihilation_operator(),
+                resonator,
+            ),
         )
-
-        interaction_list = [interaction1, interaction2]
-        hilbertspace.interaction_list = interaction_list
-
         return hilbertspace
 
     def test_HilbertSpace_init(self):
@@ -132,18 +112,76 @@ class TestHilbertSpace:
         interaction_hamiltonian = g1 * vfl * vzp
         return bare_hamiltonian, interaction_hamiltonian
 
-    def test_hamiltonian(self):
+    def test_hamiltonian_InteractionTerm(self):
         hilbertspc = self.hilbertspace_initialize()
         [fluxonium, zpifull] = hilbertspc
 
         esys1 = fluxonium.eigensys(evals_count=fluxonium.truncated_dim)
         esys2 = zpifull.eigensys(evals_count=zpifull.truncated_dim)
-        bare_esys = {fluxonium: esys1, zpifull: esys2}
+        bare_esys = {0: esys1, 1: esys2}
 
         (
             bare_hamiltonian_manual,
             interaction_hamiltonian_manual,
         ) = self.manual_hamiltonian(esys1=esys1, esys2=esys2)
+
+        bare_hamiltonian = hilbertspc.bare_hamiltonian()
+        interaction_hamiltonian = hilbertspc.interaction_hamiltonian(
+            bare_esys=bare_esys
+        )
+        hamiltonian = hilbertspc.hamiltonian(bare_esys=bare_esys)
+
+        assert bare_hamiltonian_manual == bare_hamiltonian
+        assert interaction_hamiltonian_manual == interaction_hamiltonian
+        assert bare_hamiltonian + interaction_hamiltonian == hamiltonian
+
+    def test_hamiltonian_InteractionTermStr(self):
+        hilbertspc = self.hilbertspace_initialize()
+        [fluxonium, zpifull] = hilbertspc
+
+        g1 = 0.1
+        hilbertspc.interaction_list = []
+        hilbertspc.add_interaction(
+            expr="g1 * n * n_theta",
+            op1=("n", fluxonium.n_operator),
+            op2=("n_theta", zpifull.n_theta_operator(), zpifull),
+            const={"g1": g1},
+        )
+
+        esys1 = fluxonium.eigensys(evals_count=fluxonium.truncated_dim)
+        esys2 = zpifull.eigensys(evals_count=zpifull.truncated_dim)
+        bare_esys = {0: esys1, 1: esys2}
+
+        (
+            bare_hamiltonian_manual,
+            interaction_hamiltonian_manual,
+        ) = self.manual_hamiltonian(esys1=esys1, esys2=esys2)
+
+        bare_hamiltonian = hilbertspc.bare_hamiltonian()
+        interaction_hamiltonian = hilbertspc.interaction_hamiltonian(
+            bare_esys=bare_esys
+        )
+        hamiltonian = hilbertspc.hamiltonian(bare_esys=bare_esys)
+
+        assert bare_hamiltonian_manual == bare_hamiltonian
+        assert interaction_hamiltonian_manual == interaction_hamiltonian
+        assert bare_hamiltonian + interaction_hamiltonian == hamiltonian
+
+    def test_hamiltonian_Qobj(self):
+        hilbertspc = self.hilbertspace_initialize()
+        [fluxonium, zpifull] = hilbertspc
+
+        esys1 = fluxonium.eigensys(evals_count=fluxonium.truncated_dim)
+        esys2 = zpifull.eigensys(evals_count=zpifull.truncated_dim)
+        bare_esys = {0: esys1, 1: esys2}
+
+        (
+            bare_hamiltonian_manual,
+            interaction_hamiltonian_manual,
+        ) = self.manual_hamiltonian(esys1=esys1, esys2=esys2)
+
+        hilbertspc.interaction_list = []
+        hilbertspc.add_interaction(qobj=interaction_hamiltonian_manual)
 
         bare_hamiltonian = hilbertspc.bare_hamiltonian()
         interaction_hamiltonian = hilbertspc.interaction_hamiltonian(
@@ -164,18 +202,12 @@ class TestHilbertSpace:
 
         g1 = 0.29
 
-        interaction1 = InteractionTerm(
-            g_strength=g1,
-            operator_dict={
-                res1: res1.annihilation_operator(),
-                res2: res2.creation_operator(),
-            },
-            subsystem_list=[res1, res2],
+        hilbertspace.add_interaction(
+            g=g1,
+            op1=res1.annihilation_operator,
+            op2=res2.creation_operator,
             add_hc=True,
         )
-
-        interaction_list = [interaction1]
-        hilbertspace.interaction_list = interaction_list
         return hilbertspace.hamiltonian()
 
     def test_HilbertSpace_hamiltonian_is_hermitean(self):
