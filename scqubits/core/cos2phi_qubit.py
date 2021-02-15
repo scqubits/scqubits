@@ -32,10 +32,12 @@ import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.core.units as units
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.storage import WaveFunctionOnGrid
+
 
 # -Cosine two phi qubit noise class
 class NoisyCos2PhiQubit(NoisySystem, ABC):
@@ -402,9 +404,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
 
 
 # -Cosine two phi qubit ----------------------------------------------------------------------------------
-class Cos2PhiQubit(
-    base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit
-):
+class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit):
     r"""Cosine Two Phi Qubit
 
     | [1] Smith et al., NPJ Quantum Inf. 6, 8 (2020) http://www.nature.com/articles/s41534-019-0231-2
@@ -844,6 +844,7 @@ class Cos2PhiQubit(
             return_eigenvectors=False,
             sigma=0.0,
             which="LM",
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         return np.sort(evals)
 
@@ -855,6 +856,7 @@ class Cos2PhiQubit(
             return_eigenvectors=True,
             sigma=0.0,
             which="LM",
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
@@ -908,8 +910,13 @@ class Cos2PhiQubit(
         if "figsize" not in kwargs:
             kwargs["figsize"] = (4, 4)
         return plot.contours(
-            x_vals, y_vals, self.reduced_potential, contour_vals=contour_vals,xlabel=r"$\theta$",
-            ylabel=r"$\phi$", **kwargs
+            x_vals,
+            y_vals,
+            self.reduced_potential,
+            contour_vals=contour_vals,
+            xlabel=r"$\theta$",
+            ylabel=r"$\phi$",
+            **kwargs
         )
 
     def wavefunction(
