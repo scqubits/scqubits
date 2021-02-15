@@ -1,4 +1,4 @@
-# cosine_two_phi_qubit.py
+# cos2phi_qubit.py
 #
 # This file is part of scqubits.
 #
@@ -38,9 +38,7 @@ from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.storage import WaveFunctionOnGrid
 
 # -Cosine two phi qubit noise class
-
-
-class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
+class NoisyCos2PhiQubit(NoisySystem, ABC):
     @abstractmethod
     def phi_1_operator(self) -> csc_matrix:
         pass
@@ -73,7 +71,7 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         **kwargs
     ) -> float:
         r"""
-        :math:`T_1` due to inductive dissipation in a superinductor.
+        :math:`T_1` due to inductive dissipation in superinductors.
 
         References: nguyen et al (2019), Smith et al (2020)
 
@@ -204,8 +202,8 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
         **kwargs
     ) -> float:
         r"""
-        :math:`T_1` due to dielectric dissipation in the Josephson junction
-        capacitances.
+        :math:`T_1` due to dielectric dissipation in Josephson junction
+        capacitors.
 
         References:  nguyen et al (2019), Smith et al (2020)
 
@@ -404,8 +402,8 @@ class NoisyCosineTwoPhiQubit(NoisySystem, ABC):
 
 
 # -Cosine two phi qubit ----------------------------------------------------------------------------------
-class CosineTwoPhiQubit(
-    base.QubitBaseClass, serializers.Serializable, NoisyCosineTwoPhiQubit
+class Cos2PhiQubit(
+    base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit
 ):
     r"""Cosine Two Phi Qubit
 
@@ -443,11 +441,11 @@ class CosineTwoPhiQubit(
     ng:
         offset charge
     n_cut:
-        cutoff for charge basis, -``n_cut`` <= :math:`n_\varphi` <= ``n_cut``
+        cutoff of charge basis, -n_cut <= :math:`n_\varphi` <= n_cut
     zeta_cut:
-        number of harmonic oscillator basis for :math:`\theta` variable
+        number of harmonic oscillator basis for :math:`\zeta` variable
     phi_cut:
-        number of harmonic oscillator basis for :math`\phi` variable
+        number of harmonic oscillator basis for :math:`\phi` variable
     """
     EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -491,7 +489,7 @@ class CosineTwoPhiQubit(
         self.phi_cut = phi_cut
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
-        self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 400)
+        self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_theta_grid = discretization.Grid1d(-2 * np.pi, 3 * np.pi, 100)
         self._image_filename = os.path.join(
@@ -517,7 +515,7 @@ class CosineTwoPhiQubit(
         }
 
     @classmethod
-    def create(cls) -> "CosineTwoPhiQubit":
+    def create(cls) -> "Cos2PhiQubit":
         init_params = cls.default_params()
         cosinetwophiqubit = cls(**init_params)
         cosinetwophiqubit.widget()
@@ -534,17 +532,17 @@ class CosineTwoPhiQubit(
             "t1_purcell",
         ]
 
-    def dim_phi(self) -> int:
+    def _dim_phi(self) -> int:
         """
         Returns Hilbert space dimension of :math:`\\phi` degree of freedom"""
         return self.phi_cut
 
-    def dim_zeta(self) -> int:
+    def _dim_zeta(self) -> int:
         """
         Returns Hilbert space dimension of :math:`\\zeta` degree of freedom"""
         return self.zeta_cut
 
-    def dim_theta(self) -> int:
+    def _dim_theta(self) -> int:
         """
         Returns Hilbert space dimension of :math:`\\theta` degree of freedom"""
         return 2 * self.n_cut + 1
@@ -552,7 +550,7 @@ class CosineTwoPhiQubit(
     def hilbertdim(self) -> int:
         """
         Returns total Hilbert space dimension"""
-        return self.dim_phi() * self.dim_zeta() * self.dim_theta()
+        return self._dim_phi() * self._dim_zeta() * self._dim_theta()
 
     def _disordered_el(self) -> float:
         """
@@ -593,7 +591,7 @@ class CosineTwoPhiQubit(
         Returns
         -------
             `phi` operator in the harmonic oscillator basis"""
-        dimension = self.dim_phi()
+        dimension = self._dim_phi()
         return (
             (op.creation_sparse(dimension) + op.annihilation_sparse(dimension))
             * self.phi_osc()
@@ -601,7 +599,7 @@ class CosineTwoPhiQubit(
         )
 
     def phi_operator(self) -> csc_matrix:
-        """Returns :math:`\\phi` operator in total Hilbert space"""
+        """Returns :math:`\\phi` operator"""
         return self._kron3(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         )
@@ -611,7 +609,7 @@ class CosineTwoPhiQubit(
         Returns
         -------
             `n_\phi` operator in the harmonic oscillator basis"""
-        dimension = self.dim_phi()
+        dimension = self._dim_phi()
         return (
             1j
             * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension))
@@ -619,7 +617,7 @@ class CosineTwoPhiQubit(
         )
 
     def n_phi_operator(self) -> csc_matrix:
-        """Returns :math:`n_\\phi` operator in total Hilbert space"""
+        """Returns :math:`n_\\phi` operator"""
         return self._kron3(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
         )
@@ -629,7 +627,7 @@ class CosineTwoPhiQubit(
         Returns
         -------
             `zeta` operator in the harmonic oscillator basis"""
-        dimension = self.dim_zeta()
+        dimension = self._dim_zeta()
         return (
             (op.creation_sparse(dimension) + op.annihilation_sparse(dimension))
             * self.zeta_osc()
@@ -637,7 +635,7 @@ class CosineTwoPhiQubit(
         )
 
     def zeta_operator(self) -> csc_matrix:
-        """Returns :math:`\\zeta` operator in total Hilbert space"""
+        """Returns :math:`\\zeta` operator"""
         return self._kron3(
             self._identity_phi(), self._zeta_operator(), self._identity_theta()
         )
@@ -647,7 +645,7 @@ class CosineTwoPhiQubit(
         Returns
         -------
             `n_\zeta` operator in the harmonic oscillator basis"""
-        dimension = self.dim_zeta()
+        dimension = self._dim_zeta()
         return (
             1j
             * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension))
@@ -655,7 +653,7 @@ class CosineTwoPhiQubit(
         )
 
     def n_zeta_operator(self) -> csc_matrix:
-        """Returns :math:`n_\\zeta` operator in total Hilbert space"""
+        """Returns :math:`n_\\zeta` operator"""
         return self._kron3(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
         )
@@ -693,11 +691,11 @@ class CosineTwoPhiQubit(
             `n_theta` operator in the charge basis"""
         diag_elements = np.arange(-self.n_cut, self.n_cut + 1)
         return dia_matrix(
-            (diag_elements, [0]), shape=(self.dim_theta(), self.dim_theta())
+            (diag_elements, [0]), shape=(self._dim_theta(), self._dim_theta())
         ).tocsc()
 
     def n_theta_operator(self) -> csc_matrix:
-        """Returns :math:`n_\\theta` in the total Hilbert space"""
+        """Returns :math:`n_\\theta` operator"""
         return self._kron3(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
         )
@@ -707,8 +705,8 @@ class CosineTwoPhiQubit(
         cos_op = (
             0.5
             * sparse.dia_matrix(
-                (np.ones(self.dim_theta()), [1]),
-                shape=(self.dim_theta(), self.dim_theta()),
+                (np.ones(self._dim_theta()), [1]),
+                shape=(self._dim_theta(), self._dim_theta()),
             ).tocsc()
         )
         return cos_op + cos_op.T
@@ -718,8 +716,8 @@ class CosineTwoPhiQubit(
         sin_op = (
             0.5
             * sparse.dia_matrix(
-                (np.ones(self.dim_theta()), [1]),
-                shape=(self.dim_theta(), self.dim_theta()),
+                (np.ones(self._dim_theta()), [1]),
+                shape=(self._dim_theta(), self._dim_theta()),
             ).tocsc()
         ) * (-1j)
         return sin_op + sin_op.T
@@ -734,21 +732,21 @@ class CosineTwoPhiQubit(
         """
         Returns Identity operator acting only on the :math:`\phi` Hilbert subspace.
         """
-        dimension = self.dim_phi()
+        dimension = self._dim_phi()
         return sparse.eye(dimension)
 
     def _identity_zeta(self) -> csc_matrix:
         """
         Returns Identity operator acting only on the :math:`\zeta` Hilbert subspace.
         """
-        dimension = self.dim_zeta()
+        dimension = self._dim_zeta()
         return sparse.eye(dimension)
 
     def _identity_theta(self) -> csc_matrix:
         """
         Returns Identity operator acting only on the :math:`\theta` Hilbert subspace.
         """
-        dimension = self.dim_theta()
+        dimension = self._dim_theta()
         return sparse.eye(dimension)
 
     def total_identity(self) -> csc_matrix:
@@ -759,17 +757,18 @@ class CosineTwoPhiQubit(
 
     def hamiltonian(self) -> csc_matrix:
         """
-        Returns Cosine two phi qubit Hamiltonian
+        Returns Hamiltonian in basis obtained by employing harmonic basis for
+        :math:`\\phi, \\zeta` and charge basis for :math:`\\theta`.
         """
         phi_osc_mat = self._kron3(
-            op.number_sparse(self.dim_phi(), self.phi_plasma()),
+            op.number_sparse(self._dim_phi(), self.phi_plasma()),
             self._identity_zeta(),
             self._identity_theta(),
         )
 
         zeta_osc_mat = self._kron3(
             self._identity_phi(),
-            op.number_sparse(self.dim_zeta(), self.zeta_plasma()),
+            op.number_sparse(self._dim_zeta(), self.zeta_plasma()),
             self._identity_theta(),
         )
 
@@ -862,7 +861,7 @@ class CosineTwoPhiQubit(
 
     def potential(self, phi, zeta, theta) -> float:
         """
-        potential evaluated at `phi, zeta, theta`
+        Returns full potential evaluated at :math:`\\phi, \\zeta, \\theta`
 
         Parameters
         ----------
@@ -881,14 +880,14 @@ class CosineTwoPhiQubit(
         )
 
     def reduced_potential(self, theta, phi) -> float:
-        """Returns potential when zeta = 0"""
+        """Returns reduced potential by setting :math:`zeta = 0`"""
         return self.potential(phi, 0, theta)
 
     def plot_potential(
         self, phi_grid=None, theta_grid=None, contour_vals=None, **kwargs
     ) -> Tuple[Figure, Axes]:
         """
-        Draw contour plot of the potential energy.
+        Draw contour plot of the potential energy in :math:`\\theta, \\phi` basis, at :math:`\\zeta = 0`
 
         Parameters
         ----------
@@ -909,7 +908,8 @@ class CosineTwoPhiQubit(
         if "figsize" not in kwargs:
             kwargs["figsize"] = (4, 4)
         return plot.contours(
-            x_vals, y_vals, self.reduced_potential, contour_vals=contour_vals, **kwargs
+            x_vals, y_vals, self.reduced_potential, contour_vals=contour_vals,xlabel=r"$\theta$",
+            ylabel=r"$\phi$", **kwargs
         )
 
     def wavefunction(
@@ -948,15 +948,15 @@ class CosineTwoPhiQubit(
         theta_basis_labels = theta_grid.make_linspace()
 
         wavefunc_basis_amplitudes = evecs[:, which].reshape(
-            self.dim_phi(), self.dim_zeta(), self.dim_theta()
+            self._dim_phi(), self._dim_zeta(), self._dim_theta()
         )
         wavefunc_amplitudes = np.zeros(
             (phi_grid.pt_count, zeta_grid.pt_count, theta_grid.pt_count),
             dtype=np.complex_,
         )
-        for i in range(self.dim_phi()):
-            for j in range(self.dim_zeta()):
-                for k in range(self.dim_theta()):
+        for i in range(self._dim_phi()):
+            for j in range(self._dim_zeta()):
+                for k in range(self._dim_theta()):
                     n_phi, n_zeta, n_theta = i, j, k - self.n_cut
                     phi_wavefunc_amplitudes = osc.harm_osc_wavefunction(
                         n_phi, phi_basis_labels, self.phi_osc()
@@ -999,7 +999,7 @@ class CosineTwoPhiQubit(
         **kwargs
     ) -> Tuple[Figure, Axes]:
         """
-        Plots 2D wave function in :math:`\\theta, \\phi` basis, at :math:`\\zeta = 0`
+        Plots a 2D wave function in :math:`\\theta, \\phi` basis, at :math:`\\zeta = 0`
 
         Parameters
         ----------
@@ -1046,6 +1046,8 @@ class CosineTwoPhiQubit(
                 wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)
             )
         )
+        if "figsize" not in kwargs:
+            kwargs["figsize"] = (4, 4)
         return plot.wavefunction2d(
             wavefunc,
             zero_calibrate=zero_calibrate,
@@ -1055,21 +1057,21 @@ class CosineTwoPhiQubit(
         )
 
     def phi_1_operator(self) -> csc_matrix:
-        """Returns operator represents phase across inductor 1"""
+        """Returns operator representing the phase across inductor 1"""
         return self.zeta_operator() - self.phi_operator()
 
     def phi_2_operator(self) -> csc_matrix:
-        """Returns operator represents phase across inductor 2"""
+        """Returns operator representing the phase across inductor 2"""
         return -self.zeta_operator() - self.phi_operator()
 
     def n_1_operator(self) -> csc_matrix:
-        """Returns operator represents charge difference across junction 1"""
+        """Returns operator representing the charge difference across junction 1"""
         return 0.5 * self.n_phi_operator() + 0.5 * (
             self.n_theta_operator() - self.n_zeta_operator()
         )
 
     def n_2_operator(self) -> csc_matrix:
-        """Returns operator represents charge difference across junction 2"""
+        """Returns operator representing the charge difference across junction 2"""
         return 0.5 * self.n_phi_operator() - 0.5 * (
             self.n_theta_operator() - self.n_zeta_operator()
         )
