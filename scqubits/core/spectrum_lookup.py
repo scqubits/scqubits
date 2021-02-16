@@ -62,7 +62,7 @@ class SpectrumLookupMixin:
     """
 
     def __init__(self, hilbertspace: "HilbertSpace"):
-        if not hasattr(self, _hilbertspace):
+        if not hasattr(self, "_hilbertspace"):
             self._hilbertspace = weakref.ref(hilbertspace)
 
     @property

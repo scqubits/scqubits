@@ -989,7 +989,8 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     @staticmethod
     def _parse_qobj(**kwargs) -> Qobj:
-        if len(kwargs) > 1 or not isinstance(kwargs["qobj"], Qobj):
+        op = kwargs["qobj"]
+        if len(kwargs) > 1 or not isinstance(op, Qobj):
             raise TypeError("Cannot interpret specified operator {}".format(op))
         return kwargs["qobj"]
 

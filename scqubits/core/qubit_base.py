@@ -533,7 +533,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         show_numbers: bool = False,
         show3d: bool = True,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Union[Tuple[Figure, Tuple[Axes, Axes]], Tuple[Figure, Axes]]:
         """Plots matrix elements for `operator`, given as a string referring to a
         class method that returns an operator matrix. E.g., for instance `trm` of
         Transmon, the matrix element plot for the charge operator `n` is obtained by
