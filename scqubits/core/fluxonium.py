@@ -17,6 +17,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 import numpy as np
 import scipy as sp
+
+from numpy import ndarray
+
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
@@ -26,7 +29,6 @@ import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 
-from numpy import ndarray
 from scqubits.core.noise import NoisySystem
 
 if TYPE_CHECKING:

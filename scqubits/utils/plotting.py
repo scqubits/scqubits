@@ -14,8 +14,17 @@ import operator
 import os
 import warnings
 
-from typing import Optional, TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Tuple, \
-    Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt

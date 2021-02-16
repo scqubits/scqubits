@@ -11,12 +11,13 @@
 
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
-import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.utils.plotting as plot
-
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+
+import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.plotting as plot
+
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 if TYPE_CHECKING:
