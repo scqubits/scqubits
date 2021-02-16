@@ -12,7 +12,7 @@
 
 import numpy as np
 
-from scqubits.utils.misc import NamedSlotsNdarray
+from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 paramvals1 = np.asarray(range(10))
 paramvals2 = np.linspace(0.0, 1.0, 100)
