@@ -441,7 +441,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     ng:
         offset charge
     n_cut:
-        cutoff of charge basis, -n_cut <= :math:`n_\varphi` <= n_cut
+        cutoff of charge basis, -n_cut <= :math:`n_\theta` <= n_cut
     zeta_cut:
         number of harmonic oscillator basis for :math:`\zeta` variable
     phi_cut:
@@ -824,6 +824,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             )
         )
         disorder_c = -4 * self._disordered_ecj() * self.dCJ * dis_c_opt
+
         return (
             phi_osc_mat
             + zeta_osc_mat
