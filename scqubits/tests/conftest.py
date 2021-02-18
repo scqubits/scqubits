@@ -39,6 +39,7 @@ DATADIR = os.path.join(TESTDIR, "data", "")
 
 
 def pytest_addoption(parser):
+    # This is to allow multi-processing tests by adding --num_cpus 2 to pytest calls
     parser.addoption(
         "--num_cpus", action="store", default=1, help="number of cores to be used"
     )

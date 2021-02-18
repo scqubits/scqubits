@@ -121,10 +121,10 @@ class NamedSliceableSlots:
     def convert_to_standard_multi_index(
         self, multi_index: Tuple[Union[Number, slice], ...]
     ) -> Tuple[Union[int, slice], ...]:
-        """Takes an extended-syntax multi-index_entry and converts it to a standard
+        """Takes an extended-syntax multi-index entry and converts it to a standard
         position-based multi-index_entry with only integer-valued indices."""
 
-        # inspect first index_entry to determine whether multi-index_entry is name-based
+        # inspect first index_entry to determine whether multi-index entry is name-based
         index_entry = multi_index[0]
 
         if isinstance(index_entry, slice) and isinstance(index_entry.start, str):
@@ -282,3 +282,18 @@ class NamedSlotsNdarray(np.ndarray, NamedSliceableSlots, Serializable):
             "values_by_name": self.values_by_slotname,
         }
         return io.IOData(typename, io_attributes, io_ndarrays, objects=objects)
+#
+#
+# def is_name_based(multi_index: Union[Tuple, Number, slice]) -> bool:
+#     if isinstance(multi_index, Number):
+#         return False
+#     if isinstance(multi_index, slice) and isinstance(multi_index.start, str):
+#         return True
+#     if (
+#         isinstance(multi_index, tuple)
+#         and isinstance(multi_index[0], slice)
+#         and isinstance(multi_index[0].start, str)
+#     ):
+#         return True
+#     raise ValueError("Unknown slicing format: {}".format(multi_index))
+#

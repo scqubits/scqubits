@@ -328,7 +328,6 @@ class SpectrumLookupMixin:
         return qt.tensor(*product_state_list)
 
     def all_params_fixed(self, param_indices) -> bool:
-
         if isinstance(param_indices, slice):
             param_indices = (param_indices,)
         return len(self.parameters) == len(param_indices)

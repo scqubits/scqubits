@@ -213,24 +213,41 @@ class ParameterSweepBase(ABC):
             elif event == "PARAMETERSWEEP_UPDATE" and sender is self:
                 self._out_of_sync = True
 
-    # @property
+    @property
     def bare_specdata_list(
-        self, fixed_params: Optional[Dict[str, Number]] = None
+        self, multi_index: Optional[Union[Tuple, slice, Number]] = None
     ) -> "List[SpectrumData]":
-        param_indices = fixed_params or self._current_param_indices
-        if not self.is_single_sweep(param_indices):
+        multi_index = multi_index or self._current_param_indices
+
+        sweep_param_indices = self.get_sweep_indices(multi_index)
+        if len(sweep_param_indices) != 1:
             raise ValueError(
-                "All but one parameter must be fixed for " "`bare_specdata_list."
-            )
+                "All but one parameter must be fixed for " "`bare_specdata_list.")
 
-        evals_sweep, evecs = self["bare_esys"][fixed_params]
-        # return SpectrumData(energy_table=evals
-        # return self.lookup._bare_specdata_list
+        sweep_param_name = self.parameters[sweep_param_indices[0]]
 
-    def is_single_sweep(self, param_indices) -> bool:
-        if len(self["dressed_indices"].shape) != 2:
-            return False
-        return True
+        esys_array = self["bare_esys"][multi_index]
+        specdata_list = [
+            SpectrumData(energy_table=esys[0], state_table=esys[1],
+                         system_params=self._hilbertspace.get_initdata(),
+                         param_name=sweep_param_name,
+                         param_vals=self.parameters[sweep_param_name])
+            for esys in esys_array
+        ]
+        return specdata_list
+
+    def get_sweep_indices(self, multi_index):
+        std_multi_index = (self._data["bare_esys"]).convert_to_standard_multi_index(
+            multi_index)
+        print(multi_index)
+        print(std_multi_index)
+        sweep_indices = [index for index, slice_obj in enumerate(std_multi_index) if len(self.parameters.paramvals_list[index][slice_obj]) > 1]
+        return sweep_indices
+
+    # def is_single_sweep(self, param_indices) -> bool:
+    #     if len(self["dressed_indices"][param_indices].shape) != 2:
+    #         return False
+    #     return True
 
     #
     # @property
@@ -395,15 +412,15 @@ class ParameterSweep(
         # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
         self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
-        self._data["bare_esys"] = self.bare_spectrum_sweep()
-        self._data["esys"] = self.dressed_spectrum_sweep()
+        self._data["bare_esys"] = self._bare_spectrum_sweep()
+        self._data["esys"] = self._dressed_spectrum_sweep()
         self._data["dressed_indices"] = self.generate_lookup()
         if self._sweep_generators is not None:
             for sweep_name, sweep_generator in self._sweep_generators.items():
                 self._data[sweep_name] = self.custom_sweep(sweep_generator)
         settings.DISPATCH_ENABLED = True
 
-    def bare_spectrum_sweep(self) -> NamedSlotsNdarray:
+    def _bare_spectrum_sweep(self) -> NamedSlotsNdarray:
         """
         The bare energy spectra are computed according to the following scheme.
         1. Perform a loop over all subsystems to separately obtain the bare energy
@@ -535,7 +552,7 @@ class ParameterSweep(
         esys_array[1] = evecs
         return esys_array
 
-    def dressed_spectrum_sweep(
+    def _dressed_spectrum_sweep(
         self,
     ) -> NamedSlotsNdarray:
         """
