@@ -197,8 +197,8 @@ class GUI:
         ]
         self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
         self.fig: Figure
-        self.qubit_base_params: Dict[str, Union[int, float], None] = {}
-        self.qubit_scan_params: Dict[str, Union[int, float], None] = {}
+        self.qubit_base_params: Dict[str, Union[int, float, None]] = {}
+        self.qubit_scan_params: Dict[str, Union[int, float, None]] = {}
         self.qubit_plot_options_widgets: Dict[widgets] = {}
         self.qubit_and_plot_choice_widgets: Dict[widgets] = {}
         self.qubit_params_widgets: Dict[widgets] = {}
@@ -841,7 +841,7 @@ class GUI:
             scq.settings.PROGRESSBAR_DISABLED = False
         else:
             scq.settings.PROGRESSBAR_DISABLED = True
-            
+
         self.set_qubit(qubit_value)
         self.display_qubit_info(qubit_info)
         qubit_plot_interactive = self.create_qubit_plot_interactive(plot_value)
