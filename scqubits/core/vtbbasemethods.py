@@ -163,6 +163,19 @@ class VTBBaseMethods(ABC):
     def nglist(self):
         pass
 
+    # def __str__(self) -> str:
+    #     indent_length = 20
+    #     name_prepend = self._sys_type.ljust(indent_length, "-") + "|\n"
+    #
+    #     output = ""
+    #     for param_name in self.default_params().keys():
+    #         output += "{0}| {1}: {2}\n".format(
+    #             " " * indent_length, str(param_name), str(getattr(self, param_name))
+    #         )
+    #     output += "{0}|\n".format(" " * indent_length)
+    #
+    #     return name_prepend + output
+
     def gamma_matrix(self, minimum_index: int = 0) -> ndarray:
         """Returns linearized potential matrix
 
@@ -395,16 +408,6 @@ class VTBBaseMethods(ABC):
             relevant_unit_cell_vectors[(m_index, m_index)] = relevant_unit_cell_vectors[
                 (0, 0)
             ]
-        # JENS: it isn't clear to me how a named tuple would
-        # help here - from what I've read namedtuples
-        # doesn't seem to fit my use case of "collections" of
-        # data. For example I could create
-        # Minimum = namedtuple('Minimum', 'index location'),
-        # but I would be interested in collections
-        # of such minima, which I would want to refer to by
-        # their index, which brings me back to a dictionary.
-        # Perhaps I am missing something, but I'm not sure
-        # that sort of data structure works here.
         all_minima_location_index_pairs = itertools.combinations(
             sorted_minima_dict.items(), 2
         )

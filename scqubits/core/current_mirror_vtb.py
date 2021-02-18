@@ -82,13 +82,14 @@ class CurrentMirrorVTB(
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
+        N = 3
         return {
-            "N": 2,
+            "N": N,
             "ECB": 0.2,
-            "ECJ": 20.0 / 2.7,
-            "ECg": 20.0,
-            "EJlist": np.array(4 * [18.95]),
-            "nglist": np.array(3 * [0.0]),
+            "ECJ": 35.0,
+            "ECg": 45.0,
+            "EJlist": np.array(2 * N * [10.0]),
+            "nglist": np.array((2 * N - 1) * [0.0]),
             "flux": 0.0,
             "num_exc": 2,
             "maximum_periodic_vector_length": 8,

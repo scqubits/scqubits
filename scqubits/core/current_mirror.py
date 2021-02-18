@@ -3,7 +3,6 @@ import os
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
-import scipy as sp
 from numpy import ndarray
 from scipy.linalg import inv
 from scipy.sparse import diags, eye
@@ -128,12 +127,12 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {
-            "N": 3,
+            "N": 2,
             "ECB": 0.2,
-            "ECJ": 20.0 / 2.7,
-            "ECg": 20.0,
-            "EJlist": np.array(6 * [18.95]),
-            "nglist": np.array(5 * [0.0]),
+            "ECJ": 35.0,
+            "ECg": 45.0,
+            "EJlist": np.array(4 * [10.0]),
+            "nglist": np.array(3 * [0.0]),
             "flux": 0.0,
             "ncut": 10,
             "truncated_dim": 6,
@@ -172,7 +171,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         -------
         float
         """
-        potential_val = -self.EJlist[0:-1] * np.cos(phi_array)
+        potential_val = np.sum(-self.EJlist[0:-1] * np.cos(phi_array))
         potential_val += -self.EJlist[-1] * np.cos(
             np.sum(phi_array) + 2 * np.pi * self.flux
         )
