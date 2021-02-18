@@ -29,8 +29,7 @@ if not IN_IPYTHON:
     matplotlib.use("Agg")
 
 warnings.filterwarnings(
-    action="ignore",
-    category=FutureWarning,
+    action="ignore", category=FutureWarning,
 )
 
 TESTDIR, _ = os.path.split(scqubits.__file__)

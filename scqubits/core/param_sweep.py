@@ -535,9 +535,7 @@ class ParameterSweep(
         esys_array[1] = evecs
         return esys_array
 
-    def dressed_spectrum_sweep(
-        self,
-    ) -> NamedSlotsNdarray:
+    def dressed_spectrum_sweep(self,) -> NamedSlotsNdarray:
         """
 
         Returns

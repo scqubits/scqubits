@@ -702,22 +702,38 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     def _cos_theta_operator(self) -> csc_matrix:
         """Returns operator :math:`\\cos \\theta` in the charge basis"""
-        cos_op = 0.5 * sparse.dia_matrix((np.ones(self._dim_theta()), [1]),
-                                         shape=(
-                                         self._dim_theta(), self._dim_theta())).tocsc()
-        cos_op += 0.5 * sparse.dia_matrix((np.ones(self._dim_theta()), [-1]),
-                                          shape=(
-                                          self._dim_theta(), self._dim_theta())).tocsc()
+        cos_op = (
+            0.5
+            * sparse.dia_matrix(
+                (np.ones(self._dim_theta()), [1]),
+                shape=(self._dim_theta(), self._dim_theta()),
+            ).tocsc()
+        )
+        cos_op += (
+            0.5
+            * sparse.dia_matrix(
+                (np.ones(self._dim_theta()), [-1]),
+                shape=(self._dim_theta(), self._dim_theta()),
+            ).tocsc()
+        )
         return cos_op
 
     def _sin_theta_operator(self) -> csc_matrix:
         """Returns operator :math:`\\sin \\theta` in the charge basis"""
-        sin_op = 0.5 * sparse.dia_matrix((np.ones(self._dim_theta()), [1]),
-                                         shape=(
-                                         self._dim_theta(), self._dim_theta())).tocsc()
-        sin_op -= 0.5 * sparse.dia_matrix((np.ones(self._dim_theta()), [-1]),
-                                          shape=(
-                                          self._dim_theta(), self._dim_theta())).tocsc()
+        sin_op = (
+            0.5
+            * sparse.dia_matrix(
+                (np.ones(self._dim_theta()), [1]),
+                shape=(self._dim_theta(), self._dim_theta()),
+            ).tocsc()
+        )
+        sin_op -= (
+            0.5
+            * sparse.dia_matrix(
+                (np.ones(self._dim_theta()), [-1]),
+                shape=(self._dim_theta(), self._dim_theta()),
+            ).tocsc()
+        )
         return sin_op * (-1j)
 
     def _kron3(self, mat1, mat2, mat3) -> csc_matrix:
@@ -1130,9 +1146,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return junction_mat + dis_junction_mat
 
     def d_hamiltonian_d_ng(self) -> csc_matrix:
-        return (
-            4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
-            - 4
-            * self._disordered_ecj()
-            * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
+        return 4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator() - 4 * self._disordered_ecj() * (
+            self.n_theta_operator() - self.ng - self.n_zeta_operator()
         )
