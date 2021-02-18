@@ -181,10 +181,10 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         localized in both minima."""
         (m, minima_m), (p, minima_p) = minima_index_pair
 
-        max_for_m = self._max_localization_ratio_for_minima_pair(
+        max_for_m = self._min_localization_ratio_for_minima_pair(
             minima_index_pair, m, relevant_unit_cell_vectors
         )
-        max_for_p = self._max_localization_ratio_for_minima_pair(
+        max_for_p = self._min_localization_ratio_for_minima_pair(
             minima_index_pair, p, relevant_unit_cell_vectors
         )
         return max(max_for_m, max_for_p)

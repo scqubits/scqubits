@@ -228,18 +228,20 @@ class VTBBaseMethods(ABC):
         )
         return omega_squared, normal_mode_eigenvectors
 
-    def compute_localization_ratios(
+    def compute_minimum_localization_ratio(
         self, relevant_unit_cell_vectors: Optional[dict] = None
     ) -> ndarray:
         """
         Returns
         -------
         ndarray
-            ratio of harmonic lengths to minima separations, providing
+            minimum ratio of harmonic lengths to minima separations, providing
             a measure of the validity of tight binding.
-            If any of the values in the returned array exceed unity, then
-            the wavefunctions are relatively spread out
-            as compared to the minima separations
+            If the returned minimumvalue is much less than unity, then
+            in certain directions the wavefunctions are relatively spread out
+            as compared to the minima separations, leading to numerical stability
+            issues. In this regime, the validity of tight-binding techniques is
+            questionable.
         """
         if relevant_unit_cell_vectors is None:
             relevant_unit_cell_vectors = self.find_relevant_unit_cell_vectors()
@@ -257,11 +259,11 @@ class VTBBaseMethods(ABC):
         self, relevant_unit_cell_vectors: dict, minima_index_pair: Tuple
     ) -> float:
         """Helper function comparing minima separation for given minima pair"""
-        return self._max_localization_ratio_for_minima_pair(
+        return self._min_localization_ratio_for_minima_pair(
             minima_index_pair, 0, relevant_unit_cell_vectors
         )
 
-    def _max_localization_ratio_for_minima_pair(
+    def _min_localization_ratio_for_minima_pair(
         self,
         minima_index_pair: Tuple,
         Xi_minimum_index_arg: int,
@@ -301,7 +303,7 @@ class VTBBaseMethods(ABC):
                 for unit_vec in minima_unit_vectors
             ]
         )
-        return np.max(3.0 * harmonic_lengths / minima_distances / 2.0)
+        return np.min(minima_distances / 2.0 / (3.0 * harmonic_lengths))
 
     def Xi_matrix(
         self, minimum_index: int = 0, harmonic_lengths: Optional[ndarray] = None
@@ -1236,7 +1238,7 @@ class VTBBaseMethods(ABC):
         """Helper method that wraps the try and except regarding
         singularity/indefiniteness of the inner product matrix"""
         relevant_unit_cell_vectors, harmonic_lengths = self._initialize_VTB(num_cpus)
-        harmonic_length_minima_comparison = self.compute_localization_ratios()
+        harmonic_length_minima_comparison = self.compute_minimum_localization_ratio()
         if np.max(harmonic_length_minima_comparison) > 1.0:
             warnings.warn(
                 "Warning: large harmonic length compared to minima separation "
