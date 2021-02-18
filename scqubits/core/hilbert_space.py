@@ -174,29 +174,23 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
     def __new__(
         cls,
-        g_strength: Union[float, complex],
-        operator_list: List[Tuple[int, Union[ndarray, csc_matrix]]] = None,
-        subsys1: QuantumSys = None,
-        op1: Union[str, ndarray, csc_matrix, dia_matrix] = None,
-        subsys2: QuantumSys = None,
-        op2: Union[str, ndarray, csc_matrix, dia_matrix] = None,
-        hilbertspace: "HilbertSpace" = None,
-        add_hc: bool = False,
+        *args,
+        **kwargs,
     ) -> Union["InteractionTerm", InteractionTermLegacy]:
-        if subsys1:
+        if "subsys1" in kwargs:
             warnings.warn(
                 "This use of `InteractionTerm` is deprecated and will cease "
                 "to be supported in the future.",
                 FutureWarning,
             )
             return InteractionTermLegacy(
-                g_strength=g_strength,
-                op1=op1,
-                subsys1=subsys1,
-                op2=op2,
-                subsys2=subsys2,
-                hilbertspace=hilbertspace,
-                add_hc=add_hc,
+                g_strength=kwargs["g_strength"],
+                op1=kwargs["op1"],
+                subsys1=kwargs["subsys1"],
+                op2=kwargs["op2"],
+                subsys2=kwargs["subsys2"],
+                hilbertspace=kwargs.pop("hilbertspace", None),
+                add_hc=kwargs.pop("add_hc", None),
             )
         else:
             return super().__new__(cls)

@@ -172,15 +172,19 @@ class SpectrumLookupMixin:
         """
         param_indices = param_indices or self._current_param_indices
         if not self.all_params_fixed(param_indices):
-            raise ValueError("All parameters must be fixed to concrete values for "
-                             "the use of `.bare_index`.")
+            raise ValueError(
+                "All parameters must be fixed to concrete values for "
+                "the use of `.bare_index`."
+            )
         try:
             lookup_position = np.where(
                 self._data["dressed_indices"][param_indices] == dressed_index
             )[0][0]
         except IndexError:
-            raise ValueError("Could not identify a bare index for the given dressed "
-                             "index {}.".format(dressed_index))
+            raise ValueError(
+                "Could not identify a bare index for the given dressed "
+                "index {}.".format(dressed_index)
+            )
         basis_labels = self._bare_product_states_labels[lookup_position]
         return basis_labels
 
