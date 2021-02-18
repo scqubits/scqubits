@@ -42,7 +42,7 @@ from scqubits.core.units import (
 )
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-from scqubits.core.cosine_two_phi_qubit import CosineTwoPhiQubit
+from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 
 # file IO
 from scqubits.io_utils.fileio import read, write
