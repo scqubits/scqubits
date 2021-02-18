@@ -182,8 +182,8 @@ class GUI:
         ]
         self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
         self.fig: Figure
-        self.qubit_base_params: Dict[str, Union[int, float]] = {}
-        self.qubit_scan_params: Dict[str, Union[int, float]] = {}
+        self.qubit_base_params: Dict[str, Union[int, float, None]] = {}
+        self.qubit_scan_params: Dict[str, Union[int, float, None]] = {}
         self.qubit_plot_options_widgets: Dict[widgets] = {}
         self.qubit_and_plot_choice_widgets: Dict[widgets] = {}
         self.qubit_params_widgets: Dict[widgets] = {}
@@ -315,7 +315,7 @@ class GUI:
         scan_range: Tuple[float, float],
         eigenvalue_amount_value: int,
         subtract_ground_tf: bool,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_evals_vs_paramvals().
 
