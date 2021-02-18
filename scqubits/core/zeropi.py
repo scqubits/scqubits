@@ -164,7 +164,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             "dCJ": 0.0,
             "ng": 0.1,
             "flux": 0.23,
-            "ncut": 10,
+            "ncut": 30,
             "truncated_dim": 10,
         }
 

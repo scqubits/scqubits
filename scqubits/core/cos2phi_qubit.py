@@ -509,9 +509,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             "dEJ": 0.0,
             "flux": 0.5,
             "ng": 0.0,
-            "n_cut": 5,
-            "zeta_cut": 10,
-            "phi_cut": 5,
+            "n_cut": 7,
+            "zeta_cut": 30,
+            "phi_cut": 7,
         }
 
     @classmethod
