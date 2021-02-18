@@ -254,6 +254,9 @@ class GUI:
 
     # Widget EventHandler Methods -------------------------------------------------------------------------------------------------
     def scan_dropdown_eventhandler(self, change):
+        self.qubit_params_widgets[change.old].disabled = False
+        self.qubit_params_widgets[change.new].disabled = True
+
         self.qubit_plot_options_widgets[
             "scan_range_slider"
         ].description = "{} range".format(change.new)
@@ -268,8 +271,6 @@ class GUI:
             self.active_defaults[change.new]["min"],
             self.active_defaults[change.new]["max"],
         ]
-        self.qubit_params_widgets[change.old].disabled = False
-        self.qubit_params_widgets[change.new].disabled = True
 
     def save_button_clicked_action(self, *args):
         self.fig.savefig(self.qubit_plot_options_widgets["filename_text"].value)
