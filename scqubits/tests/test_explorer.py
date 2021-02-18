@@ -27,6 +27,7 @@ def test_explorer():
 
     hilbertspace = qubit.HilbertSpace([qbt, osc])
 
+    # TODO: Change this
     interaction = InteractionTerm(
         g_strength=0.2,
         op1=qbt.n_operator(),

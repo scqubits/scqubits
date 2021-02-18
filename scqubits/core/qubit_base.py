@@ -86,7 +86,7 @@ class QuantumSystem(DispatchClient, ABC):
 
     def __init_subclass__(cls):
         """Used to register all non-abstract subclasses as a list in
-        `QuantumSystem.subclasses`. """
+        `QuantumSystem.subclasses`."""
         super().__init_subclass__()
         if not inspect.isabstract(cls):
             cls.subclasses.append(cls)
@@ -123,7 +123,7 @@ class QuantumSystem(DispatchClient, ABC):
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Serializable
-        object. """
+        object."""
         return {name: getattr(self, name) for name in self._init_params}
 
     @abstractmethod
@@ -149,7 +149,7 @@ class QuantumSystem(DispatchClient, ABC):
     @abstractmethod
     def default_params():
         """Return dictionary with default parameter values for initialization of
-        class instance """
+        class instance"""
 
     def set_params(self, **kwargs):
         """
@@ -533,7 +533,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         show_numbers: bool = False,
         show3d: bool = True,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Union[Tuple[Figure, Tuple[Axes, Axes]], Tuple[Figure, Axes]]:
         """Plots matrix elements for `operator`, given as a string referring to a
         class method that returns an operator matrix. E.g., for instance `trm` of
         Transmon, the matrix element plot for the charge operator `n` is obtained by

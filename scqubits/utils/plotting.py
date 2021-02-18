@@ -14,7 +14,17 @@ import operator
 import os
 import warnings
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -151,7 +161,7 @@ def wavefunction1d(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
     potential_vals: np.ndarray = None,
     offset: Union[float, Iterable[float]] = 0,
-    scaling: float = 1.0,
+    scaling: Optional[float] = None,
     **kwargs
 ) -> Tuple[Figure, Axes]:
     """

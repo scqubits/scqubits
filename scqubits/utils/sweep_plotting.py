@@ -73,8 +73,8 @@ def difference_spectrum(
     sweep: "ParameterSweep", initial_state_ind: int = 0, **kwargs
 ) -> Tuple[Figure, Axes]:
     """
-    Plots a transition energy spectrum with reference to the given initial_state_ind,
-    obtained by taking energy differences of the eigenenergy spectrum.
+    Plots a transition energy spectrum with reference to the given initial_state_ind, obtained by taking energy
+    differences of the eigenenergy spectrum.
 
     Parameters
     ----------
@@ -131,8 +131,8 @@ def bare_wavefunction(
         value of the external parameter
     subsys:
     which:
-        default: -1, signals to plot all wavefunctions;
-        int>0: plot wavefunctions 0..int-1; list(int) plot specific wavefunctions
+        default: -1, signals to plot all wavefunctions; int>0: plot wavefunctions 0..int-1; list(int) plot specific
+        wavefunctions
     phi_grid:
         used for setting a custom grid for phi; if None use self._default_grid
     **kwargs:
@@ -169,6 +169,26 @@ def chi(datastore: "DataStore", **kwargs) -> Tuple[Figure, Axes]:
         label_list=label_list,
         **defaults.chi(datastore.param_name, **kwargs)
     )
+
+
+def kerr(datastore: "DataStore", qubit_level=None, **kwargs) -> Tuple[Figure, Axes]:
+    """
+    Plot dispersive Kerr energy for a given pair of qubit and oscillator.
+
+    Parameters
+    ----------
+    datastore:
+        contains sweep data for the Kerr shift, stored as specdata.kerr
+    **kwargs:
+        standard plotting option (see separate documentation)
+    """
+    ydata = datastore.kerr if qubit_level is None else datastore.kerr[:, qubit_level]
+    xdata = datastore.param_vals
+    state_count = len(ydata)
+    label_list = list(range(state_count)) if qubit_level is None else None
+    return plot.data_vs_paramvals(
+        xdata, ydata.T, label_list=label_list
+    )  # , **defaults.chi(datastore.param_name, **kwargs))
 
 
 def chi_01(

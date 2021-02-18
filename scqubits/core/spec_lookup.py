@@ -29,8 +29,8 @@ import scqubits.utils.spectrum_utils as spec_utils
 if TYPE_CHECKING:
     from scqubits import HilbertSpace, ParameterSweep, SpectrumData
     from scqubits.core.qubit_base import QuantumSystem
-    from scqubits.io_utils.fileio_qutip import QutipEigenstates
     from scqubits.io_utils.fileio import IOData
+    from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 
 def check_sync_status(func: Callable) -> Callable:
@@ -95,7 +95,7 @@ class SpectrumLookup(serializers.Serializable):
         # Store ParameterSweep and/or HilbertSpace objects only as weakref.proxy
         # objects to avoid circular references that would prevent objects from
         # expiring appropriately and being garbage collected
-        if isinstance(framework, scqubits.ParameterSweep):
+        if isinstance(framework, scqubits.core._param_sweep._ParameterSweep):
             self._sweep = weakref.proxy(framework)
             self._hilbertspace = weakref.proxy(self._sweep._hilbertspace)
         elif isinstance(framework, scqubits.HilbertSpace):

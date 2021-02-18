@@ -411,7 +411,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     def potential(self, phi1: ndarray, phi2: ndarray) -> ndarray:
         """Return value of the potential energy at phi1 and phi2, disregarding
-        constants. """
+        constants."""
         return (
             -self.EJ1 * np.cos(phi1)
             - self.EJ2 * np.cos(phi2)
@@ -492,26 +492,26 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
 
     def hamiltonian(self) -> ndarray:
         """Return Hamiltonian in basis obtained by employing charge basis for both
-        degrees of freedom """
+        degrees of freedom"""
         return self.kineticmat() + self.potentialmat()
 
     def d_hamiltonian_d_EJ1(self) -> ndarray:
         """Returns operator representing a derivittive of the Hamiltonian with
-        respect to EJ1. """
+        respect to EJ1."""
         return -0.5 * np.kron(
             self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity()
         )
 
     def d_hamiltonian_d_EJ2(self) -> ndarray:
         """Returns operator representing a derivittive of the Hamiltonian with
-        respect to EJ2. """
+        respect to EJ2."""
         return -0.5 * np.kron(
             self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T
         )
 
     def d_hamiltonian_d_EJ3(self) -> ndarray:
         """Returns operator representing a derivittive of the Hamiltonian with
-        respect to EJ3. """
+        respect to EJ3."""
         return (
             -0.5
             * (

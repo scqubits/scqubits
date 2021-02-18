@@ -11,6 +11,7 @@
 
 
 import os
+import warnings
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -27,6 +28,10 @@ from scqubits.settings import IN_IPYTHON
 if not IN_IPYTHON:
     matplotlib.use("Agg")
 
+warnings.filterwarnings(
+    action="ignore",
+    category=FutureWarning,
+)
 
 TESTDIR, _ = os.path.split(scqubits.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")

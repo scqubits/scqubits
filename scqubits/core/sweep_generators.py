@@ -24,13 +24,15 @@ else:
 
 
 def compute_custom_data_sweep(sweep, func, **kwargs):
-    """Method for computing custom data as a function of the external parameter, calculated via the function `func`.
+    """Method for computing custom data as a function of the external parameter,
+    calculated via the function `func`.
 
     Parameters
     ----------
     sweep: ParameterSweep
     func: function
-        signature: `func(parametersweep, param_value, **kwargs)`, specifies how to calculate the data
+        signature: `func(parametersweep, param_value, **kwargs)`, specifies how
+        to calculate the data
     **kwargs: optional
         other parameters to be included in func
 
@@ -108,14 +110,15 @@ def generate_charge_matrixelem_sweep(sweep):
 
 
 def generate_diffspec_sweep(sweep, initial_state_ind=0):
-    """Takes spectral data of energy eigenvalues and subtracts the energy of a select state, given by its state
-    index.
+    """Takes spectral data of energy eigenvalues and subtracts the energy of a select
+    state, given by its state index.
 
     Parameters
     ----------
     sweep: ParameterSweep
     initial_state_ind: int or (i1, i2, ...)
-        index of the initial state whose energy is supposed to be subtracted from the spectral data
+        index of the initial state whose energy is supposed to be subtracted from the
+        spectral data
 
     Returns
     -------
@@ -146,8 +149,8 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
 
 def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     """
-    Extracts energies for transitions among qubit states only, while all oscillator subsys_list maintain their
-    excitation level.
+    Extracts energies for transitions among qubit states only, while all oscillator
+    subsys_list maintain their excitation level.
 
     Parameters
     ----------
@@ -155,7 +158,8 @@ def generate_qubit_transitions_sweep(sweep, photonnumber, initial_state_labels):
     photonnumber: int
         number of photons used in transition
     initial_state_labels: tuple(int1, int2, ...)
-        bare-state labels of the initial state whose energy is supposed to be subtracted from the spectral data
+        bare-state labels of the initial state whose energy is supposed to be subtracted
+        from the spectral data
 
     Returns
     -------

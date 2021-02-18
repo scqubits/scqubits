@@ -1,4 +1,4 @@
-# fitting.py
+# misc.py
 #
 # This file is part of scqubits.
 #
@@ -23,6 +23,9 @@ if IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
+
+
+Number = Union[int, float, complex]
 
 
 def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]:
@@ -73,6 +76,35 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
 def drop_private_keys(full_dict: Dict[str, Any]) -> Dict[str, Any]:
     """Filter for entries in the full dictionary that have numerical values"""
     return {key: value for key, value in full_dict.items() if key[0] != "_"}
+
+
+# def adaptive_tqdm(iterator_object: Iterable, static: bool, desc: str, static_desc: str,
+#                   **kwargs):
+#     """Adaptively choose normal or static "progress" bar (whenever
+#     multiprocessing is involved).
+#
+#     Parameters
+#     ----------
+#     static:
+#         whether or not a static rather than dynamic bar should be displayed
+#     desc:
+#         usual progress bar description
+#     desc_static:
+#         Description text to be displayed on the static information bar.
+#     num_cpus:
+#         Number of CPUS/cores employed in underlying calculation.
+#     """
+#     if static:
+#         return tqdm(
+#             iterator_object,
+#             desc=static_desc,
+#             leave=False
+#         )
+#     return tqdm(
+#         iterator_object,
+#         desc=desc,
+#         leave=False
+#     )
 
 
 class InfoBar:
