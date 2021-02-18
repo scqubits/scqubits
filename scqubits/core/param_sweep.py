@@ -34,6 +34,8 @@ from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.spectrum_lookup import SpectrumLookupMixin
+from scqubits.core.storage import SpectrumData
+
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
@@ -49,6 +51,20 @@ Number = Union[int, float, complex]
 
 
 class Parameters:
+    """Convenience class for maintaining multiple parameter sets (names, values,
+    ordering. Used in ParameterSweep as `.parameters`. Can access in several ways:
+    Parameters[<name str>] = parameter values under this name
+    Parameters[<index int>] = parameter values saved as the index-th set
+    Parameters[<slice> or tuple(int)] = slice over the list of parameter sets
+    Mostly meant for internal use inside ParameterSweep.
+
+    paramvals_by_name:
+        dictionary giving names of and values of parameter sets (note problem with
+        ordering in python dictionaries
+    paramnames_list:
+        optional list of same names as in dictionary to set ordering
+    """
+
     def __init__(
         self,
         paramvals_by_name: Dict[str, ndarray],
@@ -171,6 +187,7 @@ class ParameterSweepBase(ABC):
     def __getitem__(self, key):
         if isinstance(key, str):
             return self._data[key]
+
         # The following enables the following syntax:
         # <Sweep>[p1, p2, ...].dressed_eigenstates()
         if isinstance(key, (tuple, slice)):
@@ -198,8 +215,22 @@ class ParameterSweepBase(ABC):
                 self._out_of_sync = True
 
     # @property
-    # def bare_specdata_list(self) -> List[SpectrumData]:
-    #     return self.lookup._bare_specdata_list
+    def bare_specdata_list(
+        self, fixed_params: Optional[Dict[str, Number]] = None
+    ) -> "List[SpectrumData]":
+        param_indices = fixed_params or self._current_param_indices
+        if not self.is_single_sweep(param_indices):
+            raise ValueError("All but one parameter must be fixed for "
+                             "`bare_specdata_list.")
+
+        evals_sweep, evecs = self["bare_esys"][fixed_params]
+        # return SpectrumData(energy_table=evals
+        # return self.lookup._bare_specdata_list
+
+    def is_single_sweep(self, param_indices) -> bool:
+        if len(self["dressed_indices"].shape) != 2:
+            return False
+        return True
     #
     # @property
     # def dressed_specdata(self) -> SpectrumData:
@@ -439,25 +470,25 @@ class ParameterSweep(
         """
         fixed_paramnames = self.paramnames_no_subsys_update(subsystem)
         reduced_parameters = self.parameters.create_reduced(fixed_paramnames)
+        total_count = np.prod([len(param_vals) for param_vals in reduced_parameters])
 
+        multi_cpu = self._num_cpus > 1
         target_map = cpu_switch.get_map_method(self._num_cpus)
-        with utils.InfoBar(
-            "Parallel compute bare eigensys [num_cpus={}]".format(self._num_cpus),
-            self._num_cpus,
-        ):
-            bare_eigendata = target_map(
-                functools.partial(
-                    self._update_subsys_compute_esys,
-                    self._update_hilbertspace,
-                    subsystem,
-                ),
-                tqdm(
-                    itertools.product(*reduced_parameters.paramvals_list),
-                    desc="Bare spectra",
-                    leave=False,
-                    disable=self.tqdm_disabled,
-                ),
-            )
+        bare_eigendata = target_map(
+            functools.partial(
+                self._update_subsys_compute_esys,
+                self._update_hilbertspace,
+                subsystem,
+            ),
+            tqdm(
+                itertools.product(*reduced_parameters.paramvals_list),
+                total=total_count,
+                desc="Parallel compute bare eigensys [num_cpus={}]".format(
+                    self._num_cpus) if multi_cpu else "Bare spectra",
+                leave=False,
+                disable=self.tqdm_disabled or multi_cpu,
+            ),
+        )
         bare_eigendata = np.asarray(list(bare_eigendata), dtype=object)
         bare_eigendata = bare_eigendata.reshape((*reduced_parameters.counts, 2))
 
@@ -506,25 +537,26 @@ class ParameterSweep(
             NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "esys"]
             "esys": 0, 1 yields eigenvalues and eigenvectors, respectively
         """
+        multi_cpu = self._num_cpus > 1
         target_map = cpu_switch.get_map_method(self._num_cpus)
-        with utils.InfoBar(
-            "Parallel compute dressed eigensys [num_cpus={}]".format(self._num_cpus),
-            self._num_cpus,
-        ):
-            spectrum_data = target_map(
-                functools.partial(
-                    self._update_and_compute_dressed_esys,
-                    self._hilbertspace,
-                    self._evals_count,
-                    self._update_hilbertspace,
-                ),
-                tqdm(
-                    itertools.product(*self.parameters.ranges),
-                    desc="Dressed spectrum",
-                    leave=False,
-                    disable=self.tqdm_disabled,
-                ),
-            )
+        total_count = np.prod(self.parameters.counts)
+
+        spectrum_data = target_map(
+            functools.partial(
+                self._update_and_compute_dressed_esys,
+                self._hilbertspace,
+                self._evals_count,
+                self._update_hilbertspace,
+            ),
+            tqdm(
+                itertools.product(*self.parameters.ranges),
+                total=total_count,
+                desc="Parallel compute dressed eigensys [num_cpus={}]".format(
+                    self._num_cpus) if multi_cpu else "Dressed spectrum",
+                leave=False,
+                disable=self.tqdm_disabled or multi_cpu,
+            ),
+        )
         spectrum_data = np.asarray(list(spectrum_data), dtype=object)
         spectrum_data = spectrum_data.reshape((*self.parameters.counts, 2))
         slotparamvals_by_name = self.parameters.ordered_dict
