@@ -8,7 +8,7 @@ from sympy import Matrix, S, diff, hessian, simplify, solve, symbols
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxWithHarmonic
+from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_phases
@@ -457,36 +457,39 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         return phi_ops, n_ops
 
     def fluxonium_a(self):
-        return FluxoniumFluxWithHarmonic(
+        return FluxoniumFluxVariableAllocation(
             self.EJa,
             self.qubit_a_charging_energy(),
             self.ELa,
             self.flux_a,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
+            flux_fraction_with_inductor=1.0
         )
 
     def fluxonium_b(self):
-        return FluxoniumFluxWithHarmonic(
+        return FluxoniumFluxVariableAllocation(
             self.EJb,
             self.qubit_b_charging_energy(),
             self.ELb,
             self.flux_b,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
+            flux_fraction_with_inductor=1.0
         )
 
     def EL_tilda(self):
         return self.EL1 + self.EL2 + self.ELa + self.ELb
 
     def fluxonium_minus(self):
-        return Fluxonium(
+        return FluxoniumFluxVariableAllocation(
             self.EJC,
             self.fluxonium_minus_charging_energy(),
             self.EL_tilda() / 4.0,
             self.flux_c,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_minus_truncated_dim,
+            flux_fraction_with_inductor=0.5
         )
 
     def h_o_plus_charging_energy(self):

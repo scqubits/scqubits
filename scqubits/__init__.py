@@ -41,7 +41,7 @@ from scqubits.core.flux_qubit_vtb import (
     FluxQubitVTBGlobalSqueezing,
     FluxQubitVTBSqueezing,
 )
-from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxWithHarmonic
+from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
 from scqubits.core.generic_qubit import GenericQubit
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
