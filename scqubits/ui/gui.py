@@ -58,7 +58,7 @@ class GUI:
 
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
     def __init__(self):
-        scq.settings.PROGRESSBAR_DISABLED = True
+        scq.settings.PROGRESSBAR_DISABLED = False
         global_defaults = {
             "mode_wavefunc": "real",
             "mode_matrixelem": "abs",
@@ -143,9 +143,9 @@ class GUI:
             "ncut": {"min": 5, "max": 50},
             "EL": {"min": 1e-10, "max": 30},
             "ECJ": global_defaults["EC"],
-            "dEJ": {"min": 0, "max": 1},
-            "dL": {"min": 0, "max": 1},
-            "dCJ": {"min": 0, "max": 1},
+            "dEJ": {"min": 0, "max": 0.99},
+            "dL": {"min": 0, "max": 0.99},
+            "dCJ": {"min": 0, "max": 0.99},
             "ncut": {"min": 5, "max": 30},
             "zeta_cut": {"min": 10, "max": 50},
             "phi_cut": {"min": 5, "max": 30},
@@ -163,7 +163,16 @@ class GUI:
         self.grid_defaults = {
             "grid_min_val": -6 * np.pi,
             "grid_max_val": 6 * np.pi,
-            "grid_pt_count": 100,
+            "grid_pt_count": 50,
+        }
+        self.num_sample_default = {
+            "Transmon": 150,
+            "TunableTransmon": 150,
+            "Fluxonium": 150,
+            "FluxQubit": 100,
+            "ZeroPi": 50,
+            "FullZeroPi": 50,
+            "Cos2PhiQubit": 50
         }
         self.plot_choices = [
             "Energy spectrum",
@@ -178,12 +187,18 @@ class GUI:
             "FluxQubit",
             "ZeroPi",
             "FullZeroPi",
-            "Cos2PhiQubit",
+            "Cos2PhiQubit"
+        ]
+        self.slow_qubits = [
+            "FluxQubit",
+            "ZeroPi",
+            "FullZeroPi",
+            "Cos2PhiQubit"
         ]
         self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
         self.fig: Figure
-        self.qubit_base_params: Dict[str, Union[int, float]] = {}
-        self.qubit_scan_params: Dict[str, Union[int, float]] = {}
+        self.qubit_base_params: Dict[str, Union[int, float], None] = {}
+        self.qubit_scan_params: Dict[str, Union[int, float], None] = {}
         self.qubit_plot_options_widgets: Dict[widgets] = {}
         self.qubit_and_plot_choice_widgets: Dict[widgets] = {}
         self.qubit_params_widgets: Dict[widgets] = {}
@@ -276,7 +291,7 @@ class GUI:
         scan_range: Tuple[float, float],
         eigenvalue_amount_value: int,
         subtract_ground_tf: bool,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_evals_vs_paramvals().
 
@@ -306,7 +321,7 @@ class GUI:
             scan_value,
             np_list,
             evals_count=eigenvalue_amount_value,
-            subtract_ground=subtract_ground_tf,
+            subtract_ground=subtract_ground_tf
         )
 
     def grid_evals_vs_paramvals_plot(
@@ -315,7 +330,7 @@ class GUI:
         scan_range: Tuple[float, float],
         eigenvalue_amount_value: int,
         subtract_ground_tf: bool,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_evals_vs_paramvals().
 
@@ -360,7 +375,7 @@ class GUI:
         scan_range: Tuple[float, float],
         matrix_element_amount_value: int,
         mode_value: str,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_matelem_vs_paramvals().
 
@@ -403,7 +418,7 @@ class GUI:
         scan_range: Tuple[float, float],
         matrix_element_amount_value: int,
         mode_value: str,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_matelem_vs_paramvals().
         Namely, this method is for the qubits that require a grid option.
@@ -451,7 +466,7 @@ class GUI:
         mode_value: str,
         manual_scale_tf: bool,
         scale_value: float,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_wavefunction().
         Namely, this method is for the qubits that have an option for scaling the wavefunction amplitudes.
@@ -489,7 +504,7 @@ class GUI:
         self,
         eigenvalue: Union[List[int], int],
         mode_value: str,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_wavefunction().
 
@@ -514,7 +529,7 @@ class GUI:
         self,
         eigenvalue: Union[List[int], int],
         mode_value: str,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_wavefunction().
         Namely, this method is for the qubits that require a grid option.
@@ -548,7 +563,7 @@ class GUI:
         mode_value: str,
         show_numbers_tf: bool,
         show3d_tf: bool,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ):
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_matrixelements().
 
@@ -590,7 +605,7 @@ class GUI:
         mode_value: str,
         show_numbers_tf: bool,
         show3d_tf: bool,
-        **params: Dict[str, Union[float, int]]
+        **params: Union[Tuple[float, float], float, int]
     ):
         """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_matrixelements().
         Namely, this method is for the qubits that require a grid option.
@@ -822,6 +837,11 @@ class GUI:
         plot_value:
             Current plot option chosen
         """
+        if qubit_value in self.slow_qubits:
+            scq.settings.PROGRESSBAR_DISABLED = False
+        else:
+            scq.settings.PROGRESSBAR_DISABLED = True
+            
         self.set_qubit(qubit_value)
         self.display_qubit_info(qubit_info)
         qubit_plot_interactive = self.create_qubit_plot_interactive(plot_value)
