@@ -10,6 +10,7 @@
 ############################################################################
 
 import functools
+import math
 import operator
 import os
 import warnings
@@ -241,7 +242,8 @@ def renormalization_factor(
     FILL_FACTOR = 0.1
     energy_range = np.max(potential_vals) - np.min(potential_vals)
     amplitude_range = np.max(wavefunc.amplitudes) - np.min(wavefunc.amplitudes)
-
+    if math.isclose(amplitude_range, 0.0):
+        return 0.0
     return FILL_FACTOR * energy_range / amplitude_range
 
 

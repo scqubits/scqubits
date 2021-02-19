@@ -14,7 +14,7 @@ import functools
 import weakref
 
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -53,7 +53,8 @@ QuantumSys = Union[QubitBaseClass, Oscillator]
 
 class _ParameterSweepBase(ABC):
     """
-    The _ParameterSweepBase class is an abstract base class for ParameterSweep and StoredSweep
+    The _ParameterSweepBase class is an abstract base class for ParameterSweep and
+    StoredSweep
     """
 
     param_name = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
@@ -107,8 +108,8 @@ class _ParameterSweepBase(ABC):
 
         Returns
         -------
-            bare eigenvectors for the specified subsystem and the external parameter fixed to the value indicated by
-            its index
+            bare eigenvectors for the specified subsystem and the external parameter
+            fixed to the value indicated by its index
         """
         subsys_index = self.get_subsys_index(subsys)
         return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
@@ -128,10 +129,11 @@ class _ParameterSweep(
     _ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
     """
-    The ParameterSweep class helps generate spectral and associated data for a composite quantum system, as an externa,
-    parameter, such as flux, is swept over some given interval of values. Upon initialization, these data are calculated
-    and stored internally, so that plots can be generated efficiently. This is of particular use for interactive
-    displays used in the Explorer class.
+    The ParameterSweep class helps generate spectral and associated data for a
+    composite quantum system, as an externa, parameter, such as flux, is swept over
+    some given interval of values. Upon initialization, these data are calculated and
+    stored internally, so that plots can be generated efficiently. This is of
+    particular use for interactive displays used in the Explorer class.
 
     Parameters
     ----------
@@ -140,14 +142,16 @@ class _ParameterSweep(
     param_vals:
         array of parameter values
     evals_count:
-        number of eigenvalues and eigenstates to be calculated for the composite Hilbert space
+        number of eigenvalues and eigenstates to be calculated for the composite
+        Hilbert space
     hilbertspace:
         collects all data specifying the Hilbert space of interest
     subsys_update_list:
-        list of subsys_list in the Hilbert space which get modified when the external parameter changes
+        list of subsys_list in the Hilbert space which get modified when the external
+        parameter changes
     update_hilbertspace:
-        update_hilbertspace(param_val) specifies how a change in the external parameter affects
-        the Hilbert space components
+        update_hilbertspace(param_val) specifies how a change in the external
+        parameter affects the Hilbert space components
     num_cpus:
         number of CPUS requested for computing the sweep (default value settings.NUM_CPUS)
     """
@@ -168,8 +172,9 @@ class _ParameterSweep(
         hilbertspace: HilbertSpace,
         subsys_update_list: List[QuantumSys],
         update_hilbertspace: Callable,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> None:
+        num_cpus = num_cpus or settings.NUM_CPUS
         self.param_name = param_name
         self.param_vals = param_vals
         self.param_count = len(param_vals)
@@ -201,14 +206,15 @@ class _ParameterSweep(
         )
         settings.DISPATCH_ENABLED = True
 
-    # HilbertSpace: methods for CentralDispatch ----------------------------------------------------
+    # HilbertSpace: methods for CentralDispatch ---------------------------------------
     def cause_dispatch(self) -> None:
         self.update_hilbertspace(self.param_vals[0])
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
-        """Hook to CENTRAL_DISPATCH. This method is accessed by the global CentralDispatch instance whenever an event
-        occurs that ParameterSweep is registered for. In reaction to update events, the lookup table is marked as out
-        of sync.
+        """Hook to CENTRAL_DISPATCH. This method is accessed by the global
+        CentralDispatch instance whenever an event occurs that ParameterSweep is
+        registered for. In reaction to update events, the lookup table is marked as
+        out of sync.
 
         Parameters
         ----------
@@ -226,12 +232,12 @@ class _ParameterSweep(
                 self._lookup._out_of_sync = True
                 # print('Lookup table now out of sync')
 
-    # ParameterSweep: file IO methods ---------------------------------------------------------------
+    # ParameterSweep: file IO methods -------------------------------------------------
     @classmethod
     def deserialize(cls, iodata: "IOData") -> "_StoredSweep":
         """
-        Take the given IOData and return an instance of the described class, initialized with the data stored in
-        io_data.
+        Take the given IOData and return an instance of the described class,
+        initialized with the data stored in io_data.
 
         Parameters
         ----------
@@ -271,10 +277,11 @@ class _ParameterSweep(
         iodata.typename = "_StoredSweep"
         return iodata
 
-    # ParameterSweep: private methods for generating the sweep -------------------------------------------------
+    # ParameterSweep: private methods for generating the sweep ------------------------
     def _compute_bare_specdata_sweep(self) -> List[SpectrumData]:
         """
-        Pre-calculates all bare spectral data needed for the interactive explorer display.
+        Pre-calculates all bare spectral data needed for the interactive explorer
+        display.
         """
         bare_eigendata_constant = [
             self._compute_bare_spectrum_constant()
@@ -395,7 +402,8 @@ class _ParameterSweep(
         """
         Returns
         -------
-            composite Hamiltonian composed of bare Hamiltonians of subsys_list independent of the external parameter
+            composite Hamiltonian composed of bare Hamiltonians of subsys_list
+            independent of the external parameter
         """
         static_hamiltonian = 0
         for index, subsys in enumerate(self._hilbertspace):
@@ -415,7 +423,8 @@ class _ParameterSweep(
 
         Returns
         -------
-            composite Hamiltonian consisting of all bare Hamiltonians which depend on the external parameter
+            composite Hamiltonian consisting of all bare Hamiltonians which depend on
+            the external parameter
         """
         hamiltonian = 0
         for index, subsys in enumerate(self._hilbertspace):
@@ -428,7 +437,8 @@ class _ParameterSweep(
         """
         Returns
         -------
-            eigensystem data for each subsystem that is not affected by a change of the external parameter
+            eigensystem data for each subsystem that is not affected by a change of the
+            external parameter
         """
         eigendata = []
         for subsys in self._hilbertspace:
@@ -443,8 +453,9 @@ class _ParameterSweep(
         self, param_val: float
     ) -> List[Tuple[ndarray, ndarray]]:
         """
-        For given external parameter value obtain the bare eigenspectra of each bare subsystem that is affected by
-        changes in the external parameter. Formulated to be used with Pool.map()
+        For given external parameter value obtain the bare eigenspectra of each bare
+        subsystem that is affected by changes in the external parameter. Formulated
+        to be used with Pool.map()
 
         Returns
         -------
@@ -537,12 +548,12 @@ class _StoredSweep(
             hilbertspace, dressed_specdata, bare_specdata_list, auto_run=False
         )
 
-    # StoredSweep: file IO methods ---------------------------------------------------------------
+    # StoredSweep: file IO methods -----------------------------------------------------
     @classmethod
     def deserialize(cls, iodata: "IOData") -> "_StoredSweep":
         """
-        Take the given IOData and return an instance of the described class, initialized with the data stored in
-        io_data.
+        Take the given IOData and return an instance of the described class,
+        initialized with the data stored in io_data.
 
         Parameters
         ----------
@@ -571,14 +582,15 @@ class _StoredSweep(
         self,
         subsys_update_list: List[QuantumSys],
         update_hilbertspace: Callable,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> _ParameterSweep:
+        num_cpus = num_cpus or settings.NUM_CPUS
         return _ParameterSweep(
             self.param_name,
             self.param_vals,
             self.evals_count,
-            self._hilbertspace,
-            subsys_update_list,
-            update_hilbertspace,
-            num_cpus,
+            hilbertspace=self._hilbertspace,
+            subsys_update_list=subsys_update_list,
+            update_hilbertspace=update_hilbertspace,
+            num_cpus=num_cpus,
         )

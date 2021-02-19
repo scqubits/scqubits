@@ -16,7 +16,7 @@ import functools
 import inspect
 
 from abc import ABC, ABCMeta, abstractmethod
-from typing import Any, Dict, Iterable, List, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -330,7 +330,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         subtract_ground: bool = False,
         get_eigenstates: bool = False,
         filename: str = None,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates eigenvalues/eigenstates for a varying system parameter,
         given an array of parameter values. Returns a `SpectrumData` object with
@@ -357,6 +357,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         previous_paramval = getattr(self, param_name)
         tqdm_disable = num_cpus > 1 or settings.PROGRESSBAR_DISABLED
 
@@ -437,7 +438,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_name: str,
         param_vals: ndarray,
         evals_count: int = 6,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates matrix elements for a varying system parameter, given an array
         of parameter values. Returns a `SpectrumData` object containing matrix
@@ -458,6 +459,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         spectrumdata = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
@@ -490,7 +492,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_vals: ndarray,
         evals_count: int = 6,
         subtract_ground: bool = False,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Generates a simple plot of a set of eigenvalues as a function of one
@@ -515,6 +517,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         **kwargs:
             standard plotting option (see separate documentation)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         specdata = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
@@ -577,7 +580,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_vals: ndarray,
         select_elems: Union[int, List[Tuple[int, int]]] = 4,
         mode: str = "abs",
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Generates a simple plot of a set of eigenvalues as a function of one
@@ -600,10 +603,12 @@ class QubitBaseClass(QuantumSystem, ABC):
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value
             (default value = 'abs')
         num_cpus:
-            number of cores to be used for computation (default value = 1)
+            number of cores to be used for computation
+            (default value: settings.NUM_CPUS)
         **kwargs:
             standard plotting option (see separate documentation)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         if isinstance(select_elems, int):
             evals_count = select_elems
         else:

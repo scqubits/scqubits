@@ -849,7 +849,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         evals_count: int = 10,
         get_eigenstates: bool = False,
         param_name: str = "external_parameter",
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as
         a function of a parameter. Parameter values are specified as a list or array
@@ -877,6 +877,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         target_map = cpu_switch.get_map_method(num_cpus)
         if get_eigenstates:
             func = functools.partial(

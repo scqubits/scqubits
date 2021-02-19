@@ -496,21 +496,21 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         return self.kineticmat() + self.potentialmat()
 
     def d_hamiltonian_d_EJ1(self) -> ndarray:
-        """Returns operator representing a derivittive of the Hamiltonian with
+        """Returns operator representing a derivative of the Hamiltonian with
         respect to EJ1."""
         return -0.5 * np.kron(
             self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity()
         )
 
     def d_hamiltonian_d_EJ2(self) -> ndarray:
-        """Returns operator representing a derivittive of the Hamiltonian with
+        """Returns operator representing a derivative of the Hamiltonian with
         respect to EJ2."""
         return -0.5 * np.kron(
             self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T
         )
 
     def d_hamiltonian_d_EJ3(self) -> ndarray:
-        """Returns operator representing a derivittive of the Hamiltonian with
+        """Returns operator representing a derivative of the Hamiltonian with
         respect to EJ3."""
         return (
             -0.5

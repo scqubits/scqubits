@@ -15,7 +15,7 @@ import warnings
 
 from abc import ABC
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -31,7 +31,7 @@ import scqubits.utils.misc as utils
 from scqubits.core._param_sweep import _ParameterSweep
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
-from scqubits.core.namedslots_array import NamedSlotsNdarray
+from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.spectrum_lookup import SpectrumLookupMixin
 from scqubits.core.storage import SpectrumData
@@ -47,108 +47,6 @@ else:
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
 Number = Union[int, float, complex]
-
-
-class Parameters:
-    """Convenience class for maintaining multiple parameter sets (names, values,
-    ordering. Used in ParameterSweep as `.parameters`. Can access in several ways:
-    Parameters[<name str>] = parameter values under this name
-    Parameters[<index int>] = parameter values saved as the index-th set
-    Parameters[<slice> or tuple(int)] = slice over the list of parameter sets
-    Mostly meant for internal use inside ParameterSweep.
-
-    paramvals_by_name:
-        dictionary giving names of and values of parameter sets (note problem with
-        ordering in python dictionaries
-    paramnames_list:
-        optional list of same names as in dictionary to set ordering
-    """
-
-    def __init__(
-        self,
-        paramvals_by_name: Dict[str, ndarray],
-        paramnames_list: Optional[List[str]] = None,
-    ) -> None:
-        # This is the internal storage
-        self._paramvals_by_name = paramvals_by_name
-
-        # The following list of parameter names sets the ordering among parameter values
-        if paramnames_list is not None:
-            self._paramnames_list = paramnames_list
-        else:
-            self._paramnames_list = list(paramvals_by_name.keys())
-
-    def __getitem__(self, key):
-        if isinstance(key, str):
-            return self._paramvals_by_name[key]
-        if isinstance(key, int):
-            return self._paramvals_by_name[self._paramnames_list[key]]
-        if isinstance(key, slice):
-            sliced_paramnames_list = self._paramnames_list[key]
-            return [self._paramvals_by_name[name] for name in sliced_paramnames_list]
-        if isinstance(key, tuple):
-            return [
-                self._paramvals_by_name[self._paramnames_list[index]][key[index]]
-                for index in range(len(self))
-            ]
-
-    def __len__(self):
-        return len(self._paramnames_list)
-
-    def __iter__(self):
-        return iter(self.paramvals_list)
-
-    @property
-    def names(self):
-        return self._paramnames_list
-
-    @property
-    def counts_by_name(self):
-        return {
-            name: len(self._paramvals_by_name[name])
-            for name in self._paramvals_by_name.keys()
-        }
-
-    @property
-    def ranges(self) -> List[Iterable]:
-        return [range(count) for count in self.counts]
-
-    def index_by_name(self, name: str) -> int:
-        return self._paramnames_list.index(name)
-
-    @property
-    def paramvals_list(self):
-        return [self._paramvals_by_name[name] for name in self._paramnames_list]
-
-    @property
-    def counts(self):
-        return tuple(len(paramvals) for paramvals in self)
-
-    def reorder(self, ordering: Union[List[Union[str, int, slice]]]):
-        if sorted(ordering) == sorted(self._paramnames_list):
-            self._paramnames_list = ordering
-        elif sorted(ordering) == list(range(len(self))):
-            self._paramnames_list = [self._paramnames_list[index] for index in ordering]
-        else:
-            raise ValueError("Not a valid ordering for parameters.")
-
-    @property
-    def ordered_dict(self) -> Dict[str, Iterable]:
-        return OrderedDict([(name, self[name]) for name in self.names])
-
-    def create_reduced(self, fixed_parametername_list, fixed_values=None):
-        if fixed_values is not None:
-            fixed_values = [np.asarray(value) for value in fixed_values]
-        else:
-            fixed_values = [
-                np.asarray([self[name][0]]) for name in fixed_parametername_list
-            ]
-
-        reduced_paramvals_by_name = {name: self[name] for name in self._paramnames_list}
-        for index, name in enumerate(fixed_parametername_list):
-            reduced_paramvals_by_name[name] = fixed_values[index]
-
-        return Parameters(reduced_paramvals_by_name)
 
 
 class ParameterSweepBase(ABC):
@@ -189,9 +87,11 @@ class ParameterSweepBase(ABC):
 
         # The following enables the following syntax:
         # <Sweep>[p1, p2, ...].dressed_eigenstates()
-        if isinstance(key, (tuple, slice)):
+        if isinstance(key, tuple):
             self._current_param_indices = key
-            return self
+        elif isinstance(key, slice):
+            self._current_param_indices = (key,)
+        return self
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
         """Hook to CENTRAL_DISPATCH. This method is accessed by the global
@@ -218,30 +118,42 @@ class ParameterSweepBase(ABC):
         self, multi_index: Optional[Union[Tuple, slice, Number]] = None
     ) -> "List[SpectrumData]":
         multi_index = multi_index or self._current_param_indices
-
+        print("multi-index: ", multi_index)
         sweep_param_indices = self.get_sweep_indices(multi_index)
+        print(sweep_param_indices)
         if len(sweep_param_indices) != 1:
             raise ValueError(
-                "All but one parameter must be fixed for " "`bare_specdata_list.")
+                "All but one parameter must be fixed for " "`bare_specdata_list."
+            )
 
         sweep_param_name = self.parameters[sweep_param_indices[0]]
 
         esys_array = self["bare_esys"][multi_index]
         specdata_list = [
-            SpectrumData(energy_table=esys[0], state_table=esys[1],
-                         system_params=self._hilbertspace.get_initdata(),
-                         param_name=sweep_param_name,
-                         param_vals=self.parameters[sweep_param_name])
+            SpectrumData(
+                energy_table=esys[0],
+                state_table=esys[1],
+                system_params=self._hilbertspace.get_initdata(),
+                param_name=sweep_param_name,
+                param_vals=self.parameters[sweep_param_name],
+            )
             for esys in esys_array
         ]
         return specdata_list
 
     def get_sweep_indices(self, multi_index):
-        std_multi_index = (self._data["bare_esys"]).convert_to_standard_multi_index(
-            multi_index)
-        print(multi_index)
-        print(std_multi_index)
-        sweep_indices = [index for index, slice_obj in enumerate(std_multi_index) if len(self.parameters.paramvals_list[index][slice_obj]) > 1]
+        std_multi_index = (self._data["esys"]).convert_to_standard_multi_index(
+            multi_index
+        )
+        print("***", std_multi_index)
+        std_multi_index = std_multi_index[:-1]  # drop last index, which enumerates esys
+        sweep_indices = [
+            index
+            for index, slice_obj in enumerate(std_multi_index)
+            if isinstance(self.parameters.paramvals_list[index][slice_obj], (list,
+                                                                             tuple,
+                                                                             ndarray))
+        ]
         return sweep_indices
 
     # def is_single_sweep(self, param_indices) -> bool:
@@ -363,9 +275,9 @@ class ParameterSweep(
         evals_count: int = 6,
         subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
         autorun: bool = settings.AUTORUN_SWEEP,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> None:
-
+        num_cpus = num_cpus or settings.NUM_CPUS
         self.parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
         self._sweep_generators = sweep_generators
@@ -521,7 +433,7 @@ class ParameterSweep(
         # update effect on the subsystem. Now extend the array to reflect this
         # for the full parameter array by repeating
         for name in fixed_paramnames:
-            index = self.parameters.index_by_name(name)
+            index = self.parameters.index_by_name[name]
             param_count = self.parameters.counts[index]
             bare_eigendata = np.repeat(bare_eigendata, param_count, axis=index)
 
@@ -653,7 +565,7 @@ class StoredSweep(
         evals_count: int = 6,
         subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
         autorun: bool = settings.AUTORUN_SWEEP,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> ParameterSweep:
         return ParameterSweep(
             self._hilbertspace,
