@@ -11,11 +11,13 @@
 
 import math
 import os
+
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import scipy as sp
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -35,6 +37,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
+
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
 from scqubits.core.storage import WaveFunctionOnGrid
 
@@ -703,22 +706,38 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     def _cos_theta_operator(self) -> csc_matrix:
         """Returns operator :math:`\\cos \\theta` in the charge basis"""
-        cos_op = 0.5 * sparse.dia_matrix((np.ones(self._dim_theta()), [1]),
-                                         shape=(
-                                         self._dim_theta(), self._dim_theta())).tocsc()
-        cos_op += 0.5 * sparse.dia_matrix((np.ones(self._dim_theta()), [-1]),
-                                          shape=(
-                                          self._dim_theta(), self._dim_theta())).tocsc()
+        cos_op = (
+            0.5
+            * sparse.dia_matrix(
+                (np.ones(self._dim_theta()), [1]),
+                shape=(self._dim_theta(), self._dim_theta()),
+            ).tocsc()
+        )
+        cos_op += (
+            0.5
+            * sparse.dia_matrix(
+                (np.ones(self._dim_theta()), [-1]),
+                shape=(self._dim_theta(), self._dim_theta()),
+            ).tocsc()
+        )
         return cos_op
 
     def _sin_theta_operator(self) -> csc_matrix:
         """Returns operator :math:`\\sin \\theta` in the charge basis"""
-        sin_op = 0.5 * sparse.dia_matrix((np.ones(self._dim_theta()), [1]),
-                                         shape=(
-                                         self._dim_theta(), self._dim_theta())).tocsc()
-        sin_op -= 0.5 * sparse.dia_matrix((np.ones(self._dim_theta()), [-1]),
-                                          shape=(
-                                          self._dim_theta(), self._dim_theta())).tocsc()
+        sin_op = (
+            0.5
+            * sparse.dia_matrix(
+                (np.ones(self._dim_theta()), [1]),
+                shape=(self._dim_theta(), self._dim_theta()),
+            ).tocsc()
+        )
+        sin_op -= (
+            0.5
+            * sparse.dia_matrix(
+                (np.ones(self._dim_theta()), [-1]),
+                shape=(self._dim_theta(), self._dim_theta()),
+            ).tocsc()
+        )
         return sin_op * (-1j)
 
     def _kron3(self, mat1, mat2, mat3) -> csc_matrix:
@@ -1046,10 +1065,12 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
                 ]
             )
         )
-        wavefunc.amplitudes = np.transpose(amplitude_modifier(
-            spec_utils.standardize_phases(
-                wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)
-            ))
+        wavefunc.amplitudes = np.transpose(
+            amplitude_modifier(
+                spec_utils.standardize_phases(
+                    wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)
+                )
+            )
         )
         return plot.wavefunction2d(
             wavefunc,
