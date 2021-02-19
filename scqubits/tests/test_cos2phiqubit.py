@@ -15,28 +15,17 @@ import numpy as np
 import pytest
 
 from scqubits import Cos2PhiQubit
-from scqubits.core.storage import SpectrumData
-from scqubits.tests.conftest import DATADIR, BaseTest
+from scqubits.tests.conftest import StandardTests
 
 
 @pytest.mark.usefixtures("io_type")
-class TestCos2PhiQubit(BaseTest):
+class TestCos2PhiQubit(StandardTests):
     @classmethod
     def setup_class(cls):
-        cls.qbt = Cos2PhiQubit.create()
+        cls.qbt = None
         cls.qbt_type = Cos2PhiQubit
         cls.file_str = "cos2phiqubit"
-
-    def test_hamiltonian_is_hermitean(self, io_type):
-        testname = self.file_str + "_1." + io_type
-        specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type(**specdata.system_params)
-        hamiltonian = self.qbt.hamiltonian()
-        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.conj().T)), 0.0)
-
-    def test_eigenvals(self, io_type):
-        testname = self.file_str + "_1." + io_type
-        specdata = SpectrumData.create_from_file(DATADIR + testname)
-        self.qbt = self.qbt_type(**specdata.system_params)
-        evals_reference = specdata.energy_table
-        return self.eigenvals(io_type, evals_reference)
+        cls.op1_str = "n_theta_operator"
+        cls.op2_str = "zeta_operator"
+        cls.param_name = "flux"
+        cls.param_list = np.linspace(0, 0.5, 5)

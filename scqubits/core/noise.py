@@ -301,7 +301,8 @@ class NoisySystem(ABC):
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
-        Plot effective :math:`T_1` coherence as it varies as a function of changing parameter.
+        Plot effective :math:`T_1` coherence time (rate) as a function of
+        changing parameter.
 
         The effective :math:`T_1` is calculated by considering a variety of depolarizing noise channels,
         according to the formula:
@@ -435,7 +436,8 @@ class NoisySystem(ABC):
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
-        Plot effective :math:`T_2` coherence as it varies as a function of changing parameter.
+        Plot effective :math:`T_2` coherence time (rate) as a function of
+        changing parameter.
 
         The effective :math:`T_2` is calculated from both pure dephasing channels, as well as
         depolarization channels, according to the formula:
