@@ -15,7 +15,7 @@ import pytest
 
 import scqubits as scq
 
-from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
+from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 
