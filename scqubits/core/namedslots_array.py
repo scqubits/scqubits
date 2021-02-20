@@ -23,12 +23,12 @@ from scqubits.io_utils.fileio_serializers import Serializable
 from scqubits.utils.misc import Number
 
 
-NpIndex = Union[int, slice]
+NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]
 NpIndices = Union[NpIndex, NpIndexTuple]
 NpSliceEntry = Union[int, None]
 
-GIndex = Union[Number, slice]
+GIndex = Union[Number, slice, Tuple[int], List[int]]
 GIndexTuple = Tuple[GIndex, ...]
 GIndices = Union[GIndex, GIndexTuple]
 GSliceEntry = Union[Number, str, None]
@@ -114,7 +114,7 @@ class Parameters:
         if isinstance(key, slice):
             sliced_paramnames_list = self.paramnames_list[key]
             return [self.paramvals_by_name[name] for name in sliced_paramnames_list]
-        if isinstance(key, tuple):
+        if isinstance(key, (tuple, list)):
             return [
                 self.paramvals_by_name[self.paramnames_list[index]][key[index]]
                 for index in range(len(self))
@@ -187,18 +187,22 @@ class GIndexObject:
         self.type, self.std_index = self.std(entry)
 
     def std_slice_entry(self, slice_entry: GSliceEntry) -> NpSliceEntry:
-        if isinstance(slice_entry, (float, complex)):
-            return idx_for_value(slice_entry, self.parameters[self.slot])
         if isinstance(slice_entry, int):
             return slice_entry
         if slice_entry is None:
             return None
+        if isinstance(slice_entry, (float, complex)):
+            return idx_for_value(slice_entry, self.parameters[self.slot])
+
         raise TypeError("Invalid slice entry: {}".format(slice_entry))
 
     def std(self, entry: GIndex) -> Tuple[str, NpIndex]:
         # <int>
         if isinstance(entry, int):
             return "int", entry
+
+        if isinstance(entry, (tuple, list)):
+            return "tuple", entry
 
         # <float> or <complex>
         if isinstance(entry, (float, complex)):

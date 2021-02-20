@@ -87,7 +87,7 @@ class ParameterSweepBase(ABC):
 
         # The following enables the following syntax:
         # <Sweep>[p1, p2, ...].dressed_eigenstates()
-        if isinstance(key, tuple):
+        if isinstance(key, (tuple, int)):
             self._current_param_indices = key
         elif isinstance(key, slice):
             self._current_param_indices = (key,)
@@ -114,14 +114,12 @@ class ParameterSweepBase(ABC):
                 self._out_of_sync = True
 
     @property
-    def bare_specdata_list(
-        self, multi_index: Optional[Union[Tuple, slice, Number]] = None
-    ) -> "List[SpectrumData]":
-        multi_index = multi_index or self._current_param_indices
+    def bare_specdata_list(self) -> "List[SpectrumData]":
+        multi_index = self._current_param_indices
         sweep_param_indices = self.get_sweep_indices(multi_index)
         if len(sweep_param_indices) != 1:
             raise ValueError(
-                "All but one parameter must be fixed for " "`bare_specdata_list."
+                "All but one parameter must be fixed for `bare_specdata_list`."
             )
         sweep_param_name = self.parameters.name_by_index[sweep_param_indices[0]]
         specdata_list: List[SpectrumData] = []
@@ -138,6 +136,26 @@ class ParameterSweepBase(ABC):
                 )
             )
         return specdata_list
+
+    @property
+    def dressed_specdata(self) -> "List[SpectrumData]":
+        multi_index = self._current_param_indices
+        sweep_param_indices = self.get_sweep_indices(multi_index)
+        if len(sweep_param_indices) != 1:
+            raise ValueError(
+                "All but one parameter must be fixed for `dressed_specdata`."
+            )
+        print("::::", multi_index)
+        sweep_param_name = self.parameters.name_by_index[sweep_param_indices[0]]
+
+        specdata = SpectrumData(
+            energy_table=self["esys"][multi_index + (0,)],
+            state_table=self["esys"][multi_index + (1,)],
+            system_params=self._hilbertspace.get_initdata(),
+            param_name=sweep_param_name,
+            param_vals=self.parameters[sweep_param_name],
+        )
+        return specdata
 
     def get_sweep_indices(self, multi_index):
         gidx_obj_tuple = tuple(
@@ -448,9 +466,8 @@ class ParameterSweep(
 
         assert self._data is not None
         bare_esys = {
-            self._hilbertspace.get_subsys_index(subsys): self._data["bare_esys"][
-                (self._hilbertspace.get_subsys_index(subsys),) + paramindex_tuple]
-            for subsys in self._hilbertspace.subsys_list
+            subsys_index: self._data["bare_esys"][(subsys_index,) + paramindex_tuple]
+            for subsys_index, _ in enumerate(self._hilbertspace)
         }
         evals, evecs = hilbertspace.eigensys(
             evals_count=evals_count, bare_esys=bare_esys
