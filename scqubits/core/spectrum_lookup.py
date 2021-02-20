@@ -97,7 +97,9 @@ class SpectrumLookupMixin:
         for index in param_indices:
             dressed_indices[index] = self._generate_single_mapping(index)
 
-        return NamedSlotsNdarray(dressed_indices, self.parameters.ordered_dict)
+        parameter_dict = self.parameters.ordered_dict.copy()
+        _ = parameter_dict.pop("esys", None)
+        return NamedSlotsNdarray(dressed_indices, parameter_dict)
 
     def _generate_single_mapping(self, param_indices: Tuple[int, ...]) -> ndarray:
         """

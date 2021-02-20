@@ -31,7 +31,7 @@ import scqubits.utils.misc as utils
 from scqubits.core._param_sweep import _ParameterSweep
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
-from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters
+from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters, GIndexObject
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.spectrum_lookup import SpectrumLookupMixin
 from scqubits.core.storage import SpectrumData
@@ -118,41 +118,39 @@ class ParameterSweepBase(ABC):
         self, multi_index: Optional[Union[Tuple, slice, Number]] = None
     ) -> "List[SpectrumData]":
         multi_index = multi_index or self._current_param_indices
-        print("multi-index: ", multi_index)
         sweep_param_indices = self.get_sweep_indices(multi_index)
-        print(sweep_param_indices)
         if len(sweep_param_indices) != 1:
             raise ValueError(
                 "All but one parameter must be fixed for " "`bare_specdata_list."
             )
-
-        sweep_param_name = self.parameters[sweep_param_indices[0]]
-
-        esys_array = self["bare_esys"][multi_index]
-        specdata_list = [
-            SpectrumData(
-                energy_table=esys[0],
-                state_table=esys[1],
-                system_params=self._hilbertspace.get_initdata(),
-                param_name=sweep_param_name,
-                param_vals=self.parameters[sweep_param_name],
+        sweep_param_name = self.parameters.name_by_index[sweep_param_indices[0]]
+        specdata_list: List[SpectrumData] = []
+        for subsys_index, subsystem in enumerate(self._hilbertspace):
+            evals_swp = self["bare_esys"]["subsys":subsys_index][multi_index]["esys":0]
+            evecs_swp = self["bare_esys"]["subsys":subsys_index][multi_index]["esys":1]
+            specdata_list.append(
+                SpectrumData(
+                    energy_table=evals_swp,
+                    state_table=evecs_swp,
+                    system_params=self._hilbertspace.get_initdata(),
+                    param_name=sweep_param_name,
+                    param_vals=self.parameters[sweep_param_name],
+                )
             )
-            for esys in esys_array
-        ]
         return specdata_list
 
     def get_sweep_indices(self, multi_index):
-        std_multi_index = (self._data["esys"]).convert_to_standard_multi_index(
-            multi_index
+        gidx_obj_tuple = tuple(
+            GIndexObject(entry, self.parameters, slot=slot_index)
+            for slot_index, entry in enumerate(multi_index)
         )
-        print("***", std_multi_index)
-        std_multi_index = std_multi_index[:-1]  # drop last index, which enumerates esys
+        std_multi_index = (self._data["esys"])._to_std_index_tuple(gidx_obj_tuple)
         sweep_indices = [
             index
-            for index, slice_obj in enumerate(std_multi_index)
-            if isinstance(self.parameters.paramvals_list[index][slice_obj], (list,
-                                                                             tuple,
-                                                                             ndarray))
+            for index, index_obj in enumerate(std_multi_index)
+            if isinstance(
+                self.parameters.paramvals_list[index][index_obj], (list, tuple, ndarray)
+            )
         ]
         return sweep_indices
 
@@ -362,7 +360,6 @@ class ParameterSweep(
                 ("esys", [0, 1]),
             ]
         )
-
         return NamedSlotsNdarray(bare_spectrum, slotparamvals_by_name)
 
     def _update_subsys_compute_esys(
@@ -452,8 +449,7 @@ class ParameterSweep(
         assert self._data is not None
         bare_esys = {
             self._hilbertspace.get_subsys_index(subsys): self._data["bare_esys"][
-                self._hilbertspace.get_subsys_index(subsys)
-            ][paramindex_tuple]
+                (self._hilbertspace.get_subsys_index(subsys),) + paramindex_tuple]
             for subsys in self._hilbertspace.subsys_list
         }
         evals, evecs = hilbertspace.eigensys(
@@ -502,7 +498,7 @@ class ParameterSweep(
 
         spectrum_data = np.asarray(spectrum_data, dtype=object)
         spectrum_data = spectrum_data.reshape((*self.parameters.counts, 2))
-        slotparamvals_by_name = self.parameters.ordered_dict
+        slotparamvals_by_name = self.parameters.ordered_dict.copy()
         slotparamvals_by_name.update(OrderedDict([("esys", [0, 1])]))
 
         return NamedSlotsNdarray(spectrum_data, OrderedDict(slotparamvals_by_name))

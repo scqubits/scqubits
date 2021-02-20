@@ -25,7 +25,7 @@ from scqubits.utils.misc import Number
 
 NpIndex = Union[int, slice]
 NpIndexTuple = Tuple[NpIndex, ...]
-# NpIndices = Union[Index, NpIndexTuple]
+NpIndices = Union[NpIndex, NpIndexTuple]
 NpSliceEntry = Union[int, None]
 
 GIndex = Union[Number, slice]
@@ -34,6 +34,26 @@ GIndices = Union[GIndex, GIndexTuple]
 GSliceEntry = Union[Number, str, None]
 
 GIndexObjectTuple = Tuple["GIndexObject", ...]
+
+
+def is_std_slice(slice_obj: slice) -> bool:
+    if slice_obj.start and not isinstance(slice_obj.start, int):
+        return False
+    if slice_obj.stop and not isinstance(slice_obj.stop, int):
+        return False
+    if slice_obj.step and not isinstance(slice_obj.step, int):
+        return False
+    return True
+
+
+def npindices(multi_index: GIndex) -> bool:
+    if isinstance(multi_index, int):
+        return True
+    elif isinstance(multi_index, slice):
+        return is_std_slice(multi_index)
+    elif isinstance(multi_index, tuple):
+        return all([npindices(index) for index in multi_index])
+    return False
 
 
 def idx_for_value(value: Number, param_vals: ndarray) -> int:
@@ -142,6 +162,19 @@ class Parameters:
             reduced_paramvals_by_name[name] = fixed_values[index]
         return Parameters(reduced_paramvals_by_name)
 
+    def create_sliced(self, np_indices: NpIndices):
+        parameter_array = np.asarray(self.paramvals_list, dtype=object).copy()
+        for index, np_index in enumerate(np_indices):
+            parameter_array[index] = parameter_array[index][np_index]
+
+        reduced_paramvals_by_name = {}
+        for index, name in enumerate(self.paramnames_list):
+            paramvals = parameter_array[index]
+            if isinstance(paramvals, ndarray) and len(paramvals) > 1:
+                reduced_paramvals_by_name[name] = paramvals
+
+        return Parameters(reduced_paramvals_by_name)
+
 
 class GIndexObject:
     def __init__(
@@ -176,6 +209,8 @@ class GIndexObject:
             self.name = entry.start
             start = self.std_slice_entry(entry.stop)
             stop = self.std_slice_entry(entry.step)
+            if stop is None:
+                return "slice.name", start
             return "slice.name", slice(start, stop, None)
 
         # slice(<Number> or <None>, ...)
@@ -249,10 +284,6 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     values_by_slotindex.
     """
 
-    values_by_slotname: Dict[str, Union[list, ndarray]]
-    values_by_slotindex: Dict[int, Union[list, ndarray]]
-    slotname_by_slotindex: Dict[str, int]
-    slotindex_by_slotname: Dict[int, str]
     parameters: Parameters
     data_callback: Union[ndarray, Callable]
 
@@ -269,36 +300,33 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         obj = np.asarray(input_array).view(cls)
 
         obj.parameters = Parameters(values_by_name)
-        obj.values_by_slotname = obj.parameters.paramvals_by_name
-        obj.slotindex_by_slotname = obj.parameters.index_by_name
-        obj.slotname_by_slotindex = obj.parameters.name_by_index
-        obj.values_by_slotindex = obj.parameters.paramvals_by_index
-        obj.paramvals_by_name = obj.values_by_slotname  # alias for user interface
         obj.data_callback = None
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
+
         self.parameters = getattr(obj, "parameters", None)
-        self.values_by_slotname = getattr(obj, "values_by_slotname", None)
-        self.slotindex_by_slotname = getattr(obj, "slotindex_by_slotname", None)
-        self.slotname_by_slotindex = getattr(obj, "slotname_by_slotindex", None)
-        self.values_by_slotindex = getattr(obj, "values_by_slotindex", None)
-        self.paramvals_by_name = self.values_by_slotindex  # alias for user interface
         self.data_callback = getattr(obj, "data_callback", None)
 
     def __getitem__(self, multi_index: GIndices) -> Any:
         """Overwrites the magic method for element selection and slicing to support
         the extended slicing options."""
+        if isinstance(multi_index, int):
+            return super().__getitem__(multi_index)
+
         if not isinstance(multi_index, tuple):
             multi_index = (multi_index,)
-
         gidx_obj_tuple = tuple(
             GIndexObject(entry, self.parameters, slot=slot_index)
             for slot_index, entry in enumerate(multi_index)
         )
-        return super().__getitem__(self._to_std_index_tuple(gidx_obj_tuple))
+        np_indices = self._to_std_index_tuple(gidx_obj_tuple)
+        obj = super().__getitem__(np_indices)
+        if isinstance(obj, NamedSlotsNdarray):
+            obj.parameters = self.parameters.create_sliced(np_indices)
+        return obj
 
     @classmethod
     def deserialize(cls, io_data: IOData) -> "NamedSlotsNdarray":
@@ -321,7 +349,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         io_ndarrays = None
         objects = {
             "input_array": self.tolist(),
-            "values_by_name": self.values_by_slotname,
+            "values_by_name": self.parameters.paramvals_by_name,
         }
         return io.IOData(typename, io_attributes, io_ndarrays, objects=objects)
 
@@ -330,13 +358,12 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     ) -> NpIndexTuple:
         """Converts a name-based multi-index into a position-based multi-index."""
         converted_multi_index = [slice(None)] * self.slot_count
-        for gslice in multi_index:
-            if gslice.type != "slice.name":
+        for gidx_object in multi_index:
+            if gidx_object.type != "slice.name":
                 raise TypeError("If one index is name-based, all indices must be.")
+            slot_index = self.parameters.index_by_name[gidx_object.name]
+            converted_multi_index[slot_index] = gidx_object.std_index
 
-            name = gslice.name
-            slot_index = self.slotindex_by_slotname[name]
-            converted_multi_index[slot_index] = gslice.std_index
         return tuple(converted_multi_index)
 
     def _to_std_index_tuple(self, multi_index: GIndexObjectTuple) -> NpIndexTuple:
@@ -345,11 +372,11 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         # inspect first index_entry to determine whether multi-index entry is name-based
         first_gidx = multi_index[0]
 
-        if first_gidx.type == "name":  # if one is name based, all must be
+        if first_gidx.type == "slice.name":  # if one is name based, all must be
             return self._name_based_to_std_index_tuple(multi_index)
 
         return tuple(gidx.std_index for gidx in multi_index)
 
     @property
     def slot_count(self) -> int:
-        return len(self.values_by_slotname)
+        return len(self.parameters.paramvals_by_name)
