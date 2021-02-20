@@ -267,10 +267,10 @@ class GUI:
         self.qubit_plot_options_widgets["scan_range_slider"].max = self.active_defaults[
             change.new
         ]["max"]
-        self.qubit_plot_options_widgets["scan_range_slider"].value = [
-            self.active_defaults[change.new]["min"],
-            self.active_defaults[change.new]["max"],
-        ]
+        #self.qubit_plot_options_widgets["scan_range_slider"].value = [
+        #    self.active_defaults[change.new]["min"],
+        #    self.active_defaults[change.new]["max"],
+        #]
 
     def save_button_clicked_action(self, *args):
         self.fig.savefig(self.qubit_plot_options_widgets["filename_text"].value)
