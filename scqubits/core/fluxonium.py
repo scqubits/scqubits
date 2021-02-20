@@ -288,10 +288,14 @@ class FluxoniumFluxVariableAllocation(Fluxonium):
         flux: float,
         cutoff: int,
         truncated_dim: int = 6,
-        flux_fraction_with_inductor: float = 0.0
+        flux_fraction_with_inductor: float = 0.0,
+        flux_junction_sign: int = 1
     ):
         Fluxonium.__init__(self, EJ, EC, EL, flux, cutoff, truncated_dim)
+        if flux_fraction_with_inductor < 0.0 or flux_fraction_with_inductor > 1.0:
+            raise ValueError("flux_fraction_with_inductor must be between 0.0 and 1.0")
         self.flux_fraction_with_inductor = flux_fraction_with_inductor
+        self.flux_junction_sign = flux_junction_sign
 
     def hamiltonian(self) -> ndarray:
         """Construct Hamiltonian matrix in harmonic-oscillator basis"""
@@ -299,9 +303,11 @@ class FluxoniumFluxVariableAllocation(Fluxonium):
         lc_osc_matrix = np.diag([i * self.E_plasma() for i in range(dimension)])
         inductor_flux = 2.0 * np.pi * self.flux * self.flux_fraction_with_inductor
         junction_flux = 2.0 * np.pi * self.flux - inductor_flux
-        lc_osc_matrix += self.EL * (-inductor_flux) * self.phi_operator()
+        lc_osc_matrix += (self.EL * (-self.flux_junction_sign * inductor_flux)
+                          * self.phi_operator())
 
-        exp_matrix = self.exp_i_phi_operator() * np.exp(1j * junction_flux)
+        exp_matrix = self.exp_i_phi_operator() * np.exp(1j * self.flux_junction_sign
+                                                        * junction_flux)
         hamiltonian_mat = lc_osc_matrix - self.EJ * 0.5 * (
             exp_matrix + exp_matrix.conjugate().T
         )
@@ -320,6 +326,5 @@ class FluxoniumFluxVariableAllocation(Fluxonium):
         """
         inductor_flux = 2.0 * np.pi * self.flux * self.flux_fraction_with_inductor
         junction_flux = 2.0 * np.pi * self.flux - inductor_flux
-        return 0.5 * self.EL * (phi - inductor_flux) ** 2 - self.EJ * np.cos(
-            phi + junction_flux
-        )
+        return (0.5 * self.EL * (phi - self.flux_junction_sign * inductor_flux) ** 2
+                - self.EJ * np.cos(phi + self.flux_junction_sign * junction_flux))

@@ -464,7 +464,8 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             self.flux_a,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
-            flux_fraction_with_inductor=1.0
+            flux_fraction_with_inductor=1.0,
+            flux_junction_sign=1
         )
 
     def fluxonium_b(self):
@@ -475,11 +476,9 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             self.flux_b,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
-            flux_fraction_with_inductor=1.0
+            flux_fraction_with_inductor=1.0,
+            flux_junction_sign=1
         )
-
-    def EL_tilda(self):
-        return self.EL1 + self.EL2 + self.ELa + self.ELb
 
     def fluxonium_minus(self):
         return FluxoniumFluxVariableAllocation(
@@ -489,8 +488,12 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             self.flux_c,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_minus_truncated_dim,
-            flux_fraction_with_inductor=0.5
+            flux_fraction_with_inductor=0.5,
+            flux_junction_sign=-1
         )
+
+    def EL_tilda(self):
+        return self.EL1 + self.EL2 + self.ELa + self.ELb
 
     def h_o_plus_charging_energy(self):
         assert np.allclose(self.EC_matrix()[2, 2], 2.0 * self.ECm)

@@ -192,9 +192,9 @@ def wavefunction1d(
         offset_vals = [energy_offset] * len(x_vals)
 
         axes.plot(x_vals, y_vals, **_extract_kwargs_options(kwargs, "plot"))
-        axes.fill_between(
-            x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True
-        )
+#        axes.fill_between(
+#            x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True
+#        )
 
     if potential_vals is not None:
         axes.plot(
