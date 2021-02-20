@@ -11,12 +11,17 @@
 
 import math
 import os
+
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import scipy as sp
+
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
 
@@ -32,6 +37,22 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
+
+from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
+from scqubits.core.storage import WaveFunctionOnGrid
+
+
+# -Cosine two phi qubit noise class
+class NoisyCos2PhiQubit(NoisySystem, ABC):
+    @abstractmethod
+    def phi_1_operator(self) -> csc_matrix:
+        pass
+
+    @abstractmethod
+    def phi_2_operator(self) -> csc_matrix:
+        pass
+
+    @abstractmethod
     def n_1_operator(self) -> csc_matrix:
         pass
 
@@ -912,8 +933,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             contour_vals=contour_vals,
             ylabel=r"$\theta$",
             xlabel=r"$\phi$",
+            **kwargs
+        )
+
+    def wavefunction(
         self, esys=None, which=0, phi_grid=None, zeta_grid=None, theta_grid=None
     ) -> WaveFunctionOnGrid:
+        """
         Return a 3D wave function in :math:`\\phi, \\zeta, \\theta` basis
 
         Parameters
