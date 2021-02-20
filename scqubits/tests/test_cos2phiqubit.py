@@ -1,4 +1,4 @@
-# test_transmon.py
+# test_cos2phi_qubit.py
 # meant to be run with 'pytest'
 #
 # This file is part of scqubits.
@@ -10,25 +10,22 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+
 import numpy as np
 import pytest
 
-from scqubits import Transmon
+from scqubits import Cos2PhiQubit
 from scqubits.tests.conftest import StandardTests
 
 
-@pytest.mark.usefixtures("num_cpus", "io_type")
-class TestTransmon(StandardTests):
+@pytest.mark.usefixtures("io_type")
+class TestCos2PhiQubit(StandardTests):
     @classmethod
     def setup_class(cls):
         cls.qbt = None
-        cls.qbt_type = Transmon
-        cls.file_str = "transmon"
-        cls.op1_str = "n_operator"
-        cls.op2_str = "n_operator"
-        cls.param_name = "ng"
-        cls.param_list = np.linspace(-1, 1, 100)
-
-    def test_plot_n_wavefunction(self):
-        self.qbt = Transmon(EJ=1.0, EC=1.0, ng=0.0, ncut=10)
-        self.qbt.plot_n_wavefunction(esys=None, which=1, mode="real")
+        cls.qbt_type = Cos2PhiQubit
+        cls.file_str = "cos2phiqubit"
+        cls.op1_str = "n_theta_operator"
+        cls.op2_str = "zeta_operator"
+        cls.param_name = "flux"
+        cls.param_list = np.linspace(0, 0.5, 5)

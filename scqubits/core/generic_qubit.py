@@ -13,19 +13,22 @@ from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import scipy as sp
+
 from numpy import ndarray
 
-import scqubits.core.operators as operators
 import scqubits.core.descriptors as descriptors
+import scqubits.core.operators as operators
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.utils.spectrum_utils import order_eigensystem, get_matrixelement_table
 
+from scqubits.utils.spectrum_utils import get_matrixelement_table, order_eigensystem
 
 # —generic qubit (two-level system)——————————————————————————————————————————————
 
+
 class GenericQubit(base.QuantumSystem, serializers.Serializable):
-    """Class for a generic qubit (genuine two-level system). Create a class instance via::
+    """Class for a generic qubit (genuine two-level system). Create a class instance
+    via::
 
         GenericQubit(E=4.3)
 
@@ -34,12 +37,13 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     E:
        qubit energy splitting
     """
+
     truncated_dim = 2
     _evec_dtype: type
     _sys_type: str
     _init_params: list
 
-    E = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    E = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
     sx = staticmethod(operators.sigma_x)
     sy = staticmethod(operators.sigma_y)
@@ -54,7 +58,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        return {'E': 5.0}
+        return {"E": 5.0}
 
     def hamiltonian(self):
         return 0.5 * self.E * self.sz()
@@ -75,13 +79,15 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         return evals, evecs
 
     def matrixelement_table(self, operator: str) -> ndarray:
-        """Returns table of matrix elements for `operator` with respect to the eigenstates of the qubit.
-        The operator is given as a string matching a class method returning an operator matrix.
+        """Returns table of matrix elements for `operator` with respect to the
+        eigenstates of the qubit. The operator is given as a string matching a class
+        method returning an operator matrix.
 
         Parameters
         ----------
         operator:
-            name of class method in string form, returning operator matrix in qubit-internal basis.
+            name of class method in string form, returning operator matrix in
+            qubit-internal basis.
         """
         _, evecs = self.eigensys()
         operator_matrix = getattr(self, operator)()
