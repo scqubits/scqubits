@@ -170,7 +170,7 @@ class Parameters:
         reduced_paramvals_by_name = {}
         for index, name in enumerate(self.paramnames_list):
             paramvals = parameter_array[index]
-            if isinstance(paramvals, ndarray) and len(paramvals) > 1:
+            if isinstance(paramvals, (ndarray, list, range)) and len(paramvals) > 1:
                 reduced_paramvals_by_name[name] = paramvals
 
         return Parameters(reduced_paramvals_by_name)
@@ -384,3 +384,10 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     @property
     def slot_count(self) -> int:
         return len(self.parameters.paramvals_by_name)
+
+    def recast(self) -> "NamedSlotsNdarray":
+        return NamedSlotsNdarray(np.asarray(self[:].tolist()),
+                                 self.parameters.paramvals_by_name)
+
+    def toarray(self) -> ndarray:
+        return np.asarray(self[:].tolist())

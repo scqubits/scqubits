@@ -128,8 +128,8 @@ class ParameterSweepBase(ABC):
             evecs_swp = self["bare_esys"]["subsys":subsys_index][multi_index]["esys":1]
             specdata_list.append(
                 SpectrumData(
-                    energy_table=evals_swp,
-                    state_table=evecs_swp,
+                    energy_table=evals_swp.toarray(),
+                    state_table=evecs_swp.toarray(),
                     system_params=self._hilbertspace.get_initdata(),
                     param_name=sweep_param_name,
                     param_vals=self.parameters[sweep_param_name],
@@ -145,12 +145,11 @@ class ParameterSweepBase(ABC):
             raise ValueError(
                 "All but one parameter must be fixed for `dressed_specdata`."
             )
-        print("::::", multi_index)
         sweep_param_name = self.parameters.name_by_index[sweep_param_indices[0]]
 
         specdata = SpectrumData(
-            energy_table=self["esys"][multi_index + (0,)],
-            state_table=self["esys"][multi_index + (1,)],
+            energy_table=self["esys"][multi_index + (0,)].toarray(),
+            state_table=self["esys"][multi_index + (1,)].toarray(),
             system_params=self._hilbertspace.get_initdata(),
             param_name=sweep_param_name,
             param_vals=self.parameters[sweep_param_name],
