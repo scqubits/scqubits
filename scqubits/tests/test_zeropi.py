@@ -24,7 +24,7 @@ class TestZeroPi(StandardTests):
         cls.qbt = None
         cls.qbt_type = ZeroPi
         cls.file_str = "zeropi"
-        # cls.grid = scq.Grid1d(1, 2, 3)
+        cls.grid = scq.Grid1d(1, 2, 3)
         cls.op1_str = "n_theta_operator"
         cls.op2_str = "i_d_dphi_operator"
         cls.param_name = "flux"

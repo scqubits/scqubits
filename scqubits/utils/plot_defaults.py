@@ -52,18 +52,20 @@ def set_wavefunction_scaling(
     -------
       scaling factor
     """
-    # Do not attempt to scale down amplitudes to very small energy spacings, i.e. if energy spacing is smaller than
-    # y_range * Y_RANGE_THRESHOLD_FRACTION, then do not apply additional downscaling
+    # Do not attempt to scale down amplitudes to very small energy spacings, i.e. if
+    # energy spacing is smaller than y_range * Y_RANGE_THRESHOLD_FRACTION, then do
+    # not apply additional downscaling
     Y_RANGE_THRESHOLD_FRACTION = 1 / 15
 
-    # If energy spacing is used for scaling, fill no more than this  fraction of the spacing.
+    # If energy spacing is used for scaling, fill no more than this  fraction of the
+    # spacing.
     FILLING_FRACTION = 1.0
 
     # Largest allowed wavefunction amplitude range as fraction of y_range.
     MAX_AMPLITUDE_FRACTION = 1 / 7
 
-    # Amplitude threshold for applying any scaling at all. Note that the imaginary part of a wavefunction may be
-    # nominally 0; do not scale up in that case.
+    # Amplitude threshold for applying any scaling at all. Note that the imaginary
+    # part of a wavefunction may be nominally 0; do not scale up in that case.
     PRECISION_THRESHOLD = 1e-8
 
     wavefunc_count = len(wavefunctions)

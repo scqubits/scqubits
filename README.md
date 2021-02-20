@@ -18,6 +18,8 @@ Matplotlib.
 Download and Installation
 -------------------------
 
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/scqubits/badges/downloads.svg)](https://anaconda.org/conda-forge/scqubits)
+
 For Python 3.6, 3.7 and 3.8, installation via conda is supported. 
 ```
 conda install -c conda-forge scqubits

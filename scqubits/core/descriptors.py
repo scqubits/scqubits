@@ -35,8 +35,9 @@ class ReadOnlyProperty:
 
 class WatchedProperty:
     """
-    Descriptor class for properties that are to be monitored for changes. Upon change of the value, the instance
-    class invokes its `broadcast()` method to send the appropriate event notification to CentralDispatch
+    Descriptor class for properties that are to be monitored for changes. Upon change
+    of the value, the instance class invokes its `broadcast()` method to send the
+    appropriate event notification to CentralDispatch
 
     Parameters
     ----------
@@ -45,8 +46,8 @@ class WatchedProperty:
     inner_object_name:
         Used, e.g., in FulLZeroPi where an inner-object property is to be set.
     attr_name:
-        custom attribute name to be used (default: name from defining property in instance class,
-        obtained in __set_name__
+        custom attribute name to be used (default: name from defining property in
+        instance class, obtained in __set_name__
     """
 
     def __init__(

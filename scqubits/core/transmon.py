@@ -190,24 +190,6 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         }  # if any duplicates, later ones survive
         return plot.wavefunction1d_discrete(n_wavefunc, xlim=nrange, **kwargs)
 
-    def wavefunction1d_defaults(
-        self, mode: str, evals: ndarray, wavefunc_count: int
-    ) -> Dict[str, Any]:
-        """Plot defaults for plotting.wavefunction1d.
-
-        Parameters
-        ----------
-        mode:
-            amplitude modifier, needed to give the correct default y label
-        evals:
-            eigenvalues to include in plot
-        wavefunc_count:
-        """
-        ylabel = r"$\psi_j(\varphi)$"
-        ylabel = constants.MODE_STR_DICT[mode](ylabel)
-        options = {"xlabel": r"$\varphi$", "ylabel": ylabel}
-        return options
-
     def plot_phi_wavefunction(
         self,
         esys: Tuple[ndarray, ndarray] = None,

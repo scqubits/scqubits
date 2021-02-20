@@ -179,15 +179,24 @@ def wavefunction1d(
     offset_list = [offset] if not isinstance(offset, (list, np.ndarray)) else offset
     wavefunc_list = [wavefuncs] if not isinstance(wavefuncs, list) else wavefuncs
 
+    scale_constant = renormalization_factor(wavefunc_list[0], potential_vals)
+    for wavefunc in wavefunc_list:
+        wavefunc.amplitudes *= scale_constant
+
+    scale_factor = scaling or defaults.set_wavefunction_scaling(
+        wavefunc_list, potential_vals
+    )
+
     for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
         x_vals = wavefunction.basis_labels
-        y_vals = energy_offset + scaling * wavefunction.amplitudes
+        y_vals = energy_offset + scale_factor * wavefunction.amplitudes
         offset_vals = [energy_offset] * len(x_vals)
 
         axes.plot(x_vals, y_vals, **_extract_kwargs_options(kwargs, "plot"))
         axes.fill_between(
             x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True
         )
+
     if potential_vals is not None:
         axes.plot(
             x_vals,
@@ -200,9 +209,36 @@ def wavefunction1d(
     return fig, axes
 
 
+def renormalization_factor(
+    wavefunc: "WaveFunction", potential_vals: np.ndarray
+) -> float:
+    """
+    Takes the amplitudes of one wavefunction and the potential values to scale the
+    dimensionless amplitude to a (pseudo-)energy that allows us to plot wavefunctions
+    and energies in the same plot.
+
+    Parameters
+    ----------
+    wavefunc:
+        ndarray of wavefunction amplitudes
+    potential_vals:
+        array of potential energy values (that determine the energy range on the y axis
+
+    Returns
+    -------
+    renormalization factor that converts the wavefunction amplitudes into energy units
+    """
+    FILL_FACTOR = 0.1
+    energy_range = np.max(potential_vals) - np.min(potential_vals)
+    amplitude_range = np.max(wavefunc.amplitudes) - np.min(wavefunc.amplitudes)
+
+    return FILL_FACTOR * energy_range / amplitude_range
+
+
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
     """
-    Plots the amplitude of a real-valued 1d wave function in a discrete basis. (Example: transmon in the charge basis.)
+    Plots the amplitude of a real-valued 1d wave function in a discrete basis.
+    (Example: transmon in the charge basis.)
 
     Parameters
     ----------
@@ -232,7 +268,8 @@ def wavefunction2d(
     wavefunc: "WaveFunctionOnGrid", zero_calibrate: bool = False, **kwargs
 ) -> Tuple[Figure, Axes]:
     """
-    Creates a density plot of the amplitude of a real-valued wave function in 2 "spatial" dimensions.
+    Creates a density plot of the amplitude of a real-valued wave function in 2
+    "spatial" dimensions.
 
     Parameters
     ----------
@@ -343,9 +380,11 @@ def matrix(
     data_matrix:
         2d matrix data
     mode:
-        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to data
+        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to
+        data
     show_numbers:
-        determines whether matrix element values are printed on top of the plot (default: False)
+        determines whether matrix element values are printed on top of the plot
+        (default: False)
     **kwargs:
         standard plotting option (see separate documentation)
 
@@ -377,7 +416,8 @@ def matrix_skyscraper(
     matrix:
         2d matrix data
     mode:
-        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to data
+        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to
+        data
     **kwargs:
         standard plotting option (see separate documentation)
 
@@ -431,16 +471,19 @@ def matrix_skyscraper(
 def matrix2d(
     matrix: np.ndarray, mode: str = "abs", show_numbers: bool = True, **kwargs
 ) -> Tuple[Figure, Axes]:
-    """Display a matrix as a color-coded 2d plot, optionally printing the numerical values of the matrix elements.
+    """Display a matrix as a color-coded 2d plot, optionally printing the numerical
+    values of the matrix elements.
 
     Parameters
     ----------
     matrix:
         2d matrix data
     mode:
-        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to data
+        choice from `constants.MODE_FUNC_DICT` for processing function to be applied to
+        data
     show_numbers:
-        determines whether matrix element values are printed on top of the plot (default: True)
+        determines whether matrix element values are printed on top of the plot
+        (default: True)
     **kwargs:
         standard plotting option (see separate documentation)
 
@@ -551,7 +594,8 @@ def evals_vs_paramvals(
     specdata:
         object includes parameter name, values, and resulting eigenenergies
     which:
-        number of desired eigenvalues (sorted from smallest to largest); default: -1, signals all eigenvalues
+        number of desired eigenvalues (sorted from smallest to largest); default: -1,
+        signals all eigenvalues
         or: list of specific eigenvalues to include
     subtract_ground:
         whether to subtract the ground state energy
@@ -592,7 +636,8 @@ def matelem_vs_paramvals(
     specdata:
         object includes parameter name, values, and matrix elements
     select_elems:
-        either maximum index of desired matrix elements, or list [(i1, i2), (i3, i4), ...] of index tuples
+        either maximum index of desired matrix elements,
+        or list [(i1, i2), (i3, i4), ...] of index tuples
         for specific desired matrix elements
     mode:
         choice of processing function to be applied to data (default value = 'abs')

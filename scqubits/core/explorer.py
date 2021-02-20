@@ -33,9 +33,10 @@ import scqubits.utils.misc as utils
 
 class Explorer:
     """
-    This class allows interactive exploration of coupled quantum systems. The generate() method pre-calculates spectral
-    data as a function of a given parameter, which can then be displayed and modified by sliders (when inside jupyter
-    notebook or jupyter lab).
+    This class allows interactive exploration of coupled quantum systems. The
+    generate() method pre-calculates spectral data as a function of a given
+    parameter, which can then be displayed and modified by sliders (when inside
+    jupyter notebook or jupyter lab).
 
     Parameters
     ----------

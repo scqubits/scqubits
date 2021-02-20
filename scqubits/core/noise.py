@@ -105,8 +105,8 @@ class NoisySystem(ABC):
         pass
 
     def effective_noise_channels(self) -> List[str]:
-        """Return a list of noise channels that are used when calculating the effective noise
-        (i.e. via `t1_effective` and `t2_effective`.
+        """Return a list of noise channels that are used when calculating the
+        effective noise (i.e. via `t1_effective` and `t2_effective`.
         """
         return self.supported_noise_channels()
 
@@ -122,11 +122,12 @@ class NoisySystem(ABC):
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
-        Show plots of coherence for various channels supported by the qubit as they vary as a function of a
-        changing parameter.
+        Show plots of coherence for various channels supported by the qubit as they
+        vary as a function of a changing parameter.
 
-        For example, assuming `qubit` is a qubit object with `flux` being one of its parameters, one can
-        see how coherence due to various noise channels vary as the `flux` changes::
+        For example, assuming `qubit` is a qubit object with `flux` being one of its
+        parameters, one can see how coherence due to various noise channels vary as
+        the `flux` changes::
 
             qubit.plot_coherence_vs_paramvals(param_name='flux',
                                               param_vals=np.linspace(-0.5, 0.5, 100),
@@ -141,7 +142,8 @@ class NoisySystem(ABC):
         param_vals:
             parameter values to be plugged in
         noise_channels:
-            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+            channels to be plotted, if None then noise channels given by
+            `supported_noise_channels` are used
         common_noise_options:
             common options used when calculating coherence times
         spectrum_data:
@@ -167,16 +169,18 @@ class NoisySystem(ABC):
             else noise_channels
         )
 
-        # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
+        # if we only have a single noise channel to consider (and hence are given a
+        # str), put it into a one element list
         noise_channels = (
             [noise_channels] if isinstance(noise_channels, str) else noise_channels
         )
         cast(List, noise_channels)
 
         if spectrum_data is None:
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
-            # need from the diagonalization.
-            # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
+            # We have to figure out the largest energy level involved in the
+            # calculations, to know how many levels we need from the diagonalization.
+            # This may be hidden in noise-channel-specific options, so have to search
+            # through those, if any were given.
             max_level = max(
                 common_noise_options.get("i", 1), common_noise_options.get("j", 1)
             )
@@ -208,8 +212,8 @@ class NoisySystem(ABC):
             "figsize", (4, 3) if plot_grid == (1, 1) else (8, 3 * plot_grid[0])
         )
 
-        # If axes was given in fig_as, it should support the plot structure consistent with plot_grid,
-        # otherwise the plotting routine below, will fail
+        # If axes was given in fig_as, it should support the plot structure
+        # consistent with plot_grid, otherwise the plotting routine below, will fail
         fig, axes = kwargs.get("fig_ax") or plt.subplots(*plot_grid, figsize=figsize)
 
         plotting_options = {
@@ -245,14 +249,16 @@ class NoisySystem(ABC):
                     for v_i, v in enumerate(param_vals)
                 ]
 
-            # case 2: noise_channel is a tuple representing the noise method and default options
+            # case 2: noise_channel is a tuple representing the noise method and
+            # default options
             elif isinstance(noise_channel, tuple):
 
                 noise_channel_method = noise_channel[0]
 
                 options = common_noise_options.copy()
-                # Some of the channel-specific options may be in conflict with the common options options.
-                # In such a case, we let the channel-specific options take priority.
+                # Some of the channel-specific options may be in conflict with the
+                # common options options. In such a case, we let the channel-specific
+                # options take priority.
                 options.update(noise_channel[1])
 
                 # calculate the noise over the full param span in param_vals
@@ -270,7 +276,8 @@ class NoisySystem(ABC):
 
             else:
                 raise ValueError(
-                    "The `noise_channels` argument should be one of {str, list of str, or list of tuples}."
+                    "The `noise_channels` argument should be one of {str, list of str,"
+                    " or list of tuples}."
                 )
 
             ax = axes.ravel()[n] if len(noise_channels) > 1 else axes
@@ -301,21 +308,22 @@ class NoisySystem(ABC):
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
-        Plot effective :math:`T_1` coherence time (rate) as a function of
-        changing parameter.
+        Plot effective :math:`T_1` coherence as it varies as a function of changing
+        parameter.
 
-        The effective :math:`T_1` is calculated by considering a variety of depolarizing noise channels,
-        according to the formula:
+        The effective :math:`T_1` is calculated by considering a variety of
+        depolarizing noise channels, according to the formula:
 
         .. math::
             \frac{1}{T_{1}^{\rm eff}} = \frac{1}{2} \sum_k \frac{1}{T_{1}^{k}}
 
-        where :math:`k` runs over the channels that can contribute to the effective noise.
-        By default all the depolarizing noise channels given by the method `effective_noise_channels` are
-        included.
+        where :math:`k` runs over the channels that can contribute to the effective
+        noise. By default all the depolarizing noise channels given by the method
+        `effective_noise_channels` are included.
 
-        For example, assuming `qubit` is a qubit object with `flux` being one of its parameters, one can
-        see how the effective :math:`T_1` varies as the `flux` changes::
+        For example, assuming `qubit` is a qubit object with `flux` being one of its
+        parameters, one can see how the effective :math:`T_1` varies as the `flux`
+        changes::
 
             qubit.plot_t1_effective_vs_paramvals(param_name='flux',
                                                  param_vals=np.linspace(-0.5, 0.5, 100),
@@ -328,7 +336,8 @@ class NoisySystem(ABC):
         param_vals:
             parameter values to be plugged in
         noise_channels:
-            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+            channels to be plotted, if None then noise channels given by
+            `supported_noise_channels` are used
         common_noise_options:
             common options used when calculating coherence times
         spectrum_data:
@@ -347,8 +356,8 @@ class NoisySystem(ABC):
             {} if common_noise_options is None else common_noise_options
         )
 
-        # If we're not given channels to consider, just use the effective noise channel list that
-        # correspond to t1 processes
+        # If we're not given channels to consider, just use the effective noise
+        # channel list that correspond to t1 processes
         noise_channels = (
             [
                 channel
@@ -359,16 +368,18 @@ class NoisySystem(ABC):
             else noise_channels
         )
 
-        # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
+        # if we only have a single noise channel to consider (and hence are given a
+        # str), put it into a one element list
         noise_channels = (
             [noise_channels] if isinstance(noise_channels, str) else noise_channels
         )
 
         if spectrum_data is None:
 
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
-            # need from the diagonalization.
-            # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
+            # We have to figure out the largest energy level involved in the
+            # calculations, to know how many levels we need from the diagonalization.
+            # This may be hidden in noise-channel-specific options, so have to search
+            # through those, if any were given.
             max_level = max(
                 common_noise_options.get("i", 1), common_noise_options.get("j", 1)
             )
@@ -436,21 +447,24 @@ class NoisySystem(ABC):
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
-        Plot effective :math:`T_2` coherence time (rate) as a function of
-        changing parameter.
+        Plot effective :math:`T_2` coherence as it varies as a function of changing
+        parameter.
 
-        The effective :math:`T_2` is calculated from both pure dephasing channels, as well as
-        depolarization channels, according to the formula:
+        The effective :math:`T_2` is calculated from both pure dephasing channels,
+        as well as depolarization channels, according to the formula:
 
         .. math::
-            \frac{1}{T_{2}^{\rm eff}} = \sum_k \frac{1}{T_{\phi}^{k}} +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}}
+            \frac{1}{T_{2}^{\rm eff}} = \sum_k \frac{1}{T_{\phi}^{k}}
+            +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}}
 
-        where :math:`k` (:math:`j`) run over the relevant pure dephasing (depolariztion) channels that
-        can contribute to the effective noise.
-        By default all noise channels given by the method `effective_noise_channels` are included.
+        where :math:`k` (:math:`j`) run over the relevant pure dephasing (
+        depolariztion) channels that can contribute to the effective noise. By
+        default all noise channels given by the method `effective_noise_channels` are
+        included.
 
-        For example, assuming `qubit` is a qubit object with `flux` being one of its parameters, one can
-        see how the effective :math:`T_2` varies as the `flux` changes::
+        For example, assuming `qubit` is a qubit object with `flux` being one of its
+        parameters, one can see how the effective :math:`T_2` varies as the `flux`
+        changes::
 
             qubit.plot_t2_effective_vs_paramvals(param_name='flux',
                                                  param_vals=np.linspace(-0.5, 0.5, 100),
@@ -463,7 +477,8 @@ class NoisySystem(ABC):
         param_vals:
             parameter values to be plugged in
         noise_channels:
-            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+            channels to be plotted, if None then noise channels given by
+            `supported_noise_channels` are used
         common_noise_options:
             common options used when calculating coherence times
         spectrum_data:
@@ -482,23 +497,26 @@ class NoisySystem(ABC):
             {} if common_noise_options is None else common_noise_options
         )
 
-        # If we're not given channels to consider, just use ones from the effective noise channel list
+        # If we're not given channels to consider, just use ones from the effective
+        # noise channel list
         noise_channels = (
             [channel for channel in self.effective_noise_channels()]
             if noise_channels is None
             else noise_channels
         )
 
-        # if we only have a single noise channel to consider (and hence are given a str), put it into a one element list
+        # if we only have a single noise channel to consider (and hence are given a
+        # str), put it into a one element list
         noise_channels = (
             [noise_channels] if isinstance(noise_channels, str) else noise_channels
         )
 
         if spectrum_data is None:
 
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
-            # need from the diagonalization.
-            # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
+            # We have to figure out the largest energy level involved in the
+            # calculations, to know how many levels we need from the diagonalization.
+            # This may be hidden in noise-channel-specific options, so have to search
+            # through those, if any were given.
             max_level = max(
                 common_noise_options.get("i", 1), common_noise_options.get("j", 1)
             )
@@ -561,12 +579,14 @@ class NoisySystem(ABC):
         noise_type: str,
     ) -> float:
         """
-        Helper method used when calculating the effective rates by methods `t1_effective` and `t2_effective`.
+        Helper method used when calculating the effective rates by methods
+        `t1_effective` and `t2_effective`.
 
         Parameters
         ----------
         noise_channels:
-            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+            channels to be plotted, if None then noise channels given by
+            `supported_noise_channels` are used
         common_noise_options:
             common options used when calculating coherence times
         esys:
@@ -587,7 +607,8 @@ class NoisySystem(ABC):
 
                 noise_channel_method = noise_channel
 
-                # If dealing with a tphi noise type, the contribution of a t1 process to the dephasing rate its halved.
+                # If dealing with a tphi noise type, the contribution of a t1 process
+                # to the dephasing rate its halved.
                 scale_factor = (
                     0.5
                     if noise_type == "tphi" and noise_channel_method.startswith("t1")
@@ -608,7 +629,8 @@ class NoisySystem(ABC):
 
                 noise_channel_method = noise_channel[0]
 
-                # If dealing with a tphi noise type, the contribution of a t1 process to the dephasing rate its halved.
+                # If dealing with a tphi noise type, the contribution of a t1 process
+                # to the dephasing rate its halved.
                 scale_factor = (
                     0.5
                     if noise_type == "tphi" and noise_channel_method.startswith("t1")
@@ -616,8 +638,9 @@ class NoisySystem(ABC):
                 )
 
                 options = common_noise_options.copy()
-                # Some of the channel-specific options may be in conflict with the common options options.
-                # In such a case, we let the channel-specific options take priority.
+                # Some of the channel-specific options may be in conflict with the
+                # common options options. In such a case, we let the channel-specific
+                # options take priority.
                 options.update(noise_channel[1])
                 # We need to make sure we calculate a rate
                 options["get_rate"] = True
@@ -629,7 +652,8 @@ class NoisySystem(ABC):
 
             else:
                 raise ValueError(
-                    "The `noise_channels` argument should be one of {str, list of str, or list of tuples}."
+                    "The `noise_channels` argument should be one of {str, list of str,"
+                    " or list of tuples}."
                 )
 
         return rate
@@ -645,24 +669,28 @@ class NoisySystem(ABC):
         r"""
         Calculate the effective :math:`T_1` time (or rate).
 
-        The effective :math:`T_1` is calculated by considering a variety of depolarizing noise channels,
-        according to the formula:
+        The effective :math:`T_1` is calculated by considering a variety of
+        depolarizing noise channels, according to the formula:
 
         .. math::
             \frac{1}{T_{1}^{\rm eff}} = \frac{1}{2} \sum_k \frac{1}{T_{1}^{k}}
 
-        where :math:`k` runs over the channels that can contribute to the effective noise.
-        By default all the depolarizing noise channels given by the method `effective_noise_channels` are
-        included. Users can also provide specific noise channels, with selected options, to be included
-        in the effective :math:`T_1` calculation. For example, assuming `qubit` is a qubit object, can can execute::
+        where :math:`k` runs over the channels that can contribute to the effective
+        noise. By default all the depolarizing noise channels given by the method
+        `effective_noise_channels` are included. Users can also provide specific
+        noise channels, with selected options, to be included in the effective
+        :math:`T_1` calculation. For example, assuming `qubit` is a qubit object,
+        can can execute::
 
-            tune_tmon.t1_effective(noise_channels=['t1_charge_impedance', 't1_flux_bias_line'],
-                           common_noise_options=dict(T=0.050))
+            tune_tmon.t1_effective(noise_channels=['t1_charge_impedance',
+                                    't1_flux_bias_line'],
+                                    common_noise_options=dict(T=0.050))
 
         Parameters
         ----------
         noise_channels:
-            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+            channels to be plotted, if None then noise channels given by
+            `supported_noise_channels` are used
         common_noise_options:
             common options used when calculating coherence times
         esys:
@@ -673,7 +701,8 @@ class NoisySystem(ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+             in inverse units.
 
 
         """
@@ -681,8 +710,8 @@ class NoisySystem(ABC):
             {} if common_noise_options is None else common_noise_options
         )
 
-        # If we're not given channels to consider, just use the effective noise channel list that
-        # correspond to t1 processes
+        # If we're not given channels to consider, just use the effective noise
+        # channel list that correspond to t1 processes
         noise_channels = (
             [
                 channel
@@ -709,9 +738,10 @@ class NoisySystem(ABC):
                 )
 
         if esys is None:
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
-            # need from the diagonalization.
-            # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
+            # We have to figure out the largest energy level involved in the
+            # calculations, to know how many levels we need from the diagonalization.
+            # This may be hidden in noise-channel-specific options, so have to search
+            # through those, if any were given.
             max_level = max(
                 common_noise_options.get("i", 1), common_noise_options.get("j", 1)
             )
@@ -744,17 +774,19 @@ class NoisySystem(ABC):
         r"""
         Calculate the effective :math:`T_2` time (or rate).
 
-        The effective :math:`T_2` is calculated by considering a variety of pure dephasing and depolarizing
-        noise channels, according to the formula:
+        The effective :math:`T_2` is calculated by considering a variety of pure
+        dephasing and depolarizing noise channels, according to the formula:
 
         .. math::
-            \frac{1}{T_{2}^{\rm eff}} = \sum_k \frac{1}{T_{\phi}^{k}} +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}},
+            \frac{1}{T_{2}^{\rm eff}} = \sum_k \frac{1}{T_{\phi}^{k}}
+            +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}},
 
-        where :math:`k` (:math:`j`) run over the relevant pure dephasing (depolariztion) channels that can contribute to
-        the effective noise. By default all the noise channels given by the method
-        `effective_noise_channels` are included. Users can also provide specific noise channels, with
-        selected options, to be included in the effective :math:`T_2` calculation. For example, assuming
-        `qubit` is a qubit object, can can execute::
+        where :math:`k` (:math:`j`) run over the relevant pure dephasing (
+        depolariztion) channels that can contribute to the effective noise. By
+        default all the noise channels given by the method `effective_noise_channels`
+        are included. Users can also provide specific noise channels, with selected
+        options, to be included in the effective :math:`T_2` calculation. For
+        example, assuming `qubit` is a qubit object, can can execute::
 
             qubit.t2_effective(noise_channels=['t1_flux_bias_line', 't1_capacitive',
                                                ('tphi_1_over_f_flux', dict(A_noise=3e-6))],
@@ -763,7 +795,8 @@ class NoisySystem(ABC):
         Parameters
         ----------
         noise_channels: None or str or list(str) or list(tuple(str, dict))
-            channels to be plotted, if None then noise channels given by `supported_noise_channels` are used
+            channels to be plotted, if None then noise channels given by
+            `supported_noise_channels` are used
         common_noise_options: dict
             common options used when calculating coherence times
         esys: tuple(evals, evecs)
@@ -774,14 +807,16 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or
+             rate in inverse units.
 
         """
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
 
-        # If we're not given channels to consider, just use ones from the effective noise channels list
+        # If we're not given channels to consider, just use ones from the effective
+        # noise channels list
         noise_channels = (
             [channel for channel in self.effective_noise_channels()]
             if noise_channels is None
@@ -794,9 +829,10 @@ class NoisySystem(ABC):
         )
 
         if esys is None:
-            # We have to figure out the largest energy level involved in the calculations, to know how many levels we
-            # need from the diagonalization.
-            # This may be hidden in noise-channel-specific options, so have to search through those, if any were given.
+            # We have to figure out the largest energy level involved in the
+            # calculations, to know how many levels we need from the diagonalization.
+            # This may be hidden in noise-channel-specific options, so have to search
+            # through those, if any were given.
             max_level = max(
                 common_noise_options.get("i", 1), common_noise_options.get("j", 1)
             )
@@ -853,7 +889,8 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`,
+            or rate in inverse units.
 
 
         """
@@ -919,13 +956,14 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
-
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or
+            rate in inverse units.
         """
 
         if "tphi_1_over_f_flux" not in self.supported_noise_channels():
             raise RuntimeError(
-                "Flux noise channel 'tphi_1_over_f_flux' is not supported in this system."
+                "Flux noise channel 'tphi_1_over_f_flux' is not supported in this"
+                " system."
             )
 
         return self.tphi_1_over_f(
@@ -966,13 +1004,15 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or
+            rate in inverse units.
 
         """
 
         if "tphi_1_over_f_cc" not in self.supported_noise_channels():
             raise RuntimeError(
-                "Critical current noise channel 'tphi_1_over_f_cc' is not supported in this system."
+                "Critical current noise channel 'tphi_1_over_f_cc' is not supported in"
+                " this system."
             )
 
         return self.tphi_1_over_f(
@@ -1014,11 +1054,13 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+             in inverse units.
         """
         if "tphi_1_over_f_ng" not in self.supported_noise_channels():
             raise RuntimeError(
-                "Charge noise channel 'tphi_1_over_f_ng' is not supported in this system."
+                "Charge noise channel 'tphi_1_over_f_ng' is not supported in this"
+                " system."
             )
 
         return self.tphi_1_over_f(
@@ -1043,8 +1085,9 @@ class NoisySystem(ABC):
         **kwargs
     ) -> float:
         r"""
-        Calculate the transition time (or rate) using Fermi's Golden Rule due to a noise channel with
-        a spectral density `spectral_density` and system noise operator `noise_op`. Mathematically, it reads:
+        Calculate the transition time (or rate) using Fermi's Golden Rule due to a
+        noise channel with a spectral density `spectral_density` and system noise
+        operator `noise_op`. Mathematically, it reads:
 
         .. math::
 
@@ -1053,8 +1096,9 @@ class NoisySystem(ABC):
         We assume that the qubit energies (or the passed in eigenspectrum) has units
         of frequency (and *not* angular frequency).
 
-        The `spectral_density` argument should be a callable object (typically a function) of one argument,
-        which is assumed to be an angular frequency (in the units currently set as system units.
+        The `spectral_density` argument should be a callable object (typically a
+        function) of one argument, which is assumed to be an angular frequency (in
+        the units currently set as system units.
 
         Parameters
         ----------
@@ -1088,9 +1132,9 @@ class NoisySystem(ABC):
 
         evals, evecs = self.eigensys(evals_count=max(i, j) + 1) if esys is None else esys  # type: ignore
 
-        # We assume that the energies in `evals` are given in the units of frequency and *not*
-        # angular frequency. The function `spectral_density` is assumed to take as a parameter an
-        # angular frequency, hence we have to convert.
+        # We assume that the energies in `evals` are given in the units of frequency
+        # and *not* angular frequency. The function `spectral_density` is assumed to
+        # take as a parameter an angular frequency, hence we have to convert.
         omega = 2 * np.pi * (evals[i] - evals[j])
 
         s = (
@@ -1149,7 +1193,8 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+             in inverse units.
 
         """
         if "t1_capacitive" not in self.supported_noise_channels():
@@ -1246,7 +1291,8 @@ class NoisySystem(ABC):
         Z_fun = Z if callable(Z) else lambda omega: Z
 
         def spectral_density(omega):
-            # Note, our definition of Q_c is different from Zhang et al (2020) by a factor of 2
+            # Note, our definition of Q_c is different from Zhang et al (2020) by a
+            # factor of 2
             Q_c = NOISE_PARAMS["R_k"] / (8 * np.pi * complex(Z_fun(omega)).real)
             therm_ratio = calc_therm_ratio(omega, T)
             s = (
@@ -1311,7 +1357,8 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`,
+            or rate in inverse units.
         """
         if "t1_flux_bias_line" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1335,8 +1382,8 @@ class NoisySystem(ABC):
                 * (1 / np.tanh(0.5 * therm_ratio))
                 / (1 + np.exp(-therm_ratio))
             )
-            # We assume that system energies are given in units of frequency
-            # and that the noise operator to be used with this `spectral_density` is dH/dflux.
+            # We assume that system energies are given in units of frequency and that
+            # the noise operator to be used with this `spectral_density` is dH/dflux.
             # Hence we have to convert  2 powers of frequency to standard units
             s *= (units.to_standard_units(1)) ** 2.0
             return s
@@ -1381,8 +1428,10 @@ class NoisySystem(ABC):
         T:
             temperature in Kelvin
         total:
-            if False return a time/rate associated with a transition from state i to state j.
-            if True return a time/rate associated with both i to j and j to i transitions
+            if False return a time/rate associated with a transition from state i to
+            state j.
+            if True return a time/rate associated with both i to j and j
+            to i transitions
         esys:
             evals, evecs tuple
         get_rate:
@@ -1391,7 +1440,8 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
         """
         if "t1_inductive" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1499,7 +1549,8 @@ class NoisySystem(ABC):
         """
         if "t1_quasiparticle_tunneling" not in self.supported_noise_channels():
             raise RuntimeError(
-                "Noise channel 't1_quasiparticle_tunneling' is not supported in this system."
+                "Noise channel 't1_quasiparticle_tunneling' is not supported in this"
+                " system."
             )
 
         if Y_qp is None:

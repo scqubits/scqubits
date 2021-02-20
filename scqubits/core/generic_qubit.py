@@ -27,7 +27,8 @@ from scqubits.utils.spectrum_utils import get_matrixelement_table, order_eigensy
 
 
 class GenericQubit(base.QuantumSystem, serializers.Serializable):
-    """Class for a generic qubit (genuine two-level system). Create a class instance via::
+    """Class for a generic qubit (genuine two-level system). Create a class instance
+    via::
 
         GenericQubit(E=4.3)
 
@@ -78,13 +79,15 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         return evals, evecs
 
     def matrixelement_table(self, operator: str) -> ndarray:
-        """Returns table of matrix elements for `operator` with respect to the eigenstates of the qubit.
-        The operator is given as a string matching a class method returning an operator matrix.
+        """Returns table of matrix elements for `operator` with respect to the
+        eigenstates of the qubit. The operator is given as a string matching a class
+        method returning an operator matrix.
 
         Parameters
         ----------
         operator:
-            name of class method in string form, returning operator matrix in qubit-internal basis.
+            name of class method in string form, returning operator matrix in
+            qubit-internal basis.
         """
         _, evecs = self.eigensys()
         operator_matrix = getattr(self, operator)()

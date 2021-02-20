@@ -10,9 +10,11 @@
 ############################################################################
 
 import os
+
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
+
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
@@ -26,6 +28,7 @@ import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
+
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 
