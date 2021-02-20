@@ -29,6 +29,8 @@ from typing import Any, Type, Union
 import matplotlib as mpl
 import numpy as np
 
+import numpy as np
+
 from cycler import cycler
 
 

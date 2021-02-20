@@ -211,10 +211,12 @@ class TestHilbertSpace:
         return hilbertspace.hamiltonian()
 
     def test_HilbertSpace_hamiltonian_is_hermitean(self):
-        hamiltonian = self.hilbertspace_initialize().hamiltonian()
-        assert hamiltonian.isherm
+        hamiltonian = self.build_hamiltonian()
+        assert hamiltonian == hamiltonian.dag()
+        hamiltonian = self.hamiltonian(flux=0.23)
+        assert hamiltonian == hamiltonian.dag()
         hamiltonian = self.hamiltonian_use_addhc()
-        assert hamiltonian.isherm
+        assert hamiltonian == hamiltonian.dag()
 
     def test_HilbertSpace_diagonalize_hamiltonian(self):
         evals_reference = np.asarray(

@@ -16,10 +16,7 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import scipy as sp
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from numpy import ndarray
-from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
 
@@ -35,21 +32,6 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
-from scqubits.core.noise import NOISE_PARAMS, NoisySystem, calc_therm_ratio
-from scqubits.core.storage import WaveFunctionOnGrid
-
-
-# -Cosine two phi qubit noise class
-class NoisyCos2PhiQubit(NoisySystem, ABC):
-    @abstractmethod
-    def phi_1_operator(self) -> csc_matrix:
-        pass
-
-    @abstractmethod
-    def phi_2_operator(self) -> csc_matrix:
-        pass
-
-    @abstractmethod
     def n_1_operator(self) -> csc_matrix:
         pass
 
@@ -411,13 +393,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     .. math::
 
-       H = & \,2 \tilde{E}_\text{CJ}n_\phi^2 + 2 \tilde{E}_\text{CJ} (n_\theta - n_\text{g} - n_\zeta)^2 + 4 E_\text{C} n_\zeta^2\\
-       & + \tilde{E}_\text{L}\left(\phi - \frac{1}{2}\varphi_\text{ext}\right)^2 + \tilde{E}_\text{L} \zeta^2 - 2 E_\text{J}\cos{\theta}\cos{\phi} \\
-       & + 2 \delta_\text{EJ} E_\text{J}\sin{\theta}\sin{\phi} \\
-       & - 4 \delta_\text{CJ} \tilde{E}_\text{CJ} n_\phi (n_\theta - n_\text{g}-n_\zeta) \\
-       & + \delta_\text{L}\tilde{E}_\text{L} (2\phi - \varphi_\text{ext})\zeta ,
+        H = & \,2 E_\text{CJ}'n_\phi^2 + 2 E_\text{CJ}' (n_\theta - n_\text{g} - n_\zeta)^2 + 4 E_\text{C} n_\zeta^2\\
+        & + E_\text{L}'(\phi - \pi\Phi_\text{ext}/\Phi_0)^2 + E_\text{L}' \zeta^2 - 2 E_\text{J}\cos{\theta}\cos{\phi} \\
+        & + 2 dE_\text{J} E_\text{J}\sin{\theta}\sin{\phi} \\
+        & - 4 dC_\text{J} E_\text{CJ}' n_\phi (n_\theta - n_\text{g}-n_\zeta) \\
+        & + dL E_\text{L}'(2\phi - \varphi_\text{ext})\zeta ,
 
-    where :math:`\tilde{E}_\text{CJ} = E_\text{CJ} / (1 - \delta_\text{CJ})^2` and :math:`\tilde{E}_\text{L} = E_\text{L} / (1 - \delta_\text{L})^2`. Here, the disorder is defined as follows: the inductive energy of the two inductors are :math:`E_\text{L}/(1 \pm \delta_\text{L})`; the charging energy of the two Josephson junctions are :math:`E_\text{CJ}/(1 \pm \delta_\text{CJ})`; the junction energy of the two Josephson junctions are :math:`E_\text{J} (1 \pm \delta_\text{EJ})`.
+    where :math:`E_\text{CJ}' = E_\text{CJ} / (1 - dC_\text{J})^2` and
+    :math:`E_\text{L}' = E_\text{L} / (1 - dL)^2`.
 
     Parameters
     ----------
@@ -440,8 +423,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         quantum
     ng:
         offset charge
-    n_cut:
-        cutoff of charge basis, -n_cut <= :math:`n_\theta` <= n_cut
+    ncut:
+        cutoff of charge basis, -ncut <= :math:`n_\theta` <= ncut
     zeta_cut:
         number of harmonic oscillator basis for :math:`\zeta` variable
     phi_cut:
@@ -456,7 +439,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     dEJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     ng = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    n_cut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     zeta_cut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     phi_cut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
@@ -471,7 +454,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         dEJ: float,
         flux: float,
         ng: float,
-        n_cut: int,
+        ncut: int,
         zeta_cut: int,
         phi_cut: int,
     ) -> None:
@@ -484,17 +467,17 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self.dEJ = dEJ
         self.flux = flux
         self.ng = ng
-        self.n_cut = n_cut
+        self.ncut = ncut
         self.zeta_cut = zeta_cut
         self.phi_cut = phi_cut
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
-        self._default_theta_grid = discretization.Grid1d(-2 * np.pi, 3 * np.pi, 100)
+        self._default_theta_grid = discretization.Grid1d(-0.5 * np.pi, 1.5 * np.pi, 100)
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "qubit_img/cosine_two_phi_qubit.jpg",
+            "qubit_img/cos2phi-qubit.jpg",
         )
 
     @staticmethod
@@ -509,7 +492,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             "dEJ": 0.0,
             "flux": 0.5,
             "ng": 0.0,
-            "n_cut": 7,
+            "ncut": 7,
             "zeta_cut": 30,
             "phi_cut": 7,
         }
@@ -545,7 +528,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     def _dim_theta(self) -> int:
         """
         Returns Hilbert space dimension of :math:`\\theta` degree of freedom"""
-        return 2 * self.n_cut + 1
+        return 2 * self.ncut + 1
 
     def hilbertdim(self) -> int:
         """
@@ -689,7 +672,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
             `n_theta` operator in the charge basis"""
-        diag_elements = np.arange(-self.n_cut, self.n_cut + 1)
+        diag_elements = np.arange(-self.ncut, self.ncut + 1)
         return dia_matrix(
             (diag_elements, [0]), shape=(self._dim_theta(), self._dim_theta())
         ).tocsc()
@@ -896,7 +879,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             + 2 * self.dEJ * self.EJ * np.sin(phi + np.pi * self.flux) * np.sin(theta)
         )
 
-    def reduced_potential(self, theta, phi) -> float:
+    def reduced_potential(self, phi, theta) -> float:
         """Returns reduced potential by setting :math:`zeta = 0`"""
         return self.potential(phi, 0, theta)
 
@@ -920,24 +903,17 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         phi_grid = phi_grid or self._default_phi_grid
         theta_grid = theta_grid or self._default_theta_grid
 
-        x_vals = theta_grid.make_linspace()
-        y_vals = phi_grid.make_linspace()
-        if "figsize" not in kwargs:
-            kwargs["figsize"] = (4, 4)
+        y_vals = theta_grid.make_linspace()
+        x_vals = phi_grid.make_linspace()
         return plot.contours(
             x_vals,
             y_vals,
             self.reduced_potential,
             contour_vals=contour_vals,
-            xlabel=r"$\theta$",
-            ylabel=r"$\phi$",
-            **kwargs
-        )
-
-    def wavefunction(
+            ylabel=r"$\theta$",
+            xlabel=r"$\phi$",
         self, esys=None, which=0, phi_grid=None, zeta_grid=None, theta_grid=None
     ) -> WaveFunctionOnGrid:
-        """
         Return a 3D wave function in :math:`\\phi, \\zeta, \\theta` basis
 
         Parameters
@@ -979,7 +955,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         for i in range(self._dim_phi()):
             for j in range(self._dim_zeta()):
                 for k in range(self._dim_theta()):
-                    n_phi, n_zeta, n_theta = i, j, k - self.n_cut
+                    n_phi, n_zeta, n_theta = i, j, k - self.ncut
                     phi_wavefunc_amplitudes = osc.harm_osc_wavefunction(
                         n_phi, phi_basis_labels, self.phi_osc()
                     )
@@ -1058,23 +1034,23 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         wavefunc.gridspec = discretization.GridSpec(
             np.asarray(
                 [
-                    [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
                     [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                    [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
                 ]
             )
         )
-        wavefunc.amplitudes = amplitude_modifier(
-            spec_utils.standardize_phases(
-                wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)
+        wavefunc.amplitudes = np.transpose(
+            amplitude_modifier(
+                spec_utils.standardize_phases(
+                    wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)
+                )
             )
         )
-        if "figsize" not in kwargs:
-            kwargs["figsize"] = (4, 4)
         return plot.wavefunction2d(
             wavefunc,
             zero_calibrate=zero_calibrate,
-            xlabel=r"$\theta$",
-            ylabel=r"$\phi$",
+            ylabel=r"$\theta$",
+            xlabel=r"$\phi$",
             **kwargs
         )
 
@@ -1146,6 +1122,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return junction_mat + dis_junction_mat
 
     def d_hamiltonian_d_ng(self) -> csc_matrix:
-        return 4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator() - 4 * self._disordered_ecj() * (
-            self.n_theta_operator() - self.ng - self.n_zeta_operator()
+        return (
+            4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
+            - 4
+            * self._disordered_ecj()
+            * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
         )
