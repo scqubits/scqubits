@@ -197,11 +197,11 @@ class TestHilbertSpace:
 
     def test_HilbertSpace_hamiltonian_is_hermitean(self):
         hamiltonian = self.build_hamiltonian()
-        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.dag())), 0.0)
+        assert hamiltonian == hamiltonian.dag()
         hamiltonian = self.hamiltonian(flux=0.23)
-        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.dag())), 0.0)
+        assert hamiltonian == hamiltonian.dag()
         hamiltonian = self.hamiltonian_use_addhc()
-        assert np.isclose(np.max(np.abs(hamiltonian - hamiltonian.dag())), 0.0)
+        assert hamiltonian == hamiltonian.dag()
 
     def test_HilbertSpace_diagonalize_hamiltonian(self):
         hamiltonian = self.build_hamiltonian()
