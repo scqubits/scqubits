@@ -21,6 +21,7 @@ import scqubits.settings
 
 # core
 from scqubits.core.central_dispatch import CentralDispatch
+from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.current_mirror import (
     CurrentMirror,
     CurrentMirrorGlobal,

@@ -23,9 +23,13 @@ Matplotlib.
 #######################################################################################################################
 
 import warnings
+
 from typing import Any, Type, Union
 
 import matplotlib as mpl
+
+import numpy as np
+
 from cycler import cycler
 
 
@@ -113,3 +117,8 @@ DESPINE = True
 
 # This is a setting for number of points in stencil to approximate derivatives
 STENCIL = 7
+
+# GLOBAL RANDOM NUMBER GENERATOR FOR CONSISTENT INITIAL STATE VECTOR V0 IN ARPACK
+SEED = 63142
+RNG = np.random.default_rng(seed=SEED)
+RANDOM_ARRAY = RNG.random(size=10000000)

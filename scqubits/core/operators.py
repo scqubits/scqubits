@@ -47,7 +47,7 @@ def number(dimension: int, prefactor: Union[float, complex] = None) -> ndarray:
     -------
         number operator matrix, size dimension x dimension
     """
-    diag_elements = np.arange(dimension)
+    diag_elements = np.arange(dimension, dtype=np.float_)
     if prefactor:
         diag_elements *= prefactor
     return np.diagflat(diag_elements)
