@@ -113,3 +113,4 @@ def run_tests_ED(FQ_instance):
 
 run_tests(FQV, 'fluxqubitvtb')
 run_tests(FQVS, 'fluxqubitvtbsqueezing')
+run_tests_ED(FQ)

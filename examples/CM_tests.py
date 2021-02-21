@@ -28,7 +28,7 @@ CMVGS = qubit.CurrentMirrorVTBGlobalSqueezing(N=N, ECB=ECB, ECJ=ECJ, ECg=ECg, EJ
                                               maximum_periodic_vector_length=maximum_periodic_vector_length,
                                               truncated_dim=6)
 
-CM = qubit.CurrentMirror(N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=2,
+CM = qubit.CurrentMirror(N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=7,
                          truncated_dim=6)
 CM_global = qubit.CurrentMirrorGlobal(N, ECB, ECJ, ECg, EJlist, nglist, flux, num_exc=7, truncated_dim=6)
 evals_1 = CMV.eigenvals()
