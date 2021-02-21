@@ -11,7 +11,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
-from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_phases
+from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_phases, \
+    standardize_sign
 
 
 class FluxoniumTunableCouplerFloating(serializers.Serializable):
@@ -288,6 +289,22 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         fluxonium_b.EL = self.ELb - E_Lb_shift
         J = self.ELa * self.ELb * (0.5 * chi_m - 1.0 / (self.EL_tilda()))
         return fluxonium_a, fluxonium_b, J, E_La_shift, E_Lb_shift
+
+    @staticmethod
+    def _get_phi_01(fluxonium_instance):
+        evals, evecs_uns = fluxonium_instance.eigensys(evals_count=2)
+        evecs = np.zeros_like(evecs_uns)
+        evecs_uns = evecs_uns.T
+        for k, evec in enumerate(evecs_uns):
+            evecs[:, k] = standardize_sign(evec)
+        phi_mat = get_matrixelement_table(fluxonium_instance.phi_operator(), evecs)
+        return phi_mat[0, 1]
+
+    def J_eff_total(self):
+        fluxonium_a, fluxonium_b, J, _, _ = self._setup_effective_calculation()
+        phi_a_01 = self._get_phi_01(fluxonium_a)
+        phi_b_01 = self._get_phi_01(fluxonium_b)
+        return J * phi_a_01 * phi_b_01
 
     def schrieffer_wolff_born_oppenheimer_effective_hamiltonian(self):
         (
