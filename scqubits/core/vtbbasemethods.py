@@ -1239,11 +1239,11 @@ class VTBBaseMethods(ABC):
         singularity/indefiniteness of the inner product matrix"""
         relevant_unit_cell_vectors, harmonic_lengths = self._initialize_VTB(num_cpus)
         harmonic_length_minima_comparison = self.compute_minimum_localization_ratio()
-        if np.max(harmonic_length_minima_comparison) > 1.0:
+        if np.min(harmonic_length_minima_comparison) < 1.0:
             warnings.warn(
-                "Warning: large harmonic length compared to minima separation "
-                "largest is 3*l/(d/2) = {ratio})".format(
-                    ratio=np.max(harmonic_length_minima_comparison)
+                "Warning: small minima separation compared to harmonic length. "
+                "smallest is (d/2)/(2*l) = {ratio})".format(
+                    ratio=np.min(harmonic_length_minima_comparison)
                 )
             )
         transfer_matrix = self._transfer_matrix(

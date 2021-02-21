@@ -4,7 +4,7 @@ import scqubits as qubit
 qubit.settings.MULTIPROC = 'pathos'
 
 N = 2
-maximum_periodic_vector_length = 8
+maximum_periodic_vector_length = 4
 ECB = 0.2  # 100 fF
 ECJ = 20.0/2.7  # 2.7 fF
 ECg = 20.0  # 0.5 fF
@@ -13,7 +13,7 @@ EJ = 20.0
 EJlist = np.array([EJ for j in range(2*N)])
 EJlist[0: 3] = 1.01*EJlist[0: 3]
 nglist = np.array([0.0 for _ in range(2*N - 1)])
-num_exc = 4
+num_exc = 2
 flux_list = np.linspace(0.46, 0.54, 21)
 CMV = qubit.CurrentMirrorVTB(N=N, ECB=ECB, ECJ=ECJ, ECg=ECg, EJlist=EJlist, nglist=nglist, flux=flux, num_exc=num_exc,
                              maximum_periodic_vector_length=maximum_periodic_vector_length, truncated_dim=6)
@@ -65,5 +65,5 @@ def run_tests_ED(CM_instance):
                                                  filename='../scqubits/tests/data/currentmirror_4.hdf5')
     matelem_CM = CM_instance.matrixelement_table('charge_number_operator', evals_count=10, filename='../scqubits/tests/data/currentmirror_5.hdf5')
 
-
+run_tests(CMV, 'currentmirrorvtbs')
 run_tests(CMVS, 'currentmirrorvtbsqueezing')

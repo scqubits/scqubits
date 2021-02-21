@@ -8,8 +8,8 @@ FLUX = 0.5
 ECg = 50.0 * ECJ
 EJlist = np.array([1.01*EJ, 0.98*EJ, ALPHA * EJ])
 nglist = np.array([0.2, 0.0])
-num_exc = 4
-maximum_periodic_vector_length = 8
+num_exc = 2
+maximum_periodic_vector_length = 3
 
 FQV = qubit.FluxQubitVTB(
     EJ1=EJ,
@@ -112,3 +112,4 @@ def run_tests_ED(FQ_instance):
 
 
 run_tests(FQV, 'fluxqubitvtb')
+run_tests(FQVS, 'fluxqubitvtbsqueezing')
