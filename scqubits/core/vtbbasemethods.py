@@ -278,7 +278,7 @@ class VTBBaseMethods(ABC):
         if minima_pair_displacement_vectors is None or np.allclose(
             minima_pair_displacement_vectors, 0.0
         ):
-            return 0.0
+            return np.inf
         Xi_inv = inv(self.Xi_matrix(minimum_index=Xi_minimum_index_arg))
         delta_inv = Xi_inv.T @ Xi_inv
         if m == p:  # Do not include equivalent minima in the same unit cell

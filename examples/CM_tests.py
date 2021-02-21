@@ -28,7 +28,8 @@ CMVGS = qubit.CurrentMirrorVTBGlobalSqueezing(N=N, ECB=ECB, ECJ=ECJ, ECg=ECg, EJ
                                               maximum_periodic_vector_length=maximum_periodic_vector_length,
                                               truncated_dim=6)
 
-CM = qubit.CurrentMirror(N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=10, truncated_dim=6)
+CM = qubit.CurrentMirror(N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=2,
+                         truncated_dim=6)
 CM_global = qubit.CurrentMirrorGlobal(N, ECB, ECJ, ECg, EJlist, nglist, flux, num_exc=7, truncated_dim=6)
 evals_1 = CMV.eigenvals()
 evals_2 = CMVG.eigenvals()
@@ -63,7 +64,9 @@ def run_tests_ED(CM_instance):
     specdata_2_CM = CM_instance.eigensys(evals_count=4, filename='../scqubits/tests/data/currentmirror_2.hdf5')
     specdata_4_CM = CM_instance.get_spectrum_vs_paramvals(param_name='flux', param_vals=flux_list, evals_count=4, get_eigenstates=True,
                                                  filename='../scqubits/tests/data/currentmirror_4.hdf5')
-    matelem_CM = CM_instance.matrixelement_table('charge_number_operator', evals_count=10, filename='../scqubits/tests/data/currentmirror_5.hdf5')
+    matelem_CM = CM_instance.matrixelement_table('n_operator', evals_count=10,
+                                                 filename='../scqubits/tests/data/currentmirror_5.hdf5')
 
-run_tests(CMV, 'currentmirrorvtbs')
-run_tests(CMVS, 'currentmirrorvtbsqueezing')
+#run_tests(CMV, 'currentmirrorvtbs')
+#run_tests(CMVS, 'currentmirrorvtbsqueezing')
+run_tests_ED(CM)

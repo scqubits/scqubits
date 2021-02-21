@@ -6,10 +6,10 @@ ECJ = EJ / 60.0
 ALPHA = 0.8
 FLUX = 0.5
 ECg = 50.0 * ECJ
-EJlist = np.array([1.01*EJ, 0.98*EJ, ALPHA * EJ])
-nglist = np.array([0.2, 0.0])
+EJlist = np.array([1.04*EJ, 0.97*EJ, ALPHA * EJ])
+nglist = np.array([0.2, 0.3])
 num_exc = 2
-maximum_periodic_vector_length = 3
+maximum_periodic_vector_length = 4
 
 FQV = qubit.FluxQubitVTB(
     EJ1=EJ,

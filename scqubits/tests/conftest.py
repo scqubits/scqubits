@@ -436,7 +436,7 @@ class VTBTestFunctions(StandardTests):
 
     def initialize_vtb_qbt(self, system_params):
         return self.qbt_type(
-            **system_params, maximum_periodic_vector_length=8, num_exc=4
+            **system_params, maximum_periodic_vector_length=4, num_exc=2
         )
 
     def test_plot_matelem_vs_paramvals(self, num_cpus, io_type):
