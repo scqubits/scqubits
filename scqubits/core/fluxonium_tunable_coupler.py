@@ -160,11 +160,12 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         )
         phi_minus = fluxonium_minus.phi_operator()
         phi_a = fluxonium_a.phi_operator()
-        id_a = np.eye(fluxonium_a.hilbertdim())
         phi_b = fluxonium_b.phi_operator()
-        id_b = np.eye(fluxonium_b.hilbertdim())
         n_a = fluxonium_a.n_operator()
         n_b = fluxonium_b.n_operator()
+        id_a = np.eye(fluxonium_a.hilbertdim())
+        id_b = np.eye(fluxonium_b.hilbertdim())
+        id_minus = np.eye(fluxonium_minus.hilbertdim())
         interaction_term_1 = InteractionTerm(
             g_strength=-0.5 * self.ELa,
             subsys1=fluxonium_a,
@@ -184,14 +185,14 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             subsys1=fluxonium_a,
             op1=phi_a + 2.0 * np.pi * self.flux_a * id_a,
             subsys2=fluxonium_minus,
-            op2=phi_minus,
+            op2=phi_minus + 0.5 * 2.0 * np.pi * self.flux_c * id_minus,
         )
         interaction_term_4 = InteractionTerm(
             g_strength=0.5 * self.ELb,
             subsys1=fluxonium_b,
             op1=phi_b + 2.0 * np.pi * self.flux_b * id_b,
             subsys2=fluxonium_minus,
-            op2=phi_minus,
+            op2=phi_minus + 0.5 * 2.0 * np.pi * self.flux_c * id_minus,
         )
         interaction_term_5 = InteractionTerm(
             g_strength=-8.0 * self.off_diagonal_charging(),
@@ -205,7 +206,7 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             subsys1=h_o_plus,
             op1=self.phi_plus(),
             subsys2=fluxonium_minus,
-            op2=phi_minus,
+            op2=phi_minus + 0.5 * 2.0 * np.pi * self.flux_c * id_minus,
         )
         hilbert_space.interaction_list = [
             interaction_term_1,
@@ -381,20 +382,20 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             for fin_b in range(dim_low_energy_b)
         )
 
-        # virtual_int_states = list(product(np.arange(0, dim_a), np.arange(0, dim_b)))
-        # virtual_int_states.remove((0, 0))
-        # virtual_int_states.remove((0, 1))
-        # virtual_int_states.remove((1, 0))
-        # virtual_int_states.remove((1, 1))
-        #
-        # H_2 = sum(V_op(init_a, inter_a, init_b, inter_b) * V_op(inter_a, fin_a, inter_b, fin_b)
-        #           * 0.5 * ((evals_a[init_a] + evals_b[init_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1)
-        #                    + (evals_a[fin_a] + evals_b[fin_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1))
-        #           * hilbert_space.hubbard_operator(init_a, fin_a, fluxonium_a_spin)
-        #           * hilbert_space.hubbard_operator(init_b, fin_b, fluxonium_b_spin)
-        #           for init_a in range(dim_low_energy_a) for fin_a in range(dim_low_energy_a)
-        #           for init_b in range(dim_low_energy_b) for fin_b in range(dim_low_energy_b)
-        #           for inter_a, inter_b in virtual_int_states)
+        virtual_int_states = list(product(np.arange(0, dim_a), np.arange(0, dim_b)))
+        virtual_int_states.remove((0, 0))
+        virtual_int_states.remove((0, 1))
+        virtual_int_states.remove((1, 0))
+        virtual_int_states.remove((1, 1))
+
+        H_2 = sum(V_op(init_a, inter_a, init_b, inter_b) * V_op(inter_a, fin_a, inter_b, fin_b)
+                  * 0.5 * ((evals_a[init_a] + evals_b[init_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1)
+                           + (evals_a[fin_a] + evals_b[fin_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1))
+                  * hilbert_space.hubbard_operator(init_a, fin_a, fluxonium_a_spin)
+                  * hilbert_space.hubbard_operator(init_b, fin_b, fluxonium_b_spin)
+                  for init_a in range(dim_low_energy_a) for fin_a in range(dim_low_energy_a)
+                  for init_b in range(dim_low_energy_b) for fin_b in range(dim_low_energy_b)
+                  for inter_a, inter_b in virtual_int_states)
 
         return H_0, H_1, H_2
 
@@ -482,7 +483,7 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
             flux_fraction_with_inductor=1.0,
-            flux_junction_sign=1
+            flux_junction_sign=-1
         )
 
     def fluxonium_b(self):
@@ -494,7 +495,7 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
             flux_fraction_with_inductor=1.0,
-            flux_junction_sign=1
+            flux_junction_sign=-1
         )
 
     def fluxonium_minus(self):
