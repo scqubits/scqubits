@@ -353,6 +353,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
         self, expression: str, idwrapped_ops_by_name: Dict[str, Qobj]
     ) -> Qobj:
         expression = self.parse_qutip_functions(expression)
+        idwrapped_ops_by_name["Qobj"] = Qobj
 
         main = importlib.import_module("__main__")
         answer = eval(
