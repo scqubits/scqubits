@@ -31,7 +31,7 @@ import scqubits.utils.misc as utils
 from scqubits.core._param_sweep import _ParameterSweep
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
-from scqubits.core.namedslots_array import NamedSlotsNdarray, Parameters, GIndexObject
+from scqubits.core.namedslots_array import GIndexObject, NamedSlotsNdarray, Parameters
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.spectrum_lookup import SpectrumLookupMixin
 from scqubits.core.storage import SpectrumData
