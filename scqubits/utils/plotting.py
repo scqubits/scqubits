@@ -586,7 +586,10 @@ def data_vs_paramvals(
                 label=label_list[idx],
                 **_extract_kwargs_options(kwargs, "plot")
             )
-        axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        if _LABELLINES_ENABLED:
+            labelLines(axes.get_lines(), zorder=2.0)
+        else:
+            axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, **kwargs)
     return fig, axes
 
@@ -626,6 +629,7 @@ def evals_vs_paramvals(
     ydata = specdata.energy_table[:, index_list]
     if subtract_ground:
         ydata = (ydata.T - ydata[:, 0]).T
+
     return data_vs_paramvals(
         xdata,
         ydata,
