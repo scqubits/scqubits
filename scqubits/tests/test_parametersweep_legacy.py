@@ -1,4 +1,4 @@
-# test_hilbertspace.py
+# test_parametersweep_legacy.py
 # meant to be run with 'pytest'
 #
 # This file is part of scqubits.

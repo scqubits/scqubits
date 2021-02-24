@@ -12,7 +12,7 @@
 
 import numpy as np
 
-from scqubits.utils.misc import NamedSlotsNdarray
+from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 paramvals1 = np.asarray(range(10))
 paramvals2 = np.linspace(0.0, 1.0, 100)
@@ -44,3 +44,4 @@ def test_value_access():
 def test_named_slice():
     tst = NamedSlotsNdarray(data, paramvals_by_name)
     assert np.allclose(tst["p2":2:-1], data[:, 2:-1, :])
+    assert np.allclose(tst['p2':2, 'p1':0], tst['p1': 0, 'p2':2])

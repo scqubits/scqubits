@@ -30,6 +30,11 @@ from typing import (
 
 import numpy as np
 import qutip as qt
+
+from numpy import ndarray
+from qutip.qobj import Qobj
+from scipy.sparse import csc_matrix, dia_matrix
+
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.harmonic_osc as osc
@@ -43,9 +48,6 @@ import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
-from numpy import ndarray
-from qutip.qobj import Qobj
-from scipy.sparse import csc_matrix, dia_matrix
 from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import SpectrumData
@@ -106,8 +108,8 @@ class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
         hilbertspace: "HilbertSpace" = None,
     ) -> None:
         warnings.warn(
-            "Future use of InteractionTerm will require arguments in a different "
-            "format, see help(InteractionTerm).",
+            "This use of `InteractionTerm` is deprecated and will cease "
+            "to be supported in the future.",
             FutureWarning,
         )
         if hilbertspace:
@@ -172,29 +174,23 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
 
     def __new__(
         cls,
-        g_strength: Union[float, complex],
-        operator_list: List[Tuple[int, Union[ndarray, csc_matrix]]] = None,
-        subsys1: QuantumSys = None,
-        op1: Union[str, ndarray, csc_matrix, dia_matrix] = None,
-        subsys2: QuantumSys = None,
-        op2: Union[str, ndarray, csc_matrix, dia_matrix] = None,
-        hilbertspace: "HilbertSpace" = None,
-        add_hc: bool = False,
+        *args,
+        **kwargs,
     ) -> Union["InteractionTerm", InteractionTermLegacy]:
-        if subsys1:
+        if "subsys1" in kwargs:
             warnings.warn(
                 "This use of `InteractionTerm` is deprecated and will cease "
                 "to be supported in the future.",
                 FutureWarning,
             )
             return InteractionTermLegacy(
-                g_strength=g_strength,
-                op1=op1,
-                subsys1=subsys1,
-                op2=op2,
-                subsys2=subsys2,
-                hilbertspace=hilbertspace,
-                add_hc=add_hc,
+                g_strength=kwargs["g_strength"],
+                op1=kwargs["op1"],
+                subsys1=kwargs["subsys1"],
+                op2=kwargs["op2"],
+                subsys2=kwargs["subsys2"],
+                hilbertspace=kwargs.pop("hilbertspace", None),
+                add_hc=kwargs.pop("add_hc", None),
             )
         else:
             return super().__new__(cls)
@@ -254,16 +250,6 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         if self.add_hc:
             hamiltonian += hamiltonian.dag()
         return hamiltonian
-
-    @staticmethod
-    def convert_operators(op_list: list) -> list:
-        new_operators = [
-            spec_utils.convert_operator_to_qobj(
-                item.operator, item.subsystem, op_in_eigenbasis=False, evecs=None
-            )
-            for item in op_list
-        ]
-        return new_operators
 
     @staticmethod
     def id_wrap_all_ops(
@@ -863,7 +849,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         evals_count: int = 10,
         get_eigenstates: bool = False,
         param_name: str = "external_parameter",
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Return eigenvalues (and optionally eigenstates) of the full Hamiltonian as
         a function of a parameter. Parameter values are specified as a list or array
@@ -891,6 +877,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         target_map = cpu_switch.get_map_method(num_cpus)
         if get_eigenstates:
             func = functools.partial(
@@ -978,37 +965,26 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     def _parse_interactiontermstr(self, **kwargs) -> InteractionTermStr:
         expr = kwargs.pop("expr")
-        add_hc = kwargs.pop("add_hc", None)
+        add_hc = kwargs.pop("add_hc", False)
         const = kwargs.pop("const", None)
 
         operator_list = []
         for key in kwargs.keys():
-            if re.match("op\d+$", key) is None:
+            if re.match(r"op\d+$", key) is None:
                 raise TypeError("Unexpected keyword argument {}.".format(key))
             operator_list.append(self._parse_op_by_name(kwargs[key]))
 
         return InteractionTermStr(expr, operator_list, const=const, add_hc=add_hc)
 
     def _parse_interactionterm(self, **kwargs) -> InteractionTerm:
-        keys = list(kwargs.keys())
-
-        if "g_strength" in kwargs:
-            g = kwargs["g_strength"]
-            keys.remove("g_strength")
-        elif "g" in kwargs:
-            g = kwargs["g"]
-            keys.remove("g")
-        else:
-            raise TypeError("Argument `g=<float>` missing.")
-
-        add_hc = False
-        if "add_hc" in keys:
-            add_hc = kwargs["add_hc"]
-            keys.remove("add_hc")
+        g = kwargs.pop("g", None)
+        if g is None:
+            g = kwargs.pop("g_strength")
+        add_hc = kwargs.pop("add_hc", False)
 
         operator_list = []
-        for key in keys:
-            if re.match("op\d+$", key) is None:
+        for key in kwargs.keys():
+            if re.match(r"op\d+$", key) is None:
                 raise TypeError("Unexpected keyword argument {}.".format(key))
             subsys_index, op = self._parse_op(kwargs[key])
             operator_list.append(self._parse_op(kwargs[key]))
@@ -1017,8 +993,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
     @staticmethod
     def _parse_qobj(**kwargs) -> Qobj:
-        if len(kwargs) > 1 or not isinstance(kwargs["qobj"], Qobj):
-            return False, None
+        op = kwargs["qobj"]
+        if len(kwargs) > 1 or not isinstance(op, Qobj):
+            raise TypeError("Cannot interpret specified operator {}".format(op))
         return kwargs["qobj"]
 
     def _parse_op_by_name(

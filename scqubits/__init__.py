@@ -33,9 +33,8 @@ from scqubits.core.hilbert_space import (
     InteractionTermLegacy,
     InteractionTermStr,
 )
-from scqubits.core.multi_sweep import Sweep
 from scqubits.core.noise import calc_therm_ratio
-from scqubits.core.param_sweep import ParameterSweep, StoredSweep
+from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.units import (

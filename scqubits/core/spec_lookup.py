@@ -18,12 +18,13 @@ from typing import TYPE_CHECKING, Callable, List, Tuple, Union
 
 import numpy as np
 import qutip as qt
-import scqubits
-import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.utils.spectrum_utils as spec_utils
 
 from numpy import ndarray
 from qutip import Qobj
+
+import scqubits
+import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.spectrum_utils as spec_utils
 
 if TYPE_CHECKING:
     from scqubits import HilbertSpace, ParameterSweep, SpectrumData
@@ -94,7 +95,7 @@ class SpectrumLookup(serializers.Serializable):
         # Store ParameterSweep and/or HilbertSpace objects only as weakref.proxy
         # objects to avoid circular references that would prevent objects from
         # expiring appropriately and being garbage collected
-        if isinstance(framework, scqubits.ParameterSweep):
+        if isinstance(framework, scqubits.core._param_sweep._ParameterSweep):
             self._sweep = weakref.proxy(framework)
             self._hilbertspace = weakref.proxy(self._sweep._hilbertspace)
         elif isinstance(framework, scqubits.HilbertSpace):

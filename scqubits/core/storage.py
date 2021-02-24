@@ -11,12 +11,13 @@
 
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
-import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.utils.plotting as plot
-
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+
+import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.plotting as plot
+
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 if TYPE_CHECKING:
@@ -136,9 +137,9 @@ class DataStore(serializers.Serializable):
 
 
 class SpectrumData(DataStore):
-    """Container holding energy and state data as a function of a particular parameter that is varied.
-    Also stores all other system parameters used for generating the set, and provides method for writing
-    data to file.
+    """Container holding energy and state data as a function of a particular parameter
+    that is varied. Also stores all other system parameters used for generating the
+    set, and provides method for writing data to file.
 
     Parameters
     ----------
@@ -148,11 +149,12 @@ class SpectrumData(DataStore):
     system_params:
         info about system parameters
     param_name:
-        name of parameter being varies
+        name of parameter being varied
     param_vals:
         parameter values for which spectrum data are stored
     state_table: Union[List[QutipEigenstates], ndarray, List[ndarray]]
-        eigenstate data stored for each `param_vals` point, either as pure ndarray or list of qutip.qobj
+        eigenstate data stored for each `param_vals` point, either as pure ndarray or
+        list of qutip.qobj
     matrixelem_table:
         matrix element data stored for each `param_vals` point
     """

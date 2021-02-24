@@ -16,20 +16,22 @@ import functools
 import inspect
 
 from abc import ABC, ABCMeta, abstractmethod
-from typing import Any, Dict, Iterable, List, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
+
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from numpy import ndarray
+
 import scqubits.core.constants as constants
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from numpy import ndarray
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
@@ -328,7 +330,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         subtract_ground: bool = False,
         get_eigenstates: bool = False,
         filename: str = None,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates eigenvalues/eigenstates for a varying system parameter,
         given an array of parameter values. Returns a `SpectrumData` object with
@@ -355,6 +357,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         previous_paramval = getattr(self, param_name)
         tqdm_disable = num_cpus > 1 or settings.PROGRESSBAR_DISABLED
 
@@ -435,7 +438,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_name: str,
         param_vals: ndarray,
         evals_count: int = 6,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates matrix elements for a varying system parameter, given an array
         of parameter values. Returns a `SpectrumData` object containing matrix
@@ -456,6 +459,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         spectrumdata = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
@@ -488,7 +492,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_vals: ndarray,
         evals_count: int = 6,
         subtract_ground: bool = False,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Generates a simple plot of a set of eigenvalues as a function of one
@@ -513,6 +517,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         **kwargs:
             standard plotting option (see separate documentation)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         specdata = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
@@ -531,7 +536,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         show_numbers: bool = False,
         show3d: bool = True,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Union[Tuple[Figure, Tuple[Axes, Axes]], Tuple[Figure, Axes]]:
         """Plots matrix elements for `operator`, given as a string referring to a
         class method that returns an operator matrix. E.g., for instance `trm` of
         Transmon, the matrix element plot for the charge operator `n` is obtained by
@@ -575,7 +580,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_vals: ndarray,
         select_elems: Union[int, List[Tuple[int, int]]] = 4,
         mode: str = "abs",
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Generates a simple plot of a set of eigenvalues as a function of one
@@ -598,10 +603,12 @@ class QubitBaseClass(QuantumSystem, ABC):
             entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value
             (default value = 'abs')
         num_cpus:
-            number of cores to be used for computation (default value = 1)
+            number of cores to be used for computation
+            (default value: settings.NUM_CPUS)
         **kwargs:
             standard plotting option (see separate documentation)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         if isinstance(select_elems, int):
             evals_count = select_elems
         else:
