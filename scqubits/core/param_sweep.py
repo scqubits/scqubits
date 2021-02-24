@@ -15,7 +15,7 @@ import warnings
 
 from abc import ABC
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -171,43 +171,9 @@ class ParameterSweepBase(ABC):
         ]
         return sweep_indices
 
-    # def is_single_sweep(self, param_indices) -> bool:
-    #     if len(self["dressed_indices"][param_indices].shape) != 2:
-    #         return False
-    #     return True
-
-    #
-    # @property
-    # def dressed_specdata(self) -> SpectrumData:
-    #     return self.lookup._dressed_specdata
-    #
-    # def _lookup_bare_eigenstates(
-    #     self,
-    #     param_index: int,
-    #     subsys: QuantumSys,
-    #     bare_specdata_list: List[SpectrumData],
-    # ) -> Union[ndarray, List[QutipEigenstates]]:
-    #     """
-    #     Parameters
-    #     ----------
-    #     param_index:
-    #         position index of parameter value in question
-    #     subsys:
-    #         Hilbert space subsystem for which bare eigendata is to be looked up
-    #     bare_specdata_list:
-    #         may be provided during partial generation of the lookup
-    #
-    #     Returns
-    #     -------
-    #         bare eigenvectors for the specified subsystem and the external parameter
-    #         fixed to the value indicated by its index
-    #     """
-    #     subsys_index = self.get_subsys_index(subsys)
-    #     return bare_specdata_list[subsys_index].state_table[param_index]  # type: ignore
-    #
-    # @property
-    # def system_params(self) -> Dict[str, Any]:
-    #     return self._hilbertspace.get_initdata()
+    @property
+    def system_params(self) -> Dict[str, Any]:
+        return self._hilbertspace.get_initdata()
 
 
 class ParameterSweep(
@@ -261,6 +227,9 @@ class ParameterSweep(
         This indicates that changes in <parameter name 1> only require updates of
         <subsystem a> while leaving other subsystems unchanged. Similarly, sweeping
         <parameter name 2> affects <subsystem b>, <subsystem c> etc.
+    bare_only:
+        if set to True, only bare eigendata is calculated; useful when performing a
+        sweep for a single quantum system, no interaction (default: False)
     autorun:
         Determines whether to directly run the sweep or delay it until `.run()` is
         called manually. (Default: settings.AUTORUN_SWEEP=True)
@@ -289,6 +258,7 @@ class ParameterSweep(
         sweep_generators: Optional[Dict[str, Callable]] = None,
         evals_count: int = 6,
         subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
+        bare_only: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
         num_cpus: Optional[int] = None,
     ) -> None:
@@ -300,6 +270,7 @@ class ParameterSweep(
         self._update_hilbertspace = update_hilbertspace
         self._subsys_update_info = subsys_update_info
         self._data: Dict[str, Optional[NamedSlotsNdarray]] = {}
+        self._bare_only = bare_only
         self._num_cpus = num_cpus
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
@@ -336,15 +307,18 @@ class ParameterSweep(
         return iodata
 
     def run(self) -> None:
+        """Create all sweep data: bare spectral data, dressed spectral data, lookup
+        data and custom sweep data."""
         # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
         self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
         self._data["bare_esys"] = self._bare_spectrum_sweep()
-        self._data["esys"] = self._dressed_spectrum_sweep()
-        self._data["dressed_indices"] = self.generate_lookup()
+        if not self._bare_only:
+            self._data["esys"] = self._dressed_spectrum_sweep()
+            self._data["dressed_indices"] = self.generate_lookup()
         if self._sweep_generators is not None:
             for sweep_name, sweep_generator in self._sweep_generators.items():
-                self._data[sweep_name] = self.custom_sweep(sweep_generator)
+                self._data[sweep_name] = self._custom_sweeps(sweep_generator)
         settings.DISPATCH_ENABLED = True
 
     def _bare_spectrum_sweep(self) -> NamedSlotsNdarray:
@@ -389,7 +363,7 @@ class ParameterSweep(
         esys_array[1] = evecs
         return esys_array
 
-    def paramnames_no_subsys_update(self, subsystem) -> List[str]:
+    def _paramnames_no_subsys_update(self, subsystem) -> List[str]:
         if self._subsys_update_info is None:
             return []
         updating_parameters = [
@@ -412,7 +386,7 @@ class ParameterSweep(
             multidimensional array of the format
             array[p1, p2, p3, ..., pN] = np.asarray[[evals, evecs]]
         """
-        fixed_paramnames = self.paramnames_no_subsys_update(subsystem)
+        fixed_paramnames = self._paramnames_no_subsys_update(subsystem)
         reduced_parameters = self.parameters.create_reduced(fixed_paramnames)
         total_count = np.prod([len(param_vals) for param_vals in reduced_parameters])
 
@@ -486,6 +460,9 @@ class ParameterSweep(
             NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "esys"]
             "esys": 0, 1 yields eigenvalues and eigenvectors, respectively
         """
+        if len(self._hilbertspace) == 1 and self._hilbertspace.interaction_list == []:
+            return self._data["bare_esys"]["subsys":0]
+
         multi_cpu = self._num_cpus > 1
         target_map = cpu_switch.get_map_method(self._num_cpus)
         total_count = np.prod(self.parameters.counts)
@@ -519,11 +496,25 @@ class ParameterSweep(
 
         return NamedSlotsNdarray(spectrum_data, OrderedDict(slotparamvals_by_name))
 
-    def custom_sweep(self, sweep_generator: Callable):
-        pass
+    def _custom_sweeps(
+        self,
+        sweep_generators: Dict[str, Union[Callable, Tuple[Callable, Dict[str, Any]]]],
+    ) -> None:
+        for name, generator_obj in sweep_generators.items():
+            if callable(generator_obj):
+                generator = generator_obj
+                self._data[name] = generator(self)
+            else:
+                generator = generator_obj[0]
+                kwargs = generator_obj[1]
+                self._data[name] = generator(self, **kwargs)
 
-    def add_sweep(self, sweep_name: str, sweep_generator: Callable) -> None:
-        pass
+    def add_sweep(
+        self,
+        sweep_name: str,
+        sweep_generator: Union[Callable, Tuple[Callable, Dict[str, Any]]],
+    ) -> None:
+        self._custom_sweeps({sweep_name: sweep_generator})
 
 
 class StoredSweep(

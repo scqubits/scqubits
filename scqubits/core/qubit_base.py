@@ -37,8 +37,7 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.settings import IN_IPYTHON
 from scqubits.utils.cpu_switch import get_map_method
-from scqubits.utils.misc import InfoBar, drop_private_keys, process_which
-from scqubits.utils.plot_defaults import set_wavefunction_scaling
+from scqubits.utils.misc import InfoBar, process_which
 from scqubits.utils.spectrum_utils import (
     get_matrixelement_table,
     order_eigensystem,
@@ -432,6 +431,95 @@ class QubitBaseClass(QuantumSystem, ABC):
             state_table=eigenstate_table,
         )
 
+    def get_dispersion_vs_paramvals(
+        self,
+        dispersion_name: str,
+        param_name: str,
+        param_vals: ndarray,
+        ref_param: Optional[str] = None,
+        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
+        point_count: int = 50,
+        num_cpus: Optional[int] = None,
+    ) -> SpectrumData:
+        """Calculates eigenvalues/eigenstates for a varying system parameter,
+        given an array of parameter values. Returns a `SpectrumData` object with
+        `energy_data[n]` containing eigenvalues calculated for parameter value
+        `param_vals[n]`.
+
+        Parameters
+        ----------
+        dispersion_name:
+            parameter inducing the dispersion, typically 'ng' or 'flux' (will be
+            scanned over range from 0 to 1)
+        param_name:
+            name of parameter to be varied
+        param_vals:
+            parameter values to be plugged in
+        ref_param:
+            optional, name of parameter to use as reference for the parameter value;
+            e.g., to compute charge dispersion vs. EJ/EC, use EJ as param_name and
+            EC as ref_param
+        transitions:
+            integer tuple or tuples specifying for which transitions dispersion is to
+            be calculated
+            (default: = (0,1))
+        point_count:
+            number of points scanned for the dispersion parameter for determining min
+            and max values of transition energies (default: 50)
+        num_cpus:
+            number of cores to be used for computation
+            (default value: settings.NUM_CPUS)
+        """
+        from scqubits import HilbertSpace, ParameterSweep
+
+        if isinstance(transitions[0], int):
+            transitions = (transitions,)
+
+        hilbertspace = HilbertSpace(subsystem_list=[self])
+
+        paramvals_by_name = {
+            dispersion_name: np.linspace(0.0, 1.0, point_count),
+            param_name: param_vals,
+        }
+
+        def update_func(disp_val, sweep_val):
+            setattr(self, dispersion_name, disp_val)
+            setattr(self, param_name, sweep_val)
+
+        previous_dispval = getattr(self, dispersion_name)
+        previous_paramval = getattr(self, param_name)
+        max_level = np.max(transitions)
+        sweep = ParameterSweep(
+            hilbertspace,
+            paramvals_by_name,
+            update_func,
+            evals_count=max_level,
+            bare_only=True,
+            num_cpus=num_cpus,
+        )
+        setattr(self, param_name, previous_paramval)
+        setattr(self, dispersion_name, previous_dispval)
+
+        eigenenergies = sweep["bare_esys"][0, :, :, 0].toarray()
+
+        dispersions = np.empty((len(transitions), len(param_vals)))
+        for index, (i, j) in enumerate(transitions):
+            energy_ij = eigenenergies[:, :, i] - eigenenergies[:, :, j]
+            dispersions[index] = np.max(energy_ij, axis=0) - np.min(energy_ij, axis=0)
+
+        if ref_param is not None:
+            param_name += "/" + ref_param
+
+        specdata = SpectrumData(
+            sweep["bare_esys"][0, :, :, 0],
+            self.get_initdata(),
+            param_name,
+            param_vals / getattr(self, ref_param),
+            transitions=transitions,
+            dispersion=dispersions.T,
+        )
+        return specdata
+
     def get_matelements_vs_paramvals(
         self,
         operator: str,
@@ -526,6 +614,68 @@ class QubitBaseClass(QuantumSystem, ABC):
             num_cpus=num_cpus,
         )
         return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
+
+    def plot_dispersion_vs_paramvals(
+        self,
+        dispersion_name: str,
+        param_name: str,
+        param_vals: ndarray,
+        ref_param: Optional[str] = None,
+        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
+        point_count: int = 50,
+        num_cpus: Optional[int] = None,
+        **kwargs,
+    ) -> Tuple[Figure, Axes]:
+        """Generates a simple plot of a set of curves representing the charge or flux
+        dispersion of transition energies.
+
+        Parameters
+        ----------
+        dispersion_name:
+            parameter inducing the dispersion, typically 'ng' or 'flux' (will be
+            scanned over range from 0 to 1)
+        param_name:
+            name of parameter to be varied
+        param_vals:
+            parameter values to be plugged in
+        ref_param:
+            optional, name of parameter to use as reference for the parameter value;
+            e.g., to compute charge dispersion vs. EJ/EC, use EJ as param_name and
+            EC as ref_param
+        transitions:
+            integer tuple or tuples specifying for which transitions dispersion is to
+            be calculated
+            (default: = (0,1))
+        point_count:
+            number of points scanned for the dispersion parameter for determining min
+            and max values of transition energies (default: 50)
+        num_cpus:
+            number of cores to be used for computation
+            (default value: settings.NUM_CPUS)
+        **kwargs:
+            standard plotting option (see separate documentation)
+        """
+        specdata = self.get_dispersion_vs_paramvals(
+            dispersion_name,
+            param_name,
+            param_vals,
+            ref_param=ref_param,
+            transitions=transitions,
+            point_count=point_count,
+            num_cpus=num_cpus,
+        )
+        if isinstance(transitions[0], int):
+            transitions = (transitions,)
+        label_list = ["{}{}".format(i, j) for i, j in transitions]
+        return plot.data_vs_paramvals(
+            xdata=specdata.param_vals,
+            ydata=specdata.dispersion,
+            label_list=label_list,
+            xlabel=specdata.param_name,
+            ylabel="energy dispersion [{}]".format(units.get_units()),
+            yscale="log",
+            **kwargs,
+        )
 
     def plot_matrixelements(
         self,
