@@ -44,4 +44,4 @@ def test_value_access():
 def test_named_slice():
     tst = NamedSlotsNdarray(data, paramvals_by_name)
     assert np.allclose(tst["p2":2:-1], data[:, 2:-1, :])
-    assert np.allclose(tst['p2':2, 'p1':0], tst['p1': 0, 'p2':2])
+    assert np.allclose(tst["p2":2, "p1":0], tst["p1":0, "p2":2])

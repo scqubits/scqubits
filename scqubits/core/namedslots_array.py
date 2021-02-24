@@ -22,7 +22,6 @@ from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import Serializable
 from scqubits.utils.misc import Number
 
-
 NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]
 NpIndices = Union[NpIndex, NpIndexTuple]
@@ -386,8 +385,9 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         return len(self.parameters.paramvals_by_name)
 
     def recast(self) -> "NamedSlotsNdarray":
-        return NamedSlotsNdarray(np.asarray(self[:].tolist()),
-                                 self.parameters.paramvals_by_name)
+        return NamedSlotsNdarray(
+            np.asarray(self[:].tolist()), self.parameters.paramvals_by_name
+        )
 
     def toarray(self) -> ndarray:
         return np.asarray(self[:].tolist())

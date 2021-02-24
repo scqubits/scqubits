@@ -939,7 +939,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     ###################################################################################
     # HilbertSpace: add interaction and parsing arguments to .add_interaction
     ###################################################################################
-    def add_interaction(self, check_validity = True, **kwargs) -> None:
+    def add_interaction(self, check_validity=True, **kwargs) -> None:
         if "expr" in kwargs:
             interaction = self._parse_interactiontermstr(**kwargs)
         elif "qobj" in kwargs:
@@ -960,9 +960,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             _ = self.interaction_hamiltonian()
         except:
             self.interaction_list.pop()
-            raise ValueError(
-                "Invalid Interaction Term"
-            )
+            raise ValueError("Invalid Interaction Term")
 
     def _parse_interactiontermstr(self, **kwargs) -> InteractionTermStr:
         expr = kwargs.pop("expr")
