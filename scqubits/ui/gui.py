@@ -187,6 +187,7 @@ class GUI:
             "FullZeroPi",
             "Cos2PhiQubit",
         ]
+        self.gui_active = True
         self.slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
         self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
         self.fig: Figure
@@ -254,12 +255,9 @@ class GUI:
 
     # Widget EventHandler Methods -------------------------------------------------------------------------------------------------
     def scan_dropdown_eventhandler(self, change):
+        self.gui_active = False
         self.qubit_params_widgets[change.old].disabled = False
         self.qubit_params_widgets[change.new].disabled = True
-
-        self.qubit_plot_options_widgets[
-            "scan_range_slider"
-        ].description = "{} range".format(change.new)
 
         self.qubit_plot_options_widgets["scan_range_slider"].min = self.active_defaults[
             change.new
@@ -267,10 +265,15 @@ class GUI:
         self.qubit_plot_options_widgets["scan_range_slider"].max = self.active_defaults[
             change.new
         ]["max"]
-        #self.qubit_plot_options_widgets["scan_range_slider"].value = [
-        #    self.active_defaults[change.new]["min"],
-        #    self.active_defaults[change.new]["max"],
-        #]
+        self.qubit_plot_options_widgets["scan_range_slider"].value = [
+            self.active_defaults[change.new]["min"],
+            self.active_defaults[change.new]["max"],
+        ]
+
+        self.gui_active = True
+        self.qubit_plot_options_widgets[
+            "scan_range_slider"
+        ].description = "{} range".format(change.new)
 
     def save_button_clicked_action(self, *args):
         self.fig.savefig(self.qubit_plot_options_widgets["filename_text"].value)
@@ -305,6 +308,8 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
+        if not self.gui_active:
+            return None
         scan_min, scan_max = scan_range
         self.active_qubit.set_params(**params)
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
@@ -345,6 +350,8 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
+        if not self.gui_active:
+            return None
         grid_min, grid_max = params["grid"]
         del params["grid"]
         params["grid_min_val"] = grid_min
@@ -392,6 +399,8 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
+        if not self.gui_active:
+            return None
         scan_min, scan_max = scan_range
         self.active_qubit.set_params(**params)
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
@@ -436,6 +445,8 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
+        if not self.gui_active:
+            return None
         grid_min, grid_max = params["grid"]
         del params["grid"]
         params["grid_min_val"] = grid_min
