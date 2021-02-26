@@ -60,7 +60,8 @@ class Explorer:
         self, param_val, photonnumber, initial_index, final_index, qbt_index, osc_index
     ):
         """
-        Create a panel of plots (bare spectra, bare wavefunctions, dressed spectrum, n-photon qubit transitions, chi).
+        Create a panel of plots (bare spectra, bare wavefunctions, dressed spectrum,
+        n-photon qubit transitions, chi).
 
         Parameters
         ----------
@@ -71,7 +72,8 @@ class Explorer:
         initial_index: int
             dressed-state index of the initial state used in transition
         final_index: int
-            dressed-state index of the final state used in transition (in dressed spectrum display)
+            dressed-state index of the final state used in transition (in dressed
+            spectrum display)
         qbt_index: int
             index of qubit subsystem for which matrix elements and chi's are displayed
         osc_index: int

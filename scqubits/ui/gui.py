@@ -46,7 +46,6 @@ else:
 from pathlib import Path
 
 import scqubits as scq
-
 import scqubits.utils.misc as utils
 
 from scqubits.core.qubit_base import QubitBaseClass
@@ -232,7 +231,7 @@ class GUI:
         self.active_qubit = QubitClass(**self.qubit_current_params)
 
     def set_qubit(self, qubit_name: str) -> None:
-        """Sets up the chosen qubit to be the active qubit 
+        """Sets up the chosen qubit to be the active qubit
         and updates the defaults and widgets accordingly.
 
         Parameters
@@ -295,10 +294,10 @@ class GUI:
     def update_grid_qubit_params(self, **params):
         grid_min, grid_max = params["grid"]
         updated_grid = scq.Grid1d(
-                    min_val=grid_min,
-                    max_val=grid_max,
-                    pt_count=self.grid_defaults["grid_pt_count"],
-                )
+            min_val=grid_min,
+            max_val=grid_max,
+            pt_count=self.grid_defaults["grid_pt_count"],
+        )
         params.update({"grid": updated_grid})
         self.qubit_current_params.update(params)
         del params["grid"]
@@ -306,7 +305,7 @@ class GUI:
         params["grid_max_val"] = grid_max
         params["grid_pt_count"] = self.grid_defaults["grid_pt_count"]
         self.active_qubit.set_params(**params)
-    
+
     def evals_vs_paramvals_plot(
         self,
         scan_value: str,
@@ -458,7 +457,7 @@ class GUI:
         scan_range:
             Sets the interval [ min, max ] through
             which plot_matelem_vs_paramvals() will plot over.
-            
+
         matrix_element_state_value:
             The number of states/elements that will be shown.
 
@@ -594,11 +593,11 @@ class GUI:
         show_numbers_tf:
             Determines whether the numerical values will be shown in the 2D plot.
             Initially set to False.
-            
+
         show3d_tf:
             Determines whether a 3D version of the 2D plot will be shown.
             Initially set to True.
-        
+
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
@@ -637,7 +636,7 @@ class GUI:
         show_numbers_tf:
             Determines whether the numerical values will be shown in the 2D plot.
             Initially set to False.
-            
+
         show3d_tf:
             Determines whether a 3D version of the 2D plot will be shown.
             Initially set to True.
@@ -866,7 +865,7 @@ class GUI:
 
         Parameters
         ----------
-        qubit_plot_interactive: 
+        qubit_plot_interactive:
         """
         if qubit_plot_interactive is None:
             display("FullZeroPi currently does not have Wavefunctions implemented.")
@@ -891,7 +890,7 @@ class GUI:
     # Create Methods -------------------------------------------------------------------------------------------------
     def create_params_dict(self) -> None:
         """Initializes qubit_base_params and qubit_scan_params.
-        Note that qubit_scan_params will be used to create the 
+        Note that qubit_scan_params will be used to create the
         dropdown options.
         """
         self.qubit_base_params.clear()
@@ -911,8 +910,7 @@ class GUI:
                 self.qubit_scan_params[param_name] = param_val
 
     def create_plot_settings_widgets(self):
-        """Creates all the widgets that will be used for general plotting options. 
-        """
+        """Creates all the widgets that will be used for general plotting options."""
         self.qubit_plot_options_widgets = {}
         std_layout = Layout(width="300px")
 
@@ -1033,7 +1031,7 @@ class GUI:
         )
 
     def create_qubit_params_widgets(self):
-        """Creates all the widgets that will be used 
+        """Creates all the widgets that will be used
         for changing the parameter values for the specified qubit.
         """
         # We need to clear qubit_params_widgets since the previous widgets from the old qubit will still be initialized otherwise.
@@ -1078,7 +1076,7 @@ class GUI:
                 )
 
     def create_qubit_and_plot_choice_widgets(self):
-        """Creates all the widgets that controls 
+        """Creates all the widgets that controls
         which qubit or plot the user can choose from.
         """
         self.qubit_and_plot_choice_widgets = {
@@ -1088,7 +1086,9 @@ class GUI:
                 layout=widgets.Layout(width="800px"),
             ),
             "plot_buttons": widgets.ToggleButtons(
-                options=self.plot_choices, description="Plot:", button_style="info",
+                options=self.plot_choices,
+                description="Plot:",
+                button_style="info",
             ),
             "show_qubitinfo_checkbox": widgets.Checkbox(
                 value=False, description="qubit info", disabled=False
@@ -1133,19 +1133,19 @@ class GUI:
         return widget_list
 
     def create_qubit_plot_interactive(self, plot_value: str) -> widgets.interactive:
-        """Creates the qubit_plot_interactive that corresponds to the 
-            selected qubit and plot option.
+        """Creates the qubit_plot_interactive that corresponds to the
+        selected qubit and plot option.
 
-            Parameters
-            ----------
-            plot_value:
-                Current plot option chosen (e.g. Energy Spectrum)
+        Parameters
+        ----------
+        plot_value:
+            Current plot option chosen (e.g. Energy Spectrum)
 
-            Returns
-            -------
-            widgets.interactive
+        Returns
+        -------
+        widgets.interactive
 
-            """
+        """
         if plot_value == "Energy spectrum":
             return self.energy_scan_interactive()
         elif plot_value == "Matrix element scan":
@@ -1157,13 +1157,13 @@ class GUI:
 
     def create_GUI(self) -> Tuple[widgets.VBox, widgets.interactive_output]:
         """Creates the two main components of the GUI: the qubit and plot option
-        buttons and the interactive_output that connects the buttons with 
+        buttons and the interactive_output that connects the buttons with
         the main qubit plot.
 
         Returns
         -------
         Tuple[ widgets.VBox, widgets.interactive_output ]
-            
+
         """
         qubit_choice_hbox = widgets.HBox(
             [
