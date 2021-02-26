@@ -43,7 +43,7 @@ def recast_name(raw_name: Union[str, None]) -> str:
 
 
 def set_wavefunction_scaling(
-    wavefunctions: "List[WaveFunction]", potential_vals: np.ndarray
+    wavefunctions: "List[WaveFunction]", potential_vals: np.ndarray,
 ) -> float:
     """
     Sets the scaling parameter for 1d wavefunctions
@@ -55,24 +55,27 @@ def set_wavefunction_scaling(
     # Do not attempt to scale down amplitudes to very small energy spacings, i.e. if
     # energy spacing is smaller than y_range * Y_RANGE_THRESHOLD_FRACTION, then do
     # not apply additional downscaling
-    Y_RANGE_THRESHOLD_FRACTION = 1 / 15
+    Y_RANGE_THRESHOLD_FRACTION = 1 / 12
 
     # If energy spacing is used for scaling, fill no more than this  fraction of the
     # spacing.
-    FILLING_FRACTION = 1.0
+    FILLING_FRACTION = 0.9
 
     # Largest allowed wavefunction amplitude range as fraction of y_range.
     MAX_AMPLITUDE_FRACTION = 1 / 7
 
     # Amplitude threshold for applying any scaling at all. Note that the imaginary
     # part of a wavefunction may be nominally 0; do not scale up in that case.
-    PRECISION_THRESHOLD = 1e-8
+    PRECISION_THRESHOLD = 1e-6
 
     wavefunc_count = len(wavefunctions)
     energies = [wavefunc.energy for wavefunc in wavefunctions]
 
+    e_max = np.max(energies)
+    e_min = np.min(energies)
+    e_range = e_max - e_min
     y_min = np.min(potential_vals)
-    y_max = max([np.max(potential_vals), np.max(energies)])
+    y_max = e_max + 0.3 * e_range
     y_range = y_max - y_min
 
     amplitudes = np.asarray([wavefunc.amplitudes for wavefunc in wavefunctions])

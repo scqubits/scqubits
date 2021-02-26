@@ -209,6 +209,14 @@ def wavefunction1d(
         )
 
     if potential_vals is not None:
+        y_min = np.min(potential_vals)
+        y_max = np.max(offset_list)
+        y_range = y_max - y_min
+
+        y_max += 0.3 * y_range
+        y_min = np.min(potential_vals) - 0.1 * y_range
+        axes.set_ylim([y_min, y_max])
+
         axes.plot(
             x_vals,
             potential_vals,
@@ -242,7 +250,7 @@ def renormalization_factor(
     FILL_FACTOR = 0.1
     energy_range = np.max(potential_vals) - np.min(potential_vals)
     amplitude_range = np.max(wavefunc.amplitudes) - np.min(wavefunc.amplitudes)
-    if math.isclose(amplitude_range, 0.0):
+    if amplitude_range < 1.0e-10:
         return 0.0
     return FILL_FACTOR * energy_range / amplitude_range
 
