@@ -91,7 +91,8 @@ class GUI:
             **global_defaults,
             "scan_param": "flux",
             "operator": "n_operator",
-            "EL": {"min": 1e-10, "max": 30},
+            "EC": {"min": 1e-2, "max": 50},
+            "EL": {"min": 1e-10, "max": 5},
             "cutoff": {"min": 10, "max": 120},
             "scale": 1,
             "num_sample": 150,
@@ -188,9 +189,11 @@ class GUI:
             "Cos2PhiQubit",
         ]
         self.gui_active = True
+        self.qubit_change = True
         self.slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
         self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
         self.fig: Figure
+        self.qubit_current_params: Dict[str, Union[int, float, None]] = {}
         self.qubit_base_params: Dict[str, Union[int, float, None]] = {}
         self.qubit_scan_params: Dict[str, Union[int, float, None]] = {}
         self.qubit_plot_options_widgets: Dict[widgets] = {}
@@ -214,16 +217,19 @@ class GUI:
         qubit_name:
         """
         QubitClass = getattr(scq, qubit_name)
-        init_params = QubitClass.default_params()
+        if self.qubit_change:
+            init_params = QubitClass.default_params()
 
-        if qubit_name == "ZeroPi" or qubit_name == "FullZeroPi":
-            init_params["grid"] = scq.Grid1d(
-                min_val=self.grid_defaults["grid_min_val"],
-                max_val=self.grid_defaults["grid_max_val"],
-                pt_count=self.grid_defaults["grid_pt_count"],
-            )
+            if qubit_name == "ZeroPi" or qubit_name == "FullZeroPi":
+                init_params["grid"] = scq.Grid1d(
+                    min_val=self.grid_defaults["grid_min_val"],
+                    max_val=self.grid_defaults["grid_max_val"],
+                    pt_count=self.grid_defaults["grid_pt_count"],
+                )
+            self.qubit_current_params = init_params
+            self.qubit_change = False
 
-        self.active_qubit = QubitClass(**init_params)
+        self.active_qubit = QubitClass(**self.qubit_current_params)
 
     def set_qubit(self, qubit_name: str) -> None:
         """Sets up the chosen qubit to be the active qubit 
@@ -275,10 +281,32 @@ class GUI:
             "scan_range_slider"
         ].description = "{} range".format(change.new)
 
+    def qubit_buttons_eventhandler(self, change):
+        self.qubit_change = True
+
     def save_button_clicked_action(self, *args):
         self.fig.savefig(self.qubit_plot_options_widgets["filename_text"].value)
 
     # Methods for qubit_plot_interactive -------------------------------------------------------------------------------------------------
+    def update_qubit_params(self, **params):
+        self.qubit_current_params.update(params)
+        self.active_qubit.set_params(**self.qubit_current_params)
+
+    def update_grid_qubit_params(self, **params):
+        grid_min, grid_max = params["grid"]
+        updated_grid = scq.Grid1d(
+                    min_val=grid_min,
+                    max_val=grid_max,
+                    pt_count=self.grid_defaults["grid_pt_count"],
+                )
+        params.update({"grid": updated_grid})
+        self.qubit_current_params.update(params)
+        del params["grid"]
+        params["grid_min_val"] = grid_min
+        params["grid_max_val"] = grid_max
+        params["grid_pt_count"] = self.grid_defaults["grid_pt_count"]
+        self.active_qubit.set_params(**params)
+    
     def evals_vs_paramvals_plot(
         self,
         scan_value: str,
@@ -311,7 +339,7 @@ class GUI:
         if not self.gui_active:
             return None
         scan_min, scan_max = scan_range
-        self.active_qubit.set_params(**params)
+        self.update_qubit_params(**params)
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
         self.fig, _ = self.active_qubit.plot_evals_vs_paramvals(
             scan_value,
@@ -352,12 +380,7 @@ class GUI:
         """
         if not self.gui_active:
             return None
-        grid_min, grid_max = params["grid"]
-        del params["grid"]
-        params["grid_min_val"] = grid_min
-        params["grid_max_val"] = grid_max
-        params["grid_pt_count"] = self.grid_defaults["grid_pt_count"]
-        self.active_qubit.set_params(**params)
+        self.update_grid_qubit_params(**params)
         scan_min, scan_max = scan_range
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
         self.fig, _ = self.active_qubit.plot_evals_vs_paramvals(
@@ -402,7 +425,7 @@ class GUI:
         if not self.gui_active:
             return None
         scan_min, scan_max = scan_range
-        self.active_qubit.set_params(**params)
+        self.update_qubit_params(**params)
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
         self.fig, _ = self.active_qubit.plot_matelem_vs_paramvals(
             operator_value,
@@ -447,12 +470,7 @@ class GUI:
         """
         if not self.gui_active:
             return None
-        grid_min, grid_max = params["grid"]
-        del params["grid"]
-        params["grid_min_val"] = grid_min
-        params["grid_max_val"] = grid_max
-        params["grid_pt_count"] = self.grid_defaults["grid_pt_count"]
-        self.active_qubit.set_params(**params)
+        self.update_grid_qubit_params(**params)
         scan_min, scan_max = scan_range
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
         self.fig, _ = self.active_qubit.plot_matelem_vs_paramvals(
@@ -497,7 +515,7 @@ class GUI:
             self.qubit_plot_options_widgets["wavefunction_scale_slider"].disabled = True
             scale_value = None
 
-        self.active_qubit.set_params(**params)
+        self.update_qubit_params(**params)
         self.fig, _ = self.active_qubit.plot_wavefunction(
             which=eigenvalue_states, mode=mode_value, scaling=scale_value
         )
@@ -521,7 +539,7 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
-        self.active_qubit.set_params(**params)
+        self.update_qubit_params(**params)
         self.fig, _ = self.active_qubit.plot_wavefunction(
             which=eigenvalue_states, mode=mode_value
         )
@@ -546,12 +564,7 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
-        grid_min, grid_max = params["grid"]
-        del params["grid"]
-        params["grid_min_val"] = grid_min
-        params["grid_max_val"] = grid_max
-        params["grid_pt_count"] = self.grid_defaults["grid_pt_count"]
-        self.active_qubit.set_params(**params)
+        self.update_grid_qubit_params(**params)
         self.fig, _ = self.active_qubit.plot_wavefunction(
             which=eigenvalue_states, mode=mode_value
         )
@@ -589,7 +602,7 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
-        self.active_qubit.set_params(**params)
+        self.update_qubit_params(**params)
         self.fig, _ = self.active_qubit.plot_matrixelements(
             operator_value,
             evals_count=eigenvalue_state_value,
@@ -632,12 +645,7 @@ class GUI:
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
-        grid_min, grid_max = params["grid"]
-        del params["grid"]
-        params["grid_min_val"] = grid_min
-        params["grid_max_val"] = grid_max
-        params["grid_pt_count"] = self.grid_defaults["grid_pt_count"]
-        self.active_qubit.set_params(**params)
+        self.update_grid_qubit_params(**params)
         self.fig, _ = self.active_qubit.plot_matrixelements(
             operator_value,
             evals_count=eigenvalue_state_value,
@@ -888,7 +896,7 @@ class GUI:
         """
         self.qubit_base_params.clear()
         self.qubit_scan_params.clear()
-        self.qubit_base_params = dict(self.active_qubit.default_params())
+        self.qubit_base_params = dict(self.qubit_current_params)
         if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(
             self.active_qubit, scq.FullZeroPi
         ):
@@ -998,7 +1006,7 @@ class GUI:
             ),
             "wavefunction_multi_state_selector": widgets.SelectMultiple(
                 options=range(0, 10),
-                value=[0, 1, 2],
+                value=[0, 1, 2, 3, 4],
                 description="States",
                 disabled=False,
                 continuous_update=False,
@@ -1033,10 +1041,12 @@ class GUI:
 
         for param_name, param_val in self.qubit_base_params.items():
             if param_name == "grid":
+                grid_min = self.qubit_current_params["grid"].min_val
+                grid_max = self.qubit_current_params["grid"].max_val
                 self.qubit_params_widgets[param_name] = widgets.FloatRangeSlider(
                     min=-12 * np.pi,
                     max=12 * np.pi,
-                    value=[-6 * np.pi, 6 * np.pi],
+                    value=[grid_min, grid_max],
                     step=0.05,
                     description="Grid range",
                     continuous_update=False,
@@ -1084,6 +1094,9 @@ class GUI:
                 value=False, description="qubit info", disabled=False
             ),
         }
+        self.qubit_and_plot_choice_widgets["qubit_buttons"].observe(
+            self.qubit_buttons_eventhandler, names="value"
+        )
 
     def create_plot_option_columns(
         self, qubit_plot_interactive: widgets.interactive
