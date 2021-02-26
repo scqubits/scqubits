@@ -198,9 +198,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             "ng": 0.1,
             "flux": 0.23,
             "ncut": 30,
-            "zeropi_cutoff": 10,
-            "zeta_cutoff": 40,
-            "truncated_dim": 10,
+            "zeropi_cutoff": 5,
+            "zeta_cutoff": 10,
+            "truncated_dim": 5,
         }
 
     @classmethod
