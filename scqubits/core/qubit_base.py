@@ -546,12 +546,13 @@ class QubitBaseClass(QuantumSystem, ABC):
 
         if ref_param is not None:
             param_name += "/" + ref_param
+            param_vals /= getattr(self, ref_param)
 
         specdata = SpectrumData(
             eigenenergies,
             self.get_initdata(),
             param_name,
-            param_vals / getattr(self, ref_param),
+            param_vals,
             labels=levels or transitions,
             dispersion=dispersion.T,
         )
