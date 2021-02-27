@@ -161,7 +161,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
             "The Oscillator class does not implement the matrixelement_table method."
         )
 
-    def phi(self) -> ndarray:
+    def phi_operator(self) -> ndarray:
         """Returns the phase operator defined as"""
         if self.losc is None:
             raise ValueError(
@@ -172,7 +172,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         a = op.annihilation(self.truncated_dim)
         return self.losc / np.sqrt(2) * (a + a.T)
 
-    def n(self) -> ndarray:
+    def n_operator(self) -> ndarray:
         """Returns the number operator defined as"""
         if self.losc is None:
             raise ValueError(
