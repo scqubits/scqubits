@@ -72,17 +72,17 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJ': 15.0,
-            'EC': 3.5,
-            'EL': 0.32,
-            'ELA': 0.32,
-            'flux_c': 0.5,
-            'flux_d': 0.0
+            "EJ": 15.0,
+            "EC": 3.5,
+            "EL": 0.32,
+            "ELA": 0.32,
+            "flux_c": 0.5,
+            "flux_d": 0.0,
         }
 
     @staticmethod
     def nonfit_params():
-        return ['flux_c', 'flux_d']
+        return ["flux_c", "flux_d"]
 
     def dim_phi(self):
         """
@@ -135,7 +135,11 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`zeta' operator in the LC harmonic oscillator basis
         """
         dimension = self.dim_zeta()
-        return (op.creation_sparse(dimension) + op.annihilation_sparse(dimension)) * self.zeta_osc() / np.sqrt(2)
+        return (
+            (op.creation_sparse(dimension) + op.annihilation_sparse(dimension))
+            * self.zeta_osc()
+            / np.sqrt(2)
+        )
 
     def zeta_operator(self):
         """
@@ -144,7 +148,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`phi' operator in total Hilbert space
         """
-        return self._kron3(self._identity_phi(), self._zeta_operator(), self._identity_theta())
+        return self._kron3(
+            self._identity_phi(), self._zeta_operator(), self._identity_theta()
+        )
 
     def _n_zeta_operator(self):
         """
@@ -154,8 +160,11 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`n_\phi = - i d/d\\phi` operator
         """
         dimension = self.dim_zeta()
-        return 1j * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension)) / (
-                self.zeta_osc() * np.sqrt(2))
+        return (
+            1j
+            * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension))
+            / (self.zeta_osc() * np.sqrt(2))
+        )
 
     def n_zeta_operator(self):
         """
@@ -164,7 +173,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`n_phi' operator in total Hilbert space
         """
-        return self._kron3(self._identity_phi(), self._n_zeta_operator(), self._identity_theta())
+        return self._kron3(
+            self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
+        )
 
     def _phi_operator(self):
         """
@@ -173,7 +184,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`\phi` operator in the discretized basis
         """
-        return sparse.dia_matrix((self.phi_grid.make_linspace(), [0]), shape=(self.dim_phi(), self.dim_phi())).tocsc()
+        return sparse.dia_matrix(
+            (self.phi_grid.make_linspace(), [0]), shape=(self.dim_phi(), self.dim_phi())
+        ).tocsc()
 
     def phi_operator(self):
         """
@@ -182,7 +195,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`phi' operator in total Hilbert space
         """
-        return self._kron3(self._phi_operator(), self._identity_zeta(), self._identity_theta())
+        return self._kron3(
+            self._phi_operator(), self._identity_zeta(), self._identity_theta()
+        )
 
     def _n_phi_operator(self):
         """
@@ -200,7 +215,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`n_phi' operator in total Hilbert space
         """
-        return self._kron3(self._n_phi_operator(), self._identity_zeta(), self._identity_theta())
+        return self._kron3(
+            self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
+        )
 
     def _cos_phi_div_operator(self, div):
         """
@@ -210,7 +227,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`\\cos \\phi/div` operator
         """
         cos_phi_div_vals = np.cos(self.phi_grid.make_linspace() / div)
-        return sparse.dia_matrix((cos_phi_div_vals, [0]), shape=(self.dim_phi(), self.dim_phi())).tocsc()
+        return sparse.dia_matrix(
+            (cos_phi_div_vals, [0]), shape=(self.dim_phi(), self.dim_phi())
+        ).tocsc()
 
     def _sin_phi_div_operator(self, div):
         """
@@ -220,7 +239,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`\\sin \\phi/div` operator
         """
         sin_phi_div_vals = np.sin(self.phi_grid.make_linspace() / div)
-        return sparse.dia_matrix((sin_phi_div_vals, [0]), shape=(self.dim_phi(), self.dim_phi())).tocsc()
+        return sparse.dia_matrix(
+            (sin_phi_div_vals, [0]), shape=(self.dim_phi(), self.dim_phi())
+        ).tocsc()
 
     def _theta_operator(self):
         """
@@ -229,8 +250,10 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`theta' operator in total Hilbert space
         """
-        return sparse.dia_matrix((self.theta_grid.make_linspace(), [0]),
-                                 shape=(self.dim_theta(), self.dim_theta())).tocsc()
+        return sparse.dia_matrix(
+            (self.theta_grid.make_linspace(), [0]),
+            shape=(self.dim_theta(), self.dim_theta()),
+        ).tocsc()
 
     def theta_operator(self):
         """
@@ -239,7 +262,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the :math:`theta' operator in total Hilbert space
         """
-        return self._kron3(self._identity_phi(), self._identity_zeta(), self._theta_operator())
+        return self._kron3(
+            self._identity_phi(), self._identity_zeta(), self._theta_operator()
+        )
 
     def _n_theta_operator(self):
         """
@@ -257,7 +282,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns charge operator :math:`\\n_theta` in the total Hilbert space
         """
-        return self._kron3(self._identity_phi(), self._identity_zeta(), self._n_theta_operator())
+        return self._kron3(
+            self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
+        )
 
     def _cos_theta_div_operator(self, div):
         """
@@ -267,7 +294,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`\\cos \\theta/div` operator
         """
         cos_theta_div_vals = np.cos(self.theta_grid.make_linspace() / div)
-        return sparse.dia_matrix((cos_theta_div_vals, [0]), shape=(self.dim_theta(), self.dim_theta())).tocsc()
+        return sparse.dia_matrix(
+            (cos_theta_div_vals, [0]), shape=(self.dim_theta(), self.dim_theta())
+        ).tocsc()
 
     def _sin_theta_div_operator(self, div):
         """
@@ -277,7 +306,9 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
             Returns the :math:`\\sin \\theta/div` operator
         """
         sin_theta_div_vals = np.sin(self.theta_grid.make_linspace() / div)
-        return sparse.dia_matrix((sin_theta_div_vals, [0]), shape=(self.dim_theta(), self.dim_theta())).tocsc()
+        return sparse.dia_matrix(
+            (sin_theta_div_vals, [0]), shape=(self.dim_theta(), self.dim_theta())
+        ).tocsc()
 
     def _kron3(self, mat1, mat2, mat3):
         """
@@ -286,7 +317,7 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         ndarray
             Returns the kronecker product of two operators
         """
-        return sparse.kron(sparse.kron(mat1, mat2, format='csc'), mat3, format='csc')
+        return sparse.kron(sparse.kron(mat1, mat2, format="csc"), mat3, format="csc")
 
     def _identity_phi(self):
         """
@@ -296,7 +327,7 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         -------
             scipy.sparse.csc_mat
         """
-        return sparse.identity(self.dim_phi(), format='csc', dtype=np.complex_)
+        return sparse.identity(self.dim_phi(), format="csc", dtype=np.complex_)
 
     def _identity_theta(self):
         """
@@ -306,7 +337,7 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         -------
             scipy.sparse.csc_mat
         """
-        return sparse.identity(self.dim_theta(), format='csc', dtype=np.complex_)
+        return sparse.identity(self.dim_theta(), format="csc", dtype=np.complex_)
 
     def _identity_zeta(self):
         """
@@ -316,7 +347,7 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         -------
             scipy.sparse.csc_mat
         """
-        return sparse.identity(self.dim_zeta(), format='csc', dtype=np.complex_)
+        return sparse.identity(self.dim_zeta(), format="csc", dtype=np.complex_)
 
     def total_identity(self):
         """
@@ -326,41 +357,89 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         -------
             scipy.sparse.csc_mat
         """
-        return self._kron3(self._identity_phi(), self._identity_zeta(), self._identity_theta())
+        return self._kron3(
+            self._identity_phi(), self._identity_zeta(), self._identity_theta()
+        )
 
     def hamiltonian(self):
-        zeta_osc = self._kron3(self._identity_phi(), op.number_sparse(self.dim_zeta(), self.zeta_plasma()),
-                               self._identity_theta())
+        zeta_osc = self._kron3(
+            self._identity_phi(),
+            op.number_sparse(self.dim_zeta(), self.zeta_plasma()),
+            self._identity_theta(),
+        )
 
-        phi_kinetic = self.phi_grid.second_derivative_matrix(prefactor=- 2.0 * self.EC)
-        theta_kinetic = self.theta_grid.second_derivative_matrix(prefactor=- 2.0 * self.EC)
-        tot_kinetic = self._kron3(phi_kinetic, self._identity_zeta(), self._identity_theta()) + self._kron3(
-            self._identity_phi(), self._identity_zeta(), theta_kinetic)
+        phi_kinetic = self.phi_grid.second_derivative_matrix(prefactor=-2.0 * self.EC)
+        theta_kinetic = self.theta_grid.second_derivative_matrix(
+            prefactor=-2.0 * self.EC
+        )
+        tot_kinetic = self._kron3(
+            phi_kinetic, self._identity_zeta(), self._identity_theta()
+        ) + self._kron3(self._identity_phi(), self._identity_zeta(), theta_kinetic)
 
-        phi_ind = self.EL * (self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux_c) ** 2
-        theta_ind = self.EL * (self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) ** 2
-        coupling_ind = - 2 * self.EL * (
-                    self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d) * self.zeta_operator()
+        phi_ind = (
+            self.EL
+            * (self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux_c)
+            ** 2
+        )
+        theta_ind = (
+            self.EL
+            * (self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d)
+            ** 2
+        )
+        coupling_ind = (
+            -2
+            * self.EL
+            * (self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d)
+            * self.zeta_operator()
+        )
 
         # note the 2EJ constant term is added to be consistent with the 'LM' option in eigensolver
-        phi_theta_junction = - 2 * self.EJ * self._kron3(self._cos_phi_div_operator(1.0), self._identity_zeta(),
-                                                         self._cos_theta_div_operator(
-                                                             1.0)) + 2 * self.EJ * self.total_identity()
-        return zeta_osc + tot_kinetic + phi_ind + theta_ind + coupling_ind + phi_theta_junction
+        phi_theta_junction = (
+            -2
+            * self.EJ
+            * self._kron3(
+                self._cos_phi_div_operator(1.0),
+                self._identity_zeta(),
+                self._cos_theta_div_operator(1.0),
+            )
+            + 2 * self.EJ * self.total_identity()
+        )
+        return (
+            zeta_osc
+            + tot_kinetic
+            + phi_ind
+            + theta_ind
+            + coupling_ind
+            + phi_theta_junction
+        )
 
     def _evals_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, sigma=0.0, which='LM')
+        evals = eigsh(
+            hamiltonian_mat,
+            k=evals_count,
+            return_eigenvectors=False,
+            sigma=0.0,
+            which="LM",
+        )
         # evals = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=False, which='SA')
         return np.sort(evals)
 
     def _esys_calc(self, evals_count):
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = eigsh(hamiltonian_mat, k=evals_count, return_eigenvectors=True, sigma=0.0, which='LM')
+        evals, evecs = eigsh(
+            hamiltonian_mat,
+            k=evals_count,
+            return_eigenvectors=True,
+            sigma=0.0,
+            which="LM",
+        )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def wavefunction(self, esys=None, which=0, phi_grid=None, zeta_grid=None, theta_grid=None):
+    def wavefunction(
+        self, esys=None, which=0, phi_grid=None, zeta_grid=None, theta_grid=None
+    ):
         evals_count = max(which + 1, 3)
         if esys is None:
             _, evecs = self.eigensys(evals_count)
@@ -371,24 +450,44 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         zeta_grid = zeta_grid or self.zeta_grid
         theta_grid = theta_grid or self.theta_grid
 
-        state_amplitudes = evecs[:, which].reshape(self.dim_phi(), self.dim_zeta(), self.dim_theta())
+        state_amplitudes = evecs[:, which].reshape(
+            self.dim_phi(), self.dim_zeta(), self.dim_theta()
+        )
 
-        zeta_osc_amplitudes = np.zeros((self.dim_zeta(), zeta_grid.pt_count), dtype=np.complex_)
+        zeta_osc_amplitudes = np.zeros(
+            (self.dim_zeta(), zeta_grid.pt_count), dtype=np.complex_
+        )
         for i in range(self.dim_zeta()):
-            zeta_osc_amplitudes[i, :] = osc.harm_osc_wavefunction(i, zeta_grid.make_linspace(), self.zeta_osc())
+            zeta_osc_amplitudes[i, :] = osc.harm_osc_wavefunction(
+                i, zeta_grid.make_linspace(), self.zeta_osc()
+            )
 
-        wavefunc_amplitudes = np.swapaxes(np.tensordot(zeta_osc_amplitudes, state_amplitudes, axes=([0], [1])), 0, 1)
+        wavefunc_amplitudes = np.swapaxes(
+            np.tensordot(zeta_osc_amplitudes, state_amplitudes, axes=([0], [1])), 0, 1
+        )
         wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
 
         grid3d = discretization.GridSpec(
-            np.asarray([[phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
-                        [zeta_grid.min_val, zeta_grid.max_val, zeta_grid.pt_count],
-                        [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count]]))
+            np.asarray(
+                [
+                    [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                    [zeta_grid.min_val, zeta_grid.max_val, zeta_grid.pt_count],
+                    [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
+                ]
+            )
+        )
         return storage.WaveFunctionOnGrid(grid3d, wavefunc_amplitudes)
 
-    def plot_phi_theta_wavefunction(self, esys=None, which=0, phi_grid=None, theta_grid=None, mode='abs',
-                                    zero_calibrate=True,
-                                    **kwargs):
+    def plot_phi_theta_wavefunction(
+        self,
+        esys=None,
+        which=0,
+        phi_grid=None,
+        theta_grid=None,
+        mode="abs",
+        zero_calibrate=True,
+        **kwargs
+    ):
         """
         Plots 2D phase-basis wave function at zeta = 0
 
@@ -418,24 +517,39 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         theta_grid = theta_grid or self.theta_grid
 
         amplitude_modifier = constants.MODE_FUNC_DICT[mode]
-        wavefunc = self.wavefunction(esys, phi_grid=phi_grid, zeta_grid=zeta_grid, theta_grid=theta_grid,
-                                     which=which)
+        wavefunc = self.wavefunction(
+            esys,
+            phi_grid=phi_grid,
+            zeta_grid=zeta_grid,
+            theta_grid=theta_grid,
+            which=which,
+        )
 
-        wavefunc.gridspec = discretization.GridSpec(np.asarray(
-            [[theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
-             [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count]]))
+        wavefunc.gridspec = discretization.GridSpec(
+            np.asarray(
+                [
+                    [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
+                    [phi_grid.min_val, phi_grid.max_val, phi_grid.pt_count],
+                ]
+            )
+        )
         wavefunc.amplitudes = amplitude_modifier(
-            spec_utils.standardize_phases(wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)))
+            spec_utils.standardize_phases(
+                wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)
+            )
+        )
 
-        fig, axes = plot.wavefunction2d(wavefunc, zero_calibrate=zero_calibrate, **kwargs)
+        fig, axes = plot.wavefunction2d(
+            wavefunc, zero_calibrate=zero_calibrate, **kwargs
+        )
         axes.set_xlim([-2 * np.pi, 2 * np.pi])
         axes.set_ylim([-1 * np.pi, 3 * np.pi])
-        axes.set_ylabel(r'$\phi$')
-        axes.set_xlabel(r'$\theta$')
+        axes.set_ylabel(r"$\phi$")
+        axes.set_xlabel(r"$\theta$")
         axes.set_xticks([-np.pi, 0, np.pi])
-        axes.set_xticklabels(['-$\pi$', '$0$', '$\pi$'])
+        axes.set_xticklabels(["-$\pi$", "$0$", "$\pi$"])
         axes.set_yticks([0, np.pi, 2 * np.pi])
-        axes.set_yticklabels(['0', '$\pi$', '$2\pi$'])
+        axes.set_yticklabels(["0", "$\pi$", "$2\pi$"])
 
         return fig, axes
 
@@ -462,9 +576,13 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         Frequency dependent quality factor for inductive loss
         """
         q_ind_0 = 500 * 1e6
-        return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt) * np.sinh(0.5 / 2.0 / self.kbt) / kn(0,
-                                                                                          energy / 2.0 / self.kbt) / np.sinh(
-            energy / 2.0 / self.kbt)
+        return (
+            q_ind_0
+            * kn(0, 0.5 / 2.0 / self.kbt)
+            * np.sinh(0.5 / 2.0 / self.kbt)
+            / kn(0, energy / 2.0 / self.kbt)
+            / np.sinh(energy / 2.0 / self.kbt)
+        )
 
     def charge_jj_1_operator(self):
         """
@@ -482,10 +600,26 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         """
         sin(phase_jj_1/2) operator, used in quasiparticle loss calculation
         """
-        cos_phi_2 = self._kron3(self._cos_phi_div_operator(2.0), self._identity_zeta(), self._identity_theta())
-        sin_phi_2 = self._kron3(self._sin_phi_div_operator(2.0), self._identity_zeta(), self._identity_theta())
-        cos_theta_2 = self._kron3(self._identity_phi(), self._identity_zeta(), self._cos_theta_div_operator(2.0))
-        sin_theta_2 = self._kron3(self._identity_phi(), self._identity_zeta(), self._sin_theta_div_operator(2.0))
+        cos_phi_2 = self._kron3(
+            self._cos_phi_div_operator(2.0),
+            self._identity_zeta(),
+            self._identity_theta(),
+        )
+        sin_phi_2 = self._kron3(
+            self._sin_phi_div_operator(2.0),
+            self._identity_zeta(),
+            self._identity_theta(),
+        )
+        cos_theta_2 = self._kron3(
+            self._identity_phi(),
+            self._identity_zeta(),
+            self._cos_theta_div_operator(2.0),
+        )
+        sin_theta_2 = self._kron3(
+            self._identity_phi(),
+            self._identity_zeta(),
+            self._sin_theta_div_operator(2.0),
+        )
 
         return sin_phi_2 * cos_theta_2 + cos_phi_2 * sin_theta_2
 
@@ -493,10 +627,26 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         """
         sin(phase_jj_2/2) operator, used in quasiparticle loss calculation
         """
-        cos_phi_2 = self._kron3(self._cos_phi_div_operator(2.0), self._identity_zeta(), self._identity_theta())
-        sin_phi_2 = self._kron3(self._sin_phi_div_operator(2.0), self._identity_zeta(), self._identity_theta())
-        cos_theta_2 = self._kron3(self._identity_phi(), self._identity_zeta(), self._cos_theta_div_operator(2.0))
-        sin_theta_2 = self._kron3(self._identity_phi(), self._identity_zeta(), self._sin_theta_div_operator(2.0))
+        cos_phi_2 = self._kron3(
+            self._cos_phi_div_operator(2.0),
+            self._identity_zeta(),
+            self._identity_theta(),
+        )
+        sin_phi_2 = self._kron3(
+            self._sin_phi_div_operator(2.0),
+            self._identity_zeta(),
+            self._identity_theta(),
+        )
+        cos_theta_2 = self._kron3(
+            self._identity_phi(),
+            self._identity_zeta(),
+            self._cos_theta_div_operator(2.0),
+        )
+        sin_theta_2 = self._kron3(
+            self._identity_phi(),
+            self._identity_zeta(),
+            self._sin_theta_div_operator(2.0),
+        )
 
         return sin_phi_2 * cos_theta_2 - cos_phi_2 * sin_theta_2
 
@@ -506,8 +656,18 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         """
         gap = 80.0
         xqp = 1e-8
-        return 16 * np.pi * np.sqrt(2 / np.pi) / gap * energy * (2 * gap / energy) ** 1.5 * xqp * np.sqrt(
-            energy / 2 / self.kbt) * kn(0, energy / 2 / self.kbt) * np.sinh(energy / 2 / self.kbt)
+        return (
+            16
+            * np.pi
+            * np.sqrt(2 / np.pi)
+            / gap
+            * energy
+            * (2 * gap / energy) ** 1.5
+            * xqp
+            * np.sqrt(energy / 2 / self.kbt)
+            * kn(0, energy / 2 / self.kbt)
+            * np.sinh(energy / 2 / self.kbt)
+        )
 
     def q_cap(self, energy):
         """
@@ -529,8 +689,11 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         """
         thermal factor for upward and downward transition
         """
-        return np.where(energy > 0, 0.5 * (1 / (np.tanh(energy / 2.0 / self.kbt)) + 1),
-                        0.5 * (1 / (np.tanh(- energy / 2.0 / self.kbt)) - 1))
+        return np.where(
+            energy > 0,
+            0.5 * (1 / (np.tanh(energy / 2.0 / self.kbt)) + 1),
+            0.5 * (1 / (np.tanh(-energy / 2.0 / self.kbt)) - 1),
+        )
 
     def get_t1_capacitive_loss(self, init_state):
         """
@@ -541,19 +704,31 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         energy_diff = energy[init_state] - energy
         energy_diff = np.delete(energy_diff, init_state)
 
-        matelem_1 = self.get_matelements_vs_paramvals('charge_jj_1_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[0,
-                    init_state, :]
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "charge_jj_1_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('charge_jj_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[0,
-                    init_state, :]
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "charge_jj_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_2 = np.delete(matelem_2, init_state)
 
-        s_vv_1 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-        s_vv_2 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
+        s_vv_1 = (
+            2
+            * np.pi
+            * 16
+            * self.EC
+            / self.q_cap(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
+        s_vv_2 = (
+            2
+            * np.pi
+            * 16
+            * self.EC
+            / self.q_cap(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
 
         gamma1_cap_1 = np.abs(matelem_1) ** 2 * s_vv_1
         gamma1_cap_2 = np.abs(matelem_2) ** 2 * s_vv_2
@@ -570,30 +745,51 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         energy_diff = energy[init_state] - energy
         energy_diff = np.delete(energy_diff, init_state)
 
-        matelem_1 = self.get_matelements_vs_paramvals('phase_ind_1_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "phase_ind_1_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('phase_ind_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "phase_ind_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_2 = np.delete(matelem_2, init_state)
-        matelem_a = self.get_matelements_vs_paramvals('phase_ind_a_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_a = self.get_matelements_vs_paramvals(
+            "phase_ind_a_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_a = np.delete(matelem_a, init_state)
 
-        s_ii_1 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-        s_ii_2 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-        s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_ii_1 = (
+            2
+            * np.pi
+            * 2
+            * self.EL
+            / self.q_ind(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
+        s_ii_2 = (
+            2
+            * np.pi
+            * 2
+            * self.EL
+            / self.q_ind(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
+        s_ii_a = (
+            2
+            * np.pi
+            * 2
+            * self.ELA
+            / self.q_ind(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
 
         gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
         gamma1_ind_2 = np.abs(matelem_2) ** 2 * s_ii_2
         gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
 
-        gamma1_ind_tot = np.sum(gamma1_ind_1) + np.sum(gamma1_ind_2) + np.sum(gamma1_ind_a)
+        gamma1_ind_tot = (
+            np.sum(gamma1_ind_1) + np.sum(gamma1_ind_2) + np.sum(gamma1_ind_a)
+        )
         return 1 / (gamma1_ind_tot) * 1e-6
 
     def get_t1_qp_loss(self, init_state):
@@ -605,17 +801,21 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         energy_diff = energy[init_state] - energy
         energy_diff = np.delete(energy_diff, init_state)
 
-        matelem_1 = self.get_matelements_vs_paramvals('sin_phase_jj_1_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "sin_phase_jj_1_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('sin_phase_jj_2_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "sin_phase_jj_2_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_2 = np.delete(matelem_2, init_state)
 
-        s_qp_1 = self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_qp_2 = self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_qp_1 = (
+            self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        )
+        s_qp_2 = (
+            self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        )
 
         gamma1_qp_1 = np.abs(matelem_1) ** 2 * s_qp_1
         gamma1_qp_2 = np.abs(matelem_2) ** 2 * s_qp_2
@@ -630,14 +830,19 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         delta = 1e-6
         pts = 11
         flux_c_list = np.linspace(self.flux_c - delta, self.flux_c + delta, pts)
-        energy = self.get_spectrum_vs_paramvals('flux_c', flux_c_list, evals_count=init_state + 2,
-                                                subtract_ground=True).energy_table[:, init_state]
+        energy = self.get_spectrum_vs_paramvals(
+            "flux_c", flux_c_list, evals_count=init_state + 2, subtract_ground=True
+        ).energy_table[:, init_state]
         first_derivative = np.gradient(energy, flux_c_list)[int(np.round(pts / 2))]
-        second_derivative = np.gradient(np.gradient(energy, flux_c_list), flux_c_list)[int(np.round(pts / 2))]
+        second_derivative = np.gradient(np.gradient(energy, flux_c_list), flux_c_list)[
+            int(np.round(pts / 2))
+        ]
 
         first_order = 3e-6 * np.abs(first_derivative)
         second_order = 9e-12 * np.abs(second_derivative)
-        return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
+        return np.abs(1 / (first_order + second_order) * 1e-6) / (
+            2 * np.pi
+        )  # unit in ms
 
     def get_t2_flux_d_noise(self, init_state):
         """
@@ -646,27 +851,40 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         delta = 1e-6
         pts = 11
         flux_d_list = np.linspace(self.flux_d - delta, self.flux_d + delta, pts)
-        energy = self.get_spectrum_vs_paramvals('flux_d', flux_d_list, evals_count=init_state + 2,
-                                                subtract_ground=True).energy_table[:, init_state]
+        energy = self.get_spectrum_vs_paramvals(
+            "flux_d", flux_d_list, evals_count=init_state + 2, subtract_ground=True
+        ).energy_table[:, init_state]
         first_derivative = np.gradient(energy, flux_d_list)[int(np.round(pts / 2))]
-        second_derivative = np.gradient(np.gradient(energy, flux_d_list), flux_d_list)[int(np.round(pts / 2))]
+        second_derivative = np.gradient(np.gradient(energy, flux_d_list), flux_d_list)[
+            int(np.round(pts / 2))
+        ]
 
         first_order = 3e-6 * np.abs(first_derivative)
         second_order = 9e-12 * np.abs(second_derivative)
-        return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
+        return np.abs(1 / (first_order + second_order) * 1e-6) / (
+            2 * np.pi
+        )  # unit in ms
 
     def current_noise_operator(self):
-        return - 2 * self._kron3(self._cos_phi_div_operator(1.0), self._identity_zeta(),
-                                 self._cos_theta_div_operator(1.0))
+        return -2 * self._kron3(
+            self._cos_phi_div_operator(1.0),
+            self._identity_zeta(),
+            self._cos_theta_div_operator(1.0),
+        )
 
     def get_t2_current_noise(self, g_state, e_state):
         """Calculate the current noise using operator method up to first order"""
         cutoff = e_state + 2
-        matele = self.get_matelements_vs_paramvals('current_noise_operator', 'ph', [0],
-                                                   evals_count=cutoff).matrixelem_table
-        first_derivative = np.abs(matele[0, e_state, e_state] - matele[0, g_state, g_state])
+        matele = self.get_matelements_vs_paramvals(
+            "current_noise_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table
+        first_derivative = np.abs(
+            matele[0, e_state, e_state] - matele[0, g_state, g_state]
+        )
 
-        return np.abs(1 / (5e-7 * self.EJ * np.abs(first_derivative)) * 1e-6) / (2 * np.pi)  # unit in ms
+        return np.abs(1 / (5e-7 * self.EJ * np.abs(first_derivative)) * 1e-6) / (
+            2 * np.pi
+        )  # unit in ms
 
     # def get_t2_current_noise(self, init_state):
     #     """
@@ -690,23 +908,55 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         t2_current = self.get_t2_current_noise(g_state, e_state)
         t2_flux_c = self.get_t2_flux_c_noise(e_state)
         t2_flux_d = self.get_t2_flux_d_noise(e_state)
-        t1_cap = 1 / (1 / self.get_t1_capacitive_loss(g_state) + 1 / self.get_t1_capacitive_loss(e_state))
-        t1_ind = 1 / (1 / self.get_t1_inductive_loss(g_state) + 1 / self.get_t1_inductive_loss(e_state))
-        t1_qp = 1 / (1 / self.get_t1_qp_loss(g_state) + 1 / self.get_t1_qp_loss(e_state))
+        t1_cap = 1 / (
+            1 / self.get_t1_capacitive_loss(g_state)
+            + 1 / self.get_t1_capacitive_loss(e_state)
+        )
+        t1_ind = 1 / (
+            1 / self.get_t1_inductive_loss(g_state)
+            + 1 / self.get_t1_inductive_loss(e_state)
+        )
+        t1_qp = 1 / (
+            1 / self.get_t1_qp_loss(g_state) + 1 / self.get_t1_qp_loss(e_state)
+        )
         t1_tot = 1 / (1 / t1_cap + 1 / t1_ind + 1 / t1_qp)
         t2_tot = 1 / (1 / t2_current + 1 / t2_flux_c + 1 / t2_flux_d + 1 / t1_tot / 2)
 
         if table is True:
-            print(' T2_current =', t2_current, ' ms', '\n T2_flux_c =', t2_flux_c,
-                  ' ms', '\n T2_flux_d =', t2_flux_d,
-                  ' ms', '\n T1_cap =',
-                  t1_cap, ' ms', '\n T1_ind =', t1_ind, ' ms', '\n T1_qp =', t1_qp, ' ms', '\n T1 =', t1_tot,
-                  ' ms', '\n T2 =', t2_tot,
-                  ' ms')
+            print(
+                " T2_current =",
+                t2_current,
+                " ms",
+                "\n T2_flux_c =",
+                t2_flux_c,
+                " ms",
+                "\n T2_flux_d =",
+                t2_flux_d,
+                " ms",
+                "\n T1_cap =",
+                t1_cap,
+                " ms",
+                "\n T1_ind =",
+                t1_ind,
+                " ms",
+                "\n T1_qp =",
+                t1_qp,
+                " ms",
+                "\n T1 =",
+                t1_tot,
+                " ms",
+                "\n T2 =",
+                t2_tot,
+                " ms",
+            )
 
-        return np.array([t2_current, t2_flux_c, t2_flux_d, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot])
+        return np.array(
+            [t2_current, t2_flux_c, t2_flux_d, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot]
+        )
 
-    def dispersive_shift(self, w_readout, beta_phi, beta_zeta, beta_theta, cutoff, ratio_plot=False):
+    def dispersive_shift(
+        self, w_readout, beta_phi, beta_zeta, beta_theta, cutoff, ratio_plot=False
+    ):
         """
         Calculate the dispersive shift
         :param w_readout: frequency of the readout
@@ -732,55 +982,96 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         tab_g_coupling = np.zeros((cutoff, cutoff), dtype=np.complex_)
         ds_table = np.zeros((cutoff, 1))
         if beta_zeta == 0 and beta_theta == 0:
-            matelem_phi = self.get_matelements_vs_paramvals('n_phi_operator', 'ph', [0],
-                                                            evals_count=cutoff)
+            matelem_phi = self.get_matelements_vs_paramvals(
+                "n_phi_operator", "ph", [0], evals_count=cutoff
+            )
             for i in range(cutoff):
-                ds_table[i] = np.sum(np.abs(np.delete(matelem_phi.matrixelem_table[
-                                                      0, i, :], i) * beta_phi) ** 2 * (
-                                             1 / energy_diff_ij[i] - 1 / energy_diff_ji[i]))
+                ds_table[i] = np.sum(
+                    np.abs(
+                        np.delete(matelem_phi.matrixelem_table[0, i, :], i) * beta_phi
+                    )
+                    ** 2
+                    * (1 / energy_diff_ij[i] - 1 / energy_diff_ji[i])
+                )
             tab_g_coupling = matelem_phi.matrixelem_table[0, :, :] * factor * beta_phi
         elif beta_zeta == 0 and beta_phi == 0:
-            matelem_theta = self.get_matelements_vs_paramvals('n_theta_operator', 'ph', [0],
-                                                              evals_count=cutoff)
+            matelem_theta = self.get_matelements_vs_paramvals(
+                "n_theta_operator", "ph", [0], evals_count=cutoff
+            )
             for i in range(cutoff):
-                ds_table[i] = np.sum(np.abs(np.delete(matelem_theta.matrixelem_table[
-                                                      0, i, :], i) * beta_theta) ** 2 * (
-                                             1 / energy_diff_ij[i] - 1 / energy_diff_ji[i]))
-            tab_g_coupling = matelem_theta.matrixelem_table[0, :, :] * factor * beta_theta
+                ds_table[i] = np.sum(
+                    np.abs(
+                        np.delete(matelem_theta.matrixelem_table[0, i, :], i)
+                        * beta_theta
+                    )
+                    ** 2
+                    * (1 / energy_diff_ij[i] - 1 / energy_diff_ji[i])
+                )
+            tab_g_coupling = (
+                matelem_theta.matrixelem_table[0, :, :] * factor * beta_theta
+            )
         elif beta_theta == 0 and beta_phi == 0:
-            matelem_zeta = self.get_matelements_vs_paramvals('n_zeta_operator', 'ph', [0],
-                                                              evals_count=cutoff)
+            matelem_zeta = self.get_matelements_vs_paramvals(
+                "n_zeta_operator", "ph", [0], evals_count=cutoff
+            )
             for i in range(cutoff):
-                ds_table[i] = np.sum(np.abs(np.delete(matelem_zeta.matrixelem_table[
-                                                      0, i, :], i) * beta_zeta) ** 2 * (
-                                             1 / energy_diff_ij[i] - 1 / energy_diff_ji[i]))
+                ds_table[i] = np.sum(
+                    np.abs(
+                        np.delete(matelem_zeta.matrixelem_table[0, i, :], i) * beta_zeta
+                    )
+                    ** 2
+                    * (1 / energy_diff_ij[i] - 1 / energy_diff_ji[i])
+                )
             tab_g_coupling = matelem_zeta.matrixelem_table[0, :, :] * factor * beta_zeta
-        else:   # take care of the random phase
+        else:  # take care of the random phase
             for i in range(cutoff):
                 for j in range(cutoff):
                     if i != j:
-                        ds_temp = matele_utils.matrix_element(states[:, i], self.n_phi_operator(),
-                                                              states[:, j]) * beta_phi + matele_utils.matrix_element(
-                            states[:, i], self.n_theta_operator(), states[:, j]) * beta_theta + + matele_utils.matrix_element(
-                            states[:, i], self.n_zeta_operator(), states[:, j]) * beta_zeta
-                        ds_table[i] += np.abs(ds_temp) ** 2 * (1 / (eigsys[0][i] - eigsys[0][j] - w_readout) - 1 / (
-                                eigsys[0][j] - eigsys[0][i] - w_readout))
+                        ds_temp = (
+                            matele_utils.matrix_element(
+                                states[:, i], self.n_phi_operator(), states[:, j]
+                            )
+                            * beta_phi
+                            + matele_utils.matrix_element(
+                                states[:, i], self.n_theta_operator(), states[:, j]
+                            )
+                            * beta_theta
+                            + +matele_utils.matrix_element(
+                                states[:, i], self.n_zeta_operator(), states[:, j]
+                            )
+                            * beta_zeta
+                        )
+                        ds_table[i] += np.abs(ds_temp) ** 2 * (
+                            1 / (eigsys[0][i] - eigsys[0][j] - w_readout)
+                            - 1 / (eigsys[0][j] - eigsys[0][i] - w_readout)
+                        )
                         tab_g_coupling[i, j] = ds_temp * factor
 
         if ratio_plot is True:
             ratio = np.abs(tab_g_coupling / tab_energy_diff)
             fig, axes = plt.subplots(figsize=(4, 4))
-            im = axes.imshow(ratio, extent=[0, cutoff - 1, 0, cutoff - 1],
-                             cmap=plt.cm.viridis, vmin=0.01, vmax=1, origin='lower', aspect='auto')
+            im = axes.imshow(
+                ratio,
+                extent=[0, cutoff - 1, 0, cutoff - 1],
+                cmap=plt.cm.viridis,
+                vmin=0.01,
+                vmax=1,
+                origin="lower",
+                aspect="auto",
+            )
             divider = make_axes_locatable(axes)
             cax = divider.append_axes("right", size="2%", pad=0.05)
             fig.colorbar(im, cax=cax)
-            axes.set_title(r'$|g_{ij}/\Delta_{ij}|$')
-            axes.set_xlabel('i')
-            axes.set_ylabel('j')
+            axes.set_title(r"$|g_{ij}/\Delta_{ij}|$")
+            axes.set_xlabel("i")
+            axes.set_ylabel("j")
 
-        return ds_table * factor ** 2, np.abs(tab_g_coupling / tab_energy_diff), energy, np.abs(tab_g_coupling)
-
+        return (
+            ds_table * factor ** 2,
+            np.abs(tab_g_coupling / tab_energy_diff),
+            energy,
+            np.abs(tab_g_coupling),
+        )
 
     def get_t1_capacitive_loss_channel(self, init_state):
         """
@@ -791,19 +1082,31 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         energy_diff = energy[init_state] - energy
         energy_diff = np.delete(energy_diff, init_state)
 
-        matelem_1 = self.get_matelements_vs_paramvals('charge_jj_1_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[0,
-                    init_state, :]
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "charge_jj_1_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('charge_jj_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[0,
-                    init_state, :]
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "charge_jj_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_2 = np.delete(matelem_2, init_state)
 
-        s_vv_1 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-        s_vv_2 = 2 * np.pi * 16 * self.EC / self.q_cap(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
+        s_vv_1 = (
+            2
+            * np.pi
+            * 16
+            * self.EC
+            / self.q_cap(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
+        s_vv_2 = (
+            2
+            * np.pi
+            * 16
+            * self.EC
+            / self.q_cap(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
 
         gamma1_cap_1 = np.abs(matelem_1) ** 2 * s_vv_1
         gamma1_cap_2 = np.abs(matelem_2) ** 2 * s_vv_2
@@ -820,24 +1123,43 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         energy_diff = energy[init_state] - energy
         energy_diff = np.delete(energy_diff, init_state)
 
-        matelem_1 = self.get_matelements_vs_paramvals('phase_ind_1_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "phase_ind_1_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('phase_ind_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "phase_ind_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_2 = np.delete(matelem_2, init_state)
-        matelem_a = self.get_matelements_vs_paramvals('phase_ind_a_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_a = self.get_matelements_vs_paramvals(
+            "phase_ind_a_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_a = np.delete(matelem_a, init_state)
 
-        s_ii_1 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-        s_ii_2 = 2 * np.pi * 2 * self.EL / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(
-            energy_diff)
-        s_ii_a = 2 * np.pi * 2 * self.ELA / self.q_ind(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_ii_1 = (
+            2
+            * np.pi
+            * 2
+            * self.EL
+            / self.q_ind(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
+        s_ii_2 = (
+            2
+            * np.pi
+            * 2
+            * self.EL
+            / self.q_ind(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
+        s_ii_a = (
+            2
+            * np.pi
+            * 2
+            * self.ELA
+            / self.q_ind(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
 
         gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
         gamma1_ind_2 = np.abs(matelem_2) ** 2 * s_ii_2
@@ -855,17 +1177,21 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         energy_diff = energy[init_state] - energy
         energy_diff = np.delete(energy_diff, init_state)
 
-        matelem_1 = self.get_matelements_vs_paramvals('sin_phase_jj_1_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "sin_phase_jj_1_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_1 = np.delete(matelem_1, init_state)
-        matelem_2 = self.get_matelements_vs_paramvals('sin_phase_jj_2_2_operator', 'ph', [0],
-                                                      evals_count=cutoff).matrixelem_table[
-                    0, init_state, :]
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "sin_phase_jj_2_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
         matelem_2 = np.delete(matelem_2, init_state)
 
-        s_qp_1 = self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
-        s_qp_2 = self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        s_qp_1 = (
+            self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        )
+        s_qp_2 = (
+            self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(energy_diff)
+        )
 
         gamma1_qp_1 = np.abs(matelem_1) ** 2 * s_qp_1
         gamma1_qp_2 = np.abs(matelem_2) ** 2 * s_qp_2
@@ -878,8 +1204,11 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         capacitive_loss = self.get_t1_capacitive_loss_channel(init_state)
         qp_loss = self.get_t1_qp_loss_channel(init_state)
 
-        return 1/(1/inductive_loss + 1/capacitive_loss + 1/qp_loss)
+        return 1 / (1 / inductive_loss + 1 / capacitive_loss + 1 / qp_loss)
 
     def parity_operator(self):
-        return self.n_phi_operator() + self.n_theta_operator() + self.n_zeta_operator()
-
+        return (
+            self.n_phi_operator() * 0.1
+            + self.n_theta_operator() * 0.1
+            + self.n_zeta_operator() * 0.9
+        )
