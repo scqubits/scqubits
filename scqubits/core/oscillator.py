@@ -1,4 +1,4 @@
-# harmonic_osc.py
+# oscillator.py
 #
 # This file is part of scqubits.
 #
@@ -64,11 +64,13 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         self,
         E_osc: float = None,
         omega: float = None,
+        losc: float = None,
         truncated_dim: int = _default_evals_count,
     ) -> None:
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self.truncated_dim: int = truncated_dim
+        self.losc: Union[None, float] = losc
 
         # Support for omega will be rolled back eventually. For now allow with
         # deprecation warnings.
@@ -158,3 +160,59 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         raise NotImplementedError(
             "The Oscillator class does not implement the matrixelement_table method."
         )
+
+    def phi(self) -> ndarray:
+        """Returns the phase operator defined as"""
+        if self.losc is None:
+            raise ValueError(
+                "Variable losc has to be set to something other than None\n"
+                + "in order to use the phi() method. This can be done by either\n"
+                + "passing it to the class constructor, or by setting it afterwords."
+            )
+        a = op.annihilation(self.truncated_dim)
+        return self.losc / np.sqrt(2) * (a + a.T)
+
+    def n(self) -> ndarray:
+        """Returns the number operator defined as"""
+        if self.losc is None:
+            raise ValueError(
+                "Variable losc has to be set to something other than None\n"
+                + "in order to use the n() method. This can be done by either\n"
+                + "passing it to the class constructor, or by setting it afterwords."
+            )
+        a = op.annihilation(self.truncated_dim)
+        return 1.0j / (self.losc * np.sqrt(2)) * (a.T - a)
+
+
+class KerrOscillator(Oscillator, serializers.Serializable):
+    """Class representing a nonlinear Kerr oscillator/resonator."""
+
+    def __init__(
+        self,
+        E_osc: float = None,
+        omega: float = None,
+        losc: float = None,
+        K: float = 0,
+        truncated_dim: int = _default_evals_count,
+    ) -> None:
+
+        self.K: float = K
+
+        Oscillator.__init__(
+            self, E_osc=E_osc, omega=omega, losc=losc, truncated_dim=truncated_dim
+        )
+
+        # TODO
+        # Maybe should update the image to something different than what we use for HO.
+
+    def eigenvals(self, evals_count: int = _default_evals_count) -> ndarray:
+        """Returns array of eigenvalues.
+
+        Parameters
+        ----------
+        evals_count:
+            number of desired eigenvalues (default value = 6)
+        """
+        evals = [self.E_osc * n - self.K * n ** 2 for n in range(evals_count)]
+        return np.asarray(evals)
+
