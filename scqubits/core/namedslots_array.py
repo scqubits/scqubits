@@ -65,8 +65,9 @@ def idx_for_value(value: Number, param_vals: ndarray) -> int:
 
 
 class Parameters:
-    """Convenience class for maintaining multiple parameter sets (names, values,
-    ordering. Used in ParameterSweep as `.parameters`. Can access in several ways:
+    """Convenience class for maintaining multiple parameter sets: names and values of
+    each parameter set, along with an ordering among sets.
+    Used in ParameterSweep as `.parameters`. Can access in several ways:
     Parameters[<name str>] = parameter values under this name
     Parameters[<index int>] = parameter values saved as the index-th set
     Parameters[<slice> or tuple(int)] = slice over the list of parameter sets
@@ -126,7 +127,9 @@ class Parameters:
         return iter(self.paramvals_list)
 
     @property
-    def counts_by_name(self):
+    def counts_by_name(self) -> Dict[str, int]:
+        """Returns a dictionary specifying for each parameter name the number of
+        parameter values"""
         return {
             name: len(self.paramvals_by_name[name])
             for name in self.paramvals_by_name.keys()
@@ -134,22 +137,49 @@ class Parameters:
 
     @property
     def ranges(self) -> List[Iterable]:
+        """Return a list of range objects suitable for looping over each parametr set"""
         return [range(count) for count in self.counts]
 
     @property
-    def paramvals_list(self):
+    def paramvals_list(self) -> List[ndarray]:
+        """Return list of all parameter values sets"""
         return [self.paramvals_by_name[name] for name in self.paramnames_list]
 
-    def get_index(self, value, slotindex):
+    def get_index(self, value: float, slotindex: int) -> int:
+        """Return the parameter index for a given parameter value of parameter set in
+        specified slotindex"""
         location = np.abs(self[slotindex] - value).argmin()
         return location
 
     @property
-    def counts(self):
+    def counts(self) -> Tuple[int]:
+        """Returns list of the number of parameter values for each parameter set"""
         return tuple(len(paramvals) for paramvals in self)
 
-    def create_reduced(self, fixed_parametername_list, fixed_values=None):
+    def create_reduced(
+        self,
+        fixed_parametername_list: List[str],
+        fixed_values: Optional[List[float]] = None,
+    ) -> "Parameters":
+        """
+        Creates and returns a reduced Parameters object reflecting the fixing of a
+        subset of parameters
+
+        Parameters
+        ----------
+        fixed_parametername_list:
+            names of parameters to be fixed
+        fixed_values:
+            list of values to which parameters are fixed, optional (default: use the
+            0-th element of the array of each fixed parameter)
+
+        Returns
+        -------
+            Parameters object with all parameters; fixed ones only including one
+            value
+        """
         if fixed_values is not None:
+            # need to reformat as array of single-entry arrays
             fixed_values = [np.asarray(value) for value in fixed_values]
         else:
             fixed_values = [
@@ -161,7 +191,25 @@ class Parameters:
             reduced_paramvals_by_name[name] = fixed_values[index]
         return Parameters(reduced_paramvals_by_name)
 
-    def create_sliced(self, np_indices: NpIndices):
+    def create_sliced(
+        self, np_indices: NpIndices, remove_fixed: bool = True
+    ) -> "Parameters":
+        """
+        Create and return a sliced Parameters object according to numpy slicing
+        information.
+
+        Parameters
+        ----------
+        np_indices:
+            numpy slicing entries
+        remove_fixed:
+            if True, do not include fixed parameters in the returned Parameters object
+
+        Returns
+        -------
+            Parameters object with either fixed parameters removed or including only
+            the fixed value
+        """
         parameter_array = np.asarray(self.paramvals_list, dtype=object).copy()
         for index, np_index in enumerate(np_indices):
             parameter_array[index] = parameter_array[index][np_index]
@@ -169,16 +217,20 @@ class Parameters:
         reduced_paramvals_by_name = {}
         for index, name in enumerate(self.paramnames_list):
             paramvals = parameter_array[index]
-            if isinstance(paramvals, (ndarray, list, range)) and len(paramvals) > 1:
+            if not remove_fixed:
+                reduced_paramvals_by_name[name] = paramvals
+            elif isinstance(paramvals, (ndarray, list, range)) and len(paramvals) > 1:
                 reduced_paramvals_by_name[name] = paramvals
 
         return Parameters(reduced_paramvals_by_name)
 
 
 class GIndexObject:
+    """Object used for enabling enhanced indexing in NamedSlotNdarray."""
+
     def __init__(
         self, entry: GIndex, parameters: Parameters, slot: Optional[int] = None
-    ):
+    ) -> None:
         self.entry = entry
         self.parameters = parameters
         self.slot = slot
@@ -234,8 +286,8 @@ class GIndexObject:
 
 class NamedSlotsNdarray(np.ndarray, Serializable):
     """
-    This mixin class applies to multi-dimensional arrays, for which the leading M
-    dimensions are each associated with a slot name and a corresponding array of slot
+    This class implements multi-dimensional arrays, for which the leading M dimensions
+    are each associated with a slot name and a corresponding array of slot
     values (float or complex or str). All standard slicing of the multi-dimensional
     array with integer-valued indices is supported as usual, e.g.
 
@@ -290,7 +342,9 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     parameters: Parameters
     data_callback: Union[ndarray, Callable]
 
-    def __new__(cls, input_array: np.ndarray, values_by_name: Dict[str, Iterable]):
+    def __new__(
+        cls, input_array: np.ndarray, values_by_name: Dict[str, Iterable]
+    ) -> "NamedSlotsNdarray":
         implied_shape = tuple(len(values) for name, values in values_by_name.items())
         if input_array.shape[0 : len(values_by_name)] != implied_shape:
             raise ValueError(
