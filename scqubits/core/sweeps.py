@@ -85,7 +85,8 @@ def generator(sweep: "ParameterSweepBase", func: callable, **kwargs) -> np.ndarr
             disable=settings.PROGRESSBAR_DISABLED,
         )
     )
-    return np.asarray(data_array)
+    data_array = np.asarray(data_array)
+    return data_array.reshape(reduced_parameters.counts)
 
 
 def dispersive(sweep: "ParameterSweep"):

@@ -28,8 +28,8 @@ from scipy.sparse.dia import dia_matrix
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
-import scqubits.core.oscillator as osc
 import scqubits.core.operators as op
+import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.core.units as units

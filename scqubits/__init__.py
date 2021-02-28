@@ -27,9 +27,9 @@ from scqubits.core.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.generic_qubit import GenericQubit
-from scqubits.core.oscillator import Oscillator, KerrOscillator
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.noise import calc_therm_ratio
+from scqubits.core.oscillator import KerrOscillator, Oscillator
 from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon

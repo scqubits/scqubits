@@ -30,9 +30,13 @@ import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 
 from scqubits.core._param_sweep import _ParameterSweep
-from scqubits.core.oscillator import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
-from scqubits.core.namedslots_array import GIndexObject, NamedSlotsNdarray, Parameters
+from scqubits.core.namedslots_array import (
+    NamedSlotsNdarray,
+    Parameters,
+    convert_to_std_npindex,
+)
+from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.spectrum_lookup import SpectrumLookupMixin
 from scqubits.core.storage import SpectrumData
@@ -88,10 +92,12 @@ class ParameterSweepBase(ABC):
 
         # The following enables the following syntax:
         # <Sweep>[p1, p2, ...].dressed_eigenstates()
-        if isinstance(key, (tuple, int)):
-            self._current_param_indices = key
-        elif isinstance(key, slice):
-            self._current_param_indices = (key,)
+        if isinstance(key, tuple):
+            self._current_param_indices = convert_to_std_npindex(key, self.parameters)
+        elif isinstance(key, (int, slice)):
+            self._current_param_indices = convert_to_std_npindex(
+                (key,), self.parameters
+            )
         return self
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
@@ -158,11 +164,8 @@ class ParameterSweepBase(ABC):
         return specdata
 
     def get_sweep_indices(self, multi_index):
-        gidx_obj_tuple = tuple(
-            GIndexObject(entry, self.parameters, slot=slot_index)
-            for slot_index, entry in enumerate(multi_index)
-        )
-        std_multi_index = (self._data["esys"])._to_std_index_tuple(gidx_obj_tuple)
+        std_multi_index = convert_to_std_npindex(multi_index, self.parameters)
+
         sweep_indices = [
             index
             for index, index_obj in enumerate(std_multi_index)

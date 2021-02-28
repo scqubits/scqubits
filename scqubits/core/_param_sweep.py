@@ -32,8 +32,8 @@ import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 
-from scqubits.core.harmonic_osc import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
+from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import DataStore, SpectrumData

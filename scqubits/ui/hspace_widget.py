@@ -36,9 +36,10 @@ else:
 import scqubits
 
 from scqubits.core.qubit_base import QubitBaseClass
+from scqubits.core.oscillator import Oscillator
 from scqubits.utils import misc as utils
 
-QuantumSys = Union[QubitBaseClass, scqubits.Oscillator]
+QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
 class HilbertSpaceUi:

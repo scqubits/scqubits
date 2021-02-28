@@ -239,11 +239,10 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         Oscillator.__init__(
             self, E_osc=E_osc, omega=None, losc=losc, truncated_dim=truncated_dim
         )
- 
+
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/kerr-oscillator.jpg"
         )
-
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
