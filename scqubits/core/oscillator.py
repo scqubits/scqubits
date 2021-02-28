@@ -58,7 +58,21 @@ def harm_osc_wavefunction(
 
 
 class Oscillator(base.QuantumSystem, serializers.Serializable):
-    """General class for mode of an oscillator/resonator."""
+    r"""Class representing a harmonic oscillator/resonator governed by a Hamiltonian
+    :math:`H=E_\text{osc} a^{\dagger} a`, with math::`a` representing a lowering
+    operator.
+
+    Parameters
+    ----------
+    E_osc:
+        Energy of the oscillator
+    omega:
+        (depricated) Alternative way of specifying the energy of the oscillator
+    losc:
+        oscillator length (required to define phi_operator and n_operator)
+    truncated_dim:
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    """
 
     def __init__(
         self,
@@ -87,7 +101,9 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         else:
             raise ValueError("E_osc is a mandatory argument.")
 
-        self._init_params.remove("omega")
+        if "omega" in self._init_params:
+            self._init_params.remove("omega")
+
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.png"
         )
@@ -162,7 +178,10 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         )
 
     def phi_operator(self) -> ndarray:
-        """Returns the phase operator defined as"""
+        """Returns the phase operator defined as
+        :math:`1/\sqrt{2} l_\text{osc} (a + a^{\dagger})`, with math:`a` representing
+        an annihilation operator, and math::`l_\text{osc}`, the oscillator length.
+        """
         if self.losc is None:
             raise ValueError(
                 "Variable losc has to be set to something other than None\n"
@@ -173,7 +192,10 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return self.losc / np.sqrt(2) * (a + a.T)
 
     def n_operator(self) -> ndarray:
-        """Returns the number operator defined as"""
+        """Returns the charge-number n operator defined as
+        :math:`i/\sqrt{2} l_\text{osc} (a^{\dagger}) - a`, with math:`a` representing
+        an annihilation operator, and math::`l_\text{osc}`, the oscillator length.
+        """
         if self.losc is None:
             raise ValueError(
                 "Variable losc has to be set to something other than None\n"
@@ -184,22 +206,38 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return 1.0j / (self.losc * np.sqrt(2)) * (a.T - a)
 
 
+# —KerrOscillator class———————————————————————————————————————————————————————————————————
+
+
 class KerrOscillator(Oscillator, serializers.Serializable):
-    """Class representing a nonlinear Kerr oscillator/resonator."""
+    r"""Class representing a nonlinear Kerr oscillator/resonator governed by a Hamiltonian
+    :math:`H_\text{Kerr}=E_\text{osc} a^{\dagger} a - K (a^{\dagger} a)^{2}`, with math::`a`
+    representing a lowering operator.
+
+    Parameters
+    ----------
+    E_osc:
+        Energy of harmonic term
+    K:
+        Energy of the Kerr term
+    losc:
+        oscillator length (required to define phi_operator and n_operator)
+    truncated_dim:
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    """
 
     def __init__(
         self,
-        E_osc: float = None,
-        omega: float = None,
+        E_osc: float,
+        K: float,
         losc: float = None,
-        K: float = 0,
         truncated_dim: int = _default_evals_count,
     ) -> None:
 
         self.K: float = K
 
         Oscillator.__init__(
-            self, E_osc=E_osc, omega=omega, losc=losc, truncated_dim=truncated_dim
+            self, E_osc=E_osc, omega=None, losc=losc, truncated_dim=truncated_dim
         )
 
         # TODO
@@ -215,4 +253,3 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         """
         evals = [self.E_osc * n - self.K * n ** 2 for n in range(evals_count)]
         return np.asarray(evals)
-
