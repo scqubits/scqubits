@@ -65,9 +65,9 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     Parameters
     ----------
     E_osc:
-        Energy of the oscillator
+        energy of the oscillator
     omega:
-        (depricated) Alternative way of specifying the energy of the oscillator
+        (depricated) alternative way of specifying the energy of the oscillator
     losc:
         oscillator length (required to define phi_operator and n_operator)
     truncated_dim:
@@ -217,9 +217,9 @@ class KerrOscillator(Oscillator, serializers.Serializable):
     Parameters
     ----------
     E_osc:
-        Energy of harmonic term
+        energy of harmonic term
     K:
-        Energy of the Kerr term
+        energy of the Kerr term
     losc:
         oscillator length (required to define phi_operator and n_operator)
     truncated_dim:
@@ -239,9 +239,11 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         Oscillator.__init__(
             self, E_osc=E_osc, omega=None, losc=losc, truncated_dim=truncated_dim
         )
+ 
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/kerr-oscillator.jpg"
+        )
 
-        # TODO
-        # Maybe should update the image to something different than what we use for HO.
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
