@@ -59,7 +59,7 @@ def harm_osc_wavefunction(
 
 class Oscillator(base.QuantumSystem, serializers.Serializable):
     r"""Class representing a harmonic oscillator/resonator governed by a Hamiltonian
-    :math:`H=E_\text{osc} a^{\dagger} a`, with math::`a` representing a lowering
+    :math:`H=E_\text{osc} a^{\dagger} a`, with :math:`a` being the annihilation
     operator.
 
     Parameters
@@ -179,8 +179,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
     def phi_operator(self) -> ndarray:
         """Returns the phase operator defined as
-        :math:`1/\sqrt{2} l_\text{osc} (a + a^{\dagger})`, with math:`a` representing
-        an annihilation operator, and math::`l_\text{osc}`, the oscillator length.
+        :math:`1/\sqrt{2} l_\text{osc} (a + a^{\dagger})`, with :math:`a` representing
+        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
         """
         if self.losc is None:
             raise ValueError(
@@ -193,8 +193,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
     def n_operator(self) -> ndarray:
         """Returns the charge-number n operator defined as
-        :math:`i/\sqrt{2} l_\text{osc} (a^{\dagger}) - a`, with math:`a` representing
-        an annihilation operator, and math::`l_\text{osc}`, the oscillator length.
+        :math:`i/\sqrt{2} l_\text{osc} (a^{\dagger}) - a`, with :math:`a` representing
+        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
         """
         if self.losc is None:
             raise ValueError(
@@ -211,8 +211,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
 class KerrOscillator(Oscillator, serializers.Serializable):
     r"""Class representing a nonlinear Kerr oscillator/resonator governed by a Hamiltonian
-    :math:`H_\text{Kerr}=E_\text{osc} a^{\dagger} a - K (a^{\dagger} a)^{2}`, with math::`a`
-    representing a lowering operator.
+    :math:`H_\text{Kerr}=E_\text{osc} a^{\dagger} a - K (a^{\dagger} a)^{2}`, with :math:`a`
+    being the annihilation operator.
 
     Parameters
     ----------
