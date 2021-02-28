@@ -243,6 +243,10 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         # TODO
         # Maybe should update the image to something different than what we use for HO.
 
+    @staticmethod
+    def default_params() -> Dict[str, Any]:
+        return dict(K=0.05, **Oscillator.default_params())
+
     def eigenvals(self, evals_count: int = _default_evals_count) -> ndarray:
         """Returns array of eigenvalues.
 
