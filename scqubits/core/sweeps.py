@@ -22,14 +22,6 @@ import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
-from scqubits import Oscillator
-from scqubits.core.namedslots_array import NamedSlotsNdarray
-
-if TYPE_CHECKING:
-    from scqubits import HilbertSpace, SpectrumData
-    from scqubits.core.param_sweep import ParameterSweep, ParameterSweepBase
-
-
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
