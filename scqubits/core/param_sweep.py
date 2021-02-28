@@ -23,6 +23,7 @@ from numpy import ndarray
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
+import scqubits.core.sweeps as sweeps
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
@@ -174,6 +175,119 @@ class ParameterSweepBase(ABC):
     @property
     def system_params(self) -> Dict[str, Any]:
         return self._hilbertspace.get_initdata()
+
+    def _final_states_subsys(
+        self, subsystem: QuantumSys, initial_tuple: Tuple[int, ...]
+    ) -> List[Tuple[int, ...]]:
+        subsys_index = self._hilbertspace.get_subsys_index(subsystem)
+        final_tuples_list = []
+
+        for level in range(subsystem.truncated_dim):
+            final_state = list(initial_tuple)
+            final_state[subsys_index] = level
+            final_tuples_list.append(tuple(final_state))
+        return final_tuples_list
+
+    def _get_final_states(
+        self,
+        initial_tuple: Tuple[int, ...],
+        subsystem: Union[QuantumSys, None],
+        final: Union[int, Tuple[int, ...], None],
+        sidebands: bool,
+    ):
+        if isinstance(final, tuple):
+            # concrete final state given
+            final_tuples_list = [final]
+        elif isinstance(final, int) and subsystem:
+            # concrete final state given for specific subsystem
+            final_tuple = (
+                0 if subsys != subsystem else final for subsys in self._hilbertspace
+            )
+            final_tuples_list = [final_tuple]
+        elif final is None and subsystem:
+            # generate all final states for given transitions in given subsystem
+            final_tuples_list = self._final_states_subsys(subsystem, initial_tuple)
+        elif final is None:
+            # generate all final states with or without sidebands
+            if not sidebands:
+                final_tuples_list = []
+                for subsys in self._hilbertspace:
+                    final_tuples_list += self._final_states_subsys(
+                        subsys, initial_tuple
+                    )
+            else:
+                subsys_dim_ranges = [
+                    range(dim) for dim in self._hilbertspace.subsystem_dims
+                ]
+                final_tuples_list = [
+                    tuple(bare_product)
+                    for bare_product in itertools.product(*subsys_dim_ranges)
+                ]
+        return final_tuples_list
+
+    def _process_initial(
+        self,
+        initial: Union[None, int, Tuple[int, ...]],
+        subsystem: Union[None, QuantumSys],
+    ) -> Tuple[int, ...]:
+        if isinstance(initial, tuple):
+            initial_tuple = initial
+        elif isinstance(initial, int) and subsystem:
+            initial_tuple = (
+                0 if subsys != subsystem else initial for subsys in self._hilbertspace
+            )
+        else:
+            initial_tuple = (0,) * len(self._hilbertspace)
+        return initial_tuple
+
+    def transitions(
+        self,
+        subsystem: Optional[QuantumSys] = None,
+        initial: Optional[Union[int, Tuple[int, ...]]] = None,
+        final: Optional[Union[int, Tuple[int, ...]]] = None,
+        sidebands: bool = False,
+        exc_only: bool = True,
+    ) -> Union[float, NamedSlotsNdarray]:
+        initial_tuple = self._process_initial(initial, subsystem)
+        final_states_tuple = self._get_final_states(
+            initial_tuple, subsystem, final, sidebands
+        )
+        data_list = []
+
+    def add_sweep(
+        self,
+        sweep_function: Union[str, Callable],
+        sweep_name: Optional[str] = None,
+        **kwargs
+    ) -> None:
+        """
+        Add a new sweep to the ParameterSweep object. The generated data is
+        subsequently accessible through <ParameterSweep>[<sweep_function>] or
+        <ParameterSweep>[<sweep_name>]
+
+        Parameters
+        ----------
+        sweep_function:
+            name of a sweep function in scq.sweeps as str, or custom function (
+            callable) provided by the user
+        sweep_name:
+            if given, the generated data is stored in <ParameterSweep>[<sweep_name>]
+            rather than [<sweep_name>]
+        kwargs:
+            keyword arguments handed over to the sweep function
+
+        Returns
+        -------
+            None
+        """
+        if callable(sweep_function):
+            sweep_name = sweep_name or sweep_function.__name__
+            func = sweep_function
+            self._data[sweep_name] = sweeps.generator(self, func, **kwargs)
+        else:
+            sweep_name = sweep_name or sweep_function
+            func = getattr(sweeps, sweep_function)
+            self._data[sweep_name] = func(**kwargs)
 
 
 class ParameterSweep(
@@ -495,26 +609,6 @@ class ParameterSweep(
         slotparamvals_by_name.update(OrderedDict([("esys", [0, 1])]))
 
         return NamedSlotsNdarray(spectrum_data, OrderedDict(slotparamvals_by_name))
-
-    def _custom_sweeps(
-        self,
-        sweep_generators: Dict[str, Union[Callable, Tuple[Callable, Dict[str, Any]]]],
-    ) -> None:
-        for name, generator_obj in sweep_generators.items():
-            if callable(generator_obj):
-                generator = generator_obj
-                self._data[name] = generator(self)
-            else:
-                generator = generator_obj[0]
-                kwargs = generator_obj[1]
-                self._data[name] = generator(self, **kwargs)
-
-    def add_sweep(
-        self,
-        sweep_name: str,
-        sweep_generator: Union[Callable, Tuple[Callable, Dict[str, Any]]],
-    ) -> None:
-        self._custom_sweeps({sweep_name: sweep_generator})
 
 
 class StoredSweep(
