@@ -22,6 +22,14 @@ import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
+from scqubits import Oscillator
+from scqubits.core.namedslots_array import NamedSlotsNdarray
+
+if TYPE_CHECKING:
+    from scqubits import HilbertSpace, SpectrumData
+    from scqubits.core.param_sweep import ParameterSweep, ParameterSweepBase
+
+
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
 else:
@@ -47,14 +55,19 @@ def generator(sweep: "ParameterSweepBase", func: callable, **kwargs) -> np.ndarr
     -------
         array of custom data
     """
-    reduced_parameters = sweep.parameters.create_sliced(sweep._current_param_indices,
-                                                        remove_fixed=False)
+    reduced_parameters = sweep.parameters.create_sliced(
+        sweep._current_param_indices, remove_fixed=False
+    )
     total_count = np.prod(reduced_parameters.counts)
 
     def func_effective(paramindex_tuple: Tuple[int], params, **kw) -> Any:
         paramvals_tuple = params[paramindex_tuple]
-        return func(sweep, paramindex_tuple=paramindex_tuple,
-                    paramvals_tuple=paramvals_tuple, **kw)
+        return func(
+            sweep,
+            paramindex_tuple=paramindex_tuple,
+            paramvals_tuple=paramvals_tuple,
+            **kw,
+        )
 
     data_array = list(
         tqdm(

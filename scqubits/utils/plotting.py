@@ -554,6 +554,8 @@ def matrix2d(
     axes.grid(False)
 
     _process_options(fig, axes, **kwargs)
+    axes.tick_params(axis="x", bottom=False, top=True, labelbottom=False, labeltop=True)
+
     return fig, axes
 
 

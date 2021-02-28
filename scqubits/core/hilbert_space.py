@@ -37,7 +37,7 @@ from scipy.sparse import csc_matrix, dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
-import scqubits.core.harmonic_osc as osc
+import scqubits.core.oscillator as osc
 import scqubits.core.spec_lookup as spec_lookup
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_qutip
@@ -48,7 +48,7 @@ import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
-from scqubits.core.harmonic_osc import Oscillator
+from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates

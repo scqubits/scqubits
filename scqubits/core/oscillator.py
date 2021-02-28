@@ -1,4 +1,4 @@
-# harmonic_osc.py
+# oscillator.py
 #
 # This file is part of scqubits.
 #
@@ -58,17 +58,33 @@ def harm_osc_wavefunction(
 
 
 class Oscillator(base.QuantumSystem, serializers.Serializable):
-    """General class for mode of an oscillator/resonator."""
+    r"""Class representing a harmonic oscillator/resonator governed by a Hamiltonian
+    :math:`H=E_\text{osc} a^{\dagger} a`, with :math:`a` being the annihilation
+    operator.
+
+    Parameters
+    ----------
+    E_osc:
+        energy of the oscillator
+    omega:
+        (depricated) alternative way of specifying the energy of the oscillator
+    losc:
+        oscillator length (required to define phi_operator and n_operator)
+    truncated_dim:
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    """
 
     def __init__(
         self,
         E_osc: float = None,
         omega: float = None,
+        losc: float = None,
         truncated_dim: int = _default_evals_count,
     ) -> None:
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self.truncated_dim: int = truncated_dim
+        self.losc: Union[None, float] = losc
 
         # Support for omega will be rolled back eventually. For now allow with
         # deprecation warnings.
@@ -85,7 +101,9 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         else:
             raise ValueError("E_osc is a mandatory argument.")
 
-        self._init_params.remove("omega")
+        if "omega" in self._init_params:
+            self._init_params.remove("omega")
+
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.png"
         )
@@ -158,3 +176,86 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         raise NotImplementedError(
             "The Oscillator class does not implement the matrixelement_table method."
         )
+
+    def phi_operator(self) -> ndarray:
+        """Returns the phase operator defined as
+        :math:`1/\sqrt{2} l_\text{osc} (a + a^{\dagger})`, with :math:`a` representing
+        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
+        """
+        if self.losc is None:
+            raise ValueError(
+                "Variable losc has to be set to something other than None\n"
+                + "in order to use the phi() method. This can be done by either\n"
+                + "passing it to the class constructor, or by setting it afterwords."
+            )
+        a = op.annihilation(self.truncated_dim)
+        return self.losc / np.sqrt(2) * (a + a.T)
+
+    def n_operator(self) -> ndarray:
+        """Returns the charge-number n operator defined as
+        :math:`i/\sqrt{2} l_\text{osc} (a^{\dagger}) - a`, with :math:`a` representing
+        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
+        """
+        if self.losc is None:
+            raise ValueError(
+                "Variable losc has to be set to something other than None\n"
+                + "in order to use the n() method. This can be done by either\n"
+                + "passing it to the class constructor, or by setting it afterwords."
+            )
+        a = op.annihilation(self.truncated_dim)
+        return 1.0j / (self.losc * np.sqrt(2)) * (a.T - a)
+
+
+# —KerrOscillator class———————————————————————————————————————————————————————————————————
+
+
+class KerrOscillator(Oscillator, serializers.Serializable):
+    r"""Class representing a nonlinear Kerr oscillator/resonator governed by a Hamiltonian
+    :math:`H_\text{Kerr}=E_\text{osc} a^{\dagger} a - K (a^{\dagger} a)^{2}`, with :math:`a`
+    being the annihilation operator.
+
+    Parameters
+    ----------
+    E_osc:
+        energy of harmonic term
+    K:
+        energy of the Kerr term
+    losc:
+        oscillator length (required to define phi_operator and n_operator)
+    truncated_dim:
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    """
+
+    def __init__(
+        self,
+        E_osc: float,
+        K: float,
+        losc: float = None,
+        truncated_dim: int = _default_evals_count,
+    ) -> None:
+
+        self.K: float = K
+
+        Oscillator.__init__(
+            self, E_osc=E_osc, omega=None, losc=losc, truncated_dim=truncated_dim
+        )
+ 
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/kerr-oscillator.jpg"
+        )
+
+
+    @staticmethod
+    def default_params() -> Dict[str, Any]:
+        return dict(K=0.05, **Oscillator.default_params())
+
+    def eigenvals(self, evals_count: int = _default_evals_count) -> ndarray:
+        """Returns array of eigenvalues.
+
+        Parameters
+        ----------
+        evals_count:
+            number of desired eigenvalues (default value = 6)
+        """
+        evals = [self.E_osc * n - self.K * n ** 2 for n in range(evals_count)]
+        return np.asarray(evals)

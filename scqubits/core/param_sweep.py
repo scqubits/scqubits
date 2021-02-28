@@ -30,7 +30,7 @@ import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 
 from scqubits.core._param_sweep import _ParameterSweep
-from scqubits.core.harmonic_osc import Oscillator
+from scqubits.core.oscillator import Oscillator
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import GIndexObject, NamedSlotsNdarray, Parameters
 from scqubits.core.qubit_base import QubitBaseClass
