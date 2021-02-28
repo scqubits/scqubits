@@ -72,7 +72,6 @@ def convert_to_std_npindex(
         for slot_index, entry in enumerate(index_tuple)
     )
     np_indices = GIndexTupleObject(gidx_obj_tuple).to_std_index_tuple()
-    print(index_tuple, np_indices)
     return np_indices
 
 
