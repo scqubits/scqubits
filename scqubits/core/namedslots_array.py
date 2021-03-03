@@ -20,7 +20,8 @@ from numpy import ndarray
 
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import Serializable
-from scqubits.utils.misc import Number
+
+Number = Union[int, float, complex]
 
 NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]

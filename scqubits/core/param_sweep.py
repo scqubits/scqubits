@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 
 import numpy as np
 
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from numpy import ndarray
 
 import scqubits.core.central_dispatch as dispatch
@@ -52,6 +54,8 @@ else:
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
 Number = Union[int, float, complex]
+GIndex = Union[Number, slice, Tuple[int], List[int]]
+GIndexTuple = Tuple[GIndex, ...]
 NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]
 NpIndices = Union[NpIndex, NpIndexTuple]
@@ -93,7 +97,7 @@ class ParameterSweepBase(ABC):
         if isinstance(key, str):
             return self._data[key]
 
-        # The following enables the following syntax:
+        # The following enables the pre-slicing syntax:
         # <Sweep>[p1, p2, ...].dressed_eigenstates()
         if isinstance(key, tuple):
             self._current_param_indices = convert_to_std_npindex(key, self.parameters)
@@ -125,6 +129,14 @@ class ParameterSweepBase(ABC):
 
     @property
     def bare_specdata_list(self) -> List[SpectrumData]:
+        """
+        Wrap bare eigensystem data into a SpectrumData object. To be used with
+        pre-slicing, e.g. `<ParameterSweep>[0, :].bare_specdata_list`
+
+        Returns
+        -------
+            List of `SpectrumData` objects with bare eigensystem data, one per subsystem
+        """
         multi_index = self._current_param_indices
         sweep_param_indices = self.get_sweep_indices(multi_index)
         if len(sweep_param_indices) != 1:
@@ -149,6 +161,14 @@ class ParameterSweepBase(ABC):
 
     @property
     def dressed_specdata(self) -> "SpectrumData":
+        """
+        Wrap dressed eigensystem data into a SpectrumData object. To be used with
+        pre-slicing, e.g. `<ParameterSweep>[0, :].dressed_specdata`
+
+        Returns
+        -------
+            `SpectrumData` object with bare eigensystem data
+        """
         multi_index = self._current_param_indices
         sweep_param_indices = self.get_sweep_indices(multi_index)
         if len(sweep_param_indices) != 1:
@@ -166,7 +186,11 @@ class ParameterSweepBase(ABC):
         )
         return specdata
 
-    def get_sweep_indices(self, multi_index):
+    def get_sweep_indices(self, multi_index: GIndexTuple) -> List[int]:
+        """
+        For given generalized multi-index, return a list of the indices that are being
+        swept.
+        """
         std_multi_index = convert_to_std_npindex(multi_index, self.parameters)
 
         sweep_indices = [
@@ -185,6 +209,9 @@ class ParameterSweepBase(ABC):
     def _final_states_subsys(
         self, subsystem: QuantumSys, initial_tuple: Tuple[int, ...]
     ) -> List[Tuple[int, ...]]:
+        """For given initial statet of the composite quantum system, return the final
+        states possible to reach by changing the energy level of the given
+        `subsystem`"""
         subsys_index = self._hilbertspace.get_subsys_index(subsystem)
         final_tuples_list = []
 
@@ -201,6 +228,9 @@ class ParameterSweepBase(ABC):
         final: Union[int, Tuple[int, ...], None],
         sidebands: bool,
     ):
+        """Construct and return the possible final states as a list, based on the
+        provided initial state, a list of active subsystems and flag for whether to
+        include sideband transitions."""
         if final:
             if isinstance(final, int):
                 final = (final,)
@@ -228,6 +258,8 @@ class ParameterSweepBase(ABC):
         partial_state: Union[List[int], Tuple[int]],
         subsys_list: List[QuantumSys],
     ) -> List[int]:
+        """A partial state only includes entries for active subsystems. Complete this
+        state by inserting 0 entries for all inactive subsystems."""
         state_full = [0] * len(self._hilbertspace)
         for entry, subsys in zip(partial_state, subsys_list):
             subsys_index = self.get_subsys_index(subsys)
@@ -360,7 +392,7 @@ class ParameterSweepBase(ABC):
         sidebands: bool = False,
         make_positive: bool = False,
         param_indices: Optional[NpIndices] = None,
-    ) -> Union[Tuple[List[Tuple[int, ...]], List[NamedSlotsNdarray]], SpectrumData]:
+    ) -> Tuple[Figure, Axes]:
         """
         Plot transition energies as a function of one external parameter. Usage is based
         on preslicing of the ParameterSweep object to select a single parameter to be
