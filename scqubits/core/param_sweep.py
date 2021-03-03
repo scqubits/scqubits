@@ -52,6 +52,9 @@ else:
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
 Number = Union[int, float, complex]
+NpIndex = Union[int, slice, Tuple[int], List[int]]
+NpIndexTuple = Tuple[NpIndex, ...]
+NpIndices = Union[NpIndex, NpIndexTuple]
 
 
 class ParameterSweepBase(ABC):
@@ -121,7 +124,7 @@ class ParameterSweepBase(ABC):
                 self._out_of_sync = True
 
     @property
-    def bare_specdata_list(self) -> "List[SpectrumData]":
+    def bare_specdata_list(self) -> List[SpectrumData]:
         multi_index = self._current_param_indices
         sweep_param_indices = self.get_sweep_indices(multi_index)
         if len(sweep_param_indices) != 1:
@@ -145,7 +148,7 @@ class ParameterSweepBase(ABC):
         return specdata_list
 
     @property
-    def dressed_specdata(self) -> "List[SpectrumData]":
+    def dressed_specdata(self) -> "SpectrumData":
         multi_index = self._current_param_indices
         sweep_param_indices = self.get_sweep_indices(multi_index)
         if len(sweep_param_indices) != 1:
@@ -193,69 +196,232 @@ class ParameterSweepBase(ABC):
 
     def _get_final_states(
         self,
-        initial_tuple: Tuple[int, ...],
-        subsystem: Union[QuantumSys, None],
+        initial_state: List[int],
+        subsys_list: List[QuantumSys],
         final: Union[int, Tuple[int, ...], None],
         sidebands: bool,
     ):
-        if isinstance(final, tuple):
-            # concrete final state given
-            final_tuples_list = [final]
-        elif isinstance(final, int) and subsystem:
-            # concrete final state given for specific subsystem
-            final_tuple = (
-                0 if subsys != subsystem else final for subsys in self._hilbertspace
-            )
-            final_tuples_list = [final_tuple]
-        elif final is None and subsystem:
-            # generate all final states for given transitions in given subsystem
-            final_tuples_list = self._final_states_subsys(subsystem, initial_tuple)
-        elif final is None:
-            # generate all final states with or without sidebands
-            if not sidebands:
-                final_tuples_list = []
-                for subsys in self._hilbertspace:
-                    final_tuples_list += self._final_states_subsys(
-                        subsys, initial_tuple
-                    )
-            else:
-                subsys_dim_ranges = [
-                    range(dim) for dim in self._hilbertspace.subsystem_dims
-                ]
-                final_tuples_list = [
-                    tuple(bare_product)
-                    for bare_product in itertools.product(*subsys_dim_ranges)
-                ]
-        return final_tuples_list
+        if final:
+            if isinstance(final, int):
+                final = (final,)
+            final_state_list = [self._complete_state(final)]
+            return final_state_list
 
-    def _process_initial(
+        if not sidebands:
+            final_state_list = []
+            for subsys in subsys_list:
+                final_state_list += self._final_states_subsys(subsys, initial_state)
+            return final_state_list
+
+        # if sidebands:
+        #     final_state_list = list(itertools.product(*range_list))
+        #     return final_state_list
+        range_list = [range(dim) for dim in self._hilbertspace.subsystem_dims]
+        for subsys_index, subsys in enumerate(self._hilbertspace):
+            if subsys not in subsys_list:
+                range_list[subsys_index] = [initial_state[subsys_index]]
+        final_state_list = list(itertools.product(*range_list))
+        return final_state_list
+
+    def _complete_state(
         self,
-        initial: Union[None, int, Tuple[int, ...]],
-        subsystem: Union[None, QuantumSys],
-    ) -> Tuple[int, ...]:
-        if isinstance(initial, tuple):
-            initial_tuple = initial
-        elif isinstance(initial, int) and subsystem:
-            initial_tuple = (
-                0 if subsys != subsystem else initial for subsys in self._hilbertspace
-            )
-        else:
-            initial_tuple = (0,) * len(self._hilbertspace)
-        return initial_tuple
+        partial_state: Union[List[int], Tuple[int]],
+        subsys_list: List[QuantumSys],
+    ) -> List[int]:
+        state_full = [0] * len(self._hilbertspace)
+        for entry, subsys in zip(partial_state, subsys_list):
+            subsys_index = self.get_subsys_index(subsys)
+            state_full[subsys_index] = entry
+        return state_full
 
     def transitions(
         self,
-        subsystem: Optional[QuantumSys] = None,
+        subsystem: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Union[int, Tuple[int, ...]]] = None,
         sidebands: bool = False,
-        exc_only: bool = True,
-    ) -> Union[float, NamedSlotsNdarray]:
-        initial_tuple = self._process_initial(initial, subsystem)
-        final_states_tuple = self._get_final_states(
-            initial_tuple, subsystem, final, sidebands
+        make_positive: bool = False,
+        as_specdata: bool = False,
+        param_indices: Optional[NpIndices] = None,
+    ) -> Union[Tuple[List[Tuple[int, ...]], List[NamedSlotsNdarray]], SpectrumData]:
+        """
+        Use dressed eigenenergy data and lookup based on bare product state labels to
+        extract transition energy data. Usage is based on preslicing to select all or
+        a subset of parameters to be involved in the sweep, e.g.,
+
+        <ParameterSweep>[0, :, 2].transitions()
+
+        produces all eigenenergy differences for transitions starting in the ground
+        state (default when no initial state is specified) as a function of the middle
+        parameter while parameters 1 and 3 are fixed by the indices 0 and 2.
+
+        Parameters
+        ----------
+        subsystem:
+            single subsystem or list of subsystems considered as "active" for the
+            transitions to be generated; if omitted as a parameter, all subsystems
+            are considered as actively participating in the transitions
+        initial:
+            initial state from which transitions originate, specified as a bare product
+            state of either all subsystems the subset of active subsystems
+            (default: ground state of the system)
+        final:
+            concrete final state for which the transition energy should be generated; if
+            not provided, a list of allowed final states is generated
+        sidebands:
+            if set to true, sideband transitions with multiple subsystems changing
+            excitation levels are included (default: False)
+        make_positive:
+            boolean option relevant if the initial state is an excited state;
+            downwards transition energies would regularly be negative, but are
+            converted to positive if this flag is set to True
+        as_specdata:
+            whether data is handed back in raw array form or wrapped into a SpectrumData
+            object (default: False)
+        param_indices:
+            usually to be omitted, as param_indices will be set via pre-slicing
+
+        Returns
+        -------
+            A tuple consisting of a list of all the transitions and a corresponding
+            list of difference energies, e.g.
+            ((0,0,0), (0,0,1)),    <energy array for transition 0,0,0 -> 0,0,1>.
+            If as_specdata is set to True, a SpectrumData object is returned instead,
+            saving transition label info in an attribute named `labels`.
+        """
+        param_indices = param_indices or self._current_param_indices
+
+        if subsystem is None:
+            subsys_list = self._hilbertspace.subsys_list
+        elif isinstance(subsystem, (QubitBaseClass, Oscillator)):
+            subsys_list = [subsystem]
+        else:
+            subsys_list = subsystem
+
+        if initial is None:
+            initial_state = (0,) * len(self._hilbertspace)
+        elif isinstance(initial, int):
+            initial_state = (initial,)
+        else:
+            initial_state = initial
+
+        if len(initial_state) not in [len(self._hilbertspace), len(subsys_list)]:
+            raise ValueError(
+                "Initial state information provided is not compatible "
+                "with the specified subsystem(s) provided."
+            )
+        elif len(initial_state) < len(self._hilbertspace):
+            initial_state = self._complete_initial_state(initial_state, subsys_list)
+
+        final_states_list = self._get_final_states(
+            initial_state, subsys_list, final, sidebands
         )
-        data_list = []
+
+        transitions = [
+            (initial_state, final_state) for final_state in final_states_list
+        ]
+        transitions = []
+        transition_energies = []
+        for final_state in final_states_list:
+            initial_energies = self[param_indices].energy_by_bare_index(initial_state)
+            final_energies = self[param_indices].energy_by_bare_index(final_state)
+            diff_energies = (final_energies - initial_energies).astype(float)
+            if make_positive:
+                diff_energies = np.abs(diff_energies)
+            if not np.isnan(diff_energies).all():
+                transitions.append((initial_state, final_state))
+                transition_energies.append(diff_energies)
+
+        if not as_specdata:
+            return transitions, transition_energies
+
+        reduced_parameters = self.parameters.create_sliced(param_indices)
+        if len(reduced_parameters) == 1:
+            name = reduced_parameters.names[0]
+            vals = reduced_parameters[name]
+            return SpectrumData(
+                energy_table=np.asarray(transition_energies).T,
+                system_params=self.system_params,
+                param_name=name,
+                param_vals=vals,
+                labels=list(map(str, transitions)),
+            )
+        return SpectrumData(
+            energy_table=np.asarray(transition_energies),
+            system_params=self.system_params,
+            label=list(map(str, transitions)),
+        )
+
+    def plot_transitions(
+        self,
+        subsystem: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
+        initial: Optional[Union[int, Tuple[int, ...]]] = None,
+        final: Optional[Union[int, Tuple[int, ...]]] = None,
+        sidebands: bool = False,
+        make_positive: bool = False,
+        param_indices: Optional[NpIndices] = None,
+    ) -> Union[Tuple[List[Tuple[int, ...]], List[NamedSlotsNdarray]], SpectrumData]:
+        """
+        Plot transition energies as a function of one external parameter. Usage is based
+        on preslicing of the ParameterSweep object to select a single parameter to be
+        involved in the sweep. E.g.,
+
+        <ParameterSweep>[0, :, 2].plot_transitions()
+
+        plots all eigenenergy differences for transitions starting in the ground
+        state (default when no initial state is specified) as a function of the middle
+        parameter while parameters 1 and 3 are fixed by the indices 0 and 2.
+
+        Parameters
+        ----------
+        subsystem:
+            single subsystem or list of subsystems considered as "active" for the
+            transitions to be generated; if omitted as a parameter, all subsystems
+            are considered as actively participating in the transitions
+        initial:
+            initial state from which transitions originate, specified as a bare product
+            state of either all subsystems the subset of active subsystems
+            (default: ground state of the system)
+        final:
+            concrete final state for which the transition energy should be generated; if
+            not provided, a list of allowed final states is generated
+        sidebands:
+            if set to true, sideband transitions with multiple subsystems changing
+            excitation levels are included (default: False)
+        make_positive:
+            boolean option relevant if the initial state is an excited state;
+            downwards transition energies would regularly be negative, but are
+            converted to positive if this flag is set to True
+        param_indices:
+            usually to be omitted, as param_indices will be set via pre-slicing
+
+        Returns
+        -------
+            A tuple consisting of a list of all the transitions and a corresponding
+            list of difference energies, e.g.
+            ((0,0,0), (0,0,1)),    <energy array for transition 0,0,0 -> 0,0,1>.
+            If as_specdata is set to True, a SpectrumData object is returned instead,
+            saving transition label info in an attribute named `labels`.
+        """
+
+        param_indices = param_indices or self._current_param_indices
+        if len(self.parameters.create_sliced(param_indices)) > 1:
+            raise ValueError(
+                "Transition plots are only supported for a sweep over a "
+                "single parameter. You can reduce a multidimensional "
+                "sweep by pre-slicing, e.g.,  <ParameterSweep>[0, :, "
+                "0].plot_transitions(...)"
+            )
+        specdata = self.transitions(
+            subsystem,
+            initial,
+            final,
+            sidebands,
+            make_positive,
+            as_specdata=True,
+            param_indices=param_indices,
+        )
+        return specdata.plot_evals_vs_paramvals(label_list=specdata.labels)
 
     def add_sweep(
         self,
@@ -323,15 +489,13 @@ class ParameterSweep(
     paramvals_by_name:
         Dictionary that, for each set of parameter values, specifies a parameter name
         and the set of values to be used in the sweep.
-    sweep_generators:
-        Dictionary that contains names of custom sweeps and a function computing the
-        quantity of interest
     update_hilbertspace:
         function that updates the associated ``hilbertspace`` object with a given
         set of parameters
     evals_count:
         number of dressed eigenvalues/eigenstates to keep. (The number of bare
         eigenvalues/eigenstates is determined for each subsystem by `truncated_dim`.)
+        [default: 20]
     subsys_update_info:
         To speed up calculations, the user may provide information that specifies which
         subsystems are being updated for each of the given parameter sweeps. This
@@ -373,7 +537,7 @@ class ParameterSweep(
         paramvals_by_name: Dict[str, ndarray],
         update_hilbertspace: Callable,
         sweep_generators: Optional[Dict[str, Callable]] = None,
-        evals_count: int = 6,
+        evals_count: int = 20,
         subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
         bare_only: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
@@ -433,9 +597,6 @@ class ParameterSweep(
         if not self._bare_only:
             self._data["esys"] = self._dressed_spectrum_sweep()
             self._data["dressed_indices"] = self.generate_lookup()
-        if self._sweep_generators is not None:
-            for sweep_name, sweep_generator in self._sweep_generators.items():
-                self._data[sweep_name] = self._custom_sweeps(sweep_generator)
         settings.DISPATCH_ENABLED = True
 
     def _bare_spectrum_sweep(self) -> NamedSlotsNdarray:
@@ -449,7 +610,7 @@ class ParameterSweep(
 
         Returns
         -------
-            NamedSlotsNdarray["subsystem", <paramname1>, <paramname2>, ..., "esys"]
+            NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "subsystem", "esys"]
             where "subsystem": 0, 1, ... enumerates subsystems and
             "esys": 0, 1 yields eigenvalues and eigenvectors, respectively
         """
@@ -457,15 +618,16 @@ class ParameterSweep(
         for subsystem in self._hilbertspace:
             bare_spectrum += [self._subsys_bare_spectrum_sweep(subsystem)]
         bare_spectrum = np.asarray(bare_spectrum, dtype=object)
+        bare_spectrum = np.moveaxis(bare_spectrum, 0, -2)
 
         slotparamvals_by_name = OrderedDict(
             [
-                ("subsys", range(len(self._hilbertspace))),
                 *[
                     (name, paramvals)
                     for name, paramvals in self.parameters.ordered_dict.items()
                 ],
-                ("esys", [0, 1]),
+                ("subsys", np.arange(len(self._hilbertspace))),
+                ("esys", np.asarray([0, 1])),
             ]
         )
         return NamedSlotsNdarray(bare_spectrum, slotparamvals_by_name)
@@ -556,7 +718,7 @@ class ParameterSweep(
 
         assert self._data is not None
         bare_esys = {
-            subsys_index: self._data["bare_esys"][(subsys_index,) + paramindex_tuple]
+            subsys_index: self._data["bare_esys"][paramindex_tuple + (subsys_index,)]
             for subsys_index, _ in enumerate(self._hilbertspace)
         }
         evals, evecs = hilbertspace.eigensys(
@@ -609,7 +771,7 @@ class ParameterSweep(
         spectrum_data = np.asarray(spectrum_data, dtype=object)
         spectrum_data = spectrum_data.reshape((*self.parameters.counts, 2))
         slotparamvals_by_name = self.parameters.ordered_dict.copy()
-        slotparamvals_by_name.update(OrderedDict([("esys", [0, 1])]))
+        slotparamvals_by_name.update(OrderedDict([("esys", np.asarray([0, 1]))]))
 
         return NamedSlotsNdarray(spectrum_data, OrderedDict(slotparamvals_by_name))
 

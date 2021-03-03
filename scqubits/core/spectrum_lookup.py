@@ -33,6 +33,11 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 
+NpIndex = Union[int, slice, Tuple[int], List[int]]
+NpIndexTuple = Tuple[NpIndex, ...]
+NpIndices = Union[NpIndex, NpIndexTuple]
+
+
 def check_sync_status(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -96,6 +101,7 @@ class SpectrumLookupMixin:
         param_indices = itertools.product(*map(range, self.parameters.counts))
         for index in param_indices:
             dressed_indices[index] = self._generate_single_mapping(index)
+        dressed_indices = np.asarray(dressed_indices[:].tolist())
 
         parameter_dict = self.parameters.ordered_dict.copy()
         _ = parameter_dict.pop("esys", None)
@@ -129,15 +135,15 @@ class SpectrumLookupMixin:
             if max_overlap < 0.5:  # overlap too low, make no assignment
                 dressed_indices.append(None)
             else:
-                dressed_indices.append(max_position)
-        return np.asarray(dressed_indices, dtype=object)
+                dressed_indices.append(int(max_position))
+        return np.asarray(dressed_indices)
 
     @check_sync_status
     def dressed_index(
         self,
         bare_labels: Tuple[int, ...],
-        param_indices: Optional[Tuple[int, ...]] = None,
-    ) -> Union[int, None]:
+        param_indices: Optional[NpIndices] = None,
+    ) -> Union[ndarray, int, None]:
         """
         For given bare product state return the corresponding dressed-state index.
 
@@ -157,7 +163,7 @@ class SpectrumLookupMixin:
             lookup_position = self._bare_product_states_labels.index(bare_labels)
         except ValueError:
             return None
-        return self._data["dressed_indices"][param_indices][lookup_position]
+        return self._data["dressed_indices"][param_indices + (lookup_position,)]
 
     @check_sync_status
     def bare_index(
@@ -229,8 +235,8 @@ class SpectrumLookupMixin:
     def energy_by_bare_index(
         self,
         bare_tuple: Tuple[int, ...],
-        param_indices: Optional[Tuple[int, ...]] = None,
-    ) -> Union[float, None]:
+        param_indices: Optional[NpIndices] = None,
+    ) -> Union[ndarray, float, None]:
         """
         Look up dressed energy most closely corresponding to the given bare-state labels
 
@@ -249,7 +255,24 @@ class SpectrumLookupMixin:
         dressed_index = self.dressed_index(bare_tuple, param_indices)
         if dressed_index is None:
             return None
-        return self["esys"][param_indices][0][dressed_index]
+        if isinstance(dressed_index, int):
+            return self["esys"][param_indices + (0,)][dressed_index]
+
+        dressed_index = np.asarray(dressed_index)
+        select_energies = np.empty_like(dressed_index)
+        it = np.nditer(dressed_index, flags=["multi_index", "refs_ok"])
+        sliced_eigenenergies = self["esys"][param_indices + (0,)]
+        for location in it:
+            location = location.tolist()
+            if location is None:
+                select_energies[it.multi_index] = np.nan
+            else:
+                select_energies[it.multi_index] = sliced_eigenenergies[it.multi_index][
+                    location
+                ]
+        return NamedSlotsNdarray(
+            select_energies, sliced_eigenenergies.parameters.paramvals_by_name
+        )
 
     @check_sync_status
     def energy_by_dressed_index(

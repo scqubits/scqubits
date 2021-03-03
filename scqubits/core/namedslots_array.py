@@ -160,7 +160,7 @@ class Parameters:
         """Return the parameter index for a given parameter value of parameter set in
         specified slotindex"""
         location = np.abs(self[slotindex] - value).argmin()
-        return location
+        return int(location)
 
     @property
     def counts(self) -> Tuple[int]:
@@ -435,7 +435,9 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         obj = super().__getitem__(np_indices)
 
         if isinstance(obj, NamedSlotsNdarray):
-            obj.parameters = self.parameters.create_sliced(np_indices)
+            param_count = len(self.parameters)
+            obj.parameters = self.parameters.create_sliced(np_indices[:param_count])
+
         return obj
 
     @classmethod
