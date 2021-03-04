@@ -303,7 +303,7 @@ class VTBBaseMethods(ABC):
                 for unit_vec in minima_unit_vectors
             ]
         )
-        return np.min(minima_distances / 2.0 / (2.0 * harmonic_lengths))
+        return np.min(minima_distances / 2.0 / harmonic_lengths)
 
     def Xi_matrix(
         self, minimum_index: int = 0, harmonic_lengths: Optional[ndarray] = None

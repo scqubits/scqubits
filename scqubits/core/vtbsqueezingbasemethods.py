@@ -44,10 +44,19 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         dim = self.number_degrees_freedom
         u = M_matrix[0:dim, 0:dim]
         v = M_matrix[dim : 2 * dim, 0:dim]
-        rho = inv(u) @ v
-        sigma = logm(u)
-        tau = v @ inv(u)
+        rho = self._symmetrize_matrix(inv(u) @ v)
+        sigma = self._symmetrize_matrix(logm(u))
+        tau = self._symmetrize_matrix(v @ inv(u))
         return rho, sigma, tau
+
+    @staticmethod
+    def _symmetrize_matrix(mat: ndarray) -> ndarray:
+        dim = len(mat)
+        for i in range(dim):
+            for j in range(i+1, dim):
+                element_average = (mat[i, j] + mat[j, i]) / 2.0
+                mat[i, j] = mat[j, i] = element_average
+        return mat
 
     def _delta_rho_matrices(self, rho: ndarray, rho_prime: ndarray) -> Tuple:
         dim = self.number_degrees_freedom
@@ -884,9 +893,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         arg_exp_a_rho_prime = np.matmul(arg_exp_a, rho_prime)
         alpha = np.exp(
             -0.5 * arg_exp_a @ arg_exp_a_rho_prime
-            - 0.5
+            - 0.25
             * (arg_exp_a_dag - arg_exp_a_rho_prime)
-            @ delta_rho
+            @ (delta_rho + delta_rho.T)
             @ (arg_exp_a_dag - arg_exp_a_rho_prime)
         )
         return alpha
