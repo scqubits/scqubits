@@ -327,9 +327,9 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         evecs_a_uns = evecs_a_uns.T
         evecs_b_uns = evecs_b_uns.T
         for k, evec in enumerate(evecs_a_uns):
-            evecs_a[:, k] = standardize_phases(evec)
+            evecs_a[:, k] = standardize_sign(evec)
         for k, evec in enumerate(evecs_b_uns):
-            evecs_b[:, k] = standardize_phases(evec)
+            evecs_b[:, k] = standardize_sign(evec)
 
         # Generate matrix elements
         evals_a = evals_a - evals_a[0]
