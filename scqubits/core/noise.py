@@ -30,6 +30,13 @@ import scqubits.utils.plotting as plotting
 
 from scqubits.core.storage import SpectrumData
 
+
+if settings.IN_IPYTHON:
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
+
+
 # Helpers for units conversion
 
 
@@ -229,7 +236,19 @@ class NoisySystem(ABC):
         # remember current value of param_name
         current_val = getattr(self, param_name)
 
-        for n, noise_channel in enumerate(noise_channels):
+        prog_bar = tqdm(
+            noise_channels,
+            desc="Calculating coherence properties",
+            leave=False,
+            bar_format="{desc} {percentage:3.0f}% {bar} {n_fmt}/{total_fmt}",
+            disable=settings.PROGRESSBAR_DISABLED,
+        )
+
+        for n, noise_channel in enumerate(prog_bar):
+
+            prog_bar.set_description(
+                "noise type: {}".format(noise_channel), refresh=True
+            )
 
             # case 1: noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
