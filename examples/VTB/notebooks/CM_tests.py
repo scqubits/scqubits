@@ -35,10 +35,12 @@ evals_1 = CMV.eigenvals()
 evals_2 = CMVG.eigenvals()
 evals_3 = CMVS.eigenvals()
 evals_4 = CMVGS.eigenvals()
+path = '../../../scqubits/tests/data/'
 
 def run_tests(CM_instance, CM_string):
-    specdata_1 = CM_instance.eigenvals(evals_count=12, filename='../scqubits/tests/data/'+CM_string+'_1.hdf5')
-    read_1 = qubit.read(filename='../scqubits/tests/data/'+CM_string+'_1.hdf5')
+    specdata_1 = CM_instance.eigenvals(evals_count=12,
+                                       filename=path+CM_string+'_1.hdf5')
+    read_1 = qubit.read(filename=path+CM_string+'_1.hdf5')
     read_1.add_data(transfer_matrix=CM_instance.transfer_matrix())
     sorted_minima_list = []
     minima_vals = CM_instance.sorted_minima_dict.values()
@@ -51,21 +53,21 @@ def run_tests(CM_instance, CM_string):
     read_1.add_data(kinetic_matrix=CM_instance.kinetic_matrix())
     read_1.add_data(potential_matrix=CM_instance.potential_matrix())
     read_1.add_data(inner_product_matrix=CM_instance.inner_product_matrix())
-    qubit.write(read_1, filename='../scqubits/tests/data/'+CM_string+'_1.hdf5')
-    specdata_2 = CM_instance.eigensys(evals_count=4, filename='../scqubits/tests/data/'+CM_string+'_2.hdf5')
-    read_1 = qubit.read(filename='../scqubits/tests/data/'+CM_string+'_2.hdf5')
+    qubit.write(read_1, filename=path+CM_string+'_1.hdf5')
+    specdata_2 = CM_instance.eigensys(evals_count=4, filename=path+CM_string+'_2.hdf5')
+    read_1 = qubit.read(filename=path+CM_string+'_2.hdf5')
     specdata_4 = CM_instance.get_spectrum_vs_paramvals(param_name='flux', param_vals=flux_list, evals_count=4, get_eigenstates=True,
-                                               filename='../scqubits/tests/data/'+CM_string+'_4.hdf5')
+                                               filename=path+CM_string+'_4.hdf5')
 #    specdata_5 = CM_instance.matrixelement_table('n_operator', operator_args={'j': 0},
-#                                         filename='../scqubits/tests/data/'+CM_string+'_5.hdf5')
+#                                         filename=path+CM_string+'_5.hdf5')
 
 def run_tests_ED(CM_instance):
-    specdata_1_CM = CM_instance.eigenvals(evals_count=12, filename='../scqubits/tests/data/currentmirror_1.hdf5')
-    specdata_2_CM = CM_instance.eigensys(evals_count=4, filename='../scqubits/tests/data/currentmirror_2.hdf5')
+    specdata_1_CM = CM_instance.eigenvals(evals_count=12, filename='../../../scqubits/tests/data/currentmirror_1.hdf5')
+    specdata_2_CM = CM_instance.eigensys(evals_count=4, filename='../../../scqubits/tests/data/currentmirror_2.hdf5')
     specdata_4_CM = CM_instance.get_spectrum_vs_paramvals(param_name='flux', param_vals=flux_list, evals_count=4, get_eigenstates=True,
-                                                 filename='../scqubits/tests/data/currentmirror_4.hdf5')
+                                                          filename='../../../scqubits/tests/data/currentmirror_4.hdf5')
     matelem_CM = CM_instance.matrixelement_table('n_operator', evals_count=10,
-                                                 filename='../scqubits/tests/data/currentmirror_5.hdf5')
+                                                 filename='../../../scqubits/tests/data/currentmirror_5.hdf5')
 
 #run_tests(CMV, 'currentmirrorvtbs')
 #run_tests(CMVS, 'currentmirrorvtbsqueezing')
