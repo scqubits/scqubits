@@ -54,6 +54,18 @@ def harm_osc_wavefunction(
     )
 
 
+def get_E_osc_from_kin_and_pot_energies(E_kin: float, E_pot: float) -> float:
+    r"""Returns the oscillator energy given a harmonic Hamiltonian of the form
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    return np.sqrt(E_kin * E_pot)
+
+
+def get_losc_from_kin_and_pot_energies(E_kin: float, E_pot: float) -> float:
+    r"""Returns the oscillator length given a harmonic Hamiltonian of the form
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    return (E_kin / E_pot) ** (1 / 4)
+
+
 # —Oscillator class———————————————————————————————————————————————————————————————————
 
 
@@ -111,18 +123,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {"E_osc": 5.0, "truncated_dim": 10}
-
-    @staticmethod
-    def get_E_osc_from_kin_and_pot_energies(E_kin: float, E_pot: float) -> float:
-        r"""Returns the oscillator energy given a harmonic Hamiltonian of the form
-        :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2 """
-        return np.sqrt(E_kin * E_pot)
-
-    @staticmethod
-    def get_losc_from_kin_and_pot_energies(E_kin: float, E_pot: float) -> float:
-        r"""Returns the oscillator length given a harmonic Hamiltonian of the form
-        :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2 """
-        return (E_kin / E_pot)**(1/4)
 
     def get_omega(self) -> float:
         # Support for omega will be rolled back eventually. For now allow with
@@ -251,11 +251,10 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         Oscillator.__init__(
             self, E_osc=E_osc, omega=None, losc=losc, truncated_dim=truncated_dim
         )
- 
+
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/kerr-oscillator.jpg"
         )
-
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
