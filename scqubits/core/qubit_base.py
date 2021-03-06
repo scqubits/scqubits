@@ -277,9 +277,9 @@ class QubitBaseClass(QuantumSystem, ABC):
         """Returns table of matrix elements for `operator` with respect to the
         eigenstates of the qubit. The operator is given as a string matching a class
         method returning an operator matrix. E.g., for an instance `trm` of Transmon,
-         the matrix element table for the charge operator is given by
-         `trm.op_matrixelement_table('n_operator')`. When `esys` is set to `None`,
-         the eigensystem is calculated on-the-fly.
+        the matrix element table for the charge operator is given by
+        `trm.op_matrixelement_table('n_operator')`. When `esys` is set to `None`,
+        the eigensystem is calculated on-the-fly.
 
         Parameters
         ----------
