@@ -26,8 +26,11 @@ from scqubits import Oscillator
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 if TYPE_CHECKING:
-    from scqubits import HilbertSpace, SpectrumData
+    from scqubits import HilbertSpace, Oscillator, SpectrumData
+    from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.core.param_sweep import ParameterSweep, ParameterSweepBase
+
+    QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
 if settings.IN_IPYTHON:
@@ -69,6 +72,11 @@ def generator(sweep: "ParameterSweepBase", func: callable, **kwargs) -> np.ndarr
             **kw,
         )
 
+    if hasattr(func, "__name__"):
+        func_name = func.__name__
+    else:
+        func_name = ""
+
     data_array = list(
         tqdm(
             map(
@@ -80,7 +88,7 @@ def generator(sweep: "ParameterSweepBase", func: callable, **kwargs) -> np.ndarr
                 itertools.product(*reduced_parameters.ranges),
             ),
             total=total_count,
-            desc="sweeping " + func.__name__,
+            desc="sweeping " + func_name,
             leave=False,
             disable=settings.PROGRESSBAR_DISABLED,
         )
@@ -168,136 +176,3 @@ def dispersive(sweep: "ParameterSweep"):
 #     return data_dict
 #
 #
-# def generate_charge_matrixelem_sweep(sweep):
-#     """Generate data for the charge matrix elements as a function of the sweep parameter
-#
-#     Parameters
-#     ----------
-#     sweep: ParameterSweep
-#
-#     Returns
-#     -------
-#     dict
-#         (osc_index, qbt_index) -> ndararray of chi values
-#     """
-#     data_dict = dict()
-#     for qbt_index, subsys in sweep.qbt_subsys_list:
-#         if type(subsys).__name__ in ["Transmon", "Fluxonium"]:
-#             data = compute_custom_data_sweep(
-#                 sweep,
-#                 observable.qubit_matrixelement,
-#                 qubit_subsys=subsys,
-#                 qubit_operator=subsys.n_operator(),
-#             )
-#             datastore = sweep.new_datastore(matrixelem_table=data)
-#             data_dict[(qbt_index, subsys)] = datastore
-#     return data_dict
-
-
-# def generate_diffspec_sweep(sweep, initial_state_ind=0):
-#     """Takes spectral data of energy eigenvalues and subtracts the energy of a select
-#     state, given by its state index.
-#
-#     Parameters
-#     ----------
-#     sweep: ParameterSweep
-#     initial_state_ind: int or (i1, i2, ...)
-#         index of the initial state whose energy is supposed to be subtracted from the
-#         spectral data
-#
-#     Returns
-#     -------
-#     SpectrumData
-#     """
-#     lookup = sweep.lookup
-#     param_count = sweep.param_count
-#     evals_count = sweep.evals_count
-#     diff_eigenenergy_table = np.empty(shape=(param_count, evals_count))
-#
-#     for param_index in tqdm(
-#         range(param_count),
-#         desc="difference spectrum",
-#         leave=False,
-#         disable=settings.PROGRESSBAR_DISABLED,
-#     ):
-#         eigenenergies = sweep.dressed_specdata.energy_table[param_index]
-#         if isinstance(initial_state_ind, int):
-#             eigenenergy_index = initial_state_ind
-#         else:
-#             eigenenergy_index = lookup.dressed_index(initial_state_ind, param_index)
-#         diff_eigenenergies = eigenenergies - eigenenergies[eigenenergy_index]
-#         diff_eigenenergy_table[param_index] = diff_eigenenergies
-#     return storage.SpectrumData(
-#         diff_eigenenergy_table, sweep.system_params, sweep.param_name, sweep.param_vals
-#     )
-
-
-# def is_single_qubit_transition(
-#     state_index1: Tuple[int, ...],
-#     state_index2: Tuple[int, ...],
-#     hilbertspace: "HilbertSpace",
-# ) -> bool:
-#     qubits_involved = 0
-#     for subsys_index, (i1, i2) in enumerate(zip(state_index1, state_index2)):
-#         if isinstance(hilbertspace[subsys_index], Oscillator) and i1 != i2:
-#             return False
-#         elif i1 != i2 and qubits_involved == 0:
-#             qubits_involved += 1
-#         else:
-#             return False
-#     return qubits_involved == 1
-#
-#
-# def qubit_transitions(
-#     sweep: "ParameterSweep",
-#     photonnumber: int = 1,
-#     initial_state: Optional[Tuple[int, ...]] = None,
-# ) -> Dict[Tuple[int, ...], SpectrumData]:
-#     """
-#     Extracts energies for single-qubit transitions.
-#
-#     Parameters
-#     ----------
-#     sweep:
-#     photonnumber:
-#         number of photons used in transition
-#     initial_state:
-#         bare-state labels of the initial state whose energy is to be subtracted
-#         from the final-state energies
-#
-#     Returns
-#     -------
-#         list of transition target states, spectrum data
-#     """
-#     initial_state = initial_state or (0,) * len(sweep._hilbertspace)
-#
-#     subsys_ranges = [
-#         range(subsys_dim) for subsys_dim in sweep._hilbertspace.subsystem_dims
-#     ]
-#
-#     target_states_list = [
-#         state_index
-#         for state_index in itertools.product(*subsys_ranges)
-#         if is_single_qubit_transition(state_index, initial_state, self._hilbertspace)
-#     ]
-#
-#     difference_energies_table = []
-#
-#     for param_index in range(sweep.param_count):
-#         difference_energies = []
-#         initial_energy = lookup.energy_bare_index(initial_state_labels, param_index)
-#         for target_labels in target_states_list:
-#             target_energy = lookup.energy_bare_index(target_labels, param_index)
-#             if target_energy is None or initial_energy is None:
-#                 difference_energies.append(np.NaN)
-#             else:
-#                 difference_energies.append(
-#                     (target_energy - initial_energy) / photonnumber
-#                 )
-#         difference_energies_table.append(difference_energies)
-#
-#     data = np.asarray(difference_energies_table)
-#     specdata = storage.SpectrumData(
-#         data, sweep.system_params, sweep.param_name, sweep.param_vals
-#     )
-#     return target_states_list, specdata
