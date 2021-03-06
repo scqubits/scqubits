@@ -219,6 +219,7 @@ class ParameterSweepBase(ABC):
             final_state = list(initial_tuple)
             final_state[subsys_index] = level
             final_tuples_list.append(tuple(final_state))
+        final_tuples_list.remove(initial_tuple)
         return final_tuples_list
 
     def _get_final_states(
@@ -243,9 +244,6 @@ class ParameterSweepBase(ABC):
                 final_state_list += self._final_states_subsys(subsys, initial_state)
             return final_state_list
 
-        # if sidebands:
-        #     final_state_list = list(itertools.product(*range_list))
-        #     return final_state_list
         range_list = [range(dim) for dim in self._hilbertspace.subsystem_dims]
         for subsys_index, subsys in enumerate(self._hilbertspace):
             if subsys not in subsys_list:
@@ -268,7 +266,7 @@ class ParameterSweepBase(ABC):
 
     def transitions(
         self,
-        subsystem: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
+        subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Union[int, Tuple[int, ...]]] = None,
         sidebands: bool = False,
@@ -289,8 +287,8 @@ class ParameterSweepBase(ABC):
 
         Parameters
         ----------
-        subsystem:
-            single subsystem or list of subsystems considered as "active" for the
+        subsystems:
+            single subsystems or list of subsystems considered as "active" for the
             transitions to be generated; if omitted as a parameter, all subsystems
             are considered as actively participating in the transitions
         initial:
@@ -323,12 +321,12 @@ class ParameterSweepBase(ABC):
         """
         param_indices = param_indices or self._current_param_indices
 
-        if subsystem is None:
+        if subsystems is None:
             subsys_list = self._hilbertspace.subsys_list
-        elif isinstance(subsystem, (QubitBaseClass, Oscillator)):
-            subsys_list = [subsystem]
+        elif isinstance(subsystems, (QubitBaseClass, Oscillator)):
+            subsys_list = [subsystems]
         else:
-            subsys_list = subsystem
+            subsys_list = subsystems
 
         if initial is None:
             initial_state = (0,) * len(self._hilbertspace)
@@ -340,7 +338,7 @@ class ParameterSweepBase(ABC):
         if len(initial_state) not in [len(self._hilbertspace), len(subsys_list)]:
             raise ValueError(
                 "Initial state information provided is not compatible "
-                "with the specified subsystem(s) provided."
+                "with the specified subsystems(s) provided."
             )
         elif len(initial_state) < len(self._hilbertspace):
             initial_state = self._complete_initial_state(initial_state, subsys_list)
@@ -349,13 +347,10 @@ class ParameterSweepBase(ABC):
             initial_state, subsys_list, final, sidebands
         )
 
-        transitions = [
-            (initial_state, final_state) for final_state in final_states_list
-        ]
         transitions = []
         transition_energies = []
+        initial_energies = self[param_indices].energy_by_bare_index(initial_state)
         for final_state in final_states_list:
-            initial_energies = self[param_indices].energy_by_bare_index(initial_state)
             final_energies = self[param_indices].energy_by_bare_index(final_state)
             diff_energies = (final_energies - initial_energies).astype(float)
             if make_positive:
@@ -377,6 +372,9 @@ class ParameterSweepBase(ABC):
                 param_name=name,
                 param_vals=vals,
                 labels=list(map(str, transitions)),
+                subtracted=np.asarray(
+                    [initial_energies] * self._evals_count, dtype=float
+                ).T,
             )
         return SpectrumData(
             energy_table=np.asarray(transition_energies),
@@ -386,12 +384,14 @@ class ParameterSweepBase(ABC):
 
     def plot_transitions(
         self,
-        subsystem: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
+        subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Union[int, Tuple[int, ...]]] = None,
         sidebands: bool = False,
-        make_positive: bool = False,
+        make_positive: bool = True,
+        matrix_elements: Optional[List[NamedSlotsNdarray]] = None,
         param_indices: Optional[NpIndices] = None,
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """
         Plot transition energies as a function of one external parameter. Usage is based
@@ -406,8 +406,8 @@ class ParameterSweepBase(ABC):
 
         Parameters
         ----------
-        subsystem:
-            single subsystem or list of subsystems considered as "active" for the
+        subsystems:
+            single subsystems or list of subsystems considered as "active" for the
             transitions to be generated; if omitted as a parameter, all subsystems
             are considered as actively participating in the transitions
         initial:
@@ -423,7 +423,10 @@ class ParameterSweepBase(ABC):
         make_positive:
             boolean option relevant if the initial state is an excited state;
             downwards transition energies would regularly be negative, but are
-            converted to positive if this flag is set to True
+            converted to positive if this flag is set to True (default: True)
+        matrix_elements:
+            Provided if transitions are to be colored by magnitudes of transition
+            matrix elements.
         param_indices:
             usually to be omitted, as param_indices will be set via pre-slicing
 
@@ -445,7 +448,7 @@ class ParameterSweepBase(ABC):
                 "0].plot_transitions(...)"
             )
         specdata = self.transitions(
-            subsystem,
+            subsystems,
             initial,
             final,
             sidebands,
@@ -453,13 +456,21 @@ class ParameterSweepBase(ABC):
             as_specdata=True,
             param_indices=param_indices,
         )
-        return specdata.plot_evals_vs_paramvals(label_list=specdata.labels)
+
+        specdata_all = self[param_indices].dressed_specdata
+        specdata_all.energy_table -= specdata.subtracted
+
+        fig_ax = specdata_all.plot_evals_vs_paramvals(color="gainsboro", linewidth=0.5)
+
+        return specdata.plot_evals_vs_paramvals(
+            label_list=specdata.labels, fig_ax=fig_ax, **kwargs
+        )
 
     def add_sweep(
         self,
         sweep_function: Union[str, Callable],
         sweep_name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Add a new sweep to the ParameterSweep object. The generated data is
@@ -482,6 +493,11 @@ class ParameterSweepBase(ABC):
             None
         """
         if callable(sweep_function):
+            if not hasattr(sweep_function, "__name__") and not sweep_name:
+                raise ValueError(
+                    "Sweep function name cannot be accessed. Provide an "
+                    "explicit `sweep_name` instead."
+                )
             sweep_name = sweep_name or sweep_function.__name__
             func = sweep_function
             self._data[sweep_name] = sweeps.generator(self, func, **kwargs)
@@ -489,6 +505,57 @@ class ParameterSweepBase(ABC):
             sweep_name = sweep_name or sweep_function
             func = getattr(sweeps, sweep_function)
             self._data[sweep_name] = func(**kwargs)
+
+    def matrix_elements(
+        self,
+        operator_name: str,
+        sweep_name: str,
+        subsystem: "QuantumSys",
+    ) -> None:
+        """Generate data for matrix elements with respect to a given operator, as a
+        function of the sweep parameter(s)
+
+        Parameters
+        ----------
+        operator_name:
+            name of the operator in question
+        sweep_name:
+            The sweep data will be accessible as <ParameterSweep>[<sweep_name>]
+        subsystem:
+            subsystems for which to compute matrix elements.
+
+        Returns
+        -------
+            None; results are saved as <ParameterSweep>[<sweep_name>]
+        """
+
+        def _matrix_elements(
+            sweep: "ParameterSweep",
+            param_indices: Tuple[int, ...],
+            param_vals: Tuple[float, ...],
+            operator_name: Union[str, None] = None,
+            subsystem=None,
+        ) -> np.ndarray:
+            subsys_index = sweep.get_subsys_index(subsystem)
+            bare_evecs = sweep["bare_esys"][param_indices][subsys_index][1]
+            return subsystem.matrixelement_table(
+                operator=operator_name,
+                evecs=bare_evecs,
+                evals_count=subsystem.truncated_dim,
+            )
+
+        operator_func = functools.partial(
+            _matrix_elements,
+            sweep=self,
+            operator_name=operator_name,
+            subsystem=subsystem,
+        )
+
+        matrix_element_data = sweeps.generator(
+            self,
+            operator_func,
+        )
+        self._data[sweep_name] = matrix_element_data
 
 
 class ParameterSweep(
@@ -500,15 +567,14 @@ class ParameterSweep(
     """
     Sweep allows dict-like and array-like access. For
      <Sweep>[<str>], return data according to:
-    {
-      'esys': NamedSlotsNdarray of dressed eigenspectrum,
-      'bare_esys': NamedSlotsNdarray of bare eigenspectrum,
-      'lookup': NamedSlotsNdAdarray of dressed indices correposponding to bare
-      product state labels in canonical order,
-      '<observable1>': NamedSlotsNdarray,
-      '<observable2>': NamedSlotsNdarray,
-      ...
-    }
+
+    *  'esys': NamedSlotsNdarray of dressed eigenspectrum,
+    *  'bare_esys': NamedSlotsNdarray of bare eigenspectrum,
+    *  'lookup': NamedSlotsNdAdarray of dressed indices correposponding to bare
+    *  product state labels in canonical order,
+    *  '<observable1>': NamedSlotsNdarray,
+    *  '<observable2>': NamedSlotsNdarray,
+    *  ...
 
     For array-like access (including named slicing allowed for NamedSlotsNdarray),
     enable lookup functionality such as
@@ -526,20 +592,20 @@ class ParameterSweep(
         set of parameters
     evals_count:
         number of dressed eigenvalues/eigenstates to keep. (The number of bare
-        eigenvalues/eigenstates is determined for each subsystem by `truncated_dim`.)
+        eigenvalues/eigenstates is determined for each subsystems by `truncated_dim`.)
         [default: 20]
     subsys_update_info:
         To speed up calculations, the user may provide information that specifies which
         subsystems are being updated for each of the given parameter sweeps. This
         information is specified by a dictionary of the following form:
         {
-         '<parameter name 1>': [<subsystem a>],
-         '<parameter name 2>': [<subsystem b>, <subsystem c>, ...],
+         '<parameter name 1>': [<subsystems a>],
+         '<parameter name 2>': [<subsystems b>, <subsystems c>, ...],
           ...
         }
         This indicates that changes in <parameter name 1> only require updates of
-        <subsystem a> while leaving other subsystems unchanged. Similarly, sweeping
-        <parameter name 2> affects <subsystem b>, <subsystem c> etc.
+        <subsystems a> while leaving other subsystems unchanged. Similarly, sweeping
+        <parameter name 2> affects <subsystems b>, <subsystems c> etc.
     bare_only:
         if set to True, only bare eigendata is calculated; useful when performing a
         sweep for a single quantum system, no interaction (default: False)
@@ -549,6 +615,7 @@ class ParameterSweep(
     num_cpus:
         number of CPUS requested for computing the sweep
         (default value settings.NUM_CPUS)
+
     """
 
     def __new__(cls, *args, **kwargs) -> "Union[ParameterSweep, _ParameterSweep]":
@@ -635,15 +702,15 @@ class ParameterSweep(
         """
         The bare energy spectra are computed according to the following scheme.
         1. Perform a loop over all subsystems to separately obtain the bare energy
-            eigenvalues and eigenstates for each subsystem.
+            eigenvalues and eigenstates for each subsystems.
         2. If `update_subsystem_info` is given, remove those sweeps that leave the
-            subsystem fixed.
+            subsystems fixed.
         3. If self._num_cpus > 1, parallelize.
 
         Returns
         -------
-            NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "subsystem", "esys"]
-            where "subsystem": 0, 1, ... enumerates subsystems and
+            NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "subsystems", "esys"]
+            where "subsystems": 0, 1, ... enumerates subsystems and
             "esys": 0, 1 yields eigenvalues and eigenvectors, respectively
         """
         bare_spectrum = []
@@ -690,7 +757,7 @@ class ParameterSweep(
         Parameters
         ----------
         subsystem:
-            subsystem for which the bare spectrum sweep is to be computed
+            subsystems for which the bare spectrum sweep is to be computed
 
         Returns
         -------
@@ -729,7 +796,7 @@ class ParameterSweep(
         bare_eigendata = bare_eigendata.reshape((*reduced_parameters.counts, 2))
 
         # Bare spectral data was only computed once for each parameter that has no
-        # update effect on the subsystem. Now extend the array to reflect this
+        # update effect on the subsystems. Now extend the array to reflect this
         # for the full parameter array by repeating
         for name in fixed_paramnames:
             index = self.parameters.index_by_name[name]
