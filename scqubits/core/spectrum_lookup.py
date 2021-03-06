@@ -110,9 +110,9 @@ class SpectrumLookupMixin:
     def _generate_single_mapping(self, param_indices: Tuple[int, ...]) -> ndarray:
         """
         For a single set of parameter values, specified by with a tuple of indices
-        ``param_indices`` (or a single integer if one one parameter is involved)
-        create an array of the dressed-state indices in an order that corresponds one to
-        one to the bare product states with largest overlap (whenever possible).
+        ``param_indices``, create an array of the dressed-state indices in an order
+        that corresponds one to one to the bare product states with largest overlap
+        (whenever possible).
 
         Parameters
         ----------
@@ -127,15 +127,15 @@ class SpectrumLookupMixin:
             self._data["esys"][param_indices][1]
         )
 
-        dressed_indices: List[Union[int, None]] = []
-        # for given bare basis index, find dressed index
-        for bare_basis_index in range(self._hilbertspace.dimension):
-            max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
-            max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
-            if max_overlap < 0.5:  # overlap too low, make no assignment
-                dressed_indices.append(None)
-            else:
-                dressed_indices.append(int(max_position))
+        dim = self._hilbertspace.dimension
+        dressed_indices: List[Union[int, None]] = [None] * dim
+        for dressed_index in range(self._evals_count):
+            max_position = (np.abs(overlap_matrix[dressed_index, :])).argmax()
+            max_overlap = np.abs(overlap_matrix[dressed_index, max_position])
+            if max_overlap ** 2 > 0.5:
+                overlap_matrix[:, max_position] = 0
+                dressed_indices[int(max_position)] = dressed_index
+
         return np.asarray(dressed_indices)
 
     @check_sync_status
@@ -236,7 +236,7 @@ class SpectrumLookupMixin:
         self,
         bare_tuple: Tuple[int, ...],
         param_indices: Optional[NpIndices] = None,
-    ) -> Union[ndarray, float, None]:
+    ) -> NamedSlotsNdarray:
         """
         Look up dressed energy most closely corresponding to the given bare-state labels
 
@@ -249,12 +249,12 @@ class SpectrumLookupMixin:
 
         Returns
         -------
-            dressed energy, if lookup successful
+            dressed energies, if lookup successful, otherwise nan;
         """
         param_indices = param_indices or self._current_param_indices
         dressed_index = self.dressed_index(bare_tuple, param_indices)
         if dressed_index is None:
-            return None
+            return np.nan
         if isinstance(dressed_index, int):
             return self["esys"][param_indices + (0,)][dressed_index]
 
@@ -300,8 +300,8 @@ class SpectrumLookupMixin:
         self, subsys: "QuantumSystem", param_indices: Optional[Tuple[int, ...]] = None
     ) -> "Dict[QuantumSystem, ndarray]":
         """
-        Return ndarray of bare eigenstates for given subsystem and parameter index.
-        Eigenstates are expressed in the basis internal to the subsystem.
+        Return ndarray of bare eigenstates for given subsystems and parameter index.
+        Eigenstates are expressed in the basis internal to the subsystems.
         """
         param_indices = param_indices or self._current_param_indices
         subsys_index = self._hilbertspace.get_subsys_index(subsys)
