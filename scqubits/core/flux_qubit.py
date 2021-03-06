@@ -80,7 +80,9 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
         Returns
         -------
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`,
+             or rate in inverse units.
+             
         """
         if "tphi_1_over_f_cc1" not in self.supported_noise_channels():
             raise RuntimeError(
