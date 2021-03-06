@@ -20,6 +20,7 @@ import scipy as sp
 from numpy import ndarray
 
 import scqubits.core.operators as op
+import scqubits.core.descriptors as descriptors
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 
@@ -47,10 +48,10 @@ def harm_osc_wavefunction(
         value of harmonic oscillator wave function
     """
     return (
-            (2.0 ** n * sp.special.gamma(n + 1.0) * l_osc) ** (-0.5)
-            * np.pi ** (-0.25)
-            * sp.special.eval_hermite(n, x / l_osc)
-            * np.exp(-(x * x) / (2 * l_osc * l_osc))
+        (2.0 ** n * sp.special.gamma(n + 1.0) * l_osc) ** (-0.5)
+        * np.pi ** (-0.25)
+        * sp.special.eval_hermite(n, x / l_osc)
+        * np.exp(-(x * x) / (2 * l_osc * l_osc))
     )
 
 
@@ -59,7 +60,7 @@ def harm_osc_wavefunction(
 
 class Oscillator(base.QuantumSystem, serializers.Serializable):
     r"""Class representing a harmonic oscillator/resonator governed by a Hamiltonian
-    :math:`H=E_\text{osc} a^{\dagger} a`, with :math:`a` being the annihilation
+    :math:`H=E_{\rm osc} a^{\dagger} a`, with :math:`a` being the annihilation
     operator.
 
     Parameters
@@ -69,10 +70,12 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     omega:
         (depricated) alternative way of specifying the energy of the oscillator
     l_osc:
-        oscillator length (required to define phi_operator and n_operator)
+        oscillator length (used to define phi_operator and n_operator)
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
+    E_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    l_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -110,7 +113,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        return {"E_osc": 5.0, "l_osc": 1, "truncated_dim": 10}
+        return {"E_osc": 5.0, "l_osc": 1, "truncated_dim": _default_evals_count}
 
     def get_omega(self) -> float:
         # Support for omega will be rolled back eventually. For now allow with
@@ -179,8 +182,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
     def phi_operator(self) -> ndarray:
         """Returns the phase operator defined as
-        :math:`1/\sqrt{2} l_\text{osc} (a + a^{\dagger})`, with :math:`a` representing
-        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
+        :math:`1/\sqrt{2} l_{\rm osc} (a + a^{\dagger})`, with :math:`a` representing
+        an annihilation operator, and :math:`l_{\rm osc}` the oscillator length.
         """
         if self.l_osc is None:
             raise ValueError(
@@ -193,8 +196,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
     def n_operator(self) -> ndarray:
         """Returns the charge-number n operator defined as
-        :math:`i/\sqrt{2} l_\text{osc} (a^{\dagger}) - a`, with :math:`a` representing
-        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
+        :math:`i/\sqrt{2} l_{\rm osc} (a^{\dagger} - a)`, with :math:`a` representing
+        an annihilation operator, and :math:`l_{\rm osc}` the oscillator length.
         """
         if self.l_osc is None:
             raise ValueError(
@@ -211,7 +214,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
 class KerrOscillator(Oscillator, serializers.Serializable):
     r"""Class representing a nonlinear Kerr oscillator/resonator governed by a Hamiltonian
-    :math:`H_\text{Kerr}=E_\text{osc} a^{\dagger} a - K (a^{\dagger} a)^{2}`, with :math:`a`
+    :math:`H_{\rm Kerr}=E_{\rm osc} a^{\dagger} a - K(a^{\dagger} a^{\dagger} a a`, with :math:`a`
     being the annihilation operator.
 
     Parameters
@@ -221,10 +224,11 @@ class KerrOscillator(Oscillator, serializers.Serializable):
     K:
         energy of the Kerr term
     l_osc:
-        oscillator length (required to define phi_operator and n_operator)
+        oscillator length (used to define phi_operator and n_operator)
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
+    K = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -246,7 +250,12 @@ class KerrOscillator(Oscillator, serializers.Serializable):
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        return {"E_osc": 5.0, "K": 0.05, "l_osc": 1, "truncated_dim": 10}
+        return {
+            "E_osc": 5.0,
+            "K": 0.05,
+            "l_osc": 1,
+            "truncated_dim": _default_evals_count,
+        }
 
     def eigenvals(self, evals_count: int = _default_evals_count) -> ndarray:
         """Returns array of eigenvalues.
@@ -256,5 +265,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         evals_count:
             number of desired eigenvalues (default value = 6)
         """
-        evals = [self.E_osc * n - self.K * n ** 2 for n in range(evals_count)]
+        evals = [
+            (self.E_osc + self.K) * n - self.K * n ** 2 for n in range(evals_count)
+        ]
         return np.asarray(evals)
