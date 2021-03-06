@@ -54,6 +54,18 @@ def harm_osc_wavefunction(
     )
 
 
+def get_E_osc_from_kin_and_pot_energies(E_kin: float, E_pot: float) -> float:
+    r"""Returns the oscillator energy given a harmonic Hamiltonian of the form
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    return np.sqrt(E_kin * E_pot)
+
+
+def get_losc_from_kin_and_pot_energies(E_kin: float, E_pot: float) -> float:
+    r"""Returns the oscillator length given a harmonic Hamiltonian of the form
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    return (E_kin / E_pot) ** (1 / 4)
+
+
 # —Oscillator class———————————————————————————————————————————————————————————————————
 
 
@@ -67,7 +79,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     E_osc:
         energy of the oscillator
     omega:
-        (depricated) alternative way of specifying the energy of the oscillator
+        (deprecated) alternative way of specifying the energy of the oscillator
     losc:
         oscillator length (required to define phi_operator and n_operator)
     truncated_dim:
@@ -239,11 +251,10 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         Oscillator.__init__(
             self, E_osc=E_osc, omega=None, losc=losc, truncated_dim=truncated_dim
         )
- 
+
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/kerr-oscillator.jpg"
         )
-
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
