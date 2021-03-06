@@ -748,7 +748,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             name of class method in string form, returning operator matrix
         evecs:
             eigensystem data of evals, evecs; eigensystem will be calculated if set to
-             None (default value = None)
+            None (default value = None)
         evals_count:
             number of desired matrix elements, starting with ground state
             (default value = 6)
