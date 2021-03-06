@@ -811,7 +811,7 @@ class NoisySystem(ABC):
         -------
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or
-             rate in inverse units.
+            rate in inverse units.
 
         """
         common_noise_options = (
@@ -1058,7 +1058,7 @@ class NoisySystem(ABC):
         -------
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
-             in inverse units.
+            in inverse units.
         """
         if "tphi_1_over_f_ng" not in self.supported_noise_channels():
             raise RuntimeError(
