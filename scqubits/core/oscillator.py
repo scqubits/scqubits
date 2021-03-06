@@ -30,8 +30,8 @@ _default_evals_count = 6
 def harm_osc_wavefunction(
     n: int, x: Union[float, ndarray], l_osc: float
 ) -> Union[float, ndarray]:
-    """For given quantum number n=0,1,2,... return the value of the harmonic
-    oscillator wave function :math:`\\psi_n(x) = N H_n(x/l_{osc}) \\exp(-x^2/2l_{
+    r"""For given quantum number n=0,1,2,... return the value of the harmonic
+    oscillator wave function :math:`\psi_n(x) = N H_n(x/l_{osc}) \exp(-x^2/2l_\text{
     osc})`, N being the proper normalization factor.
 
     Parameters
@@ -60,7 +60,7 @@ def harm_osc_wavefunction(
 
 class Oscillator(base.QuantumSystem, serializers.Serializable):
     r"""Class representing a harmonic oscillator/resonator governed by a Hamiltonian
-    :math:`H=E_{\rm osc} a^{\dagger} a`, with :math:`a` being the annihilation
+    :math:`H=E_\text{osc} a^{\dagger} a`, with :math:`a` being the annihilation
     operator.
 
     Parameters
@@ -181,9 +181,9 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         )
 
     def phi_operator(self) -> ndarray:
-        """Returns the phase operator defined as
-        :math:`1/\sqrt{2} l_{\rm osc} (a + a^{\dagger})`, with :math:`a` representing
-        an annihilation operator, and :math:`l_{\rm osc}` the oscillator length.
+        r"""Returns the phase operator defined as
+        :math:`l_\text{osc} (a + a^{\dagger})/\sqrt{2}`, with :math:`a` representing
+        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
         """
         if self.l_osc is None:
             raise ValueError(
@@ -195,10 +195,11 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         return self.l_osc / np.sqrt(2) * (a + a.T)
 
     def n_operator(self) -> ndarray:
-        """Returns the charge-number n operator defined as
-        :math:`i/\sqrt{2} l_{\rm osc} (a^{\dagger} - a)`, with :math:`a` representing
-        an annihilation operator, and :math:`l_{\rm osc}` the oscillator length.
+        r"""Returns the charge-number n operator defined as
+        :math:`i (a^{\dagger} - a)/ ( \sqrt{2} l_\text{osc})`, with :math:`a` representing
+        an annihilation operator, and :math:`l_\text{osc}` the oscillator length.
         """
+
         if self.l_osc is None:
             raise ValueError(
                 "Variable l_osc has to be set to something other than None\n"
@@ -214,7 +215,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
 
 class KerrOscillator(Oscillator, serializers.Serializable):
     r"""Class representing a nonlinear Kerr oscillator/resonator governed by a Hamiltonian
-    :math:`H_{\rm Kerr}=E_{\rm osc} a^{\dagger} a - K(a^{\dagger} a^{\dagger} a a`, with :math:`a`
+    :math:`H_\text{Kerr}=E_\text{osc} a^{\dagger} a - K a^{\dagger} a^{\dagger} a a`, with :math:`a`
     being the annihilation operator.
 
     Parameters
@@ -234,7 +235,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         self,
         E_osc: float,
         K: float,
-        l_osc: float = None,
+        l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
     ) -> None:
 
