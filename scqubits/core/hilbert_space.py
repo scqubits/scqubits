@@ -177,6 +177,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         *args,
         **kwargs,
     ) -> Union["InteractionTerm", InteractionTermLegacy]:
+        """This takes care of legacy use of the InteractionTerm class"""
         if "subsys1" in kwargs:
             warnings.warn(
                 "This use of `InteractionTerm` is deprecated and will cease "
@@ -232,6 +233,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         bare_esys: Optional[Dict[int, ndarray]] = None,
     ) -> Qobj:
         """
+        Returns the full Hamiltonian of the interacting quantum system described by the
+        HilbertSpace object
+
         Parameters
         ----------
         subsystem_list:
@@ -240,6 +244,10 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         bare_esys:
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys)
+
+        Returns
+        -------
+            Hamiltonian in `qutip.Qobj` format
         """
         hamiltonian = self.g_strength
         id_wrapped_ops = self.id_wrap_all_ops(
@@ -291,6 +299,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     add_hc:
         If set to True, the interaction Hamiltonian is of type 2, and the Hermitian
         conjugate is added.
+
     """
 
     expr = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
@@ -699,7 +708,8 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         self, bare_esys: Optional[Dict[int, ndarray]] = None
     ) -> Qobj:
         """
-        Deprecated, will be changed in future versions.
+        Returns the interaction Hamiltonian, based on the interaction terms specified
+        for the current HilbertSpace object
 
         Parameters
         ----------
@@ -940,6 +950,50 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     # HilbertSpace: add interaction and parsing arguments to .add_interaction
     ###################################################################################
     def add_interaction(self, check_validity=True, **kwargs) -> None:
+        """
+        Specify the interaction between subsystems making up the `HilbertSpace`
+        instance. `add_interaction(...)` offers three different interfaces:
+
+        * Simple interface for operator products
+        * String-based interface for more general interaction operator expressions
+        * General Qobj interface
+
+        1. Simple interface for operator products
+            Specify `ndarray`, `csc_matrix`, or `dia_matrix` (subsystem operator in
+            subsystem-internal basis) along with the corresponding subsystem
+
+            signature::
+
+                .add_interation(g=<float>,
+                                op1=(<ndarray>, <QuantumSystem>),
+                                op2=(<csc_matrix>, <QuantumSystem>),
+                                 …,
+                                add_hc=<bool>)
+
+            Alternatively, specify subsystem operators via callable methods.
+
+            signature::
+
+                .add_interaction(g=<float>,
+                                 op1=<Callable>,
+                                 op2=<Callable>,
+                                 …,
+                                 add_hc=<bool>)
+        2. String-based interface for more general interaction operator expressions
+	        Specify a Python expression that generates the desired operator. The
+	        expression enables convenience use of basic qutip operations::
+
+	            .add_interaction(expr=<str>,
+	                             op1=(<str>, <ndarray>, <subsys>),
+	                             op2=(<str>, <Callable>),
+	                             …)
+        3. General Qobj operator
+            Specify a fully identity-wrapped `qutip.Qobj` operator. Signature::
+
+                .add_interaction(qobj=<Qobj>)
+
+
+        """
         if "expr" in kwargs:
             interaction = self._parse_interactiontermstr(**kwargs)
         elif "qobj" in kwargs:
