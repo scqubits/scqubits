@@ -246,7 +246,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        return dict(**Oscillator.default_params(), K=0.05)
+        return {"E_osc": 5.0, "K": 0.05, "l_osc": 1, "truncated_dim": 10}
 
     def eigenvals(self, evals_count: int = _default_evals_count) -> ndarray:
         """Returns array of eigenvalues.
