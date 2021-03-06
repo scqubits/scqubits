@@ -287,7 +287,7 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
     hermitian, unless add_hc = True in which case each operator my be non-hermitian.
     Acceptable functions inside of expr string include: cos(), sin(),
     dag(), conj(), exp(), sqrt(), trans(), cosm(), sinm(), expm(), and sqrtm() along
-    with other operators included in python.
+    with other operators allowed in Python expressions.
 
     Parameters
     ----------
@@ -319,12 +319,9 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
             "sinm(": "Qobj.sinm(",
             "sqrtm(": "Qobj.sqrtm(",
             "cos(": "Qobj.cosm(",
-            "dag(": "Qobj.dag(",
-            "conj(": "Qobj.conj(",
             "exp(": "Qobj.expm(",
             "sin(": "Qobj.sinm(",
             "sqrt(": "Qobj.sqrtm(",
-            "trans(": "Qobj.trans(",
         }
         self.expr = expr
         self.operator_list = operator_list
