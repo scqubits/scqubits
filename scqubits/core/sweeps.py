@@ -101,17 +101,23 @@ def dispersive(sweep: "ParameterSweep"):
     """
     In the dispersive limit, a system of oscillators and qubits has the effective
     Hamiltonian (to leading order in any coupling)
-    :math:`H = \sum_s (\omega_s + \sum_q\chi^{sq}_0)a_s^\dag a_s
+    :math:`H = \sum_s (\omega_s + \chi^{s,\Sigma}_0)a_s^\dag a_s
     + \sum_q \sum_l (\epsilon^q_l + \Delta\epsilon^q_l) |l_q\rangle \langle l_q|
-    + \sum_s \sum_{q,l} \chi^{sq}_l a_s^\dag a_s |l_q\rangle \langle l_q|
-    + \sum_s \frac{1}{2}\kappa_s (a_s^\dag a_s -1)a_s^\dag a_s
-    + \sum_{s\not=s'} k_{ss'} a_s^\dag a_s (a_{s'}^\dag a_{s'}
+    + \sum_s \sum_{q,l>0} \chi^{sq}_l a_s^\dag a_s |l_q\rangle \langle l_q|
+    + \sum_s \kappa_s a_s^\dag a_s^\dag  a_s a_s
+    + \sum_{s\not=s'} K_{ss'} a_s^\dag a_s a_{s'}^\dag a_{s'}
     + \sum_{q\not=q'}\sum_{l,l'} \Lambda^{qq'}_{ll'} |l_q l'_{q'}\rangle \langle l_q
     l'_{q'}\rangle`.
     Using dressed eigenenergies labeled by the bare product states,
-    :math:`E(n_1, n_2, \ldots; l_1, l_2, \lddots)`. Here, dispersive shifts are
-    calcultated from exact eigenvalues vie
-    :math:`\chi^{(s,q)}_l = E(`
+    :math:`E(n_1, n_2, \ldots; l_1, l_2, \lddots)` the dispersive parameters are
+    computed from the exact eigenvalues via
+
+    :math:`\chi^{(s,\Sigma)}_0 = E(\vec{s}=\hat{e}_s,\vec{l}=\vec{o}) - E(\vec{
+    s}=\vec{o},\vec{l}=\vec{o}) - \omega_s`
+    :math:`\Delte_epsilon^q_l = E(\vec{s}=\vec{o},\vec{l}=\hat{e}_q) - E(\vec{
+    s}=\vec{o},\vec{l}=\vec{o}) - \epsilon^q_l`
+    :math:`\chi^{sq}_l  = E(\vec{s}=\vec{o},\vec{l}=\hat{e}_q) - E(\vec{
+    s}=\vec{o},\vec{l}=\vec{o}) - \epsilon^q_l`
     """
     return None
 
