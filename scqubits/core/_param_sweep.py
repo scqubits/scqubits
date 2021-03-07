@@ -71,11 +71,11 @@ class _ParameterSweepBase(ABC):
         return self._hilbertspace.get_subsys_index(subsys)
 
     @property
-    def osc_subsys_list(self) -> List[Tuple[int, Oscillator]]:
+    def osc_subsys_list(self) -> List[Oscillator]:
         return self._hilbertspace.osc_subsys_list
 
     @property
-    def qbt_subsys_list(self) -> List[Tuple[int, QubitBaseClass]]:
+    def qbt_subsys_list(self) -> List[QubitBaseClass]:
         return self._hilbertspace.qbt_subsys_list
 
     @property

@@ -73,7 +73,7 @@ class ParameterSweepBase(ABC):
     _hilbertspace: HilbertSpace
 
     _out_of_sync = False
-    _current_param_indices: Union[tuple, slice]
+    _current_param_indices: Union[tuple, slice, None]
 
     def get_subsys(self, index: int) -> QuantumSys:
         return self._hilbertspace[index]
@@ -82,11 +82,11 @@ class ParameterSweepBase(ABC):
         return self._hilbertspace.get_subsys_index(subsys)
 
     @property
-    def osc_subsys_list(self) -> List[Tuple[int, Oscillator]]:
+    def osc_subsys_list(self) -> List[Oscillator]:
         return self._hilbertspace.osc_subsys_list
 
     @property
-    def qbt_subsys_list(self) -> List[Tuple[int, QubitBaseClass]]:
+    def qbt_subsys_list(self) -> List[QubitBaseClass]:
         return self._hilbertspace.qbt_subsys_list
 
     @property
@@ -102,9 +102,11 @@ class ParameterSweepBase(ABC):
         if isinstance(key, tuple):
             self._current_param_indices = convert_to_std_npindex(key, self.parameters)
         elif isinstance(key, (int, slice)):
-            self._current_param_indices = convert_to_std_npindex(
-                (key,), self.parameters
-            )
+            if key == slice(None) or key == slice(None, None, None):
+                key = (key,) * len(self.parameters)
+            else:
+                key = (key,)
+            self._current_param_indices = convert_to_std_npindex(key, self.parameters)
         return self
 
     def receive(self, event: str, sender: object, **kwargs) -> None:
@@ -146,8 +148,8 @@ class ParameterSweepBase(ABC):
         sweep_param_name = self.parameters.name_by_index[sweep_param_indices[0]]
         specdata_list: List[SpectrumData] = []
         for subsys_index, subsystem in enumerate(self._hilbertspace):
-            evals_swp = self["bare_esys"]["subsys":subsys_index][multi_index]["esys":0]
-            evecs_swp = self["bare_esys"]["subsys":subsys_index][multi_index]["esys":1]
+            evals_swp = self["bare_evals"][subsys_index][multi_index]
+            evecs_swp = self["bare_evecs"][subsys_index][multi_index]
             specdata_list.append(
                 SpectrumData(
                     energy_table=evals_swp.toarray(),
@@ -157,6 +159,7 @@ class ParameterSweepBase(ABC):
                     param_vals=self.parameters[sweep_param_name],
                 )
             )
+        self._current_param_indices = None
         return specdata_list
 
     @property
@@ -178,12 +181,13 @@ class ParameterSweepBase(ABC):
         sweep_param_name = self.parameters.name_by_index[sweep_param_indices[0]]
 
         specdata = SpectrumData(
-            energy_table=self["esys"][multi_index + (0,)].toarray(),
-            state_table=self["esys"][multi_index + (1,)].toarray(),
+            energy_table=self["evals"][multi_index].toarray(),
+            state_table=self["evecs"][multi_index].toarray(),
             system_params=self._hilbertspace.get_initdata(),
             param_name=sweep_param_name,
             param_vals=self.parameters[sweep_param_name],
         )
+        self._current_param_indices = None
         return specdata
 
     def get_sweep_indices(self, multi_index: GIndexTuple) -> List[int]:
@@ -200,6 +204,7 @@ class ParameterSweepBase(ABC):
                 self.parameters.paramvals_list[index][index_obj], (list, tuple, ndarray)
             )
         ]
+        self._current_param_indices = None
         return sweep_indices
 
     @property
@@ -235,7 +240,7 @@ class ParameterSweepBase(ABC):
         if final:
             if isinstance(final, int):
                 final = (final,)
-            final_state_list = [self._complete_state(final)]
+            final_state_list = [self._complete_state(final, subsys_list)]
             return final_state_list
 
         if not sidebands:
@@ -355,9 +360,11 @@ class ParameterSweepBase(ABC):
             diff_energies = (final_energies - initial_energies).astype(float)
             if make_positive:
                 diff_energies = np.abs(diff_energies)
-            if not np.isnan(diff_energies).all():
+            if not np.isnan(diff_energies.toarray()).all():
                 transitions.append((initial_state, final_state))
                 transition_energies.append(diff_energies)
+
+        self._current_param_indices = None
 
         if not as_specdata:
             return transitions, transition_energies
@@ -462,6 +469,7 @@ class ParameterSweepBase(ABC):
 
         fig_ax = specdata_all.plot_evals_vs_paramvals(color="gainsboro", linewidth=0.5)
 
+        self._current_param_indices = None
         return specdata.plot_evals_vs_paramvals(
             label_list=specdata.labels, fig_ax=fig_ax, **kwargs
         )
@@ -537,7 +545,7 @@ class ParameterSweepBase(ABC):
             subsystem=None,
         ) -> np.ndarray:
             subsys_index = sweep.get_subsys_index(subsystem)
-            bare_evecs = sweep["bare_esys"][param_indices][subsys_index][1]
+            bare_evecs = sweep["bare_evecs"][subsys_index][param_indices]
             return subsystem.matrixelement_table(
                 operator=operator_name,
                 evecs=bare_evecs,
@@ -655,7 +663,7 @@ class ParameterSweep(
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
         self._out_of_sync = False
-        self._current_param_indices = tuple()
+        self._current_param_indices = None
 
         if autorun:
             self.run()
@@ -692,13 +700,20 @@ class ParameterSweep(
         # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
         self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
-        self._data["bare_esys"] = self._bare_spectrum_sweep()
+        self._data["bare_evals"], self._data["bare_evecs"] = self._bare_spectrum_sweep()
         if not self._bare_only:
-            self._data["esys"] = self._dressed_spectrum_sweep()
+            self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep()
             self._data["dressed_indices"] = self.generate_lookup()
+        (
+            self._data["lamb"],
+            self._data["chi"],
+            self._data["kerr"],
+        ) = self._dispersive_coefficients()
+        # self._data["chi"] = self._calc_chi()
+        # self._data["kerr"] = self._calc_kerr()
         settings.DISPATCH_ENABLED = True
 
-    def _bare_spectrum_sweep(self) -> NamedSlotsNdarray:
+    def _bare_spectrum_sweep(self) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
         """
         The bare energy spectra are computed according to the following scheme.
         1. Perform a loop over all subsystems to separately obtain the bare energy
@@ -709,27 +724,28 @@ class ParameterSweep(
 
         Returns
         -------
-            NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "subsystems", "esys"]
-            where "subsystems": 0, 1, ... enumerates subsystems and
-            "esys": 0, 1 yields eigenvalues and eigenvectors, respectively
+            NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "subsys"] for evals,
+            likewise for evecs;
+            here, "subsys": 0, 1, ... enumerates subsystems and
         """
-        bare_spectrum = []
-        for subsystem in self._hilbertspace:
-            bare_spectrum += [self._subsys_bare_spectrum_sweep(subsystem)]
-        bare_spectrum = np.asarray(bare_spectrum, dtype=object)
-        bare_spectrum = np.moveaxis(bare_spectrum, 0, -2)
+        bare_evals = np.empty((self.subsystem_count,), dtype=object)
+        bare_evecs = np.empty((self.subsystem_count,), dtype=object)
 
-        slotparamvals_by_name = OrderedDict(
-            [
-                *[
-                    (name, paramvals)
-                    for name, paramvals in self.parameters.ordered_dict.items()
-                ],
-                ("subsys", np.arange(len(self._hilbertspace))),
-                ("esys", np.asarray([0, 1])),
-            ]
+        for subsys_index, subsystem in enumerate(self._hilbertspace):
+            bare_esys = self._subsys_bare_spectrum_sweep(subsystem)
+            bare_evals[subsys_index] = NamedSlotsNdarray(
+                np.asarray(bare_esys[..., 0].tolist()),
+                self.parameters.paramvals_by_name,
+            )
+            bare_evecs[subsys_index] = NamedSlotsNdarray(
+                np.asarray(bare_esys[..., 1].tolist()),
+                self.parameters.paramvals_by_name,
+            )
+
+        return (
+            NamedSlotsNdarray(bare_evals, {"subsys": np.arange(self.subsystem_count)}),
+            NamedSlotsNdarray(bare_evecs, {"subsys": np.arange(self.subsystem_count)}),
         )
-        return NamedSlotsNdarray(bare_spectrum, slotparamvals_by_name)
 
     def _update_subsys_compute_esys(
         self, update_func: Callable, subsystem: QuantumSys, paramval_tuple: Tuple[float]
@@ -757,7 +773,7 @@ class ParameterSweep(
         Parameters
         ----------
         subsystem:
-            subsystems for which the bare spectrum sweep is to be computed
+            subsystem for which the bare spectrum sweep is to be computed
 
         Returns
         -------
@@ -775,24 +791,22 @@ class ParameterSweep(
             "Parallel compute bare eigensys [num_cpus={}]".format(self._num_cpus),
             self._num_cpus,
         ) as p:
-            bare_eigendata = list(
-                tqdm(
-                    target_map(
-                        functools.partial(
-                            self._update_subsys_compute_esys,
-                            self._update_hilbertspace,
-                            subsystem,
-                        ),
-                        itertools.product(*reduced_parameters.paramvals_list),
+            bare_eigendata = tqdm(
+                target_map(
+                    functools.partial(
+                        self._update_subsys_compute_esys,
+                        self._update_hilbertspace,
+                        subsystem,
                     ),
-                    total=total_count,
-                    desc="Bare spectra",
-                    leave=False,
-                    disable=multi_cpu,
-                )
+                    itertools.product(*reduced_parameters.paramvals_list),
+                ),
+                total=total_count,
+                desc="Bare spectra",
+                leave=False,
+                disable=multi_cpu,
             )
 
-        bare_eigendata = np.asarray(bare_eigendata, dtype=object)
+        bare_eigendata = np.asarray(list(bare_eigendata), dtype=object)
         bare_eigendata = bare_eigendata.reshape((*reduced_parameters.counts, 2))
 
         # Bare spectral data was only computed once for each parameter that has no
@@ -817,7 +831,10 @@ class ParameterSweep(
 
         assert self._data is not None
         bare_esys = {
-            subsys_index: self._data["bare_esys"][paramindex_tuple + (subsys_index,)]
+            subsys_index: [
+                self._data["bare_evals"][subsys_index][paramindex_tuple],
+                self._data["bare_evecs"][subsys_index][paramindex_tuple],
+            ]
             for subsys_index, _ in enumerate(self._hilbertspace)
         }
         evals, evecs = hilbertspace.eigensys(
@@ -830,16 +847,19 @@ class ParameterSweep(
 
     def _dressed_spectrum_sweep(
         self,
-    ) -> NamedSlotsNdarray:
+    ) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
         """
 
         Returns
         -------
-            NamedSlotsNdarray[<paramname1>, <paramname2>, ..., "esys"]
-            "esys": 0, 1 yields eigenvalues and eigenvectors, respectively
+            NamedSlotsNdarray[<paramname1>, <paramname2>, ...] of eigenvalues,
+            likewise for eigenvectors
         """
         if len(self._hilbertspace) == 1 and self._hilbertspace.interaction_list == []:
-            return self._data["bare_esys"]["subsys":0]
+            return (
+                self._data["bare_vals"]["subsys":0],
+                self._data["bare_evecs"]["subsys":0],
+            )
 
         multi_cpu = self._num_cpus > 1
         target_map = cpu_switch.get_map_method(self._num_cpus)
@@ -869,10 +889,101 @@ class ParameterSweep(
 
         spectrum_data = np.asarray(spectrum_data, dtype=object)
         spectrum_data = spectrum_data.reshape((*self.parameters.counts, 2))
-        slotparamvals_by_name = self.parameters.ordered_dict.copy()
-        slotparamvals_by_name.update(OrderedDict([("esys", np.asarray([0, 1]))]))
+        slotparamvals_by_name = OrderedDict(self.parameters.ordered_dict.copy())
 
-        return NamedSlotsNdarray(spectrum_data, OrderedDict(slotparamvals_by_name))
+        evals = np.asarray(spectrum_data[..., 0].tolist())
+        evecs = spectrum_data[..., 1]
+
+        return NamedSlotsNdarray(evals, slotparamvals_by_name), NamedSlotsNdarray(
+            evecs, slotparamvals_by_name
+        )
+
+    def _energies_1(self, subsys):
+        bare_label = np.zeros(len(self._hilbertspace))
+        bare_label[self.get_subsys_index(subsys)] = 1
+
+        energies_all_l = np.empty(self.parameters.counts + (subsys.truncated_dim,))
+        for exc_level in range(subsys.truncated_dim):
+            energies_all_l[..., exc_level] = self[:].energy_by_bare_index(
+                tuple(exc_level * bare_label)
+            )
+        return energies_all_l
+
+    def _energies_2(self, subsys1, subsys2):
+        bare_label1 = np.zeros(len(self._hilbertspace))
+        bare_label1[self.get_subsys_index(subsys1)] = 1
+        bare_label2 = np.zeros(len(self._hilbertspace))
+        bare_label2[self.get_subsys_index(subsys2)] = 1
+
+        energies_all_l1_l2 = np.empty(
+            self.parameters.counts + (subsys1.truncated_dim,) + (subsys2.truncated_dim,)
+        )
+        for exc_level1 in range(subsys1.truncated_dim):
+            for exc_level2 in range(subsys2.truncated_dim):
+                energies_all_l1_l2[..., exc_level1, exc_level2] = self[
+                    :
+                ].energy_by_bare_index(
+                    tuple(exc_level1 * bare_label1 + exc_level2 * bare_label2)
+                )
+        return energies_all_l1_l2
+
+    def _dispersive_coefficients(
+        self,
+    ) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray, NamedSlotsNdarray]:
+        energy_0 = self[:].energy_by_dressed_index(0).toarray()
+
+        lamb_data = np.empty(self.subsystem_count, dtype=object)
+        kerr_data = np.empty((self.subsystem_count, self.subsystem_count), dtype=object)
+
+        for subsys_index1, subsys1 in enumerate(self._hilbertspace):
+            energy_subsys1_all_l1 = self._energies_1(subsys1)
+            bare_energy_subsys1_all_l1 = self["bare_evals"][subsys_index1].toarray()
+            lamb_subsys1_all_l1 = (
+                energy_subsys1_all_l1
+                - energy_0[..., None]
+                - bare_energy_subsys1_all_l1
+                + bare_energy_subsys1_all_l1[..., 0][..., None]
+            )
+            lamb_data[subsys_index1] = lamb_subsys1_all_l1
+
+            for subsys_index2, subsys2 in enumerate(self._hilbertspace):
+                energy_subsys2_all_l2 = self._energies_1(subsys2)
+                energy_subsys1_subsys2_all_l1_l2 = self._energies_2(subsys1, subsys2)
+                kerr_subsys1_subsys2_all_l1_l2 = (
+                    energy_subsys1_subsys2_all_l1_l2
+                    + energy_0[..., None, None]
+                    - energy_subsys1_all_l1[..., :, None]
+                    - energy_subsys2_all_l2[..., None, :]
+                )
+                kerr_data[subsys_index1, subsys_index2] = kerr_subsys1_subsys2_all_l1_l2
+
+        sys_indices = np.arange(self.subsystem_count)
+        lamb_data = NamedSlotsNdarray(lamb_data, {"subsys": sys_indices})
+        kerr_data = NamedSlotsNdarray(
+            kerr_data, {"subsys1": sys_indices, "subsys2": sys_indices}
+        )
+        chi_data = kerr_data.copy()
+
+        for subsys_index1, subsys1 in enumerate(self._hilbertspace):
+            for subsys_index2, subsys2 in enumerate(self._hilbertspace):
+                if subsys1 in self.osc_subsys_list:
+                    if subsys2 in self.qbt_subsys_list:
+                        chi_data[subsys_index1, subsys_index2] = chi_data[
+                            subsys_index1, subsys_index2
+                        ][..., 1, :]
+                        kerr_data[subsys_index1, subsys_index2] = np.asarray([])
+                    else:
+                        chi_data[subsys_index1, subsys_index2] = np.asarray([])
+                elif subsys1 in self.qbt_subsys_list:
+                    if subsys2 in self.osc_subsys_list:
+                        chi_data[subsys_index1, subsys_index2] = chi_data[
+                            subsys_index1, subsys_index2
+                        ][..., :, 1]
+                        kerr_data[subsys_index1, subsys_index2] = np.asarray([])
+                    else:
+                        chi_data[subsys_index1, subsys_index2] = np.asarray([])
+
+        return lamb_data, chi_data, kerr_data
 
 
 class StoredSweep(
@@ -893,7 +1004,7 @@ class StoredSweep(
         self._data = _data
 
         self._out_of_sync = False
-        self._current_param_indices = tuple()
+        self._current_param_indices = None
 
     @classmethod
     def deserialize(cls, iodata: "IOData") -> "StoredSweep":

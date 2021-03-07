@@ -187,7 +187,7 @@ class SpectrumLookup(serializers.Serializable):
         -------
             dressed-state indices
         """
-        overlap_matrix = spec_utils.convert_esys_to_ndarray(
+        overlap_matrix = spec_utils.convert_evecs_to_ndarray(
             self._dressed_specdata.state_table[param_index]
         )
 

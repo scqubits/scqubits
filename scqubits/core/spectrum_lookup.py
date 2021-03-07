@@ -104,7 +104,6 @@ class SpectrumLookupMixin:
         dressed_indices = np.asarray(dressed_indices[:].tolist())
 
         parameter_dict = self.parameters.ordered_dict.copy()
-        _ = parameter_dict.pop("esys", None)
         return NamedSlotsNdarray(dressed_indices, parameter_dict)
 
     def _generate_single_mapping(self, param_indices: Tuple[int, ...]) -> ndarray:
@@ -123,8 +122,8 @@ class SpectrumLookupMixin:
         -------
             dressed-state indices
         """
-        overlap_matrix = spec_utils.convert_esys_to_ndarray(
-            self._data["esys"][param_indices][1]
+        overlap_matrix = spec_utils.convert_evecs_to_ndarray(
+            self._data["evecs"][param_indices]
         )
 
         dim = self._hilbertspace.dimension
@@ -212,7 +211,7 @@ class SpectrumLookupMixin:
             by the provided index
         """
         param_indices = param_indices or self._current_param_indices
-        return self._data["esys"][param_indices]
+        return self._data["evecs"][param_indices]
 
     @check_sync_status
     def eigenvals(self, param_indices: Optional[Tuple[int, ...]] = None) -> ndarray:
@@ -229,7 +228,7 @@ class SpectrumLookupMixin:
             indicated by the provided indices
         """
         param_indices = param_indices or self._current_param_indices
-        return self._data["esys"][param_indices][0]
+        return self._data["evals"][param_indices]
 
     @check_sync_status
     def energy_by_bare_index(
@@ -253,15 +252,17 @@ class SpectrumLookupMixin:
         """
         param_indices = param_indices or self._current_param_indices
         dressed_index = self.dressed_index(bare_tuple, param_indices)
+
         if dressed_index is None:
             return np.nan
         if isinstance(dressed_index, int):
-            return self["esys"][param_indices + (0,)][dressed_index]
+            return self["evals"][param_indices + (dressed_index,)]
 
         dressed_index = np.asarray(dressed_index)
         select_energies = np.empty_like(dressed_index)
         it = np.nditer(dressed_index, flags=["multi_index", "refs_ok"])
-        sliced_eigenenergies = self["esys"][param_indices + (0,)]
+        sliced_eigenenergies = self["evals"][param_indices]
+
         for location in it:
             location = location.tolist()
             if location is None:
@@ -279,7 +280,8 @@ class SpectrumLookupMixin:
         self, dressed_index: int, param_indices: Optional[Tuple[int, ...]] = None
     ) -> float:
         """
-        Look up the dressed eigenenergy belonging to the given dressed index.
+        Look up the dressed eigenenergy belonging to the given dressed index,
+        usually to be used with pre-slicing
 
         Parameters
         ----------
@@ -293,26 +295,30 @@ class SpectrumLookupMixin:
             dressed energy
         """
         param_indices = param_indices or self._current_param_indices
-        return self["esys"][param_indices][0][dressed_index]
+        self._current_param_indices = None
+        return self["evals"][param_indices + (dressed_index,)]
 
     @check_sync_status
-    def bare_eigensys(
+    def bare_eigenstates(
         self, subsys: "QuantumSystem", param_indices: Optional[Tuple[int, ...]] = None
-    ) -> "Dict[QuantumSystem, ndarray]":
+    ) -> NamedSlotsNdarray:
         """
         Return ndarray of bare eigenstates for given subsystems and parameter index.
-        Eigenstates are expressed in the basis internal to the subsystems.
+        Eigenstates are expressed in the basis internal to the subsystems. Usually to be
+        with pre-slicing.
         """
         param_indices = param_indices or self._current_param_indices
         subsys_index = self._hilbertspace.get_subsys_index(subsys)
-        return self["bare_esys"][subsys_index][param_indices]
+        self._current_param_indices = None
+        return self["bare_evecs"][subsys_index][param_indices]
 
     @check_sync_status
     def bare_eigenvals(
         self, subsys: "QuantumSystem", param_indices: Optional[Tuple[int, ...]] = None
-    ) -> ndarray:
+    ) -> NamedSlotsNdarray:
         """
-        Return list of bare eigenenergies for given subsystem.
+        Return list of bare eigenenergies for given subsystem, usually to be used
+        with preslicing.
 
         Parameters
         ----------
@@ -324,12 +330,12 @@ class SpectrumLookupMixin:
         Returns
         -------
             bare eigenenergies for the specified subsystem and the external parameter
-            fixed to the value indicated by
-            its index
+            fixed to the value indicated by its index
         """
         param_indices = param_indices or self._current_param_indices
         subsys_index = self._hilbertspace.get_subsys_index(subsys)
-        return self["bare_esys"][subsys_index][param_indices][0]
+        self._current_param_indices = None
+        return self["bare_evals"][subsys_index][param_indices]
 
     def bare_productstate(self, bare_index: Tuple[int, ...]) -> Qobj:
         """

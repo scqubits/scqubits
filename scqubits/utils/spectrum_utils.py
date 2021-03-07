@@ -258,25 +258,25 @@ def emission_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     return spectrum_data
 
 
-def convert_esys_to_ndarray(esys_qutip: "QutipEigenstates") -> np.ndarray:
+def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
     """Takes a qutip eigenstates array, as obtained with .eigenstates(), and converts
     it into a pure numpy array.
 
     Parameters
     ----------
-    esys_qutip:
-        as obtained from qutip `.eigenstates()`
+    evecs_qutip:
+        ndarray of eigenstates in qt.Qobj format
 
     Returns
     -------
         converted eigenstate data
     """
-    evals_count = len(esys_qutip)
-    dimension = esys_qutip[0].shape[0]
-    esys_ndarray = np.empty((evals_count, dimension), dtype=np.complex_)
-    for index, eigenstate in enumerate(esys_qutip):
-        esys_ndarray[index] = eigenstate.full()[:, 0]
-    return esys_ndarray
+    evals_count = len(evecs_qutip)
+    dimension = evecs_qutip[0].shape[0]
+    evecs_ndarray = np.empty((evals_count, dimension), dtype=np.complex_)
+    for index, eigenstate in enumerate(evecs_qutip):
+        evecs_ndarray[index] = eigenstate.full()[:, 0]
+    return evecs_ndarray
 
 
 def convert_matrix_to_qobj(
@@ -341,11 +341,9 @@ def generate_target_states_list(
         from the spectral data
     """
     target_states_list = []
-    for (
-        subsys_index,
-        qbt_subsys,
-    ) in sweep.qbt_subsys_list:  # iterate through qubit subsys_list
+    for qbt_subsys in sweep.qbt_subsys_list:  # iterate through qubit subsys_list
         assert qbt_subsys.truncated_dim is not None
+        subsys_index = sweep._hilbertspace.get_subsys_index(qbt_subsys)
         initial_qbt_state = initial_state_labels[subsys_index]
         for state_label in range(initial_qbt_state + 1, qbt_subsys.truncated_dim):
             # for given qubit subsystem, generate target labels by increasing that qubit
@@ -386,20 +384,21 @@ def identity_wrap(
     op_in_eigenbasis: bool = False,
     evecs: ndarray = None,
 ) -> Qobj:
-    """Wrap given operator in subspace `subsystem` in identity operators to form full Hilbert-space operator.
+    """Wrap given operator in subspace `subsystem` in identity operators to form full
+    Hilbert-space operator.
 
     Parameters
     ----------
     operator:
-        operator acting in Hilbert space of `subsystem`; if str, then this should be an operator name in
-        the subsystem, typically not in eigenbasis
+        operator acting in Hilbert space of `subsystem`; if str, then this should be an
+        operator name in the subsystem, typically not in eigenbasis
     subsystem:
         subsystem where diagonal operator is defined
     subsys_list:
         list of all subsystems relevant to the Hilbert space.
     op_in_eigenbasis:
-        whether `operator` is given in the `subsystem` eigenbasis; otherwise, the internal QuantumSys basis is
-        assumed
+        whether `operator` is given in the `subsystem` eigenbasis; otherwise, the
+        internal QuantumSys basis is assumed
     evecs:
         internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
     """

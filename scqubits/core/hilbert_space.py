@@ -436,14 +436,10 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
         self._lookup: Optional[spec_lookup.SpectrumLookup] = None
         self._osc_subsys_list = [
-            (index, subsys)
-            for (index, subsys) in enumerate(self)
-            if isinstance(subsys, osc.Oscillator)
+            subsys for subsys in self if isinstance(subsys, osc.Oscillator)
         ]
         self._qbt_subsys_list = [
-            (index, subsys)
-            for (index, subsys) in enumerate(self)
-            if not isinstance(subsys, osc.Oscillator)
+            subsys for subsys in self if not isinstance(subsys, osc.Oscillator)
         ]
 
         dispatch.CENTRAL_DISPATCH.register("QUANTUMSYSTEM_UPDATE", self)
@@ -977,13 +973,13 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                                  …,
                                  add_hc=<bool>)
         2. String-based interface for more general interaction operator expressions
-	        Specify a Python expression that generates the desired operator. The
-	        expression enables convenience use of basic qutip operations::
+                Specify a Python expression that generates the desired operator. The
+                expression enables convenience use of basic qutip operations::
 
-	            .add_interaction(expr=<str>,
-	                             op1=(<str>, <ndarray>, <subsys>),
-	                             op2=(<str>, <Callable>),
-	                             …)
+                    .add_interaction(expr=<str>,
+                                     op1=(<str>, <ndarray>, <subsys>),
+                                     op2=(<str>, <Callable>),
+                                     …)
         3. General Qobj operator
             Specify a fully identity-wrapped `qutip.Qobj` operator. Signature::
 

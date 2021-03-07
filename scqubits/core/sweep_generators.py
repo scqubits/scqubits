@@ -69,13 +69,15 @@ def generate_chi_sweep(sweep):
     qbt_subsys_list = sweep.qbt_subsys_list
 
     data_dict = {}
-    for (osc_index, osc_subsys) in osc_subsys_list:
-        for (qbt_index, qubit_subsys) in qbt_subsys_list:
+    for osc_subsys in osc_subsys_list:
+        for qbt_subsys in qbt_subsys_list:
+            osc_index = sweep._hilbertspace.get_subsys_index(osc_subsys)
+            qbt_index = sweep._hilbertspace.get_subsys_index(qbt_subsys)
             data_dict[(osc_index, qbt_index)] = sweep.new_datastore(
                 chi=compute_custom_data_sweep(
                     sweep,
                     observable.dispersive_chi,
-                    qubit_subsys=qubit_subsys,
+                    qubit_subsys=qbt_subsys,
                     osc_subsys=osc_subsys,
                     chi_indices=(1, 0),
                 )
@@ -96,7 +98,8 @@ def generate_charge_matrixelem_sweep(sweep):
         (osc_index, qbt_index) -> ndararray of chi values
     """
     data_dict = dict()
-    for qbt_index, subsys in sweep.qbt_subsys_list:
+    for subsys in sweep.qbt_subsys_list:
+        qbt_index = sweep._hilbertspace.get_subsys_index(subsys)
         if type(subsys).__name__ in ["Transmon", "Fluxonium"]:
             data = compute_custom_data_sweep(
                 sweep,
