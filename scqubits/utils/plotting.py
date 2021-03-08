@@ -596,7 +596,10 @@ def data_vs_paramvals(
                 **_extract_kwargs_options(kwargs, "plot")
             )
         if _LABELLINES_ENABLED:
-            labelLines(axes.get_lines(), zorder=2.0)
+            try:
+                labelLines(axes.get_lines(), zorder=2.0)
+            except Exception:
+                pass
         else:
             axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, **kwargs)
