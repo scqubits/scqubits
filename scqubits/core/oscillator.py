@@ -19,8 +19,8 @@ import scipy as sp
 
 from numpy import ndarray
 
-import scqubits.core.operators as op
 import scqubits.core.descriptors as descriptors
+import scqubits.core.operators as op
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 

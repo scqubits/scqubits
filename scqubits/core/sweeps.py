@@ -27,8 +27,8 @@ from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 if TYPE_CHECKING:
     from scqubits import HilbertSpace, Oscillator, SpectrumData
-    from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.core.param_sweep import ParameterSweep, ParameterSweepBase
+    from scqubits.core.qubit_base import QubitBaseClass
 
     QuantumSys = Union[QubitBaseClass, Oscillator]
 

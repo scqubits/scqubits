@@ -10,7 +10,6 @@
 ############################################################################
 
 import functools
-import math
 import operator
 import os
 import warnings

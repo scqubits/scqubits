@@ -160,10 +160,14 @@ class Explorer:
         param_max = self.param_vals[-1]
         param_step = self.param_vals[1] - self.param_vals[0]
 
-        qbt_indices = [self.sweep._hilbertspace.get_subsys_index(subsystem) for
-                       subsystem in self.sweep.qbt_subsys_list]
-        osc_indices = [self.sweep._hilbertspace.get_subsys_index(subsystem) for
-                       subsystem in self.sweep.osc_subsys_list]
+        qbt_indices = [
+            self.sweep._hilbertspace.get_subsys_index(subsystem)
+            for subsystem in self.sweep.qbt_subsys_list
+        ]
+        osc_indices = [
+            self.sweep._hilbertspace.get_subsys_index(subsystem)
+            for subsystem in self.sweep.osc_subsys_list
+        ]
 
         param_slider = ipywidgets.FloatSlider(
             min=param_min,
