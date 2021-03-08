@@ -16,7 +16,11 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from numpy import ndarray
+
+import scqubits.utils.plotting as plot
 
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import Serializable
@@ -469,6 +473,16 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     @property
     def slot_count(self) -> int:
         return len(self.parameters.paramvals_by_name)
+
+    def plot(self, **kwargs) -> Tuple[Figure, Axes]:
+        if len(self.parameters) != 1:
+            raise ValueError(
+                "Plotting of NamedSlotNdarray only supported for a "
+                "one-dimensional parameter sweep. (Consider slicing.)"
+            )
+        return plot.data_vs_paramvals(
+            xdata=self.parameters.paramvals_list[0], ydata=self, **kwargs
+        )
 
     def recast(self) -> "NamedSlotsNdarray":
         return NamedSlotsNdarray(
