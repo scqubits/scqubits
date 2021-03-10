@@ -753,7 +753,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of desired matrix elements, starting with ground state
             (default value = 6)
         mode:
-            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
+            idx_entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
         show_numbers:
             determines whether matrix element values are printed on top of the plot
             (default: False)
@@ -799,7 +799,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             list [(i1, i2), (i3, i4), ...] of index tuples
             for specific desired matrix elements (default value = 4)
         mode:
-            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value
+            idx_entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value
             (default value = 'abs')
         num_cpus:
             number of cores to be used for computation
