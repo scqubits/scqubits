@@ -93,6 +93,7 @@ class ParameterSweepBase(ABC):
     def subsystem_count(self) -> int:
         return self._hilbertspace.subsystem_count
 
+    @utils.check_sync_status
     def __getitem__(self, key):
         if isinstance(key, str):
             return self._data[key]
@@ -704,13 +705,11 @@ class ParameterSweep(
         if not self._bare_only:
             self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep()
             self._data["dressed_indices"] = self.generate_lookup()
-        (
-            self._data["lamb"],
-            self._data["chi"],
-            self._data["kerr"],
-        ) = self._dispersive_coefficients()
-        # self._data["chi"] = self._calc_chi()
-        # self._data["kerr"] = self._calc_kerr()
+            (
+                self._data["lamb"],
+                self._data["chi"],
+                self._data["kerr"],
+            ) = self._dispersive_coefficients()
         settings.DISPATCH_ENABLED = True
 
     def _bare_spectrum_sweep(self) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
@@ -837,6 +836,7 @@ class ParameterSweep(
             ]
             for subsys_index, _ in enumerate(self._hilbertspace)
         }
+
         evals, evecs = hilbertspace.eigensys(
             evals_count=evals_count, bare_esys=bare_esys
         )
@@ -903,10 +903,8 @@ class ParameterSweep(
         bare_label[self.get_subsys_index(subsys)] = 1
 
         energies_all_l = np.empty(self.parameters.counts + (subsys.truncated_dim,))
-        for exc_level in range(subsys.truncated_dim):
-            energies_all_l[..., exc_level] = self[:].energy_by_bare_index(
-                tuple(exc_level * bare_label)
-            )
+        for l in range(subsys.truncated_dim):
+            energies_all_l[..., l] = self[:].energy_by_bare_index(tuple(l * bare_label))
         return energies_all_l
 
     def _energies_2(self, subsys1, subsys2):
@@ -918,12 +916,10 @@ class ParameterSweep(
         energies_all_l1_l2 = np.empty(
             self.parameters.counts + (subsys1.truncated_dim,) + (subsys2.truncated_dim,)
         )
-        for exc_level1 in range(subsys1.truncated_dim):
-            for exc_level2 in range(subsys2.truncated_dim):
-                energies_all_l1_l2[..., exc_level1, exc_level2] = self[
-                    :
-                ].energy_by_bare_index(
-                    tuple(exc_level1 * bare_label1 + exc_level2 * bare_label2)
+        for l1 in range(subsys1.truncated_dim):
+            for l2 in range(subsys2.truncated_dim):
+                energies_all_l1_l2[..., l1, l2] = self[:].energy_by_bare_index(
+                    tuple(l1 * bare_label1 + l2 * bare_label2)
                 )
         return energies_all_l1_l2
 
@@ -944,7 +940,9 @@ class ParameterSweep(
                 - bare_energy_subsys1_all_l1
                 + bare_energy_subsys1_all_l1[..., 0][..., None]
             )
-            lamb_data[subsys_index1] = lamb_subsys1_all_l1
+            lamb_data[subsys_index1] = NamedSlotsNdarray(
+                lamb_subsys1_all_l1, self.parameters.paramvals_by_name
+            )
 
             for subsys_index2, subsys2 in enumerate(self._hilbertspace):
                 energy_subsys2_all_l2 = self._energies_1(subsys2)
@@ -955,7 +953,9 @@ class ParameterSweep(
                     - energy_subsys1_all_l1[..., :, None]
                     - energy_subsys2_all_l2[..., None, :]
                 )
-                kerr_data[subsys_index1, subsys_index2] = kerr_subsys1_subsys2_all_l1_l2
+                kerr_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
+                    kerr_subsys1_subsys2_all_l1_l2, self.parameters.paramvals_by_name
+                )
 
         sys_indices = np.arange(self.subsystem_count)
         lamb_data = NamedSlotsNdarray(lamb_data, {"subsys": sys_indices})
