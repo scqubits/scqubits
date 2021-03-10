@@ -10,11 +10,9 @@
 ############################################################################
 
 import itertools
-import warnings
 import weakref
 
-from functools import wraps
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -28,30 +26,13 @@ import scqubits.utils.spectrum_utils as spec_utils
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 if TYPE_CHECKING:
-    from scqubits import HilbertSpace
+    from scqubits import HilbertSpace, ParameterSweep
     from scqubits.core.qubit_base import QuantumSystem
-    from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
 
 NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]
 NpIndices = Union[NpIndex, NpIndexTuple]
-
-
-def check_sync_status(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if self._out_of_sync:
-            warnings.warn(
-                "SCQUBITS\nSpectrum lookup data is out of sync with systems originally"
-                " involved in generating it. This will generally lead to incorrect"
-                " results. Consider regenerating the lookup data using"
-                " <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()",
-                Warning,
-            )
-        return func(self, *args, **kwargs)
-
-    return wrapper
 
 
 class SpectrumLookupMixin:
@@ -71,7 +52,7 @@ class SpectrumLookupMixin:
             self._hilbertspace = weakref.ref(hilbertspace)
 
     @property
-    def _bare_product_states_labels(self) -> List[Tuple[int, ...]]:
+    def _bare_product_states_labels(self: ParameterSweep) -> List[Tuple[int, ...]]:
         """
         Generates the list of bare-state labels in canonical order. For example,
          for a Hilbert space composed of two subsystems sys1 and sys2, each label is
@@ -84,7 +65,7 @@ class SpectrumLookupMixin:
         """
         return list(itertools.product(*map(range, self._hilbertspace.subsystem_dims)))
 
-    def generate_lookup(self) -> NamedSlotsNdarray:
+    def generate_lookup(self: ParameterSweep) -> NamedSlotsNdarray:
         """
         For each parameter value of the parameter sweep, generate the map between
         bare states and
@@ -106,7 +87,9 @@ class SpectrumLookupMixin:
         parameter_dict = self.parameters.ordered_dict.copy()
         return NamedSlotsNdarray(dressed_indices, parameter_dict)
 
-    def _generate_single_mapping(self, param_indices: Tuple[int, ...]) -> ndarray:
+    def _generate_single_mapping(
+        self: ParameterSweep, param_indices: Tuple[int, ...]
+    ) -> ndarray:
         """
         For a single set of parameter values, specified by with a tuple of indices
         ``param_indices``, create an array of the dressed-state indices in an order
@@ -137,9 +120,9 @@ class SpectrumLookupMixin:
 
         return np.asarray(dressed_indices)
 
-    @check_sync_status
+    @utils.check_sync_status
     def dressed_index(
-        self,
+        self: ParameterSweep,
         bare_labels: Tuple[int, ...],
         param_indices: Optional[NpIndices] = None,
     ) -> Union[ndarray, int, None]:
@@ -164,9 +147,11 @@ class SpectrumLookupMixin:
             return None
         return self._data["dressed_indices"][param_indices + (lookup_position,)]
 
-    @check_sync_status
+    @utils.check_sync_status
     def bare_index(
-        self, dressed_index: int, param_indices: Optional[Tuple[int, ...]] = None
+        self: ParameterSweep,
+        dressed_index: int,
+        param_indices: Optional[Tuple[int, ...]] = None,
     ) -> Union[Tuple[int, ...], None]:
         """
         For given dressed index, look up the corresponding bare index.
@@ -195,8 +180,10 @@ class SpectrumLookupMixin:
         basis_labels = self._bare_product_states_labels[lookup_position]
         return basis_labels
 
-    @check_sync_status
-    def eigensys(self, param_indices: Optional[Tuple[int, ...]] = None) -> ndarray:
+    @utils.check_sync_status
+    def eigensys(
+        self: ParameterSweep, param_indices: Optional[Tuple[int, ...]] = None
+    ) -> ndarray:
         """
         Return the list of dressed eigenvectors
 
@@ -213,8 +200,10 @@ class SpectrumLookupMixin:
         param_indices = param_indices or self._current_param_indices
         return self._data["evecs"][param_indices]
 
-    @check_sync_status
-    def eigenvals(self, param_indices: Optional[Tuple[int, ...]] = None) -> ndarray:
+    @utils.check_sync_status
+    def eigenvals(
+        self: ParameterSweep, param_indices: Optional[Tuple[int, ...]] = None
+    ) -> ndarray:
         """
         Return the array of dressed eigenenergies
 
@@ -230,9 +219,9 @@ class SpectrumLookupMixin:
         param_indices = param_indices or self._current_param_indices
         return self._data["evals"][param_indices]
 
-    @check_sync_status
+    @utils.check_sync_status
     def energy_by_bare_index(
-        self,
+        self: ParameterSweep,
         bare_tuple: Tuple[int, ...],
         param_indices: Optional[NpIndices] = None,
     ) -> NamedSlotsNdarray:
@@ -275,9 +264,11 @@ class SpectrumLookupMixin:
             select_energies, sliced_eigenenergies.parameters.paramvals_by_name
         )
 
-    @check_sync_status
+    @utils.check_sync_status
     def energy_by_dressed_index(
-        self, dressed_index: int, param_indices: Optional[Tuple[int, ...]] = None
+        self: ParameterSweep,
+        dressed_index: int,
+        param_indices: Optional[Tuple[int, ...]] = None,
     ) -> float:
         """
         Look up the dressed eigenenergy belonging to the given dressed index,
@@ -298,9 +289,11 @@ class SpectrumLookupMixin:
         self._current_param_indices = None
         return self["evals"][param_indices + (dressed_index,)]
 
-    @check_sync_status
+    @utils.check_sync_status
     def bare_eigenstates(
-        self, subsys: "QuantumSystem", param_indices: Optional[Tuple[int, ...]] = None
+        self: ParameterSweep,
+        subsys: "QuantumSystem",
+        param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
         """
         Return ndarray of bare eigenstates for given subsystems and parameter index.
@@ -312,9 +305,11 @@ class SpectrumLookupMixin:
         self._current_param_indices = None
         return self["bare_evecs"][subsys_index][param_indices]
 
-    @check_sync_status
+    @utils.check_sync_status
     def bare_eigenvals(
-        self, subsys: "QuantumSystem", param_indices: Optional[Tuple[int, ...]] = None
+        self: ParameterSweep,
+        subsys: "QuantumSystem",
+        param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
         """
         Return list of bare eigenenergies for given subsystem, usually to be used
@@ -337,7 +332,7 @@ class SpectrumLookupMixin:
         self._current_param_indices = None
         return self["bare_evals"][subsys_index][param_indices]
 
-    def bare_productstate(self, bare_index: Tuple[int, ...]) -> Qobj:
+    def bare_productstate(self: ParameterSweep, bare_index: Tuple[int, ...]) -> Qobj:
         """
         Return the bare product state specified by `bare_index`. Note: no parameter
         dependence here, since the Hamiltonian is always represented in the bare
@@ -358,7 +353,7 @@ class SpectrumLookupMixin:
             product_state_list.append(qt.basis(dim, state_index))
         return qt.tensor(*product_state_list)
 
-    def all_params_fixed(self, param_indices) -> bool:
+    def all_params_fixed(self: ParameterSweep, param_indices) -> bool:
         if isinstance(param_indices, slice):
             param_indices = (param_indices,)
         return len(self.parameters) == len(param_indices)

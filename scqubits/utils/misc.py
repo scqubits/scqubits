@@ -11,6 +11,7 @@
 
 import ast
 import functools
+import warnings
 
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
@@ -78,35 +79,6 @@ def drop_private_keys(full_dict: Dict[str, Any]) -> Dict[str, Any]:
     return {key: value for key, value in full_dict.items() if key[0] != "_"}
 
 
-# def adaptive_tqdm(iterator_object: Iterable, static: bool, desc: str, static_desc: str,
-#                   **kwargs):
-#     """Adaptively choose normal or static "progress" bar (whenever
-#     multiprocessing is involved).
-#
-#     Parameters
-#     ----------
-#     static:
-#         whether or not a static rather than dynamic bar should be displayed
-#     desc:
-#         usual progress bar description
-#     desc_static:
-#         Description text to be displayed on the static information bar.
-#     num_cpus:
-#         Number of CPUS/cores employed in underlying calculation.
-#     """
-#     if static:
-#         return tqdm(
-#             iterator_object,
-#             desc=static_desc,
-#             leave=False
-#         )
-#     return tqdm(
-#         iterator_object,
-#         desc=desc,
-#         leave=False
-#     )
-
-
 class InfoBar:
     """Static "progress" bar used whenever multiprocessing is involved.
 
@@ -168,6 +140,22 @@ class Required:
         return decorated_func
 
 
+def check_sync_status(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self._out_of_sync:
+            warnings.warn(
+                "SCQUBITS\nSpectrum data is out of sync with systems originally"
+                " involved in generating it. This will generally lead to incorrect"
+                " results. Consider regenerating the spectral data using"
+                " <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()",
+                Warning,
+            )
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 def to_expression_or_string(string_expr: str) -> Any:
     try:
         return ast.literal_eval(string_expr)
@@ -180,6 +168,6 @@ def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
-    # Qutip's `.eigenstates()` returns an object-valued ndarray, each entry of which
+    # Qutip's `.eigenstates()` returns an object-valued ndarray, each idx_entry of which
     # is a Qobj ket.
     return np.asarray(qobj_ket.data.todense())

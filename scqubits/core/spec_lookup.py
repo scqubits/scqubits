@@ -24,6 +24,7 @@ from qutip import Qobj
 
 import scqubits
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
 if TYPE_CHECKING:
@@ -31,22 +32,6 @@ if TYPE_CHECKING:
     from scqubits.core.qubit_base import QuantumSystem
     from scqubits.io_utils.fileio import IOData
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
-
-
-def check_sync_status(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if self._out_of_sync:
-            warnings.warn(
-                "SCQUBITS\nSpectrum lookup data is out of sync with systems originally"
-                " involved in generating it. This will generally lead to incorrect"
-                " results. Consider regenerating the lookup data using"
-                " <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()",
-                Warning,
-            )
-        return func(self, *args, **kwargs)
-
-    return wrapper
 
 
 class SpectrumLookup(serializers.Serializable):
@@ -203,7 +188,7 @@ class SpectrumLookup(serializers.Serializable):
                 dressed_indices.append(max_position)
         return dressed_indices
 
-    @check_sync_status
+    @utils.check_sync_status
     def dressed_index(
         self, bare_labels: Tuple[int, ...], param_index: int = 0
     ) -> Union[int, None]:
@@ -227,7 +212,7 @@ class SpectrumLookup(serializers.Serializable):
             return None
         return self._dressed_indices[param_index][lookup_position]
 
-    @check_sync_status
+    @utils.check_sync_status
     def bare_index(
         self, dressed_index: int, param_index: int = 0
     ) -> Union[Tuple[int, ...], None]:
@@ -247,7 +232,7 @@ class SpectrumLookup(serializers.Serializable):
         basis_labels = self._canonical_bare_labels[lookup_position]
         return basis_labels
 
-    @check_sync_status
+    @utils.check_sync_status
     def dressed_eigenstates(self, param_index: int = 0) -> List["QutipEigenstates"]:
         """
         Return the list of dressed eigenvectors
@@ -265,7 +250,7 @@ class SpectrumLookup(serializers.Serializable):
         """
         return self._dressed_specdata.state_table[param_index]
 
-    @check_sync_status
+    @utils.check_sync_status
     def dressed_eigenenergies(self, param_index: int = 0) -> ndarray:
         """
         Return the array of dressed eigenenergies
@@ -281,7 +266,7 @@ class SpectrumLookup(serializers.Serializable):
         """
         return self._dressed_specdata.energy_table[param_index]
 
-    @check_sync_status
+    @utils.check_sync_status
     def energy_bare_index(
         self, bare_tuple: Tuple[int, ...], param_index: int = 0
     ) -> Union[float, None]:
@@ -304,7 +289,7 @@ class SpectrumLookup(serializers.Serializable):
             return None
         return self._dressed_specdata.energy_table[param_index][dressed_index]
 
-    @check_sync_status
+    @utils.check_sync_status
     def energy_dressed_index(self, dressed_index: int, param_index: int = 0) -> float:
         """
         Look up the dressed eigenenergy belonging to the given dressed index.
@@ -322,7 +307,7 @@ class SpectrumLookup(serializers.Serializable):
         """
         return self._dressed_specdata.energy_table[param_index][dressed_index]
 
-    @check_sync_status
+    @utils.check_sync_status
     def bare_eigenstates(
         self, subsys: "QuantumSystem", param_index: int = 0
     ) -> ndarray:
@@ -334,7 +319,7 @@ class SpectrumLookup(serializers.Serializable):
         subsys_index = framework.get_subsys_index(subsys)
         return self._bare_specdata_list[subsys_index].state_table[param_index]
 
-    @check_sync_status
+    @utils.check_sync_status
     def bare_eigenenergies(
         self, subsys: "QuantumSystem", param_index: int = 0
     ) -> ndarray:
