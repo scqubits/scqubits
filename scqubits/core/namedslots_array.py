@@ -12,7 +12,7 @@
 import math
 
 from collections import OrderedDict
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -67,7 +67,7 @@ class GIndexObject:
         self, idx_entry: GIndex, parameters: "Parameters", slot: Optional[int] = None
     ) -> None:
         self.idx_entry = idx_entry
-        self.parameters = parameters
+        self._parameters = parameters
         self.slot = slot
         self.name = None
         self.type, self.std_idx_entry = self.convert_to_np_idx_entry(idx_entry)
@@ -80,7 +80,7 @@ class GIndexObject:
         if slice_entry is None:
             return None
         if isinstance(slice_entry, (float, complex)):
-            return idx_for_value(slice_entry, self.parameters[self.slot])
+            return idx_for_value(slice_entry, self._parameters[self.slot])
 
         raise TypeError("Invalid slice idx_entry: {}".format(slice_entry))
 
@@ -97,7 +97,7 @@ class GIndexObject:
             return "tuple", idx_entry
 
         if isinstance(idx_entry, (float, complex)):
-            return "val", idx_for_value(self.idx_entry, self.parameters[self.slot])
+            return "val", idx_for_value(self.idx_entry, self._parameters[self.slot])
 
         # slice(<str>, ...):  handle str based slices
         if isinstance(idx_entry, slice) and isinstance(idx_entry.start, str):
@@ -105,11 +105,11 @@ class GIndexObject:
 
             start = self.convert_to_np_slice_entry(idx_entry.stop)
             if isinstance(start, (complex, float)):
-                start = idx_for_value(start, self.parameters[self.slot])
+                start = idx_for_value(start, self._parameters[self.slot])
 
             stop = self.convert_to_np_slice_entry(idx_entry.step)
             if isinstance(stop, (complex, float)):
-                stop = idx_for_value(stop, self.parameters[self.slot])
+                stop = idx_for_value(stop, self._parameters[self.slot])
 
             if isinstance(start, int) and (stop is None):
                 return "slice.name", start
@@ -133,8 +133,8 @@ class GIndexObject:
 
 class GIndexTupleObject:
     def __init__(self, gidx_tuple: Tuple[GIndexObject, ...]):
-        self.parameters = gidx_tuple[0].parameters
-        self.slot_count = len(self.parameters)
+        self._parameters = gidx_tuple[0]._parameters
+        self.slot_count = len(self._parameters)
         self.gidx_tuple = gidx_tuple
 
     def _name_based_to_np_index_exp(self) -> NpIndexTuple:
@@ -143,7 +143,7 @@ class GIndexTupleObject:
         for gidx_object in self.gidx_tuple:
             if gidx_object.type != "slice.name":
                 raise TypeError("If one index is name-based, all indices must be.")
-            slot_index = self.parameters.index_by_name[gidx_object.name]
+            slot_index = self._parameters.index_by_name[gidx_object.name]
             converted_multi_index[slot_index] = gidx_object.std_idx_entry
 
         return tuple(converted_multi_index)
@@ -163,7 +163,7 @@ class GIndexTupleObject:
 class Parameters:
     """Convenience class for maintaining multiple parameter sets: names and values of
     each parameter set, along with an ordering among sets.
-    Used in ParameterSweep as `.parameters`. Can access in several ways:
+    Used in ParameterSweep as `._parameters`. Can access in several ways:
     Parameters[<name str>] = parameter values under this name
     Parameters[<index int>] = parameter values saved as the index-th set
     Parameters[<slice> or tuple(int)] = slice over the list of parameter sets
@@ -414,13 +414,13 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
 
         obj = np.asarray(input_array).view(cls)
 
-        obj.parameters = Parameters(values_by_name)
+        obj._parameters = Parameters(values_by_name)
         return obj
 
     def __array_finalize__(self, obj):
         if obj is None:
             return
-        self.parameters = getattr(obj, "parameters", None)
+        self._parameters = getattr(obj, "_parameters", None)
 
     def __getitem__(self, multi_index: GIndices) -> Any:
         """Overwrites the magic method for element selection and slicing to support
@@ -430,7 +430,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
             obj = super().__getitem__(multi_index)
             # This attempt fails if multi-index is string- or value-based
         except (TypeError, IndexError):
-            multi_index = convert_to_std_npindex(multi_index, self.parameters)
+            multi_index = convert_to_std_npindex(multi_index, self._parameters)
             obj = super().__getitem__(multi_index)
 
         # If the resulting obj is a sliced view of the current array, then we must
@@ -438,16 +438,16 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         if isinstance(obj, NamedSlotsNdarray):
             # Check whether all parameters are getting fixed; if not, adjust
             # Parameters for the new object
-            if not hasattr(self, "parameters"):
-                print("it's me", len(self))
-            param_count = len(self.parameters)
-            dummy_array = np.empty(shape=self.parameters.counts)
+            param_count = len(self._parameters)
+            dummy_array = np.empty(shape=self._parameters.counts)
             if not isinstance(dummy_array[multi_index[:param_count]], float):
                 # have not reduced to one element
-                obj.parameters = self.parameters.create_sliced(
+                obj._parameters = self._parameters.create_sliced(
                     multi_index[:param_count]
                 )
-            elif obj.parameters.paramvals_by_name == self.parameters.paramvals_by_name:
+            elif (
+                obj._parameters.paramvals_by_name == self._parameters.paramvals_by_name
+            ):
                 # Have reduced to one element, which is still an array however. If this
                 # was a regular ndarray (not NamedSlotsNdarray), the Parameters entry
                 # will be the same as in parent array. Need to delete this, i.e., just
@@ -458,12 +458,12 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     def __reduce__(self):
         # needed for multiprocessing / proper pickling
         pickled_state = super().__reduce__()
-        new_state = pickled_state[2] + (self.parameters,)
+        new_state = pickled_state[2] + (self._parameters,)
         return (pickled_state[0], pickled_state[1], new_state)
 
     def __setstate__(self, state):
         # needed for multiprocessing / proper pickling
-        self.parameters = state[-1]
+        self._parameters = state[-1]
         super().__setstate__(state[0:-1])
 
     @classmethod
@@ -487,27 +487,34 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         io_ndarrays = None
         objects = {
             "input_array": self.tolist(),
-            "values_by_name": self.parameters.paramvals_by_name,
+            "values_by_name": self._parameters.paramvals_by_name,
         }
         return io.IOData(typename, io_attributes, io_ndarrays, objects=objects)
 
     @property
     def slot_count(self) -> int:
-        return len(self.parameters.paramvals_by_name)
+        return len(self._parameters.paramvals_by_name)
 
     def plot(self, **kwargs) -> Tuple[Figure, Axes]:
-        if len(self.parameters) != 1:
+        if len(self._parameters) != 1:
             raise ValueError(
                 "Plotting of NamedSlotNdarray only supported for a "
                 "one-dimensional parameter sweep. (Consider slicing.)"
             )
         return plot.data_vs_paramvals(
-            xdata=self.parameters.paramvals_list[0], ydata=self, **kwargs
+            xdata=self._parameters.paramvals_list[0],
+            ydata=self,
+            xlabel=self._parameters.names[0],
+            **kwargs
         )
+
+    @property
+    def param_info(self) -> Dict[str, ndarray]:
+        return self._parameters.paramvals_by_name
 
     def recast(self) -> "NamedSlotsNdarray":
         return NamedSlotsNdarray(
-            np.asarray(self[:].tolist()), self.parameters.paramvals_by_name
+            np.asarray(self[:].tolist()), self._parameters.paramvals_by_name
         )
 
     def toarray(self) -> ndarray:

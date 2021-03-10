@@ -77,14 +77,14 @@ class SpectrumLookupMixin:
             ordering of bare indices (as stored in .canonical_bare_labels,
             thus establishing the mapping)
         """
-        dressed_indices = np.empty(shape=self.parameters.counts, dtype=object)
+        dressed_indices = np.empty(shape=self._parameters.counts, dtype=object)
 
-        param_indices = itertools.product(*map(range, self.parameters.counts))
+        param_indices = itertools.product(*map(range, self._parameters.counts))
         for index in param_indices:
             dressed_indices[index] = self._generate_single_mapping(index)
         dressed_indices = np.asarray(dressed_indices[:].tolist())
 
-        parameter_dict = self.parameters.ordered_dict.copy()
+        parameter_dict = self._parameters.ordered_dict.copy()
         return NamedSlotsNdarray(dressed_indices, parameter_dict)
 
     def _generate_single_mapping(
@@ -261,7 +261,7 @@ class SpectrumLookupMixin:
                     location
                 ]
         return NamedSlotsNdarray(
-            select_energies, sliced_eigenenergies.parameters.paramvals_by_name
+            select_energies, sliced_eigenenergies._parameters.paramvals_by_name
         )
 
     @utils.check_sync_status
@@ -356,4 +356,4 @@ class SpectrumLookupMixin:
     def all_params_fixed(self: "ParameterSweep", param_indices) -> bool:
         if isinstance(param_indices, slice):
             param_indices = (param_indices,)
-        return len(self.parameters) == len(param_indices)
+        return len(self._parameters) == len(param_indices)

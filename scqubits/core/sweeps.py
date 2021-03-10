@@ -58,7 +58,7 @@ def generator(sweep: "ParameterSweepBase", func: callable, **kwargs) -> np.ndarr
     -------
         array of custom data
     """
-    reduced_parameters = sweep.parameters.create_sliced(
+    reduced_parameters = sweep._parameters.create_sliced(
         sweep._current_param_indices, remove_fixed=False
     )
     total_count = np.prod(reduced_parameters.counts)
