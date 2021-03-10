@@ -438,6 +438,8 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         if isinstance(obj, NamedSlotsNdarray):
             # Check whether all parameters are getting fixed; if not, adjust
             # Parameters for the new object
+            if not hasattr(self, "parameters"):
+                print("it's me", len(self))
             param_count = len(self.parameters)
             dummy_array = np.empty(shape=self.parameters.counts)
             if not isinstance(dummy_array[multi_index[:param_count]], float):
@@ -452,6 +454,17 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
                 # return ordinary ndarray.
                 obj = obj.view(ndarray)
         return obj
+
+    def __reduce__(self):
+        # needed for multiprocessing / proper pickling
+        pickled_state = super().__reduce__()
+        new_state = pickled_state[2] + (self.parameters,)
+        return (pickled_state[0], pickled_state[1], new_state)
+
+    def __setstate__(self, state):
+        # needed for multiprocessing / proper pickling
+        self.parameters = state[-1]
+        super().__setstate__(state[0:-1])
 
     @classmethod
     def deserialize(cls, io_data: IOData) -> "NamedSlotsNdarray":
