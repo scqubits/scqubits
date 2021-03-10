@@ -285,7 +285,7 @@ class ParameterSweepBase(ABC):
         extract transition energy data. Usage is based on preslicing to select all or
         a subset of parameters to be involved in the sweep, e.g.,
 
-        <ParameterSweep>[0, :, 2].transitions()
+        `<ParameterSweep>[0, :, 2].transitions()`
 
         produces all eigenenergy differences for transitions starting in the ground
         state (default when no initial state is specified) as a function of the middle
@@ -397,7 +397,6 @@ class ParameterSweepBase(ABC):
         final: Optional[Union[int, Tuple[int, ...]]] = None,
         sidebands: bool = False,
         make_positive: bool = True,
-        matrix_elements: Optional[List[NamedSlotsNdarray]] = None,
         param_indices: Optional[NpIndices] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
@@ -406,7 +405,7 @@ class ParameterSweepBase(ABC):
         on preslicing of the ParameterSweep object to select a single parameter to be
         involved in the sweep. E.g.,
 
-        <ParameterSweep>[0, :, 2].plot_transitions()
+        `<ParameterSweep>[0, :, 2].plot_transitions()`
 
         plots all eigenenergy differences for transitions starting in the ground
         state (default when no initial state is specified) as a function of the middle
@@ -574,18 +573,20 @@ class ParameterSweep(
     serializers.Serializable,
 ):
     """
-    Sweep allows dict-like and array-like access. For
-     <Sweep>[<str>], return data according to:
+    `ParameterSweep` supports array-like access ("pre-slicing") and dict-like access.
+    With dict-like access via string-keywords `<ParameterSweep>[<str>]`,
+    the following data is returned
 
-    *  'esys': NamedSlotsNdarray of dressed eigenspectrum,
-    *  'bare_esys': NamedSlotsNdarray of bare eigenspectrum,
-    *  'lookup': NamedSlotsNdAdarray of dressed indices correposponding to bare
-    *  product state labels in canonical order,
-    *  '<observable1>': NamedSlotsNdarray,
-    *  '<observable2>': NamedSlotsNdarray,
-    *  ...
+    *  `"evals"` and `"evecs"`: dressed eigenenergies and eigenstates as
+    `NamedSlotsNdarray`; eigenstates are decomposed in the bare product-state basis
+    of the non-interacting subsystems' eigenbases
+    *  `"bare_evals"` and `"bare_evecs"`: bare eigenenergies and eigenstates as
+    `NamedSlotsNdarray`
+    *  `"lamb"`, `"chi"`, and `"kerr"`: dispersive energy coefficients
+    *  `"<custom sweep>"`: NamedSlotsNdarray for custom data generated with `add_sweep`.
 
-    For array-like access (including named slicing allowed for NamedSlotsNdarray),
+
+    Array-like access is responsible for "pre-slicing",
     enable lookup functionality such as
     <Sweep>[p1, p2, ...].eigensys()
 
@@ -607,11 +608,11 @@ class ParameterSweep(
         To speed up calculations, the user may provide information that specifies which
         subsystems are being updated for each of the given parameter sweeps. This
         information is specified by a dictionary of the following form:
-        {
-         '<parameter name 1>': [<subsystems a>],
-         '<parameter name 2>': [<subsystems b>, <subsystems c>, ...],
-          ...
-        }
+
+        ``{"<parameter name 1>": [<subsystems a>],
+           "<parameter name 2>": [<subsystems b>, <subsystems c>, ...],
+            ...}``
+
         This indicates that changes in <parameter name 1> only require updates of
         <subsystems a> while leaving other subsystems unchanged. Similarly, sweeping
         <parameter name 2> affects <subsystems b>, <subsystems c> etc.
@@ -620,10 +621,10 @@ class ParameterSweep(
         sweep for a single quantum system, no interaction (default: False)
     autorun:
         Determines whether to directly run the sweep or delay it until `.run()` is
-        called manually. (Default: settings.AUTORUN_SWEEP=True)
+        called manually. (Default: `settings.AUTORUN_SWEEP=True`)
     num_cpus:
-        number of CPUS requested for computing the sweep
-        (default value settings.NUM_CPUS)
+        number of CPU cores requested for computing the sweep
+        (default value `settings.NUM_CPUS`)
 
     """
 
@@ -644,7 +645,6 @@ class ParameterSweep(
         hilbertspace: HilbertSpace,
         paramvals_by_name: Dict[str, ndarray],
         update_hilbertspace: Callable,
-        sweep_generators: Optional[Dict[str, Callable]] = None,
         evals_count: int = 20,
         subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
         bare_only: bool = False,
@@ -654,7 +654,6 @@ class ParameterSweep(
         num_cpus = num_cpus or settings.NUM_CPUS
         self.parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
-        self._sweep_generators = sweep_generators
         self._evals_count = evals_count
         self._update_hilbertspace = update_hilbertspace
         self._subsys_update_info = subsys_update_info
