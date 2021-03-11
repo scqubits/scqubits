@@ -345,7 +345,8 @@ class ParameterSweepBase(ABC):
                 "Initial state information provided is not compatible "
                 "with the specified subsystems(s) provided."
             )
-        elif len(initial_state) < len(self._hilbertspace):
+
+        if len(initial_state) < len(self._hilbertspace):
             initial_state = self._complete_initial_state(initial_state, subsys_list)
 
         final_states_list = self._get_final_states(

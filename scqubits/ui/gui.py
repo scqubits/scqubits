@@ -146,13 +146,12 @@ class GUI:
             **global_defaults,
             "scan_param": "flux",
             "operator": "phi_operator",
-            "ncut": {"min": 5, "max": 50},
             "EL": {"min": 1e-10, "max": 30},
             "ECJ": global_defaults["EC"],
             "dEJ": {"min": 0, "max": 0.99},
             "dL": {"min": 0, "max": 0.99},
             "dCJ": {"min": 0, "max": 0.99},
-            "ncut": {"min": 5, "max": 30},
+            "ncut": {"min": 5, "max": 50},
             "zeta_cut": {"min": 10, "max": 50},
             "phi_cut": {"min": 5, "max": 30},
             "scale": None,
@@ -679,9 +678,7 @@ class GUI:
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
 
-        if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(
-            self.active_qubit, scq.FullZeroPi
-        ):
+        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
             interactive_choice = self.grid_evals_vs_paramvals_plot
         else:
             interactive_choice = self.evals_vs_paramvals_plot
@@ -715,9 +712,7 @@ class GUI:
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
 
-        if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(
-            self.active_qubit, scq.FullZeroPi
-        ):
+        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
             interactive_choice = self.grid_matelem_vs_paramvals_plot
         else:
             interactive_choice = self.matelem_vs_paramvals_plot
@@ -768,9 +763,7 @@ class GUI:
 
             if isinstance(self.active_qubit, scq.ZeroPi):
                 interactive_choice = self.grid_wavefunction_plot
-            elif isinstance(self.active_qubit, scq.FluxQubit) or isinstance(
-                self.active_qubit, scq.Cos2PhiQubit
-            ):
+            elif isinstance(self.active_qubit, (scq.FluxQubit, scq.Cos2PhiQubit)):
                 interactive_choice = self.wavefunction_plot
             else:
                 interactive_choice = self.scaled_wavefunction_plot
@@ -812,9 +805,7 @@ class GUI:
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = False
 
-        if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(
-            self.active_qubit, scq.FullZeroPi
-        ):
+        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
             interactive_choice = self.grid_matrixelements_plot
         else:
             interactive_choice = self.matrixelements_plot
@@ -896,9 +887,7 @@ class GUI:
         self.qubit_base_params.clear()
         self.qubit_scan_params.clear()
         self.qubit_base_params = dict(self.qubit_current_params)
-        if isinstance(self.active_qubit, scq.ZeroPi) or isinstance(
-            self.active_qubit, scq.FullZeroPi
-        ):
+        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
             self.qubit_base_params["grid"] = None
         if "truncated_dim" in self.qubit_base_params.keys():
             del self.qubit_base_params["truncated_dim"]
