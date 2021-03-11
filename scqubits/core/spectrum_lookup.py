@@ -205,7 +205,7 @@ class SpectrumLookupMixin:
         self: "ParameterSweep", param_indices: Optional[Tuple[int, ...]] = None
     ) -> ndarray:
         """
-        Return the array of dressed eigenenergies
+        Return the array of dressed eigenenergies - primarily for running the sweep
 
         Parameters
         ----------
