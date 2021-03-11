@@ -11,6 +11,7 @@
 
 
 import os
+import warnings
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -27,6 +28,10 @@ from scqubits.settings import IN_IPYTHON
 if not IN_IPYTHON:
     matplotlib.use("Agg")
 
+warnings.filterwarnings(
+    action="ignore",
+    category=FutureWarning,
+)
 
 TESTDIR, _ = os.path.split(scqubits.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")
@@ -34,6 +39,7 @@ DATADIR = os.path.join(TESTDIR, "data", "")
 
 
 def pytest_addoption(parser):
+    # This is to allow multi-processing tests by adding --num_cpus 2 to pytest calls
     parser.addoption(
         "--num_cpus", action="store", default=1, help="number of cores to be used"
     )

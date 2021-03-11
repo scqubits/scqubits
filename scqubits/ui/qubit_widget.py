@@ -11,6 +11,9 @@
 
 from typing import Any, Callable, Dict
 
+import scqubits.core.units as units
+import scqubits.utils.misc as utils
+
 try:
     import ipywidgets
 except ImportError:
@@ -25,9 +28,6 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
-import scqubits.core.units as units
-import scqubits.utils.misc as utils
-
 
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
 def create_widget(
@@ -39,8 +39,8 @@ def create_widget(
     Parameters
     ----------
     callback_func:
-        callback_function depends on all the parameters provided as keys (str) in the
-        parameter_dict, and is called upon changes of values inside the widgets
+        callback_function depends on all the parameters provided as keys (str) in the parameter_dict, and is called upon
+        changes of values inside the widgets
     init_params:
         names and values of initialization parameters
     image_filename:
@@ -50,8 +50,7 @@ def create_widget(
     box_list = []
     for name, value in init_params.items():
         label_str = name
-        # NOTE: This will break if names of energy parameters in future qubits do not
-        # start with 'E'
+        # NOTE: This will break if names of energy parameters in future qubits do not start with 'E'
         if name[0] == "E":
             label_str += " [" + units.get_units() + "]"
         elif name == "flux":

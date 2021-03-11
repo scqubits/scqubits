@@ -12,7 +12,7 @@
 import math
 import os
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -37,8 +37,9 @@ from scqubits.core.storage import WaveFunction
 
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
-    r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is represented in dense form in the number
-    basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
+    r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is
+    represented in dense form in the number basis,
+    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
 
         Transmon(EJ=1.0, EC=2.0, ng=0.2, ncut=30)
@@ -272,17 +273,89 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             energy=evals[which],
         )
 
+    def _compute_dispersion(
+        self,
+        dispersion_name: str,
+        param_name: str,
+        param_vals: ndarray,
+        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
+        levels: Optional[Union[int, Tuple[int]]] = None,
+        point_count: int = 50,
+        num_cpus: Optional[int] = None,
+    ) -> Tuple[ndarray, ndarray]:
+        if dispersion_name != "ng":
+            return super()._compute_dispersion(
+                dispersion_name,
+                param_name,
+                param_vals,
+                transitions=transitions,
+                levels=levels,
+                point_count=point_count,
+                num_cpus=num_cpus,
+            )
+
+        max_level = np.max(transitions) if levels is None else np.max(levels)
+        previous_ng = self.ng
+        self.ng = 0.0
+        specdata_ng_0 = self.get_spectrum_vs_paramvals(
+            param_name,
+            param_vals,
+            evals_count=max_level + 1,
+            get_eigenstates=False,
+            num_cpus=num_cpus,
+        )
+        self.ng = 0.5
+        specdata_ng_05 = self.get_spectrum_vs_paramvals(
+            param_name,
+            param_vals,
+            evals_count=max_level + 1,
+            get_eigenstates=False,
+            num_cpus=num_cpus,
+        )
+        self.ng = previous_ng
+
+        if levels is not None:
+            dispersion = np.asarray(
+                [
+                    [
+                        np.abs(
+                            specdata_ng_0.energy_table[param_index, j]
+                            - specdata_ng_05.energy_table[param_index, j]
+                        )
+                        for param_index, _ in enumerate(param_vals)
+                    ]
+                    for j in levels
+                ]
+            )
+            return specdata_ng_0.energy_table, dispersion
+
+        dispersion = []
+        for i, j in transitions:
+            list_ij = []
+            for param_index, _ in enumerate(param_vals):
+                ei_0 = specdata_ng_0.energy_table[param_index, i]
+                ei_05 = specdata_ng_05.energy_table[param_index, i]
+                ej_0 = specdata_ng_0.energy_table[param_index, j]
+                ej_05 = specdata_ng_05.energy_table[param_index, j]
+                list_ij.append(
+                    np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
+                    - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
+                )
+            dispersion.append(list_ij)
+        return specdata_ng_0.energy_table, np.asarray(dispersion)
+
 
 # — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
 
 
 class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
-    r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in dense form in the number
-    basis,
-    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{h.c.})`,
-    Here, the effective Josephson energy is flux-tunable:
-    :math:`\mathcal{E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(\pi\Phi/\Phi_0)}`
-    and :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes th junction asymmetry.
+    r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in
+    dense form in the number basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{
+    n}-n_g)^2+\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{
+    h.c.})`, Here, the effective Josephson energy is flux-tunable: :math:`\mathcal{
+    E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(
+    \pi\Phi/\Phi_0)}` and :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes the
+    junction asymmetry.
 
     Initialize with, for example::
 
@@ -336,8 +409,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
 
     @property
     def EJ(self) -> float:  # type: ignore
-        """This is the effective, flux dependent Josephson energy, playing the role of EJ
-        in the parent class `Transmon`"""
+        """This is the effective, flux dependent Josephson energy, playing the role
+        of EJ in the parent class `Transmon`"""
         return self.EJmax * np.sqrt(
             np.cos(np.pi * self.flux) ** 2
             + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
@@ -367,7 +440,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         ]
 
     def d_hamiltonian_d_flux(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to `flux`."""
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `flux`."""
         return (
             np.pi
             * self.EJmax
@@ -380,3 +454,74 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             )
             * self.cos_phi_operator()
         )
+
+    def _compute_dispersion(
+        self,
+        dispersion_name: str,
+        param_name: str,
+        param_vals: ndarray,
+        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
+        levels: Optional[Union[int, Tuple[int]]] = None,
+        point_count: int = 50,
+        num_cpus: Optional[int] = None,
+    ) -> Tuple[ndarray, ndarray]:
+        if dispersion_name != "flux":
+            return super()._compute_dispersion(
+                dispersion_name,
+                param_name,
+                param_vals,
+                transitions=transitions,
+                levels=levels,
+                point_count=point_count,
+                num_cpus=num_cpus,
+            )
+
+        max_level = np.max(transitions) if levels is None else np.max(levels)
+        previous_flux = self.flux
+        self.flux = 0.0
+        specdata_flux_0 = self.get_spectrum_vs_paramvals(
+            param_name,
+            param_vals,
+            evals_count=max_level + 1,
+            get_eigenstates=False,
+            num_cpus=num_cpus,
+        )
+        self.flux = 0.5
+        specdata_flux_05 = self.get_spectrum_vs_paramvals(
+            param_name,
+            param_vals,
+            evals_count=max_level + 1,
+            get_eigenstates=False,
+            num_cpus=num_cpus,
+        )
+        self.flux = previous_flux
+
+        if levels is not None:
+            dispersion = np.asarray(
+                [
+                    [
+                        np.abs(
+                            specdata_flux_0.energy_table[param_index, j]
+                            - specdata_flux_05.energy_table[param_index, j]
+                        )
+                        for param_index, _ in enumerate(param_vals)
+                    ]
+                    for j in levels
+                ]
+            )
+            return specdata_flux_0.energy_table, dispersion
+
+        dispersion = []
+        for i, j in transitions:
+            list_ij = []
+            for param_index, _ in enumerate(param_vals):
+                ei_0 = specdata_flux_0.energy_table[param_index, i]
+                ei_05 = specdata_flux_05.energy_table[param_index, i]
+                ej_0 = specdata_flux_0.energy_table[param_index, j]
+                ej_05 = specdata_flux_05.energy_table[param_index, j]
+                list_ij.append(
+                    np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
+                    - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
+                )
+            dispersion.append(list_ij)
+        return specdata_flux_0.energy_table, np.asarray(dispersion)

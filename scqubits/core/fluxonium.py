@@ -23,8 +23,8 @@ from numpy import ndarray
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
-import scqubits.core.oscillator as osc
 import scqubits.core.operators as op
+import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
@@ -192,7 +192,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def hamiltonian(self) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu
-        et al., PRB 87, 024510 (2013) """
+        et al., PRB 87, 024510 (2013)"""
         dimension = self.hilbertdim()
         diag_elements = [i * self.E_plasma() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)

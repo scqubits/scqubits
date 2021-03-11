@@ -12,7 +12,7 @@
 import math
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -118,7 +118,7 @@ class NoisySystem(ABC):
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
         scale: float = 1,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
@@ -158,6 +158,7 @@ class NoisySystem(ABC):
         Figure, Axes
 
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
@@ -304,7 +305,7 @@ class NoisySystem(ABC):
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
         scale: float = 1,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
@@ -352,6 +353,7 @@ class NoisySystem(ABC):
         Figure, Axes
 
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
@@ -443,7 +445,7 @@ class NoisySystem(ABC):
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
         scale: float = 1,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
@@ -493,6 +495,7 @@ class NoisySystem(ABC):
         Figure, Axes
 
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
@@ -808,7 +811,7 @@ class NoisySystem(ABC):
         -------
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or
-             rate in inverse units.
+            rate in inverse units.
 
         """
         common_noise_options = (
@@ -1055,7 +1058,7 @@ class NoisySystem(ABC):
         -------
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
-             in inverse units.
+            in inverse units.
         """
         if "tphi_1_over_f_ng" not in self.supported_noise_channels():
             raise RuntimeError(

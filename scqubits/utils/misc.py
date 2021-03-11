@@ -1,4 +1,4 @@
-# fitting.py
+# misc.py
 #
 # This file is part of scqubits.
 #
@@ -11,6 +11,7 @@
 
 import ast
 import functools
+import warnings
 
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
@@ -136,6 +137,22 @@ class Required:
         return decorated_func
 
 
+def check_sync_status(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self._out_of_sync:
+            warnings.warn(
+                "SCQUBITS\nSpectrum data is out of sync with systems originally"
+                " involved in generating it. This will generally lead to incorrect"
+                " results. Consider regenerating the spectral data using"
+                " <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()",
+                Warning,
+            )
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 def to_expression_or_string(string_expr: str) -> Any:
     try:
         return ast.literal_eval(string_expr)
@@ -148,6 +165,6 @@ def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
-    # Qutip's `.eigenstates()` returns an object-valued ndarray, each entry of which
+    # Qutip's `.eigenstates()` returns an object-valued ndarray, each idx_entry of which
     # is a Qobj ket.
     return np.asarray(qobj_ket.data.todense())

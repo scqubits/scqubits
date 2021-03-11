@@ -14,7 +14,17 @@ import operator
 import os
 import warnings
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -151,7 +161,7 @@ def wavefunction1d(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
     potential_vals: np.ndarray = None,
     offset: Union[float, Iterable[float]] = 0,
-    scaling: float = 1.0,
+    scaling: Optional[float] = None,
     **kwargs
 ) -> Tuple[Figure, Axes]:
     """
@@ -198,6 +208,14 @@ def wavefunction1d(
         )
 
     if potential_vals is not None:
+        y_min = np.min(potential_vals)
+        y_max = np.max(offset_list)
+        y_range = y_max - y_min
+
+        y_max += 0.3 * y_range
+        y_min = np.min(potential_vals) - 0.1 * y_range
+        axes.set_ylim([y_min, y_max])
+
         axes.plot(
             x_vals,
             potential_vals,
@@ -231,7 +249,8 @@ def renormalization_factor(
     FILL_FACTOR = 0.1
     energy_range = np.max(potential_vals) - np.min(potential_vals)
     amplitude_range = np.max(wavefunc.amplitudes) - np.min(wavefunc.amplitudes)
-
+    if amplitude_range < 1.0e-10:
+        return 0.0
     return FILL_FACTOR * energy_range / amplitude_range
 
 
@@ -576,7 +595,13 @@ def data_vs_paramvals(
                 label=label_list[idx],
                 **_extract_kwargs_options(kwargs, "plot")
             )
-        axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        if _LABELLINES_ENABLED:
+            try:
+                labelLines(axes.get_lines(), zorder=2.0)
+            except Exception:
+                pass
+        else:
+            axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, **kwargs)
     return fig, axes
 
@@ -616,6 +641,7 @@ def evals_vs_paramvals(
     ydata = specdata.energy_table[:, index_list]
     if subtract_ground:
         ydata = (ydata.T - ydata[:, 0]).T
+
     return data_vs_paramvals(
         xdata,
         ydata,

@@ -38,7 +38,7 @@ def test_explorer():
     interaction_list = [interaction]
     hilbertspace.interaction_list = interaction_list
 
-    param_name = r"$\Phi_{ext}/\Phi_0$"
+    param_name = "$\Phi_{ext}/\Phi_0$"
     param_vals = np.linspace(-0.5, 0.5, 100)
 
     subsys_update_list = [qbt]
@@ -54,8 +54,6 @@ def test_explorer():
         subsys_update_list=subsys_update_list,
         update_hilbertspace=update_hilbertspace,
     )
-    swp.generate_chi_sweep(sweep)
-    swp.generate_charge_matrixelem_sweep(sweep)
 
     explorer = Explorer(sweep=sweep, evals_count=10)
 
