@@ -205,7 +205,7 @@ class SpectrumLookupMixin:
         self: "ParameterSweep", param_indices: Optional[Tuple[int, ...]] = None
     ) -> ndarray:
         """
-        Return the array of dressed eigenenergies
+        Return the array of dressed eigenenergies - primarily for running the sweep
 
         Parameters
         ----------
@@ -223,6 +223,7 @@ class SpectrumLookupMixin:
     def energy_by_bare_index(
         self: "ParameterSweep",
         bare_tuple: Tuple[int, ...],
+        subtract_ground: bool = False,
         param_indices: Optional[NpIndices] = None,
     ) -> NamedSlotsNdarray:
         """
@@ -232,6 +233,8 @@ class SpectrumLookupMixin:
         ----------
         bare_tuple:
             bare state indices
+        subtract_ground:
+            whether to subtract the ground state energy
         param_indices:
             indices specifying the set of parameters
 
@@ -245,29 +248,33 @@ class SpectrumLookupMixin:
         if dressed_index is None:
             return np.nan
         if isinstance(dressed_index, int):
-            return self["evals"][param_indices + (dressed_index,)]
+            energy = self["evals"][param_indices + (dressed_index,)]
+            if subtract_ground:
+                energy -= self["evals"][param_indices + (0,)]
+            return energy
 
         dressed_index = np.asarray(dressed_index)
-        select_energies = np.empty_like(dressed_index)
+        energies = np.empty_like(dressed_index)
         it = np.nditer(dressed_index, flags=["multi_index", "refs_ok"])
-        sliced_eigenenergies = self["evals"][param_indices]
+        sliced_energies = self["evals"][param_indices]
 
         for location in it:
             location = location.tolist()
             if location is None:
-                select_energies[it.multi_index] = np.nan
+                energies[it.multi_index] = np.nan
             else:
-                select_energies[it.multi_index] = sliced_eigenenergies[it.multi_index][
-                    location
-                ]
+                energies[it.multi_index] = sliced_energies[it.multi_index][location]
+                if subtract_ground:
+                    energies[it.multi_index] -= sliced_energies[it.multi_index][0]
         return NamedSlotsNdarray(
-            select_energies, sliced_eigenenergies._parameters.paramvals_by_name
+            energies, sliced_energies._parameters.paramvals_by_name
         )
 
     @utils.check_sync_status
     def energy_by_dressed_index(
         self: "ParameterSweep",
         dressed_index: int,
+        subtract_ground: bool = False,
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> float:
         """
@@ -278,6 +285,8 @@ class SpectrumLookupMixin:
         ----------
         dressed_index:
             index of dressed state of interest
+        subtract_ground:
+            whether to subtract the ground state energy
         param_indices:
             specifies the desired choice of parameter values
 
@@ -287,7 +296,10 @@ class SpectrumLookupMixin:
         """
         param_indices = param_indices or self._current_param_indices
         self._current_param_indices = None
-        return self["evals"][param_indices + (dressed_index,)]
+        energies = self["evals"][param_indices + (dressed_index,)]
+        if subtract_ground:
+            energies -= self["evals"][param_indices + (0,)]
+        return energies
 
     @utils.check_sync_status
     def bare_eigenstates(
@@ -312,8 +324,8 @@ class SpectrumLookupMixin:
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
         """
-        Return list of bare eigenenergies for given subsystem, usually to be used
-        with preslicing.
+        Return `NamedSlotsNdarray` of bare eigenenergies for given subsystem, usually
+        to be used with preslicing.
 
         Parameters
         ----------

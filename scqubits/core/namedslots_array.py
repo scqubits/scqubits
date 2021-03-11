@@ -25,7 +25,6 @@ import scqubits.utils.plotting as plot
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import Serializable
 
-
 NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]
 NpIndices = Union[NpIndex, NpIndexTuple]
@@ -471,7 +470,12 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         Take the given IOData and return an instance of the described class, initialized
         with the data stored in io_data.
         """
-        input_array = np.asarray(io_data.objects["input_array"], dtype=object)
+        if "input_array" in io_data.ndarrays:
+            input_array = io_data.ndarrays["input_array"]
+        else:
+            list_data = io_data.objects["input_array"]
+            input_array = np.empty((len(list_data),), dtype=object)
+            input_array[:] = list_data
         values_by_name = io_data.objects["values_by_name"]
         return NamedSlotsNdarray(input_array, values_by_name)
 
@@ -481,13 +485,17 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         """
         import scqubits.io_utils.fileio as io
 
-        typename = type(self).__name__
+        typename = "NamedSlotsNdarray"
         io_attributes = None
-        io_ndarrays = None
-        objects = {
-            "input_array": self.tolist(),
-            "values_by_name": self._parameters.paramvals_by_name,
-        }
+        if self.dtype in [np.float_, np.complex_]:
+            io_ndarrays = {"input_array": self.view(np.ndarray)}
+            objects = {"values_by_name": self._parameters.paramvals_by_name}
+        else:
+            io_ndarrays = None
+            objects = {
+                "values_by_name": self._parameters.paramvals_by_name,
+                "input_array": self[:].tolist(),
+            }
         return io.IOData(typename, io_attributes, io_ndarrays, objects=objects)
 
     @property
@@ -517,4 +525,4 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         )
 
     def toarray(self) -> ndarray:
-        return np.asarray(self[:].tolist())
+        return self.view(ndarray)

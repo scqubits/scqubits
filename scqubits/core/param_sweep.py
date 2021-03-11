@@ -583,20 +583,22 @@ class ParameterSweep(
     """
     `ParameterSweep` supports array-like access ("pre-slicing") and dict-like access.
     With dict-like access via string-keywords `<ParameterSweep>[<str>]`,
-    the following data is returned
+    the following data is returned:
 
-    *  `"evals"` and `"evecs"`: dressed eigenenergies and eigenstates as
-    `NamedSlotsNdarray`; eigenstates are decomposed in the bare product-state basis
-    of the non-interacting subsystems' eigenbases
-    *  `"bare_evals"` and `"bare_evecs"`: bare eigenenergies and eigenstates as
-    `NamedSlotsNdarray`
-    *  `"lamb"`, `"chi"`, and `"kerr"`: dispersive energy coefficients
-    *  `"<custom sweep>"`: NamedSlotsNdarray for custom data generated with `add_sweep`.
-
+    `"evals"` and `"evecs"`
+        dressed eigenenergies and eigenstates as
+        `NamedSlotsNdarray`; eigenstates are decomposed in the bare product-state basis
+        of the non-interacting subsystems' eigenbases
+    `"bare_evals"` and `"bare_evecs"`
+        bare eigenenergies and eigenstates as `NamedSlotsNdarray`
+    `"lamb"`, `"chi"`, and `"kerr"`
+        dispersive energy coefficients
+    `"<custom sweep>"`
+        NamedSlotsNdarray for custom data generated with `add_sweep`.
 
     Array-like access is responsible for "pre-slicing",
     enable lookup functionality such as
-    <Sweep>[p1, p2, ...].eigensys()
+    `<Sweep>[p1, p2, ...].eigensys()`
 
     Parameters
     ----------
@@ -606,7 +608,7 @@ class ParameterSweep(
         Dictionary that, for each set of parameter values, specifies a parameter name
         and the set of values to be used in the sweep.
     update_hilbertspace:
-        function that updates the associated ``hilbertspace`` object with a given
+        function that updates the associated `hilbertspace` object with a given
         set of parameters
     evals_count:
         number of dressed eigenvalues/eigenstates to keep. (The number of bare
@@ -615,15 +617,17 @@ class ParameterSweep(
     subsys_update_info:
         To speed up calculations, the user may provide information that specifies which
         subsystems are being updated for each of the given parameter sweeps. This
-        information is specified by a dictionary of the following form:
+        information is specified by a dictionary of the following form::
 
-        ``{"<parameter name 1>": [<subsystems a>],
-           "<parameter name 2>": [<subsystems b>, <subsystems c>, ...],
-            ...}``
+            {
+                "<parameter name 1>": [<subsystem a>],
+                "<parameter name 2>": [<subsystem b>, <subsystem c>, ...],
+                ...
+            }
 
-        This indicates that changes in <parameter name 1> only require updates of
-        <subsystems a> while leaving other subsystems unchanged. Similarly, sweeping
-        <parameter name 2> affects <subsystems b>, <subsystems c> etc.
+        This indicates that changes in `<parameter name 1>` only require updates of
+        `<subsystem a>` while leaving other subsystems unchanged. Similarly, sweeping
+        `<parameter name 2>` affects `<subsystem b>`, `<subsystem c>` etc.
     bare_only:
         if set to True, only bare eigendata is calculated; useful when performing a
         sweep for a single quantum system, no interaction (default: False)
@@ -701,6 +705,10 @@ class ParameterSweep(
         iodata = serializers.dict_serialize(initdata)
         iodata.typename = "StoredSweep"
         return iodata
+
+    def param_info(self) -> Dict[str, ndarray]:
+        """Return a dictionary of the parameter names and values used in this sweep."""
+        return self._parameters.paramvals_by_name
 
     def run(self) -> None:
         """Create all sweep data: bare spectral data, dressed spectral data, lookup

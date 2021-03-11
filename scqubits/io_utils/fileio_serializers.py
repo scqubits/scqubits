@@ -277,9 +277,7 @@ def dict_deserialize(iodata: "IOData") -> Dict[str, Any]:
 
 def OrderedDict_deserialize(iodata: "IOData") -> Dict[str, Any]:
     """Turn IOData instance back into a dict"""
-    return OrderedDict(
-        reversed([(name, values) for name, values in iodata.as_kwargs().items()])
-    )
+    return OrderedDict([(name, values) for name, values in iodata.as_kwargs().items()])
 
 
 def csc_matrix_deserialize(iodata: "IOData") -> csc_matrix:
