@@ -12,25 +12,15 @@
 import functools
 import itertools
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Tuple
 
 import numpy as np
 
-import scqubits.core.storage as storage
-import scqubits.core.sweep_observables as observable
 import scqubits.settings as settings
-import scqubits.utils.misc as utils
-import scqubits.utils.spectrum_utils as spec_utils
-
-from scqubits import Oscillator
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 if TYPE_CHECKING:
-    from scqubits import HilbertSpace, Oscillator, SpectrumData
-    from scqubits.core.param_sweep import ParameterSweep, ParameterSweepBase
-    from scqubits.core.qubit_base import QubitBaseClass
-
-    QuantumSys = Union[QubitBaseClass, Oscillator]
+    from scqubits.core.param_sweep import ParameterSweep
 
 
 if settings.IN_IPYTHON:
@@ -39,7 +29,7 @@ else:
     from tqdm import tqdm
 
 
-def generator(sweep: "ParameterSweepBase", func: callable, **kwargs) -> np.ndarray:
+def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
     """Method for computing custom data as a function of the external parameter,
     calculated via the function `func`.
 
@@ -94,4 +84,5 @@ def generator(sweep: "ParameterSweepBase", func: callable, **kwargs) -> np.ndarr
         )
     )
     data_array = np.asarray(data_array)
-    return data_array.reshape(reduced_parameters.counts)
+    return NamedSlotsNdarray(data_array.reshape(reduced_parameters.counts),
+                             reduced_parameters.paramvals_by_name)
