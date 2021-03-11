@@ -116,7 +116,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         # for theta, needed for plotting wavefunction
-        self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
+        self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 200)
         self._init_params.remove('ECS')  # used in for file Serializable purposes; remove ECS as init parameter
         self._image_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'qubit_pngs/zeropi.png')
         dispatch.CENTRAL_DISPATCH.register('GRID_UPDATE', self)
@@ -569,3 +569,78 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable):
         first_order = 3e-6 * first_derivative
         second_order = 9e-12 * second_derivative
         return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
+
+    def plot_n_phi_n_theta_wavefunction(
+        self, esys=None, mode="real", which=0, zero_calibrate=True, **kwargs
+    ):
+        """
+        Plots 2D wave function in `n_phi`, `n_theta` basis
+
+        Parameters
+        ----------
+        esys: ndarray, ndarray
+            eigenvalues, eigenvectors as obtained from `.eigensystem()`
+        which: int, optional
+            index of wave function to be plotted (default value = (0)
+        mode: str, optional
+            choices as specified in `constants.MODE_FUNC_DICT`
+        zero_calibrate: bool, optional
+            if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
+        **kwargs:
+            plot options
+
+        Returns
+        -------
+        Figure, Axes
+        """
+
+        wavefunc = self.wavefunction(
+            esys, which=which
+        )
+
+        amplitudes = spec_utils.standardize_phases(
+            wavefunc.amplitudes.reshape(self.grid.pt_count, self._default_grid.pt_count)
+        )
+
+        d_phi = self.grid.make_linspace()[1] - self.grid.make_linspace()[0]
+        n_phi_list = np.sort(np.fft.fftfreq(self.grid.pt_count, d_phi)) * 2 * np.pi
+        n_phi_grid = discretization.Grid1d(
+            n_phi_list[0], n_phi_list[-1], n_phi_list.size
+        )
+
+        d_theta = self._default_grid.make_linspace()[1] - self._default_grid.make_linspace()[0]
+        n_theta_list = np.sort(np.fft.fftfreq(self._default_grid.pt_count, d_theta)) * 2 * np.pi
+        n_theta_grid = discretization.Grid1d(
+            n_theta_list[0], n_theta_list[-1], n_theta_list.size
+        )
+
+        n_phi_n_theta_amplitudes = (
+            np.fft.ifft2(amplitudes)
+            * d_phi
+            * self.grid.pt_count
+            * d_theta
+            * self._default_grid.pt_count
+        )
+        n_phi_n_theta_amplitudes = np.fft.fftshift(n_phi_n_theta_amplitudes)
+
+        grid2d = discretization.GridSpec(
+            np.asarray(
+                [
+                    [n_phi_grid.min_val, n_phi_grid.max_val, n_phi_grid.pt_count],
+                    [n_theta_grid.min_val, n_theta_grid.max_val, n_theta_grid.pt_count],
+                ]
+            )
+        )
+
+        n_phi_n_theta_wavefunction = storage.WaveFunctionOnGrid(
+            grid2d, n_phi_n_theta_amplitudes
+        )
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        n_phi_n_theta_wavefunction.amplitudes = amplitude_modifier(
+            spec_utils.standardize_phases(n_phi_n_theta_wavefunction.amplitudes)
+        )
+
+        fig, axes = plot.wavefunction2d(
+            n_phi_n_theta_wavefunction, zero_calibrate=zero_calibrate, **kwargs
+        )
+        return fig, axes

@@ -328,11 +328,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
 
     def q_cap(self, energy):
         # Devoret paper
-        q_cap_0 = 1 * 1e6
-        return q_cap_0 * (6 / energy) ** 0.7
+        # q_cap_0 = 1 * 1e6
+        # return q_cap_0 * (6 / energy) ** 0.7
 
         # Schuster paper
-        # return 1 / (8e-6)
+        return 1 / (8e-6)
 
         # Vlad paper
         # q_cap_0 = 1 / (3 * 1e-6)

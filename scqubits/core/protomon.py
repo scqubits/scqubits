@@ -591,14 +591,16 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         """
         Frequency dependent quality factor for inductive loss
         """
-        q_ind_0 = 500 * 1e6
-        return (
-            q_ind_0
-            * kn(0, 0.5 / 2.0 / self.kbt)
-            * np.sinh(0.5 / 2.0 / self.kbt)
-            / kn(0, energy / 2.0 / self.kbt)
-            / np.sinh(energy / 2.0 / self.kbt)
-        )
+        # q_ind_0 = 500 * 1e6
+        # return (
+        #     q_ind_0
+        #     * kn(0, 0.5 / 2.0 / self.kbt)
+        #     * np.sinh(0.5 / 2.0 / self.kbt)
+        #     / kn(0, energy / 2.0 / self.kbt)
+        #     / np.sinh(energy / 2.0 / self.kbt)
+        # )
+
+        return 5e9
 
     def charge_jj_1_operator(self):
         """
@@ -667,11 +669,11 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         """
 
         # parameters from the Devoret paper
-        q_cap_0 = 1 * 1e6
-        return q_cap_0 * (6 / energy) ** 0.7
+        # q_cap_0 = 1 * 1e6
+        # return q_cap_0 * (6 / energy) ** 0.7
 
         # parameters from the Schuster paper
-        # return 1 / (8e-6)
+        return 1 / (8e-6)
 
         # parameters from the Vlad paper
         # q_cap_0 = 1 / (3 * 1e-6)
@@ -832,7 +834,7 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
 
         first_order = 3e-6 * np.abs(first_derivative)
         second_order = 9e-12 * np.abs(second_derivative)
-        return np.abs(1 / (first_order + second_order) * 1e-6) / (
+        return np.abs(1 / (first_order * np.log(2) + second_order) * 1e-6) / (
             2 * np.pi
         )  # unit in ms
 
@@ -853,7 +855,7 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
 
         first_order = 3e-6 * np.abs(first_derivative)
         second_order = 9e-12 * np.abs(second_derivative)
-        return np.abs(1 / (first_order + second_order) * 1e-6) / (
+        return np.abs(1 / (first_order * np.log(2) + second_order) * 1e-6) / (
             2 * np.pi
         )  # unit in ms
 
@@ -1146,3 +1148,160 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         qp_loss = self.get_t1_qp_loss_channel(init_state)
 
         return 1 / (1 / inductive_loss + 1 / capacitive_loss + 1 / qp_loss)
+
+    def get_t1_capacitive_loss_logical(self, g_state, e_state):
+        """
+        T1 capacitive loss of one particular state
+        """
+        cutoff = e_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[e_state] - energy[g_state]
+
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "charge_jj_1_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, g_state, e_state]
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "charge_jj_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, g_state, e_state]
+
+        s_vv_1 = (
+                2
+                * np.pi
+                * 16
+                * self.EC
+                / self.q_cap(np.abs(energy_diff))
+                * self.thermal_factor(energy_diff)
+        )
+        s_vv_2 = (
+                2
+                * np.pi
+                * 16
+                * self.EC
+                / self.q_cap(np.abs(energy_diff))
+                * self.thermal_factor(energy_diff)
+        )
+
+        gamma1_cap_1 = np.abs(matelem_1) ** 2 * s_vv_1
+        gamma1_cap_2 = np.abs(matelem_2) ** 2 * s_vv_2
+
+        gamma1_cap_tot = gamma1_cap_1 + gamma1_cap_2
+        return 1 / (gamma1_cap_tot) * 1e-6
+
+    def get_t1_inductive_loss_logical(self, g_state, e_state):
+        """
+        T1 inductive loss of one particular state
+        """
+        cutoff = e_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[e_state] - energy[g_state]
+
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "phase_ind_1_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, g_state, e_state]
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "phase_ind_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, g_state, e_state]
+        matelem_a = self.get_matelements_vs_paramvals(
+            "phase_ind_a_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, g_state, e_state]
+
+        s_ii_1 = (
+                2
+                * np.pi
+                * 2
+                * self.EL
+                / self.q_ind(np.abs(energy_diff))
+                * self.thermal_factor(energy_diff)
+        )
+        s_ii_2 = (
+                2
+                * np.pi
+                * 2
+                * self.EL
+                / self.q_ind(np.abs(energy_diff))
+                * self.thermal_factor(energy_diff)
+        )
+        s_ii_a = (
+                2
+                * np.pi
+                * 2
+                * self.ELA
+                / self.q_ind(np.abs(energy_diff))
+                * self.thermal_factor(energy_diff)
+        )
+
+        gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
+        gamma1_ind_2 = np.abs(matelem_2) ** 2 * s_ii_2
+        gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
+
+        gamma1_ind_tot = (
+                gamma1_ind_1 + gamma1_ind_2 + gamma1_ind_a
+        )
+        return 1 / (gamma1_ind_tot) * 1e-6
+
+    def get_t1_qp_loss_logical(self, g_state, e_state):
+        """
+        T1 quasiparticle loss of one particular state
+        """
+        cutoff = e_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[e_state] - energy[g_state]
+
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "sin_phase_jj_1_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, g_state, e_state]
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "sin_phase_jj_2_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, g_state, e_state]
+
+        s_qp_1 = (
+                self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        )
+        s_qp_2 = (
+                self.EJ * self.y_qp(np.abs(energy_diff)) * self.thermal_factor(
+            energy_diff)
+        )
+
+        gamma1_qp_1 = np.abs(matelem_1) ** 2 * s_qp_1
+        gamma1_qp_2 = np.abs(matelem_2) ** 2 * s_qp_2
+
+        gamma1_qp_tot = gamma1_qp_1 + gamma1_qp_2
+        return 1 / (gamma1_qp_tot) * 1e-6
+
+    def print_noise_logical(self, g_state, e_state, table=True):
+        """
+        print summary of all noise channels
+        :param g_state: the logical 0 state of the qubit
+        :param e_state: the logical 1 state of the qubit
+        :return: t2_current, t2_flux, t2_fluxa, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot
+        """
+        t1_cap = 1 / (
+            1 / self.get_t1_capacitive_loss_logical(g_state, e_state)
+            + 1 / self.get_t1_capacitive_loss_logical(e_state, g_state)
+        )
+        t1_ind = 1 / (
+            1 / self.get_t1_inductive_loss_logical(g_state, e_state)
+            + 1 / self.get_t1_inductive_loss_logical(e_state,g_state)
+        )
+        t1_qp = 1 / (
+            1 / self.get_t1_qp_loss_logical(g_state,e_state) + 1 / self.get_t1_qp_loss_logical(
+            e_state,g_state)
+        )
+        t1_tot = 1 / (1 / t1_cap + 1 / t1_ind + 1 / t1_qp)
+
+        if table is True:
+            print(
+                " T1_cap =",
+                t1_cap,
+                " ms",
+                "\n T1_ind =",
+                t1_ind,
+                " ms",
+                "\n T1_qp =",
+                t1_qp,
+                " ms",
+                "\n T1 =",
+                t1_tot,
+                " ms",
+            )

@@ -583,8 +583,8 @@ class DisorderFullProtomon(base.QubitBaseClass, serializers.Serializable):
         fig, axes = plot.wavefunction2d(
             wavefunc, zero_calibrate=zero_calibrate, **kwargs
         )
-        axes.set_xlim([-2 * np.pi, 2 * np.pi])
-        axes.set_ylim([-1 * np.pi, 3 * np.pi])
+        # axes.set_xlim([-2 * np.pi, 2 * np.pi])
+        # axes.set_ylim([-1 * np.pi, 3 * np.pi])
         axes.set_ylabel(r"$\phi$")
         axes.set_xlabel(r"$\theta$")
         axes.set_xticks([-np.pi, 0, np.pi])
@@ -891,6 +891,7 @@ class DisorderFullProtomon(base.QubitBaseClass, serializers.Serializable):
 
         first_order = 3e-6 * np.abs(first_derivative)
         second_order = 9e-12 * np.abs(second_derivative)
+        print(np.abs(second_derivative))
         return np.abs(1 / (first_order + second_order) * 1e-6) / (
             2 * np.pi
         )  # unit in ms
