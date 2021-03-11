@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Tuple
 import numpy as np
 
 import scqubits.settings as settings
+
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 if TYPE_CHECKING:
@@ -84,5 +85,7 @@ def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
         )
     )
     data_array = np.asarray(data_array)
-    return NamedSlotsNdarray(data_array.reshape(reduced_parameters.counts),
-                             reduced_parameters.paramvals_by_name)
+    return NamedSlotsNdarray(
+        data_array.reshape(reduced_parameters.counts),
+        reduced_parameters.paramvals_by_name,
+    )
