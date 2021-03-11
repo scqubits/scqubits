@@ -54,8 +54,7 @@ else:
 
 
 QuantumSys = Union[QubitBaseClass, Oscillator]
-Number = Union[int, float, complex]
-GIndex = Union[Number, slice, Tuple[int], List[int]]
+GIndex = Union[int, float, complex, slice, Tuple[int], List[int]]
 GIndexTuple = Tuple[GIndex, ...]
 NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]

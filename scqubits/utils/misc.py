@@ -26,9 +26,6 @@ else:
     from tqdm import tqdm
 
 
-Number = Union[int, float, complex]
-
-
 def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]:
     """
     Processes different ways of specifying the selection of wanted eigenvalues/eigenstates.

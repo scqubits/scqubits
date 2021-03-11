@@ -25,21 +25,20 @@ import scqubits.utils.plotting as plot
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import Serializable
 
-Number = Union[int, float, complex]
 
 NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]
 NpIndices = Union[NpIndex, NpIndexTuple]
 NpSliceEntry = Union[int, None]
 
-GIndex = Union[Number, slice, Tuple[int], List[int]]
+GIndex = Union[int, float, complex, slice, Tuple[int], List[int]]
 GIndexTuple = Tuple[GIndex, ...]
 GIndices = Union[GIndex, GIndexTuple]
-GSliceEntry = Union[Number, str, None]
+GSliceEntry = Union[int, float, complex, str, None]
 GIndexObjectTuple = Tuple["GIndexObject", ...]
 
 
-def idx_for_value(value: Number, param_vals: ndarray) -> int:
+def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int:
     location = np.abs(param_vals - value).argmin()
     if math.isclose(param_vals[location], value):
         return int(location)
