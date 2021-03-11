@@ -105,8 +105,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         # deprecation warnings.
         if omega:
             warnings.warn(
-                "To avoid confusion about 2pi factors, use of omega is deprecated. Use"
-                " E_osc instead.",
+                "Przestarza\u0142e! To avoid confusion about 2pi factors, use of omega "
+                "is deprecated. Use E_osc instead.",
                 FutureWarning,
             )
             self.E_osc = omega
