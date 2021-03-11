@@ -55,13 +55,13 @@ def harm_osc_wavefunction(
     )
 
 
-def get_E_osc_from_kin_and_pot_energies(E_kin: float, E_pot: float) -> float:
+def convert_to_E_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator energy given a harmonic Hamiltonian of the form
     :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
     return np.sqrt(E_kin * E_pot)
 
 
-def get_losc_from_kin_and_pot_energies(E_kin: float, E_pot: float) -> float:
+def convert_to_l_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator length given a harmonic Hamiltonian of the form
     :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
     return (E_kin / E_pot) ** (1 / 4)
@@ -81,7 +81,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         energy of the oscillator
     omega:
         (deprecated) alternative way of specifying the energy of the oscillator
-    losc:
+    l_osc:
         oscillator length (required to define phi_operator and n_operator)
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
