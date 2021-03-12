@@ -970,6 +970,9 @@ class ParameterSweep(
                     - energy_subsys1_all_l1[..., :, None]
                     - energy_subsys2_all_l2[..., None, :]
                 )
+                if subsys1 is subsys2:
+                    kerr_subsys1_subsys2_all_l1_l2 /= 2.0  # self-Kerr needs factor 1/2
+
                 kerr_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
                     kerr_subsys1_subsys2_all_l1_l2, self._parameters.paramvals_by_name
                 )
