@@ -20,6 +20,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 
+import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
 
 from scqubits.io_utils.fileio import IOData
@@ -473,8 +474,10 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         if "input_array" in io_data.ndarrays:
             input_array = io_data.ndarrays["input_array"]
         else:
+
             list_data = io_data.objects["input_array"]
-            input_array = np.empty((len(list_data),), dtype=object)
+            nested_list_shape = utils.get_shape(list_data)
+            input_array = np.empty(nested_list_shape, dtype=object)
             input_array[:] = list_data
         values_by_name = io_data.objects["values_by_name"]
         return NamedSlotsNdarray(input_array, values_by_name)
