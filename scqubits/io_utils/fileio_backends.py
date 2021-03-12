@@ -111,10 +111,16 @@ class H5Writer(IOWriter):
         Writes ndarray (float or complex) data contained in `self.iodata` to the provided `h5py.Group` as a
         `h5py.Dataset`, using gzip compression.
         """
+        data_group = h5file_group.file.require_group("__data")
         for name, array in self.io_data.ndarrays.items():
-            h5file_group.create_dataset(
-                name, data=array, dtype=array.dtype, compression="gzip"
-            )
+            if str(id(array)) in data_group:
+                h5file_group.create_dataset(name, data=[id(array)], dtype=int)
+            else:
+                h5file_group.create_dataset(name, data=[id(array)], dtype=int)
+                subgroup = data_group.create_group(str(id(array)))
+                subgroup.create_dataset(
+                    name, data=array, dtype=array.dtype, compression="gzip"
+                )
 
     def write_objects(self, h5file_group: Union[Group, File]) -> None:  # type: ignore
         """
@@ -137,6 +143,7 @@ class H5Writer(IOWriter):
         self.io_data = io_data
         if file_handle is None:
             h5file_group = h5py.File(self.filename, "w")
+            _ = h5file_group.create_group("__data")
             close_when_done = True
         else:
             h5file_group = file_handle
@@ -195,6 +202,16 @@ class H5Reader:
         """
         Read numpy array data from h5 file group.
         """
+        ndarrays = {}
+        datagroup = h5file_group.file.require_group("__data")
+        for name, id_entry in h5file_group.items():
+            print("***", name, id_entry)
+            print(id_entry[:])
+            data = datagroup[str(id_entry[:][0])]
+            if isinstance(data, h5py.Dataset):
+                ndarrays[name] = data
+        return ndarrays
+
         ndarrays = {
             name: array[:]
             for name, array in h5file_group.items()
