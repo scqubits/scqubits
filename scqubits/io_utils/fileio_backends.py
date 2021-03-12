@@ -202,12 +202,22 @@ class H5Reader:
         Read numpy array data from h5 file group.
         """
         ndarrays = {}
-        datagroup = h5file_group.file.require_group("__data")
-        for name, id_dataset in h5file_group.items():
-            if isinstance(id_dataset, h5py.Dataset):
-                id_int = id_dataset[:][0]
-                data = datagroup[str(id_int)][:]
-                ndarrays[name] = data
+
+        if "__data" in h5file_group.file:
+            datagroup = h5file_group.file.require_group("__data")
+            for name, id_dataset in h5file_group.items():
+                if isinstance(id_dataset, h5py.Dataset):
+                    id_int = id_dataset[:][0]
+                    data = datagroup[str(id_int)][:]
+                    ndarrays[name] = data
+            return ndarrays
+
+        # legacy support
+        ndarrays = {
+            name: array[:]
+            for name, array in h5file_group.items()
+            if isinstance(array, h5py.Dataset)
+        }
         return ndarrays
 
     def read_objects(self, h5file_group: Union[Group, File]) -> Dict[str, io.IOData]:
@@ -251,7 +261,7 @@ class CSVWriter(IOWriter):
 
     def append_ndarray_info(self, attributes):
         """Add data set information to attributes, so that dataset names and
-        dimensions are available in attributes CSV file. """
+        dimensions are available in attributes CSV file."""
         for index, dataname in enumerate(self.io_data.ndarrays.keys()):
             data = self.io_data.ndarrays[dataname]
             attributes["dataset" + str(index)] = dataname
