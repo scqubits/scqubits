@@ -323,7 +323,7 @@ class Parameters:
             Parameters object with either fixed parameters removed or including only
             the fixed value
         """
-        parameter_array = np.asarray(self.paramvals_list, dtype=object).copy()
+        parameter_array = self.paramvals_list.copy()
         for index, np_index in enumerate(np_indices):
             array_entry = parameter_array[index][np_index]
             if isinstance(array_entry, (float, int, complex)):
