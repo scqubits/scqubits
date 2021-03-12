@@ -43,7 +43,7 @@ def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int
     if math.isclose(param_vals[location], value):
         return int(location)
     raise ValueError(
-        "No matching idx_entry for parameter value {} in the array.".format(value)
+        "No matching entry for parameter value {} in the array.".format(value)
     )
 
 
@@ -73,15 +73,17 @@ class GIndexObject:
 
     def convert_to_np_slice_entry(self, slice_entry: GSliceEntry) -> NpSliceEntry:
         """Handles value-based slices, converting a float or complex value based
-        idx_entry into the corresponding position-based idx_entry"""
+        entry into the corresponding position-based entry"""
         if isinstance(slice_entry, int):
             return slice_entry
         if slice_entry is None:
             return None
         if isinstance(slice_entry, (float, complex)):
-            return idx_for_value(slice_entry, self._parameters[self.slot])
+            return idx_for_value(
+                slice_entry, self._parameters.paramvals_by_name[self.name]
+            )
 
-        raise TypeError("Invalid slice idx_entry: {}".format(slice_entry))
+        raise TypeError("Invalid slice entry: {}".format(slice_entry))
 
     def convert_to_np_idx_entry(self, idx_entry: GIndex) -> Tuple[str, NpIndex]:
         """Convert a generalized multi-index entry into a valid numpy multi-index entry,
@@ -138,19 +140,18 @@ class GIndexTupleObject:
 
     def _name_based_to_np_index_exp(self) -> NpIndexTuple:
         """Converts a name-based multi-index into a standard numpy index_exp."""
-        converted_multi_index = [slice(None)] * self.slot_count
+        converted_multi_index = [slice(None, None, None)] * self.slot_count
         for gidx_object in self.gidx_tuple:
             if gidx_object.type != "slice.name":
                 raise TypeError("If one index is name-based, all indices must be.")
             slot_index = self._parameters.index_by_name[gidx_object.name]
             converted_multi_index[slot_index] = gidx_object.std_idx_entry
-
         return tuple(converted_multi_index)
 
     def convert_to_np_index_exp(self) -> NpIndexTuple:
-        """Takes an extended-syntax multi-index idx_entry and converts it to a standard
+        """Takes an extended-syntax multi-index entry and converts it to a standard
         position-based multi-index_entry with only integer-valued indices."""
-        # inspect first index_entry to determine whether multi-index idx_entry is name-based
+        # inspect first index_entry to determine whether multi-index entry is name-based
         first_gidx = self.gidx_tuple[0]
 
         if first_gidx.type == "slice.name":  # if one is name based, all must be
@@ -293,7 +294,7 @@ class Parameters:
             value
         """
         if fixed_values is not None:
-            # need to reformat as array of single-idx_entry arrays
+            # need to reformat as array of single-entry arrays
             fixed_values = [np.asarray(value) for value in fixed_values]
         else:
             fixed_values = [
@@ -324,16 +325,16 @@ class Parameters:
             Parameters object with either fixed parameters removed or including only
             the fixed value
         """
-        parameter_array = self.paramvals_list.copy()
+        new_paramvals_list = self.paramvals_list.copy()
         for index, np_index in enumerate(np_indices):
-            array_entry = parameter_array[index][np_index]
+            array_entry = new_paramvals_list[index][np_index]
             if isinstance(array_entry, (float, int, complex)):
                 array_entry = np.asarray([array_entry])
-            parameter_array[index] = array_entry
+            new_paramvals_list[index] = array_entry
 
         reduced_paramvals_by_name = {}
         for index, name in enumerate(self.paramnames_list):
-            paramvals = parameter_array[index]
+            paramvals = new_paramvals_list[index]
             if not remove_fixed:
                 reduced_paramvals_by_name[name] = paramvals
             elif isinstance(paramvals, (ndarray, list, range)) and len(paramvals) > 1:
@@ -392,7 +393,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     supported. For such mixed- mode slicing, use several stages of slicing as in
     `some_array['name1':3][2:4]`.
 
-    A special treatment is reserved for a pure string idx_entry in position 0: this
+    A special treatment is reserved for a pure string entry in position 0: this
     string will be directly converted into an index via the corresponding
     values_by_slotindex.
     """
@@ -405,9 +406,9 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         implied_shape = tuple(len(values) for name, values in values_by_name.items())
         if input_array.shape[0 : len(values_by_name)] != implied_shape:
             raise ValueError(
-                "Given input array with shape {} not compatible with "
+                "Given input array {} with shape {} not compatible with "
                 "provided dict calling for shape {}. values_by_name: {}".format(
-                    input_array.shape, implied_shape, values_by_name
+                    input_array, input_array.shape, implied_shape, values_by_name
                 )
             )
 
@@ -474,7 +475,6 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         if "input_array" in io_data.ndarrays:
             input_array = io_data.ndarrays["input_array"]
         else:
-
             list_data = io_data.objects["input_array"]
             nested_list_shape = utils.get_shape(list_data)
             input_array = np.empty(nested_list_shape, dtype=object)
@@ -490,7 +490,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
 
         typename = "NamedSlotsNdarray"
         io_attributes = None
-        if self.dtype in [np.float_, np.complex_]:
+        if self.dtype in [np.float_, np.complex_, np.int_]:
             io_ndarrays = {"input_array": self.view(np.ndarray)}
             objects = {"values_by_name": self._parameters.paramvals_by_name}
         else:

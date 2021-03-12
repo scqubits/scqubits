@@ -113,13 +113,11 @@ class H5Writer(IOWriter):
         """
         data_group = h5file_group.file.require_group("__data")
         for name, array in self.io_data.ndarrays.items():
-            if str(id(array)) in data_group:
-                h5file_group.create_dataset(name, data=[id(array)], dtype=int)
-            else:
-                h5file_group.create_dataset(name, data=[id(array)], dtype=int)
-                subgroup = data_group.create_group(str(id(array)))
-                subgroup.create_dataset(
-                    name, data=array, dtype=array.dtype, compression="gzip"
+            array_id = hash(array.tobytes())
+            h5file_group.create_dataset(name, data=[array_id], dtype="int64")
+            if str(array_id) not in data_group:
+                data_group.create_dataset(
+                    str(array_id), data=array, dtype=array.dtype, compression="gzip"
                 )
 
     def write_objects(self, h5file_group: Union[Group, File]) -> None:  # type: ignore
@@ -204,19 +202,11 @@ class H5Reader:
         """
         ndarrays = {}
         datagroup = h5file_group.file.require_group("__data")
-        for name, id_entry in h5file_group.items():
-            print("***", name, id_entry)
-            print(id_entry[:])
-            data = datagroup[str(id_entry[:][0])]
-            if isinstance(data, h5py.Dataset):
+        for name, id_dataset in h5file_group.items():
+            if isinstance(id_dataset, h5py.Dataset):
+                id_int = id_dataset[:][0]
+                data = datagroup[str(id_int)][:]
                 ndarrays[name] = data
-        return ndarrays
-
-        ndarrays = {
-            name: array[:]
-            for name, array in h5file_group.items()
-            if isinstance(array, h5py.Dataset)
-        }
         return ndarrays
 
     def read_objects(self, h5file_group: Union[Group, File]) -> Dict[str, io.IOData]:
