@@ -12,8 +12,8 @@
 import ast
 import functools
 import warnings
-from collections import Sequence
 
+from collections import Sequence
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
@@ -189,7 +189,7 @@ def get_shape(lst, shape=()):
     if isinstance(lst[0], Sequence):
         l = len(lst[0])
         if not all(len(item) == l for item in lst):
-            msg = 'not all lists have the same length'
+            msg = "not all lists have the same length"
             raise ValueError(msg)
 
     shape += (len(lst),)
