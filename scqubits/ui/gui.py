@@ -64,7 +64,7 @@ class GUI:
             "ng": {"min": 0, "max": 1},
             "flux": {"min": 0, "max": 1},
             "EJ": {"min": 1e-10, "max": 70},
-            "EC": {"min": 1e-10, "max": 50},
+            "EC": {"min": 1e-10, "max": 15},
             "int": {"min": 1, "max": 30},
             "float": {"min": 0, "max": 30},
         }
@@ -90,8 +90,8 @@ class GUI:
             **global_defaults,
             "scan_param": "flux",
             "operator": "n_operator",
-            "EC": {"min": 1e-2, "max": 50},
-            "EL": {"min": 1e-10, "max": 5},
+            "EC": {"min": 1e-2, "max": 15},
+            "EL": {"min": 1e-10, "max": 10},
             "cutoff": {"min": 10, "max": 120},
             "scale": 1,
             "num_sample": 150,
@@ -119,7 +119,7 @@ class GUI:
             "scan_param": "flux",
             "operator": "n_theta_operator",
             "ncut": {"min": 5, "max": 50},
-            "EL": {"min": 1e-10, "max": 30},
+            "EL": {"min": 1e-10, "max": 10},
             "ECJ": global_defaults["EC"],
             "dEJ": {"min": 0, "max": 1},
             "dCJ": {"min": 0, "max": 1},
@@ -131,7 +131,7 @@ class GUI:
             "scan_param": "flux",
             "operator": "n_theta_operator",
             "ncut": {"min": 5, "max": 50},
-            "EL": {"min": 1e-10, "max": 30},
+            "EL": {"min": 1e-10, "max": 10},
             "ECJ": global_defaults["EC"],
             "dEJ": {"min": 0, "max": 1},
             "dCJ": {"min": 0, "max": 1},
@@ -146,7 +146,7 @@ class GUI:
             **global_defaults,
             "scan_param": "flux",
             "operator": "phi_operator",
-            "EL": {"min": 1e-10, "max": 30},
+            "EL": {"min": 1e-10, "max": 10},
             "ECJ": global_defaults["EC"],
             "dEJ": {"min": 0, "max": 0.99},
             "dL": {"min": 0, "max": 0.99},
@@ -313,7 +313,8 @@ class GUI:
         subtract_ground_tf: bool,
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_evals_vs_paramvals().
+        """This is the method associated with qubit_plot_interactive that allows for
+        us to interact with plot_evals_vs_paramvals().
 
         Parameters
         ----------
@@ -354,8 +355,9 @@ class GUI:
         subtract_ground_tf: bool,
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_evals_vs_paramvals().
-        Namely, this method is for the qubits that require a grid option.
+        """This is the method associated with qubit_plot_interactive that allows for
+        us to interact with plot_evals_vs_paramvals(). Namely, this method is for the
+        qubits that require a grid option.
 
         Parameters
         ----------
@@ -979,7 +981,7 @@ class GUI:
                 min=0,
                 max=10,
                 value=0,
-                description="Highest State",
+                description="State no.",
                 continuous_update=False,
                 layout=std_layout,
             ),
@@ -1023,7 +1025,8 @@ class GUI:
         """Creates all the widgets that will be used
         for changing the parameter values for the specified qubit.
         """
-        # We need to clear qubit_params_widgets since the previous widgets from the old qubit will still be initialized otherwise.
+        # We need to clear qubit_params_widgets since the previous widgets from the
+        # old qubit will still be initialized otherwise.
         self.qubit_params_widgets.clear()
 
         for param_name, param_val in self.qubit_base_params.items():
