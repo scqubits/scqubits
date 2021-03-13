@@ -9,7 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import math
+import math, warnings
 
 from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -20,6 +20,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 
+import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
 
@@ -39,12 +40,26 @@ GIndexObjectTuple = Tuple["GIndexObject", ...]
 
 
 def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int:
-    location = np.abs(param_vals - value).argmin()
+    location = int(np.abs(param_vals - value).argmin())
+    selected_value = param_vals[location]
     if math.isclose(param_vals[location], value):
-        return int(location)
-    raise ValueError(
-        "No matching entry for parameter value {} in the array.".format(value)
-    )
+        return location
+
+    if not settings.FUZZY_SLICING:
+        raise ValueError(
+            "No matching entry for parameter value {} in the array.".format(value)
+        )
+
+    if not math.isclose(selected_value, value) and settings.FUZZY_WARNING:
+        warnings.warn_explicit(
+            "Using fuzzy value_based indexing: selected value is {}".format(
+                selected_value
+            ),
+            UserWarning,
+            "",
+            location,
+        )
+    return location
 
 
 def convert_to_std_npindex(
@@ -259,12 +274,6 @@ class Parameters:
     def paramvals_list(self) -> List[ndarray]:
         """Return list of all parameter values sets"""
         return [self.paramvals_by_name[name] for name in self.paramnames_list]
-
-    def get_index(self, value: float, slotindex: int) -> int:
-        """Return the parameter index for a given parameter value of parameter set in
-        specified slotindex"""
-        location = np.abs(self[slotindex] - value).argmin()
-        return int(location)
 
     @property
     def counts(self) -> Tuple[int]:

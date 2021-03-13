@@ -117,7 +117,11 @@ DESPINE = True
 # This is a setting for number of points in stencil to approximate derivatives
 STENCIL = 7
 
-# GLOBAL RANDOM NUMBER GENERATOR FOR CONSISTENT INITIAL STATE VECTOR V0 IN ARPACK
+# global random number generator for consistent initial state vector v0 in ARPACK
 SEED = 63142
 RNG = np.random.default_rng(seed=SEED)
 RANDOM_ARRAY = RNG.random(size=10000000)
+
+# toggle fuzzy value-based slicing and warnings about it on and off
+FUZZY_SLICING = False
+FUZZY_WARNING = True
