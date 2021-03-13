@@ -125,3 +125,6 @@ RANDOM_ARRAY = RNG.random(size=10000000)
 # toggle fuzzy value-based slicing and warnings about it on and off
 FUZZY_SLICING = False
 FUZZY_WARNING = True
+
+# should we show a warning about default used in t1 coherence calculations.
+T1_DEFAULT_WARNING = True

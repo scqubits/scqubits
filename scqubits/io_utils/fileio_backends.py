@@ -141,7 +141,7 @@ class H5Writer(IOWriter):
         """
         self.io_data = io_data
         if file_handle is None:
-            h5file_group = h5py.File(self.filename, "w", rdcc_nbytes=1024**2 * 200)
+            h5file_group = h5py.File(self.filename, "w", rdcc_nbytes=1024 ** 2 * 200)
             _ = h5file_group.create_group("__data")
             close_when_done = True
         else:
@@ -239,7 +239,7 @@ class H5Reader:
         attributes (incl. lists and dicts), ndarrays, and objects.
         """
         if file_handle is None:
-            h5file_group = h5py.File(filename, "r", rdcc_nbytes=1024**2 * 200)
+            h5file_group = h5py.File(filename, "r", rdcc_nbytes=1024 ** 2 * 200)
         else:
             h5file_group = file_handle
 
