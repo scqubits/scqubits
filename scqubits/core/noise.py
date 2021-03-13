@@ -1141,8 +1141,9 @@ class NoisySystem(ABC):
                 "levels i and j is used to calculate the required t1 time or rate.\n"
                 "See documentation for details.\n"
                 "This warning can be disabled by executing:\n"
-                "scqubits.settings.T1_DEFAULT_WARNING=False"
-                , UserWarning)
+                "scqubits.settings.T1_DEFAULT_WARNING=False",
+                UserWarning,
+            )
 
         # Sanity check
         if i == j or i < 0 or j < 0:
