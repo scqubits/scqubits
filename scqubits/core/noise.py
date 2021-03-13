@@ -10,6 +10,7 @@
 ############################################################################
 
 import math
+import warnings
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
@@ -1129,6 +1130,20 @@ class NoisySystem(ABC):
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
+
+        if settings.T1_DEFAULT_WARNING:
+            warnings.warn(
+                "By default all methods that involve calculations of the "
+                "t1 coherence times/rates, return a sum of upward (i.e., excitation), "
+                "and downward (i.e., relaxation) rates. To change this behavior, "
+                "parameter total=False can be passed to any t1-related coherence "
+                "methods. With total=False, only a one-directional transition between "
+                "levels i and j is used to calculate the required t1 time or rate.\n"
+                "See documentation for details.\n"
+                "This warning can be disabled by executing:\n"
+                "scqubits.settings.T1_DEFAULT_WARNING=False"
+                , UserWarning)
+
         # Sanity check
         if i == j or i < 0 or j < 0:
             raise ValueError("Level indices 'i' and 'j' must be different, and i,j>=0")
@@ -1167,7 +1182,7 @@ class NoisySystem(ABC):
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False,
+        get_rate: bool = True,
         **kwargs
     ) -> float:
         r"""
