@@ -1182,7 +1182,7 @@ class NoisySystem(ABC):
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = True,
+        get_rate: bool = False,
         **kwargs
     ) -> float:
         r"""
