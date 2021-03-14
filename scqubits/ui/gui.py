@@ -14,7 +14,6 @@ import inspect
 
 from typing import Dict, List, Tuple, Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from matplotlib.figure import Figure
@@ -924,7 +923,7 @@ class GUI:
                 icon="save", layout=widgets.Layout(width="35px")
             ),
             "filename_text": widgets.Text(
-                value=str(Path.cwd()) + "\plot.pdf",
+                value=str(Path.cwd().joinpath("plot.pdf")),
                 description="",
                 disabled=False,
                 layout=Layout(width="500px"),
