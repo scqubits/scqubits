@@ -783,18 +783,6 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))
         return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsys_list)
 
-    def get_bare_hamiltonian(self) -> Qobj:
-        """Deprecated, use `bare_hamiltonian()` instead."""
-        warnings.warn(
-            "get_bare_hamiltonian() is deprecated, use bare_hamiltonian() instead",
-            FutureWarning,
-        )
-        return self.bare_hamiltonian()
-
-    def get_hamiltonian(self):
-        """Deprecated, use `hamiltonian()` instead."""
-        return self.hamiltonian()
-
     ###################################################################################
     # HilbertSpace: identity wrapping, operators
     ###################################################################################

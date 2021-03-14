@@ -140,13 +140,7 @@ def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) ->
     """Processes a single 'special' option, i.e., one internal to scqubits and not to be handed further down to
     matplotlib.
     """
-    if key == "x_range":
-        warnings.warn("x_range is deprecated, use xlim instead", FutureWarning)
-        axes.set_xlim(value)
-    elif key == "y_range":
-        warnings.warn("y_range is deprecated, use ylim instead", FutureWarning)
-        axes.set_ylim(value)
-    elif key == "ymax":
+    if key == "ymax":
         ymax = value
         ymin, _ = axes.get_ylim()
         ymin = ymin - (ymax - ymin) * 0.05
@@ -556,9 +550,6 @@ def matrix2d(
     axes.tick_params(axis="x", bottom=False, top=True, labelbottom=False, labeltop=True)
 
     return fig, axes
-
-
-print_matrix = matrix2d  # legacv, support of name now deprecated
 
 
 def data_vs_paramvals(

@@ -9,7 +9,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import math, warnings
+import math
+import warnings
 
 from collections import OrderedDict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
