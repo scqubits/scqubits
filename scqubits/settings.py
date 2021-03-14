@@ -128,4 +128,3 @@ FUZZY_WARNING = True
 
 # should we show a warning about default used in t1 coherence calculations.
 T1_DEFAULT_WARNING = True
-
