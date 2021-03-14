@@ -31,7 +31,10 @@ import scqubits.utils.plotting as plotting
 
 from scqubits.core.storage import SpectrumData
 
-# Helpers for units conversion
+# flag that lets us show a warning about the default t1 behavior
+# (i.e., total=True setting) only once. Using the standard warnings
+# filtering does not seem to work in jupyter.
+_t1_default_warning_given_flag = False
 
 
 def calc_therm_ratio(
@@ -1132,18 +1135,22 @@ class NoisySystem(ABC):
         """
 
         if settings.T1_DEFAULT_WARNING:
-            warnings.warn(
-                "By default all methods that involve calculations of the "
-                "t1 coherence times/rates, return a sum of upward (i.e., excitation), "
-                "and downward (i.e., relaxation) rates. To change this behavior, "
-                "parameter total=False can be passed to any t1-related coherence "
-                "methods. With total=False, only a one-directional transition between "
-                "levels i and j is used to calculate the required t1 time or rate.\n"
-                "See documentation for details.\n"
-                "This warning can be disabled by executing:\n"
-                "scqubits.settings.T1_DEFAULT_WARNING=False",
-                UserWarning,
-            )
+            global _t1_default_warning_given_flag
+            if not _t1_default_warning_given_flag:
+                warnings.warn(
+                    "By default all methods that involve calculations of the "
+                    "t1 coherence times/rates, return a sum of upward (i.e., excitation), "
+                    "and downward (i.e., relaxation) rates. To change this behavior, "
+                    "parameter total=False can be passed to any t1-related coherence "
+                    "methods. With total=False, only a one-directional transition between "
+                    "levels i and j is used to calculate the required t1 time or rate.\n"
+                    "See documentation for details.\n"
+                    "This warning can be disabled by executing:\n"
+                    "scqubits.settings.T1_DEFAULT_WARNING=False\n",
+                    # UserWarning,
+                    UserWarning,
+                )
+                _t1_default_warning_given_flag = True
 
         # Sanity check
         if i == j or i < 0 or j < 0:
