@@ -536,7 +536,7 @@ def matrix2d(
                 axes.text(
                     x_index,
                     y_index,
-                    "{:.03f}".format(matrix[y_index, x_index]),
+                    "{:.03f}".format(modefunction(matrix[y_index, x_index])),
                     va="center",
                     ha="center",
                     fontsize=8,
