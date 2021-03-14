@@ -14,6 +14,7 @@ Helper classes for writing data to files.
 
 import inspect
 from abc import ABC, ABCMeta
+from collections import OrderedDict
 from numbers import Number
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
 
@@ -36,13 +37,14 @@ class Serializable(ABC):
     _subclasses: List[ABCMeta] = []
 
     def __new__(cls: Any, *args, **kwargs) -> "Serializable":
-        """Modified `__new__` to set up `cls._init_params`. The latter is used to record which of the `__init__`
-        parameters are to be stored/read in file IO."""
+        """Modified `__new__` to set up `cls._init_params`. The latter is used to
+        record which of the `__init__` parameters are to be stored/read in file IO."""
         cls._init_params = get_init_params(cls)
         return super().__new__(cls)
 
     def __init_subclass__(cls) -> None:
-        """Used to register all non-abstract subclasses as a list in `QuantumSystem.subclasses`."""
+        """Used to register all non-abstract subclasses as a list in
+        `QuantumSystem.subclasses`."""
         super().__init_subclass__()
         if not inspect.isabstract(cls):
             cls._subclasses.append(cls)
@@ -51,8 +53,8 @@ class Serializable(ABC):
     @classmethod
     def deserialize(cls, io_data: "IOData") -> "Serializable":
         """
-        Take the given IOData and return an instance of the described class, initialized with the data stored in
-        io_data.
+        Take the given IOData and return an instance of the described class,
+        initialized with the data stored in io_data.
         """
         return cls(**io_data.as_kwargs())
 
@@ -66,14 +68,16 @@ class Serializable(ABC):
         return iodata
 
     def filewrite(self, filename: str) -> None:
-        """Convenience method bound to the class. Simply accesses the `write` function."""
+        """Convenience method bound to the class. Simply accesses the `write`
+        function."""
         import scqubits.io_utils.fileio as io
 
         io.write(self, filename)
 
     @classmethod
     def create_from_file(cls, filename: str) -> object:
-        """Read initdata and spectral data from file, and use those to create a new SpectrumData object.
+        """Read initdata and spectral data from file, and use those to create a new
+        SpectrumData object.
 
         Returns
         -------
@@ -125,14 +129,16 @@ TO_OBJECT = (Serializable,)
 
 def type_dispatch(entity: Serializable) -> Callable:
     """
-    Based on the type of the object ``entity``, return the appropriate function that converts the entity into the
-    appropriate category of IOData
+    Based on the type of the object ``entity``, return the appropriate function that
+    converts the entity into the appropriate category of IOData
     """
     if isinstance(entity, TO_ATTRIBUTE):
         return _add_attribute
     if isinstance(entity, TO_OBJECT):
         return _add_object
     if isinstance(entity, TO_NDARRAY):
+        if entity.dtype == "O":
+            return _add_object
         return _add_ndarray
     # no match, try treating as object, though this may fail
     return _add_object
@@ -149,6 +155,26 @@ def dict_serialize(dict_instance: Dict[str, Any]) -> "IOData":
     ndarrays: Dict[str, ndarray] = {}
     objects: Dict[str, object] = {}
     typename = "dict"
+
+    for name, content in dict_instance.items():
+        update_func = type_dispatch(content)
+        attributes, ndarrays, objects = update_func(
+            name, content, attributes, ndarrays, objects
+        )
+    return io.IOData(typename, attributes, ndarrays, objects)
+
+
+def OrderedDict_serialize(dict_instance: Dict[str, Any]) -> "IOData":
+    """
+    Create an IOData instance from dictionary data.
+    """
+    import scqubits.io_utils.fileio as io
+
+    dict_instance = utils.remove_nones(dict_instance)
+    attributes: Dict[str, Any] = {}
+    ndarrays: Dict[str, ndarray] = {}
+    objects: Dict[str, object] = {}
+    typename = "OrderedDict"
 
     for name, content in dict_instance.items():
         update_func = type_dispatch(content)
@@ -222,9 +248,34 @@ list_serialize = listlike_serialize
 tuple_serialize = listlike_serialize
 
 
+ndarray_serialize = listlike_serialize  # this is invoked for dtype=object
+
+
+def range_serialize(range_instance: range) -> "IOData":
+    """
+    Create an IOData instance from range data.
+    """
+    import scqubits.io_utils.fileio as io
+
+    attributes = {
+        "start": range_instance.start,
+        "stop": range_instance.stop,
+        "step": range_instance.step,
+    }
+    ndarrays: Dict[str, ndarray] = {}
+    objects: Dict[str, object] = {}
+    typename = type(range_instance).__name__
+    return io.IOData(typename, attributes, ndarrays, objects)
+
+
 def dict_deserialize(iodata: "IOData") -> Dict[str, Any]:
     """Turn IOData instance back into a dict"""
     return dict(**iodata.as_kwargs())
+
+
+def OrderedDict_deserialize(iodata: "IOData") -> Dict[str, Any]:
+    """Turn IOData instance back into a dict"""
+    return OrderedDict([(name, values) for name, values in iodata.as_kwargs().items()])
 
 
 def csc_matrix_deserialize(iodata: "IOData") -> csc_matrix:
@@ -252,9 +303,20 @@ def tuple_deserialize(iodata: "IOData") -> Tuple:
     return tuple(list_deserialize(iodata))
 
 
+# this is invoked for ndarrays with dtype=object
+def ndarray_deserialize(iodata: "IOData") -> ndarray:
+    return np.asarray(list_deserialize(iodata), dtype=object)
+
+
+def range_deserialize(iodata: "IOData") -> range:
+    arguments = iodata.as_kwargs()
+    return range(arguments["start"], arguments["stop"], arguments["step"])
+
+
 def get_init_params(obj: Serializable) -> List[str]:
     """
-    Returns a list of the parameters entering the `__init__` method of the given object `obj`.
+    Returns a list of the parameters entering the `__init__` method of the given
+    object `obj`.
     """
     init_params = list(inspect.signature(obj.__init__).parameters.keys())  # type: ignore
     if "self" in init_params:

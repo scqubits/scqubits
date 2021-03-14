@@ -15,7 +15,7 @@ Provides the base classes for qubits
 import functools
 import inspect
 from abc import ABC, ABCMeta, abstractmethod
-from typing import Any, Dict, Iterable, List, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,8 +35,7 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.settings import IN_IPYTHON
 from scqubits.utils.cpu_switch import get_map_method
-from scqubits.utils.misc import InfoBar, drop_private_keys, process_which
-from scqubits.utils.plot_defaults import set_wavefunction_scaling
+from scqubits.utils.misc import InfoBar, process_which
 from scqubits.utils.spectrum_utils import (
     get_matrixelement_table,
     order_eigensystem,
@@ -84,7 +83,7 @@ class QuantumSystem(DispatchClient, ABC):
 
     def __init_subclass__(cls):
         """Used to register all non-abstract subclasses as a list in
-        `QuantumSystem.subclasses`. """
+        `QuantumSystem.subclasses`."""
         super().__init_subclass__()
         if not inspect.isabstract(cls):
             cls.subclasses.append(cls)
@@ -132,7 +131,7 @@ class QuantumSystem(DispatchClient, ABC):
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Serializable
-        object. """
+        object."""
         return {name: getattr(self, name) for name in self._init_params}
 
     @abstractmethod
@@ -158,7 +157,7 @@ class QuantumSystem(DispatchClient, ABC):
     @abstractmethod
     def default_params():
         """Return dictionary with default parameter values for initialization of
-        class instance """
+        class instance"""
 
     def set_params(self, **kwargs):
         """
@@ -288,9 +287,9 @@ class QubitBaseClass(QuantumSystem, ABC):
         """Returns table of matrix elements for `operator` with respect to the
         eigenstates of the qubit. The operator is given as a string matching a class
         method returning an operator matrix. E.g., for an instance `trm` of Transmon,
-         the matrix element table for the charge operator is given by
-         `trm.op_matrixelement_table('n_operator')`. When `esys` is set to `None`,
-         the eigensystem is calculated on-the-fly.
+        the matrix element table for the charge operator is given by
+        `trm.op_matrixelement_table('n_operator')`. When `esys` is set to `None`,
+        the eigensystem is calculated on-the-fly.
 
         Parameters
         ----------
@@ -344,7 +343,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         subtract_ground: bool = False,
         get_eigenstates: bool = False,
         filename: str = None,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates eigenvalues/eigenstates for a varying system parameter,
         given an array of parameter values. Returns a `SpectrumData` object with
@@ -371,6 +370,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         previous_paramval = getattr(self, param_name)
         tqdm_disable = num_cpus > 1 or settings.PROGRESSBAR_DISABLED
 
@@ -445,6 +445,133 @@ class QubitBaseClass(QuantumSystem, ABC):
             state_table=eigenstate_table,
         )
 
+    def _compute_dispersion(
+        self,
+        dispersion_name: str,
+        param_name: str,
+        param_vals: ndarray,
+        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
+        levels: Optional[Union[int, Tuple[int]]] = None,
+        point_count: int = 50,
+        num_cpus: Optional[int] = None,
+    ) -> Tuple[ndarray, ndarray]:
+        from scqubits import HilbertSpace, ParameterSweep
+
+        hilbertspace = HilbertSpace(subsystem_list=[self])
+
+        paramvals_by_name = {
+            dispersion_name: np.linspace(0.0, 1.0, point_count),
+            param_name: param_vals,
+        }
+
+        def update_func(disp_val, sweep_val):
+            setattr(self, dispersion_name, disp_val)
+            setattr(self, param_name, sweep_val)
+
+        previous_dispval = getattr(self, dispersion_name)
+        previous_paramval = getattr(self, param_name)
+        max_level = np.max(transitions) if not levels else np.max(levels)
+        sweep = ParameterSweep(
+            hilbertspace,
+            paramvals_by_name,
+            update_func,
+            evals_count=max_level + 1,
+            bare_only=True,
+            num_cpus=num_cpus,
+        )
+        setattr(self, param_name, previous_paramval)
+        setattr(self, dispersion_name, previous_dispval)
+
+        eigenenergies = sweep["bare_esys"][0, :, :, 0].toarray()
+
+        if levels is None:
+            dispersions = np.empty((len(transitions), len(param_vals)))
+            for index, (i, j) in enumerate(transitions):
+                energy_ij = eigenenergies[:, :, i] - eigenenergies[:, :, j]
+                dispersions[index] = np.max(energy_ij, axis=0) - np.min(
+                    energy_ij, axis=0
+                )
+        else:
+            dispersions = np.empty((len(levels), len(param_vals)))
+            for index, j in enumerate(levels):
+                energy_j = eigenenergies[:, :, j]
+                dispersions[index] = np.max(energy_j, axis=0) - np.min(energy_j, axis=0)
+
+        return eigenenergies, dispersions
+
+    def get_dispersion_vs_paramvals(
+        self,
+        dispersion_name: str,
+        param_name: str,
+        param_vals: ndarray,
+        ref_param: Optional[str] = None,
+        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
+        levels: Optional[Union[int, Tuple[int]]] = None,
+        point_count: int = 50,
+        num_cpus: Optional[int] = None,
+    ) -> SpectrumData:
+        """Calculates eigenvalues/eigenstates for a varying system parameter,
+        given an array of parameter values. Returns a `SpectrumData` object with
+        `energy_data[n]` containing eigenvalues calculated for parameter value
+        `param_vals[n]`.
+
+        Parameters
+        ----------
+        dispersion_name:
+            parameter inducing the dispersion, typically 'ng' or 'flux' (will be
+            scanned over range from 0 to 1)
+        param_name:
+            name of parameter to be varied
+        param_vals:
+            parameter values to be plugged in
+        ref_param:
+            optional, name of parameter to use as reference for the parameter value;
+            e.g., to compute charge dispersion vs. EJ/EC, use EJ as param_name and
+            EC as ref_param
+        transitions:
+            integer tuple or tuples specifying for which transitions dispersion is to
+            be calculated
+            (default: = (0,1))
+        levels:
+            tuple specifying levels (rather than transitions) for which dispersion
+            should be plotted; overrides transitions parameter when given
+        point_count:
+            number of points scanned for the dispersion parameter for determining min
+            and max values of transition energies (default: 50)
+        num_cpus:
+            number of cores to be used for computation
+            (default value: settings.NUM_CPUS)
+        """
+
+        if isinstance(levels, int):
+            levels = (levels,)
+        elif isinstance(transitions[0], int):
+            transitions = (transitions,)
+
+        eigenenergies, dispersion = self._compute_dispersion(
+            dispersion_name,
+            param_name,
+            param_vals,
+            transitions=transitions,
+            levels=levels,
+            point_count=point_count,
+            num_cpus=num_cpus,
+        )
+
+        if ref_param is not None:
+            param_name += "/" + ref_param
+            param_vals /= getattr(self, ref_param)
+
+        specdata = SpectrumData(
+            eigenenergies,
+            self.get_initdata(),
+            param_name,
+            param_vals,
+            labels=levels or transitions,
+            dispersion=dispersion.T,
+        )
+        return specdata
+
     def get_matelements_vs_paramvals(
         self,
         operator: str,
@@ -452,7 +579,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_vals: ndarray,
         operator_args: dict = None,
         evals_count: int = 6,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
     ) -> SpectrumData:
         """Calculates matrix elements for a varying system parameter, given an array
         of parameter values. Returns a `SpectrumData` object containing matrix
@@ -475,6 +602,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         spectrumdata = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
@@ -507,7 +635,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         param_vals: ndarray,
         evals_count: int = 6,
         subtract_ground: bool = False,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Generates a simple plot of a set of eigenvalues as a function of one
@@ -532,6 +660,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         **kwargs:
             standard plotting option (see separate documentation)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         specdata = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
@@ -540,6 +669,79 @@ class QubitBaseClass(QuantumSystem, ABC):
             num_cpus=num_cpus,
         )
         return plot.evals_vs_paramvals(specdata, which=range(evals_count), **kwargs)
+
+    def plot_dispersion_vs_paramvals(
+        self,
+        dispersion_name: str,
+        param_name: str,
+        param_vals: ndarray,
+        ref_param: Optional[str] = None,
+        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
+        levels: Optional[Union[int, Tuple[int]]] = None,
+        point_count: int = 50,
+        num_cpus: Optional[int] = None,
+        **kwargs,
+    ) -> Tuple[Figure, Axes]:
+        """Generates a simple plot of a set of curves representing the charge or flux
+        dispersion of transition energies.
+
+        Parameters
+        ----------
+        dispersion_name:
+            parameter inducing the dispersion, typically 'ng' or 'flux' (will be
+            scanned over range from 0 to 1)
+        param_name:
+            name of parameter to be varied
+        param_vals:
+            parameter values to be plugged in
+        ref_param:
+            optional, name of parameter to use as reference for the parameter value;
+            e.g., to compute charge dispersion vs. EJ/EC, use EJ as param_name and
+            EC as ref_param
+        transitions:
+            integer tuple or tuples specifying for which transitions dispersion is to
+            be calculated
+            (default: = (0,1))
+        levels:
+            int or tuple specifying level(s) (rather than transitions) for which
+            dispersion should be plotted; overrides transitions parameter when given
+        point_count:
+            number of points scanned for the dispersion parameter for determining min
+            and max values of transition energies (default: 50)
+        num_cpus:
+            number of cores to be used for computation
+            (default value: settings.NUM_CPUS)
+        **kwargs:
+            standard plotting option (see separate documentation)
+        """
+        specdata = self.get_dispersion_vs_paramvals(
+            dispersion_name,
+            param_name,
+            param_vals,
+            ref_param=ref_param,
+            transitions=transitions,
+            levels=levels,
+            point_count=point_count,
+            num_cpus=num_cpus,
+        )
+        if levels is not None:
+            if isinstance(levels, int):
+                levels = (levels,)
+            label_list = [str(j) for j in levels]
+        else:
+            if isinstance(transitions[0], int):
+                transitions = (transitions,)
+            label_list = ["{}{}".format(i, j) for i, j in transitions]
+
+        return plot.data_vs_paramvals(
+            xdata=specdata.param_vals,
+            ydata=specdata.dispersion,
+            label_list=label_list,
+            xlabel=specdata.param_name,
+            ylabel="energy dispersion [{}]".format(units.get_units()),
+            yscale="log",
+            **kwargs,
+        )
 
     def plot_matrixelements(
         self,
@@ -551,7 +753,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         show_numbers: bool = False,
         show3d: bool = True,
         **kwargs,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Union[Tuple[Figure, Tuple[Axes, Axes]], Tuple[Figure, Axes]]:
         """Plots matrix elements for `operator`, given as a string referring to a
         class method that returns an operator matrix. E.g., for instance `trm` of
         Transmon, the matrix element plot for the charge operator `n` is obtained by
@@ -566,12 +768,12 @@ class QubitBaseClass(QuantumSystem, ABC):
             arguments, if any, of operator
         evecs:
             eigensystem data of evals, evecs; eigensystem will be calculated if set to
-             None (default value = None)
+            None (default value = None)
         evals_count:
             number of desired matrix elements, starting with ground state
             (default value = 6)
         mode:
-            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
+            idx_entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value (default)
         show_numbers:
             determines whether matrix element values are printed on top of the plot
             (default: False)
@@ -600,7 +802,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         operator_args: dict = None,
         select_elems: Union[int, List[Tuple[int, int]]] = 4,
         mode: str = "abs",
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Generates a simple plot of a set of eigenvalues as a function of one
@@ -622,13 +824,15 @@ class QubitBaseClass(QuantumSystem, ABC):
             list [(i1, i2), (i3, i4), ...] of index tuples
             for specific desired matrix elements (default value = 4)
         mode:
-            entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value
+            idx_entry from MODE_FUNC_DICTIONARY, e.g., `'abs'` for absolute value
             (default value = 'abs')
         num_cpus:
-            number of cores to be used for computation (default value = 1)
+            number of cores to be used for computation
+            (default value: settings.NUM_CPUS)
         **kwargs:
             standard plotting option (see separate documentation)
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         if isinstance(select_elems, int):
             evals_count = select_elems
         else:
@@ -675,7 +879,6 @@ class QubitBaseClass(QuantumSystem, ABC):
 
 
 # —QubitBaseClass1d——————————————————————————————————————————————————————————————————
-
 
 
 class QubitBaseClass1d(QubitBaseClass):

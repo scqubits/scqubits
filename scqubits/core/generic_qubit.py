@@ -43,12 +43,6 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
 
     E = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
-    sx = staticmethod(operators.sigma_x)
-    sy = staticmethod(operators.sigma_y)
-    sz = staticmethod(operators.sigma_z)
-    sp = staticmethod(operators.sigma_plus)
-    sm = staticmethod(operators.sigma_minus)
-
     def __init__(self, E: float) -> None:
         self.E = E
         self._sys_type = type(self).__name__
@@ -59,7 +53,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         return {"E": 5.0}
 
     def hamiltonian(self):
-        return 0.5 * self.E * self.sz()
+        return 0.5 * self.E * self.sz_operator()
 
     def hilbertdim(self) -> int:
         """Returns Hilbert space dimension"""
@@ -92,8 +86,26 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
         table = get_matrixelement_table(operator_matrix, evecs)
         return table
 
+    @classmethod
     def create(cls) -> base.QuantumSystem:
         raise NotImplementedError
 
     def widget(self, params: Dict[str, Any] = None):
-        raise NotImplementedError
+        raise NotImplementedError(
+            "GenericQubit does not support widget-based " "creation."
+        )
+
+    def sx_operator(self):
+        return operators.sigma_x()
+
+    def sy_operator(self):
+        return operators.sigma_y()
+
+    def sz_operator(self):
+        return operators.sigma_z()
+
+    def sp_operator(self):
+        return operators.sigma_plus()
+
+    def sm_operator(self):
+        return operators.sigma_minus()

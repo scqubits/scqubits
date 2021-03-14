@@ -28,6 +28,7 @@ import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
+import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
@@ -210,6 +211,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             sigma=0.0,
             which="LM",
             return_eigenvectors=False,
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         return np.sort(evals)
 
@@ -221,9 +223,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             sigma=0.0,
             which="LM",
             return_eigenvectors=True,
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
-        # TODO consider normalization of zeropi wavefunctions
-        # evecs /= np.sqrt(self.grid.grid_spacing())
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
@@ -362,7 +363,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         r"""Calculates a of the potential energy w.r.t flux, at the current value of flux,
         as stored in the object.
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
-        So if \frac{\partial U}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
+        So if \frac{\partial U}{ \partial \Phi_{\rm ext}}, is needed, the expr returned
         by this function, needs to be multiplied by 1/\Phi_0.
         Returns
         -------
@@ -384,7 +385,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
         as stored in the object.
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
-        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expression returned
+        So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expr returned
         by this function, needs to be multiplied by 1/\Phi_0.
         Returns
         -------

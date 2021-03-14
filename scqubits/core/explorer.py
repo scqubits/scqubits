@@ -12,6 +12,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+import scqubits.core.sweep_generators as swp
+import scqubits.utils.explorer_panels as panels
+import scqubits.utils.misc as utils
+
 try:
     import ipywidgets
 except ImportError:
@@ -25,10 +29,6 @@ except ImportError:
     _HAS_IPYTHON = False
 else:
     _HAS_IPYTHON = True
-
-import scqubits.core.sweep_generators as swp
-import scqubits.utils.explorer_panels as panels
-import scqubits.utils.misc as utils
 
 
 class Explorer:
@@ -60,7 +60,8 @@ class Explorer:
         self, param_val, photonnumber, initial_index, final_index, qbt_index, osc_index
     ):
         """
-        Create a panel of plots (bare spectra, bare wavefunctions, dressed spectrum, n-photon qubit transitions, chi).
+        Create a panel of plots (bare spectra, bare wavefunctions, dressed spectrum,
+        n-photon qubit transitions, chi).
 
         Parameters
         ----------
@@ -71,7 +72,8 @@ class Explorer:
         initial_index: int
             dressed-state index of the initial state used in transition
         final_index: int
-            dressed-state index of the final state used in transition (in dressed spectrum display)
+            dressed-state index of the final state used in transition (in dressed
+            spectrum display)
         qbt_index: int
             index of qubit subsystem for which matrix elements and chi's are displayed
         osc_index: int
@@ -158,8 +160,14 @@ class Explorer:
         param_max = self.param_vals[-1]
         param_step = self.param_vals[1] - self.param_vals[0]
 
-        qbt_indices = [index for (index, subsystem) in self.sweep.qbt_subsys_list]
-        osc_indices = [index for (index, subsystem) in self.sweep.osc_subsys_list]
+        qbt_indices = [
+            self.sweep._hilbertspace.get_subsys_index(subsystem)
+            for subsystem in self.sweep.qbt_subsys_list
+        ]
+        osc_indices = [
+            self.sweep._hilbertspace.get_subsys_index(subsystem)
+            for subsystem in self.sweep.osc_subsys_list
+        ]
 
         param_slider = ipywidgets.FloatSlider(
             min=param_min,

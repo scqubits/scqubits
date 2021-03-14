@@ -13,7 +13,18 @@ import functools
 import operator
 import os
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Tuple, Union
+
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -129,13 +140,7 @@ def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) ->
     """Processes a single 'special' option, i.e., one internal to scqubits and not to be handed further down to
     matplotlib.
     """
-    if key == "x_range":
-        warnings.warn("x_range is deprecated, use xlim instead", FutureWarning)
-        axes.set_xlim(value)
-    elif key == "y_range":
-        warnings.warn("y_range is deprecated, use ylim instead", FutureWarning)
-        axes.set_ylim(value)
-    elif key == "ymax":
+    if key == "ymax":
         ymax = value
         ymin, _ = axes.get_ylim()
         ymin = ymin - (ymax - ymin) * 0.05
@@ -150,7 +155,7 @@ def wavefunction1d(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
     potential_vals: np.ndarray = None,
     offset: Union[float, Iterable[float]] = 0,
-    scaling: float = 1.0,
+    scaling: Optional[float] = None,
     **kwargs
 ) -> Tuple[Figure, Axes]:
     """
@@ -197,6 +202,14 @@ def wavefunction1d(
 #        )
 
     if potential_vals is not None:
+        y_min = np.min(potential_vals)
+        y_max = np.max(offset_list)
+        y_range = y_max - y_min
+
+        y_max += 0.3 * y_range
+        y_min = np.min(potential_vals) - 0.1 * y_range
+        axes.set_ylim([y_min, y_max])
+
         axes.plot(
             x_vals,
             potential_vals,
@@ -230,7 +243,8 @@ def renormalization_factor(
     FILL_FACTOR = 0.1
     energy_range = np.max(potential_vals) - np.min(potential_vals)
     amplitude_range = np.max(wavefunc.amplitudes) - np.min(wavefunc.amplitudes)
-
+    if amplitude_range < 1.0e-10:
+        return 0.0
     return FILL_FACTOR * energy_range / amplitude_range
 
 
@@ -439,13 +453,15 @@ def matrix_skyscraper(
     modefunction = constants.MODE_FUNC_DICT[mode]
     zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
 
+    min_zheight, max_zheight = min(zheight), max(zheight)
+
     if mode == "abs" or mode == "abs_sqr":
         nrm = mpl.colors.Normalize(
-            0, max(zheight)
+            0, max_zheight
         )  # normalize colors between 0 and max. data
     else:
         nrm = mpl.colors.Normalize(
-            min(zheight), max(zheight)
+            min_zheight, max_zheight
         )  # normalize colors between min. and max. of data
 
     colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
@@ -453,7 +469,18 @@ def matrix_skyscraper(
     # skyscraper plot
     axes.view_init(azim=210, elev=23)
     axes.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
-    axes.set_zlim3d([0, max(zheight)])
+
+    if mode == "abs" or mode == "abs_sqr":
+        min_z, max_z = 0, max_zheight
+    else:  # mode is "real" or "imag"
+        min_z = 0 if min_zheight > 0 else min_zheight
+        max_z = 0 if max_zheight < 0 else max_zheight
+
+    if min_z == max_z:
+        # pad with small values so we don't get warnings
+        max_z += 0.0000001
+
+    axes.set_zlim3d([min_z, max_z])
 
     for axis, locs in [
         (axes.xaxis, np.arange(x_count)),
@@ -516,7 +543,7 @@ def matrix2d(
                 axes.text(
                     x_index,
                     y_index,
-                    "{:.03f}".format(matrix[y_index, x_index]),
+                    "{:.03f}".format(modefunction(matrix[y_index, x_index])),
                     va="center",
                     ha="center",
                     fontsize=8,
@@ -533,10 +560,9 @@ def matrix2d(
     axes.grid(False)
 
     _process_options(fig, axes, **kwargs)
+    axes.tick_params(axis="x", bottom=False, top=True, labelbottom=False, labeltop=True)
+
     return fig, axes
-
-
-print_matrix = matrix2d  # legacv, support of name now deprecated
 
 
 def data_vs_paramvals(
@@ -573,7 +599,13 @@ def data_vs_paramvals(
                 label=label_list[idx],
                 **_extract_kwargs_options(kwargs, "plot")
             )
-        axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+        if _LABELLINES_ENABLED:
+            try:
+                labelLines(axes.get_lines(), zorder=2.0)
+            except Exception:
+                pass
+        else:
+            axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, **kwargs)
     return fig, axes
 
@@ -613,6 +645,7 @@ def evals_vs_paramvals(
     ydata = specdata.energy_table[:, index_list]
     if subtract_ground:
         ydata = (ydata.T - ydata[:, 0]).T
+
     return data_vs_paramvals(
         xdata,
         ydata,

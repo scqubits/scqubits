@@ -28,8 +28,8 @@ from scipy.sparse.dia import dia_matrix
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
-import scqubits.core.harmonic_osc as osc
 import scqubits.core.operators as op
+import scqubits.core.oscillator as osc
 import scqubits.core.qubit_base as base
 import scqubits.core.storage as storage
 import scqubits.core.units as units
@@ -450,6 +450,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         number of harmonic oscillator basis for :math:`\zeta` variable
     phi_cut:
         number of harmonic oscillator basis for :math:`\phi` variable
+    truncated_dim:
+        desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
     EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -478,6 +480,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         ncut: int,
         zeta_cut: int,
         phi_cut: int,
+        truncated_dim: int = 6,
     ) -> None:
         self.EJ = EJ
         self.ECJ = ECJ
@@ -491,6 +494,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self.ncut = ncut
         self.zeta_cut = zeta_cut
         self.phi_cut = phi_cut
+        self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)

@@ -11,6 +11,7 @@
 
 
 import os
+import warnings
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -27,6 +28,10 @@ from scqubits.settings import IN_IPYTHON
 if not IN_IPYTHON:
     matplotlib.use("Agg")
 
+warnings.filterwarnings(
+    action="ignore",
+    category=FutureWarning,
+)
 
 TESTDIR, _ = os.path.split(scqubits.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")
@@ -34,6 +39,7 @@ DATADIR = os.path.join(TESTDIR, "data", "")
 
 
 def pytest_addoption(parser):
+    # This is to allow multi-processing tests by adding --num_cpus 2 to pytest calls
     parser.addoption(
         "--num_cpus", action="store", default=1, help="number of cores to be used"
     )
@@ -132,12 +138,13 @@ class BaseTest:
 
     def plot_matrixelements(self, op, evals_count=7, op_arg=None):
         self.qbt.plot_matrixelements(
-            op, operator_args=op_arg, evecs=None, evals_count=evals_count
+            op, operator_args=op_arg, evecs=None, evals_count=evals_count,
+            show_numbers=True
         )
 
     def print_matrixelements(self, op, op_arg=None):
         mat_data = self.qbt.matrixelement_table(op, operator_args=op_arg)
-        plot.print_matrix(abs(mat_data))
+        plot.matrix2d(abs(mat_data))
 
     def plot_matelem_vs_paramvals(
         self, num_cpus, op, param_name, param_list, select_elems, op_arg=None

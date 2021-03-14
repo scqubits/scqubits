@@ -10,8 +10,10 @@
 ############################################################################
 
 import math
+import warnings
+
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,7 +29,10 @@ import scqubits.settings as settings
 import scqubits.utils.plotting as plotting
 from scqubits.core.storage import SpectrumData
 
-# Helpers for units conversion
+# flag that lets us show a warning about the default t1 behavior
+# (i.e., total=True setting) only once. Using the standard warnings
+# filtering does not seem to work in jupyter.
+_t1_default_warning_given_flag = False
 
 
 def calc_therm_ratio(
@@ -115,7 +120,7 @@ class NoisySystem(ABC):
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
         scale: float = 1,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
@@ -155,6 +160,7 @@ class NoisySystem(ABC):
         Figure, Axes
 
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
@@ -301,7 +307,7 @@ class NoisySystem(ABC):
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
         scale: float = 1,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
@@ -349,6 +355,7 @@ class NoisySystem(ABC):
         Figure, Axes
 
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
@@ -440,7 +447,7 @@ class NoisySystem(ABC):
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
         scale: float = 1,
-        num_cpus: int = settings.NUM_CPUS,
+        num_cpus: Optional[int] = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
         r"""
@@ -490,6 +497,7 @@ class NoisySystem(ABC):
         Figure, Axes
 
         """
+        num_cpus = num_cpus or settings.NUM_CPUS
         common_noise_options = (
             {} if common_noise_options is None else common_noise_options
         )
@@ -805,7 +813,7 @@ class NoisySystem(ABC):
         -------
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or
-             rate in inverse units.
+            rate in inverse units.
 
         """
         common_noise_options = (
@@ -1052,7 +1060,7 @@ class NoisySystem(ABC):
         -------
         time or rate: float
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
-             in inverse units.
+            in inverse units.
         """
         if "tphi_1_over_f_ng" not in self.supported_noise_channels():
             raise RuntimeError(
@@ -1123,6 +1131,25 @@ class NoisySystem(ABC):
             decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
 
         """
+
+        if settings.T1_DEFAULT_WARNING:
+            global _t1_default_warning_given_flag
+            if not _t1_default_warning_given_flag:
+                warnings.warn(
+                    "By default all methods that involve calculations of the "
+                    "t1 coherence times/rates, return a sum of upward (i.e., excitation), "
+                    "and downward (i.e., relaxation) rates. To change this behavior, "
+                    "parameter total=False can be passed to any t1-related coherence "
+                    "methods. With total=False, only a one-directional transition between "
+                    "levels i and j is used to calculate the required t1 time or rate.\n"
+                    "See documentation for details.\n"
+                    "This warning can be disabled by executing:\n"
+                    "scqubits.settings.T1_DEFAULT_WARNING=False\n",
+                    # UserWarning,
+                    UserWarning,
+                )
+                _t1_default_warning_given_flag = True
+
         # Sanity check
         if i == j or i < 0 or j < 0:
             raise ValueError("Level indices 'i' and 'j' must be different, and i,j>=0")

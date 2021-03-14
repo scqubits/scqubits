@@ -42,9 +42,9 @@ Operating System :: Microsoft :: Windows
 EXTRA_KWARGS = {}
 
 # version information about scqubits goes here
-MAJOR = 1
-MINOR = 3
-MICRO = 2
+MAJOR = 2
+MINOR = 0
+MICRO = 0
 ISRELEASED = True
 
 VERSION = "%d.%d.%d" % (MAJOR, MINOR, MICRO)

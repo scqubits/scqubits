@@ -1,4 +1,4 @@
-# fitting.py
+# misc.py
 #
 # This file is part of scqubits.
 #
@@ -11,6 +11,9 @@
 
 import ast
 import functools
+import warnings
+
+from collections import Sequence
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
@@ -135,6 +138,22 @@ class Required:
         return decorated_func
 
 
+def check_sync_status(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self._out_of_sync:
+            warnings.warn(
+                "SCQUBITS\nSpectrum data is out of sync with systems originally"
+                " involved in generating it. This will generally lead to incorrect"
+                " results. Consider regenerating the spectral data using"
+                " <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()",
+                Warning,
+            )
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 def to_expression_or_string(string_expr: str) -> Any:
     try:
         return ast.literal_eval(string_expr)
@@ -147,6 +166,35 @@ def remove_nones(dict_data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def qt_ket_to_ndarray(qobj_ket: qt.Qobj) -> np.ndarray:
-    # Qutip's `.eigenstates()` returns an object-valued ndarray, each entry of which
+    # Qutip's `.eigenstates()` returns an object-valued ndarray, each idx_entry of which
     # is a Qobj ket.
     return np.asarray(qobj_ket.data.todense())
+
+
+def get_shape(lst, shape=()):
+    """
+    returns the shape of nested lists similarly to numpy's shape.
+
+    :param lst: the nested list
+    :param shape: the shape up to the current recursion depth
+    :return: the shape including the current depth
+            (finally this will be the full depth)
+    """
+    if not isinstance(lst, Sequence):
+        # base case
+        return shape
+
+    # peek ahead and assure all lists in the next depth
+    # have the same length
+    if isinstance(lst[0], Sequence):
+        l = len(lst[0])
+        if not all(len(item) == l for item in lst):
+            msg = "not all lists have the same length"
+            raise ValueError(msg)
+
+    shape += (len(lst),)
+
+    # recurse
+    shape = get_shape(lst[0], shape)
+
+    return shape

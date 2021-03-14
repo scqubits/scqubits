@@ -11,9 +11,11 @@
 
 import math
 import os
-from typing import Any, Dict, List, Tuple, Union
+
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -26,6 +28,7 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
+
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
