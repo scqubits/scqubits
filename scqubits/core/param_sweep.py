@@ -706,6 +706,7 @@ class ParameterSweep(
         iodata.typename = "StoredSweep"
         return iodata
 
+    @property
     def param_info(self) -> Dict[str, ndarray]:
         """Return a dictionary of the parameter names and values used in this sweep."""
         return self._parameters.paramvals_by_name
