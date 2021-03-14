@@ -453,13 +453,15 @@ def matrix_skyscraper(
     modefunction = constants.MODE_FUNC_DICT[mode]
     zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
 
+    min_zheight, max_zheight = min(zheight), max(zheight)
+
     if mode == "abs" or mode == "abs_sqr":
         nrm = mpl.colors.Normalize(
-            0, max(zheight)
+            0, max_zheight
         )  # normalize colors between 0 and max. data
     else:
         nrm = mpl.colors.Normalize(
-            min(zheight), max(zheight)
+            min_zheight, max_zheight
         )  # normalize colors between min. and max. of data
 
     colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
@@ -467,7 +469,18 @@ def matrix_skyscraper(
     # skyscraper plot
     axes.view_init(azim=210, elev=23)
     axes.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
-    axes.set_zlim3d([0, max(zheight)])
+
+    if mode == "abs" or mode == "abs_sqr":
+        min_z, max_z = 0, max_zheight
+    else:  # mode is "real" or "imag"
+        min_z = 0 if min_zheight > 0 else min_zheight
+        max_z = 0 if max_zheight < 0 else max_zheight
+
+    if min_z == max_z:
+        # pad with small values so we don't get warnings
+        max_z += 0.0000001
+
+    axes.set_zlim3d([min_z, max_z])
 
     for axis, locs in [
         (axes.xaxis, np.arange(x_count)),

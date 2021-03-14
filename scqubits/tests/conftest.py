@@ -136,8 +136,9 @@ class BaseTest:
         assert np.allclose(np.abs(matelem_reference), np.abs(calculated_matrix))
 
     def plot_matrixelements(self, op, evals_count=7):
-        self.qbt.plot_matrixelements(op, evecs=None, evals_count=evals_count,
-                                     show_numbers=True)
+        self.qbt.plot_matrixelements(
+            op, evecs=None, evals_count=evals_count, show_numbers=True
+        )
 
     def print_matrixelements(self, op):
         mat_data = self.qbt.matrixelement_table(op)
