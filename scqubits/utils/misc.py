@@ -143,9 +143,9 @@ def check_sync_status(func: Callable) -> Callable:
     def wrapper(self, *args, **kwargs):
         if self._out_of_sync:
             warnings.warn(
-                "SCQUBITS\nSpectrum data is out of sync with systems originally"
-                " involved in generating it. This will generally lead to incorrect"
-                " results. Consider regenerating the spectral data using"
+                "[scqubits] Some system parameters have been changed and"
+                " generated spectrum data could be outdated, potentially leading to"
+                " incorrect results. Spectral data can be refreshed via"
                 " <HilbertSpace>.generate_lookup() or <ParameterSweep>.run()",
                 Warning,
             )
