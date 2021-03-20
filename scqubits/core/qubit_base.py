@@ -27,6 +27,7 @@ from matplotlib.figure import Figure
 from numpy import ndarray
 
 import scqubits.core.constants as constants
+import scqubits.core.descriptors as descriptors
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
@@ -57,7 +58,7 @@ else:
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
 
-    truncated_dim: int
+    truncated_dim = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     _init_params: List[str]
     _image_filename: str
     _evec_dtype: type
