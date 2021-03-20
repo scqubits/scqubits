@@ -520,15 +520,17 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     # HilbertSpace: methods for CentralDispatch
     ###################################################################################
     def receive(self, event: str, sender: Any, **kwargs) -> None:
-        if self._lookup is not None:
-            if event == "QUANTUMSYSTEM_UPDATE" and sender in self:
-                self.broadcast("HILBERTSPACE_UPDATE")
+        if event == "QUANTUMSYSTEM_UPDATE" and sender in self:
+            self.broadcast("HILBERTSPACE_UPDATE")
+            if self._lookup:
                 self._lookup._out_of_sync = True
-            elif event == "INTERACTIONTERM_UPDATE" and sender in self.interaction_list:
-                self.broadcast("HILBERTSPACE_UPDATE")
+        elif event == "INTERACTIONTERM_UPDATE" and sender in self.interaction_list:
+            self.broadcast("HILBERTSPACE_UPDATE")
+            if self._lookup:
                 self._lookup._out_of_sync = True
-            elif event == "INTERACTIONLIST_UPDATE" and sender is self:
-                self.broadcast("HILBERTSPACE_UPDATE")
+        elif event == "INTERACTIONLIST_UPDATE" and sender is self:
+            self.broadcast("HILBERTSPACE_UPDATE")
+            if self._lookup:
                 self._lookup._out_of_sync = True
 
     ###################################################################################
