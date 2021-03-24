@@ -18,9 +18,11 @@ from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings
 
+LOGGER = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------
 # To enable logging output, uncomment the following setting:
-# logging.basicConfig(level=logging.DEBUG)
+# LOGGER.setLevel(logging.DEBUG)
 # ---------------------------------------------------------------
 
 
@@ -79,24 +81,22 @@ class CentralDispatch:
         callback: method, optional
             custom callback method other than `.receive()`
         """
-        logging.debug(
+        LOGGER.debug(
             "Registering {} for {}. welcome.".format(type(who).__name__, event)
         )
         if callback is None:
-            callback_ref = getattr(who, "receive")
+            callback_ref = weakref.WeakMethod(getattr(who, "receive"))
             # For purposes of garbage collection, this should preferably be:
-            # callback_ref = weakref.WeakMethod(getattr(who, 'receive')) However,
-            # as of 06/12/20, pathos balks on this on Windows (while Linux is
-            # passing). Note that reference to callback methods is likely to prevent
-            # proper garbage collection, so may have to revisit this issue if
-            # necessary.
+            # callback_ref = weakref.WeakMethod(getattr(who, 'receive'))
+            # Intermittently, pathos has balked on pickling this. Workaround that
+            # will likely prevent proper garbage collection:
+            #
+            # callback_ref = getattr(who, "receive")
         else:
-            callback_ref = callback
-            # For purposes of garbage collection, this should preferably be:
-            # callback_ref = weakref.WeakMethod(callback) However, as of 06/12/20,
-            # pathos balks on this on Windows (while Linux is passing). Note that the
-            # reference to callback methods is likely to prevent proper garbage
-            # collection, so may have to revisit this issue if necessary.
+            callback_ref = weakref.WeakMethod(callback)
+            # See comment just above. Workaround if pathos fails to pickle:
+            #
+            # callback_ref = callback
         self.get_clients_dict(event)[who] = callback_ref
 
     def unregister(self, event: str, who: "DispatchClient") -> None:
@@ -134,14 +134,19 @@ class CentralDispatch:
         **kwargs
         """
         for client, callback_ref in self.get_clients_dict(event).items():
-            logging.debug(
+            LOGGER.debug(
                 "Central dispatch calling {} about {}.".format(
                     type(client).__name__, event
                 )
             )
-            callback_ref(event, sender=sender, **kwargs)
+
+            callback_ref()(event, sender=sender, **kwargs)
             # When using WeakMethod references, this should rather be:
             # callback_ref()(event, sender=sender, **kwargs)
+            #
+            # Workaround if pickling fails, in conjunction with changes eliminating
+            # weakrefs:
+            # callback_ref(event, sender=sender, **kwargs)
 
     def listen(self, caller: "DispatchClient", event: str, **kwargs) -> None:
         """Receive message from client `caller` for event `event`. If dispatch is
@@ -175,7 +180,8 @@ class DispatchClient:
             event name from EVENTS
         **kwargs
         """
-        logging.debug("Client {} broadcasting {}".format(type(self).__name__, event))
+        if settings.DISPATCH_ENABLED:
+            LOGGER.debug("Client {} broadcasting {}".format(type(self).__name__, event))
         CENTRAL_DISPATCH.listen(self, event, **kwargs)
 
     def receive(self, event: str, sender: "DispatchClient", **kwargs) -> None:
@@ -196,6 +202,6 @@ class DispatchClient:
         # below prevent exceptions upon program exit. (`logging` and
         # `CENTRAL_DISPATCH` may have already been removed.)
         if logging:
-            logging.debug("Unregistering {}. au revoir.".format(type(self).__name__))
+            LOGGER.debug("Unregistering {}. au revoir.".format(type(self).__name__))
         if CENTRAL_DISPATCH:
             CENTRAL_DISPATCH.unregister_object(self)

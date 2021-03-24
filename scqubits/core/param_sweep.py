@@ -124,7 +124,7 @@ class ParameterSweepBase(ABC):
             identity of sender announcing the event
         **kwargs
         """
-        if "lookup" in self._data:
+        if self._data:
             if event == "HILBERTSPACE_UPDATE" and sender is self._hilbertspace:
                 self._out_of_sync = True
             elif event == "PARAMETERSWEEP_UPDATE" and sender is self:
@@ -677,6 +677,9 @@ class ParameterSweep(
         self._out_of_sync = False
         self._current_param_indices = None
 
+        dispatch.CENTRAL_DISPATCH.register("PARAMETERSWEEP_UPDATE", self)
+        dispatch.CENTRAL_DISPATCH.register("HILBERTSPACE_UPDATE", self)
+
         if autorun:
             self.run()
 
@@ -871,12 +874,6 @@ class ParameterSweep(
             NamedSlotsNdarray[<paramname1>, <paramname2>, ...] of eigenvalues,
             likewise for eigenvectors
         """
-        if len(self._hilbertspace) == 1 and self._hilbertspace.interaction_list == []:
-            return (
-                self._data["bare_vals"]["subsys":0],
-                self._data["bare_evecs"]["subsys":0],
-            )
-
         multi_cpu = self._num_cpus > 1
         target_map = cpu_switch.get_map_method(self._num_cpus)
         total_count = np.prod(self._parameters.counts)
