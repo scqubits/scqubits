@@ -9,13 +9,12 @@ from sympy import Matrix, S, diff, hessian, simplify, solve, symbols
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
-from scqubits.core.harmonic_osc import Oscillator
-from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
-from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_phases, \
-    standardize_sign
+from scqubits.core.oscillator import Oscillator, convert_to_E_osc, convert_to_l_osc
+from scqubits.core.hilbert_space import HilbertSpace
+from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_sign
 
 
-class FluxoniumTunableCouplerFloating(serializers.Serializable):
+class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseClass):
     def __init__(
         self,
         EJa,
@@ -146,7 +145,6 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         """Returns a HilbertSpace object of the full system of two fluxonium qubits interacting via
         a tunable coupler, which takes the form of a harmonic oscillator degree of freedom and
         fluxonium degree of freedom which are themselves decoupled
-
         Returns
         -------
         HilbertSpace
@@ -158,65 +156,34 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         hilbert_space = HilbertSpace(
             [fluxonium_a, fluxonium_b, fluxonium_minus, h_o_plus]
         )
-        phi_minus = fluxonium_minus.phi_operator()
-        phi_a = fluxonium_a.phi_operator()
-        phi_b = fluxonium_b.phi_operator()
-        n_a = fluxonium_a.n_operator()
-        n_b = fluxonium_b.n_operator()
-        id_a = np.eye(fluxonium_a.hilbertdim())
-        id_b = np.eye(fluxonium_b.hilbertdim())
-        id_minus = np.eye(fluxonium_minus.hilbertdim())
-        interaction_term_1 = InteractionTerm(
-            g_strength=-0.5 * self.ELa,
-            subsys1=fluxonium_a,
-            op1=phi_a + 2.0 * np.pi * self.flux_a * id_a,
-            subsys2=h_o_plus,
-            op2=self.phi_plus(),
-        )
-        interaction_term_2 = InteractionTerm(
-            g_strength=-0.5 * self.ELb,
-            subsys1=fluxonium_b,
-            op1=phi_b + 2.0 * np.pi * self.flux_b * id_b,
-            subsys2=h_o_plus,
-            op2=self.phi_plus(),
-        )
-        interaction_term_3 = InteractionTerm(
-            g_strength=-0.5 * self.ELa,
-            subsys1=fluxonium_a,
-            op1=phi_a + 2.0 * np.pi * self.flux_a * id_a,
-            subsys2=fluxonium_minus,
-            op2=phi_minus + 0.5 * 2.0 * np.pi * self.flux_c * id_minus,
-        )
-        interaction_term_4 = InteractionTerm(
-            g_strength=0.5 * self.ELb,
-            subsys1=fluxonium_b,
-            op1=phi_b + 2.0 * np.pi * self.flux_b * id_b,
-            subsys2=fluxonium_minus,
-            op2=phi_minus + 0.5 * 2.0 * np.pi * self.flux_c * id_minus,
-        )
-        interaction_term_5 = InteractionTerm(
-            g_strength=-8.0 * self.off_diagonal_charging(),
-            subsys1=fluxonium_a,
-            op1=n_a,
-            subsys2=fluxonium_b,
-            op2=n_b,
-        )
-        interaction_term_6 = InteractionTerm(
-            g_strength=(self.ELa - self.ELb + self.EL1 - self.EL2) / 2.0,
-            subsys1=h_o_plus,
-            op1=self.phi_plus(),
-            subsys2=fluxonium_minus,
-            op2=phi_minus + 0.5 * 2.0 * np.pi * self.flux_c * id_minus,
-        )
-        hilbert_space.interaction_list = [
-            interaction_term_1,
-            interaction_term_2,
-            interaction_term_3,
-            interaction_term_4,
-            interaction_term_5,
-            interaction_term_6,
-        ]
+        phi_a = fluxonium_a.phi_operator
+        phi_b = fluxonium_b.phi_operator
+        phi_minus = fluxonium_minus.phi_operator
+        phi_plus = h_o_plus.phi_operator
+        n_a = fluxonium_a.n_operator
+        n_b = fluxonium_b.n_operator
+        hilbert_space.add_interaction(g_strength=-0.5 * self.ELa, op1=phi_a,
+                                      op2=phi_plus)
+        hilbert_space.add_interaction(g_strength=-0.5 * self.ELb, op1=phi_b,
+                                      op2=phi_plus)
+        hilbert_space.add_interaction(g_strength=-0.5 * self.ELa, op1=phi_a,
+                                      op2=phi_minus)
+        hilbert_space.add_interaction(g_strength=0.5 * self.ELb, op1=phi_b,
+                                      op2=phi_minus)
+        hilbert_space.add_interaction(g_strength=-8.0 * self.off_diagonal_charging(),
+                                      op1=n_a, op2=n_b)
+        hilbert_space.add_interaction(g_strength=(self.ELa - self.ELb
+                                                  + self.EL1 - self.EL2) / 2.0,
+                                      op1=phi_plus, op2=phi_minus)
         return hilbert_space
+
+    def hamiltonian(self):
+        hilbert_space = self.generate_coupled_system()
+        return hilbert_space.hamiltonian().full()
+
+    def hilbertdim(self) -> int:
+        return (self.fluxonium_truncated_dim ** 2 *
+                self.fluxonium_minus_truncated_dim * self.h_o_truncated_dim)
 
     def find_flux_shift(self):
         fluxonium_minus = self.fluxonium_minus()
@@ -288,7 +255,7 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         fluxonium_a.EL = self.ELa - E_La_shift
         E_Lb_shift = self.ELb ** 2 * (0.5 * chi_m + 1.0 / self.EL_tilda())
         fluxonium_b.EL = self.ELb - E_Lb_shift
-        J = self.ELa * self.ELb * (0.5 * chi_m - 1.0 / (self.EL_tilda()))
+        J = self.ELa * self.ELb * (0.5 * chi_m - 1.0 / self.EL_tilda())
         return fluxonium_a, fluxonium_b, J, E_La_shift, E_Lb_shift
 
     @staticmethod
@@ -306,6 +273,10 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         phi_a_01 = self._get_phi_01(fluxonium_a)
         phi_b_01 = self._get_phi_01(fluxonium_b)
         return J * phi_a_01 * phi_b_01
+
+    def EL_bar_func(self):
+        fluxonium_a, fluxonium_b, J, E_La_shift, _ = self._setup_effective_calculation()
+        return self.ELa - E_La_shift
 
     def schrieffer_wolff_born_oppenheimer_effective_hamiltonian(self):
         (
@@ -382,20 +353,20 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             for fin_b in range(dim_low_energy_b)
         )
 
-        virtual_int_states = list(product(np.arange(0, dim_a), np.arange(0, dim_b)))
-        virtual_int_states.remove((0, 0))
-        virtual_int_states.remove((0, 1))
-        virtual_int_states.remove((1, 0))
-        virtual_int_states.remove((1, 1))
-
-        H_2 = sum(V_op(init_a, inter_a, init_b, inter_b) * V_op(inter_a, fin_a, inter_b, fin_b)
-                  * 0.5 * ((evals_a[init_a] + evals_b[init_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1)
-                           + (evals_a[fin_a] + evals_b[fin_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1))
-                  * hilbert_space.hubbard_operator(init_a, fin_a, fluxonium_a_spin)
-                  * hilbert_space.hubbard_operator(init_b, fin_b, fluxonium_b_spin)
-                  for init_a in range(dim_low_energy_a) for fin_a in range(dim_low_energy_a)
-                  for init_b in range(dim_low_energy_b) for fin_b in range(dim_low_energy_b)
-                  for inter_a, inter_b in virtual_int_states)
+        # virtual_int_states = list(product(np.arange(0, dim_a), np.arange(0, dim_b)))
+        # virtual_int_states.remove((0, 0))
+        # virtual_int_states.remove((0, 1))
+        # virtual_int_states.remove((1, 0))
+        # virtual_int_states.remove((1, 1))
+        #
+        # H_2 = sum(V_op(init_a, inter_a, init_b, inter_b) * V_op(inter_a, fin_a, inter_b, fin_b)
+        #           * 0.5 * ((evals_a[init_a] + evals_b[init_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1)
+        #                    + (evals_a[fin_a] + evals_b[fin_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1))
+        #           * hilbert_space.hubbard_operator(init_a, fin_a, fluxonium_a_spin)
+        #           * hilbert_space.hubbard_operator(init_b, fin_b, fluxonium_b_spin)
+        #           for init_a in range(dim_low_energy_a) for fin_a in range(dim_low_energy_a)
+        #           for init_b in range(dim_low_energy_b) for fin_b in range(dim_low_energy_b)
+        #           for inter_a, inter_b in virtual_int_states)
 
         return H_0, H_1, H_2
 
@@ -426,6 +397,8 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         ) = self._setup_effective_calculation()
         g_s_expect = self.fluxonium_minus_gs_expect()
         EL_bar = fluxonium_a.EL
+        #        flux_shift = 0.5 * g_s_expect * self.ELa * (1 + (J / EL_bar)) / (EL_bar * (1 - (J / EL_bar)**2))
+        #        flux_a, flux_b = 2.0 * np.pi * self.flux_a - flux_shift, 2.0 * np.pi * self.flux_b - flux_shift
         fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
         fluxonium_a.truncated_dim, fluxonium_b.truncated_dim = 2, 2
         hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
@@ -437,18 +410,18 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
             fluxonium_b, hilbert_space
         )
         H_a = phi_a_ops * (
-            2.0 * np.pi * (0.5 - self.flux_a) * EL_bar
-            - 2.0 * np.pi * (0.5 - self.flux_b) * J
-            - 0.5 * self.ELa * g_s_expect
+                2.0 * np.pi * (0.5 - self.flux_a) * EL_bar
+                - 2.0 * np.pi * (0.5 - self.flux_b) * J
+                - 0.5 * self.ELa * g_s_expect
         )
-        H_b = phi_b_ops * (
-            2.0 * np.pi * (0.5 - self.flux_b) * EL_bar
-            - 2.0 * np.pi * (0.5 - self.flux_a) * J
-            + 0.5 * self.ELb * g_s_expect
+        H_b = -phi_b_ops * (
+                2.0 * np.pi * (0.5 - self.flux_b) * EL_bar
+                - 2.0 * np.pi * (0.5 - self.flux_a) * J
+                - 0.5 * self.ELb * g_s_expect
         )
         H_ab = (
-            J * (phi_a_ops * phi_b_ops)
-            - 8.0 * self.off_diagonal_charging() * n_a_ops * n_b_ops
+                J * (phi_a_ops * phi_b_ops)
+                - 8.0 * self.off_diagonal_charging() * n_a_ops * n_b_ops
         )
         return H_0 + H_a + H_b + H_ab
 
@@ -475,39 +448,33 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         return phi_ops, n_ops
 
     def fluxonium_a(self):
-        return FluxoniumFluxVariableAllocation(
+        return Fluxonium(
             self.EJa,
             self.qubit_a_charging_energy(),
             self.ELa,
             self.flux_a,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
-            flux_fraction_with_inductor=1.0,
-            flux_junction_sign=-1
         )
 
     def fluxonium_b(self):
-        return FluxoniumFluxVariableAllocation(
+        return Fluxonium(
             self.EJb,
             self.qubit_b_charging_energy(),
             self.ELb,
             self.flux_b,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
-            flux_fraction_with_inductor=1.0,
-            flux_junction_sign=-1
         )
 
     def fluxonium_minus(self):
-        return FluxoniumFluxVariableAllocation(
+        return Fluxonium(
             self.EJC,
             self.fluxonium_minus_charging_energy(),
             self.EL_tilda() / 4.0,
             self.flux_c,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_minus_truncated_dim,
-            flux_fraction_with_inductor=0.5,
-            flux_junction_sign=-1
         )
 
     def EL_tilda(self):
@@ -525,19 +492,14 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable):
         return self.EC_matrix()[3, 3]
 
     def h_o_plus(self):
+        E_osc = convert_to_E_osc(8.0 * self.h_o_plus_charging_energy(),  # 16 EC_{m}
+                                 self.EL_tilda() / 4.0)
+        l_osc = convert_to_l_osc(8.0 * self.h_o_plus_charging_energy(),
+                                 self.EL_tilda() / 4.0)
         return Oscillator(
-            E_osc=np.sqrt(
-                8.0 * self.h_o_plus_charging_energy() * self.EL_tilda() / 4.0
-            ),
+            E_osc=E_osc,
+            l_osc=l_osc,
             truncated_dim=self.h_o_truncated_dim,
-        )
-
-    def phi_plus(self):
-        h_o_plus = self.h_o_plus()
-        return (
-            (1.0 / np.sqrt(2.0))
-            * (16.0 * self.ECm / (self.EL_tilda() / 4.0)) ** (1 / 4)
-            * (h_o_plus.annihilation_operator() + h_o_plus.creation_operator())
         )
 
 
@@ -601,12 +563,6 @@ class FluxoniumTunableCouplerGrounded(
         C_matrix[2, 2] = 1.0 / (2.0 * self.ECm) / 2.0
         C_matrix[3, 3] = 1.0 / (2.0 * self.ECm) / 2.0 + 1.0 / (2.0 * self.ECc)
         return C_matrix
-
-    def hilbertdim(self) -> int:
-        pass
-
-    def hamiltonian(self):
-        pass
 
     def default_params(self):
         pass
