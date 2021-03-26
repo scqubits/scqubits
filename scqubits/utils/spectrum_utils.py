@@ -15,6 +15,9 @@ import numpy as np
 import qutip as qt
 
 
+from scipy.sparse import csc_matrix, dia_matrix
+
+
 def order_eigensystem(evals, evecs):
     """Takes eigenvalues and corresponding eigenvectors and orders them (in place) according to the eigenvalues (from
     smallest to largest; real valued eigenvalues are assumed). Compare http://stackoverflow.com/questions/22806398.
@@ -254,6 +257,15 @@ def convert_esys_to_ndarray(esys_qutip):
         esys_ndarray[index] = eigenstate.full()[:, 0]
     return esys_ndarray
 
+def convert_matrix_to_qobj(operator,subsystem,op_in_eigenbasis,evecs):
+    dim = subsystem.truncated_dim
+
+    if op_in_eigenbasis is False:
+        if evecs is None:
+            _, evecs = subsystem.eigensys(evals_count=dim)
+        operator_matrixelements = get_matrixelement_table(operator, evecs)
+        return qt.Qobj(inpt=operator_matrixelements)
+    return qt.Qobj(inpt=operator[:dim, :dim])
 
 def convert_ndarray_to_qobj(operator, subsystem, op_in_eigenbasis, evecs):
     dim = subsystem.truncated_dim
@@ -275,8 +287,8 @@ def convert_opstring_to_qobj(operator, subsystem, evecs):
 def convert_operator_to_qobj(operator, subsystem, op_in_eigenbasis, evecs):
     if isinstance(operator, qt.Qobj):
         return operator
-    if isinstance(operator, np.ndarray):
-        return convert_ndarray_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
+    if isinstance(operator, (np.ndarray, csc_matrix, dia_matrix)):
+        return convert_matrix_to_qobj(operator, subsystem, op_in_eigenbasis, evecs)
     if isinstance(operator, str):
         return convert_opstring_to_qobj(operator, subsystem, evecs)
     raise TypeError('Unsupported operator type: ', type(operator))
