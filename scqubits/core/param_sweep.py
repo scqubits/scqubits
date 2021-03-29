@@ -73,7 +73,7 @@ class ParameterSweepBase(ABC):
     _hilbertspace: HilbertSpace
 
     _out_of_sync = False
-    _current_param_indices: Union[tuple, slice, None]
+    _current_param_indices: Union[NpIndices, None]
 
     def get_subsys(self, index: int) -> QuantumSys:
         return self._hilbertspace[index]
@@ -231,11 +231,11 @@ class ParameterSweepBase(ABC):
 
     def _get_final_states(
         self,
-        initial_state: List[int],
+        initial_state: Tuple[int],
         subsys_list: List[QuantumSys],
         final: Union[Tuple[int, ...], None],
         sidebands: bool,
-    ):
+    ) -> List[Tuple[int, ...]]:
         """Construct and return the possible final states as a list, based on the
         provided initial state, a list of active subsystems and flag for whether to
         include sideband transitions."""
