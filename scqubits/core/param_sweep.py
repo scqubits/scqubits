@@ -9,6 +9,7 @@
 # in the root directory of this source tree.
 # ###########################################################################
 
+import copy
 import functools
 import itertools
 import warnings
@@ -463,7 +464,7 @@ class ParameterSweepBase(ABC):
             as_specdata=True,
             param_indices=param_indices,
         )
-        specdata_all = self[param_indices].dressed_specdata
+        specdata_all = copy.deepcopy(self[param_indices].dressed_specdata)
         specdata_all.energy_table -= specdata.subtract
         if make_positive:
             specdata_all.energy_table = np.abs(specdata_all.energy_table)
