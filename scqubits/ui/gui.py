@@ -187,6 +187,7 @@ class GUI:
         ]
         self.gui_active = True
         self.qubit_change = True
+        self.subtract_ground_active = False
         self.slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
         self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
         self.fig: Figure
@@ -283,6 +284,10 @@ class GUI:
 
     def save_button_clicked_action(self, *args):
         self.fig.savefig(self.qubit_plot_options_widgets["filename_text"].value)
+
+    def subtract_ground_eventhandler(self, change):
+        print("Hello")
+        self.subtract_ground_active = change.new
 
     # Methods for qubit_plot_interactive -------------------------------------------------------------------------------------------------
     def update_qubit_params(self, **params):
@@ -1007,7 +1012,7 @@ class GUI:
                 value=True, description="Show 3D", disabled=False
             ),
             "subtract_ground_checkbox": widgets.Checkbox(
-                value=False, description="Subtract E\u2080", disabled=False
+                value=self.subtract_ground_active, description="Subtract E\u2080", disabled=False
             ),
             "manual_scale_checkbox": widgets.Checkbox(
                 value=False, description="Manual Scaling", disabled=False
@@ -1018,6 +1023,9 @@ class GUI:
         )
         self.qubit_plot_options_widgets["scan_dropdown"].observe(
             self.scan_dropdown_eventhandler, names="value"
+        )
+        self.qubit_plot_options_widgets["subtract_ground_checkbox"].observe(
+            self.subtract_ground_eventhandler, names="value"
         )
 
     def create_qubit_params_widgets(self):
