@@ -109,6 +109,7 @@ class VTBBaseMethods(ABC):
         grid: Grid1d = Grid1d(-6 * np.pi, 6 * np.pi, 200),
         displacement_vector_cutoff: float = 1e-15,
         maximum_site_length: int = 2,
+        safe_run: bool = False,
     ) -> None:
         self.num_exc = num_exc
         # TODO rename to maximum_unit_cell_vector_length
@@ -131,7 +132,8 @@ class VTBBaseMethods(ABC):
         self.maximum_site_length = maximum_site_length
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.translation_op_dict = {}
-        self._evec_dtype = np.complex_
+        self.safe_run = safe_run
+        self._evec_dtype = np.complex128
 
     @property
     def number_extended_degrees_freedom(self):
@@ -594,7 +596,7 @@ class VTBBaseMethods(ABC):
         num_states_per_min = self.number_states_per_minimum()
         all_exp_i_phi_j = np.empty(
             (self.number_junctions, num_states_per_min, num_states_per_min),
-            dtype=np.complex_,
+            dtype=np.complex128,
         )
         for j in range(self.number_junctions):
             all_exp_i_phi_j[j] = self._single_exp_i_phi_j_operator(
@@ -1187,7 +1189,7 @@ class VTBBaseMethods(ABC):
             )
         else:
             relevant_vector_contributions = np.zeros(
-                (num_states_per_min, num_states_per_min), dtype=np.complex_
+                (num_states_per_min, num_states_per_min), dtype=np.complex128
             )
         return relevant_vector_contributions
 
@@ -1252,6 +1254,23 @@ class VTBBaseMethods(ABC):
         inner_product_matrix = self._inner_product_matrix(
             relevant_unit_cell_vectors, harmonic_lengths, num_cpus=num_cpus
         )
+        if self.safe_run:
+            eval_tol = 1e-8
+            evals_inn, evecs_inn = eigh(inner_product_matrix)
+            evals_nonzero = list(filter(lambda x: x > eval_tol, evals_inn))
+            if not evals_inn == evals_nonzero:
+                idx = np.abs(evals_inn - evals_nonzero[0]).argmin()
+                evecs_nonzero = evecs_inn[:, idx:]
+                scale_factor = np.array(evals_nonzero) ** (-0.5)
+                scale_factor_mat = np.outer(scale_factor, scale_factor)
+                new_tran = evecs_nonzero.conj().T @ transfer_matrix @ evecs_nonzero
+                new_tran = new_tran * scale_factor_mat
+                eigs = eigh(
+                    new_tran,
+                    eigvals_only=eigvals_only,
+                    eigvals=(0, min(evals_count - 1, self.hilbertdim() - idx - 1)),
+                )
+                return eigs
         try:
             eigs = eigh(
                 transfer_matrix,
@@ -1799,7 +1818,7 @@ class VTBBaseMethods(ABC):
             phi_2_vec = phi_1_grid.make_linspace()
 
         wavefunction_amplitudes = np.zeros_like(
-            np.outer(phi_1_vec, phi_2_vec), dtype=np.complex_
+            np.outer(phi_1_vec, phi_2_vec), dtype=np.complex128
         ).T
 
         for minimum_index, minimum_location in sorted_minima_dict.items():

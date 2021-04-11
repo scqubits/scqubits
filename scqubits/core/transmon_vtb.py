@@ -34,6 +34,7 @@ class TransmonVTB(
             **kwargs
         )
         Transmon.__init__(self, EJ, EC, ng, 0, truncated_dim)
+        self._stitching_coefficients = np.array([1.0])
         delattr(self, "ncut")
 
     def set_EJlist(self, EJlist) -> None:
@@ -60,23 +61,25 @@ class TransmonVTB(
 
     def gamma_matrix(self, minimum_index: int = 0) -> ndarray:
         gamma_matrix = np.array([[0.0]])
-        min_loc = self.sorted_minima_dict()[minimum_index]
+        min_loc = self.sorted_minima_dict[minimum_index]
         e_charge = 1.0
         Phi0 = 1.0 / (2 * e_charge)
         gamma_list = self.EJlist / Phi0 ** 2
         gamma_matrix[0, 0] = gamma_list[0] * np.cos(min_loc[0])
         return gamma_matrix
 
+    def _all_exp_i_phi_j_operators(self, Xi, a_operator_list):
+        return self._single_exp_i_phi_j_operator(0, Xi, a_operator_list)
+
     def _local_potential(
-        self,
-        exp_i_phi_j: ndarray,
-        premultiplied_a_a_dagger: Tuple[ndarray, ndarray, ndarray],
-        Xi: ndarray,
-        phi_neighbor: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+            self,
+            precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
+            displacement_vector: ndarray,
+            minima_m: ndarray,
+            minima_p: ndarray,
     ) -> ndarray:
-        phi_bar = 0.5 * (phi_neighbor + (minima_m + minima_p))
+        _, _, _, exp_i_phi_j, _ = precalculated_quantities
+        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         exp_i_phi_j = exp_i_phi_j * np.exp(1j * phi_bar[0])
         potential_matrix = (
             -0.5 * self.EJlist[0] * (exp_i_phi_j + exp_i_phi_j.conjugate())
@@ -84,11 +87,16 @@ class TransmonVTB(
         potential_matrix += self.EJlist[0] * self._identity()
         return potential_matrix
 
+    def vtb_potential(self, phi_array):
+        """Helper method for converting potential method arguments"""
+        phi_1 = phi_array[0]
+        return self.potential(phi_1)
+
+    def find_minima(self) -> ndarray:
+        return np.array([[0.0]])
+
     def EC_matrix(self) -> ndarray:
         return np.array([[self.EC]])
 
     def capacitance_matrix(self) -> ndarray:
         return np.array([[1.0 / (2 * self.EC)]])
-
-    def sorted_minima_dict(self) -> ndarray:
-        return np.array([[0.0]])

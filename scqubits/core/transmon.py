@@ -132,6 +132,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         ind = np.arange(dimension - 1)
         hamiltonian_mat[ind, ind + 1] = -self.EJ / 2.0
         hamiltonian_mat[ind + 1, ind] = -self.EJ / 2.0
+        hamiltonian_mat += self.EJ * np.eye(dimension)
         return hamiltonian_mat
 
     def d_hamiltonian_d_ng(self) -> ndarray:
