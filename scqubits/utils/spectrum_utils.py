@@ -261,25 +261,23 @@ def emission_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     return spectrum_data
 
 
-def convert_esys_to_ndarray(esys_qutip: "QutipEigenstates") -> np.ndarray:
+def convert_evecs_to_ndarray(evecs_qutip: ndarray) -> np.ndarray:
     """Takes a qutip eigenstates array, as obtained with .eigenstates(), and converts
     it into a pure numpy array.
-
     Parameters
     ----------
-    esys_qutip:
-        as obtained from qutip `.eigenstates()`
-
+    evecs_qutip:
+        ndarray of eigenstates in qt.Qobj format
     Returns
     -------
         converted eigenstate data
     """
-    evals_count = len(esys_qutip)
-    dimension = esys_qutip[0].shape[0]
-    esys_ndarray = np.empty((evals_count, dimension), dtype=np.complex_)
-    for index, eigenstate in enumerate(esys_qutip):
-        esys_ndarray[index] = eigenstate.full()[:, 0]
-    return esys_ndarray
+    evals_count = len(evecs_qutip)
+    dimension = evecs_qutip[0].shape[0]
+    evecs_ndarray = np.empty((evals_count, dimension), dtype=np.complex_)
+    for index, eigenstate in enumerate(evecs_qutip):
+        evecs_ndarray[index] = eigenstate.full()[:, 0]
+    return evecs_ndarray
 
 
 def convert_matrix_to_qobj(

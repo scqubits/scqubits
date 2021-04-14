@@ -293,32 +293,24 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         )
         a_operator_array = self._a_operator_array()
         Xi_inv = inv(Xi)
-        exp_a_list = np.zeros(
-            (dim, num_states_per_min, num_states_per_min), dtype=np.complex_
+        exp_a_plus_list = np.empty(
+            (dim, num_states_per_min, num_states_per_min), dtype=np.complex128
         )
-        exp_a_dagger_list = np.zeros_like(exp_a_list)
+        exp_a_minus_list = np.empty_like(exp_a_plus_list)
+        exp_a_dagger_plus_list = np.empty_like(exp_a_plus_list)
+        exp_a_dagger_minus_list = np.empty_like(exp_a_plus_list)
         for i in range(dim):
-            exp_a_dagger_list[i] = expm(
-                np.sum(
-                    2.0
-                    * np.pi
-                    * (Xi_inv.T[i] @ prefactor_a_dagger)
-                    * a_operator_array.T,
-                    axis=2,
-                )
-                / np.sqrt(2.0)
-            )
-            exp_a_list[i] = expm(
-                np.sum(
-                    2.0
-                    * np.pi
-                    * (Xi_inv.T[i] @ prefactor_a)
-                    * np.transpose(a_operator_array, axes=(1, 2, 0)),
-                    axis=2,
-                )
-                / np.sqrt(2.0)
-            )
-        return exp_a_list, exp_a_dagger_list
+            a_dagger_arg = np.sum(2.0 * np.pi * (Xi_inv.T[i] @ prefactor_a_dagger)
+                                  * a_operator_array.T, axis=2) / np.sqrt(2.0)
+            exp_a_dagger_plus_list[i] = expm(a_dagger_arg)
+            exp_a_dagger_minus_list[i] = expm(-a_dagger_arg)
+            a_arg = (np.sum(2.0 * np.pi * (Xi_inv.T[i] @ prefactor_a)
+                            * np.transpose(a_operator_array, axes=(1, 2, 0)), axis=2)
+                     / np.sqrt(2.0))
+            exp_a_plus_list[i] = expm(a_arg)
+            exp_a_minus_list[i] = expm(-a_arg)
+        return [exp_a_plus_list, exp_a_minus_list], [exp_a_dagger_plus_list,
+                                                     exp_a_dagger_minus_list]
 
     def _minima_dependent_translation_operators(
         self,
@@ -472,32 +464,46 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         unit_cell_vector: ndarray,
     ) -> Tuple:
         """Build translation operators using matrix_power"""
-        dim = self.number_degrees_freedom
         (exp_a_list, exp_a_dagger_list), (
             exp_a_minima_difference,
             exp_a_dagger_minima_difference,
         ) = exp_operators
         exp_a_dagger_a_dagger, exp_a_dagger_a, exp_a_a = squeezing_operators
-        individual_op_a_dagger = np.array(
-            [
-                matrix_power(exp_a_dagger_list[j], int(unit_cell_vector[j]))
-                for j in range(dim)
-            ]
+        exp_a_plus_list, exp_a_minus_list = exp_a_list
+        exp_a_dagger_plus_list, exp_a_dagger_minus_list = exp_a_dagger_list
+        ops_with_power_for_a_dagger = zip(
+            exp_a_dagger_plus_list,
+            exp_a_dagger_minus_list,
+            unit_cell_vector.astype(int),
         )
-        individual_op_a = np.array(
-            [matrix_power(exp_a_list[j], -int(unit_cell_vector[j])) for j in range(dim)]
+        ops_with_power_for_a = zip(
+            exp_a_plus_list,
+            exp_a_minus_list,
+            -unit_cell_vector.astype(int),
         )
-        translation_op_a_dag = (
-            reduce((lambda x, y: x @ y), individual_op_a_dagger)
-            @ exp_a_dagger_minima_difference
-            @ exp_a_dagger_a_dagger
-        )
-        translation_op_a = (
-            reduce((lambda x, y: x @ y), individual_op_a)
-            @ exp_a_minima_difference
-            @ exp_a_a
-        )
+        translation_op_a_dag = (reduce(np.matmul, map(self._matrix_power_helper,
+                                                      ops_with_power_for_a_dagger))
+                                @ exp_a_dagger_minima_difference
+                                @ exp_a_dagger_a_dagger)
+        translation_op_a = (reduce(np.matmul, map(self._matrix_power_helper,
+                                                  ops_with_power_for_a))
+                            @ exp_a_minima_difference @ exp_a_a)
         return translation_op_a_dag, translation_op_a
+
+    def _matrix_power_helper(
+        self, translation_op_with_power: Tuple[ndarray, ndarray, int]
+    ) -> ndarray:
+        """Helper method that actually returns translation operators. If the translation
+        operator has been built before and stored, use that result. Additionally if
+        the translation is given by a negative integer, take advantage of having
+        built a pre-exponentiated operator with -2\pi argument to avoid a costly call to
+        inv."""
+        (exp_plus_list, exp_minus_list, unit_cell_vector) = translation_op_with_power
+        if unit_cell_vector >= 0:
+            translation_operator = matrix_power(exp_plus_list, unit_cell_vector)
+        else:
+            translation_operator = matrix_power(exp_minus_list, -unit_cell_vector)
+        return translation_operator
 
     def _periodic_continuation(
         self,
@@ -622,7 +628,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             )
         else:
             relevant_vector_contributions = np.zeros(
-                (num_states_per_min, num_states_per_min), dtype=np.complex_
+                (num_states_per_min, num_states_per_min), dtype=np.complex128
             )
         return relevant_vector_contributions
 

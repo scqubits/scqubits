@@ -110,6 +110,7 @@ class VTBBaseMethods(ABC):
         displacement_vector_cutoff: float = 1e-15,
         maximum_site_length: int = 2,
         safe_run: bool = False,
+        inner_prod_eval_tol: float = 1e-8,
     ) -> None:
         self.num_exc = num_exc
         # TODO rename to maximum_unit_cell_vector_length
@@ -133,6 +134,7 @@ class VTBBaseMethods(ABC):
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
         self.translation_op_dict = {}
         self.safe_run = safe_run
+        self.inner_prod_eval_tol = inner_prod_eval_tol
         self._evec_dtype = np.complex128
 
     @property
@@ -1255,7 +1257,7 @@ class VTBBaseMethods(ABC):
             relevant_unit_cell_vectors, harmonic_lengths, num_cpus=num_cpus
         )
         if self.safe_run:
-            eval_tol = 1e-8
+            eval_tol = self.inner_prod_eval_tol
             evals_inn, evecs_inn = eigh(inner_product_matrix)
             evals_nonzero = list(filter(lambda x: x > eval_tol, evals_inn))
             if not evals_inn == evals_nonzero:
