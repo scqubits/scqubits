@@ -284,13 +284,13 @@ class GUI:
         ].description = "{} range".format(change.new)
 
     def qubit_buttons_eventhandler(self, change):
+        self.subtract_ground_active = False
         self.qubit_change = True
 
     def save_button_clicked_action(self, *args):
         self.fig.savefig(self.qubit_plot_options_widgets["filename_text"].value)
 
     def subtract_ground_eventhandler(self, change):
-        print("Hello")
         self.subtract_ground_active = change.new
 
     # Methods for qubit_plot_interactive -------------------------------------------------------------------------------------------------
@@ -527,7 +527,7 @@ class GUI:
             scale_value = None
 
         self.update_qubit_params(**params)
-        self.fig, _ = self.active_qubit.plot_wavefunction(
+        self.fig, ax = self.active_qubit.plot_wavefunction(
             which=eigenvalue_states, mode=mode_value, scaling=scale_value
         )
         GUI.fig_ax = self.fig, ax
