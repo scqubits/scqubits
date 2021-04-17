@@ -490,21 +490,6 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                             @ exp_a_minima_difference @ exp_a_a)
         return translation_op_a_dag, translation_op_a
 
-    def _matrix_power_helper(
-        self, translation_op_with_power: Tuple[ndarray, ndarray, int]
-    ) -> ndarray:
-        """Helper method that actually returns translation operators. If the translation
-        operator has been built before and stored, use that result. Additionally if
-        the translation is given by a negative integer, take advantage of having
-        built a pre-exponentiated operator with -2\pi argument to avoid a costly call to
-        inv."""
-        (exp_plus_list, exp_minus_list, unit_cell_vector) = translation_op_with_power
-        if unit_cell_vector >= 0:
-            translation_operator = matrix_power(exp_plus_list, unit_cell_vector)
-        else:
-            translation_operator = matrix_power(exp_minus_list, -unit_cell_vector)
-        return translation_operator
-
     def _periodic_continuation(
         self,
         minima_pair_func: Callable,

@@ -132,7 +132,6 @@ class VTBBaseMethods(ABC):
         self.displacement_vector_cutoff = displacement_vector_cutoff
         self.maximum_site_length = maximum_site_length
         self.periodic_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 100)
-        self.translation_op_dict = {}
         self.safe_run = safe_run
         self.inner_prod_eval_tol = inner_prod_eval_tol
         self._evec_dtype = np.complex128
@@ -666,13 +665,11 @@ class VTBBaseMethods(ABC):
         exp_a_list, exp_a_minus_list = exp_list
         exp_a_minima_difference, exp_a_dagger_minima_difference = exp_minima_difference
         ops_with_power_for_a_dagger = zip(
-            np.arange(self.number_degrees_freedom),
             exp_a_list,
             exp_a_minus_list,
             unit_cell_vector.astype(int),
         )
         ops_with_power_for_a = zip(
-            np.arange(self.number_degrees_freedom),
             exp_a_list,
             exp_a_minus_list,
             -unit_cell_vector.astype(int),
@@ -689,22 +686,19 @@ class VTBBaseMethods(ABC):
         )
         return translation_op_a_dagger, translation_op_a
 
-    def _matrix_power_helper(
-        self, translation_op_with_power: Tuple[int, ndarray, ndarray, int]
+    @staticmethod
+    def _matrix_power_helper(translation_op_with_power: Tuple[ndarray, ndarray, int]
     ) -> ndarray:
         """Helper method that actually returns translation operators. If the translation
         operator has been built before and stored, use that result. Additionally if
         the translation is given by a negative integer, take advantage of having
         built a pre-exponentiated operator with -2\pi argument to avoid a costly call to
         inv."""
-        (j, exp_a_list, exp_a_minus_list, unit_cell_vector) = translation_op_with_power
-        if (j, unit_cell_vector) in self.translation_op_dict:
-            return self.translation_op_dict[(j, unit_cell_vector)]
-        elif unit_cell_vector >= 0:
-            translation_operator = matrix_power(exp_a_list, unit_cell_vector)
+        (exp_plus_list, exp_minus_list, unit_cell_vector) = translation_op_with_power
+        if unit_cell_vector >= 0:
+            translation_operator = matrix_power(exp_plus_list, unit_cell_vector)
         else:
-            translation_operator = matrix_power(exp_a_minus_list, -unit_cell_vector)
-        self.translation_op_dict[(j, unit_cell_vector)] = translation_operator
+            translation_operator = matrix_power(exp_minus_list, -unit_cell_vector)
         return translation_operator
 
     def _exp_product_coefficient(self, delta_phi: ndarray, Xi_inv: ndarray) -> ndarray:
@@ -769,7 +763,6 @@ class VTBBaseMethods(ABC):
             )
         else:
             harmonic_lengths = None
-        self.translation_op_dict = {}
         return relevant_unit_cell_vectors, harmonic_lengths
 
     def n_operator(self, dof_index: int = 0, num_cpus: int = 1) -> ndarray:
