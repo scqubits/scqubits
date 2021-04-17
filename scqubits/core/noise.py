@@ -1147,7 +1147,6 @@ class NoisySystem(ABC):
                     "See documentation for details.\n"
                     "This warning can be disabled by executing:\n"
                     "scqubits.settings.T1_DEFAULT_WARNING=False\n",
-                    # UserWarning,
                     UserWarning,
                 )
                 _t1_default_warning_given_flag = True
