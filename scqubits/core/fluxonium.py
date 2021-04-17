@@ -20,7 +20,6 @@ import scipy as sp
 
 from numpy import ndarray
 
-import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
 import scqubits.core.discretization as discretization
 import scqubits.core.operators as op
@@ -33,9 +32,6 @@ from scqubits.core.noise import NoisySystem
 
 if TYPE_CHECKING:
     from scqubits.core.discretization import Grid1d
-
-
-# —Fluxonium qubit ————————————————————————
 
 
 class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
@@ -176,8 +172,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             harmonic oscillator basis,
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        exp_matrix = self.exp_i_phi_operator(alpha, beta)
-        return 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+        argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
+        return sp.linalg.cosm(argument)
 
     def sin_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
         """
@@ -187,24 +183,20 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             LC harmonic oscillator basis
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
-        exp_matrix = self.exp_i_phi_operator(alpha, beta)
-        return -1j * 0.5 * (exp_matrix - exp_matrix.conjugate().T)
+        argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
+        return sp.linalg.sinm(argument)
 
     def hamiltonian(self) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu
         et al., PRB 87, 024510 (2013)"""
         dimension = self.hilbertdim()
-        diag_elements = [i * self.E_plasma() for i in range(dimension)]
+        diag_elements = [(i + 0.5) * self.E_plasma() for i in range(dimension)]
         lc_osc_matrix = np.diag(diag_elements)
 
-        exp_matrix = self.exp_i_phi_operator() * cmath.exp(1j * 2 * np.pi * self.flux)
-        cos_matrix = 0.5 * (exp_matrix + exp_matrix.conjugate().T)
+        cos_matrix = self.cos_phi_operator(beta=2 * np.pi * self.flux)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
-        return np.real(
-            hamiltonian_mat
-        )  # use np.real to remove rounding errors from matrix exponential,
-        # fluxonium Hamiltonian in harm. osc. basis is real-valued
+        return hamiltonian_mat
 
     def d_hamiltonian_d_EJ(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect

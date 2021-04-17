@@ -53,7 +53,7 @@ def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int
 
     if not math.isclose(selected_value, value) and settings.FUZZY_WARNING:
         warnings.warn_explicit(
-            "Using fuzzy value_based indexing: selected value is {}".format(
+            "Using fuzzy value based indexing: selected value is {}".format(
                 selected_value
             ),
             UserWarning,
