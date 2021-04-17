@@ -522,7 +522,7 @@ class GUI:
             scale_value = None
 
         self.update_qubit_params(**params)
-        self.fig, _ = self.active_qubit.plot_wavefunction(
+        self.fig, ax = self.active_qubit.plot_wavefunction(
             which=eigenvalue_states, mode=mode_value, scaling=scale_value
         )
         GUI.fig_ax = self.fig, ax
