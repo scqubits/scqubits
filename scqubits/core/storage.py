@@ -197,12 +197,15 @@ class SpectrumData(DataStore):
         label_list: List[str] = None,
         **kwargs
     ) -> "Tuple[Figure, Axes]":
-        """Plots eigenvalues of as a function of one parameter, as stored in SpectrumData object.
+        """Plots eigenvalues of as a function of one parameter, as stored in
+        `SpectrumData` object.
 
         Parameters
         ----------
         which:
-            default: -1, signals to plot all eigenvalues; int>0: plot eigenvalues 0..int-1; list(int) plot the specific
+            default: -1, signals to plot all eigenvalues;
+            int>0: plot eigenvalues 0..int-1;
+            list(int) plot the specific
             eigenvalues (indices listed)
         subtract_ground:
             whether to subtract the ground state energy, default: False
