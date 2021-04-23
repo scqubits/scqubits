@@ -349,10 +349,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
 
     def q_ind(self, energy):
         """Frequency dependent quality factor of inductance"""
-        q_ind_0 = 500 * 1e6
-        return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt) * np.sinh(0.5 / 2.0 / self.kbt) / kn(0,
-                                                                                          energy / 2.0 / self.kbt) / np.sinh(
-            energy / 2.0 / self.kbt)
+        # q_ind_0 = 500 * 1e6
+        # return q_ind_0 * kn(0, 0.5 / 2.0 / self.kbt) * np.sinh(0.5 / 2.0 / self.kbt) / kn(0,
+        #                                                                                   energy / 2.0 / self.kbt) / np.sinh(
+        #     energy / 2.0 / self.kbt)
+        return 5e9
 
     def get_t1_inductive_loss(self, para_name, para_vals):
         energy = self.get_spectrum_vs_paramvals(para_name, para_vals, evals_count=2, subtract_ground=True).energy_table[

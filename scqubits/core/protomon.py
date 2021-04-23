@@ -913,6 +913,7 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         )
         t1_tot = 1 / (1 / t1_cap + 1 / t1_ind + 1 / t1_qp)
         t2_tot = 1 / (1 / t2_current + 1 / t2_flux_c + 1 / t2_flux_d + 1 / t1_tot / 2)
+        t2_phi = 1 / (1 / t2_current + 1 / t2_flux_c + 1 / t2_flux_d)
 
         if table is True:
             print(
@@ -940,10 +941,15 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
                 "\n T2 =",
                 t2_tot,
                 " ms",
+                "\n T2_phi =",
+                t2_phi,
+                " ms",
+
             )
 
         return np.array(
-            [t2_current, t2_flux_c, t2_flux_d, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot]
+            [t2_current, t2_flux_c, t2_flux_d, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot,
+             t2_phi]
         )
 
     def dispersive_shift(self, w_readout, beta_phi, beta_theta, cutoff):
@@ -1305,3 +1311,111 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
                 t1_tot,
                 " ms",
             )
+
+        return t1_cap, t1_ind, t1_qp, t1_tot
+
+    def print_noise_leakage(self, g_state, e_state, table=True):
+        """
+        print summary of all noise channels
+        :param g_state: the logical 0 state of the qubit
+        :param e_state: the logical 1 state of the qubit
+        :return: t2_current, t2_flux, t2_fluxa, t1_cap, t1_ind, t1_qp, t1_tot, t2_tot
+        """
+        t1_cap = 1 / (
+            1 / self.get_t1_capacitive_loss_logical(g_state, e_state)
+        )
+        t1_ind = 1 / (
+            1 / self.get_t1_inductive_loss_logical(g_state, e_state)
+        )
+        t1_qp = 1 / (
+            1 / self.get_t1_qp_loss_logical(g_state,e_state)
+        )
+        t1_tot = 1 / (1 / t1_cap + 1 / t1_ind + 1 / t1_qp)
+
+        if table is True:
+            print(
+                " T1_cap =",
+                t1_cap,
+                " ms",
+                "\n T1_ind =",
+                t1_ind,
+                " ms",
+                "\n T1_qp =",
+                t1_qp,
+                " ms",
+                "\n T1 =",
+                t1_tot,
+                " ms",
+            )
+
+        return t1_cap, t1_ind, t1_qp, t1_tot
+
+    # def error_1_operator(self):
+    #     return self.phase_ind_1_operator() ** 2
+    # def error_2_operator(self):
+    #     return self.phase_ind_2_operator() ** 2
+    # def error_cross_operator(self):
+    #     return self.phase_ind_1_operator() * self.phase_ind_2_operator()
+
+    def error_2_operator(self):
+        return self.charge_jj_2_operator() ** 2
+    def error_1_operator(self):
+        return self.charge_jj_1_operator() ** 2
+    def error_cross_operator(self):
+        return self.charge_jj_1_operator() * self.charge_jj_2_operator()
+
+    def get_t1_inductive_loss_add(self, init_state):
+        """
+        T1 inductive loss of one particular state
+        """
+        cutoff = init_state + 4
+        energy = self._evals_calc(cutoff)
+        energy_diff = energy[init_state] - energy
+        energy_diff = np.delete(energy_diff, init_state)
+
+        matelem_1 = self.get_matelements_vs_paramvals(
+            "phase_ind_1_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
+        matelem_1 = np.delete(matelem_1, init_state)
+        matelem_2 = self.get_matelements_vs_paramvals(
+            "phase_ind_2_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
+        matelem_2 = np.delete(matelem_2, init_state)
+        matelem_a = self.get_matelements_vs_paramvals(
+            "phase_ind_a_operator", "ph", [0], evals_count=cutoff
+        ).matrixelem_table[0, init_state, :]
+        matelem_a = np.delete(matelem_a, init_state)
+
+        s_ii_1 = (
+            2
+            * np.pi
+            * 2
+            * self.EL
+            / self.q_ind(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
+        s_ii_2 = (
+            2
+            * np.pi
+            * 2
+            * self.EL
+            / self.q_ind(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
+        s_ii_a = (
+            2
+            * np.pi
+            * 2
+            * self.ELA
+            / self.q_ind(np.abs(energy_diff))
+            * self.thermal_factor(energy_diff)
+        )
+
+        gamma1_ind_1 = np.abs(matelem_1) ** 2 * s_ii_1
+        gamma1_ind_2 = np.abs(matelem_2) ** 2 * s_ii_2
+        gamma1_ind_a = np.abs(matelem_a) ** 2 * s_ii_a
+
+        gamma1_ind_tot = (
+             np.sum(gamma1_ind_1)
+        )
+        return 1 / (gamma1_ind_tot) * 1e-6
