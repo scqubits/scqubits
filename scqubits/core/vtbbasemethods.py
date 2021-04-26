@@ -213,6 +213,21 @@ class VTBBaseMethods(ABC):
         ) / Phi0 ** 2
         return gamma_matrix
 
+    def find_invertible_submatrix(self, mat: ndarray, tol: float):
+        n, m = mat.shape
+        invertible_submatrix_mat = np.zeros((min(n, m), min(n, m)))
+        append_counter = 0
+        for i, row in enumerate(mat):
+            tmp_mat = np.copy(invertible_submatrix_mat)
+            tmp_mat[append_counter] = mat[i]
+            rank = np.linalg.matrix_rank(tmp_mat, tol)
+            if rank == append_counter + 1:
+                invertible_submatrix_mat = np.copy(tmp_mat)
+                append_counter += 1
+            if append_counter == min(n, m):
+                break
+        return invertible_submatrix_mat
+
     def eigensystem_normal_modes(self, minimum_index: int = 0) -> (ndarray, ndarray):
         """Returns squared normal mode frequencies, matrix of eigenvectors
 

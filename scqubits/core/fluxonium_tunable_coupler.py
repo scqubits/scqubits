@@ -397,10 +397,8 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseCl
         ) = self._setup_effective_calculation()
         g_s_expect = self.fluxonium_minus_gs_expect()
         EL_bar = fluxonium_a.EL
-        #        flux_shift = 0.5 * g_s_expect * self.ELa * (1 + (J / EL_bar)) / (EL_bar * (1 - (J / EL_bar)**2))
-        #        flux_a, flux_b = 2.0 * np.pi * self.flux_a - flux_shift, 2.0 * np.pi * self.flux_b - flux_shift
         fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
-        fluxonium_a.truncated_dim, fluxonium_b.truncated_dim = 2, 2
+#        fluxonium_a.truncated_dim, fluxonium_b.truncated_dim = 2, 2
         hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
         H_0 = hilbert_space.hamiltonian()
         phi_a_ops, n_a_ops = self._single_hamiltonian_effective(
@@ -411,13 +409,13 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseCl
         )
         H_a = phi_a_ops * (
                 2.0 * np.pi * (0.5 - self.flux_a) * EL_bar
-                - 2.0 * np.pi * (0.5 - self.flux_b) * J
+                + 2.0 * np.pi * (0.5 - self.flux_b) * J
                 - 0.5 * self.ELa * g_s_expect
         )
-        H_b = -phi_b_ops * (
+        H_b = phi_b_ops * (
                 2.0 * np.pi * (0.5 - self.flux_b) * EL_bar
-                - 2.0 * np.pi * (0.5 - self.flux_a) * J
-                - 0.5 * self.ELb * g_s_expect
+                + 2.0 * np.pi * (0.5 - self.flux_a) * J
+                + 0.5 * self.ELb * g_s_expect
         )
         H_ab = (
                 J * (phi_a_ops * phi_b_ops)

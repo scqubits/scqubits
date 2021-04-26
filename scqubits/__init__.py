@@ -43,6 +43,7 @@ from scqubits.core.flux_qubit_vtb import (
     FluxQubitVTBSqueezing,
 )
 from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
+from scqubits.core.fluxonium_tunable_coupler import FluxoniumTunableCouplerGrounded
 from scqubits.core.generic_qubit import GenericQubit
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.noise import calc_therm_ratio
