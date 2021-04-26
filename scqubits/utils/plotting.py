@@ -605,7 +605,13 @@ def data_vs_paramvals(
             except Exception:
                 pass
         else:
-            axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+            axes.legend(
+                bbox_to_anchor=(1.04, 0.5),
+                loc="center left",
+                borderaxespad=0,
+                frameon=False,
+            )
+            # legend(loc="center left", bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, **kwargs)
     return fig, axes
 

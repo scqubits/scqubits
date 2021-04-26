@@ -66,7 +66,6 @@ class WatchedProperty:
 
     def __get__(self, instance: object, owner: Any) -> Any:
         if instance is None:  # when accessed on class level rather than instance level
-            # raise TypeError("Descriptor only applies to instances, not to class itself.")
             return self
 
         if self.inner and self.attr_name:

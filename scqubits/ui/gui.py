@@ -16,7 +16,7 @@ from typing import Dict, List, Tuple, Union
 
 import numpy as np
 
-from matplotlib.figure import Figure
+from matplotlib.figure import Axes, Figure
 
 try:
     from ipywidgets import (
@@ -51,6 +51,10 @@ from scqubits.core.qubit_base import QubitBaseClass
 
 
 class GUI:
+
+    # Handle to the most recently generated Figure, Axes tuple
+    fig_ax: Tuple[Figure, Axes] = None
+
     def __repr__(self):
         return ""
 
@@ -339,12 +343,13 @@ class GUI:
         scan_min, scan_max = scan_range
         self.update_qubit_params(**params)
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
-        self.fig, _ = self.active_qubit.plot_evals_vs_paramvals(
+        self.fig, ax = self.active_qubit.plot_evals_vs_paramvals(
             scan_value,
             np_list,
             evals_count=eigenvalue_state_value,
             subtract_ground=subtract_ground_tf,
         )
+        GUI.fig_ax = self.fig, ax
 
     def grid_evals_vs_paramvals_plot(
         self,
@@ -382,12 +387,13 @@ class GUI:
         self.update_grid_qubit_params(**params)
         scan_min, scan_max = scan_range
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
-        self.fig, _ = self.active_qubit.plot_evals_vs_paramvals(
+        self.fig, ax = self.active_qubit.plot_evals_vs_paramvals(
             scan_value,
             np_list,
             evals_count=eigenvalue_state_value,
             subtract_ground=subtract_ground_tf,
         )
+        GUI.fig_ax = self.fig, ax
 
     def matelem_vs_paramvals_plot(
         self,
@@ -426,13 +432,14 @@ class GUI:
         scan_min, scan_max = scan_range
         self.update_qubit_params(**params)
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
-        self.fig, _ = self.active_qubit.plot_matelem_vs_paramvals(
+        self.fig, ax = self.active_qubit.plot_matelem_vs_paramvals(
             operator_value,
             scan_value,
             np_list,
             select_elems=matrix_element_state_value,
             mode=mode_value,
         )
+        GUI.fig_ax = self.fig, ax
 
     def grid_matelem_vs_paramvals_plot(
         self,
@@ -472,7 +479,7 @@ class GUI:
         self.update_grid_qubit_params(**params)
         scan_min, scan_max = scan_range
         np_list = np.linspace(scan_min, scan_max, self.active_defaults["num_sample"])
-        self.fig, _ = self.active_qubit.plot_matelem_vs_paramvals(
+        self.fig, ax = self.active_qubit.plot_matelem_vs_paramvals(
             operator_value,
             scan_value,
             np_list,
@@ -515,9 +522,10 @@ class GUI:
             scale_value = None
 
         self.update_qubit_params(**params)
-        self.fig, _ = self.active_qubit.plot_wavefunction(
+        self.fig, ax = self.active_qubit.plot_wavefunction(
             which=eigenvalue_states, mode=mode_value, scaling=scale_value
         )
+        GUI.fig_ax = self.fig, ax
 
     def wavefunction_plot(
         self,
@@ -539,9 +547,10 @@ class GUI:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
         self.update_qubit_params(**params)
-        self.fig, _ = self.active_qubit.plot_wavefunction(
+        self.fig, ax = self.active_qubit.plot_wavefunction(
             which=eigenvalue_states, mode=mode_value
         )
+        GUI.fig_ax = self.fig, ax
 
     def grid_wavefunction_plot(
         self,
@@ -564,9 +573,10 @@ class GUI:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
         self.update_grid_qubit_params(**params)
-        self.fig, _ = self.active_qubit.plot_wavefunction(
+        self.fig, ax = self.active_qubit.plot_wavefunction(
             which=eigenvalue_states, mode=mode_value
         )
+        GUI.fig_ax = self.fig, ax
 
     def matrixelements_plot(
         self,
@@ -602,13 +612,14 @@ class GUI:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
         self.update_qubit_params(**params)
-        self.fig, _ = self.active_qubit.plot_matrixelements(
+        self.fig, ax = self.active_qubit.plot_matrixelements(
             operator_value,
             evals_count=eigenvalue_state_value,
             mode=mode_value,
             show_numbers=show_numbers_tf,
             show3d=show3d_tf,
         )
+        GUI.fig_ax = self.fig, ax
 
     def grid_matrixelements_plot(
         self,
@@ -645,13 +656,14 @@ class GUI:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
         self.update_grid_qubit_params(**params)
-        self.fig, _ = self.active_qubit.plot_matrixelements(
+        self.fig, ax = self.active_qubit.plot_matrixelements(
             operator_value,
             evals_count=eigenvalue_state_value,
             mode=mode_value,
             show_numbers=show_numbers_tf,
             show3d=show3d_tf,
         )
+        GUI.fig_ax = self.fig, ax
 
     # Methods for create_GUI -------------------------------------------------------------------------------------------------
     def display_qubit_info(self, qubit_info: bool) -> None:
