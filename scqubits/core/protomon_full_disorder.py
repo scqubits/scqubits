@@ -260,14 +260,14 @@ class DisorderFullProtomon(base.QubitBaseClass, serializers.Serializable):
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         )
 
-    def _n_phi_operator(self) -> dia_matrix:
+    def _n_phi_operator(self) -> csc_matrix:
         """
         Returns
         -------
         ndarray
             Returns the :math:`n_\phi = - i d/d\\phi` operator
         """
-        return self.phi_grid.first_derivative_matrix(prefactor=-1j)
+        return self.phi_grid.first_derivative_matrix(prefactor=-1j).tocsc()
 
     def n_phi_operator(self) -> csc_matrix:
         """
@@ -327,14 +327,14 @@ class DisorderFullProtomon(base.QubitBaseClass, serializers.Serializable):
             self._identity_phi(), self._identity_zeta(), self._theta_operator()
         )
 
-    def _n_theta_operator(self) -> dia_matrix:
+    def _n_theta_operator(self) -> csc_matrix:
         """
         Returns
         -------
         ndarray
             Returns the :math:`n_\theta = - i d/d\\theta` operator
         """
-        return self.theta_grid.first_derivative_matrix(prefactor=-1j)
+        return self.theta_grid.first_derivative_matrix(prefactor=-1j).tocsc()
 
     def n_theta_operator(self) -> csc_matrix:
         """
