@@ -260,14 +260,14 @@ class DisorderFullProtomon(base.QubitBaseClass, serializers.Serializable):
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         )
 
-    def _n_phi_operator(self) -> csc_matrix:
+    def _n_phi_operator(self) -> dia_matrix:
         """
         Returns
         -------
         ndarray
             Returns the :math:`n_\phi = - i d/d\\phi` operator
         """
-        return self.phi_grid.first_derivative_matrix(prefactor=-1j).tocsc()
+        return self.phi_grid.first_derivative_matrix(prefactor=-1j)
 
     def n_phi_operator(self) -> csc_matrix:
         """
@@ -327,14 +327,14 @@ class DisorderFullProtomon(base.QubitBaseClass, serializers.Serializable):
             self._identity_phi(), self._identity_zeta(), self._theta_operator()
         )
 
-    def _n_theta_operator(self) -> csc_matrix:
+    def _n_theta_operator(self) -> dia_matrix:
         """
         Returns
         -------
         ndarray
             Returns the :math:`n_\theta = - i d/d\\theta` operator
         """
-        return self.theta_grid.first_derivative_matrix(prefactor=-1j).tocsc()
+        return self.theta_grid.first_derivative_matrix(prefactor=-1j)
 
     def n_theta_operator(self) -> csc_matrix:
         """
@@ -422,7 +422,7 @@ class DisorderFullProtomon(base.QubitBaseClass, serializers.Serializable):
             self._identity_phi(), self._identity_zeta(), self._identity_theta()
         )
 
-    def hamiltonian(self) -> csc_matrix:
+    def hamiltonian(self):
         zeta_osc = self._kron3(
             self._identity_phi(),
             op.number_sparse(self.dim_zeta(), self.zeta_plasma()),
