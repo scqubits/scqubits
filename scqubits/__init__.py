@@ -33,6 +33,7 @@ from scqubits.core.oscillator import KerrOscillator, Oscillator
 from scqubits.core.param_sweep import ParameterSweep
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
+from scqubits.core.protomon_full_disorder import DisorderFullProtomon
 from scqubits.core.units import (
     from_standard_units,
     get_units,
