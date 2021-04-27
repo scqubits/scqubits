@@ -43,8 +43,8 @@ Related Packages
 
 There are two related packages on github:
 
-documentation source code: https://github.com/scqubits/scqubits-doc 
-example notebooks: https://github.com/scqubits/scqubits-examples
+documentation source code: https://github.com/scqubits/scqubits-doc   
+example notebooks: https://github.com/scqubits/scqubits-examples  
 
 
 Contribute
