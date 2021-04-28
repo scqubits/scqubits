@@ -635,3 +635,17 @@ class DisorderFullProtomon(base.QubitBaseClass, serializers.Serializable):
         axes.set_yticklabels(["0", "$\pi$", "$2\pi$"])
 
         return fig, axes
+
+    def chi_operator(self) -> csc_matrix:
+        """
+        Returns
+        -------
+        ndarray
+            Returns charge operator :math:`\\n_theta` in the total Hilbert space
+        """
+        beta_theta = -0.093
+        beta_phi = 0.091
+        beta_zeta = -0.53
+
+        return (self.n_theta_operator() * beta_theta + self.n_phi_operator() *
+                beta_phi+ self.n_zeta_operator() * beta_zeta)

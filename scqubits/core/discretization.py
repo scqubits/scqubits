@@ -155,71 +155,129 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         """
         return np.linspace(self.min_val, self.max_val, self.pt_count)
 
-    def first_derivative_matrix(
-        self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
-    ) -> dia_matrix:
+    def first_derivative_matrix(self, prefactor=1.0, periodic=False):
         """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
-        Uses STENCIL setting to construct the matrix with a multi-point stencil.
-
+        Uses :math:`f'(x) \\approx [f(x+h) - f(x-h)]/2h`.
         Parameters
         ----------
-        prefactor:
+        prefactor: float or complex, optional
             prefactor of the derivative matrix (default value: 1.0)
-        periodic:
+        periodic: bool, optional
             set to True if variable is a periodic variable
-
         Returns
         -------
-            sparse matrix in `dia` format
+        sparse matrix in `dia` format
         """
         if isinstance(prefactor, complex):
             dtp = np.complex_
         else:
             dtp = np.float_
 
-        delta_x = self.grid_spacing()
-        matrix_diagonals = [
-            coefficient * prefactor / delta_x
-            for coefficient in FIRST_STENCIL_COEFFS[settings.STENCIL]
-        ]
-        offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
-        derivative_matrix = band_matrix(
-            matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic
-        )
+        delta_x = (self.max_val - self.min_val) / self.pt_count
+        offdiag_element = prefactor / (2 * delta_x)
+
+        derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=dtp)
+        derivative_matrix.setdiag(offdiag_element, k=1)    # occupy first off-diagonal to the right
+        derivative_matrix.setdiag(-offdiag_element, k=-1)  # and left
+
+        if periodic:
+            derivative_matrix.setdiag(-offdiag_element, k=self.pt_count - 1)
+            derivative_matrix.setdiag(offdiag_element, k=-self.pt_count + 1)
+
         return derivative_matrix
 
-    def second_derivative_matrix(
-        self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
-    ) -> dia_matrix:
+    def second_derivative_matrix(self, prefactor=1.0, periodic=False):
         """Generate sparse matrix for second derivative of the form :math:`\\partial^2_{x_i}`.
-        Uses STENCIL setting to construct the matrix with a multi-point stencil.
-
+        Uses :math:`f''(x) \\approx [f(x+h) - 2f(x) + f(x-h)]/h^2`.
         Parameters
         ----------
-        prefactor:
+        prefactor: float, optional
             optional prefactor of the derivative matrix (default value = 1.0)
-        periodic:
+        periodic: bool, optional
             set to True if variable is a periodic variable (default value = False)
-
         Returns
         -------
-            sparse matrix in `dia` format
+        sparse matrix in `dia` format
         """
-        if isinstance(prefactor, complex):
-            dtp = np.complex_
-        else:
-            dtp = np.float_
+        delta_x = (self.max_val - self.min_val) / self.pt_count
+        offdiag_element = prefactor / delta_x**2
 
-        delta_x = self.grid_spacing()
-        matrix_diagonals = [
-            coefficient * prefactor / delta_x ** 2
-            for coefficient in SECOND_STENCIL_COEFFS[settings.STENCIL]
-        ]
-        offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
-        derivative_matrix = band_matrix(
-            matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic
-        )
+        derivative_matrix = sparse.dia_matrix((self.pt_count, self.pt_count), dtype=np.float_)
+        derivative_matrix.setdiag(-2.0 * offdiag_element, k=0)
+        derivative_matrix.setdiag(offdiag_element, k=1)
+        derivative_matrix.setdiag(offdiag_element, k=-1)
+
+        if periodic:
+            derivative_matrix.setdiag(offdiag_element, k=self.pt_count - 1)
+            derivative_matrix.setdiag(offdiag_element, k=-self.pt_count + 1)
+
         return derivative_matrix
+
+    # def first_derivative_matrix(
+    #     self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
+    # ) -> dia_matrix:
+    #     """Generate sparse matrix for first derivative of the form :math:`\\partial_{x_i}`.
+    #     Uses STENCIL setting to construct the matrix with a multi-point stencil.
+    #
+    #     Parameters
+    #     ----------
+    #     prefactor:
+    #         prefactor of the derivative matrix (default value: 1.0)
+    #     periodic:
+    #         set to True if variable is a periodic variable
+    #
+    #     Returns
+    #     -------
+    #         sparse matrix in `dia` format
+    #     """
+    #     if isinstance(prefactor, complex):
+    #         dtp = np.complex_
+    #     else:
+    #         dtp = np.float_
+    #
+    #     delta_x = self.grid_spacing()
+    #     matrix_diagonals = [
+    #         coefficient * prefactor / delta_x
+    #         for coefficient in FIRST_STENCIL_COEFFS[settings.STENCIL]
+    #     ]
+    #     offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
+    #     derivative_matrix = band_matrix(
+    #         matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic
+    #     )
+    #     return derivative_matrix
+    #
+    # def second_derivative_matrix(
+    #     self, prefactor: Union[float, complex] = 1.0, periodic: bool = False
+    # ) -> dia_matrix:
+    #     """Generate sparse matrix for second derivative of the form :math:`\\partial^2_{x_i}`.
+    #     Uses STENCIL setting to construct the matrix with a multi-point stencil.
+    #
+    #     Parameters
+    #     ----------
+    #     prefactor:
+    #         optional prefactor of the derivative matrix (default value = 1.0)
+    #     periodic:
+    #         set to True if variable is a periodic variable (default value = False)
+    #
+    #     Returns
+    #     -------
+    #         sparse matrix in `dia` format
+    #     """
+    #     if isinstance(prefactor, complex):
+    #         dtp = np.complex_
+    #     else:
+    #         dtp = np.float_
+    #
+    #     delta_x = self.grid_spacing()
+    #     matrix_diagonals = [
+    #         coefficient * prefactor / delta_x ** 2
+    #         for coefficient in SECOND_STENCIL_COEFFS[settings.STENCIL]
+    #     ]
+    #     offset = [i - (settings.STENCIL - 1) // 2 for i in range(settings.STENCIL)]
+    #     derivative_matrix = band_matrix(
+    #         matrix_diagonals, offset, self.pt_count, dtype=dtp, has_corners=periodic
+    #     )
+    #     return derivative_matrix
 
 
 class GridSpec(dispatch.DispatchClient, serializers.Serializable):
