@@ -141,7 +141,7 @@ class branch:
         return set(self.nodes) & set(branch.nodes)
 
 
-class CustomQCircuit:
+class CustomQCircuit(serializers.Serializable):
     """
     Class to describe a circuit using the classes node and branch.
 
@@ -171,7 +171,10 @@ class CustomQCircuit:
         self.branches = list_branches
         self.nodes = list_nodes
         self.mode = mode
-        self._input_string = None
+        self.input_string = None
+
+        self._init_params = ["input_string"]  # for saving the init data
+
         # properties set by methods
         self.trans_mat = None
 
@@ -244,8 +247,9 @@ class CustomQCircuit:
                 branches.append(branch(nodes[a - 1], nodes[b - 1], element, parameters))
             else:
                 break
+
         circuit = cls(nodes, branches, mode=mode)
-        circuit._input_string = input_string
+        circuit.input_string = input_string
 
         return circuit
 
@@ -257,7 +261,7 @@ class CustomQCircuit:
         - mode parameter to specify the use of symbolic or numerical circuit parameters
         """
         file = open(filename, "r")
-        return cls.from_input_string(cls, file.read(), mode=mode)
+        return cls.from_input_string(file.read(), mode=mode)
 
     """
     Methods to find the cyclic variables of the circuit

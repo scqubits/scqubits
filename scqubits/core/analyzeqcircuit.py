@@ -30,7 +30,7 @@ from scqubits.utils.spectrum_utils import (
 )
 
 
-class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
+class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializable):
     """
     Class to make numerical analysis on the CustomQCircuit instance. Subclass of CustomQCircuit and can be initiated using the same input file.
     """
@@ -72,7 +72,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
             [param.name for param in self.param_vars]
             + [flux.name for flux in self.external_flux_vars]
             + [attr for attr in self.__dict__.keys() if "cutoff" in attr]
-            + ["_input_string"]
+            + ["input_string"]
         )
 
         # Hamiltonian function
@@ -85,52 +85,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         Initialize AnalyzeQCircuit using an instance of CustomQCircuit.
         """
         return cls(circuit.nodes, circuit.branches, mode=circuit.mode)
-
-    @classmethod
-    def from_input_file(cls, filename: str, mode: str = "sym"):
-        """
-        Constructor:
-        - Constructing the instance from an input file
-        - separate methods for numerical and symbolic parameters
-        """
-        file = open(filename, "r")
-        lines = (file.read()).split("\n")
-        num_nodes = int(lines[0].split(":")[-1])
-        nodes = [node(i, 0) for i in range(1, num_nodes + 1)]
-        branches = []
-
-        first_branch = lines.index("branches:")
-        for l in range(first_branch + 1, len(lines)):
-            if lines[l] != "":
-                line = lines[l].split("\t")
-                a, b = [int(i) for i in line[1].split(",")]
-                element = line[0]
-
-                if element == "JJ":
-                    if (
-                        len(line) > 3
-                    ):  # check to see if all the required parameters are defined
-                        if mode == "sym":
-                            parameters = [symbols(line[2]), symbols(line[3])]
-                        elif mode == "num":
-                            parameters = [float(line[2]), float(line[3])]
-                    else:
-                        parameters = None
-                else:
-                    if (
-                        len(line) > 2
-                    ):  # check to see if all the required parameters are defined
-                        if mode == "sym":
-                            parameters = [symbols(line[2])]
-                        elif mode == "num":
-                            parameters = [float(line[2])]
-                    else:
-                        parameters = None
-                branches.append(branch(nodes[a - 1], nodes[b - 1], element, parameters))
-            else:
-                break
-
-        return cls(nodes, branches, mode=mode)
 
     ##################################################################
     ##### Functions to construct the function for the Hamiltonian ####
@@ -407,11 +361,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         """
         dim_theta = 2 * ncut + 1
         matrix = (
-            (sparse.dia_matrix(
-                    ([-1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)
-                )
-            ).tocsc()
-        )
+            sparse.dia_matrix(([-1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))
+        ).tocsc()
         return matrix
 
     def _exp_i_theta_operator_conjugate(self, ncut) -> csc_matrix:
@@ -420,21 +371,28 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         """
         dim_theta = 2 * ncut + 1
         matrix = (
-            (sparse.dia_matrix(
-                    ([-1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)
-                )
-            ).tocsc()
-        )
+            sparse.dia_matrix(([-1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta))
+        ).tocsc()
         return matrix
 
     def _cos_theta(self, ncut: int) -> csc_matrix:
         """Returns operator :math:`\\cos \\varphi` in the charge basis"""
-        cos_op = 0.5 * (self._exp_i_theta_operator(ncut) + self._exp_i_theta_operator_conjugate(ncut))
+        cos_op = 0.5 * (
+            self._exp_i_theta_operator(ncut)
+            + self._exp_i_theta_operator_conjugate(ncut)
+        )
         return cos_op
 
     def _sin_theta(self, ncut: int) -> csc_matrix:
         """Returns operator :math:`\\sin \\varphi` in the charge basis"""
-        sin_op = - 1j *0.5 * (self._exp_i_theta_operator(ncut) - self._exp_i_theta_operator_conjugate(ncut))
+        sin_op = (
+            -1j
+            * 0.5
+            * (
+                self._exp_i_theta_operator(ncut)
+                - self._exp_i_theta_operator_conjugate(ncut)
+            )
+        )
         return sin_op
 
     def circuit_operators(self):
@@ -532,7 +490,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         """
         Returns a dictionary which has the symbol names as the keys for the corresponding matrix operators used in the circuit.
         """
-        
+
         ops = self.circuit_operators()
         operator_list = (
             ops[0]
@@ -561,9 +519,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
             zip([i.name for i in syms_list], operator_list)
         )
 
-        return dict(
-                zip([i.name for i in syms_list], operator_list)
-            )
+        return dict(zip([i.name for i in syms_list], operator_list))
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
