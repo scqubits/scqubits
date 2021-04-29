@@ -240,11 +240,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         # Updating the class properties
         self.vars = [
             cyclic_symbols,
-            [periodic_symbols_ys, periodic_symbols_yc, periodic_symbols_n],
+            [periodic_symbols_yc, periodic_symbols_ys, periodic_symbols_n],
             [y_symbols, p_symbols, ps_symbols],
         ]
         self.H_func = func
-
+        setattr(self, "H_f", H)
         return func
 
     ##################################################################
@@ -368,7 +368,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         cos_op = sparse.dia_matrix((pt_count, pt_count))
         diag_elements = np.cos(grid.make_linspace())
         cos_op.setdiag(diag_elements)
-        return cos_op
+        return cos_op.tocsc()
 
     def _sin_phi(self, grid: discretization.Grid1d) -> csc_matrix:
         """
@@ -379,7 +379,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         sin_op = sparse.dia_matrix((pt_count, pt_count))
         diag_elements = np.cos(grid.make_linspace())
         sin_op.setdiag(diag_elements)
-        return sin_op
+        return sin_op.tocsc()
 
     ## charge basis
 
@@ -401,27 +401,41 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         ).tocsc()
         return n_theta_matrix
 
-    def _exp_i_theta_operator(self, ncut: int) -> csc_matrix:
+    def _exp_i_theta_operator(self, ncut) -> csc_matrix:
         """
-        Returns operator :math:`e^{i\\varphi}` in the charge basis
+        Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
         """
         dim_theta = 2 * ncut + 1
         matrix = (
-            sparse.dia_matrix(([-1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta))
-        ).tocsc()
+            (sparse.dia_matrix(
+                    ([-1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)
+                )
+            ).tocsc()
+        )
+        return matrix
+
+    def _exp_i_theta_operator_conjugate(self, ncut) -> csc_matrix:
+        """
+        Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
+        """
+        dim_theta = 2 * ncut + 1
+        matrix = (
+            (sparse.dia_matrix(
+                    ([-1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)
+                )
+            ).tocsc()
+        )
         return matrix
 
     def _cos_theta(self, ncut: int) -> csc_matrix:
         """Returns operator :math:`\\cos \\varphi` in the charge basis"""
-        cos_op = 0.5 * self._exp_i_theta_operator(ncut)
-        cos_op += cos_op.T
-        return cos_op.tocsc()
+        cos_op = 0.5 * (self._exp_i_theta_operator(ncut) + self._exp_i_theta_operator_conjugate(ncut))
+        return cos_op
 
     def _sin_theta(self, ncut: int) -> csc_matrix:
         """Returns operator :math:`\\sin \\varphi` in the charge basis"""
-        sin_op = -1j * 0.5 * self._exp_i_theta_operator(ncut)
-        sin_op += sin_op.conjugate().T
-        return sin_op.tocsc()
+        sin_op = - 1j *0.5 * (self._exp_i_theta_operator(ncut) - self._exp_i_theta_operator_conjugate(ncut))
+        return sin_op
 
     def circuit_operators(self):
         """
@@ -457,13 +471,13 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
 
         # constructing the operators for periodic variables
         periodic_operators = [[], [], []]
-        for v in periodic_vars[0]:  # exp(ix) operators; yc
-            index = int(v.name[2:])
-            x_operator = self._cos_theta(cutoffs[index])
-            periodic_operators[0].append(self._kron_operator(x_operator, index))
-        for v in periodic_vars[1]:  # exp(-ix) operators; ys
+        for v in periodic_vars[0]:  # exp(ix) operators; ys
             index = int(v.name[2:])
             x_operator = self._sin_theta(cutoffs[index])
+            periodic_operators[0].append(self._kron_operator(x_operator, index))
+        for v in periodic_vars[1]:  # exp(-ix) operators; yc
+            index = int(v.name[2:])
+            x_operator = self._cos_theta(cutoffs[index])
             periodic_operators[1].append(self._kron_operator(x_operator, index))
         for v in periodic_vars[2]:  # n operators; n
             index = int(v.name[1:])
@@ -518,36 +532,38 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         """
         Returns a dictionary which has the symbol names as the keys for the corresponding matrix operators used in the circuit.
         """
-        if self.operator_symbol_dictionary == None:
-            ops = self.circuit_operators()
-            operator_list = (
-                ops[0]
-                + ops[1][0]
-                + ops[1][1]
-                + ops[1][2]
-                + ops[2][0]
-                + ops[2][1]
-                + ops[2][2]
-                + ops[3]
-            )
+        
+        ops = self.circuit_operators()
+        operator_list = (
+            ops[0]
+            + ops[1][0]
+            + ops[1][1]
+            + ops[1][2]
+            + ops[2][0]
+            + ops[2][1]
+            + ops[2][2]
+            + ops[3]
+        )
 
-            syms = self.vars
-            syms_list = (
-                syms[0]
-                + syms[1][0]
-                + syms[1][1]
-                + syms[1][2]
-                + syms[2][0]
-                + syms[2][1]
-                + syms[2][2]
-                + [symbols("I")]
-            )  # adding the identity variable at the end
+        syms = self.vars
+        syms_list = (
+            syms[0]
+            + syms[1][0]
+            + syms[1][1]
+            + syms[1][2]
+            + syms[2][0]
+            + syms[2][1]
+            + syms[2][2]
+            + [symbols("I")]
+        )  # adding the identity variable at the end
 
-            self.operator_symbol_dictionary = dict(
+        self.operator_symbol_dictionary = dict(
+            zip([i.name for i in syms_list], operator_list)
+        )
+
+        return dict(
                 zip([i.name for i in syms_list], operator_list)
             )
-
-        return self.operator_symbol_dictionary
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
