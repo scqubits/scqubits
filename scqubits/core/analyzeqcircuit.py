@@ -62,10 +62,10 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
 
         # default values for the parameters
         for param in self.param_vars:
-            setattr(self, param.name, 1)  # setting the default parameters as 1
+            setattr(self, param.name, 1.0)  # setting the default parameters as 1
         # default values for the external flux vars
         for flux in self.external_flux_vars:
-            setattr(self, flux.name, 0)  # setting the default to zero external flux
+            setattr(self, flux.name, 0.0)  # setting the default to zero external flux
 
         # setting the __init__params attribute
         self._init_params = (
@@ -506,10 +506,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit):
         return cutoffs_dict
 
     def get_external_flux(self):
-        return [
-            external_flux.append(getattr(self, flux.name))
-            for flux in self.external_flux_vars
-        ]
+        return [getattr(self, flux.name) for flux in self.external_flux_vars]
 
     @staticmethod
     def default_params() -> Dict[str, Any]:

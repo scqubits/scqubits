@@ -559,10 +559,6 @@ class CustomQCircuit:
         elif self.mode == "num":
             param_list = []
         self.param_vars = param_list
-        # if self.var_cutoffs == None: # set cutoffs to default value if it is not already set
-        #     self.var_cutoffs = {"cyclic":[2 for i in range(len(pos_list)) if pos_list[i] in pos_cyclic],
-        #                         "periodic":[4 for i in range(len(pos_list)) if pos_list[i] in pos_periodic],
-        #                         "discretized_phi":[30 for i in range(len(pos_list)) if pos_list[i] in pos_rest]}
         self.trans_mat = new_basis
 
         return new_basis
@@ -688,12 +684,9 @@ class CustomQCircuit:
                 # Indexing which set the nodes belong to
                 next_nodes_set = []
                 for k in next_nodes:
-                    if k in node_sets[0]:
-                        next_nodes_set.append(1)
-                    else:
-                        for p in range(0, len(node_sets)):
-                            if k in node_sets[p]:
-                                next_nodes_set.append(p + 1)
+                    for p in range(0, len(node_sets)):
+                        if k in node_sets[p]:
+                            next_nodes_set.append(p + 1)
 
                 # identifying the branches accordingly
                 for j in range(len(next_nodes)):
@@ -743,13 +736,8 @@ class CustomQCircuit:
 
         L_new = L_old.copy()
 
-        for i in range(len(self.nodes)):  # converting to the new variables
+        for i in range(len(self.nodes)):  # converting to new variables
             L_new = L_new.subs(symbols("x" + str(i + 1)), x_vars[i])
-        #             JJ_terms = JJ_terms.subs(symbols("x" + str(i+1)), x_vars[i])
-        #             if L_ex_flux_terms != 0:
-        #                 L_ex_flux_terms = L_ex_flux_terms.subs(symbols("x" + str(i+1)), x_vars[i])
-
-        #         L = (C_terms - L_terms - L_ex_flux_terms - JJ_terms).expand()
 
         # eliminating the zombie variables
         for i in self.var_indices["zombie"]:
