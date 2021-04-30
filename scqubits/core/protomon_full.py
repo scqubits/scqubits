@@ -966,7 +966,7 @@ class FullProtomon(base.QubitBaseClass, serializers.Serializable):
         :param cutoff: states involved in the calculation
         :return: table containing dispersive shift for each state
         """
-        factor = 0.8
+        factor = 0.75
         eigsys = self.eigensys(evals_count=cutoff)
         energy = eigsys[0]
         states = eigsys[1]
