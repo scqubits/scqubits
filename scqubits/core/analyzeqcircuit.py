@@ -39,9 +39,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         CustomQCircuit.__init__(self, list_nodes, list_branches, mode)
 
         # defining additional class properties
-        self.operator_symbol_dictionary = (
-            None  # setting a dictionary to save the operator list
-        )
 
         self.vars = None
         self.external_flux = []
@@ -74,9 +71,13 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             + [attr for attr in self.__dict__.keys() if "cutoff" in attr]
             + ["input_string"]
         )
-
+        # setting truncated_dim for dispersion calculations
+        sefl.truncated_dim = 6
+        
         # Hamiltonian function
         self.H_func = self.hamiltonian_function()
+        # initilizing attributes for operators
+        self.set_operators()
 
     # constructor to initiate using a CustomQCircuit object
     @classmethod
@@ -480,15 +481,37 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     def get_external_flux(self):
         return [getattr(self, flux.name) for flux in self.external_flux_vars]
 
+    def get_operators(self):
+        """
+        Returns a list of operators which can be given as an argument to self.H_func. These operators are not calculated again and are fetched directly from the circuit attibutes. Use set_attributes instead if the paramaters, expecially cutoffs, are changed.  
+        """
+        syms = self.vars
+        syms_list = (
+            syms[0]
+            + syms[1][0]
+            + syms[1][1]
+            + syms[1][2]
+            + syms[2][0]
+            + syms[2][1]
+            + syms[2][2]
+            + [symbols("I")]
+        )
+        operator_list = []
+        for operator in syms_list:
+            operator_list.append(getattr(self, operator.name))
+        
+        return operator_list
+
+
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
 
         return {}
 
-    def operator_sym_dict(self):
+    def set_operators(self):
         """
-        Returns a dictionary which has the symbol names as the keys for the corresponding matrix operators used in the circuit.
+        Sets the operator attributes of the circuit with new operators calculated using the paramaters set in the circuit attributes. Returns a list of operators similar to the method get_operators.  
         """
 
         ops = self.circuit_operators()
@@ -515,11 +538,10 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             + [symbols("I")]
         )  # adding the identity variable at the end
 
-        self.operator_symbol_dictionary = dict(
-            zip([i.name for i in syms_list], operator_list)
-        )
+        for x, operator in enumerate(syms_list):
+            setattr(self, operator.name, operator_list[x])
 
-        return dict(zip([i.name for i in syms_list], operator_list))
+        return dict(zip([operator.name for operator in syms_list], operator_list))
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
@@ -538,21 +560,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                 raise ValueError(
                     "Invalid number of parameters given, please check the number of parameters."
                 )
-
-        ops = self.circuit_operators()
-        operator_list = (
-            ops[0]
-            + ops[1][0]
-            + ops[1][1]
-            + ops[1][2]
-            + ops[2][0]
-            + ops[2][1]
-            + ops[2][2]
-            + ops[3]
-        )
-
+        self.set_operators() # updating the operators
         hamiltonian_matrix = self.H_func(
-            *(operator_list + self.get_params() + self.get_external_flux())
+            *(self.get_operators() + self.get_params() + self.get_external_flux())
         )
 
         return hamiltonian_matrix
@@ -593,7 +603,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         Parameters
         ----------
         operator:
-            name of the operator symbol in string form, should be one of the symbols in self.vars
+            name of class method in string form, returning operator matrix in
+            qubit-internal basis.
         evecs:
             if not provided, then the necessary eigenstates are calculated on the fly
         evals_count:
@@ -607,9 +618,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         """
         if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
-
-        operator_matrix = self.operator_sym_dict()[operator]
-
+        operator_matrix = getattr(self, operator)
         table = get_matrixelement_table(operator_matrix, evecs)
         if filename or return_datastore:
             data_store = DataStore(
