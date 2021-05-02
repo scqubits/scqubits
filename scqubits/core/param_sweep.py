@@ -33,7 +33,7 @@ import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
 
-from scqubits.core._param_sweep import _ParameterSweep
+from scqubits.legacy._param_sweep import _ParameterSweep
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import (
     NamedSlotsNdarray,

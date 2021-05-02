@@ -17,7 +17,7 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-import scqubits.core.sweep_generators as sweep_gen
+import scqubits.legacy.sweep_generators as sweep_gen
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
