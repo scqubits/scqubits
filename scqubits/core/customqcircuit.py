@@ -187,9 +187,8 @@ class CustomQCircuit(serializers.Serializable):
 
         self.H = None
         self.L = None
-        self.L_old = (
-            None  # Lagrangian in terms of untransformed generalized flux variables
-        )
+        self.L_old = None  # symbolic Lagrangian in terms of untransformed generalized flux variables
+        self.potential = None # symbolic expression for the potential energy of the circuit
 
         # Calling the function to initiate the calss variables
         self.hamiltonian_sym()
@@ -217,10 +216,10 @@ class CustomQCircuit(serializers.Serializable):
         nodes = [node(i, 0) for i in range(1, num_nodes + 1)]
         branches = []
 
-        first_branch = lines.index("branches:")
-        for l in range(first_branch + 1, len(lines)):
+        first_branch = lines.index("branches:") + 1
+        for l in range(first_branch, len(lines)):
             if lines[l] != "":
-                line = lines[l].split("\t")
+                line = [i for i in lines[l].replace("\t"," ").split(" ") if i != '']
                 a, b = [int(i) for i in line[1].split(",")]
                 element = line[0]
 
@@ -261,7 +260,9 @@ class CustomQCircuit(serializers.Serializable):
         - mode parameter to specify the use of symbolic or numerical circuit parameters
         """
         file = open(filename, "r")
-        return cls.from_input_string(file.read(), mode=mode)
+        input_string = file.read()
+        file.close()
+        return cls.from_input_string(input_string, mode=mode)
 
     """
     Methods to find the cyclic variables of the circuit
@@ -737,11 +738,19 @@ class CustomQCircuit(serializers.Serializable):
         JJ_terms = self._JJ_terms()
 
         L_old = (C_terms - L_terms - JJ_terms).expand()
+        potential_old = L_terms + JJ_terms
+
 
         L_new = L_old.copy()
+        potential_new = potential_old.copy()
 
         for i in range(len(self.nodes)):  # converting to new variables
             L_new = L_new.subs(symbols("x" + str(i + 1)), x_vars[i])
+            potential_new = potential_new.subs(symbols("x" + str(i + 1)), x_vars[i])
+
+        # calculating and storing the expression for potential energy
+        self.potential = potential_new
+        
 
         # eliminating the zombie variables
         for i in self.var_indices["zombie"]:

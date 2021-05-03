@@ -72,8 +72,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             + ["input_string"]
         )
         # setting truncated_dim for dispersion calculations
-        sefl.truncated_dim = 6
-        
+        self.truncated_dim = 6
+
         # Hamiltonian function
         self.H_func = self.hamiltonian_function()
         # initilizing attributes for operators
@@ -566,6 +566,23 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         )
 
         return hamiltonian_matrix
+    ##################################################################
+    #################### Functions for plotting ######################
+    ##################################################################
+    # def potential(self, *args):
+    #     """
+    #     Returns the full potential of the circuit evaluated in a grid of points as chosen by the user or using default variable ranges.
+    #     """
+    #     for var_name in args:
+    #         pass
+
+    #     potential_sym = self.potential
+
+
+
+    # def plot_potential(self):
+    #     pass
+
 
     ##################################################################
     ########### Functions from scqubits.core.qubit_base ##############
