@@ -652,3 +652,32 @@ def energy_split(levels):  # gives the energy splits given the energy levels
     for i in range(1, len(levels)):
         splits.append(levels[i] - levels[i - 1])
     return splits
+
+
+# example input strings
+def example_circuit(qubit):
+    """
+    Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of the popular qubits. 
+    """
+
+    # example input strings for popular qubits
+    fluxonium = "nodes: 2\nbranches:\nJJ	1,2	Ej	Ecj\nL	1,2	El\nC	1,2	Ec"
+
+    transmon = 'nodes: 2\nbranches:\nC\t1,2\tEc\nJJ\t1,2\tEj\tEcj\n'
+
+    cos2phi = 'nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\nJJ\t3,4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n'
+
+    zero_pi = 'nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\nJJ\t3,4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n'
+
+    if qubit == "transmon":
+        return transmon
+    elif qubit == "cos2phi":
+        return cos2phi
+    elif qubit == "zero_pi":
+        return zero_pi
+    elif qubit == "fluxonium":
+        return fluxonium
+    else:
+        raise(AttributeError()("Qubit not available or invalid input."))
+        
+
