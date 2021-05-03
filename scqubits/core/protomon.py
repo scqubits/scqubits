@@ -25,7 +25,7 @@ import scqubits.utils.spectrum_utils as matele_utils
 
 
 # — Inductively-shunted Rhombus circuit ————————————————————————
-class Protomon(base.QubitBaseClass, serializers.Serializable):
+class BareProtomon(base.QubitBaseClass, serializers.Serializable):
     r"""inductively-shunted Rhombus qubit, with the harmonic mode in the ground state
 
     Parameters
@@ -36,8 +36,6 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         junction charging energy
     EL: float
         inductive energy
-    ELA: float
-        additional inductive energy
     flux_c: float
         common part of the external flux, e.g., 1 corresponds to one flux quantum
     flux_d: float
@@ -46,14 +44,12 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         photon temperature
     """
 
-    def __init__(self, EJ, EC, EL, ELA, flux_c, flux_d, kbt):
+    def __init__(self, EJ, EC, EL, flux_c, flux_d):
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
-        self.ELA = ELA
         self.flux_c = flux_c
         self.flux_d = flux_d
-        self.kbt = kbt * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # input temperature unit mK
         self.phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.theta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.truncated_dim = 30
@@ -283,7 +279,6 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         )
         theta_ind = (
             self.EL
-            / (1 + 2 * self.EL / self.ELA)
             * (self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d)
             ** 2
         )
@@ -315,13 +310,7 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         -------
         float or ndarray
         """
-        return (
-            self.EL * (phi - 2 * np.pi * self.flux_c) ** 2
-            + self.EL
-            / (1 + 2 * self.EL / self.ELA)
-            * (theta - 2 * np.pi * self.flux_d) ** 2
-            - 2 * self.EJ * np.cos(phi) * np.cos(theta)
-        )
+        return 0
 
     def plot_potential(
         self, phi_grid=None, theta_grid=None, contour_vals=None, **kwargs
