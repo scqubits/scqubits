@@ -256,7 +256,7 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseCl
         E_Lb_shift = self.ELb ** 2 * (0.5 * chi_m + 1.0 / self.EL_tilda())
         fluxonium_b.EL = self.ELb - E_Lb_shift
         J = self.ELa * self.ELb * (0.5 * chi_m - 1.0 / self.EL_tilda())
-        return fluxonium_a, fluxonium_b, J, E_La_shift, E_Lb_shift
+        return fluxonium_a, fluxonium_b, J
 
     @staticmethod
     def _get_phi_01(fluxonium_instance):
@@ -269,22 +269,16 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseCl
         return phi_mat[0, 1]
 
     def J_eff_total(self):
-        fluxonium_a, fluxonium_b, J, _, _ = self._setup_effective_calculation()
+        fluxonium_a, fluxonium_b, J = self._setup_effective_calculation()
         phi_a_01 = self._get_phi_01(fluxonium_a)
         phi_b_01 = self._get_phi_01(fluxonium_b)
         return J * phi_a_01 * phi_b_01
-
-    def EL_bar_func(self):
-        fluxonium_a, fluxonium_b, J, E_La_shift, _ = self._setup_effective_calculation()
-        return self.ELa - E_La_shift
 
     def schrieffer_wolff_born_oppenheimer_effective_hamiltonian(self):
         (
             fluxonium_a,
             fluxonium_b,
-            J,
-            E_La_shift,
-            E_Lb_shift,
+            J
         ) = self._setup_effective_calculation()
         evals_a, evecs_a_uns = fluxonium_a.eigensys(
             evals_count=fluxonium_a.truncated_dim
@@ -315,8 +309,8 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseCl
         # For ease of using hubbard_operator, define a spin fluxonium with truncated_dim = 2
         fluxonium_a_spin = self.fluxonium_a()
         fluxonium_b_spin = self.fluxonium_b()
-        fluxonium_a_spin.EL = self.ELa - E_La_shift
-        fluxonium_b_spin.EL = self.ELb - E_Lb_shift
+        fluxonium_a_spin.EL = fluxonium_a.EL
+        fluxonium_b_spin.EL = fluxonium_b.EL
         fluxonium_a_spin.truncated_dim = 2
         fluxonium_b_spin.truncated_dim = 2
         hilbert_space = HilbertSpace([fluxonium_a_spin, fluxonium_b_spin])
@@ -387,41 +381,54 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseCl
                 pauli_list.append((pauli_name[j] + pauli_name[k], coeff))
         return pauli_list
 
+    def born_oppenheimer_effective_hamiltonian_static(self):
+        (
+            fluxonium_a,
+            fluxonium_b,
+            J
+        ) = self._setup_effective_calculation()
+        g_s_expect = self.fluxonium_minus_gs_expect()
+        hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
+        hilbert_space.add_interaction(g_strength=- 0.5 * self.ELa * g_s_expect,
+                                      op1=fluxonium_a.phi_operator)
+        hilbert_space.add_interaction(g_strength=+ 0.5 * self.ELb * g_s_expect,
+                                      op1=fluxonium_b.phi_operator)
+        hilbert_space.add_interaction(g_strength=J,
+                                      op1=fluxonium_a.phi_operator,
+                                      op2=fluxonium_b.phi_operator)
+        hilbert_space.add_interaction(g_strength=- 8.0 * self.off_diagonal_charging(),
+                                      op1=fluxonium_a.n_operator,
+                                      op2=fluxonium_b.n_operator)
+        return hilbert_space.hamiltonian()
+
     def born_oppenheimer_effective_hamiltonian(self):
         (
             fluxonium_a,
             fluxonium_b,
-            J,
-            E_La_shift,
-            E_Lb_shift,
+            J
         ) = self._setup_effective_calculation()
         g_s_expect = self.fluxonium_minus_gs_expect()
-        EL_bar = fluxonium_a.EL
-        fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
-#        fluxonium_a.truncated_dim, fluxonium_b.truncated_dim = 2, 2
+        EL_bar_a = fluxonium_a.EL
+        EL_bar_b = fluxonium_b.EL
+        fluxonium_a.flux, fluxonium_b.flux = 0.0, 0.0
         hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
-        H_0 = hilbert_space.hamiltonian()
-        phi_a_ops, n_a_ops = self._single_hamiltonian_effective(
-            fluxonium_a, hilbert_space
-        )
-        phi_b_ops, n_b_ops = self._single_hamiltonian_effective(
-            fluxonium_b, hilbert_space
-        )
-        H_a = phi_a_ops * (
-                2.0 * np.pi * (0.5 - self.flux_a) * EL_bar
-                + 2.0 * np.pi * (0.5 - self.flux_b) * J
-                - 0.5 * self.ELa * g_s_expect
-        )
-        H_b = phi_b_ops * (
-                2.0 * np.pi * (0.5 - self.flux_b) * EL_bar
-                + 2.0 * np.pi * (0.5 - self.flux_a) * J
-                + 0.5 * self.ELb * g_s_expect
-        )
-        H_ab = (
-                J * (phi_a_ops * phi_b_ops)
-                - 8.0 * self.off_diagonal_charging() * n_a_ops * n_b_ops
-        )
-        return H_0 + H_a + H_b + H_ab
+        phi_a_coeff = - (EL_bar_a * 2.0 * np.pi * self.flux_a
+                         + 0.5 * self.ELa * g_s_expect
+                         + J * 2.0 * np.pi * self.flux_b)
+        phi_b_coeff = - (EL_bar_b * 2.0 * np.pi * self.flux_b
+                         - 0.5 * self.ELb * g_s_expect
+                         + J * 2.0 * np.pi * self.flux_a)
+        hilbert_space.add_interaction(g_strength=phi_a_coeff,
+                                      op1=fluxonium_a.phi_operator)
+        hilbert_space.add_interaction(g_strength=phi_b_coeff,
+                                      op1=fluxonium_b.phi_operator)
+        hilbert_space.add_interaction(g_strength=J,
+                                      op1=fluxonium_a.phi_operator,
+                                      op2=fluxonium_b.phi_operator)
+        hilbert_space.add_interaction(g_strength=- 8.0 * self.off_diagonal_charging(),
+                                      op1=fluxonium_a.n_operator,
+                                      op2=fluxonium_b.n_operator)
+        return hilbert_space.hamiltonian()
 
     @staticmethod
     def _single_hamiltonian_effective(fluxonium_instance, hilbert_space):
