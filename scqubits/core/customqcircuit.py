@@ -409,7 +409,8 @@ class CustomQCircuit(serializers.Serializable):
             if np.linalg.matrix_rank(mat) == len(mat):
                 standard_basis = [i for i in standard_basis] + [list(a)]
         standard_basis = np.array(standard_basis)
-        standard_basis = np.identity(len(self.nodes))
+        
+        # standard_basis = np.identity(len(self.nodes))
         #         standard_basis = np.ones([len(nodes),len(nodes)]) - 2*np.identity(len(nodes))
 
         new_basis = modes.copy()  # starting with the cyclic modes
