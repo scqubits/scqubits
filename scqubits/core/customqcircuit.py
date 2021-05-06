@@ -11,6 +11,7 @@
 
 from abc import ABC, ABCMeta, abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+import itertools
 
 import sympy
 import numpy as np
@@ -174,6 +175,7 @@ class CustomQCircuit(serializers.Serializable):
         self.input_string = None
 
         self._init_params = ["input_string"]  # for saving the init data
+        self._sys_type = type(self).__name__  # for object description
 
         # properties set by methods
         self.trans_mat = None
@@ -188,10 +190,18 @@ class CustomQCircuit(serializers.Serializable):
         self.H = None
         self.L = None
         self.L_old = None  # symbolic Lagrangian in terms of untransformed generalized flux variables
-        self.potential = None # symbolic expression for the potential energy of the circuit
+        self.potential = (
+            None  # symbolic expression for the potential energy of the circuit
+        )
 
         # Calling the function to initiate the calss variables
         self.hamiltonian_sym()
+
+    @staticmethod
+    def default_params() -> Dict[str, Any]:
+        # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
+
+        return {}
 
     @staticmethod
     def is_disconnected(l1: List[branch], l2: List[branch]):
@@ -219,7 +229,7 @@ class CustomQCircuit(serializers.Serializable):
         first_branch = lines.index("branches:") + 1
         for l in range(first_branch, len(lines)):
             if lines[l] != "":
-                line = [i for i in lines[l].replace("\t"," ").split(" ") if i != '']
+                line = [i for i in lines[l].replace("\t", " ").split(" ") if i != ""]
                 a, b = [int(i) for i in line[1].split(",")]
                 element = line[0]
 
@@ -268,208 +278,103 @@ class CustomQCircuit(serializers.Serializable):
     Methods to find the cyclic variables of the circuit
     """
 
-    def new_basis(self):
+    def variable_transformation_matrix(self):
         """
         Method to construct a new set of flux variables of the circuit, such that all the possible cyclic and periodic variables are included.
-        This method returns a integer l(denoting the number of cyclic variables), and a matrix expressing the old in terms of the new variables
-        The first l variables of the output are cyclic.
-        periodic_vars: indices of the index of new variables which are periodic
-        Returns: (l,periodic_vars,basis)
-
         """
-        basis_params = [1, 0]  # numbers used to construct the basis vectors
-
         nodes = self.nodes
         branches = self.branches
-        for n in nodes:
-            n.marker = 0
-        # first values is used for the selected node, and the second for the rest of the nodes
-        ##################### Finding the Periodic Modes ##################
-        # step 1
-        s_1 = [i for i in branches if i.type == "L"]
 
-        # step 2: finding the independent sets of branches in s_1, then identifying the sets of nodes in each of thoses sets
-        s_1_ref = s_1.copy()
+        def independent_modes(s_1, single_nodes=True):
+            """
+            Returns the independent set of modes in the given set of branches
+            """
+            basis_params = [1, 0]  # numbers to represent mode vectors
 
-        trees = []  # list of independet sets of branches, in s_1
+            for n in nodes:  # reset the node markers
+                n.marker = 0
 
-        while len(s_1_ref) > 0:
-            b_0 = s_1_ref[0]
-            tree = [b_0]
-            s_1_ref.remove(b_0)
+            # step 2: finding the independent sets of branches in s_1, then identifying the sets of nodes in each of thoses sets
+            s_1_ref = s_1.copy()
 
-            while not self.is_disconnected(tree, s_1_ref):
-                for b1 in s_1_ref:
-                    for b2 in tree:
-                        if b1.is_connected(b2):
-                            tree.append(b1)
-                            s_1_ref.remove(b1)
-                            break
-            trees.append(tree)
+            trees = []  # list of independet sets of branches, in s_1
 
-        ind_nodes = [
-            list(set(sum([i.nodes for i in t], ()))) for t in trees
-        ]  # finding the nodes in each of the independent sets of branches found earlier
+            while len(s_1_ref) > 0:
+                b_0 = s_1_ref[0]
+                tree = [b_0]
+                s_1_ref.remove(b_0)
 
-        ref = list(
-            range(1, len(nodes) + 1)
-        )  # using numbers as variables, maximum needed is the number of nodes in the circuit
+                while not self.is_disconnected(tree, s_1_ref):
+                    for b1 in s_1_ref:
+                        for b2 in tree:
+                            if b1.is_connected(b2):
+                                tree.append(b1)
+                                s_1_ref.remove(b1)
+                                break
+                trees.append(tree)
 
-        for i in range(len(ind_nodes)):
-            for n in ind_nodes[i]:
-                n.marker = ref[i]
+            # finding all the unique nodes in each of the independent sets of branches found earlier
+            ind_nodes = [list(set(sum([n.nodes for n in t], ()))) for t in trees]
 
-        pos = (
-            []
-        )  # identifies the positions of the sets of nodes connected by the branches in s_1; different numbers on two nodes indicates that they are not connected through any of the branches in s_1. 0 implies the node does not belong to any of the branches in s_1
-        for i in nodes:
-            pos.append(i.marker)
+            for x, node_set in enumerate(ind_nodes):
+                for n in node_set:
+                    n.marker = (
+                        x + 1
+                    )  # using numbers as variables, maximum needed is the number of nodes in the circuit
 
-        # step 3: Finding the linearly independent vectors spanning the vector space of pos, this gives us the cyclic modes
-        #         modes_num = pos.count(0) + max(pos) # total number of cyclic modes
-        periodic_modes = []
+            pos = [
+                node.marker for node in self.nodes
+            ]  # identifies the positions of the sets of nodes connected by the branches in s_1; different numbers on two nodes indicates that they are not connected through any of the branches in s_1. 0 implies the node does not belong to any of the branches in s_1
 
-        for i in range(max(pos)):
-            if i == 0 and pos.count(0) == 0:
-                continue
-            else:
-                periodic_modes.append(
-                    [basis_params[0] if t == ref[i] else basis_params[1] for t in pos]
-                )
-        if pos.count(0) > 0:
-            for i in range(len(pos)):
-                if pos[i] == 0:
-                    periodic_modes.append(
+            # step 3: Finding the linearly independent vectors spanning the vector space of pos, this gives us the cyclic modes
+            modes = []
+
+            for i in range(max(pos)):
+                if i == 0 and pos.count(0) == 0:
+                    continue
+                else:
+                    modes.append(
                         [
-                            basis_params[0] if t == i else basis_params[1]
-                            for t in range(len(pos))
+                            basis_params[0] if t == i + 1 else basis_params[1]
+                            for t in pos
                         ]
                     )
+
+            if single_nodes == True:
+                if pos.count(0) > 0:
+                    for i in range(len(pos)):
+                        if pos[i] == 0:
+                            modes.append(
+                                [
+                                    basis_params[0] if t == i else basis_params[1]
+                                    for t in range(len(pos))
+                                ]
+                            )
+
+            return modes
+
+        ##################### Finding the Periodic Modes ##################
+        s_1 = [i for i in branches if i.type == "L"]
+        periodic_modes = independent_modes(s_1)
 
         ##################### Finding the Zombie modes ##################
-        for n in nodes:
-            n.marker = 0
-        # step 1
         s_1 = [i for i in branches if i.type != "L"]
-
-        # step 2: finding the independent sets of branches in s_1, then identifying the sets of nodes in each of thoses sets
-        s_1_ref = s_1.copy()
-
-        trees = []  # list of independet sets of branches, in s_1
-
-        while len(s_1_ref) > 0:
-            b_0 = s_1_ref[0]
-            tree = [b_0]
-            s_1_ref.remove(b_0)
-
-            while not self.is_disconnected(tree, s_1_ref):
-                for b1 in s_1_ref:
-                    for b2 in tree:
-                        if b1.is_connected(b2):
-                            tree.append(b1)
-                            s_1_ref.remove(b1)
-                            break
-            trees.append(tree)
-
-        ind_nodes = [
-            list(set(sum([i.nodes for i in t], ()))) for t in trees
-        ]  # finding the nodes in each of the independent sets of branches found earlier
-
-        ref = list(
-            range(1, len(nodes) + 1)
-        )  # using numbers as variables, maximum needed is the number of nodes in the circuit
-
-        for i in range(len(ind_nodes)):
-            for n in ind_nodes[i]:
-                n.marker = ref[i]
-
-        pos = (
-            []
-        )  # identifies the positions of the sets of nodes connected by the branches in s_1; different numbers on two nodes indicates that they are not connected through any of the branches in s_1. 0 implies the node does not belong to any of the branches in s_1
-        for i in nodes:
-            pos.append(i.marker)
-
-        # step 3: Finding the linearly independent vectors spanning the vector space of pos, this gives us the cyclic modes
-        #         modes_num = pos.count(0) + max(pos) # total number of cyclic modes
-        zombie_modes = []
-
-        for i in range(max(pos)):
-            if i == 0 and pos.count(0) == 0:
-                continue
-            else:
-                zombie_modes.append(
-                    [basis_params[0] if t == ref[i] else basis_params[1] for t in pos]
-                )
-        if pos.count(0) > 0:
-            for i in range(len(pos)):
-                if pos[i] == 0:
-                    zombie_modes.append(
-                        [
-                            basis_params[0] if t == i else basis_params[1]
-                            for t in range(len(pos))
-                        ]
-                    )
+        zombie_modes = independent_modes(s_1)
 
         ##################### Finding the Cyclic Modes ##################
-        for n in nodes:
-            n.marker = 0
-        # step 1
         s_1 = [i for i in branches if i.type != "C"]
+        cyclic_modes = independent_modes(s_1, single_nodes=False)
+        # including the Σ mode
+        Σ = [1 for n in self.nodes]
+        cyclic_modes.append(Σ)
 
-        # step 2: finding the independent sets of branches in s_1, then identifying the sets of nodes in each of thoses sets
-        s_1_ref = s_1.copy()
+        ##################### Finding the LC Modes ##################
+        s_1 = [i for i in branches if i.type == "JJ"]
+        LC_modes = independent_modes(s_1, single_nodes=False)
 
-        trees = []  # list of independet sets of branches, in s_1
-
-        while len(s_1_ref) > 0:
-            b_0 = s_1_ref[0]
-            tree = [b_0]
-            s_1_ref.remove(b_0)
-
-            while not self.is_disconnected(tree, s_1_ref):
-                for b1 in s_1_ref:
-                    for b2 in tree:
-                        if b1.is_connected(b2):
-                            tree.append(b1)
-                            s_1_ref.remove(b1)
-                            break
-            trees.append(tree)
-
-        ind_nodes = [
-            list(set(sum([i.nodes for i in t], ()))) for t in trees
-        ]  # finding the nodes in each of the independent sets of branches found earlier
-
-        ref = list(
-            range(1, len(nodes) + 1)
-        )  # using numbers as variables, maximum needed is the number of nodes in the circuit
-
-        for i in range(len(ind_nodes)):
-            for n in ind_nodes[i]:
-                n.marker = ref[i]
-
-        pos = (
-            []
-        )  # identifies the positions of the sets of nodes connected by the branches in s_1; different numbers on two nodes indicates that they are not connected through any of the branches in s_1. 0 implies the node does not belong to any of the branches in s_1
-        for i in nodes:
-            pos.append(i.marker)
-
-        # step 3: Finding the linearly independent vectors spanning the vector space of pos, this gives us the cyclic modes
-        modes_num = pos.count(0) + max(pos)  # total number of cyclic modes
-        cyclic_modes = []
-
-        for i in range(max(pos)):
-            if i == 0 and pos.count(0) == 0:
-                continue
-            else:
-                cyclic_modes.append(
-                    [basis_params[0] if t == ref[i] else basis_params[1] for t in pos]
-                )
-
-        Σ = [1 for t in pos]
-        cyclic_modes.append(Σ)  # including the Σ mode
-
-        ################ Adding cyclic and zombie modes to cyclic ones #############
+        ################ Adding periodic and zombie modes to cyclic ones #############
         modes = cyclic_modes.copy()  # starting with the cyclic modes
+
         for m in (
             periodic_modes + zombie_modes
         ):  # adding the ones which are periodic such that all vectors in modes are LI
@@ -477,10 +382,34 @@ class CustomQCircuit(serializers.Serializable):
             if np.linalg.matrix_rank(mat) == len(mat):
                 modes.append(m)
 
+        # for m in (LC_modes): # adding the ones which are periodic such that all vectors in modes are LI
+        #     mat = np.array([i for i in modes]+[m])
+        #     if np.linalg.matrix_rank(mat)==len(mat):
+        #         modes.append(m)
+
         ####################### Completing the Basis ######################
         # step 4: construct the new set of basis vectors
-        l = len(np.array(modes))
-        standard_basis = np.identity(len(nodes))
+
+        # constructing the standard basis
+        l = len(self.nodes)
+        standard_basis = [np.ones(l)]
+
+        vector_ref = np.zeros(l)
+        if l > 2:
+            vector_ref[: l - 2] = 1
+        else:
+            vector_ref[: l - 1] = 1
+
+        vector_set = list((itertools.permutations(vector_ref, l)))
+        item = 0
+        while np.linalg.matrix_rank(np.array(standard_basis)) < l:
+            a = vector_set[item]
+            item += 1
+            mat = np.array([i for i in standard_basis] + [a])
+            if np.linalg.matrix_rank(mat) == len(mat):
+                standard_basis = [i for i in standard_basis] + [list(a)]
+        standard_basis = np.array(standard_basis)
+        standard_basis = np.identity(len(self.nodes))
         #         standard_basis = np.ones([len(nodes),len(nodes)]) - 2*np.identity(len(nodes))
 
         new_basis = modes.copy()  # starting with the cyclic modes
@@ -541,7 +470,8 @@ class CustomQCircuit(serializers.Serializable):
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_zombie
             ],
         }
-        # updating param_vals
+
+        # set param_vars
         if self.mode == "sym":
             parameters = [
                 [],
@@ -570,44 +500,7 @@ class CustomQCircuit(serializers.Serializable):
 
     """
     Methods used to construct the Lagrangian of the circuit
-     - C_matrix
-     - L_matrix
-     - J_matrix
-     These matrices are constructed in a similar fashion as compared to [C], [L^(-1)] matrices in 
-     Intro to Quantum Electromagnetic Circuits, Uri Vool and Michel Devoret
     """
-
-    def _C_matrix(self):
-        N = len(self.nodes)
-
-        C_mat = np.zeros([N, N], dtype="object")
-        for b in [t for t in self.branches if t.type == "C" or t.type == "JJ"]:
-            if len(set(self.nodes)) > 1:  # branch if shorted is not considered
-                if b.type == "JJ":
-                    C_mat[b.nodes[0].id - 1, b.nodes[1].id - 1] += -1 / (
-                        b.parameters["E_CJ"] * 8
-                    )
-                else:
-                    C_mat[b.nodes[0].id - 1, b.nodes[1].id - 1] += -1 / (
-                        b.parameters["E_C"] * 8
-                    )
-
-        C_mat = C_mat + C_mat.T - np.diag(C_mat.diagonal())
-        for i in range(len(self.nodes)):
-            C_mat[i, i] = -np.sum(C_mat[i, :])
-        return C_mat
-
-    def _L_matrix(self):
-        N = len(self.nodes)
-
-        L_mat = np.zeros([N, N], dtype="object")
-        for b in [t for t in self.branches if t.type == "L"]:
-            if len(set(self.nodes)) > 1:  # branch if shorted is not considered
-                L_mat[b.nodes[0].id - 1, b.nodes[1].id - 1] += -b.parameters["E_L"]
-        L_mat = L_mat + L_mat.T - np.diag(L_mat.diagonal())
-        for i in range(len(self.nodes)):
-            L_mat[i, i] = -np.sum(L_mat[i, :])
-        return L_mat
 
     def _JJ_terms(self):
         J = 0
@@ -625,6 +518,33 @@ class CustomQCircuit(serializers.Serializable):
                     + phi_ext
                 )
         return J
+
+    def _C_terms(self):
+        C = 0
+        for b in [t for t in self.branches if t.type == "C" or t.type == "JJ"]:
+            if len(set(self.nodes)) > 1:  # branch if shorted is not considered
+                # adding external flux
+                if b.type == "C":
+                    C += (
+                        1
+                        / (16 * b.parameters["E_C"])
+                        * (
+                            symbols("vx" + str(b.nodes[1].id))
+                            - symbols("vx" + str(b.nodes[0].id))
+                        )
+                        ** 2
+                    )
+                elif b.type == "JJ":
+                    C += (
+                        1
+                        / (16 * b.parameters["E_CJ"])
+                        * (
+                            symbols("vx" + str(b.nodes[1].id))
+                            - symbols("vx" + str(b.nodes[0].id))
+                        )
+                        ** 2
+                    )
+        return C
 
     def _L_terms(self):
         L = 0
@@ -717,7 +637,7 @@ class CustomQCircuit(serializers.Serializable):
         Outputs the Lagrangian of the circuit in terms of the new variables
         output: (number of cyclic variables, periodic variables, Sympy expression)
         """
-        basis = self.new_basis()
+        basis = self.variable_transformation_matrix()
         flux_branches = self._flux_loops()
 
         y_vars = [
@@ -727,9 +647,7 @@ class CustomQCircuit(serializers.Serializable):
         x_vars = (basis).dot(y_vars)  # writing φ in terms of θ variables
         x_dot_vars = (basis).dot(y_dot_vars)
 
-        C_mat = self._C_matrix()
-        C_terms = ((C_mat).dot(x_dot_vars)).dot(x_dot_vars) * 0.5
-
+        C_terms = self._C_terms()
         #         L_mat = self.L_matrix()
         #         L_terms = ((L_mat).dot(x_vars)).dot(x_vars)*0.5
 
@@ -740,17 +658,17 @@ class CustomQCircuit(serializers.Serializable):
         L_old = (C_terms - L_terms - JJ_terms).expand()
         potential_old = L_terms + JJ_terms
 
-
         L_new = L_old.copy()
         potential_new = potential_old.copy()
 
         for i in range(len(self.nodes)):  # converting to new variables
-            L_new = L_new.subs(symbols("x" + str(i + 1)), x_vars[i])
+            L_new = L_new.subs(symbols("x" + str(i + 1)), x_vars[i]).subs(
+                symbols("vx" + str(i + 1)), x_dot_vars[i]
+            )
             potential_new = potential_new.subs(symbols("x" + str(i + 1)), x_vars[i])
 
         # calculating and storing the expression for potential energy
         self.potential = potential_new
-        
 
         # eliminating the zombie variables
         for i in self.var_indices["zombie"]:
