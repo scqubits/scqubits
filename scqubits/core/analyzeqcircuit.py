@@ -74,6 +74,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         # setting truncated_dim for dispersion calculations
         self.truncated_dim = 6
 
+        # setting default grids for plotting
+        self._default_grid_phi = discretization.Grid1d(-6*np.pi, 6*np.pi, 200)
+        self._default_grid_charge = discretization.Grid1d(-2*np.pi, 2*np.pi, 200)
+        self._default_grid_flux = discretization.Grid1d(-5, 5, 200)
+
         # Hamiltonian function
         self.H_func = self.hamiltonian_function()
         # initilizing attributes for operators
@@ -569,19 +574,60 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ##################################################################
     #################### Functions for plotting ######################
     ##################################################################
-    # def potential(self, *args):
+    # def potential_energy(self, *args, **kwargs):
     #     """
     #     Returns the full potential of the circuit evaluated in a grid of points as chosen by the user or using default variable ranges.
     #     """
-    #     for var_name in args:
-    #         pass
+    #     cyclic_indices = self.var_indices["cyclic"]
+    #     periodic_indices = self.var_indices["periodic"]
+    #     discretized_phi_indices = self.var_indices["discretized_phi"]
+    #     var_indices = discretized_phi_indices + periodic_indices + cyclic_indices
 
+    #     # method to concatenate sublists
     #     potential_sym = self.potential
 
+    #     # constructing the grids
+    #     parameters = dict.fromkeys(["y" + str(index) for index in var_indices] +
+    #     [var.name for var in self.external_flux_vars] + [var.name for var in self.param_vars])
 
+    #     for var_name in args:
+    #         if var_name in ["y" + str(index) for index in cyclic_indices] or var_name in ["y" + str(index) for index in periodic_indices]:
+    #             parameters[var_name] = self._default_grid_charge.make_linspace()
+    #         elif var_name in ["y" + str(index) for index in discretized_phi_indices]:
+    #             parameters[var_name] = self._default_grid_phi.make_linspace()
+    #         elif var_name in self.external_flux_vars:
+    #             paramaters[var_name] = self._default_grid_flux.make_linspace()
 
-    # def plot_potential(self):
-    #     pass
+    #     for var_name in kwargs:
+    #         if isinstance(kwargs[var_name], discretization.Grid1d):
+    #             parameters[var_name] = kwargs[var_name].make_linspace()
+    #         else:
+    #             parameters[var_name] = kwargs[var_name]
+
+    #     for var_name in parameters.keys():
+    #         if parameters[var_name] is None:
+    #             if var_name in ["y" + str(index) for index in cyclic_indices] or var_name in ["y" + str(index) for index in periodic_indices]:
+    #                 paramaters[var_name] = self._default_grid_charge.make_linspace()
+    #             elif var_name in ["y" + str(index) for index in discretized_phi_indices]:
+    #                 parameters[var_name] = self._default_grid_phi.make_linspace()
+    #             else:
+    #                 parameters[var_name] = getattr(self, var_name)
+
+    #     # adding external fluxes
+    #     for var_name in self.external_flux_vars:
+    #         parameters
+
+    #     potential_func = lambdify(parameters.keys(), potential_sym, "numpy")
+
+    #     return potential_func(*parameters.values())
+
+    # def plot_potential_1D(self, param_name, param_grid = None):
+    #     if param_grid is None:
+    #         potential = self.potential_energy(param_name)
+    #         plt.plot(potential)
+    #     else:
+    #         potential = self.potential_energy(**{param_name : param_grid})
+    #         plt.plot(param_grid.make_linspace(), potential)
 
 
     ##################################################################
