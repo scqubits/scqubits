@@ -47,6 +47,9 @@ from scqubits.core.zeropi_full import FullZeroPi
 # file IO
 from scqubits.io_utils.fileio import read, write
 
+# spectrum utils
+from scqubits.utils.spectrum_utils import identity_wrap
+
 # GUI
 from scqubits.ui.gui import GUI
 
