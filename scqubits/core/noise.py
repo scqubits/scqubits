@@ -1581,12 +1581,15 @@ class NoisySystem(ABC):
         if Y_qp is None:
 
             def y_qp_fun(omega):
-
+                """
+                Based on Eq. S23 in the appendix of Smith et al (2020).
+                """
                 # Note that y_qp_fun is always symmetric in omega, i.e. In Smith et al 2020,
                 # we essentially have something proportional to sinh(omega)/omega
                 omega = abs(omega)
 
                 Delta_in_Hz = convert_eV_to_Hz(Delta)
+
                 omega_in_Hz = units.to_standard_units(omega) / (2 * np.pi)
                 EJ_in_Hz = units.to_standard_units(self.EJ)
 
@@ -1617,14 +1620,14 @@ class NoisySystem(ABC):
                 return Y_qp
 
         def spectral_density(omega):
-            """Eq. 38 in Catalani et al (2011). """
+            """Based on Eq. 19 in Smith et al (2020). """
             therm_ratio = calc_therm_ratio(omega, T)
+
             return (
-                omega
-                * NOISE_PARAMS["R_k"]
-                / np.pi
+                2
+                * omega
                 * complex(y_qp_fun(omega)).real
-                * (1 / np.tanh(0.5 * np.abs(therm_ratio)))
+                * (1 / np.tanh(0.5 * therm_ratio))
                 / (1 + np.exp(-therm_ratio))
             )
 
