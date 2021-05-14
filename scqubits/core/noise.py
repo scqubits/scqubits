@@ -226,9 +226,9 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Only add a ylabel if we're plotting times and not rates  
-        if not common_noise_options.get('get_rate', True):
-            plotting_options["ylabel"]=units.get_units_time_label()
+        # Only add a ylabel if we're plotting times and not rates
+        if not common_noise_options.get("get_rate", True):
+            plotting_options["ylabel"] = units.get_units_time_label()
 
         plotting_options.update(
             {k: v for (k, v) in kwargs.items() if k not in ["fig_ax", "figsize"]}
@@ -430,12 +430,16 @@ class NoisySystem(ABC):
         plotting_options = {
             "fig_ax": plt.subplots(1),
             "title": "t1_effective",
-            "ylabel": units.get_units_time_label(),
             "xlabel": param_name,
             "yscale": "log",
             "grid": True,
         }
         plotting_options.update(kwargs)
+
+        # Only add a ylabel if we're plotting times and not rates
+        if not common_noise_options.get("get_rate", True):
+            plotting_options["ylabel"] = units.get_units_time_label()
+
         fig, axes = plotting.data_vs_paramvals(
             param_vals, noise_vals, **plotting_options
         )
@@ -568,11 +572,14 @@ class NoisySystem(ABC):
         plotting_options = {
             "fig_ax": plt.subplots(1),
             "title": "t2_effective",
-            "ylabel": units.get_units_time_label(),
             "xlabel": param_name,
             "yscale": "log",
             "grid": True,
         }
+        # Only add a ylabel if we're plotting times and not rates
+        if not common_noise_options.get("get_rate", True):
+            plotting_options["ylabel"] = units.get_units_time_label()
+
         plotting_options.update(kwargs)
         fig, axes = plotting.data_vs_paramvals(
             param_vals, noise_vals, **plotting_options
