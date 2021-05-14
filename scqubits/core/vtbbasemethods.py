@@ -83,7 +83,7 @@ class VTBBaseMethods(ABC):
         maximum displacement allowed for each coordinate of a unit cell vector.
     """
     num_exc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    maximum_periodic_vector_length = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    maximum_unit_cell_vector_length = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     number_degrees_freedom = descriptors.ReadOnlyProperty()
     number_periodic_degrees_freedom = descriptors.ReadOnlyProperty()
     number_junctions = descriptors.ReadOnlyProperty()
@@ -98,7 +98,7 @@ class VTBBaseMethods(ABC):
     def __init__(
         self,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         number_degrees_freedom: int,
         number_periodic_degrees_freedom: int,
         number_junctions: int,
@@ -113,9 +113,7 @@ class VTBBaseMethods(ABC):
         inner_prod_eval_tol: float = 1e-8,
     ) -> None:
         self.num_exc = num_exc
-        # TODO rename to maximum_unit_cell_vector_length
-        #  (avoiding to not break ability to read old specdata files)
-        self.maximum_periodic_vector_length = maximum_periodic_vector_length
+        self.maximum_unit_cell_vector_length = maximum_unit_cell_vector_length
         self._number_degrees_freedom = number_degrees_freedom
         self._number_periodic_degrees_freedom = number_periodic_degrees_freedom
         self._number_junctions = number_junctions
@@ -351,7 +349,7 @@ class VTBBaseMethods(ABC):
                 (len(sorted_minima_dict), self.number_degrees_freedom)
             )
         omega_squared_array, eigenvectors = self.eigensystem_normal_modes(minimum_index)
-        Z0 = 0.25  # units where e_charge and hbar = 1; Z0 = hbar / (2 * e)**2
+        Z0 = 0.25  # units where e and hbar = 1; Z0 = hbar / (2 * e)**2
         return np.array(
             [
                 eigenvectors[:, i]
@@ -451,7 +449,7 @@ class VTBBaseMethods(ABC):
                 partial(
                     self._generate_and_filter_unit_cell_vectors, minima_diff, Xi_inv
                 ),
-                np.arange(0, self.maximum_periodic_vector_length + 1),
+                np.arange(0, self.maximum_unit_cell_vector_length + 1),
             )
         )
         return self._stack_filtered_vectors(relevant_vectors)
@@ -1834,8 +1832,8 @@ class VTBBaseMethods(ABC):
         for minimum_index, minimum_location in sorted_minima_dict.items():
             unit_cell_vectors = itertools.product(
                 np.arange(
-                    -self.maximum_periodic_vector_length,
-                    self.maximum_periodic_vector_length + 1,
+                    -self.maximum_unit_cell_vector_length,
+                    self.maximum_unit_cell_vector_length + 1,
                 ),
                 repeat=dim_periodic,
             )

@@ -25,7 +25,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self, minimum_index: int, Xi: ndarray, Xi_prime: ndarray
     ) -> Tuple:
         """
-        Return the rho, sigma, tau matrices that define the overall squeezing operator U
+        Return the X, Y, Z matrices that define the overall squeezing operator U
 
         Parameters
         ----------
@@ -43,11 +43,11 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         M_matrix = self._squeezing_M(minimum_index, Xi, Xi_prime)
         dim = self.number_degrees_freedom
         u = M_matrix[0:dim, 0:dim]
-        v = M_matrix[dim : 2 * dim, 0:dim]
-        rho = self._symmetrize_matrix(inv(u) @ v)
-        sigma = self._symmetrize_matrix(logm(u))
-        tau = self._symmetrize_matrix(v @ inv(u))
-        return rho, sigma, tau
+        v = M_matrix[dim: 2 * dim, 0:dim]
+        X = self._symmetrize_matrix(inv(u) @ v)
+        Y = self._symmetrize_matrix(logm(u))
+        Z = self._symmetrize_matrix(v @ inv(u))
+        return X, Y, Z
 
     @staticmethod
     def _symmetrize_matrix(mat: ndarray) -> ndarray:
@@ -58,20 +58,20 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                 mat[i, j] = mat[j, i] = element_average
         return mat
 
-    def _delta_rho_matrices(self, rho: ndarray, rho_prime: ndarray) -> Tuple:
-        dim = self.number_degrees_freedom
-        delta_rho_prime = inv(np.eye(dim) - rho_prime @ rho) @ rho_prime
-        delta_rho = inv(np.eye(dim) - rho @ rho_prime) @ rho
-        delta_rho_bar = logm(inv(np.eye(dim) - rho_prime @ rho))
-        return delta_rho, delta_rho_prime, delta_rho_bar
+    def _P_matrix(self, X_prime: ndarray, X: ndarray) -> ndarray:
+        return inv(np.eye(self.number_degrees_freedom) - X @ X_prime)
+
+    @staticmethod
+    def _P_X_prime_bar(P_matrix, X_prime):
+        return 0.5 * (P_matrix.T @ X_prime + X_prime @ P_matrix)
 
     @staticmethod
     def _linear_coefficient_matrices(
-        rho_prime: ndarray, delta_rho: ndarray, A: ndarray, B: ndarray
+        X: ndarray, P_X_prime_bar: ndarray, A: ndarray, B: ndarray
     ) -> Tuple:
         """Build variables helpful for constructing the Hamiltonian """
-        a_coefficient = A - 0.5 * (B - A @ rho_prime) @ (delta_rho + delta_rho.T)
-        a_dagger_coefficient = B - A @ rho_prime
+        a_coefficient = A - (B - A @ X) @ P_X_prime_bar
+        a_dagger_coefficient = B - A @ X
         return a_coefficient, a_dagger_coefficient
 
     def _squeezing_M(
@@ -150,9 +150,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                 eigvec_holder[:, k] = new_evec_1
                 eigvec_holder[:, k + 1] = new_evec_2
         u = eigvec_holder[0:dim, 0:dim]
-        v = eigvec_holder[dim : 2 * dim, 0:dim]
-        eigvec_holder[0:dim, dim : 2 * dim] = v
-        eigvec_holder[dim : 2 * dim, dim : 2 * dim] = u
+        v = eigvec_holder[dim: 2 * dim, 0:dim]
+        eigvec_holder[0:dim, dim: 2 * dim] = v
+        eigvec_holder[dim: 2 * dim, dim: 2 * dim] = u
         return eigval_holder, eigvec_holder
 
     def _normalize_symplectic_eigensystem_squeezing(
@@ -166,7 +166,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             if a < 0.0:
                 eigvec[:, col] *= -1
         A = eigvec[0:dim, 0:dim]
-        B = eigvec[dim : 2 * dim, 0:dim]
+        B = eigvec[dim: 2 * dim, 0:dim]
         for vec in range(dim):
             a = 1.0 / np.sqrt(
                 np.sum(
@@ -178,9 +178,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             )
             eigvec[:, vec] *= a
         A = eigvec[0:dim, 0:dim]
-        B = eigvec[dim : 2 * dim, 0:dim]
-        eigvec[dim : 2 * dim, dim : 2 * dim] = A
-        eigvec[0:dim, dim : 2 * dim] = B
+        B = eigvec[dim: 2 * dim, 0:dim]
+        eigvec[dim: 2 * dim, dim: 2 * dim] = A
+        eigvec[0:dim, dim: 2 * dim] = B
         return eigvals, eigvec
 
     def _find_closest_periodic_minimum(
@@ -225,54 +225,51 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             k += 1
         return result
 
-    def _rho_sigma_tau_matrices(
+    def _X_Y_Z_matrices(
         self, m: int, p: int, Xi: ndarray, harmonic_lengths: ndarray
     ) -> Tuple:
-        """Return the `\rho, \sigma, \tau` matrices that define the squeezing
+        """Return the `X, Y, Z` matrices that define the squeezing
         operator `U`."""
         dim = self.number_degrees_freedom
         if m == 0:  # At the global minimum, no squeezing required
-            rho = np.zeros((dim, dim))
-            sigma = np.zeros((dim, dim))
-            tau = np.zeros((dim, dim))
+            X_prime = np.zeros((dim, dim))
+            Y_prime = np.zeros((dim, dim))
+            Z_prime = np.zeros((dim, dim))
         else:
             Xi_prime = self.Xi_matrix(m, harmonic_lengths)
-            rho, sigma, tau = self._U_squeezing_operator(m, Xi, Xi_prime)
+            X_prime, Y_prime, Z_prime = self._U_squeezing_operator(m, Xi, Xi_prime)
         if p == 0:
-            rho_prime = np.zeros((dim, dim))
-            sigma_prime = np.zeros((dim, dim))
-            tau_prime = np.zeros((dim, dim))
+            X = np.zeros((dim, dim))
+            Y = np.zeros((dim, dim))
+            Z = np.zeros((dim, dim))
         elif p == m:
-            rho_prime = np.copy(rho)
-            sigma_prime = np.copy(sigma)
-            tau_prime = np.copy(tau)
+            X = np.copy(X_prime)
+            Y = np.copy(Y_prime)
+            Z = np.copy(Z_prime)
         else:
             Xi_prime = self.Xi_matrix(p, harmonic_lengths)
-            rho_prime, sigma_prime, tau_prime = self._U_squeezing_operator(
+            X, Y, Z = self._U_squeezing_operator(
                 p, Xi, Xi_prime
             )
-        return rho, rho_prime, sigma, sigma_prime, tau, tau_prime
+        return X_prime, X, Y_prime, Y, Z_prime, Z
 
     def _translation_operator_prefactors(
-        self, disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple
+        self, disentangled_squeezing_matrices: Tuple, P_matrix: ndarray
     ):
         """Helper method for building the translation operator argument prefactors"""
         dim = self.number_degrees_freedom
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         prefactor_a_dagger = (
-            (np.eye(dim) + rho_prime) @ expm(delta_rho_bar).T @ expm(-sigma)
+            (np.eye(dim) + X) @ P_matrix.T @ expm(-Y_prime)
         )
-        prefactor_a = (
-            np.eye(dim) + 0.5 * (np.eye(dim) + rho_prime) @ (delta_rho + delta_rho.T)
-        ) @ expm(-sigma_prime)
+        prefactor_a = (np.eye(dim) + (np.eye(dim) + X) @ self._P_X_prime_bar(P_matrix, X_prime)) @ expm(-Y)
         return prefactor_a, prefactor_a_dagger
 
     def _general_translation_operators(
@@ -280,7 +277,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_diff: ndarray,
         Xi: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> Tuple:
         """Helper method that performs matrix exponentiation to aid in the
         future construction of translation operators. The resulting matrices yield a
@@ -289,7 +286,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         dim = self.number_degrees_freedom
         num_states_per_min = self.number_states_per_minimum()
         prefactor_a, prefactor_a_dagger = self._translation_operator_prefactors(
-            disentangled_squeezing_matrices, delta_rho_matrices
+            disentangled_squeezing_matrices, P_matrix
         )
         a_operator_array = self._a_operator_array()
         Xi_inv = inv(Xi)
@@ -317,7 +314,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_diff: ndarray,
         Xi: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> Tuple:
         """Helper method that performs matrix exponentiation to aid in the
         future construction of translation operators. This part of the translation
@@ -325,7 +322,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         cell."""
         a_operator_array = self._a_operator_array()
         prefactor_a, prefactor_a_dagger = self._translation_operator_prefactors(
-            disentangled_squeezing_matrices, delta_rho_matrices
+            disentangled_squeezing_matrices, P_matrix
         )
         Xi_inv = inv(Xi)
         exp_a_dagger_minima_difference = expm(
@@ -351,14 +348,14 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         precalculated_quantities: Tuple,
         exp_a_dagger_a: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> Tuple:
         """Helper method for building the potential operators."""
         exp_i_list = []
         Xi, _, a_operator_array, _ = precalculated_quantities
         dim = self.number_degrees_freedom
         prefactor_a, prefactor_a_dagger = self._potential_exp_prefactors(
-            disentangled_squeezing_matrices, delta_rho_matrices
+            disentangled_squeezing_matrices, P_matrix
         )
         for j in range(dim):
             exp_i_j_a_dagger_part = expm(
@@ -406,28 +403,27 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         a_operator_array: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> Tuple:
         """Helper method for building the bilinear operators necessary for constructing
         the Hamiltonian in the presence of squeezing."""
         dim = self.number_degrees_freedom
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         prefactor_a_dagger_a_dagger = 0.5 * (
-            tau.T - expm(-sigma).T @ delta_rho_prime @ expm(-sigma)
+            Z_prime.T - expm(-Y_prime).T @ P_matrix @ X @ expm(-Y_prime)
         )
         prefactor_a_a = 0.5 * (
-            tau_prime - expm(-sigma_prime).T @ delta_rho @ expm(-sigma_prime)
+            Z - expm(-Y).T @ P_matrix.T @ X_prime @ expm(-Y)
         )
         prefactor_a_dagger_a = sp.linalg.logm(
-            expm(-sigma).T @ expm(delta_rho_bar) @ expm(-sigma_prime)
+            expm(-Y_prime).T @ P_matrix @ expm(-Y)
         )
 
         exp_a_dagger_a_dagger = expm(
@@ -535,35 +531,35 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
     ):
         ((m, minima_m), (p, minima_p)) = minima_index_pair
         minima_diff = minima_p - minima_m
-        disentangled_squeezing_matrices = self._rho_sigma_tau_matrices(
+        disentangled_squeezing_matrices = self._X_Y_Z_matrices(
             m, p, Xi, harmonic_lengths
         )
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho_matrices = self._delta_rho_matrices(rho, rho_prime)
+        P_matrix = self._P_matrix(X_prime, X)
         squeezing_operators = self._bilinear_squeezing_operators(
-            a_operator_array, disentangled_squeezing_matrices, delta_rho_matrices
+            a_operator_array, disentangled_squeezing_matrices, P_matrix
         )
         exp_a_dagger_a_dagger, exp_a_dagger_a, exp_a_a = squeezing_operators
         exp_operators = (
             self._general_translation_operators(
-                minima_diff, Xi, disentangled_squeezing_matrices, delta_rho_matrices
+                minima_diff, Xi, disentangled_squeezing_matrices, P_matrix
             ),
             self._minima_dependent_translation_operators(
-                minima_diff, Xi, disentangled_squeezing_matrices, delta_rho_matrices
+                minima_diff, Xi, disentangled_squeezing_matrices, P_matrix
             ),
         )
         minima_pair_results = minima_pair_func(
-            exp_a_dagger_a, disentangled_squeezing_matrices, delta_rho_matrices
+            exp_a_dagger_a, disentangled_squeezing_matrices, P_matrix
         )
         scale = 1.0 / np.sqrt(
-            det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rho_prime))
+            det(np.eye(self.number_degrees_freedom) - np.matmul(X_prime, X))
         )
         return (
             self._periodic_continuation_for_minima_pair(
@@ -572,7 +568,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                 Xi_inv,
                 squeezing_operators,
                 disentangled_squeezing_matrices,
-                delta_rho_matrices,
+                P_matrix,
                 relevant_unit_cell_vectors,
                 minima_pair_results,
                 minima_index_pair,
@@ -587,7 +583,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         Xi_inv: ndarray,
         squeezing_operators: Tuple,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
         relevant_unit_cell_vectors: dict,
         minima_pair_results: Tuple,
         minima_index_pair: Tuple,
@@ -605,7 +601,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                 Xi_inv,
                 squeezing_operators,
                 disentangled_squeezing_matrices,
-                delta_rho_matrices,
+                P_matrix,
                 minima_pair_results,
             )
             relevant_vector_contributions = sum(
@@ -626,7 +622,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         Xi_inv: ndarray,
         squeezing_operators: Tuple,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
         minima_pair_results: Tuple,
         unit_cell_vector: ndarray,
     ) -> ndarray:
@@ -637,8 +633,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         (
             _,
             _,
-            sigma,
-            sigma_prime,
+            Y_prime,
+            Y,
             _,
             _,
         ) = disentangled_squeezing_matrices
@@ -647,8 +643,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         exp_prod_coefficient = self._exp_product_coefficient_squeezing(
             displacement_vector + minima_p - minima_m,
             Xi_inv,
-            sigma,
-            sigma_prime,
+            Y_prime,
+            Y,
         )
         return (
             exp_prod_coefficient
@@ -658,7 +654,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                 minima_m,
                 minima_p,
                 disentangled_squeezing_matrices,
-                delta_rho_matrices,
+                P_matrix,
                 exp_a_dagger_a,
                 minima_pair_results,
             )
@@ -669,24 +665,24 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         Xi_inv: ndarray,
         delta_phi: ndarray,
-        rho_prime: ndarray,
-        delta_rho: ndarray,
+        X: ndarray,
+        P_X_prime_bar: ndarray,
     ) -> Tuple:
         """Construct the `alpha` and `epsilon` variables necessary for the kinetic
         matrix."""
         arg_exp_a_dag = delta_phi @ Xi_inv.T / np.sqrt(2.0)
         arg_exp_a = -arg_exp_a_dag
-        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rho_prime, delta_rho)
-        delta_rho_pp = (
-            0.5 * (arg_exp_a_dag - arg_exp_a @ rho_prime) @ (delta_rho + delta_rho.T)
+        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, X, P_X_prime_bar)
+        intermediate_factor = (
+            0.5 * (arg_exp_a_dag - arg_exp_a @ X) @ P_X_prime_bar
         )
         epsilon = (
             -(1j / np.sqrt(2.0))
             * Xi_inv.T
             @ (
-                rho_prime @ delta_rho_pp
-                - arg_exp_a @ rho_prime
-                + delta_rho_pp
+                X @ intermediate_factor
+                - arg_exp_a @ X
+                + intermediate_factor
                 + Xi_inv @ delta_phi / np.sqrt(2.0)
             )
         )
@@ -697,7 +693,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         precalculated_quantities: Tuple,
         exp_a_dagger_a: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> Tuple:
         """Minima pair calculations for the kinetic and potential matrices."""
         return (
@@ -705,13 +701,13 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                 precalculated_quantities,
                 exp_a_dagger_a,
                 disentangled_squeezing_matrices,
-                delta_rho_matrices,
+                P_matrix,
             ),
             self._minima_pair_potential_squeezing(
                 precalculated_quantities,
                 exp_a_dagger_a,
                 disentangled_squeezing_matrices,
-                delta_rho_matrices,
+                P_matrix,
             ),
         )
 
@@ -720,23 +716,22 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         precalculated_quantities: Tuple,
         exp_a_dagger_a: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> Tuple:
         """Return data necessary for constructing the kinetic matrix that only depends
         on the minima pair, and not on the specific periodic continuation operator."""
         Xi, Xi_inv, a_operator_array, EC_mat = precalculated_quantities
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         linear_coefficients_kinetic = self._linear_coefficient_matrices(
-            rho_prime,
-            delta_rho,
+            X,
+            self._P_X_prime_bar(P_matrix, X_prime),
             -1j * Xi_inv.T / np.sqrt(2.0),
             1j * Xi_inv.T / np.sqrt(2.0),
         )
@@ -744,28 +739,28 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         (xa, xaa, dxa, dx, ddx) = self._premultiplying_exp_a_dagger_a_with_a(
             exp_a_dagger_a, a_operator_array
         )
-        sigma_delta_rho_bar_a_dagger_coefficient_EC = (
-            expm(-sigma).T @ expm(delta_rho_bar) @ a_dagger_coefficient.T @ EC_mat
+        intermediate_coefficient = (
+            expm(-Y_prime).T @ P_matrix @ a_dagger_coefficient.T @ EC_mat
         )
         xaa_coefficient = (
-            (a_coefficient @ expm(-sigma_prime)).T
+            (a_coefficient @ expm(-Y)).T
             @ EC_mat
             @ a_coefficient
-            @ expm(-sigma_prime)
+            @ expm(-Y)
         )
         dxa_coefficient = (
-            sigma_delta_rho_bar_a_dagger_coefficient_EC
+            intermediate_coefficient
             @ a_coefficient
-            @ expm(-sigma_prime)
+            @ expm(-Y)
         )
         ddx_coefficient = (
-            sigma_delta_rho_bar_a_dagger_coefficient_EC
-            @ (expm(-sigma).T @ expm(delta_rho_bar) @ a_dagger_coefficient.T).T
+            intermediate_coefficient
+            @ (expm(-Y_prime).T @ P_matrix @ a_dagger_coefficient.T).T
         )
         x_coefficient = a_dagger_coefficient.T @ EC_mat @ a_coefficient
-        xa_coefficient = EC_mat @ a_coefficient @ expm(-sigma_prime)
+        xa_coefficient = EC_mat @ a_coefficient @ expm(-Y)
         dx_coefficient = (
-            EC_mat @ a_dagger_coefficient @ (expm(-sigma).T @ expm(delta_rho_bar)).T
+            EC_mat @ a_dagger_coefficient @ (expm(-Y_prime).T @ P_matrix).T
         )
         kinetic_matrix = np.sum(
             +4 * np.transpose(xaa, axes=(1, 2, 0)) * np.diag(xaa_coefficient)
@@ -783,7 +778,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_m: ndarray,
         minima_p: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
         exp_a_dagger_a: ndarray,
         minima_pair_results: Tuple,
     ) -> ndarray:
@@ -795,7 +790,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             minima_m,
             minima_p,
             disentangled_squeezing_matrices,
-            delta_rho_matrices,
+            P_matrix,
             exp_a_dagger_a,
             kinetic_minima_pair_results,
         ) + self._local_potential_squeezing(
@@ -804,7 +799,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             minima_m,
             minima_p,
             disentangled_squeezing_matrices,
-            delta_rho_matrices,
+            P_matrix,
             exp_a_dagger_a,
             potential_minima_pair_results,
         )
@@ -816,7 +811,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_m: ndarray,
         minima_p: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
         exp_a_dagger_a: ndarray,
         minima_pair_results: Tuple,
     ) -> ndarray:
@@ -824,14 +819,13 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         Xi, Xi_inv, EC_mat = precalculated_quantities
         delta_phi = displacement_vector + minima_p - minima_m
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         (
             kinetic_matrix_minima_pair,
             xa,
@@ -839,8 +833,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             xa_coefficient,
             dx_coefficient,
         ) = minima_pair_results
+        P_X_prime_bar = self._P_X_prime_bar(P_matrix, X_prime)
         alpha, epsilon = self._kinetic_alpha_epsilon_squeezing(
-            Xi_inv, delta_phi, rho_prime, delta_rho
+            Xi_inv, delta_phi, X, P_X_prime_bar
         )
         e_xa_coefficient = epsilon @ xa_coefficient
         e_dx_coefficient = epsilon @ dx_coefficient
@@ -876,18 +871,18 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
     def _alpha_helper(
         arg_exp_a_dag: ndarray,
         arg_exp_a: ndarray,
-        rho_prime: ndarray,
-        delta_rho: ndarray,
+        X: ndarray,
+        P_X_prime_bar: ndarray,
     ) -> ndarray:
         """Build the prefactor that arises due to squeezing. With no squeezing, alpha=1
         (number, not matrix)"""
-        arg_exp_a_rho_prime = np.matmul(arg_exp_a, rho_prime)
+        arg_exp_a_X = np.matmul(arg_exp_a, X)
         alpha = np.exp(
-            -0.5 * arg_exp_a @ arg_exp_a_rho_prime
+            -0.5 * arg_exp_a @ arg_exp_a_X
             - 0.25
-            * (arg_exp_a_dag - arg_exp_a_rho_prime)
-            @ (delta_rho + delta_rho.T)
-            @ (arg_exp_a_dag - arg_exp_a_rho_prime)
+            * (arg_exp_a_dag - arg_exp_a_X)
+            @ P_X_prime_bar
+            @ (arg_exp_a_dag - arg_exp_a_X)
         )
         return alpha
 
@@ -997,24 +992,23 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         )
 
     def _potential_exp_prefactors(
-        self, disentangled_squeezing_matrices: Tuple, delta_rho_matrices: Tuple
+        self, disentangled_squeezing_matrices: Tuple, P_matrix: ndarray
     ) -> Tuple:
         dim = self.number_degrees_freedom
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         prefactor_a_dagger = (
-            (np.eye(dim) - rho_prime) @ expm(delta_rho_bar).T @ expm(-sigma)
+            (np.eye(dim) - X) @ P_matrix.T @ expm(-Y_prime)
         )
         prefactor_a = (
-            np.eye(dim) - 0.5 * (np.eye(dim) - rho_prime) @ (delta_rho + delta_rho.T)
-        ) @ expm(-sigma_prime)
+            np.eye(dim) - (np.eye(dim) - X) @ self._P_X_prime_bar(P_matrix, X_prime)
+        ) @ expm(-Y)
         return prefactor_a, prefactor_a_dagger
 
     def _local_potential_squeezing(
@@ -1024,7 +1018,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_m: ndarray,
         minima_p: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
         exp_a_dagger_a: ndarray,
         minima_pair_results: Tuple,
     ) -> ndarray:
@@ -1050,7 +1044,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                     Xi,
                     Xi_inv,
                     disentangled_squeezing_matrices,
-                    delta_rho_matrices,
+                    P_matrix,
                     exp_i_phi_list,
                 )
                 for j in range(dim)
@@ -1062,7 +1056,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             Xi,
             Xi_inv,
             disentangled_squeezing_matrices,
-            delta_rho_matrices,
+            P_matrix,
             exp_i_phi_sum_op,
         )
         potential_matrix += (
@@ -1072,7 +1066,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                 minima_m,
                 minima_p,
                 disentangled_squeezing_matrices,
-                delta_rho_matrices,
+                P_matrix,
                 exp_a_dagger_a,
                 minima_pair_results,
             )
@@ -1086,20 +1080,20 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         Xi: ndarray,
         Xi_inv: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
         exp_i_sum: ndarray,
     ) -> ndarray:
         """Local contribution to the potential due to the stitching term"""
         dim = self.number_degrees_freedom
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
+        P_X_prime_bar = self._P_X_prime_bar(P_matrix, X_prime)
         delta_phi_rotated = delta_phi @ Xi_inv.T
         arg_exp_a_dag = (
             delta_phi_rotated
@@ -1109,7 +1103,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             )
         ) / np.sqrt(2.0)
         alpha = self._alpha_helper(
-            arg_exp_a_dag, -arg_exp_a_dag.conjugate(), rho_prime, delta_rho
+            arg_exp_a_dag, -arg_exp_a_dag.conjugate(), X, P_X_prime_bar
         )
         potential_matrix = (
             -0.5 * self.EJlist[-1] * (alpha * exp_i_sum + (alpha * exp_i_sum).conj())
@@ -1124,23 +1118,23 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         Xi: ndarray,
         Xi_inv: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
         exp_i_phi_list: ndarray,
     ) -> ndarray:
         """Local contribution to the potential due to `\cos(\phi_j)`"""
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
+        P_X_prime_bar = self._P_X_prime_bar(P_matrix, X_prime)
         delta_phi_rotated = delta_phi @ Xi_inv.T
         arg_exp_a_dag = (delta_phi_rotated + 1j * Xi[j, :]) / np.sqrt(2.0)
         alpha = self._alpha_helper(
-            arg_exp_a_dag, -arg_exp_a_dag.conjugate(), rho_prime, delta_rho
+            arg_exp_a_dag, -arg_exp_a_dag.conjugate(), X, P_X_prime_bar
         )
         potential_matrix = (
             -0.5
@@ -1155,7 +1149,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         precalculated_quantities: Tuple,
         exp_a_dagger_a: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> Tuple:
         """Return data necessary for constructing the potential matrix that only depends
         on the minima pair, and not on the specific periodic continuation operator."""
@@ -1163,7 +1157,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             precalculated_quantities,
             exp_a_dagger_a,
             disentangled_squeezing_matrices,
-            delta_rho_matrices,
+            P_matrix,
         )
 
     def _local_identity_squeezing(
@@ -1173,7 +1167,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_m: ndarray,
         minima_p: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
         exp_a_dagger_a: ndarray,
         minima_pair_results: Tuple,
     ) -> ndarray:
@@ -1182,17 +1176,17 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         _, Xi_inv, _ = precalculated_quantities
         delta_phi = displacement_vector + minima_p - minima_m
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
+        P_X_prime_bar = self._P_X_prime_bar(P_matrix, X_prime)
         arg_exp_a_dag = np.matmul(delta_phi, Xi_inv.T) / np.sqrt(2.0)
         arg_exp_a = -arg_exp_a_dag
-        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, rho_prime, delta_rho)
+        alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, X, P_X_prime_bar)
         return alpha * exp_a_dagger_a
 
     def inner_product_matrix(self, num_cpus: int = 1) -> ndarray:
@@ -1210,14 +1204,14 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         displacement_vector: ndarray,
         Xi_inv: ndarray,
-        sigma: ndarray,
-        sigma_prime: ndarray,
+        Y_prime: ndarray,
+        Y: ndarray,
     ) -> ndarray:
         """Overall multiplicative factor. Includes offset charge, Gaussian suppression
         factor in the absence of squeezing. With squeezing, also includes exponential
-        of trace over sigma and sigma_prime, see Qin et. al"""
+        of trace over Y_prime and Y, see Qin et. al"""
         return np.exp(
-            -0.5 * np.trace(sigma) - 0.5 * np.trace(sigma_prime)
+            -0.5 * np.trace(Y_prime) - 0.5 * np.trace(Y)
         ) * self._exp_product_coefficient(displacement_vector, Xi_inv)
 
     def _optimize_harmonic_lengths(self, relevant_unit_cell_vectors: dict) -> ndarray:
@@ -1314,24 +1308,24 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
     ) -> complex:
         """Periodic continuation when considering only the ground state."""
         Xi, _, _, Xi_global, Xi_global_inv = precalculated_quantities
-        rho, sigma, tau = self._U_squeezing_operator(minimum_index, Xi_global, Xi)
-        rho_prime, sigma_prime, tau_prime = np.copy(rho), np.copy(sigma), np.copy(tau)
+        X_prime, Y_prime, Z_prime = self._U_squeezing_operator(minimum_index, Xi_global, Xi)
+        X, Y, Z = np.copy(X_prime), np.copy(Y_prime), np.copy(Z_prime)
         disentangled_squeezing_matrices = (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         )
-        delta_rho_matrices = self._delta_rho_matrices(rho, rho_prime)
+        P_matrix = self._P_matrix(X_prime, X)
         scale = 1.0 / np.sqrt(
-            det(np.eye(self.number_degrees_freedom) - np.matmul(rho, rho_prime))
+            det(np.eye(self.number_degrees_freedom) - np.matmul(X_prime, X))
         )
         ground_state_value = 0.0 + 0.0j
         for displacement_vector in minima_pair_displacement_vectors:
             exp_prod_coefficient = self._exp_product_coefficient_squeezing(
-                displacement_vector, Xi_global_inv, sigma, sigma_prime
+                displacement_vector, Xi_global_inv, Y_prime, Y
             )
             ground_state_value += (
                 scale
@@ -1341,7 +1335,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                     minimum_location,
                     minimum_location,
                     disentangled_squeezing_matrices,
-                    delta_rho_matrices,
+                    P_matrix,
                 )
             )
         return ground_state_value
@@ -1353,7 +1347,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_m: ndarray,
         minima_p: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> ndarray:
         """Local identity contribution when considering only the ground state."""
         _, _, _, _, Xi_global_inv = precalculated_quantities
@@ -1363,7 +1357,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             minima_m,
             minima_p,
             disentangled_squeezing_matrices,
-            delta_rho_matrices,
+            P_matrix,
             np.array([1.0]),
             (),
         )
@@ -1375,22 +1369,21 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_m: ndarray,
         minima_p: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> ndarray:
         """Local transfer contribution when considering only the ground state."""
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
         _, _, _, _, Xi_global_inv = precalculated_quantities
         linear_coefficients_kinetic = self._linear_coefficient_matrices(
-            rho_prime,
-            delta_rho,
+            X,
+            self._P_X_prime_bar(P_matrix, X_prime),
             -1j * Xi_global_inv.T / np.sqrt(2.0),
             1j * Xi_global_inv.T / np.sqrt(2.0),
         )
@@ -1400,7 +1393,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             minima_m,
             minima_p,
             disentangled_squeezing_matrices,
-            delta_rho_matrices,
+            P_matrix,
             linear_coefficients_kinetic,
         ) + self._one_state_local_potential_squeezing(
             precalculated_quantities,
@@ -1408,7 +1401,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             minima_m,
             minima_p,
             disentangled_squeezing_matrices,
-            delta_rho_matrices,
+            P_matrix,
         )
 
     def _one_state_local_potential_squeezing(
@@ -1418,7 +1411,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_m: ndarray,
         minima_p: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
     ) -> ndarray:
         """Local potential contribution when considering only the ground state."""
         dim = self.number_degrees_freedom
@@ -1440,7 +1433,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                     Xi_global,
                     Xi_global_inv,
                     disentangled_squeezing_matrices,
-                    delta_rho_matrices,
+                    P_matrix,
                     exp_i_phi_list,
                 )
                 for j in range(dim)
@@ -1452,7 +1445,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             Xi_global,
             Xi_global_inv,
             disentangled_squeezing_matrices,
-            delta_rho_matrices,
+            P_matrix,
             exp_i_phi_sum_op,
         )
         potential_matrix += (
@@ -1462,7 +1455,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
                 minima_m,
                 minima_p,
                 disentangled_squeezing_matrices,
-                delta_rho_matrices,
+                P_matrix,
                 np.array([1.0]),
                 (),
             )
@@ -1477,24 +1470,24 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_m: ndarray,
         minima_p: ndarray,
         disentangled_squeezing_matrices: Tuple,
-        delta_rho_matrices: Tuple,
+        P_matrix: ndarray,
         linear_coefficient_matrices: Tuple,
     ) -> ndarray:
         """Local kinetic contribution when considering only the ground state."""
         _, _, EC_mat, _, Xi_global_inv = precalculated_quantities
         delta_phi = displacement_vector + minima_p - minima_m
         (
-            rho,
-            rho_prime,
-            sigma,
-            sigma_prime,
-            tau,
-            tau_prime,
+            X_prime,
+            X,
+            Y_prime,
+            Y,
+            Z_prime,
+            Z,
         ) = disentangled_squeezing_matrices
-        delta_rho, delta_rho_prime, delta_rho_bar = delta_rho_matrices
+        P_X_prime_bar = self._P_X_prime_bar(P_matrix, X_prime)
         a_coefficient, a_dagger_coefficient = linear_coefficient_matrices
         alpha, epsilon = self._kinetic_alpha_epsilon_squeezing(
-            Xi_global_inv, delta_phi, rho_prime, delta_rho
+            Xi_global_inv, delta_phi, X, P_X_prime_bar
         )
         result = (
             4
