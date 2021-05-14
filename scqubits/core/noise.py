@@ -222,11 +222,14 @@ class NoisySystem(ABC):
         fig, axes = kwargs.get("fig_ax") or plt.subplots(*plot_grid, figsize=figsize)
 
         plotting_options = {
-            "ylabel": units.get_units_time_label(),
             "xlabel": param_name,
             "yscale": "log",
             "grid": True,
         }
+        # Only add a ylabel if we're plotting times and not rates  
+        if not common_noise_options.get('get_rate', True):
+            plotting_options["ylabel"]=units.get_units_time_label()
+
         plotting_options.update(
             {k: v for (k, v) in kwargs.items() if k not in ["fig_ax", "figsize"]}
         )
