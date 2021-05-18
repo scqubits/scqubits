@@ -349,6 +349,9 @@ class Parameters:
                 reduced_paramvals_by_name[name] = paramvals
             elif isinstance(paramvals, (ndarray, list, range)) and len(paramvals) > 1:
                 reduced_paramvals_by_name[name] = paramvals
+            elif index < len(np_indices) and np_indices[index] == slice(None, None,
+                                                                        None):
+                reduced_paramvals_by_name[name] = paramvals
 
         return Parameters(reduced_paramvals_by_name)
 
