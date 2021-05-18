@@ -255,17 +255,17 @@ class SpectrumLookupMixin:
 
         dressed_index = np.asarray(dressed_index)
         energies = np.empty_like(dressed_index)
-        it = np.nditer(dressed_index, flags=["multi_index", "refs_ok"])
+        itr = np.nditer(dressed_index, flags=["multi_index", "refs_ok"])
         sliced_energies = self["evals"][param_indices]
 
-        for location in it:
+        for location in itr:
             location = location.tolist()
             if location is None:
-                energies[it.multi_index] = np.nan
+                energies[itr.multi_index] = np.nan
             else:
-                energies[it.multi_index] = sliced_energies[it.multi_index][location]
+                energies[itr.multi_index] = sliced_energies[itr.multi_index][location]
                 if subtract_ground:
-                    energies[it.multi_index] -= sliced_energies[it.multi_index][0]
+                    energies[itr.multi_index] -= sliced_energies[itr.multi_index][0]
         return NamedSlotsNdarray(
             energies, sliced_energies._parameters.paramvals_by_name
         )
