@@ -10,6 +10,7 @@
 ############################################################################
 
 import math
+import numbers
 import warnings
 
 from collections import OrderedDict
@@ -338,19 +339,29 @@ class Parameters:
         new_paramvals_list = self.paramvals_list.copy()
         for index, np_index in enumerate(np_indices):
             array_entry = new_paramvals_list[index][np_index]
-            if isinstance(array_entry, (float, int, complex)):
+            if isinstance(array_entry, numbers.Number):
                 array_entry = np.asarray([array_entry])
             new_paramvals_list[index] = array_entry
+
+
+        if not remove_fixed:
+            paramvals_by_name = {name: new_paramvals_list[index] for index, name in
+                                 enumerate(self.paramnames_list)}
+            return Parameters(paramvals_by_name)
 
         reduced_paramvals_by_name = {}
         for index, name in enumerate(self.paramnames_list):
             paramvals = new_paramvals_list[index]
-            if not remove_fixed:
+            # Keep all parameters intact that still have more than one element.
+            if len(paramvals) > 1:
                 reduced_paramvals_by_name[name] = paramvals
-            elif isinstance(paramvals, (ndarray, list, range)) and len(paramvals) > 1:
+            # If only one element is left, check whether this reduction was caused
+            # by explicit reduction through slicing. If not, then the single-element
+            # parameter was there previously, and we will not reduce it in order
+            # to support NamedSlotsNdarray's with axes containing only one element.
+            elif index >= len(np_indices):
                 reduced_paramvals_by_name[name] = paramvals
-            elif index < len(np_indices) and np_indices[index] == slice(None, None,
-                                                                        None):
+            elif np_indices[index] == slice(None, None, None):
                 reduced_paramvals_by_name[name] = paramvals
 
         return Parameters(reduced_paramvals_by_name)
@@ -446,13 +457,15 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
             multi_index = convert_to_std_npindex(multi_index, self._parameters)
             obj = super().__getitem__(multi_index)
 
+        if Ellipsis in multi_index:
+            multi_index = self._process_ellipsis(multi_index)
         # If the resulting obj is a sliced view of the current array, then we must
         # adjust the internal Parameters instance accordingly
         if isinstance(obj, NamedSlotsNdarray):
-            # Check whether all parameters are getting fixed; if not, adjust
-            # Parameters for the new object
             param_count = len(self._parameters)
             dummy_array = np.empty(shape=self._parameters.counts)
+            # Check whether all parameters are getting fixed; if not, adjust
+            # Parameters for the new object
             if not isinstance(dummy_array[multi_index[:param_count]], float):
                 # have not reduced to one element
                 obj._parameters = self._parameters.create_sliced(
@@ -463,7 +476,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
             ):
                 # Have reduced to one element, which is still an array however. If this
                 # was a regular ndarray (not NamedSlotsNdarray), the Parameters entry
-                # will be the same as in parent array. Need to delete this, i.e., just
+                # would be the same as in parent array. Need to delete this, i.e., just
                 # return ordinary ndarray.
                 obj = obj.view(ndarray)
         return obj
@@ -478,6 +491,18 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         # needed for multiprocessing / proper pickling
         self._parameters = state[-1]
         super().__setstate__(state[0:-1])
+
+    def _process_ellipsis(self, multi_idx: Union[tuple, list]) -> tuple:
+        new_multi_idx = [slice(None, None, None)] * len(self)
+        slot = 0
+        while multi_idx[slot] is not Ellipsis:
+            new_multi_idx[slot] = multi_idx[slot]
+            slot += 1
+        slot = -1
+        while multi_idx[slot] is not Ellipsis:
+            new_multi_idx[slot] = multi_idx[slot]
+            slot -= 1
+        return tuple(new_multi_idx)
 
     @classmethod
     def deserialize(cls, io_data: IOData) -> "NamedSlotsNdarray":
