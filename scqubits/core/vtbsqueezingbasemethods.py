@@ -188,15 +188,15 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
     ) -> float:
         """Overrides method in VariationalTightBinding, need to consider states
         localized in both minima."""
-        (m, minima_m), (p, minima_p) = minima_index_pair
+        (m_prime_index, m_prime_location), (m_index, m_location) = minima_index_pair
 
+        max_for_m_prime = self._min_localization_ratio_for_minima_pair(
+            minima_index_pair, m_prime_index, relevant_unit_cell_vectors
+        )
         max_for_m = self._min_localization_ratio_for_minima_pair(
-            minima_index_pair, m, relevant_unit_cell_vectors
+            minima_index_pair, m_index, relevant_unit_cell_vectors
         )
-        max_for_p = self._min_localization_ratio_for_minima_pair(
-            minima_index_pair, p, relevant_unit_cell_vectors
-        )
-        return max(max_for_m, max_for_p)
+        return max(max_for_m_prime, max_for_m)
 
     def _normal_ordered_a_dagger_a_exponential(
         self, x: ndarray, a_operator_array: ndarray
@@ -226,30 +226,30 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         return result
 
     def _X_Y_Z_matrices(
-        self, m: int, p: int, Xi: ndarray, harmonic_lengths: ndarray
+        self, m_prime_index: int, m_index: int, Xi: ndarray, harmonic_lengths: ndarray
     ) -> Tuple:
         """Return the `X, Y, Z` matrices that define the squeezing
         operator `U`."""
         dim = self.number_degrees_freedom
-        if m == 0:  # At the global minimum, no squeezing required
+        if m_prime_index == 0:  # At the global minimum, no squeezing required
             X_prime = np.zeros((dim, dim))
             Y_prime = np.zeros((dim, dim))
             Z_prime = np.zeros((dim, dim))
         else:
-            Xi_prime = self.Xi_matrix(m, harmonic_lengths)
-            X_prime, Y_prime, Z_prime = self._U_squeezing_operator(m, Xi, Xi_prime)
-        if p == 0:
+            Xi_prime = self.Xi_matrix(m_prime_index, harmonic_lengths)
+            X_prime, Y_prime, Z_prime = self._U_squeezing_operator(m_prime_index, Xi, Xi_prime)
+        if m_index == 0:
             X = np.zeros((dim, dim))
             Y = np.zeros((dim, dim))
             Z = np.zeros((dim, dim))
-        elif p == m:
+        elif m_index == m_prime_index:
             X = np.copy(X_prime)
             Y = np.copy(Y_prime)
             Z = np.copy(Z_prime)
         else:
-            Xi_prime = self.Xi_matrix(p, harmonic_lengths)
+            Xi_prime = self.Xi_matrix(m_index, harmonic_lengths)
             X, Y, Z = self._U_squeezing_operator(
-                p, Xi, Xi_prime
+                m_index, Xi, Xi_prime
             )
         return X_prime, X, Y_prime, Y, Z_prime, Z
 
@@ -529,10 +529,10 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         relevant_unit_cell_vectors: dict,
         minima_index_pair: Tuple,
     ):
-        ((m, minima_m), (p, minima_p)) = minima_index_pair
-        minima_diff = minima_p - minima_m
+        ((m_prime_index, m_prime_location), (m_index, m_location)) = minima_index_pair
+        minima_diff = m_location - m_prime_location
         disentangled_squeezing_matrices = self._X_Y_Z_matrices(
-            m, p, Xi, harmonic_lengths
+            m_prime_index, m_index, Xi, harmonic_lengths
         )
         (
             X_prime,
@@ -588,15 +588,15 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_pair_results: Tuple,
         minima_index_pair: Tuple,
     ):
-        ((m, minima_m), (p, minima_p)) = minima_index_pair
-        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m, p)]
+        ((m_prime_index, m_prime_location), (m_index, m_location)) = minima_index_pair
+        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m_prime_index, m_index)]
         num_states_per_min = self.number_states_per_minimum()
         if minima_pair_displacement_vectors is not None:
             displacement_vector_contribution = partial(
                 self._displacement_vector_contribution,
                 local_func,
-                minima_m,
-                minima_p,
+                m_prime_location,
+                m_location,
                 exp_operators,
                 Xi_inv,
                 squeezing_operators,
@@ -616,8 +616,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
     def _displacement_vector_contribution(
         self,
         local_func: Callable,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         exp_operators: Tuple,
         Xi_inv: ndarray,
         squeezing_operators: Tuple,
@@ -641,7 +641,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         exp_a_dagger_a_dagger, exp_a_dagger_a, exp_a_a = squeezing_operators
         translation_a_dagger, translation_a = translation_operators
         exp_prod_coefficient = self._exp_product_coefficient_squeezing(
-            displacement_vector + minima_p - minima_m,
+            displacement_vector + m_location - m_prime_location,
             Xi_inv,
             Y_prime,
             Y,
@@ -651,8 +651,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             * translation_a_dagger
             @ local_func(
                 displacement_vector,
-                minima_m,
-                minima_p,
+                m_prime_location,
+                m_location,
                 disentangled_squeezing_matrices,
                 P_matrix,
                 exp_a_dagger_a,
@@ -775,8 +775,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         precalculated_quantities: Tuple,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         disentangled_squeezing_matrices: Tuple,
         P_matrix: ndarray,
         exp_a_dagger_a: ndarray,
@@ -787,8 +787,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         return self._local_kinetic_squeezing(
             precalculated_quantities,
             displacement_vector,
-            minima_m,
-            minima_p,
+            m_prime_location,
+            m_location,
             disentangled_squeezing_matrices,
             P_matrix,
             exp_a_dagger_a,
@@ -796,8 +796,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         ) + self._local_potential_squeezing(
             precalculated_quantities,
             displacement_vector,
-            minima_m,
-            minima_p,
+            m_prime_location,
+            m_location,
             disentangled_squeezing_matrices,
             P_matrix,
             exp_a_dagger_a,
@@ -808,8 +808,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         precalculated_quantities: Tuple,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         disentangled_squeezing_matrices: Tuple,
         P_matrix: ndarray,
         exp_a_dagger_a: ndarray,
@@ -817,7 +817,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
     ) -> ndarray:
         """Local contribution to the kinetic matrix in the presence of squeezing."""
         Xi, Xi_inv, EC_mat = precalculated_quantities
-        delta_phi = displacement_vector + minima_p - minima_m
+        delta_phi = displacement_vector + m_location - m_prime_location
         (
             X_prime,
             X,
@@ -1015,8 +1015,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         precalculated_quantities: Tuple,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         disentangled_squeezing_matrices: Tuple,
         P_matrix: ndarray,
         exp_a_dagger_a: ndarray,
@@ -1025,8 +1025,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         """Local contribution to the potential matrix in the presence of squeezing."""
         dim = self.number_degrees_freedom
         Xi, Xi_inv, _ = precalculated_quantities
-        delta_phi = displacement_vector + minima_p - minima_m
-        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
+        delta_phi = displacement_vector + m_location - m_prime_location
+        phi_bar = 0.5 * (displacement_vector + (m_prime_location + m_location))
         exp_i_list, exp_i_sum = minima_pair_results
         exp_i_phi_list = np.array(
             [exp_i_list[i] * np.exp(1j * phi_bar[i]) for i in range(dim)]
@@ -1063,8 +1063,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             self._local_identity_squeezing(
                 precalculated_quantities,
                 displacement_vector,
-                minima_m,
-                minima_p,
+                m_prime_location,
+                m_location,
                 disentangled_squeezing_matrices,
                 P_matrix,
                 exp_a_dagger_a,
@@ -1164,8 +1164,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         precalculated_quantities: Tuple,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         disentangled_squeezing_matrices: Tuple,
         P_matrix: ndarray,
         exp_a_dagger_a: ndarray,
@@ -1174,7 +1174,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         """Local contribution to the identity matrix in the presence of squeezing."""
         _ = minima_pair_results
         _, Xi_inv, _ = precalculated_quantities
-        delta_phi = displacement_vector + minima_p - minima_m
+        delta_phi = displacement_vector + m_location - m_prime_location
         (
             X_prime,
             X,
@@ -1344,8 +1344,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         precalculated_quantities: Tuple,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         disentangled_squeezing_matrices: Tuple,
         P_matrix: ndarray,
     ) -> ndarray:
@@ -1354,8 +1354,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         return self._local_identity_squeezing(
             (_, Xi_global_inv, _),
             displacement_vector,
-            minima_m,
-            minima_p,
+            m_prime_location,
+            m_location,
             disentangled_squeezing_matrices,
             P_matrix,
             np.array([1.0]),
@@ -1366,8 +1366,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         precalculated_quantities: Tuple,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         disentangled_squeezing_matrices: Tuple,
         P_matrix: ndarray,
     ) -> ndarray:
@@ -1390,16 +1390,16 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         return self._one_state_local_kinetic_squeezing(
             precalculated_quantities,
             displacement_vector,
-            minima_m,
-            minima_p,
+            m_prime_location,
+            m_location,
             disentangled_squeezing_matrices,
             P_matrix,
             linear_coefficients_kinetic,
         ) + self._one_state_local_potential_squeezing(
             precalculated_quantities,
             displacement_vector,
-            minima_m,
-            minima_p,
+            m_prime_location,
+            m_location,
             disentangled_squeezing_matrices,
             P_matrix,
         )
@@ -1408,16 +1408,16 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         precalculated_quantities: Tuple,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         disentangled_squeezing_matrices: Tuple,
         P_matrix: ndarray,
     ) -> ndarray:
         """Local potential contribution when considering only the ground state."""
         dim = self.number_degrees_freedom
         _, _, _, Xi_global, Xi_global_inv = precalculated_quantities
-        delta_phi = displacement_vector + minima_p - minima_m
-        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
+        delta_phi = displacement_vector + m_location - m_prime_location
+        phi_bar = 0.5 * (displacement_vector + (m_prime_location + m_location))
         exp_i_phi_list = np.array([np.exp(1j * phi_bar[i]) for i in range(dim)])
         exp_i_phi_sum_op = np.exp(1j * 2.0 * np.pi * self.flux) * np.prod(
             [
@@ -1452,8 +1452,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             self._local_identity_squeezing(
                 (None, Xi_global_inv, None),
                 displacement_vector,
-                minima_m,
-                minima_p,
+                m_prime_location,
+                m_location,
                 disentangled_squeezing_matrices,
                 P_matrix,
                 np.array([1.0]),
@@ -1467,15 +1467,15 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         self,
         precalculated_quantities: Tuple,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         disentangled_squeezing_matrices: Tuple,
         P_matrix: ndarray,
         linear_coefficient_matrices: Tuple,
     ) -> ndarray:
         """Local kinetic contribution when considering only the ground state."""
         _, _, EC_mat, _, Xi_global_inv = precalculated_quantities
-        delta_phi = displacement_vector + minima_p - minima_m
+        delta_phi = displacement_vector + m_location - m_prime_location
         (
             X_prime,
             X,

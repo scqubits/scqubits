@@ -83,7 +83,7 @@ class VTBBaseMethods(ABC):
         maximum displacement allowed for each coordinate of a unit cell vector.
     """
     num_exc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    maximum_unit_cell_vector_length = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    maximum_periodic_vector_length = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     number_degrees_freedom = descriptors.ReadOnlyProperty()
     number_periodic_degrees_freedom = descriptors.ReadOnlyProperty()
     number_junctions = descriptors.ReadOnlyProperty()
@@ -98,7 +98,7 @@ class VTBBaseMethods(ABC):
     def __init__(
         self,
         num_exc: int,
-        maximum_unit_cell_vector_length: int,
+        maximum_periodic_vector_length: int,
         number_degrees_freedom: int,
         number_periodic_degrees_freedom: int,
         number_junctions: int,
@@ -113,7 +113,8 @@ class VTBBaseMethods(ABC):
         inner_prod_eval_tol: float = 1e-8,
     ) -> None:
         self.num_exc = num_exc
-        self.maximum_unit_cell_vector_length = maximum_unit_cell_vector_length
+        # maximum_periodic_vector_length
+        self.maximum_periodic_vector_length = maximum_periodic_vector_length
         self._number_degrees_freedom = number_degrees_freedom
         self._number_periodic_degrees_freedom = number_periodic_degrees_freedom
         self._number_junctions = number_junctions
@@ -163,19 +164,6 @@ class VTBBaseMethods(ABC):
     @abstractmethod
     def nglist(self):
         pass
-
-    # def __str__(self) -> str:
-    #     indent_length = 20
-    #     name_prepend = self._sys_type.ljust(indent_length, "-") + "|\n"
-    #
-    #     output = ""
-    #     for param_name in self.default_params().keys():
-    #         output += "{0}| {1}: {2}\n".format(
-    #             " " * indent_length, str(param_name), str(getattr(self, param_name))
-    #         )
-    #     output += "{0}|\n".format(" " * indent_length)
-    #
-    #     return name_prepend + output
 
     def gamma_matrix(self, minimum_index: int = 0) -> ndarray:
         """Returns linearized potential matrix
@@ -289,15 +277,15 @@ class VTBBaseMethods(ABC):
         given minima pair, along with the specification
         that we would like to use the Xi matrix as defined
         for the minimum indexed by `Xi_arg`"""
-        (m, minima_m), (p, minima_p) = minima_index_pair
-        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m, p)]
+        (m_prime_index, m_prime_location), (m_index, m_location) = minima_index_pair
+        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m_prime_index, m_index)]
         if minima_pair_displacement_vectors is None or np.allclose(
             minima_pair_displacement_vectors, 0.0
         ):
             return np.inf
         Xi_inv = inv(self.Xi_matrix(minimum_index=Xi_minimum_index_arg))
         delta_inv = Xi_inv.T @ Xi_inv
-        if m == p:  # Do not include equivalent minima in the same unit cell
+        if m_prime_index == m_index:  # Do not include equivalent minima in the same unit cell
             minima_pair_displacement_vectors = np.array(
                 [
                     vec
@@ -306,7 +294,7 @@ class VTBBaseMethods(ABC):
                 ]
             )
         displacement_vectors = 2.0 * np.pi * minima_pair_displacement_vectors + (
-            minima_p - minima_m
+            m_location - m_prime_location
         )
         minima_distances = np.linalg.norm(displacement_vectors, axis=1)
         minima_unit_vectors = (
@@ -422,20 +410,20 @@ class VTBBaseMethods(ABC):
                 np.zeros(self.number_degrees_freedom), Xi_inv, num_cpus
             )
         }
-        for m_index in range(1, len(sorted_minima_dict)):
-            relevant_unit_cell_vectors[(m_index, m_index)] = relevant_unit_cell_vectors[
+        for m_prime_index in range(1, len(sorted_minima_dict)):
+            relevant_unit_cell_vectors[(m_prime_index, m_prime_index)] = relevant_unit_cell_vectors[
                 (0, 0)
             ]
         all_minima_location_index_pairs = itertools.combinations(
             sorted_minima_dict.items(), 2
         )
         for (
+            (m_prime_index, m_prime_location),
             (m_index, m_location),
-            (p_index, p_location),
         ) in all_minima_location_index_pairs:
-            minima_diff = p_location - m_location
+            minima_diff = m_location - m_prime_location
             relevant_unit_cell_vectors[
-                (m_index, p_index)
+                (m_prime_index, m_index)
             ] = self._unit_cell_vectors_minima_pair(minima_diff, Xi_inv, num_cpus)
         return relevant_unit_cell_vectors
 
@@ -449,7 +437,7 @@ class VTBBaseMethods(ABC):
                 partial(
                     self._generate_and_filter_unit_cell_vectors, minima_diff, Xi_inv
                 ),
-                np.arange(0, self.maximum_unit_cell_vector_length + 1),
+                np.arange(0, self.maximum_periodic_vector_length + 1),
             )
         )
         return self._stack_filtered_vectors(relevant_vectors)
@@ -739,8 +727,8 @@ class VTBBaseMethods(ABC):
         contribution to the operator, taking into account normal ordering. local func
         must have the signature
         local_func(precalculated_quantities: Tuple[ndarray, ndarray,
-         Tuple, ndarray, ndarray], displacement_vector: ndarray, minima_m: ndarray,
-         minima_p: ndarray)
+         Tuple, ndarray, ndarray], displacement_vector: ndarray, m_prime_location: ndarray,
+         m_location: ndarray)
         where precalculated_quantities = (Xi, Xi_inv, premultiplied_a_a_dagger,
                                           exp_i_phi_j, EC_mat_t)
         defined below. These are all expensive quantities to calculate over and over
@@ -895,7 +883,7 @@ class VTBBaseMethods(ABC):
             Returns the inner product matrix
         """
         return self._abstract_VTB_operator(
-            lambda precalculated_quantities, displacement_vector, minima_m, minima_p: self._identity(),
+            lambda precalculated_quantities, displacement_vector, m_prime_location, m_location: self._identity(),
             num_cpus,
         )
 
@@ -937,7 +925,7 @@ class VTBBaseMethods(ABC):
         """See _transfer_matrix documentation. Calculate the inner product matrix with
         pre-calculated relevant unit cell vectors and harmonic lengths"""
         return self._periodic_continuation(
-            lambda displacement_vector, minima_m, minima_p: self._identity(),
+            lambda displacement_vector, m_prime_location, m_location: self._identity(),
             relevant_unit_cell_vectors,
             harmonic_lengths,
             num_cpus=num_cpus,
@@ -948,8 +936,8 @@ class VTBBaseMethods(ABC):
         dof_index: int,
         precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         r"""Calculate the local contribution to the charge operator given two
         minima and a unit cell vector `displacement_vector`"""
@@ -958,7 +946,7 @@ class VTBBaseMethods(ABC):
         constant_coefficient = (
             -0.5
             * 1j
-            * (Xi_inv.T @ Xi_inv @ (displacement_vector + minima_p - minima_m))[
+            * (Xi_inv.T @ Xi_inv @ (displacement_vector + m_location - m_prime_location))[
                 dof_index]
         )
         return (
@@ -972,14 +960,14 @@ class VTBBaseMethods(ABC):
         dof_index: int,
         precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         r"""Calculate the local contribution to the `\phi` operator given two
         minima and a unit cell vector `displacement_vector`"""
         Xi, _, premultiplied_a_a_dagger, _, _ = precalculated_quantities
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
-        constant_coefficient = 0.5 * (displacement_vector + (minima_m + minima_p))
+        constant_coefficient = 0.5 * (displacement_vector + (m_prime_location + m_location))
         return (1.0 / np.sqrt(2.0)) * np.sum(
             Xi[dof_index] * (np.transpose(a, (1, 2, 0)) + a.T), axis=2
         ) + constant_coefficient[dof_index] * self._identity()
@@ -989,14 +977,14 @@ class VTBBaseMethods(ABC):
         dof_index: int,
         precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         r"""Calculate the local contribution to the :math:`e^{i \\phi}` operator given
         two minima and a unit cell vector `displacement_vector`"""
         _, _, _, exp_i_phi_j, _ = precalculated_quantities
         dim = self.number_degrees_freedom
-        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
+        phi_bar = 0.5 * (displacement_vector + (m_prime_location + m_location))
         (
             exp_i_phi_j_phi_bar,
             exp_i_stitching_phi_j_phi_bar,
@@ -1028,14 +1016,14 @@ class VTBBaseMethods(ABC):
         self,
         precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         """Calculate the local kinetic contribution to the transfer matrix given two
         minima and a unit cell vector `displacement_vector`"""
         _, Xi_inv, premultiplied_a_a_dagger, _, EC_mat_t = precalculated_quantities
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
-        delta_phi = displacement_vector + minima_p - minima_m
+        delta_phi = displacement_vector + m_location - m_prime_location
         delta_phi_rotated = Xi_inv @ delta_phi
         local_kinetic_diagonal = (
             -2.0 * np.transpose(a_a, (1, 2, 0))
@@ -1055,13 +1043,13 @@ class VTBBaseMethods(ABC):
         self,
         precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         """Calculate the local potential contribution to the transfer matrix given two
         minima and a unit cell vector `displacement_vector`"""
         _, _, _, exp_i_phi_j, _ = precalculated_quantities
-        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
+        phi_bar = 0.5 * (displacement_vector + (m_prime_location + m_location))
         (
             exp_i_phi_j_phi_bar,
             exp_i_stitching_phi_j_phi_bar,
@@ -1085,15 +1073,15 @@ class VTBBaseMethods(ABC):
         self,
         precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         """Calculate the local contribution to the transfer matrix given two
         minima and a unit cell vector `displacement_vector`"""
         return self._local_kinetic(
-            precalculated_quantities, displacement_vector, minima_m, minima_p
+            precalculated_quantities, displacement_vector, m_prime_location, m_location
         ) + self._local_potential(
-            precalculated_quantities, displacement_vector, minima_m, minima_p
+            precalculated_quantities, displacement_vector, m_prime_location, m_location
         )
 
     def _periodic_continuation(
@@ -1117,8 +1105,8 @@ class VTBBaseMethods(ABC):
         Parameters
         ----------
         local_func: Callable
-            function that takes three arguments (displacement_vector, minima_m,
-             minima_p) and returns the relevant operator with dimension NxN,
+            function that takes three arguments (displacement_vector, m_prime_location,
+             m_location) and returns the relevant operator with dimension NxN,
              where N=self.number_states_per_minimum().
         relevant_unit_cell_vectors: Dict[Tuple[int, int], ndarray]
             Dictionary of the relevant unit cell vectors for each pair of minima
@@ -1157,10 +1145,10 @@ class VTBBaseMethods(ABC):
         num_states_per_min = self.number_states_per_minimum()
         hilbertdim = self.hilbertdim()
         operator_matrix = np.zeros((hilbertdim, hilbertdim), dtype=np.complex128)
-        for i, ((m, minima_m), (p, minima_p)) in enumerate(all_minima_index_pairs):
+        for i, ((m_prime_index, m_prime_location), (m_index, m_location)) in enumerate(all_minima_index_pairs):
             operator_matrix[
-                m * num_states_per_min: (m + 1) * num_states_per_min,
-                p * num_states_per_min: (p + 1) * num_states_per_min,
+                m_prime_index * num_states_per_min: (m_prime_index + 1) * num_states_per_min,
+                m_index * num_states_per_min: (m_index + 1) * num_states_per_min,
             ] += matrix_elements[i]
         return self._populate_hermitian_matrix(operator_matrix)
 
@@ -1175,19 +1163,19 @@ class VTBBaseMethods(ABC):
     ) -> ndarray:
         """Helper method for performing the periodic continuation calculation given a
         minima pair."""
-        ((m, minima_m), (p, minima_p)) = minima_index_pair
-        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m, p)]
+        ((m_prime_index, m_prime_location), (m_index, m_location)) = minima_index_pair
+        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m_prime_index, m_index)]
         num_states_per_min = self.number_states_per_minimum()
         if minima_pair_displacement_vectors is not None:
-            minima_diff = minima_p - minima_m
+            minima_diff = m_location - m_prime_location
             exp_minima_difference = self._minima_dependent_translation_operators(
                 minima_diff, Xi_inv, a_operator_array
             )
             displacement_vector_contribution = partial(
                 self._displacement_vector_contribution,
                 func,
-                minima_m,
-                minima_p,
+                m_prime_location,
+                m_location,
                 exp_a_list,
                 exp_minima_difference,
                 Xi_inv,
@@ -1204,8 +1192,8 @@ class VTBBaseMethods(ABC):
     def _displacement_vector_contribution(
         self,
         func: Callable,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
         exp_a_list: Tuple[ndarray, ndarray],
         exp_minima_difference: Tuple[ndarray, ndarray],
         Xi_inv: ndarray,
@@ -1215,13 +1203,13 @@ class VTBBaseMethods(ABC):
         unit cell vector `displacement_vector`"""
         displacement_vector = 2.0 * np.pi * np.array(unit_cell_vector)
         exp_prod_coefficient = self._exp_product_coefficient(
-            displacement_vector + minima_p - minima_m, Xi_inv
+            displacement_vector + m_location - m_prime_location, Xi_inv
         )
         exp_a_dagger, exp_a = self._local_translation_operators(
             exp_a_list, exp_minima_difference, unit_cell_vector
         )
         matrix_element = exp_prod_coefficient * func(
-            displacement_vector, minima_m, minima_p
+            displacement_vector, m_prime_location, m_location
         )
         return exp_a_dagger @ matrix_element @ exp_a
 
@@ -1230,15 +1218,15 @@ class VTBBaseMethods(ABC):
         populated with the upper right blocks"""
         sorted_minima_dict = self.sorted_minima_dict
         num_states_per_min = self.number_states_per_minimum()
-        for m, _ in sorted_minima_dict.items():
-            for p in range(m + 1, len(sorted_minima_dict)):
+        for m_prime_index, _ in sorted_minima_dict.items():
+            for p in range(m_prime_index + 1, len(sorted_minima_dict)):
                 matrix_element = mat[
-                    m * num_states_per_min: (m + 1) * num_states_per_min,
+                    m_prime_index * num_states_per_min: (m_prime_index + 1) * num_states_per_min,
                     p * num_states_per_min: (p + 1) * num_states_per_min,
                 ]
                 mat[
                     p * num_states_per_min: (p + 1) * num_states_per_min,
-                    m * num_states_per_min: (m + 1) * num_states_per_min,
+                    m_prime_index * num_states_per_min: (m_prime_index + 1) * num_states_per_min,
                 ] += matrix_element.conjugate().T
         return mat
 
@@ -1596,11 +1584,11 @@ class VTBBaseMethods(ABC):
         Xi_inv: ndarray,
         EC_mat_t: ndarray,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> float:
         """Local kinetic contribution when considering only the ground state."""
-        delta_phi_rotated = Xi_inv @ (displacement_vector + minima_p - minima_m)
+        delta_phi_rotated = Xi_inv @ (displacement_vector + m_location - m_prime_location)
         return (
             0.5 * 4 * np.trace(EC_mat_t)
             - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
@@ -1613,11 +1601,11 @@ class VTBBaseMethods(ABC):
         harmonic_lengths: ndarray,
         which_length: int,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         """Returns gradient of the kinetic matrix"""
-        delta_phi_rotated = Xi_inv @ (displacement_vector + minima_p - minima_m)
+        delta_phi_rotated = Xi_inv @ (displacement_vector + m_location - m_prime_location)
         return (
             -4.0
             * harmonic_lengths[which_length] ** (-1)
@@ -1635,11 +1623,11 @@ class VTBBaseMethods(ABC):
         harmonic_lengths: ndarray,
         which_length: int,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         """Returns gradient of the potential matrix"""
-        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
+        phi_bar = 0.5 * (displacement_vector + (m_prime_location + m_location))
         (
             exp_i_phi_j_phi_bar,
             exp_i_stitching_phi_j_phi_bar,
@@ -1679,8 +1667,8 @@ class VTBBaseMethods(ABC):
         harmonic_lengths: ndarray,
         which_length: int,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         """Returns gradient of the transfer matrix"""
         return self._gradient_one_state_local_potential(
@@ -1689,16 +1677,16 @@ class VTBBaseMethods(ABC):
             harmonic_lengths,
             which_length,
             displacement_vector,
-            minima_m,
-            minima_p,
+            m_prime_location,
+            m_location,
         ) + self._gradient_one_state_local_kinetic(
             Xi_inv,
             EC_mat_t,
             harmonic_lengths,
             which_length,
             displacement_vector,
-            minima_m,
-            minima_p,
+            m_prime_location,
+            m_location,
         )
 
     def _one_state_local_potential(
@@ -1706,11 +1694,11 @@ class VTBBaseMethods(ABC):
         Xi: ndarray,
         exp_i_phi_j: ndarray,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         """Local potential contribution when considering only the ground state."""
-        phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
+        phi_bar = 0.5 * (displacement_vector + (m_prime_location + m_location))
         (
             exp_i_phi_j_phi_bar,
             exp_i_stitching_phi_j_phi_bar,
@@ -1738,14 +1726,14 @@ class VTBBaseMethods(ABC):
         exp_i_phi_j: ndarray,
         EC_mat_t: ndarray,
         displacement_vector: ndarray,
-        minima_m: ndarray,
-        minima_p: ndarray,
+        m_prime_location: ndarray,
+        m_location: ndarray,
     ) -> ndarray:
         """Local transfer contribution when considering only the ground state."""
         return self._one_state_local_kinetic(
-            Xi_inv, EC_mat_t, displacement_vector, minima_m, minima_p
+            Xi_inv, EC_mat_t, displacement_vector, m_prime_location, m_location
         ) + self._one_state_local_potential(
-            Xi, exp_i_phi_j, displacement_vector, minima_m, minima_p
+            Xi, exp_i_phi_j, displacement_vector, m_prime_location, m_location
         )
 
     def _one_state_construct_transfer_and_inner(
@@ -1832,8 +1820,8 @@ class VTBBaseMethods(ABC):
         for minimum_index, minimum_location in sorted_minima_dict.items():
             unit_cell_vectors = itertools.product(
                 np.arange(
-                    -self.maximum_unit_cell_vector_length,
-                    self.maximum_unit_cell_vector_length + 1,
+                    -self.maximum_periodic_vector_length,
+                    self.maximum_periodic_vector_length + 1,
                 ),
                 repeat=dim_periodic,
             )
