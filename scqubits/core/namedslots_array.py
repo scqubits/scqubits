@@ -343,10 +343,11 @@ class Parameters:
                 array_entry = np.asarray([array_entry])
             new_paramvals_list[index] = array_entry
 
-
         if not remove_fixed:
-            paramvals_by_name = {name: new_paramvals_list[index] for index, name in
-                                 enumerate(self.paramnames_list)}
+            paramvals_by_name = {
+                name: new_paramvals_list[index]
+                for index, name in enumerate(self.paramnames_list)
+            }
             return Parameters(paramvals_by_name)
 
         reduced_paramvals_by_name = {}
