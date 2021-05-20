@@ -684,9 +684,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         arg_exp_a_dag = delta_phi @ Xi_inv.T / np.sqrt(2.0)
         arg_exp_a = -arg_exp_a_dag
         alpha = self._alpha_helper(arg_exp_a_dag, arg_exp_a, X, P_X_prime_bar)
-        intermediate_factor = (
-            0.5 * (arg_exp_a_dag - arg_exp_a @ X) @ P_X_prime_bar
-        )
+        intermediate_factor = (arg_exp_a_dag - arg_exp_a @ X) @ P_X_prime_bar
         epsilon = (
             -(1j / np.sqrt(2.0))
             * Xi_inv.T
@@ -880,11 +878,13 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         (number, not matrix)"""
         arg_exp_a_X = np.matmul(arg_exp_a, X)
         alpha = np.exp(
-            -0.5 * arg_exp_a @ arg_exp_a_X
-            - 0.25
-            * (arg_exp_a_dag - arg_exp_a_X)
-            @ P_X_prime_bar
-            @ (arg_exp_a_dag - arg_exp_a_X)
+            -0.5
+            * (
+                arg_exp_a @ arg_exp_a_X
+                + (arg_exp_a_dag - arg_exp_a_X)
+                @ P_X_prime_bar
+                @ (arg_exp_a_dag - arg_exp_a_X)
+            )
         )
         return alpha
 
