@@ -1200,6 +1200,15 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             lambda p, x, y, z: None, self._local_identity_squeezing, num_cpus
         )
 
+    def n_operator(self, dof_index: int = 0, num_cpus: int = 1) -> ndarray:
+        raise NotImplementedError
+
+    def phi_operator(self, dof_index: int = 0, num_cpus: int = 1) -> ndarray:
+        raise NotImplementedError
+
+    def exp_i_phi_operator(self, dof_index: int = 0, num_cpus: int = 1) -> ndarray:
+        raise NotImplementedError
+
     def _exp_product_coefficient_squeezing(
         self,
         displacement_vector: ndarray,

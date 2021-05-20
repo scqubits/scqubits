@@ -20,14 +20,14 @@ class TransmonVTB(
         EC: float,
         ng: float,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         truncated_dim: int = None,
         **kwargs
     ) -> None:
         vtb.VTBBaseMethods.__init__(
             self,
             num_exc,
-            maximum_periodic_vector_length,
+            maximum_unit_cell_vector_length,
             number_degrees_freedom=1,
             number_periodic_degrees_freedom=1,
             number_junctions=1,

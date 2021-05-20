@@ -21,7 +21,7 @@ class CurrentMirrorVTB(
 
     See class CurrentMirror for documentation on the qubit itself.
 
-    Initialize in the same way as for CurrentMirror, however now `num_exc` and `maximum_periodic_vector_length`
+    Initialize in the same way as for CurrentMirror, however now `num_exc` and `maximum_unit_cell_vector_length`
     must be set. See VTB for explanation of other kwargs.
     """
     _check_if_new_minima: Callable
@@ -37,14 +37,14 @@ class CurrentMirrorVTB(
         nglist: ndarray,
         flux: float,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         truncated_dim: int = None,
         **kwargs
     ) -> None:
         vtb.VTBBaseMethods.__init__(
             self,
             num_exc,
-            maximum_periodic_vector_length,
+            maximum_unit_cell_vector_length,
             number_degrees_freedom=2 * N - 1,
             number_periodic_degrees_freedom=2 * N - 1,
             number_junctions=2 * N,
@@ -92,7 +92,7 @@ class CurrentMirrorVTB(
             "nglist": np.array((2 * N - 1) * [0.0]),
             "flux": 0.0,
             "num_exc": 2,
-            "maximum_periodic_vector_length": 8,
+            "maximum_unit_cell_vector_length": 8,
             "truncated_dim": 6,
         }
 
@@ -166,7 +166,7 @@ class CurrentMirrorVTBSqueezing(vtbs.VTBBaseMethodsSqueezing, CurrentMirrorVTB):
         nglist: ndarray,
         flux: float,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         truncated_dim: int = None,
         **kwargs
     ) -> None:
@@ -180,7 +180,7 @@ class CurrentMirrorVTBSqueezing(vtbs.VTBBaseMethodsSqueezing, CurrentMirrorVTB):
             nglist,
             flux,
             num_exc,
-            maximum_periodic_vector_length,
+            maximum_unit_cell_vector_length,
             truncated_dim,
             **kwargs
         )
@@ -197,7 +197,7 @@ class CurrentMirrorVTBGlobal(Hashing, CurrentMirrorVTB):
         nglist: ndarray,
         flux: float,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         truncated_dim: int = None,
         **kwargs
     ):
@@ -212,7 +212,7 @@ class CurrentMirrorVTBGlobal(Hashing, CurrentMirrorVTB):
             nglist,
             flux,
             num_exc,
-            maximum_periodic_vector_length,
+            maximum_unit_cell_vector_length,
             truncated_dim,
             **kwargs
         )
@@ -229,7 +229,7 @@ class CurrentMirrorVTBGlobalSqueezing(Hashing, CurrentMirrorVTBSqueezing):
         nglist: ndarray,
         flux: float,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         truncated_dim: int = None,
         **kwargs
     ) -> None:
@@ -244,7 +244,7 @@ class CurrentMirrorVTBGlobalSqueezing(Hashing, CurrentMirrorVTBSqueezing):
             nglist,
             flux,
             num_exc,
-            maximum_periodic_vector_length,
+            maximum_unit_cell_vector_length,
             truncated_dim,
             **kwargs
         )

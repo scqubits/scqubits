@@ -4,7 +4,7 @@ import scqubits as qubit
 qubit.settings.MULTIPROC = 'pathos'
 
 N = 2
-maximum_periodic_vector_length = 4
+maximum_unit_cell_vector_length = 4
 ECB = 0.2  # 100 fF
 ECJ = 20.0/2.7  # 2.7 fF
 ECg = 20.0  # 0.5 fF
@@ -16,16 +16,16 @@ nglist = np.array([0.0 for _ in range(2*N - 1)])
 num_exc = 2
 flux_list = np.linspace(0.46, 0.54, 21)
 CMV = qubit.CurrentMirrorVTB(N=N, ECB=ECB, ECJ=ECJ, ECg=ECg, EJlist=EJlist, nglist=nglist, flux=flux, num_exc=num_exc,
-                             maximum_periodic_vector_length=maximum_periodic_vector_length, truncated_dim=6)
+                             maximum_unit_cell_vector_length=maximum_unit_cell_vector_length, truncated_dim=6)
 CMVG = qubit.CurrentMirrorVTBGlobal(N=N, ECB=ECB, ECJ=ECJ, ECg=ECg, EJlist=EJlist, nglist=nglist,
                                     flux=flux, num_exc=num_exc,
-                                    maximum_periodic_vector_length=maximum_periodic_vector_length, truncated_dim=6)
+                                    maximum_unit_cell_vector_length=maximum_unit_cell_vector_length, truncated_dim=6)
 CMVS = qubit.CurrentMirrorVTBSqueezing(N=N, ECB=ECB, ECJ=ECJ, ECg=ECg, EJlist=EJlist, nglist=nglist, flux=flux,
-                                       num_exc=num_exc, maximum_periodic_vector_length=maximum_periodic_vector_length,
+                                       num_exc=num_exc, maximum_unit_cell_vector_length=maximum_unit_cell_vector_length,
                                        truncated_dim=6)
 CMVGS = qubit.CurrentMirrorVTBGlobalSqueezing(N=N, ECB=ECB, ECJ=ECJ, ECg=ECg, EJlist=EJlist, nglist=nglist,
                                               flux=flux, num_exc=num_exc,
-                                              maximum_periodic_vector_length=maximum_periodic_vector_length,
+                                              maximum_unit_cell_vector_length=maximum_unit_cell_vector_length,
                                               truncated_dim=6)
 
 CM = qubit.CurrentMirror(N, ECB, ECJ, ECg, EJlist, nglist, flux, ncut=7,
@@ -58,8 +58,8 @@ def run_tests(CM_instance, CM_string):
     read_1 = qubit.read(filename=path+CM_string+'_2.hdf5')
     specdata_4 = CM_instance.get_spectrum_vs_paramvals(param_name='flux', param_vals=flux_list, evals_count=4, get_eigenstates=True,
                                                filename=path+CM_string+'_4.hdf5')
-#    specdata_5 = CM_instance.matrixelement_table('n_operator', operator_args={'j': 0},
-#                                         filename=path+CM_string+'_5.hdf5')
+    # specdata_5 = CM_instance.matrixelement_table('n_operator', operator_args={'dof_index': 0},
+    #                                              filename=path+CM_string+'_5.hdf5')
 
 def run_tests_ED(CM_instance):
     specdata_1_CM = CM_instance.eigenvals(evals_count=12, filename='../../../scqubits/tests/data/currentmirror_1.hdf5')
@@ -69,6 +69,6 @@ def run_tests_ED(CM_instance):
     matelem_CM = CM_instance.matrixelement_table('n_operator', evals_count=10,
                                                  filename='../../../scqubits/tests/data/currentmirror_5.hdf5')
 
-#run_tests(CMV, 'currentmirrorvtbs')
-#run_tests(CMVS, 'currentmirrorvtbsqueezing')
+run_tests(CMV, 'currentmirrorvtb')
+run_tests(CMVS, 'currentmirrorvtbsqueezing')
 run_tests_ED(CM)

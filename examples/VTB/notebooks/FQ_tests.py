@@ -4,12 +4,12 @@ import numpy as np
 EJ = 1.0
 ECJ = EJ / 60.0
 ALPHA = 0.8
-FLUX = 0.5
+FLUX = 0.46
 ECg = 50.0 * ECJ
 EJlist = np.array([1.04*EJ, 0.97*EJ, ALPHA * EJ])
 nglist = np.array([0.2, 0.3])
 num_exc = 2
-maximum_periodic_vector_length = 4
+maximum_unit_cell_vector_length = 4
 
 FQV = qubit.FluxQubitVTB(
     EJ1=EJ,
@@ -24,7 +24,7 @@ FQV = qubit.FluxQubitVTB(
     ng2=nglist[1],
     flux=FLUX,
     num_exc=num_exc,
-    maximum_periodic_vector_length=maximum_periodic_vector_length,
+    maximum_unit_cell_vector_length=maximum_unit_cell_vector_length,
     truncated_dim=6)
 
 FQVS = qubit.FluxQubitVTBSqueezing(
@@ -40,7 +40,7 @@ FQVS = qubit.FluxQubitVTBSqueezing(
     ng2=nglist[1],
     flux=FLUX,
     num_exc=num_exc,
-    maximum_periodic_vector_length=maximum_periodic_vector_length,
+    maximum_unit_cell_vector_length=maximum_unit_cell_vector_length,
     truncated_dim=6)
 
 FQVG = qubit.FluxQubitVTBGlobal(
@@ -56,7 +56,7 @@ FQVG = qubit.FluxQubitVTBGlobal(
     ng2=nglist[1],
     flux=FLUX,
     num_exc=num_exc,
-    maximum_periodic_vector_length=maximum_periodic_vector_length, truncated_dim=6)
+    maximum_unit_cell_vector_length=maximum_unit_cell_vector_length, truncated_dim=6)
 
 FQVGS = qubit.FluxQubitVTBGlobalSqueezing(
     EJ1=EJ,
@@ -71,7 +71,7 @@ FQVGS = qubit.FluxQubitVTBGlobalSqueezing(
     ng2=nglist[1],
     flux=FLUX,
     num_exc=num_exc,
-    maximum_periodic_vector_length=maximum_periodic_vector_length, truncated_dim=6)
+    maximum_unit_cell_vector_length=maximum_unit_cell_vector_length, truncated_dim=6)
 
 FQ = qubit.FluxQubit(EJ1=EJ, EJ2=EJ, EJ3=ALPHA * EJ, ECJ1=ECJ, ECJ2=ECJ, ECJ3=ECJ / ALPHA, ECg1=ECg,
                      ECg2=ECg, ng1=nglist[0], ng2=nglist[1], flux=FLUX, ncut=10)

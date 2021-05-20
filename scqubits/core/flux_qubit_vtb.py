@@ -20,7 +20,7 @@ class FluxQubitVTB(
 
     See class FluxQubit for documentation on the qubit itself.
 
-    Initialize in the same way as for FluxQubit, however now `num_exc` and `maximum_periodic_vector_length`
+    Initialize in the same way as for FluxQubit, however now `num_exc` and `maximum_unit_cell_vector_length`
     must be set. See VTB for explanation of other kwargs.
     """
     _check_if_new_minima: Callable
@@ -40,14 +40,14 @@ class FluxQubitVTB(
         ng2: float,
         flux: float,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         truncated_dim: int = None,
         **kwargs
     ) -> None:
         vtb.VTBBaseMethods.__init__(
             self,
             num_exc,
-            maximum_periodic_vector_length,
+            maximum_unit_cell_vector_length,
             number_degrees_freedom=2,
             number_periodic_degrees_freedom=2,
             number_junctions=3,
@@ -120,7 +120,7 @@ class FluxQubitVTB(
             "ng2": 0.0,
             "flux": 0.46,
             "num_exc": 3,
-            "maximum_periodic_vector_length": 8,
+            "maximum_unit_cell_vector_length": 8,
             "truncated_dim": 6,
         }
 
@@ -232,7 +232,7 @@ class FluxQubitVTBSqueezing(vtbs.VTBBaseMethodsSqueezing, FluxQubitVTB):
         ng2: float,
         flux: float,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         truncated_dim: int = None,
         **kwargs
     ) -> None:
@@ -250,7 +250,7 @@ class FluxQubitVTBSqueezing(vtbs.VTBBaseMethodsSqueezing, FluxQubitVTB):
             ng2,
             flux,
             num_exc,
-            maximum_periodic_vector_length,
+            maximum_unit_cell_vector_length,
             truncated_dim,
             **kwargs
         )
@@ -271,7 +271,7 @@ class FluxQubitVTBGlobal(Hashing, FluxQubitVTB):
         ng2: float,
         flux: float,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         truncated_dim: int = None,
         **kwargs
     ) -> None:
@@ -290,7 +290,7 @@ class FluxQubitVTBGlobal(Hashing, FluxQubitVTB):
             ng2,
             flux,
             num_exc,
-            maximum_periodic_vector_length,
+            maximum_unit_cell_vector_length,
             truncated_dim,
             **kwargs
         )
@@ -311,7 +311,7 @@ class FluxQubitVTBGlobalSqueezing(Hashing, FluxQubitVTBSqueezing):
         ng2: float,
         flux: float,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         truncated_dim: int = None,
         **kwargs
     ) -> None:
@@ -330,7 +330,7 @@ class FluxQubitVTBGlobalSqueezing(Hashing, FluxQubitVTBSqueezing):
             ng2,
             flux,
             num_exc,
-            maximum_periodic_vector_length,
+            maximum_unit_cell_vector_length,
             truncated_dim,
             **kwargs
         )

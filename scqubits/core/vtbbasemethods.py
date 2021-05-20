@@ -55,7 +55,7 @@ class VTBBaseMethods(ABC):
     ----------
     num_exc: int
         number of excitations kept in each mode
-    maximum_periodic_vector_length: int
+    maximum_unit_cell_vector_length: int
         Maximum Manhattan length of a unit cell vector.
         This should be varied to ensure convergence.
     number_degrees_freedom: int
@@ -83,7 +83,7 @@ class VTBBaseMethods(ABC):
         maximum displacement allowed for each coordinate of a unit cell vector.
     """
     num_exc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    maximum_periodic_vector_length = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    maximum_unit_cell_vector_length = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     number_degrees_freedom = descriptors.ReadOnlyProperty()
     number_periodic_degrees_freedom = descriptors.ReadOnlyProperty()
     number_junctions = descriptors.ReadOnlyProperty()
@@ -98,7 +98,7 @@ class VTBBaseMethods(ABC):
     def __init__(
         self,
         num_exc: int,
-        maximum_periodic_vector_length: int,
+        maximum_unit_cell_vector_length: int,
         number_degrees_freedom: int,
         number_periodic_degrees_freedom: int,
         number_junctions: int,
@@ -113,8 +113,7 @@ class VTBBaseMethods(ABC):
         inner_prod_eval_tol: float = 1e-8,
     ) -> None:
         self.num_exc = num_exc
-        # maximum_periodic_vector_length
-        self.maximum_periodic_vector_length = maximum_periodic_vector_length
+        self.maximum_unit_cell_vector_length = maximum_unit_cell_vector_length
         self._number_degrees_freedom = number_degrees_freedom
         self._number_periodic_degrees_freedom = number_periodic_degrees_freedom
         self._number_junctions = number_junctions
@@ -393,7 +392,7 @@ class VTBBaseMethods(ABC):
         we are referring to the vector that points from the
          first unit cell to another unit cell. This is done
         by generating all possible unit cell vectors, given the cutoffs specified by
-        self.maximum_periodic_vector_length, which specifies
+        self.maximum_unit_cell_vector_length, which specifies
         the maximum Manhattan length of a unit cell vector,
         and self.maximum_site_length, which specifies the maximum
         entry allowed in a unit cell vector. We first
@@ -441,7 +440,7 @@ class VTBBaseMethods(ABC):
                 partial(
                     self._generate_and_filter_unit_cell_vectors, minima_diff, Xi_inv
                 ),
-                np.arange(0, self.maximum_periodic_vector_length + 1),
+                np.arange(0, self.maximum_unit_cell_vector_length + 1),
             )
         )
         return self._stack_filtered_vectors(relevant_vectors)
@@ -1847,8 +1846,8 @@ class VTBBaseMethods(ABC):
         for minimum_index, minimum_location in sorted_minima_dict.items():
             unit_cell_vectors = itertools.product(
                 np.arange(
-                    -self.maximum_periodic_vector_length,
-                    self.maximum_periodic_vector_length + 1,
+                    -self.maximum_unit_cell_vector_length,
+                    self.maximum_unit_cell_vector_length + 1,
                 ),
                 repeat=dim_periodic,
             )
