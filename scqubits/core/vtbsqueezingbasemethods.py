@@ -53,7 +53,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
     def _symmetrize_matrix(mat: ndarray) -> ndarray:
         dim = len(mat)
         for i in range(dim):
-            for j in range(i+1, dim):
+            for j in range(i + 1, dim):
                 element_average = (mat[i, j] + mat[j, i]) / 2.0
                 mat[i, j] = mat[j, i] = element_average
         return mat
@@ -237,7 +237,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             Z_prime = np.zeros((dim, dim))
         else:
             Xi_prime = self.Xi_matrix(m_prime_index, harmonic_lengths)
-            X_prime, Y_prime, Z_prime = self._U_squeezing_operator(m_prime_index, Xi, Xi_prime)
+            X_prime, Y_prime, Z_prime = self._U_squeezing_operator(
+                m_prime_index, Xi, Xi_prime
+            )
         if m_index == 0:
             X = np.zeros((dim, dim))
             Y = np.zeros((dim, dim))
@@ -248,9 +250,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             Z = np.copy(Z_prime)
         else:
             Xi_prime = self.Xi_matrix(m_index, harmonic_lengths)
-            X, Y, Z = self._U_squeezing_operator(
-                m_index, Xi, Xi_prime
-            )
+            X, Y, Z = self._U_squeezing_operator(m_index, Xi, Xi_prime)
         return X_prime, X, Y_prime, Y, Z_prime, Z
 
     def _translation_operator_prefactors(
@@ -266,10 +266,10 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             Z_prime,
             Z,
         ) = disentangled_squeezing_matrices
-        prefactor_a_dagger = (
-            (np.eye(dim) + X) @ P_matrix.T @ expm(-Y_prime)
-        )
-        prefactor_a = (np.eye(dim) + (np.eye(dim) + X) @ self._P_X_prime_bar(P_matrix, X_prime)) @ expm(-Y)
+        prefactor_a_dagger = (np.eye(dim) + X) @ P_matrix.T @ expm(-Y_prime)
+        prefactor_a = (
+            np.eye(dim) + (np.eye(dim) + X) @ self._P_X_prime_bar(P_matrix, X_prime)
+        ) @ expm(-Y)
         return prefactor_a, prefactor_a_dagger
 
     def _general_translation_operators(
@@ -297,17 +297,25 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         exp_a_dagger_plus_list = np.empty_like(exp_a_plus_list)
         exp_a_dagger_minus_list = np.empty_like(exp_a_plus_list)
         for i in range(dim):
-            a_dagger_arg = np.sum(2.0 * np.pi * (Xi_inv.T[i] @ prefactor_a_dagger)
-                                  * a_operator_array.T, axis=2) / np.sqrt(2.0)
+            a_dagger_arg = np.sum(
+                2.0 * np.pi * (Xi_inv.T[i] @ prefactor_a_dagger) * a_operator_array.T,
+                axis=2,
+            ) / np.sqrt(2.0)
             exp_a_dagger_plus_list[i] = expm(a_dagger_arg)
             exp_a_dagger_minus_list[i] = expm(-a_dagger_arg)
-            a_arg = (np.sum(2.0 * np.pi * (Xi_inv.T[i] @ prefactor_a)
-                            * np.transpose(a_operator_array, axes=(1, 2, 0)), axis=2)
-                     / np.sqrt(2.0))
+            a_arg = np.sum(
+                2.0
+                * np.pi
+                * (Xi_inv.T[i] @ prefactor_a)
+                * np.transpose(a_operator_array, axes=(1, 2, 0)),
+                axis=2,
+            ) / np.sqrt(2.0)
             exp_a_plus_list[i] = expm(a_arg)
             exp_a_minus_list[i] = expm(-a_arg)
-        return [exp_a_plus_list, exp_a_minus_list], [exp_a_dagger_plus_list,
-                                                     exp_a_dagger_minus_list]
+        return [exp_a_plus_list, exp_a_minus_list], [
+            exp_a_dagger_plus_list,
+            exp_a_dagger_minus_list,
+        ]
 
     def _minima_dependent_translation_operators(
         self,
@@ -419,12 +427,8 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         prefactor_a_dagger_a_dagger = 0.5 * (
             Z_prime.T - expm(-Y_prime).T @ P_matrix @ X @ expm(-Y_prime)
         )
-        prefactor_a_a = 0.5 * (
-            Z - expm(-Y).T @ P_matrix.T @ X_prime @ expm(-Y)
-        )
-        prefactor_a_dagger_a = sp.linalg.logm(
-            expm(-Y_prime).T @ P_matrix @ expm(-Y)
-        )
+        prefactor_a_a = 0.5 * (Z - expm(-Y).T @ P_matrix.T @ X_prime @ expm(-Y))
+        prefactor_a_dagger_a = sp.linalg.logm(expm(-Y_prime).T @ P_matrix @ expm(-Y))
 
         exp_a_dagger_a_dagger = expm(
             np.sum(
@@ -477,13 +481,18 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             exp_a_minus_list,
             -unit_cell_vector.astype(int),
         )
-        translation_op_a_dag = (reduce(np.matmul, map(self._matrix_power_helper,
-                                                      ops_with_power_for_a_dagger))
-                                @ exp_a_dagger_minima_difference
-                                @ exp_a_dagger_a_dagger)
-        translation_op_a = (reduce(np.matmul, map(self._matrix_power_helper,
-                                                  ops_with_power_for_a))
-                            @ exp_a_minima_difference @ exp_a_a)
+        translation_op_a_dag = (
+            reduce(
+                np.matmul, map(self._matrix_power_helper, ops_with_power_for_a_dagger)
+            )
+            @ exp_a_dagger_minima_difference
+            @ exp_a_dagger_a_dagger
+        )
+        translation_op_a = (
+            reduce(np.matmul, map(self._matrix_power_helper, ops_with_power_for_a))
+            @ exp_a_minima_difference
+            @ exp_a_a
+        )
         return translation_op_a_dag, translation_op_a
 
     def _periodic_continuation(
@@ -589,7 +598,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         minima_index_pair: Tuple,
     ):
         ((m_prime_index, m_prime_location), (m_index, m_location)) = minima_index_pair
-        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m_prime_index, m_index)]
+        minima_pair_displacement_vectors = relevant_unit_cell_vectors[
+            (m_prime_index, m_index)
+        ]
         num_states_per_min = self.number_states_per_minimum()
         if minima_pair_displacement_vectors is not None:
             displacement_vector_contribution = partial(
@@ -743,25 +754,16 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             expm(-Y_prime).T @ P_matrix @ a_dagger_coefficient.T @ EC_mat
         )
         xaa_coefficient = (
-            (a_coefficient @ expm(-Y)).T
-            @ EC_mat
-            @ a_coefficient
-            @ expm(-Y)
+            (a_coefficient @ expm(-Y)).T @ EC_mat @ a_coefficient @ expm(-Y)
         )
-        dxa_coefficient = (
-            intermediate_coefficient
-            @ a_coefficient
-            @ expm(-Y)
-        )
+        dxa_coefficient = intermediate_coefficient @ a_coefficient @ expm(-Y)
         ddx_coefficient = (
             intermediate_coefficient
             @ (expm(-Y_prime).T @ P_matrix @ a_dagger_coefficient.T).T
         )
         x_coefficient = a_dagger_coefficient.T @ EC_mat @ a_coefficient
         xa_coefficient = EC_mat @ a_coefficient @ expm(-Y)
-        dx_coefficient = (
-            EC_mat @ a_dagger_coefficient @ (expm(-Y_prime).T @ P_matrix).T
-        )
+        dx_coefficient = EC_mat @ a_dagger_coefficient @ (expm(-Y_prime).T @ P_matrix).T
         kinetic_matrix = np.sum(
             +4 * np.transpose(xaa, axes=(1, 2, 0)) * np.diag(xaa_coefficient)
             + 8 * np.transpose(dxa, axes=(1, 2, 0)) * np.diag(dxa_coefficient)
@@ -1003,9 +1005,7 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
             Z_prime,
             Z,
         ) = disentangled_squeezing_matrices
-        prefactor_a_dagger = (
-            (np.eye(dim) - X) @ P_matrix.T @ expm(-Y_prime)
-        )
+        prefactor_a_dagger = (np.eye(dim) - X) @ P_matrix.T @ expm(-Y_prime)
         prefactor_a = (
             np.eye(dim) - (np.eye(dim) - X) @ self._P_X_prime_bar(P_matrix, X_prime)
         ) @ expm(-Y)
@@ -1308,7 +1308,9 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
     ) -> complex:
         """Periodic continuation when considering only the ground state."""
         Xi, _, _, Xi_global, Xi_global_inv = precalculated_quantities
-        X_prime, Y_prime, Z_prime = self._U_squeezing_operator(minimum_index, Xi_global, Xi)
+        X_prime, Y_prime, Z_prime = self._U_squeezing_operator(
+            minimum_index, Xi_global, Xi
+        )
         X, Y, Z = np.copy(X_prime), np.copy(Y_prime), np.copy(Z_prime)
         disentangled_squeezing_matrices = (
             X_prime,

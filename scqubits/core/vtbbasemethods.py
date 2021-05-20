@@ -278,14 +278,18 @@ class VTBBaseMethods(ABC):
         that we would like to use the Xi matrix as defined
         for the minimum indexed by `Xi_arg`"""
         (m_prime_index, m_prime_location), (m_index, m_location) = minima_index_pair
-        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m_prime_index, m_index)]
+        minima_pair_displacement_vectors = relevant_unit_cell_vectors[
+            (m_prime_index, m_index)
+        ]
         if minima_pair_displacement_vectors is None or np.allclose(
             minima_pair_displacement_vectors, 0.0
         ):
             return np.inf
         Xi_inv = inv(self.Xi_matrix(minimum_index=Xi_minimum_index_arg))
         delta_inv = Xi_inv.T @ Xi_inv
-        if m_prime_index == m_index:  # Do not include equivalent minima in the same unit cell
+        if (
+            m_prime_index == m_index
+        ):  # Do not include equivalent minima in the same unit cell
             minima_pair_displacement_vectors = np.array(
                 [
                     vec
@@ -411,9 +415,9 @@ class VTBBaseMethods(ABC):
             )
         }
         for m_prime_index in range(1, len(sorted_minima_dict)):
-            relevant_unit_cell_vectors[(m_prime_index, m_prime_index)] = relevant_unit_cell_vectors[
-                (0, 0)
-            ]
+            relevant_unit_cell_vectors[
+                (m_prime_index, m_prime_index)
+            ] = relevant_unit_cell_vectors[(0, 0)]
         all_minima_location_index_pairs = itertools.combinations(
             sorted_minima_dict.items(), 2
         )
@@ -583,8 +587,9 @@ class VTBBaseMethods(ABC):
         else:
             exp_i_phi_j_a = expm(
                 1j
-                * np.sum(Xi[dof_index] * np.transpose(a_operator_array, (1, 2, 0)),
-                         axis=2)
+                * np.sum(
+                    Xi[dof_index] * np.transpose(a_operator_array, (1, 2, 0)), axis=2
+                )
                 / np.sqrt(2.0)
             )
             BCH_factor = np.exp(-0.25 * Xi[dof_index] @ Xi[dof_index])
@@ -688,7 +693,8 @@ class VTBBaseMethods(ABC):
         return translation_op_a_dagger, translation_op_a
 
     @staticmethod
-    def _matrix_power_helper(translation_op_with_power: Tuple[ndarray, ndarray, int]
+    def _matrix_power_helper(
+        translation_op_with_power: Tuple[ndarray, ndarray, int]
     ) -> ndarray:
         """Helper method that actually returns translation operators. If the translation
         operator has been built before and stored, use that result. Additionally if
@@ -946,8 +952,11 @@ class VTBBaseMethods(ABC):
         constant_coefficient = (
             -0.5
             * 1j
-            * (Xi_inv.T @ Xi_inv @ (displacement_vector + m_location - m_prime_location))[
-                dof_index]
+            * (
+                Xi_inv.T
+                @ Xi_inv
+                @ (displacement_vector + m_location - m_prime_location)
+            )[dof_index]
         )
         return (
             -(1j / np.sqrt(2.0))
@@ -967,7 +976,9 @@ class VTBBaseMethods(ABC):
         minima and a unit cell vector `displacement_vector`"""
         Xi, _, premultiplied_a_a_dagger, _, _ = precalculated_quantities
         a, a_a, a_dagger_a = premultiplied_a_a_dagger
-        constant_coefficient = 0.5 * (displacement_vector + (m_prime_location + m_location))
+        constant_coefficient = 0.5 * (
+            displacement_vector + (m_prime_location + m_location)
+        )
         return (1.0 / np.sqrt(2.0)) * np.sum(
             Xi[dof_index] * (np.transpose(a, (1, 2, 0)) + a.T), axis=2
         ) + constant_coefficient[dof_index] * self._identity()
@@ -1137,18 +1148,24 @@ class VTBBaseMethods(ABC):
         matrix_elements = list(
             target_map(periodic_continuation_for_minima_pair, all_minima_index_pairs)
         )
-        return self._construct_VTB_operator_given_blocks(matrix_elements,
-                                                         all_minima_index_pairs)
+        return self._construct_VTB_operator_given_blocks(
+            matrix_elements, all_minima_index_pairs
+        )
 
-    def _construct_VTB_operator_given_blocks(self, matrix_elements,
-                                             all_minima_index_pairs):
+    def _construct_VTB_operator_given_blocks(
+        self, matrix_elements, all_minima_index_pairs
+    ):
         num_states_per_min = self.number_states_per_minimum()
         hilbertdim = self.hilbertdim()
         operator_matrix = np.zeros((hilbertdim, hilbertdim), dtype=np.complex128)
-        for i, ((m_prime_index, m_prime_location), (m_index, m_location)) in enumerate(all_minima_index_pairs):
+        for i, ((m_prime_index, m_prime_location), (m_index, m_location)) in enumerate(
+            all_minima_index_pairs
+        ):
             operator_matrix[
-                m_prime_index * num_states_per_min: (m_prime_index + 1) * num_states_per_min,
-                m_index * num_states_per_min: (m_index + 1) * num_states_per_min,
+                m_prime_index
+                * num_states_per_min : (m_prime_index + 1)
+                * num_states_per_min,
+                m_index * num_states_per_min : (m_index + 1) * num_states_per_min,
             ] += matrix_elements[i]
         return self._populate_hermitian_matrix(operator_matrix)
 
@@ -1164,7 +1181,9 @@ class VTBBaseMethods(ABC):
         """Helper method for performing the periodic continuation calculation given a
         minima pair."""
         ((m_prime_index, m_prime_location), (m_index, m_location)) = minima_index_pair
-        minima_pair_displacement_vectors = relevant_unit_cell_vectors[(m_prime_index, m_index)]
+        minima_pair_displacement_vectors = relevant_unit_cell_vectors[
+            (m_prime_index, m_index)
+        ]
         num_states_per_min = self.number_states_per_minimum()
         if minima_pair_displacement_vectors is not None:
             minima_diff = m_location - m_prime_location
@@ -1221,12 +1240,16 @@ class VTBBaseMethods(ABC):
         for m_prime_index, _ in sorted_minima_dict.items():
             for p in range(m_prime_index + 1, len(sorted_minima_dict)):
                 matrix_element = mat[
-                    m_prime_index * num_states_per_min: (m_prime_index + 1) * num_states_per_min,
-                    p * num_states_per_min: (p + 1) * num_states_per_min,
+                    m_prime_index
+                    * num_states_per_min : (m_prime_index + 1)
+                    * num_states_per_min,
+                    p * num_states_per_min : (p + 1) * num_states_per_min,
                 ]
                 mat[
-                    p * num_states_per_min: (p + 1) * num_states_per_min,
-                    m_prime_index * num_states_per_min: (m_prime_index + 1) * num_states_per_min,
+                    p * num_states_per_min : (p + 1) * num_states_per_min,
+                    m_prime_index
+                    * num_states_per_min : (m_prime_index + 1)
+                    * num_states_per_min,
                 ] += matrix_element.conjugate().T
         return mat
 
@@ -1588,7 +1611,9 @@ class VTBBaseMethods(ABC):
         m_location: ndarray,
     ) -> float:
         """Local kinetic contribution when considering only the ground state."""
-        delta_phi_rotated = Xi_inv @ (displacement_vector + m_location - m_prime_location)
+        delta_phi_rotated = Xi_inv @ (
+            displacement_vector + m_location - m_prime_location
+        )
         return (
             0.5 * 4 * np.trace(EC_mat_t)
             - 0.25 * 4 * delta_phi_rotated @ EC_mat_t @ delta_phi_rotated
@@ -1605,7 +1630,9 @@ class VTBBaseMethods(ABC):
         m_location: ndarray,
     ) -> ndarray:
         """Returns gradient of the kinetic matrix"""
-        delta_phi_rotated = Xi_inv @ (displacement_vector + m_location - m_prime_location)
+        delta_phi_rotated = Xi_inv @ (
+            displacement_vector + m_location - m_prime_location
+        )
         return (
             -4.0
             * harmonic_lengths[which_length] ** (-1)
@@ -1872,7 +1899,7 @@ class VTBBaseMethods(ABC):
         num_states_per_min = self.number_states_per_minimum()
         return np.real(
             np.reshape(
-                evecs[i * num_states_per_min: (i + 1) * num_states_per_min, which],
+                evecs[i * num_states_per_min : (i + 1) * num_states_per_min, which],
                 (self.num_exc + 1, self.num_exc + 1),
             )
         )
