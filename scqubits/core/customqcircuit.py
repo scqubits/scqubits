@@ -382,7 +382,7 @@ class CustomQCircuit(serializers.Serializable):
             if np.linalg.matrix_rank(mat) == len(mat):
                 modes.append(m)
 
-        # for m in (LC_modes): # adding the ones which are periodic such that all vectors in modes are LI
+        # for m in (LC_modes): # adding the LC modes to the basis
         #     mat = np.array([i for i in modes]+[m])
         #     if np.linalg.matrix_rank(mat)==len(mat):
         #         modes.append(m)
@@ -405,9 +405,10 @@ class CustomQCircuit(serializers.Serializable):
         while np.linalg.matrix_rank(np.array(standard_basis)) < l:
             a = vector_set[item]
             item += 1
-            mat = np.array([i for i in standard_basis] + [a])
+            mat = np.array(standard_basis + [a])
             if np.linalg.matrix_rank(mat) == len(mat):
-                standard_basis = [i for i in standard_basis] + [list(a)]
+                standard_basis = standard_basis + [list(a)]
+        
         standard_basis = np.array(standard_basis)
         
         # standard_basis = np.identity(len(self.nodes))
