@@ -226,8 +226,8 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Only add a ylabel if we're plotting times and not rates
-        if not common_noise_options.get("get_rate", True):
+        # Do not add a ylabel if we're explicitly instructed to plot rates
+        if common_noise_options.get("get_rate", False) is False
             plotting_options["ylabel"] = units.get_units_time_label()
 
         plotting_options.update(
@@ -436,8 +436,8 @@ class NoisySystem(ABC):
         }
         plotting_options.update(kwargs)
 
-        # Only add a ylabel if we're plotting times and not rates
-        if not common_noise_options.get("get_rate", True):
+        # Do not add a ylabel if we're explicitly instructed to plot rates
+        if common_noise_options.get("get_rate", False) is False:
             plotting_options["ylabel"] = units.get_units_time_label()
 
         fig, axes = plotting.data_vs_paramvals(
@@ -576,8 +576,8 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Only add a ylabel if we're plotting times and not rates
-        if not common_noise_options.get("get_rate", True):
+        # Do not add a ylabel if we're explicitly instructed to plot rates
+        if common_noise_options.get("get_rate", False) is False:
             plotting_options["ylabel"] = units.get_units_time_label()
 
         plotting_options.update(kwargs)
