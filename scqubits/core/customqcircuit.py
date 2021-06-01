@@ -285,92 +285,90 @@ class CustomQCircuit(serializers.Serializable):
         nodes = self.nodes
         branches = self.branches
 
-        def independent_modes(s_1, single_nodes=True):
+        def independent_modes(branch_subset, single_nodes=True):
             """
-            Returns the independent set of modes in the given set of branches
+            Returns the vectors which span a subspace of /mathcal{G} where there is no generalized flux difference between the branches present in the branch_subset.
             """
             basis_params = [1, 0]  # numbers to represent mode vectors
 
             for n in nodes:  # reset the node markers
                 n.marker = 0
 
-            # step 2: finding the independent sets of branches in s_1, then identifying the sets of nodes in each of thoses sets
-            s_1_ref = s_1.copy()
+            # step 2: finding the independent sets of branches in branch_subset, then identifying the sets of nodes in each of thoses sets
+            branch_subset_ref = branch_subset.copy()
 
-            trees = []  # list of independet sets of branches, in s_1
+            trees = []  # list of independet sets of branches, in branch_subset
 
-            while len(s_1_ref) > 0:
-                b_0 = s_1_ref[0]
+            while len(branch_subset_ref) > 0:
+                b_0 = branch_subset_ref[0]
                 tree = [b_0]
-                s_1_ref.remove(b_0)
+                branch_subset_ref.remove(b_0)
 
-                while not self.is_disconnected(tree, s_1_ref):
-                    for b1 in s_1_ref:
+                while not self.is_disconnected(tree, branch_subset_ref):
+                    for b1 in branch_subset_ref:
                         for b2 in tree:
                             if b1.is_connected(b2):
                                 tree.append(b1)
-                                s_1_ref.remove(b1)
+                                branch_subset_ref.remove(b1)
                                 break
                 trees.append(tree)
 
             # finding all the unique nodes in each of the independent sets of branches found earlier
-            ind_nodes = [list(set(sum([n.nodes for n in t], ()))) for t in trees]
+            ind_nodes = [list(set(sum([branch.nodes for branch in tree], ()))) for tree in trees]
 
             for x, node_set in enumerate(ind_nodes):
                 for n in node_set:
-                    n.marker = (
-                        x + 1
-                    )  # using numbers as variables, maximum needed is the number of nodes in the circuit
+                    n.marker = x + 1  # marking the nodes depending on which tree they belong to
 
             pos = [
                 node.marker for node in self.nodes
-            ]  # identifies the positions of the sets of nodes connected by the branches in s_1; different numbers on two nodes indicates that they are not connected through any of the branches in s_1. 0 implies the node does not belong to any of the branches in s_1
+            ]  # identifies the positions of the sets of nodes connected by the branches in branch_subset; different numbers on two nodes indicates that they are not connected through any of the branches in branch_subset. 0 implies the node does not belong to any of the branches in branch_subset
 
-            # step 3: Finding the linearly independent vectors spanning the vector space of pos, this gives us the cyclic modes
-            modes = []
+            # step 3: Finding the linearly independent vectors spanning the vector space of pos
+            basis = []
 
-            for i in range(max(pos)):
-                if i == 0 and pos.count(0) == 0:
+            for marker in range(max(pos)):
+                if marker == 0 and pos.count(0) == 0:
                     continue
                 else:
-                    modes.append(
+                    basis.append(
                         [
-                            basis_params[0] if t == i + 1 else basis_params[1]
+                            basis_params[0] if t == marker + 1 else basis_params[1]
                             for t in pos
                         ]
                     )
 
             if single_nodes == True:
                 if pos.count(0) > 0:
-                    for i in range(len(pos)):
-                        if pos[i] == 0:
-                            modes.append(
+                    for marker in range(len(pos)):
+                        if pos[marker] == 0:
+                            basis.append(
                                 [
-                                    basis_params[0] if t == i else basis_params[1]
+                                    basis_params[0] if t == marker else basis_params[1]
                                     for t in range(len(pos))
                                 ]
                             )
 
-            return modes
+            return basis
 
         ##################### Finding the Periodic Modes ##################
-        s_1 = [i for i in branches if i.type == "L"]
-        periodic_modes = independent_modes(s_1)
+        selected_branches = [branch for branch in branches if branch.type == "L"]
+        periodic_modes = independent_modes(selected_branches)
 
         ##################### Finding the Zombie modes ##################
-        s_1 = [i for i in branches if i.type != "L"]
-        zombie_modes = independent_modes(s_1)
+        selected_branches = [branch for branch in branches if branch.type != "L"]
+        zombie_modes = independent_modes(selected_branches)
 
         ##################### Finding the Cyclic Modes ##################
-        s_1 = [i for i in branches if i.type != "C"]
-        cyclic_modes = independent_modes(s_1, single_nodes=False)
+        selected_branches = [branch for branch in branches if branch.type != "C"]
+        cyclic_modes = independent_modes(selected_branches, single_nodes=False)
         # including the Σ mode
         Σ = [1 for n in self.nodes]
         cyclic_modes.append(Σ)
 
         ##################### Finding the LC Modes ##################
-        s_1 = [i for i in branches if i.type == "JJ"]
-        LC_modes = independent_modes(s_1, single_nodes=False)
+        selected_branches = [branch for branch in branches if branch.type == "JJ"]
+        LC_modes = independent_modes(selected_branches, single_nodes=False)
 
         ################ Adding periodic and zombie modes to cyclic ones #############
         modes = cyclic_modes.copy()  # starting with the cyclic modes
@@ -378,12 +376,12 @@ class CustomQCircuit(serializers.Serializable):
         for m in (
             periodic_modes + zombie_modes
         ):  # adding the ones which are periodic such that all vectors in modes are LI
-            mat = np.array([i for i in modes] + [m])
+            mat = np.array(modes + [m])
             if np.linalg.matrix_rank(mat) == len(mat):
                 modes.append(m)
 
         # for m in (LC_modes): # adding the LC modes to the basis
-        #     mat = np.array([i for i in modes]+[m])
+        #     mat = np.array(modes+[m])
         #     if np.linalg.matrix_rank(mat)==len(mat):
         #         modes.append(m)
 
