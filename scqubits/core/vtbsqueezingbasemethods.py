@@ -40,10 +40,10 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         -------
         ndarray, ndarray, ndarray
         """
-        M_matrix = self._squeezing_M(minimum_index, Xi, Xi_prime)
-        dim = self.number_degrees_freedom
-        u = M_matrix[0:dim, 0:dim]
-        v = M_matrix[dim: 2 * dim, 0:dim]
+        Xi_inv = inv(Xi)
+        Xi_prime_inv = inv(Xi_prime)
+        u = 0.5 * (Xi_prime_inv @ Xi + Xi_prime.T @ Xi_inv.T)
+        v = 0.5 * (Xi_prime_inv @ Xi - Xi_prime.T @ Xi_inv.T)
         X = self._symmetrize_matrix(inv(u) @ v)
         Y = self._symmetrize_matrix(logm(u))
         Z = self._symmetrize_matrix(v @ inv(u))
@@ -73,115 +73,6 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         a_coefficient = A - (B - A @ X) @ P_X_prime_bar
         a_dagger_coefficient = B - A @ X
         return a_coefficient, a_dagger_coefficient
-
-    def _squeezing_M(
-        self, minimum_index: int, Xi: ndarray, Xi_prime: ndarray
-    ) -> ndarray:
-        """
-        Returns the M matrix as defined in G. Qin et. al “General multi-mode-squeezed
-        states,” (2001) arXiv: quant-ph/0109020, M=[[u, v],[v, u]] where u and v are
-        the matrices that define the Bogoliubov transformation
-        Parameters
-        ----------
-        minimum_index: int
-            integer representing the minimum for which to build the squeezing operator
-            U, 0<i<=total number of minima (no squeezing need be performed for the
-            global min)
-        Xi: ndarray
-            Xi matrix, passed to avoid building multiple times
-        Xi_prime: ndarray
-            Xi matrix for the non-global minimum that requires squeezing
-
-        Returns
-        -------
-        ndarray
-        """
-        omega_squared, _ = self.eigensystem_normal_modes(minimum_index)
-        omega_matrix = np.diag(np.sqrt(omega_squared))
-        Xi_inv = inv(Xi)
-        Xi_prime_inv = inv(Xi_prime)
-        kinetic_matrix = Xi_inv @ Xi_prime @ omega_matrix @ Xi_prime.T @ Xi_inv.T
-        potential_matrix = Xi.T @ Xi_prime_inv.T @ omega_matrix @ Xi_prime_inv @ Xi
-        zeta = 0.25 * (potential_matrix + kinetic_matrix)
-        eta = 0.25 * (potential_matrix - kinetic_matrix)
-        H_matrix = np.block([[zeta, -eta], [eta, -zeta]])
-        eigvals, eigvec = sp.linalg.eig(H_matrix)
-        eigvals, eigvec = self._order_eigensystem_squeezing(np.real(eigvals), eigvec)
-        eigvec = eigvec.T  # since eigvec represents M.T
-        # Normalization ensures that eigvec.T K eigvec = K,
-        # K = [[1, 0],[0, -1]] (1, 0 are matrices)
-        _, eigvec = self._normalize_symplectic_eigensystem_squeezing(eigvals, eigvec)
-        return eigvec
-
-    def _order_eigensystem_squeezing(self, eigvals: ndarray, eigvec: ndarray) -> Tuple:
-        """Order eigensystem to have positive eigenvalues followed by negative,
-        in same order"""
-        dim = self.number_degrees_freedom
-        eigval_holder = np.zeros(dim)
-        eigvec_holder = np.zeros_like(eigvec)
-        count = 0
-        for k, eigval in enumerate(eigvals):
-            if eigval > 0:
-                eigval_holder[count] = eigval
-                eigvec_holder[:, count] = eigvec[:, k]
-                count += 1
-        index_array = np.argsort(eigval_holder)
-        eigval_holder = eigval_holder[index_array]
-        eigvec_holder[:, 0:dim] = eigvec_holder[:, index_array]
-        # Now attempt to deal with degenerate modes
-        for k in range(0, len(eigval_holder) - 1):
-            if np.allclose(eigval_holder[k], eigval_holder[k + 1], atol=1e-6):
-                evec_1 = eigvec_holder[:, k]
-                evec_2 = eigvec_holder[:, k + 1]
-                mat = np.array(
-                    [
-                        [
-                            evec_1[k],
-                            evec_1[k + 1],
-                        ],  # Assume maximal elements are same as global min
-                        [evec_2[k], evec_2[k + 1]],
-                    ]
-                )
-                sol = inv(
-                    mat
-                )  # Find linear transformation to get (1, 0) and (0, 1) vectors
-                new_evec_1 = sol[0, 0] * evec_1 + sol[0, 1] * evec_2
-                new_evec_2 = sol[1, 0] * evec_1 + sol[1, 1] * evec_2
-                eigvec_holder[:, k] = new_evec_1
-                eigvec_holder[:, k + 1] = new_evec_2
-        u = eigvec_holder[0:dim, 0:dim]
-        v = eigvec_holder[dim: 2 * dim, 0:dim]
-        eigvec_holder[0:dim, dim: 2 * dim] = v
-        eigvec_holder[dim: 2 * dim, dim: 2 * dim] = u
-        return eigval_holder, eigvec_holder
-
-    def _normalize_symplectic_eigensystem_squeezing(
-        self, eigvals: ndarray, eigvec: ndarray
-    ) -> Tuple:
-        """Enforce commutation relations so that Bogoliubov transformation is
-        symplectic"""
-        dim = self.number_degrees_freedom
-        for col in range(dim):
-            a = np.sum([eigvec[row, col] for row in range(2 * dim)])
-            if a < 0.0:
-                eigvec[:, col] *= -1
-        A = eigvec[0:dim, 0:dim]
-        B = eigvec[dim: 2 * dim, 0:dim]
-        for vec in range(dim):
-            a = 1.0 / np.sqrt(
-                np.sum(
-                    [
-                        A[num, vec] * A[num, vec] - B[num, vec] * B[num, vec]
-                        for num in range(dim)
-                    ]
-                )
-            )
-            eigvec[:, vec] *= a
-        A = eigvec[0:dim, 0:dim]
-        B = eigvec[dim: 2 * dim, 0:dim]
-        eigvec[dim: 2 * dim, dim: 2 * dim] = A
-        eigvec[0:dim, dim: 2 * dim] = B
-        return eigvals, eigvec
 
     def _find_closest_periodic_minimum(
         self, relevant_unit_cell_vectors: dict, minima_index_pair: Tuple
