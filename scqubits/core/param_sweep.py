@@ -275,6 +275,7 @@ class ParameterSweepBase(ABC):
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Tuple[int, ...]] = None,
         sidebands: bool = False,
+        photon_number: int = 1,
         make_positive: bool = False,
         as_specdata: bool = False,
         param_indices: Optional[NpIndices] = None,
@@ -306,6 +307,9 @@ class ParameterSweepBase(ABC):
         sidebands:
             if set to true, sideband transitions with multiple subsystems changing
             excitation levels are included (default: False)
+        photon_number:
+            number of photons involved in transition; transition frequencies are divided
+            by this number (default: photon_number=1, i.e., single-photon transitions)
         make_positive:
             boolean option relevant if the initial state is an excited state;
             downwards transition energies would regularly be negative, but are
@@ -359,6 +363,7 @@ class ParameterSweepBase(ABC):
         for final_state in final_states_list:
             final_energies = self[param_indices].energy_by_bare_index(final_state)
             diff_energies = (final_energies - initial_energies).astype(float)
+            diff_energies /= photon_number
             if make_positive:
                 diff_energies = np.abs(diff_energies)
             if not np.isnan(diff_energies.toarray()).all():
@@ -396,6 +401,7 @@ class ParameterSweepBase(ABC):
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Union[int, Tuple[int, ...]]] = None,
         sidebands: bool = False,
+        photon_number: int = 1,
         make_positive: bool = True,
         coloring: Union[str, ndarray] = "transition",
         param_indices: Optional[NpIndices] = None,
@@ -428,6 +434,9 @@ class ParameterSweepBase(ABC):
         sidebands:
             if set to true, sideband transitions with multiple subsystems changing
             excitation levels are included (default: False)
+        photon_number:
+            number of photons involved in transition; transition frequencies are divided
+            by this number (default: photon_number=1, i.e., single-photon transitions)
         make_positive:
             boolean option relevant if the initial state is an excited state;
             downwards transition energies would regularly be negative, but are
@@ -460,12 +469,14 @@ class ParameterSweepBase(ABC):
             initial,
             final,
             sidebands,
+            photon_number,
             make_positive,
             as_specdata=True,
             param_indices=param_indices,
         )
         specdata_all = copy.deepcopy(self[param_indices].dressed_specdata)
         specdata_all.energy_table -= specdata.subtract
+        specdata_all.energy_table /= photon_number
         if make_positive:
             specdata_all.energy_table = np.abs(specdata_all.energy_table)
         self._current_param_indices = None  # reset from pre-slicing
@@ -524,10 +535,7 @@ class ParameterSweepBase(ABC):
             self._data[sweep_name] = func(**kwargs)
 
     def matrix_elements(
-        self,
-        operator_name: str,
-        sweep_name: str,
-        subsystem: "QuantumSys",
+        self, operator_name: str, sweep_name: str, subsystem: "QuantumSys",
     ) -> None:
         """Generate data for matrix elements with respect to a given operator, as a
         function of the sweep parameter(s)
@@ -568,10 +576,7 @@ class ParameterSweepBase(ABC):
             subsystem=subsystem,
         )
 
-        matrix_element_data = sweeps.generator(
-            self,
-            operator_func,
-        )
+        matrix_element_data = sweeps.generator(self, operator_func,)
         self._data[sweep_name] = matrix_element_data
 
 
@@ -865,9 +870,7 @@ class ParameterSweep(
         esys_array[1] = evecs
         return esys_array
 
-    def _dressed_spectrum_sweep(
-        self,
-    ) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
+    def _dressed_spectrum_sweep(self,) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
         """
 
         Returns
@@ -908,8 +911,9 @@ class ParameterSweep(
         evals = np.asarray(spectrum_data[..., 0].tolist())
         evecs = spectrum_data[..., 1]
 
-        return NamedSlotsNdarray(evals, slotparamvals_by_name), NamedSlotsNdarray(
-            evecs, slotparamvals_by_name
+        return (
+            NamedSlotsNdarray(evals, slotparamvals_by_name),
+            NamedSlotsNdarray(evecs, slotparamvals_by_name),
         )
 
     def _energies_1(self, subsys):

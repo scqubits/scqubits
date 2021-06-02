@@ -12,7 +12,11 @@
 
 import numpy as np
 
+import scqubits.settings
 from scqubits import Fluxonium, FluxQubit, Grid1d, Transmon, TunableTransmon, ZeroPi
+
+# WE do not need a warning during testing
+scqubits.settings.T1_DEFAULT_WARNING = False
 
 data = {
     "Transmon": np.array(
@@ -46,8 +50,8 @@ data = {
             1.09436102e08,
             5.18435915e06,
             np.inf,
-            8.71398774e02,
-            1.74209561e03,
+            2.60287723e06,
+            2.36244752e06,
         ]
     ),
     "FluxQubit": np.array(
