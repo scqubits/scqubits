@@ -97,7 +97,7 @@ def run_tests(FQ_instance, FQ_string):
     specdata_2 = FQ_instance.eigensys(evals_count=4, filename=path+FQ_string+'_2.hdf5')
     specdata_4 = FQ_instance.get_spectrum_vs_paramvals(param_name='flux', param_vals=flux_list, evals_count=4, get_eigenstates=True,
                                                filename=path+FQ_string+'_4.hdf5')
-    # specdata_5 = FQ_instance.matrixelement_table('n_operator', operator_args={'j': 0},
+    # specdata_5 = FQ_instance.matrixelement_table('n_operator', operator_args={'dof_index': 0},
     #                                      filename=path+FQ_string+'_5.hdf5')
 
 def run_tests_ED(FQ_instance):
@@ -111,6 +111,6 @@ def run_tests_ED(FQ_instance):
                                                     filename='../../../scqubits/tests/data/fluxqubit_5.hdf5')
 
 
-run_tests(FQV, 'fluxqubitvtb')
-run_tests(FQVS, 'fluxqubitvtbsqueezing')
-run_tests_ED(FQ)
+#run_tests(FQV, 'fluxqubitvtb')
+#run_tests(FQVS, 'fluxqubitvtbsqueezing')
+#run_tests_ED(FQ)

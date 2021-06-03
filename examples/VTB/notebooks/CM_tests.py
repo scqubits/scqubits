@@ -11,7 +11,8 @@ ECg = 20.0  # 0.5 fF
 flux = 0.0
 EJ = 20.0
 EJlist = np.array([EJ for j in range(2*N)])
-EJlist[0: 3] = 1.01*EJlist[0: 3]
+EJlist = np.array([1.01, 1.02, 0.98, 0.97]) * EJlist
+#EJlist[0: 3] = 1.01*EJlist[0: 3]
 nglist = np.array([0.0 for _ in range(2*N - 1)])
 num_exc = 2
 flux_list = np.linspace(0.46, 0.54, 21)
@@ -71,4 +72,4 @@ def run_tests_ED(CM_instance):
 
 run_tests(CMV, 'currentmirrorvtb')
 run_tests(CMVS, 'currentmirrorvtbsqueezing')
-run_tests_ED(CM)
+#run_tests_ED(CM)
