@@ -480,10 +480,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             bare_only=True,
             num_cpus=num_cpus,
         )
-        setattr(self, param_name, previous_paramval)
-        setattr(self, dispersion_name, previous_dispval)
-
-        eigenenergies = sweep["bare_esys"][0, :, :, 0].toarray()
+        eigenenergies = sweep["bare_evals"]["subsys":0].toarray()
 
         if levels is None:
             dispersions = np.empty((len(transitions), len(param_vals)))
@@ -498,6 +495,8 @@ class QubitBaseClass(QuantumSystem, ABC):
                 energy_j = eigenenergies[:, :, j]
                 dispersions[index] = np.max(energy_j, axis=0) - np.min(energy_j, axis=0)
 
+        setattr(self, param_name, previous_paramval)
+        setattr(self, dispersion_name, previous_dispval)
         return eigenenergies, dispersions
 
     def get_dispersion_vs_paramvals(
