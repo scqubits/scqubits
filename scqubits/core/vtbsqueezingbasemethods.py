@@ -188,19 +188,28 @@ class VTBBaseMethodsSqueezing(VTBBaseMethods):
         exp_a_dagger_plus_list = np.empty_like(exp_a_plus_list)
         exp_a_dagger_minus_list = np.empty_like(exp_a_plus_list)
         for i in range(dim):
-            a_dagger_arg = np.sum(
-                2.0 * np.pi * (Xi_inv.T[i] @ prefactor_a_dagger) * a_operator_array.T,
-                axis=2,
-            ) / np.sqrt(2.0)
+            a_dagger_arg = (
+                np.sum(
+                    2.0
+                    * np.pi
+                    * (Xi_inv.T[i] @ prefactor_a_dagger)
+                    * a_operator_array.T,
+                    axis=2,
+                )
+                / np.sqrt(2.0)
+            )
             exp_a_dagger_plus_list[i] = expm(a_dagger_arg)
             exp_a_dagger_minus_list[i] = expm(-a_dagger_arg)
-            a_arg = np.sum(
-                2.0
-                * np.pi
-                * (Xi_inv.T[i] @ prefactor_a)
-                * np.transpose(a_operator_array, axes=(1, 2, 0)),
-                axis=2,
-            ) / np.sqrt(2.0)
+            a_arg = (
+                np.sum(
+                    2.0
+                    * np.pi
+                    * (Xi_inv.T[i] @ prefactor_a)
+                    * np.transpose(a_operator_array, axes=(1, 2, 0)),
+                    axis=2,
+                )
+                / np.sqrt(2.0)
+            )
             exp_a_plus_list[i] = expm(a_arg)
             exp_a_minus_list[i] = expm(-a_arg)
         return [exp_a_plus_list, exp_a_minus_list], [

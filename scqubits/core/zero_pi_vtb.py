@@ -319,8 +319,13 @@ class ZeroPiVTB(
         minima_m: ndarray,
         minima_p: ndarray,
     ) -> ndarray:
-        (Xi, Xi_inv, premultiplied_a_a_dagger, exp_i_phi_j,
-         _) = precalculated_quantities
+        (
+            Xi,
+            Xi_inv,
+            premultiplied_a_a_dagger,
+            exp_i_phi_j,
+            _,
+        ) = precalculated_quantities
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         potential_matrix = 0.0 + 0.0j
@@ -390,9 +395,7 @@ class ZeroPiVTB(
         dim = self.number_degrees_freedom
         phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))
         potential_gradient = (
-            self.EL
-            * Xi[0, which_length] ** 2
-            * harmonic_lengths[which_length] ** (-1)
+            self.EL * Xi[0, which_length] ** 2 * harmonic_lengths[which_length] ** (-1)
         )
         for j in range(dim):
             cosine_coeffs = np.array([(-1) ** j, 1])

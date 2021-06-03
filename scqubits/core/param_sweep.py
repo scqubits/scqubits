@@ -535,7 +535,10 @@ class ParameterSweepBase(ABC):
             self._data[sweep_name] = func(**kwargs)
 
     def matrix_elements(
-        self, operator_name: str, sweep_name: str, subsystem: "QuantumSys",
+        self,
+        operator_name: str,
+        sweep_name: str,
+        subsystem: "QuantumSys",
     ) -> None:
         """Generate data for matrix elements with respect to a given operator, as a
         function of the sweep parameter(s)
@@ -576,7 +579,10 @@ class ParameterSweepBase(ABC):
             subsystem=subsystem,
         )
 
-        matrix_element_data = sweeps.generator(self, operator_func,)
+        matrix_element_data = sweeps.generator(
+            self,
+            operator_func,
+        )
         self._data[sweep_name] = matrix_element_data
 
 
@@ -870,7 +876,9 @@ class ParameterSweep(
         esys_array[1] = evecs
         return esys_array
 
-    def _dressed_spectrum_sweep(self,) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
+    def _dressed_spectrum_sweep(
+        self,
+    ) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
         """
 
         Returns

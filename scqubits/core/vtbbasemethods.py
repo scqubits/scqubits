@@ -83,7 +83,9 @@ class VTBBaseMethods(ABC):
         maximum displacement allowed for each coordinate of a unit cell vector.
     """
     num_exc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    maximum_unit_cell_vector_length = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    maximum_unit_cell_vector_length = descriptors.WatchedProperty(
+        "QUANTUMSYSTEM_UPDATE"
+    )
     number_degrees_freedom = descriptors.ReadOnlyProperty()
     number_periodic_degrees_freedom = descriptors.ReadOnlyProperty()
     number_junctions = descriptors.ReadOnlyProperty()

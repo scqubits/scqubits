@@ -71,7 +71,11 @@ def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
     data_array = list(
         tqdm(
             map(
-                functools.partial(func_effective, params=reduced_parameters, **kwargs,),
+                functools.partial(
+                    func_effective,
+                    params=reduced_parameters,
+                    **kwargs,
+                ),
                 itertools.product(*reduced_parameters.ranges),
             ),
             total=total_count,

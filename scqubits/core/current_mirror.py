@@ -296,8 +296,7 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
             H += self.EJlist[j] * self.identity_operator()
         exp_i_phi_stitching = self.exp_i_phi_stitching_term()
         H += (-self.EJlist[-1] / 2.0) * (
-            np.exp(1j * 2 * np.pi * self.flux)
-            * exp_i_phi_stitching
+            np.exp(1j * 2 * np.pi * self.flux) * exp_i_phi_stitching
             + np.exp(-1j * 2 * np.pi * self.flux) * exp_i_phi_stitching.conj().T
         )
         H += self.EJlist[-1] * self.identity_operator()
@@ -398,8 +397,9 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         -------
             ndarray
         """
-        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(1j * 2.0 *
-                                                                       np.pi * flux)
+        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(
+            1j * 2.0 * np.pi * flux
+        )
         return 0.5 * (exp_i_phi_stitching + exp_i_phi_stitching.conj().T)
 
     def sin_phi_stitching_term(self, flux: float) -> ndarray:
@@ -416,8 +416,9 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
         -------
             ndarray
         """
-        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(1j * 2.0 *
-                                                                       np.pi * flux)
+        exp_i_phi_stitching = self.exp_i_phi_stitching_term() * np.exp(
+            1j * 2.0 * np.pi * flux
+        )
         return -1j * 0.5 * (exp_i_phi_stitching - exp_i_phi_stitching.conj().T)
 
 

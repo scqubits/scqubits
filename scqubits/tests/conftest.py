@@ -29,7 +29,8 @@ if not IN_IPYTHON:
     matplotlib.use("Agg")
 
 warnings.filterwarnings(
-    action="ignore", category=FutureWarning,
+    action="ignore",
+    category=FutureWarning,
 )
 
 TESTDIR, _ = os.path.split(scqubits.__file__)
@@ -137,8 +138,11 @@ class BaseTest:
 
     def plot_matrixelements(self, op, evals_count=7, op_arg=None):
         self.qbt.plot_matrixelements(
-            op, operator_args=op_arg, evecs=None, evals_count=evals_count,
-            show_numbers=True
+            op,
+            operator_args=op_arg,
+            evecs=None,
+            evals_count=evals_count,
+            show_numbers=True,
         )
 
     def print_matrixelements(self, op, op_arg=None):

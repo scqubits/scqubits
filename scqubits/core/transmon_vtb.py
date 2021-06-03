@@ -72,11 +72,11 @@ class TransmonVTB(
         return self._single_exp_i_phi_j_operator(0, Xi, a_operator_list)
 
     def _local_potential(
-            self,
-            precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
-            displacement_vector: ndarray,
-            minima_m: ndarray,
-            minima_p: ndarray,
+        self,
+        precalculated_quantities: Tuple[ndarray, ndarray, Tuple, ndarray, ndarray],
+        displacement_vector: ndarray,
+        minima_m: ndarray,
+        minima_p: ndarray,
     ) -> ndarray:
         _, _, _, exp_i_phi_j, _ = precalculated_quantities
         phi_bar = 0.5 * (displacement_vector + (minima_m + minima_p))

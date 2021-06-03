@@ -147,7 +147,9 @@ class TestFluxQubitVTBSqueezing(VTBTestFunctions):
         num_states_per_min = self.qbt.number_states_per_minimum()
         relevant_unit_cell_vectors = self.qbt.find_relevant_unit_cell_vectors()
         hilbertdim = self.qbt.hilbertdim()
-        inner_product_babusci_mat = np.zeros((hilbertdim, hilbertdim), dtype=np.complex128)
+        inner_product_babusci_mat = np.zeros(
+            (hilbertdim, hilbertdim), dtype=np.complex128
+        )
         minima_dict = self.qbt.sorted_minima_dict
         for min_index, min_location in minima_dict.items():
             Xi = self.qbt.Xi_matrix(min_index)
