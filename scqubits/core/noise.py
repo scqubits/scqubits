@@ -227,7 +227,7 @@ class NoisySystem(ABC):
             "grid": True,
         }
         # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False
+        if common_noise_options.get("get_rate", False) is False:
             plotting_options["ylabel"] = units.get_units_time_label()
 
         plotting_options.update(
