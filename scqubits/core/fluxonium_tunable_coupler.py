@@ -14,7 +14,7 @@ from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_sign
 
 
-class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseClass):
+class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializable):
     def __init__(
         self,
         EJa,
@@ -559,13 +559,15 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseCl
         )
 
     def fluxonium_minus(self):
-        return Fluxonium(
+        return FluxoniumFluxVariableAllocation(
             self.EJC,
             self.fluxonium_minus_charging_energy(),
             self.EL_tilda() / 4.0,
             self.flux_c,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_minus_truncated_dim,
+            flux_fraction_with_inductor=0.0,
+            flux_junction_sign=-1,
         )
 
     def EL_tilda(self):
@@ -596,9 +598,7 @@ class FluxoniumTunableCouplerFloating(serializers.Serializable, base.QubitBaseCl
         )
 
 
-class FluxoniumTunableCouplerGrounded(
-    FluxoniumTunableCouplerFloating, serializers.Serializable, base.QubitBaseClass
-):
+class FluxoniumTunableCouplerGrounded(FluxoniumTunableCouplerFloating):
     def __init__(
         self,
         EJa,
