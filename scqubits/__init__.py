@@ -48,7 +48,13 @@ from scqubits.core.zeropi_full import FullZeroPi
 from scqubits.io_utils.fileio import read, write
 
 # GUI
-from scqubits.ui.gui import GUI
+try:
+    from scqubits.ui.gui import GUI
+except NameError:
+    warnings.warn(
+        "scqubits: could not import GUI - consider installing ipywidgets (optional dependency)?",
+        ImportWarning,
+    )
 
 # spectrum utils
 from scqubits.utils.spectrum_utils import identity_wrap
