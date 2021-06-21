@@ -42,7 +42,7 @@ from scqubits.core.namedslots_array import (
 )
 from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
-from scqubits.core.spectrum_lookup import SpectrumLookupMixin
+from scqubits.core.spec_lookup import SpectrumLookupMixin
 from scqubits.core.storage import SpectrumData
 
 if TYPE_CHECKING:
@@ -359,7 +359,15 @@ class ParameterSweepBase(ABC):
 
         transitions = []
         transition_energies = []
-        initial_energies = self[param_indices].energy_by_bare_index(initial_state)
+
+        if sum(initial_state) == 0:
+            # Identify the (0,0,...,0) state as ground state. Even if it is strongly
+            # hybridized, we can still subtract the true ground state energy. This
+            # addresses issue 103.
+            initial_energies = self[param_indices].energy_by_dressed_index(0)
+        else:
+            initial_energies = self[param_indices].energy_by_bare_index(initial_state)
+
         for final_state in final_states_list:
             final_energies = self[param_indices].energy_by_bare_index(final_state)
             diff_energies = (final_energies - initial_energies).astype(float)
