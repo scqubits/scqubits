@@ -12,7 +12,7 @@
 import itertools
 import weakref
 
-from typing import Optional, TYPE_CHECKING, Callable, List, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -24,8 +24,8 @@ import scqubits
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
-from scqubits.core.namedslots_array import NamedSlotsNdarray
 
+from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]
