@@ -63,11 +63,15 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         # default values for the external flux vars
         for flux in self.external_flux_vars:
             setattr(self, flux.name, 0.0)  # setting the default to zero external flux
+        # default values for the offset charge vars
+        for offset_charge in self.offset_charge_vars:
+            setattr(self, offset_charge.name, 0.0) # default to zero offset charge
 
         # setting the __init__params attribute
         self._init_params = (
             [param.name for param in self.param_vars]
             + [flux.name for flux in self.external_flux_vars]
+            + [offset_charge.name for offset_charge in self.offset_charge_vars]
             + [attr for attr in self.__dict__.keys() if "cutoff" in attr]
             + ["input_string"]
         )
@@ -174,6 +178,10 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         for phi in self.external_flux_vars:
             H = H.subs(phi, phi * symbols("I") * 2 * np.pi)
 
+        # associate a identity matrix with offset charge variables
+        for offset_charge in self.offset_charge_vars:
+            H = H.subs(offset_charge, offset_charge * symbols("I"))
+
         # number_variables = (self.var_indices["cyclic"] + self.var_indices["periodic"] + self.var_indices["discretized_phi"]) # eliminating the Σ and zombie vars
 
         # defining the function from the Hamiltonian
@@ -187,6 +195,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                 + [symbols("I")]
                 + self.param_vars
                 + self.external_flux_vars
+                + self.offset_charge_vars
             ),
             H,
             [
@@ -485,6 +494,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
     def get_external_flux(self):
         return [getattr(self, flux.name) for flux in self.external_flux_vars]
+    
+    def get_offset_charges(self):
+        return [getattr(self, offset_charge.name) for offset_charge in self.offset_charge_vars]
 
     def get_operators(self):
         """
@@ -567,7 +579,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                 )
         self.set_operators() # updating the operators
         hamiltonian_matrix = self.H_func(
-            *(self.get_operators() + self.get_params() + self.get_external_flux())
+            *(self.get_operators() + self.get_params() + self.get_external_flux() + self.get_offset_charges())
         )
 
         return hamiltonian_matrix

@@ -287,17 +287,19 @@ class CustomQCircuit(serializers.Serializable):
 
         def independent_modes(branch_subset, single_nodes=True):
             """
-            Returns the vectors which span a subspace of /mathcal{G} where there is no generalized flux difference between the branches present in the branch_subset.
+            Returns the vectors which span a subspace of /mathcal{G} where there is no generalized flux difference across the branches present in the branch_subset.
+            Optional Variables:
+            single_nodes: Boolean, if the single nodes are taken into consideration for basis vectors.
             """
-            basis_params = [1, 0]  # numbers to represent mode vectors
+            basis_params = [1, 0]  # numbers ???????????
 
             for n in nodes:  # reset the node markers
                 n.marker = 0
 
-            # step 2: finding the independent sets of branches in branch_subset, then identifying the sets of nodes in each of thoses sets
+            # step 2: finding maximum connected subgraphs of branches in branch_subset, then identifying the sets of nodes in each of thoses sets
             branch_subset_ref = branch_subset.copy()
 
-            trees = []  # list of independet sets of branches, in branch_subset
+            trees = []  # list containing the maximum connected subgraphs
 
             while len(branch_subset_ref) > 0:
                 b_0 = branch_subset_ref[0]
@@ -313,7 +315,7 @@ class CustomQCircuit(serializers.Serializable):
                                 break
                 trees.append(tree)
 
-            # finding all the unique nodes in each of the independent sets of branches found earlier
+            # finding the nodes in each of the maximum connected subgraph
             ind_nodes = [list(set(sum([branch.nodes for branch in tree], ()))) for tree in trees]
 
             for x, node_set in enumerate(ind_nodes):
@@ -700,17 +702,17 @@ class CustomQCircuit(serializers.Serializable):
             [sympy.diff(L, i) for i in y_dot_vars]
         )  # finding the momentum expression in terms of y_dot
 
-        n_vars_p = len(
+        var_indices = len(
             self.var_indices["cyclic"]
             + self.var_indices["periodic"]
             + self.var_indices["discretized_phi"]
         )
         y_dot_py = sympy.linsolve(
-            (p_y - np.array(p_y_vars)).tolist()[:n_vars_p], tuple(y_dot_vars[:n_vars_p])
+            (p_y - np.array(p_y_vars)).tolist()[:var_indices], tuple(y_dot_vars[:var_indices])
         )
         y_dot_py = list(list(y_dot_py)[0])
 
-        H = (p_y[:n_vars_p].dot(y_dot_vars[:n_vars_p]) - L).subs(
+        H = (p_y[:var_indices].dot(y_dot_vars[:var_indices]) - L).subs(
             [(y_dot_vars[i], y_dot_py[i]) for i in range(len(y_dot_py))]
         )
 
@@ -718,9 +720,11 @@ class CustomQCircuit(serializers.Serializable):
             "cyclic"
         ]:  # To make it clear that the charge basis is used for cyclic variables
             H = H.subs(symbols("p" + str(c)), symbols("n" + str(c)))
-
-        for p in self.var_indices["periodic"]:  # same as above for periodic variables
-            H = H.subs(symbols("p" + str(p)), symbols("n" + str(p)))
+        
+        self.offset_charge_vars = []
+        for p in self.var_indices["periodic"]:  # same as above for periodic variables and adding the offset charge variables
+            H = H.subs(symbols("p" + str(p)), symbols("n" + str(p)) + symbols("ng_" + str(p)))
+            self.offset_charge_vars = self.offset_charge_vars + [symbols("ng_" + str(p))]
 
         # Updating the class property
         self.H = H.expand()
