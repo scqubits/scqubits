@@ -174,11 +174,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         for i in constants:
             H = H - i * coeff_dict[i]  # + i*coeff_dict[i]*symbols("I")).expand()
 
-        # associate a identity matrix with the external flux variables
+        # associate a identity matrix with the external flux vars
         for phi in self.external_flux_vars:
             H = H.subs(phi, phi * symbols("I") * 2 * np.pi)
 
-        # associate a identity matrix with offset charge variables
+        # associate a identity matrix with offset charge vars
         for offset_charge in self.offset_charge_vars:
             H = H.subs(offset_charge, offset_charge * symbols("I"))
 
