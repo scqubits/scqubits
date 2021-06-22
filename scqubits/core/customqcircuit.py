@@ -296,7 +296,11 @@ class CustomQCircuit(serializers.Serializable):
             for n in nodes:  # reset the node markers
                 n.marker = 0
 
+<<<<<<< HEAD
             # step 2: finding maximum connected subgraphs of branches in branch_subset, then identifying the sets of nodes in each of thoses sets
+=======
+            # step 2: finding the maximum connected set of independent branches in branch_subset, then identifying the sets of nodes in each of thoses sets
+>>>>>>> 6ef4fc58a1d9692b941f1cbfb584af17ceb09649
             branch_subset_ref = branch_subset.copy()
 
             trees = []  # list containing the maximum connected subgraphs
