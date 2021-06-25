@@ -21,6 +21,7 @@ from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
 from matplotlib import pyplot as plt
+from sympy.logic.boolalg import Boolean
 
 import scqubits.core.discretization as discretization
 import scqubits.core.constants as constants
@@ -167,7 +168,7 @@ class CustomQCircuit(serializers.Serializable):
         String either "num" or "sym" correspondingly to numeric or symbolic representation of input parameters in the input file.
     """
 
-    def __init__(self, list_nodes: list, list_branches: list = None, mode: str = "sym"):
+    def __init__(self, list_nodes: list, list_branches: list, ground_node = None, mode: str = "sym"):
 
         self.branches = list_branches
         self.nodes = list_nodes
@@ -193,9 +194,18 @@ class CustomQCircuit(serializers.Serializable):
         self.potential = (
             None  # symbolic expression for the potential energy of the circuit
         )
+        # parameters for grounding of the circuit
+        if ground_node != None:
+            self.is_grounded = True
+            self.ground_node = ground_node
+        else:
+            self.is_grounded = False
+            self.ground_node = None
 
         # Calling the function to initiate the calss variables
         self.hamiltonian_sym()
+
+        
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -227,10 +237,20 @@ class CustomQCircuit(serializers.Serializable):
         branches = []
 
         first_branch = lines.index("branches:") + 1
+        
+        is_grounded = False # paramater to identify the presence of ground node in the circuit.
+        ground_node = None
+
         for l in range(first_branch, len(lines)):
             if lines[l] != "":
                 line = [i for i in lines[l].replace("\t", " ").split(" ") if i != ""]
                 a, b = [int(i) for i in line[1].split(",")]
+                
+                if a * b == 0 and is_grounded == False: # Making a ground node in case node zero is used for any branch in the input file
+                    num_nodes += 1
+                    ground_node = node(0,0)
+                    is_grounded = True
+
                 element = line[0]
 
                 if element == "JJ":
@@ -253,12 +273,18 @@ class CustomQCircuit(serializers.Serializable):
                             parameters = [float(line[2])]
                     else:
                         parameters = None
-                branches.append(branch(nodes[a - 1], nodes[b - 1], element, parameters))
+                if a == 0:
+                    branches.append(branch(ground_node, nodes[b - 1], element, parameters))
+                elif b == 0:
+                    branches.append(branch(nodes[a - 1], ground_node, element, parameters))
+                else:
+                    branches.append(branch(nodes[a - 1], nodes[b - 1], element, parameters))
             else:
                 break
 
-        circuit = cls(nodes, branches, mode=mode)
+        circuit = cls(nodes, branches, ground_node=ground_node, mode=mode)
         circuit.input_string = input_string
+
 
         return circuit
 
@@ -291,7 +317,7 @@ class CustomQCircuit(serializers.Serializable):
             Optional Variables:
             single_nodes: Boolean, if the single nodes are taken into consideration for basis vectors.
             """
-            basis_params = [1, 0]  # numbers ???????????
+            basis_params = [1, 0]  # numbers used to make basis vectors
 
             for n in nodes:  # reset the node markers
                 n.marker = 0
@@ -367,7 +393,8 @@ class CustomQCircuit(serializers.Serializable):
         cyclic_modes = independent_modes(selected_branches, single_nodes=False)
         # including the Σ mode
         Σ = [1 for n in self.nodes]
-        cyclic_modes.append(Σ)
+        if not self.is_grounded: # only append if the circuit is not grounded
+            cyclic_modes.append(Σ)
 
         ##################### Finding the LC Modes ##################
         selected_branches = [branch for branch in branches if branch.type == "JJ"]
@@ -412,7 +439,7 @@ class CustomQCircuit(serializers.Serializable):
         
         standard_basis = np.array(standard_basis)
         
-        # standard_basis = np.identity(len(self.nodes))
+        standard_basis = np.identity(len(self.nodes))
         #         standard_basis = np.ones([len(nodes),len(nodes)]) - 2*np.identity(len(nodes))
 
         new_basis = modes.copy()  # starting with the cyclic modes
@@ -424,7 +451,11 @@ class CustomQCircuit(serializers.Serializable):
         new_basis = np.array(new_basis)
 
         # sorting the basis so that the cyclic, periodic and zombie variables occur at the beginning.
-        pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
+        if not self.is_grounded:
+            pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
+        else:
+            pos_Σ = []
+
         pos_cyclic = [
             i
             for i in range(len(new_basis))
@@ -508,39 +539,59 @@ class CustomQCircuit(serializers.Serializable):
     def _JJ_terms(self):
         J = 0
         for b in [t for t in self.branches if t.type == "JJ"]:
-            if len(set(self.nodes)) > 1:  # branch if shorted is not considered
+            if len(set(b.nodes)) > 1:  # branch if shorted is not considered
                 # adding external flux
                 phi_ext = 0
                 if b in self.flux_branches:
                     index = self.flux_branches.index(b)
                     phi_ext += self.external_flux_vars[index]
-
-                J += -b.parameters["E_J"] * sympy.cos(
-                    symbols("x" + str(b.nodes[1].id))
-                    - symbols("x" + str(b.nodes[0].id))
-                    + phi_ext
-                )
+                
+                if b.nodes[1].id == 0: # if loop to check for the presence of ground node
+                    J += -b.parameters["E_J"] * sympy.cos(
+                        -symbols("x" + str(b.nodes[0].id))
+                        + phi_ext
+                    )
+                elif b.nodes[0].id == 0:
+                    J += -b.parameters["E_J"] * sympy.cos(
+                        symbols("x" + str(b.nodes[1].id))
+                        + phi_ext
+                    )
+                else:
+                    J += -b.parameters["E_J"] * sympy.cos(
+                        symbols("x" + str(b.nodes[1].id))
+                        - symbols("x" + str(b.nodes[0].id))
+                        + phi_ext
+                    )
         return J
 
     def _C_terms(self):
         C = 0
         for b in [t for t in self.branches if t.type == "C" or t.type == "JJ"]:
-            if len(set(self.nodes)) > 1:  # branch if shorted is not considered
-                # adding external flux
-                if b.type == "C":
+            if len(set(b.nodes)) > 1:  # branch if shorted is not considered
+                element_param = {"C":"E_C", "JJ":"E_CJ"}
+
+                if b.nodes[1].id == 0: 
                     C += (
                         1
-                        / (16 * b.parameters["E_C"])
+                        / (16 * b.parameters[element_param[b.type]])
                         * (
-                            symbols("vx" + str(b.nodes[1].id))
-                            - symbols("vx" + str(b.nodes[0].id))
+                            symbols("vx" + str(b.nodes[0].id))
                         )
                         ** 2
                     )
-                elif b.type == "JJ":
+                elif b.nodes[0].id == 0:
                     C += (
                         1
-                        / (16 * b.parameters["E_CJ"])
+                        / (16 * b.parameters[element_param[b.type]])
+                        * (
+                            - symbols("vx" + str(b.nodes[1].id))
+                        )
+                        ** 2
+                    )
+                else:
+                    C += (
+                        1
+                        / (16 * b.parameters[element_param[b.type]])
                         * (
                             symbols("vx" + str(b.nodes[1].id))
                             - symbols("vx" + str(b.nodes[0].id))
@@ -552,34 +603,60 @@ class CustomQCircuit(serializers.Serializable):
     def _L_terms(self):
         L = 0
         for b in [t for t in self.branches if t.type == "L"]:
-            if len(set(self.nodes)) > 1:  # branch if shorted is not considered
+            if len(set(b.nodes)) > 1:  # branch if shorted is not considered
                 # adding external flux
                 phi_ext = 0
                 if b in self.flux_branches:
                     index = self.flux_branches.index(b)
                     phi_ext += self.external_flux_vars[index]
-
-                L += (
-                    0.5
-                    * b.parameters["E_L"]
-                    * (
-                        symbols("x" + str(b.nodes[1].id))
-                        - symbols("x" + str(b.nodes[0].id))
-                        + phi_ext
+                
+                if b.nodes[0].id == 0:
+                    L += (
+                        0.5
+                        * b.parameters["E_L"]
+                        * (
+                            symbols("x" + str(b.nodes[1].id))
+                            + phi_ext
+                        )
+                        ** 2
                     )
-                    ** 2
-                )
+                elif b.nodes[1].id == 0:
+                    L += (
+                        0.5
+                        * b.parameters["E_L"]
+                        * (
+                            -symbols("x" + str(b.nodes[0].id))
+                            + phi_ext
+                        )
+                        ** 2
+                    )
+                else:
+                    L += (
+                        0.5
+                        * b.parameters["E_L"]
+                        * (
+                            symbols("x" + str(b.nodes[1].id))
+                            - symbols("x" + str(b.nodes[0].id))
+                            + phi_ext
+                        )
+                        ** 2
+                    )
         return L
 
     def _flux_loops(self):
-        node_sets = [
-            [self.nodes[0]]
-        ]  # starting with the first set which has the first node as the only element
+        if self.is_grounded:
+            node_sets = [[self.ground_node]]
+        else:
+            node_sets = [
+                [self.nodes[0]]
+            ]  # starting with the first set which has the first node as the only element
+
+        num_nodes = len(self.nodes)
+        if self.is_grounded:
+            num_nodes += 1
 
         i = 0
-        while len([q for p in node_sets for q in p]) < len(
-            self.nodes
-        ):  # finding all the sets of nodes and filling node_sets
+        while len([q for p in node_sets for q in p]) < num_nodes:  # finding all the sets of nodes and filling node_sets
             node_set = []
             for n in node_sets[i]:
                 node_set += n.connected_nodes("L") + n.connected_nodes("JJ")
@@ -592,6 +669,7 @@ class CustomQCircuit(serializers.Serializable):
                 ]
             )
             i += 1
+
 
         flux_branches = []  # set of branches where external flux is associated
 

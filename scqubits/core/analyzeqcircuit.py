@@ -35,8 +35,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     Class to make numerical analysis on the CustomQCircuit instance. Subclass of CustomQCircuit and can be initiated using the same input file.
     """
 
-    def __init__(self, list_nodes: list, list_branches: list = None, mode: str = "sym"):
-        CustomQCircuit.__init__(self, list_nodes, list_branches, mode)
+    def __init__(self, list_nodes: list, list_branches: list = None, ground_node = None, mode: str = "sym"):
+        CustomQCircuit.__init__(self, list_nodes, list_branches, ground_node, mode)
 
         # defining additional class properties
 
@@ -94,7 +94,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         """
         Initialize AnalyzeQCircuit using an instance of CustomQCircuit.
         """
-        return cls(circuit.nodes, circuit.branches, mode=circuit.mode)
+        return cls(circuit.nodes, circuit.branches, ground_node=circuit.ground_node, mode=circuit.mode)
 
     ##################################################################
     ##### Functions to construct the function for the Hamiltonian ####
