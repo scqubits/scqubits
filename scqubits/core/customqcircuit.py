@@ -16,7 +16,7 @@ import itertools
 import sympy
 import numpy as np
 from numpy import ndarray
-from sympy import symbols, lambdify, MatrixSymbol
+from sympy import symbols
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
@@ -346,8 +346,12 @@ class CustomQCircuit(serializers.Serializable):
             ind_nodes = [list(set(sum([branch.nodes for branch in tree], ()))) for tree in trees]
 
             for x, node_set in enumerate(ind_nodes):
-                for n in node_set:
-                    n.marker = x + 1  # marking the nodes depending on which tree they belong to
+                if sum([n.id==0 for n in node_set]) > 0:
+                    for n in node_set:
+                        n.marker = -1
+                else:
+                    for n in node_set:
+                        n.marker = x + 1  # marking the nodes depending on which tree they belong to
 
             pos = [
                 node.marker for node in self.nodes
@@ -358,7 +362,15 @@ class CustomQCircuit(serializers.Serializable):
 
             for marker in range(max(pos)):
                 if marker == 0 and pos.count(0) == 0:
-                    continue
+                    if pos.count(-1) == 0:
+                        continue
+                    else:
+                        basis.append(
+                            [
+                                basis_params[0] if t == marker + 1 else basis_params[1]
+                                for t in pos
+                            ]
+                        )   
                 else:
                     basis.append(
                         [
@@ -659,7 +671,7 @@ class CustomQCircuit(serializers.Serializable):
         while len([q for p in node_sets for q in p]) < num_nodes:  # finding all the sets of nodes and filling node_sets
             node_set = []
             for n in node_sets[i]:
-                node_set += n.connected_nodes("L") + n.connected_nodes("JJ")
+                node_set += n.connected_nodes("all")
 
             node_sets.append(
                 [
@@ -736,7 +748,7 @@ class CustomQCircuit(serializers.Serializable):
 
         JJ_terms = self._JJ_terms()
 
-        L_old = (C_terms - L_terms - JJ_terms).expand()
+        L_old = (C_terms - L_terms - JJ_terms)
         potential_old = L_terms + JJ_terms
 
         L_new = L_old.copy()
@@ -778,7 +790,7 @@ class CustomQCircuit(serializers.Serializable):
             symbols("p" + str(i)) for i in range(1, len(self.nodes) + 1)
         ]  # defining the momentum variables
         p_y = np.array(
-            [sympy.diff(L, i) for i in y_dot_vars]
+            [L.diff(i) for i in y_dot_vars]
         )  # finding the momentum expression in terms of y_dot
 
         var_indices = len(
@@ -806,6 +818,6 @@ class CustomQCircuit(serializers.Serializable):
             self.offset_charge_vars = self.offset_charge_vars + [symbols("ng_" + str(p))]
 
         # Updating the class property
-        self.H = H.expand()
+        self.H = H#.expand()
 
         return self.H

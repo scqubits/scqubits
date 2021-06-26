@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import sympy
 import numpy as np
 from numpy import ndarray
-from sympy import symbols, lambdify, MatrixSymbol
+from sympy import symbols, lambdify
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
@@ -48,14 +48,14 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         # initiating the class properties
         for var_type in self.var_indices.keys():
             if var_type == "cyclic":
-                for x, var in enumerate(self.var_indices["cyclic"]):
-                    setattr(self, "cutoff_c" + str(x + 1), 3)
+                for x, var_index in enumerate(self.var_indices["cyclic"]):
+                    setattr(self, "cutoff_cyclic_" + str(var_index), 3)
             if var_type == "periodic":
-                for x, var in enumerate(self.var_indices["periodic"]):
-                    setattr(self, "cutoff_p" + str(x + 1), 5)
+                for x, var_index in enumerate(self.var_indices["periodic"]):
+                    setattr(self, "cutoff_periodic_" + str(var_index), 5)
             if var_type == "discretized_phi":
-                for x, var in enumerate(self.var_indices["discretized_phi"]):
-                    setattr(self, "cutoff_d" + str(x + 1), 30)
+                for x, var_index in enumerate(self.var_indices["discretized_phi"]):
+                    setattr(self, "cutoff_discrete_" + str(var_index), 30)
 
         # default values for the parameters
         for param in self.param_vars:
@@ -225,9 +225,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         """
         cutoff_list = []
         for cutoffs in self.get_cutoffs().keys():
-            if "cutoff_c" in cutoffs or "cutoff_p" in cutoffs:
+            if "cutoff_cyclic" in cutoffs or "cutoff_periodic" in cutoffs:
                 cutoff_list.append([2 * k + 1 for k in self.get_cutoffs()[cutoffs]])
-            elif "cutoff_d" in cutoffs:
+            elif "cutoff_discrete" in cutoffs:
                 cutoff_list.append([k for k in self.get_cutoffs()[cutoffs]])
 
         cutoff_list = [
@@ -248,9 +248,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         cutoff_dict = self.get_cutoffs()
 
         if (
-            len(self.var_indices["cyclic"]) != len(cutoff_dict["cutoff_c"])
-            or len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_p"])
-            or len(self.var_indices["discretized_phi"]) != len(cutoff_dict["cutoff_d"])
+            len(self.var_indices["cyclic"]) != len(cutoff_dict["cutoff_cyclic"])
+            or len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_periodic"])
+            or len(self.var_indices["discretized_phi"]) != len(cutoff_dict["cutoff_discrete"])
         ):
             raise AttributeError(
                 "Make sure the cutoffs are only defined for the circuit variables in the class property var_indices, except for zombie variables. "
@@ -258,9 +258,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         cutoff_list = []
         for cutoff_type in cutoff_dict.keys():
-            if "cutoff_c" in cutoff_type or "cutoff_p" in cutoff_type:
+            if "cutoff_cyclic" in cutoff_type or "cutoff_periodic" in cutoff_type:
                 cutoff_list.append([2 * k + 1 for k in cutoff_dict[cutoff_type]])
-            elif "cutoff_d" in cutoff_type:
+            elif "cutoff_discrete" in cutoff_type:
                 cutoff_list.append([k for k in cutoff_dict[cutoff_type]])
 
         cutoff_list = [
@@ -480,7 +480,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         return params
 
     def get_cutoffs(self):
-        cutoffs_dict = {"cutoff_c": [], "cutoff_p": [], "cutoff_d": []}
+        cutoffs_dict = {"cutoff_cyclic": [], "cutoff_periodic": [], "cutoff_discrete": []}
         attr_dict = self.__dict__
 
         for cutoff_type in cutoffs_dict.keys():
