@@ -52,7 +52,8 @@ try:
     from scqubits.ui.gui import GUI
 except NameError:
     warnings.warn(
-        "scqubits: could not import GUI - consider installing ipywidgets (optional dependency)?",
+        "scqubits: could not import GUI - consider installing ipywidgets "
+        "(optional dependency)?",
         ImportWarning,
     )
 
