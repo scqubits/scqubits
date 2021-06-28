@@ -127,7 +127,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         "num" : The circuit parameters are given as numbers in the input file
         "sym" : The circuit parameters are given as symbols in the input file
         """
-        H = self.hamiltonian_sym()
+        H = self.H.expand()
 
         # Defining the list of discretized_phi variables
         y_symbols = [symbols("y" + str(i)) for i in self.var_indices["discretized_phi"]]
