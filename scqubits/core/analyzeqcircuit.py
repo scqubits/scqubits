@@ -35,7 +35,13 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     Class to make numerical analysis on the CustomQCircuit instance. Subclass of CustomQCircuit and can be initiated using the same input file.
     """
 
-    def __init__(self, list_nodes: list, list_branches: list = None, ground_node = None, mode: str = "sym"):
+    def __init__(
+        self,
+        list_nodes: list,
+        list_branches: list = None,
+        ground_node=None,
+        mode: str = "sym",
+    ):
         CustomQCircuit.__init__(self, list_nodes, list_branches, ground_node, mode)
 
         # defining additional class properties
@@ -65,7 +71,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             setattr(self, flux.name, 0.0)  # setting the default to zero external flux
         # default values for the offset charge vars
         for offset_charge in self.offset_charge_vars:
-            setattr(self, offset_charge.name, 0.0) # default to zero offset charge
+            setattr(self, offset_charge.name, 0.0)  # default to zero offset charge
 
         # setting the __init__params attribute
         self._init_params = (
@@ -79,8 +85,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         self.truncated_dim = 6
 
         # setting default grids for plotting
-        self._default_grid_phi = discretization.Grid1d(-6*np.pi, 6*np.pi, 200)
-        self._default_grid_charge = discretization.Grid1d(-2*np.pi, 2*np.pi, 200)
+        self._default_grid_phi = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
+        self._default_grid_charge = discretization.Grid1d(-2 * np.pi, 2 * np.pi, 200)
         self._default_grid_flux = discretization.Grid1d(-5, 5, 200)
 
         # Hamiltonian function
@@ -94,7 +100,12 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         """
         Initialize AnalyzeQCircuit using an instance of CustomQCircuit.
         """
-        return cls(circuit.nodes, circuit.branches, ground_node=circuit.ground_node, mode=circuit.mode)
+        return cls(
+            circuit.nodes,
+            circuit.branches,
+            ground_node=circuit.ground_node,
+            mode=circuit.mode,
+        )
 
     ##################################################################
     ##### Functions to construct the function for the Hamiltonian ####
@@ -127,7 +138,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         "num" : The circuit parameters are given as numbers in the input file
         "sym" : The circuit parameters are given as symbols in the input file
         """
-        H = self.H.expand()
+        H = (
+            self.H.expand()
+        )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
 
         # Defining the list of discretized_phi variables
         y_symbols = [symbols("y" + str(i)) for i in self.var_indices["discretized_phi"]]
@@ -250,7 +263,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         if (
             len(self.var_indices["cyclic"]) != len(cutoff_dict["cutoff_cyclic"])
             or len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_periodic"])
-            or len(self.var_indices["discretized_phi"]) != len(cutoff_dict["cutoff_discrete"])
+            or len(self.var_indices["discretized_phi"])
+            != len(cutoff_dict["cutoff_discrete"])
         ):
             raise AttributeError(
                 "Make sure the cutoffs are only defined for the circuit variables in the class property var_indices, except for zombie variables. "
@@ -480,7 +494,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         return params
 
     def get_cutoffs(self):
-        cutoffs_dict = {"cutoff_cyclic": [], "cutoff_periodic": [], "cutoff_discrete": []}
+        cutoffs_dict = {
+            "cutoff_cyclic": [],
+            "cutoff_periodic": [],
+            "cutoff_discrete": [],
+        }
         attr_dict = self.__dict__
 
         for cutoff_type in cutoffs_dict.keys():
@@ -494,13 +512,16 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
     def get_external_flux(self):
         return [getattr(self, flux.name) for flux in self.external_flux_vars]
-    
+
     def get_offset_charges(self):
-        return [getattr(self, offset_charge.name) for offset_charge in self.offset_charge_vars]
+        return [
+            getattr(self, offset_charge.name)
+            for offset_charge in self.offset_charge_vars
+        ]
 
     def get_operators(self):
         """
-        Returns a list of operators which can be given as an argument to self.H_func. These operators are not calculated again and are fetched directly from the circuit attibutes. Use set_attributes instead if the paramaters, expecially cutoffs, are changed.  
+        Returns a list of operators which can be given as an argument to self.H_func. These operators are not calculated again and are fetched directly from the circuit attibutes. Use set_attributes instead if the paramaters, expecially cutoffs, are changed.
         """
         syms = self.vars
         syms_list = (
@@ -516,9 +537,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         operator_list = []
         for operator in syms_list:
             operator_list.append(getattr(self, operator.name))
-        
-        return operator_list
 
+        return operator_list
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -528,7 +548,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
     def set_operators(self):
         """
-        Sets the operator attributes of the circuit with new operators calculated using the paramaters set in the circuit attributes. Returns a list of operators similar to the method get_operators.  
+        Sets the operator attributes of the circuit with new operators calculated using the paramaters set in the circuit attributes. Returns a list of operators similar to the method get_operators.
         """
 
         ops = self.circuit_operators()
@@ -577,12 +597,18 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                 raise ValueError(
                     "Invalid number of parameters given, please check the number of parameters."
                 )
-        self.set_operators() # updating the operators
+        self.set_operators()  # updating the operators
         hamiltonian_matrix = self.H_func(
-            *(self.get_operators() + self.get_params() + self.get_external_flux() + self.get_offset_charges())
+            *(
+                self.get_operators()
+                + self.get_params()
+                + self.get_external_flux()
+                + self.get_offset_charges()
+            )
         )
 
         return hamiltonian_matrix
+
     ##################################################################
     #################### Functions for plotting ######################
     ##################################################################
@@ -640,7 +666,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     #     else:
     #         potential = self.potential_energy(**{param_name : param_grid})
     #         plt.plot(param_grid.make_linspace(), potential)
-
 
     ##################################################################
     ########### Functions from scqubits.core.qubit_base ##############
@@ -715,17 +740,17 @@ def energy_split(levels):  # gives the energy splits given the energy levels
 # example input strings
 def example_circuit(qubit):
     """
-    Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of the popular qubits. 
+    Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of the popular qubits.
     """
 
     # example input strings for popular qubits
     fluxonium = "nodes: 2\nbranches:\nJJ	1,2	Ej	Ecj\nL	1,2	El\nC	1,2	Ec"
 
-    transmon = 'nodes: 2\nbranches:\nC\t1,2\tEc\nJJ\t1,2\tEj\tEcj\n'
+    transmon = "nodes: 2\nbranches:\nC\t1,2\tEc\nJJ\t1,2\tEj\tEcj\n"
 
-    cos2phi = 'nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\nJJ\t3,4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n'
+    cos2phi = "nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\nJJ\t3,4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n"
 
-    zero_pi = 'nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\nJJ\t3,4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n'
+    zero_pi = "nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\nJJ\t3,4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n"
 
     if qubit == "transmon":
         return transmon
@@ -736,6 +761,4 @@ def example_circuit(qubit):
     elif qubit == "fluxonium":
         return fluxonium
     else:
-        raise(AttributeError()("Qubit not available or invalid input."))
-        
-
+        raise (AttributeError()("Qubit not available or invalid input."))
