@@ -610,54 +610,102 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         return hamiltonian_matrix
 
     ##################################################################
-    #################### Functions for plotting ######################
+    ############### Functions for plotting potential #################
     ##################################################################
-    # def potential_energy(self, *args, **kwargs):
-    #     """
-    #     Returns the full potential of the circuit evaluated in a grid of points as chosen by the user or using default variable ranges.
-    #     """
-    #     cyclic_indices = self.var_indices["cyclic"]
-    #     periodic_indices = self.var_indices["periodic"]
-    #     discretized_phi_indices = self.var_indices["discretized_phi"]
-    #     var_indices = discretized_phi_indices + periodic_indices + cyclic_indices
+    def potential_energy(self, **kwargs):
+        """
+        Returns the full potential of the circuit evaluated in a grid of points as chosen by the user or using default variable ranges.
+        """
+        periodic_indices = self.var_indices["periodic"]
+        discretized_phi_indices = self.var_indices["discretized_phi"]
+        var_indices = discretized_phi_indices + periodic_indices
 
-    #     # method to concatenate sublists
-    #     potential_sym = self.potential
+        # method to concatenate sublists
+        potential_sym = self.potential
 
-    #     # constructing the grids
-    #     parameters = dict.fromkeys(["y" + str(index) for index in var_indices] +
-    #     [var.name for var in self.external_flux_vars] + [var.name for var in self.param_vars])
+        # constructing the grids
+        parameters = dict.fromkeys(["y" + str(index) for index in var_indices] +
+        [var.name for var in self.external_flux_vars] + [var.name for var in self.param_vars])
 
-    #     for var_name in args:
-    #         if var_name in ["y" + str(index) for index in cyclic_indices] or var_name in ["y" + str(index) for index in periodic_indices]:
-    #             parameters[var_name] = self._default_grid_charge.make_linspace()
-    #         elif var_name in ["y" + str(index) for index in discretized_phi_indices]:
-    #             parameters[var_name] = self._default_grid_phi.make_linspace()
-    #         elif var_name in self.external_flux_vars:
-    #             paramaters[var_name] = self._default_grid_flux.make_linspace()
+        for var_name in kwargs:
+            if isinstance(kwargs[var_name], np.ndarray):
+                parameters[var_name] = kwargs[var_name]
+            elif isinstance(kwargs[var_name], int) or isinstance(kwargs[var_name], float):
+                parameters[var_name] = kwargs[var_name]
+            else:
+                raise AttributeError("Only float, Numpy ndarray or int assignments are allowed.")
 
-    #     for var_name in kwargs:
-    #         if isinstance(kwargs[var_name], discretization.Grid1d):
-    #             parameters[var_name] = kwargs[var_name].make_linspace()
-    #         else:
-    #             parameters[var_name] = kwargs[var_name]
 
-    #     for var_name in parameters.keys():
-    #         if parameters[var_name] is None:
-    #             if var_name in ["y" + str(index) for index in cyclic_indices] or var_name in ["y" + str(index) for index in periodic_indices]:
-    #                 paramaters[var_name] = self._default_grid_charge.make_linspace()
-    #             elif var_name in ["y" + str(index) for index in discretized_phi_indices]:
-    #                 parameters[var_name] = self._default_grid_phi.make_linspace()
-    #             else:
-    #                 parameters[var_name] = getattr(self, var_name)
+        for var_name in parameters.keys():
+            if parameters[var_name] is None:
+                if var_name in [var.name for var in self.param_vars] + [var.name for var in self.external_flux_vars]:
+                    parameters[var_name] = getattr(self, var_name)
+                elif var_name in ["y" + str(index) for index in var_indices]:
+                    raise AttributeError(var_name + " is not set.")
 
-    #     # adding external fluxes
-    #     for var_name in self.external_flux_vars:
-    #         parameters
+        # adding external fluxes
+        for var_name in self.external_flux_vars:
+            parameters
+            
+        # creating a meshgrid for multiple dimensions
+        sweep_vars = {}
+        for var_name in kwargs:
+            if isinstance(kwargs[var_name], np.ndarray):
+                sweep_vars[var_name] = kwargs[var_name]
+        if len(sweep_vars) > 1:
+            sweep_vars.update(zip(sweep_vars, np.meshgrid(*[grid for grid in sweep_vars.values()])))
+            for var_name in sweep_vars:
+                parameters[var_name] = sweep_vars[var_name]
+            
 
-    #     potential_func = lambdify(parameters.keys(), potential_sym, "numpy")
+        potential_func = lambdify(parameters.keys(), potential_sym, "numpy")
 
-    #     return potential_func(*parameters.values())
+        return potential_func(*parameters.values())
+
+    def plot_potential(self, **kwargs):
+
+        periodic_indices = self.var_indices["periodic"]
+        discretized_phi_indices = self.var_indices["discretized_phi"]
+        var_indices = discretized_phi_indices + periodic_indices
+
+        # method to concatenate sublists
+        potential_sym = self.potential
+
+        # constructing the grids
+        parameters = dict.fromkeys(["y" + str(index) for index in var_indices] +
+        [var.name for var in self.external_flux_vars] + [var.name for var in self.param_vars])
+
+        sweep_vars = {}
+        for var_name in kwargs:
+            if isinstance(kwargs[var_name], np.ndarray):
+                sweep_vars[var_name] = kwargs[var_name]
+        if len(sweep_vars) > 1:
+            sweep_vars.update(zip(sweep_vars, np.meshgrid(*list(sweep_vars.values()))))
+            for var_name in sweep_vars:
+                parameters[var_name] = sweep_vars[var_name]
+
+        if len(sweep_vars) > 2:
+            raise AttributeError("Cannot plot with a dimension greater than 3; Only give a maximum of two grid inputs")
+
+        potential_energies = self.potential_energy(**kwargs)
+        
+        if len(sweep_vars) == 1:
+            plot = plt.plot(*(list(sweep_vars.values()) + [potential_energies]))
+            plt.xlabel(list(sweep_vars.keys())[0])
+            plt.ylabel("Potential energy in GHz")
+
+        if len(sweep_vars) == 2:
+            plot = plt.contourf(*(list(sweep_vars.values()) + [potential_energies]))
+            var_names = list(sweep_vars.keys())
+            plt.xlabel(var_names[0])
+            plt.ylabel(var_names[1])
+            cbar = plt.colorbar()
+            cbar.set_label("Potential energy in GHz")
+        return plot
+
+    ##################################################################
+    ############# Functions for plotting wavefunction ################
+    ##################################################################
 
     # def plot_potential_1D(self, param_name, param_grid = None):
     #     if param_grid is None:
