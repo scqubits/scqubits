@@ -445,6 +445,12 @@ class SpectrumLookupMixin:
 
         return np.asarray(dressed_indices)
 
+    def set_npindextuple(self, param_indices: Optional[NpIndices] = None) -> NpIndexTuple:
+        param_indices = param_indices or self._current_param_indices
+        if not isinstance(param_indices, tuple):
+            param_indices = (param_indices,)
+        return param_indices
+
     @utils.check_sync_status
     def dressed_index(
         self: "ParameterSweep",
@@ -465,7 +471,7 @@ class SpectrumLookupMixin:
         -------
             dressed state index closest to the specified bare state
         """
-        param_indices = param_indices or self._current_param_indices
+        param_indices = self.set_npindextuple(param_indices)
         try:
             lookup_position = self._bare_product_states_labels.index(bare_labels)
         except ValueError:
@@ -487,7 +493,7 @@ class SpectrumLookupMixin:
             is in bare state 1, subsystem 2 in bare state 0,
             and subsystem 3 in bare state 3.
         """
-        param_indices = param_indices or self._current_param_indices
+        param_indices = self.set_npindextuple(param_indices)
         if not self.all_params_fixed(param_indices):
             raise ValueError(
                 "All parameters must be fixed to concrete values for "
@@ -522,7 +528,7 @@ class SpectrumLookupMixin:
             dressed eigensystem for the external parameter fixed to the value indicated
             by the provided index
         """
-        param_indices = param_indices or self._current_param_indices
+        param_indices = self.set_npindextuple(param_indices)
         return self._data["evecs"][param_indices]
 
     @utils.check_sync_status
@@ -541,7 +547,7 @@ class SpectrumLookupMixin:
             dressed eigenenergies for the external parameters fixed to the values
             indicated by the provided indices
         """
-        param_indices = param_indices or self._current_param_indices
+        param_indices = self.set_npindextuple(param_indices)
         return self._data["evals"][param_indices]
 
     @utils.check_sync_status
@@ -567,7 +573,7 @@ class SpectrumLookupMixin:
         -------
             dressed energies, if lookup successful, otherwise nan;
         """
-        param_indices = param_indices or self._current_param_indices
+        param_indices = self.set_npindextuple(param_indices)
         dressed_index = self.dressed_index(bare_tuple, param_indices)
 
         if dressed_index is None:
@@ -619,8 +625,8 @@ class SpectrumLookupMixin:
         -------
             dressed energy
         """
-        param_indices = param_indices or self._current_param_indices
-        self._current_param_indices = None
+        param_indices = self.set_npindextuple(param_indices)
+        self._current_param_indices = slice(None, None, None)
         energies = self["evals"][param_indices + (dressed_index,)]
         if subtract_ground:
             energies -= self["evals"][param_indices + (0,)]
@@ -637,9 +643,9 @@ class SpectrumLookupMixin:
         Eigenstates are expressed in the basis internal to the subsystems. Usually to be
         with pre-slicing.
         """
-        param_indices = param_indices or self._current_param_indices
+        param_indices = self.set_npindextuple(param_indices)
         subsys_index = self._hilbertspace.get_subsys_index(subsys)
-        self._current_param_indices = None
+        self._current_param_indices = slice(None, None, None)
         return self["bare_evecs"][subsys_index][param_indices]
 
     @utils.check_sync_status
@@ -664,9 +670,9 @@ class SpectrumLookupMixin:
             bare eigenenergies for the specified subsystem and the external parameter
             fixed to the value indicated by its index
         """
-        param_indices = param_indices or self._current_param_indices
+        param_indices = self.set_npindextuple(param_indices)
         subsys_index = self._hilbertspace.get_subsys_index(subsys)
-        self._current_param_indices = None
+        self._current_param_indices = slice(None, None, None)
         return self["bare_evals"][subsys_index][param_indices]
 
     def bare_productstate(self: "ParameterSweep", bare_index: Tuple[int, ...]) -> Qobj:
