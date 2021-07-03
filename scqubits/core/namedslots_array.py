@@ -44,6 +44,7 @@ ExtIndexObjectTuple = Tuple["ExtIndexObject", ...]
 def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int:
     location = int(np.abs(param_vals - value).argmin())
     selected_value = param_vals[location]
+
     if math.isclose(param_vals[location], value):
         return location
 
@@ -124,7 +125,7 @@ class ExtIndexObject:
     def convert_to_np_slice_entry(self, slice_entry: ExtSliceEntry) -> NpSliceEntry:
         """Handles value-based slices, converting a float or complex value based
         entry into the corresponding position-based entry"""
-        if isinstance(slice_entry, int):
+        if isinstance(slice_entry, (int, np.integer)):
             return slice_entry
         if slice_entry is None:
             return None
@@ -138,7 +139,7 @@ class ExtIndexObject:
     def convert_to_np_idx_entry(self, idx_entry: ExtIndex) -> Tuple[str, NpIndex]:
         """Convert a generalized multi-index entry into a valid numpy multi-index entry,
         and returns that along with a str recording the idx_entry type"""
-        if isinstance(idx_entry, int):
+        if isinstance(idx_entry, (int, np.integer)):
             return "int", idx_entry
 
         if idx_entry is Ellipsis:
@@ -162,7 +163,7 @@ class ExtIndexObject:
             if isinstance(stop, (complex, float)):
                 stop = idx_for_value(stop, self._parameters[self.slot])
 
-            if isinstance(start, int) and (stop is None):
+            if isinstance(start, (int, np.integer)) and (stop is None):
                 return "slice.name", start
             return "slice.name", slice(start, stop, None)
 
@@ -170,7 +171,7 @@ class ExtIndexObject:
         if isinstance(idx_entry, slice):
             start = self.convert_to_np_slice_entry(idx_entry.start)
             stop = self.convert_to_np_slice_entry(idx_entry.stop)
-            if idx_entry.step is None or isinstance(idx_entry.step, int):
+            if idx_entry.step is None or isinstance(idx_entry.step, (int, np.integer)):
                 step = self.convert_to_np_slice_entry(idx_entry.step)
             else:
                 raise TypeError(
@@ -255,7 +256,7 @@ class Parameters:
     def __getitem__(self, key):
         if isinstance(key, str):
             return self.paramvals_by_name[key]
-        if isinstance(key, int):
+        if isinstance(key, (int, np.integer)):
             return self.paramvals_by_name[self.paramnames_list[key]]
         if key is Ellipsis:
             key = slice(None, None, None)
@@ -355,6 +356,8 @@ class Parameters:
             the fixed value
         """
         new_paramvals_list = self.paramvals_list.copy()
+        if not isinstance(np_indices, tuple):
+            np_indices = (np_indices,)
         for index, np_index in enumerate(np_indices):
             array_entry = new_paramvals_list[index][np_index]
             if isinstance(array_entry, numbers.Number):
