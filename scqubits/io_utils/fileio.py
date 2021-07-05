@@ -36,8 +36,8 @@ class IOData:
     def __init__(
         self,
         typename: str,
-        attributes: Dict[str, Any],
-        ndarrays: Dict[str, ndarray],
+        attributes: Union[Dict[str, Any], None],
+        ndarrays: Union[Dict[str, ndarray], None],
         objects: Any = None,
     ) -> None:
         self.typename = typename

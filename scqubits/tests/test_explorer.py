@@ -13,7 +13,6 @@
 import numpy as np
 
 import scqubits as qubit
-import scqubits.core.sweep_generators as swp
 
 from scqubits import Explorer, InteractionTerm, ParameterSweep
 

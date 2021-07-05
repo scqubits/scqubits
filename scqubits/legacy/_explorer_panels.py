@@ -10,7 +10,7 @@
 ############################################################################
 
 import scqubits.core.units as units
-import scqubits.utils.sweep_plotting as splot
+import scqubits.legacy.sweep_plotting as splot
 
 
 def display_bare_spectrum(sweep, subsys, param_val, fig_ax):

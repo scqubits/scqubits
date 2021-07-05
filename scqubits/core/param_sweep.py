@@ -23,17 +23,17 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from qutip import Qobj
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
 import scqubits.core.sweeps as sweeps
 import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
 
-from scqubits.core._param_sweep import _ParameterSweep
+from scqubits import settings as settings
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import (
     NamedSlotsNdarray,
@@ -47,6 +47,7 @@ from scqubits.core.storage import SpectrumData
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
+    from scqubits.legacy._param_sweep import _ParameterSweep
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -74,7 +75,7 @@ class ParameterSweepBase(ABC):
     _hilbertspace: HilbertSpace
 
     _out_of_sync = False
-    _current_param_indices: Union[NpIndices, None]
+    _current_param_indices: NpIndices
 
     def get_subsys(self, index: int) -> QuantumSys:
         return self._hilbertspace[index]
@@ -103,11 +104,14 @@ class ParameterSweepBase(ABC):
         # <Sweep>[p1, p2, ...].dressed_eigenstates()
         if isinstance(key, tuple):
             self._current_param_indices = convert_to_std_npindex(key, self._parameters)
-        elif isinstance(key, (int, slice)):
+        elif isinstance(key, slice):
             if key == slice(None) or key == slice(None, None, None):
                 key = (key,) * len(self._parameters)
             else:
                 key = (key,)
+            self._current_param_indices = convert_to_std_npindex(key, self._parameters)
+        elif isinstance(key, np.integer):
+            key = (key,)
             self._current_param_indices = convert_to_std_npindex(key, self._parameters)
         return self
 
@@ -161,7 +165,7 @@ class ParameterSweepBase(ABC):
                     param_vals=self._parameters[sweep_param_name],
                 )
             )
-        self._current_param_indices = None
+        self._current_param_indices = slice(None, None, None)
         return specdata_list
 
     @property
@@ -189,7 +193,7 @@ class ParameterSweepBase(ABC):
             param_name=sweep_param_name,
             param_vals=self._parameters[sweep_param_name],
         )
-        self._current_param_indices = None
+        self._current_param_indices = slice(None, None, None)
         return specdata
 
     def get_sweep_indices(self, multi_index: GIndexTuple) -> List[int]:
@@ -207,7 +211,7 @@ class ParameterSweepBase(ABC):
                 (list, tuple, ndarray),
             )
         ]
-        self._current_param_indices = None
+        self._current_param_indices = slice(None, None, None)
         return sweep_indices
 
     @property
@@ -378,10 +382,17 @@ class ParameterSweepBase(ABC):
                 transitions.append((initial_state, final_state))
                 transition_energies.append(diff_energies)
 
-        self._current_param_indices = None
+        self._current_param_indices = slice(None, None, None)
 
         if not as_specdata:
             return transitions, transition_energies
+
+        label_list = [
+            r"{}$\to${}".format(
+                utils.tuple_to_short_str(elem[0]), utils.tuple_to_short_str(elem[1])
+            )
+            for elem in transitions
+        ]
 
         reduced_parameters = self._parameters.create_sliced(param_indices)
         if len(reduced_parameters) == 1:
@@ -392,15 +403,16 @@ class ParameterSweepBase(ABC):
                 system_params=self.system_params,
                 param_name=name,
                 param_vals=vals,
-                labels=list(map(str, transitions)),
+                labels=label_list,
                 subtract=np.asarray(
                     [initial_energies] * self._evals_count, dtype=float
                 ).T,
             )
+
         return SpectrumData(
             energy_table=np.asarray(transition_energies),
             system_params=self.system_params,
-            label=list(map(str, transitions)),
+            labels=label_list,
         )
 
     def plot_transitions(
@@ -487,12 +499,18 @@ class ParameterSweepBase(ABC):
         specdata_all.energy_table /= photon_number
         if make_positive:
             specdata_all.energy_table = np.abs(specdata_all.energy_table)
-        self._current_param_indices = None  # reset from pre-slicing
+        self._current_param_indices = slice(None, None, None)  # reset from pre-slicing
 
         if coloring == "plain":
             return specdata_all.plot_evals_vs_paramvals()
 
-        fig_ax = specdata_all.plot_evals_vs_paramvals(color="gainsboro", linewidth=0.75)
+        if "fig_ax" in kwargs:
+            fig_ax = kwargs.pop("fig_ax")
+        else:
+            fig_ax = None
+        fig_ax = specdata_all.plot_evals_vs_paramvals(
+            color="gainsboro", linewidth=0.75, fig_ax=fig_ax
+        )
 
         labellines_status = plot._LABELLINES_ENABLED
         plot._LABELLINES_ENABLED = False
@@ -501,6 +519,9 @@ class ParameterSweepBase(ABC):
         )
         plot._LABELLINES_ENABLED = labellines_status
         return fig, axes
+
+    def keys(self):
+        return self._data.keys()
 
     def add_sweep(
         self,
@@ -536,55 +557,50 @@ class ParameterSweepBase(ABC):
                 )
             sweep_name = sweep_name or sweep_function.__name__
             func = sweep_function
-            self._data[sweep_name] = sweeps.generator(self, func, **kwargs)
+            self._data[sweep_name] = generator(self, func, **kwargs)
         else:
             sweep_name = sweep_name or sweep_function
             func = getattr(sweeps, sweep_function)
             self._data[sweep_name] = func(**kwargs)
 
-    def matrix_elements(
-        self, operator_name: str, sweep_name: str, subsystem: "QuantumSys",
+    def add_matelem_sweep(
+        self,
+        operator: Union[str, Qobj],
+        sweep_name: str,
+        subsystem: "QuantumSys" = None,
     ) -> None:
         """Generate data for matrix elements with respect to a given operator, as a
         function of the sweep parameter(s)
 
         Parameters
         ----------
-        operator_name:
-            name of the operator in question
+        operator:
+            name of the operator in question (str), or full operator in Qobj form
         sweep_name:
             The sweep data will be accessible as <ParameterSweep>[<sweep_name>]
         subsystem:
-            subsystems for which to compute matrix elements.
+            subsystems for which to compute matrix elements, required if operator is
+            given in str form
 
         Returns
         -------
             None; results are saved as <ParameterSweep>[<sweep_name>]
         """
-
-        def _matrix_elements(
-            sweep: "ParameterSweep",
-            param_indices: Tuple[int, ...],
-            param_vals: Tuple[float, ...],
-            operator_name: Union[str, None] = None,
-            subsystem=None,
-        ) -> np.ndarray:
-            subsys_index = sweep.get_subsys_index(subsystem)
-            bare_evecs = sweep["bare_evecs"][subsys_index][param_indices]
-            return subsystem.matrixelement_table(
-                operator=operator_name,
-                evecs=bare_evecs,
-                evals_count=subsystem.truncated_dim,
+        if isinstance(operator, str):
+            operator_func = functools.partial(
+                sweeps.bare_matrixelement, operator_name=operator, subsystem=subsystem,
+            )
+        elif isinstance(operator, Qobj):
+            operator_func = functools.partial(
+                sweeps.dressed_matrixelement, operator=operator,
+            )
+        else:
+            raise TypeError(
+                "Unrecognized type of operator for matrix elements; "
+                "expected: str or Qobj."
             )
 
-        operator_func = functools.partial(
-            _matrix_elements,
-            sweep=self,
-            operator_name=operator_name,
-            subsystem=subsystem,
-        )
-
-        matrix_element_data = sweeps.generator(self, operator_func,)
+        matrix_element_data = generator(self, operator_func,)
         self._data[sweep_name] = matrix_element_data
 
 
@@ -662,6 +678,8 @@ class ParameterSweep(
                 "old-style interface will cease to be supported in the future.",
                 FutureWarning,
             )
+            from scqubits.legacy._param_sweep import _ParameterSweep
+
             return _ParameterSweep(*args, **kwargs)
         else:
             return super().__new__(cls, *args, **kwargs)
@@ -689,7 +707,7 @@ class ParameterSweep(
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
         self._out_of_sync = False
-        self._current_param_indices = None
+        self._current_param_indices = slice(None, None, None)
 
         dispatch.CENTRAL_DISPATCH.register("PARAMETERSWEEP_UPDATE", self)
         dispatch.CENTRAL_DISPATCH.register("HILBERTSPACE_UPDATE", self)
@@ -1035,7 +1053,7 @@ class StoredSweep(
         self._data = _data
 
         self._out_of_sync = False
-        self._current_param_indices = None
+        self._current_param_indices = slice(None, None, None)
 
     @classmethod
     def deserialize(cls, iodata: "IOData") -> "StoredSweep":
@@ -1078,3 +1096,65 @@ class StoredSweep(
             autorun=autorun,
             num_cpus=num_cpus,
         )
+
+
+def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
+    """Method for computing custom data as a function of the external parameter,
+    calculated via the function `func`.
+
+    Parameters
+    ----------
+    sweep:
+        ParameterSweep object containing HilbertSpace and spectral information
+    func:
+        signature: `func(parametersweep, paramindex_tuple, paramvals_tuple,
+        **kwargs)`, specifies how to calculate the data for a single choice of
+        parameter(s)
+    **kwargs:
+        keyword arguments to be included in func
+
+    Returns
+    -------
+        array of custom data
+    """
+    # obtain reduced parameters from pre-slicing info
+    reduced_parameters = sweep._parameters.create_sliced(
+        sweep._current_param_indices, remove_fixed=False
+    )
+    total_count = np.prod(reduced_parameters.counts)
+
+    def func_effective(paramindex_tuple: Tuple[int], params, **kw) -> Any:
+        paramvals_tuple = params[paramindex_tuple]
+        return func(
+            sweep,
+            paramindex_tuple=paramindex_tuple,
+            paramvals_tuple=paramvals_tuple,
+            **kw,
+        )
+
+    if hasattr(func, "__name__"):
+        func_name = func.__name__
+    else:
+        func_name = ""
+
+    data_array = list(
+        tqdm(
+            map(
+                functools.partial(func_effective, params=reduced_parameters, **kwargs,),
+                itertools.product(*reduced_parameters.ranges),
+            ),
+            total=total_count,
+            desc="sweeping " + func_name,
+            leave=False,
+            disable=settings.PROGRESSBAR_DISABLED,
+        )
+    )
+    element_shape = tuple()
+    if isinstance(data_array[0], np.ndarray):
+        element_shape = data_array[0].shape
+
+    data_array = np.asarray(data_array)
+    return NamedSlotsNdarray(
+        data_array.reshape(reduced_parameters.counts + element_shape),
+        reduced_parameters.paramvals_by_name,
+    )
