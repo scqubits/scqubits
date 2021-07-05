@@ -17,13 +17,12 @@ within scqubits is carried out with the help of Numpy and Scipy; plotting capabi
 
 import warnings
 
-import scqubits.settings
+from scqubits import settings
 
 # core
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
-from scqubits.explorer.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.generic_qubit import GenericQubit
@@ -43,6 +42,7 @@ from scqubits.core.units import (
 )
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
+from scqubits.explorer.explorer import Explorer
 
 # file IO
 from scqubits.io_utils.fileio import read, write

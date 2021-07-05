@@ -13,14 +13,14 @@ from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 
-from matplotlib.figure import Figure
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
+from scqubits import settings
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
     from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass1d
-
 
 import scqubits.core.units as units
 
@@ -50,7 +50,12 @@ def display_bare_wavefunctions(
     title = "wavefunctions: subsystem {} ({})".format(subsys_index, subsys._sys_type)
     evals = sweep["bare_evals"][subsys_index][float(param_val)]
     evecs = sweep["bare_evecs"][subsys_index][float(param_val)]
-    __ = subsys.plot_wavefunction(which=-1, title=title, fig_ax=fig_ax)
+    settings.DISPATCH_ENABLED = False
+    sweep._update_hilbertspace(param_val)
+    settings.DISPATCH_ENABLED = True
+    __ = subsys.plot_wavefunction(
+        which=-1, esys=(evals, evecs), title=title, fig_ax=fig_ax
+    )
 
 
 def display_dressed_spectrum(
@@ -79,14 +84,13 @@ def display_n_photon_qubit_transitions(
     param_val: float,
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
-    title = r"{}-photon qubit transitions, {} $\rightarrow$".format(
-        photonnumber, initial_bare
-    )
+    title = r"{}-photon qubit transitions".format(photonnumber)
     fig, axes = sweep.plot_transitions(
         subsystems=[subsys],
         initial=initial_bare,
         photon_number=photonnumber,
         title=title,
+        fig_ax=fig_ax,
     )
     axes.axvline(param_val, color="gray", linestyle=":")
 
@@ -98,7 +102,11 @@ def display_chi_01(
     param_val: float,
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
-    fig, axes = sweep["chi"][subsys1_index, subsys2_index][:, 1].plot(fig_ax=fig_ax)
+    chi_data = sweep["chi"][subsys1_index, subsys2_index]
+    title = r"$\chi_{01}$" + " = {:.4f}{}".format(
+        chi_data[float(param_val), 1], units.get_units()
+    )
+    fig, axes = chi_data[:, 1].plot(title=title, fig_ax=fig_ax)
     axes.axvline(param_val, color="gray", linestyle=":")
 
 
@@ -117,5 +125,11 @@ def display_charge_matrixelems(
     charge_matrixelems = np.abs(
         sweep["n_operator qubit " + str(subsys_index)][:, bare_qbt_initial, :]
     )
-    fig, axes = charge_matrixelems.plot(title=title, fig_ax=fig_ax)
+    indices = range(charge_matrixelems.shape[1])
+    fig, axes = charge_matrixelems.plot(
+        title=title,
+        ylabel=r"$|\langle i |n| j \rangle|$",
+        label_list=["{},{}".format(ini, fin) for fin in indices for ini in indices],
+        fig_ax=fig_ax,
+    )
     axes.axvline(param_val, color="gray", linestyle=":")

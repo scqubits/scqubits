@@ -133,7 +133,7 @@ class _ParameterSweep(
     composite quantum system, as an externa, parameter, such as flux, is swept over
     some given interval of values. Upon initialization, these data are calculated and
     stored internally, so that plots can be generated efficiently. This is of
-    particular use for interactive displays used in the Explorer class.
+    particular use for interactive displays used in the Explorer_ class.
 
     Parameters
     ----------

@@ -32,9 +32,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
-from scqubits import settings as settings
 
-from scqubits.legacy._param_sweep import _ParameterSweep
+from scqubits import settings as settings
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import (
     NamedSlotsNdarray,
@@ -48,6 +47,7 @@ from scqubits.core.storage import SpectrumData
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
+    from scqubits.legacy._param_sweep import _ParameterSweep
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -387,6 +387,13 @@ class ParameterSweepBase(ABC):
         if not as_specdata:
             return transitions, transition_energies
 
+        label_list = [
+            r"{}$\to${}".format(
+                utils.tuple_to_short_str(elem[0]), utils.tuple_to_short_str(elem[1])
+            )
+            for elem in transitions
+        ]
+
         reduced_parameters = self._parameters.create_sliced(param_indices)
         if len(reduced_parameters) == 1:
             name = reduced_parameters.names[0]
@@ -396,15 +403,16 @@ class ParameterSweepBase(ABC):
                 system_params=self.system_params,
                 param_name=name,
                 param_vals=vals,
-                labels=list(map(str, transitions)),
+                labels=label_list,
                 subtract=np.asarray(
                     [initial_energies] * self._evals_count, dtype=float
                 ).T,
             )
+
         return SpectrumData(
             energy_table=np.asarray(transition_energies),
             system_params=self.system_params,
-            label=list(map(str, transitions)),
+            labels=label_list,
         )
 
     def plot_transitions(
@@ -670,6 +678,8 @@ class ParameterSweep(
                 "old-style interface will cease to be supported in the future.",
                 FutureWarning,
             )
+            from scqubits.legacy._param_sweep import _ParameterSweep
+
             return _ParameterSweep(*args, **kwargs)
         else:
             return super().__new__(cls, *args, **kwargs)
@@ -1097,7 +1107,7 @@ def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
     sweep:
         ParameterSweep object containing HilbertSpace and spectral information
     func:
-        signature: `func(parametersweep, paramindex_tuple,
+        signature: `func(parametersweep, paramindex_tuple, paramvals_tuple,
         **kwargs)`, specifies how to calculate the data for a single choice of
         parameter(s)
     **kwargs:
@@ -1115,7 +1125,12 @@ def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
 
     def func_effective(paramindex_tuple: Tuple[int], params, **kw) -> Any:
         paramvals_tuple = params[paramindex_tuple]
-        return func(sweep, paramindex_tuple=paramindex_tuple, **kw,)
+        return func(
+            sweep,
+            paramindex_tuple=paramindex_tuple,
+            paramvals_tuple=paramvals_tuple,
+            **kw,
+        )
 
     if hasattr(func, "__name__"):
         func_name = func.__name__

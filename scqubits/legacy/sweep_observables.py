@@ -19,12 +19,13 @@ import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
 if TYPE_CHECKING:
-    from scqubits import Oscillator, ParameterSweep
+    from scqubits import Oscillator
     from scqubits.core.qubit_base import QubitBaseClass
+    from scqubits.legacy._param_sweep import _ParameterSweep
 
 
 def dispersive_chi(
-    sweep: "ParameterSweep",
+    sweep: "_ParameterSweep",
     param_index: int,
     qubit_subsys: "QubitBaseClass",
     osc_subsys: "Oscillator",
@@ -81,7 +82,7 @@ def dispersive_chi(
 
 
 def qubit_matrixelement(
-    sweep: "ParameterSweep",
+    sweep: "_ParameterSweep",
     param_index: int,
     qubit_subsys: "QubitBaseClass",
     qubit_operator: ndarray,

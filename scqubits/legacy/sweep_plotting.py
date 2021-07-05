@@ -22,14 +22,15 @@ import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
 if TYPE_CHECKING:
-    from scqubits import DataStore, Grid1d, Oscillator, ParameterSweep, SpectrumData
+    from scqubits import DataStore, Grid1d, Oscillator, SpectrumData
     from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass, QubitBaseClass1d
+    from scqubits.legacy._param_sweep import _ParameterSweep
 
     QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
 def bare_spectrum(
-    sweep: "ParameterSweep",
+    sweep: "_ParameterSweep",
     subsys: "QuantumSys",
     which: Union[int, List[int]] = -1,
     **kwargs
@@ -54,7 +55,7 @@ def bare_spectrum(
     return specdata.plot_evals_vs_paramvals(which=which, **kwargs)
 
 
-def dressed_spectrum(sweep: "ParameterSweep", **kwargs) -> Tuple[Figure, Axes]:
+def dressed_spectrum(sweep: "_ParameterSweep", **kwargs) -> Tuple[Figure, Axes]:
     """
     Plots energy spectrum of dressed system
 
@@ -70,7 +71,7 @@ def dressed_spectrum(sweep: "ParameterSweep", **kwargs) -> Tuple[Figure, Axes]:
 
 
 def difference_spectrum(
-    sweep: "ParameterSweep", initial_state_ind: int = 0, **kwargs
+    sweep: "_ParameterSweep", initial_state_ind: int = 0, **kwargs
 ) -> Tuple[Figure, Axes]:
     """
     Plots a transition energy spectrum with reference to the given initial_state_ind, obtained by taking energy
@@ -89,7 +90,7 @@ def difference_spectrum(
 
 
 def n_photon_qubit_spectrum(
-    sweep: "ParameterSweep",
+    sweep: "_ParameterSweep",
     photonnumber: int,
     initial_state_labels: Tuple[int, ...],
     **kwargs
@@ -114,7 +115,7 @@ def n_photon_qubit_spectrum(
 
 
 def bare_wavefunction(
-    sweep: "ParameterSweep",
+    sweep: "_ParameterSweep",
     param_val: float,
     subsys: "QubitBaseClass1d",
     which: Union[int, List[int]] = -1,

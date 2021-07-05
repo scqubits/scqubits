@@ -84,7 +84,9 @@ class SpectrumLookup(serializers.Serializable):
         # Store ParameterSweep and/or HilbertSpace objects only as weakref.proxy
         # objects to avoid circular references that would prevent objects from
         # expiring appropriately and being garbage collected
-        if isinstance(framework, scqubits.core._param_sweep._ParameterSweep):
+        if hasattr(framework, "new_datastore"):
+            # This recognizes the legacy version of `ParameterSweep`
+            # Phase out and remove in future version.
             self._sweep = weakref.proxy(framework)
             self._hilbertspace = weakref.proxy(self._sweep._hilbertspace)
         elif isinstance(framework, scqubits.HilbertSpace):
@@ -445,7 +447,9 @@ class SpectrumLookupMixin:
 
         return np.asarray(dressed_indices)
 
-    def set_npindextuple(self, param_indices: Optional[NpIndices] = None) -> NpIndexTuple:
+    def set_npindextuple(
+        self, param_indices: Optional[NpIndices] = None
+    ) -> NpIndexTuple:
         param_indices = param_indices or self._current_param_indices
         if not isinstance(param_indices, tuple):
             param_indices = (param_indices,)

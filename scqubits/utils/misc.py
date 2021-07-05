@@ -198,3 +198,10 @@ def get_shape(lst, shape=()):
     shape = get_shape(lst[0], shape)
 
     return shape
+
+
+def tuple_to_short_str(the_tuple: tuple) -> str:
+    short_str = ""
+    for entry in the_tuple:
+        short_str += str(entry) + ","
+    return short_str[:-1]
