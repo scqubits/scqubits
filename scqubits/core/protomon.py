@@ -591,16 +591,16 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         """
         Frequency dependent quality factor for inductive loss
         """
-        # q_ind_0 = 500 * 1e6
-        # return (
-        #     q_ind_0
-        #     * kn(0, 0.5 / 2.0 / self.kbt)
-        #     * np.sinh(0.5 / 2.0 / self.kbt)
-        #     / kn(0, energy / 2.0 / self.kbt)
-        #     / np.sinh(energy / 2.0 / self.kbt)
-        # )
+        q_ind_0 = 500 * 1e6
+        return (
+            q_ind_0
+            * kn(0, 0.5 / 2.0 / self.kbt)
+            * np.sinh(0.5 / 2.0 / self.kbt)
+            / kn(0, energy / 2.0 / self.kbt)
+            / np.sinh(energy / 2.0 / self.kbt)
+        )
 
-        return 5e9
+        # return 5e9
 
     def charge_jj_1_operator(self):
         """
@@ -669,11 +669,11 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         """
 
         # parameters from the Devoret paper
-        # q_cap_0 = 1 * 1e6
-        # return q_cap_0 * (6 / energy) ** 0.7
+        q_cap_0 = 1 * 1e6
+        return q_cap_0 * (6 / energy) ** 0.7
 
         # parameters from the Schuster paper
-        return 1 / (8e-6)
+        # return 1 / (8e-6)
 
         # parameters from the Vlad paper
         # q_cap_0 = 1 / (3 * 1e-6)
