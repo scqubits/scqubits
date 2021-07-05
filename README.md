@@ -25,7 +25,7 @@ For Python 3.6, 3.7 and 3.8, installation via conda is supported.
 conda install -c conda-forge scqubits
 ```
 
-Alternatively, you can install scqubits via pip.
+Alternatively, scqubits can be installed via pip (although it should be noted that installing via pip under a conda environment is strongly discouraged, and is not guaranteed to work - see conda documentation).
 ```
 pip install scqubits
 ```
