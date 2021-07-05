@@ -24,17 +24,18 @@ if TYPE_CHECKING:
     from scqubits.core.discretization import GridSpec
 
 
-# —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
+# —WaveFunction class———————————————————————————————————————————————————————————————————
 
 
 class WaveFunction:
-    """Container for wave function amplitudes defined for a specific basis. Optionally, a corresponding
-    energy is saved as well.
+    """Container for wave function amplitudes defined for a specific basis.
+    Optionally,  a corresponding energy is saved as well.
 
     Parameters
     ----------
     basis_labels:
-        labels of basis states; for example, in position basis: values of position variable
+        labels of basis states; for example, in position basis: values of position
+        variable
     amplitudes:
         wave function amplitudes for each basis label value
     energy:
@@ -49,12 +50,12 @@ class WaveFunction:
         self.energy = energy
 
 
-# —WaveFunctionOnGrid class—————————————————————————————————————————————————————————————————————————————————————————————
+# —WaveFunctionOnGrid class—————————————————————————————————————————————————————————————
 
 
 class WaveFunctionOnGrid:
-    """Container for wave function amplitudes defined on a coordinate grid (arbitrary dimensions).
-    Optionally, a corresponding eigenenergy is saved as well.
+    """Container for wave function amplitudes defined on a coordinate grid (arbitrary
+    dimensions). Optionally, a corresponding eigenenergy is saved as well.
 
     Parameters
     ----------
@@ -74,11 +75,12 @@ class WaveFunctionOnGrid:
         self.energy = energy
 
 
-# —BaseData class———————————————————————————————————————————————————————————————————————————————————————————————————
+# —BaseData class———————————————————————————————————————————————————————————————————————
 
 
 class DataStore(serializers.Serializable):
-    """Base class for storing and processing spectral data and custom data from parameter sweeps.
+    """Base class for storing and processing spectral data and custom data from
+    parameter sweeps.
 
     Parameters
     ----------
@@ -89,7 +91,8 @@ class DataStore(serializers.Serializable):
     param_vals:
         parameter values for which spectrum data are stored
     **kwargs:
-        keyword arguments for data to be stored: ``dataname=data``, where data should be an array-like object
+        keyword arguments for data to be stored: ``dataname=data``, where data should be
+        an array-like object
     """
 
     def __init__(
@@ -122,8 +125,8 @@ class DataStore(serializers.Serializable):
         Parameters
         ----------
         **kwargs:
-            ``dataname=data`` with ``data`` an array-like object. The data set will be accessible through
-            ``<DataStorage>.dataname``.
+            ``dataname=data`` with ``data`` an array-like object. The data set will
+            be  accessible through ``<DataStorage>.dataname``.
         """
         for dataname, data in kwargs.items():
             setattr(self, dataname, data)
@@ -133,7 +136,7 @@ class DataStore(serializers.Serializable):
             )  # register additional dataset for file IO
 
 
-# —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
+# —SpectrumData class———————————————————————————————————————————————————————————————————
 
 
 class SpectrumData(DataStore):
@@ -162,7 +165,7 @@ class SpectrumData(DataStore):
     # mark for file serializers purposes:
     def __init__(
         self,
-        energy_table: ndarray,
+        energy_table: Union[ndarray, list],
         system_params: Dict[str, Any],
         param_name: str = None,
         param_vals: ndarray = None,

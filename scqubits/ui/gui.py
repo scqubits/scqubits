@@ -208,7 +208,7 @@ class GUI:
         qubit_and_plot_choice_display, plot_display = self.create_GUI()
         display(qubit_and_plot_choice_display, plot_display)
 
-    # Initialization Methods -------------------------------------------------------------------------------------------------
+    # Initialization Methods ----------------------------------------------------------
     def initialize_qubit(self, qubit_name: str) -> None:
         """Initializes self.active_qubit to the user's choice
         using the chosen qubit's default parameters.
@@ -260,7 +260,7 @@ class GUI:
                 operator_list.append(name)
         return operator_list
 
-    # Widget EventHandler Methods -------------------------------------------------------------------------------------------------
+    # Widget EventHandler Methods ------------------------------------------------------
     def scan_dropdown_eventhandler(self, change):
         self.gui_active = False
         self.qubit_params_widgets[change.old].disabled = False
@@ -288,7 +288,7 @@ class GUI:
     def save_button_clicked_action(self, *args):
         self.fig.savefig(self.qubit_plot_options_widgets["filename_text"].value)
 
-    # Methods for qubit_plot_interactive -------------------------------------------------------------------------------------------------
+    # Methods for qubit_plot_interactive -----------------------------------------------
     def update_qubit_params(self, **params):
         self.qubit_current_params.update(params)
         self.active_qubit.set_params(**self.qubit_current_params)
@@ -404,7 +404,8 @@ class GUI:
         mode_value: str,
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_matelem_vs_paramvals().
+        """This is the method associated with qubit_plot_interactive that allows for
+        us  to interact with plot_matelem_vs_paramvals().
 
         Parameters
         ----------
@@ -450,7 +451,8 @@ class GUI:
         mode_value: str,
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_matelem_vs_paramvals().
+        """This is the method associated with qubit_plot_interactive that allows for
+        us  to interact with plot_matelem_vs_paramvals().
         Namely, this method is for the qubits that require a grid option.
 
         Parameters
@@ -495,8 +497,9 @@ class GUI:
         scale_value: float,
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_wavefunction().
-        Namely, this method is for the qubits that have an option for scaling the wavefunction amplitudes.
+        """This is the method associated with qubit_plot_interactive that allows for
+        us to interact with plot_wavefunction(). Namely, this method is for
+        the qubits that have an option for scaling the wavefunction amplitudes.
 
         Parameters
         ----------
@@ -533,7 +536,8 @@ class GUI:
         mode_value: str,
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_wavefunction().
+        """This is the method associated with qubit_plot_interactive that allows for
+        us  to interact with plot_wavefunction().
 
         Parameters
         ----------
@@ -558,8 +562,9 @@ class GUI:
         mode_value: str,
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_wavefunction().
-        Namely, this method is for the qubits that require a grid option.
+        """This is the method associated with qubit_plot_interactive that allows for
+        us  to interact with plot_wavefunction(). Namely, this method is for the
+        qubits that require a grid option.
 
         Parameters
         ----------
@@ -587,7 +592,8 @@ class GUI:
         show3d_tf: bool,
         **params: Union[Tuple[float, float], float, int]
     ):
-        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_matrixelements().
+        """This is the method associated with qubit_plot_interactive that allows for
+        us to interact with plot_matrixelements().
 
         Parameters
         ----------
@@ -630,7 +636,8 @@ class GUI:
         show3d_tf: bool,
         **params: Union[Tuple[float, float], float, int]
     ):
-        """This is the method associated with qubit_plot_interactive that allows for us to interact with plot_matrixelements().
+        """This is the method associated with qubit_plot_interactive that allows for
+        us to interact with plot_matrixelements().
         Namely, this method is for the qubits that require a grid option.
 
         Parameters
@@ -665,7 +672,7 @@ class GUI:
         )
         GUI.fig_ax = self.fig, ax
 
-    # Methods for create_GUI -------------------------------------------------------------------------------------------------
+    # Methods for create_GUI -----------------------------------------------------------
     def display_qubit_info(self, qubit_info: bool) -> None:
         """Displays the image that corresponds to the current qubit.
 
@@ -891,7 +898,7 @@ class GUI:
         )
         display(qubit_plot_interactive)
 
-    # Create Methods -------------------------------------------------------------------------------------------------
+    # Create Methods -------------------------------------------------------------------
     def create_params_dict(self) -> None:
         """Initializes qubit_base_params and qubit_scan_params.
         Note that qubit_scan_params will be used to create the

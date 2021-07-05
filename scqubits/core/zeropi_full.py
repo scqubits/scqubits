@@ -320,7 +320,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         ) + sparse.kron(zeropi_coupling.conjugate().T, op.creation_sparse(zeta_dim))
 
         if return_parts:
-            return (hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat)
+            return hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat
 
         return hamiltonian_mat.tocsc()
 

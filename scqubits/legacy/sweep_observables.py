@@ -31,10 +31,12 @@ def dispersive_chi(
     osc_subsys: "Oscillator",
     chi_indices: Tuple[int, int] = None,
 ) -> Union[float, ndarray]:
-    r"""For a given ParameterSweep, calculate dispersive shift data for a single value of the external parameter. The
-    dispersive shift relates to a qubit subsystem coupled to an oscillator subsystem. :math:`\chi_j` is the shift of
-    qubit level :math:`j` due to the addition of a photon in the oscillator. It is calculated here from the exact
-    spectrum by means of :math:`\chi_j = E_{n=1,j} - E_{n=0,j} - \hbar\omega_\text{osc}`.
+    r"""For a given ParameterSweep, calculate dispersive shift data for a single value
+    of the external parameter. The dispersive shift relates to a qubit subsystem
+    coupled to an oscillator subsystem. :math:`\chi_j` is the shift of
+    qubit level :math:`j` due to the addition of a photon in the oscillator. It is
+    calculated here from the exact spectrum by means of
+    :math:`\chi_j = E_{n=1,j} - E_{n=0,j} - \hbar\omega_\text{osc}`.
 
     Parameters
     ----------
@@ -88,7 +90,8 @@ def qubit_matrixelement(
     qubit_operator: ndarray,
 ) -> ndarray:
     """
-    For given ParameterSweep and parameter_index, calculate the matrix elements for the provided qubit operator.
+    For given ParameterSweep and parameter_index, calculate the matrix elements for
+    the provided qubit operator.
 
     Parameters
     ----------

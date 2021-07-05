@@ -61,6 +61,8 @@ def band_matrix(
     band_offsets:
         offsets specifying the positions of the (off-)diagonals dim: dimension of
         the matrix
+    dim:
+        (linear) dimension of the matrix
     dtype:
         if not specified, dtype is inferred from the dtype of `band_vecs`
     has_corners:

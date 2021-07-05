@@ -43,8 +43,8 @@ def bare_spectrum(
     sweep:
     subsys:
     which:
-        default: -1, signals to plot all wavefunctions within the truncated Hilbert space;
-        int>0: plot wavefunctions 0..int-1; list(int) plot specific wavefunctions
+        default: -1, signals to plot all wavefunctions within the truncated Hilbert
+        space; int>0: plot wavefunctions 0..int-1; list(int) plot specific wavefunctions
     **kwargs:
         standard plotting option (see separate documentation)
     """
@@ -74,8 +74,8 @@ def difference_spectrum(
     sweep: "_ParameterSweep", initial_state_ind: int = 0, **kwargs
 ) -> Tuple[Figure, Axes]:
     """
-    Plots a transition energy spectrum with reference to the given initial_state_ind, obtained by taking energy
-    differences of the eigenenergy spectrum.
+    Plots a transition energy spectrum with reference to the given initial_state_ind,
+    obtained by taking energy differences of the eigenenergy spectrum.
 
     Parameters
     ----------

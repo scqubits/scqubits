@@ -29,7 +29,6 @@ import scqubits.utils.plotting as plot
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import Serializable
 
-
 EllipsisType = Any  # unfortunate workaround (see ongoing discussion)
 
 # Standard numpy types valid as a single slot index; with and without Ellipsis
@@ -473,7 +472,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         cls, input_array: np.ndarray, values_by_name: Dict[str, Iterable]
     ) -> "NamedSlotsNdarray":
         implied_shape = tuple(len(values) for name, values in values_by_name.items())
-        if input_array.shape[0: len(values_by_name)] != implied_shape:
+        if input_array.shape[0 : len(values_by_name)] != implied_shape:
             raise ValueError(
                 "Given input array {} with shape {} not compatible with "
                 "provided dict calling for shape {}. values_by_name: {}".format(

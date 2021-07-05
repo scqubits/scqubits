@@ -137,8 +137,8 @@ def _process_options(
 
 
 def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) -> None:
-    """Processes a single 'special' option, i.e., one internal to scqubits and not to be handed further down to
-    matplotlib.
+    """Processes a single 'special' option, i.e., one internal to scqubits and not to be
+    handed further down to matplotlib.
     """
     if key == "ymax":
         ymax = value
@@ -159,7 +159,8 @@ def wavefunction1d(
     **kwargs
 ) -> Tuple[Figure, Axes]:
     """
-    Plots the amplitude of a single real-valued 1d wave function, along with the potential energy if provided.
+    Plots the amplitude of a single real-valued 1d wave function, along with the
+    potential energy if provided.
 
     Parameters
     ----------

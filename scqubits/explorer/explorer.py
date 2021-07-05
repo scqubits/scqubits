@@ -23,8 +23,8 @@ import scqubits.utils.misc as utils
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
-    from scqubits.legacy._param_sweep import _ParameterSweep
     from scqubits.legacy._explorer import Explorer_
+    from scqubits.legacy._param_sweep import _ParameterSweep
 
 
 try:
