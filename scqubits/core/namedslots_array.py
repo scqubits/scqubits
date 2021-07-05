@@ -14,7 +14,7 @@ import numbers
 import warnings
 
 from collections import OrderedDict
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -29,6 +29,8 @@ import scqubits.utils.plotting as plot
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import Serializable
 
+EllipsisType = Any  # unfortunate workaround (see ongoing discussion)
+
 # Standard numpy types valid as a single slot index; with and without Ellipsis
 NpIndex = Union[
     int,
@@ -38,7 +40,7 @@ NpIndex = Union[
     List[int],
     Tuple[int, np.integer],
     List[np.integer],
-    Literal[Ellipsis],
+    EllipsisType,
 ]
 NpIndexNoEllipsis = Union[
     int,
@@ -74,7 +76,7 @@ ExtIndex = Union[
     List[int],
     Tuple[np.integer, ...],
     List[np.integer],
-    Literal[Ellipsis],
+    EllipsisType,
 ]
 
 # ExtIndexTuple represents a tuple of ExtIndex, spans/can span multiple slots
