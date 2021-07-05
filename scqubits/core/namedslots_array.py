@@ -29,19 +29,12 @@ import scqubits.utils.plotting as plot
 from scqubits.io_utils.fileio import IOData
 from scqubits.io_utils.fileio_serializers import Serializable
 
+
 EllipsisType = Any  # unfortunate workaround (see ongoing discussion)
 
 # Standard numpy types valid as a single slot index; with and without Ellipsis
-NpIndex = Union[
-    int,
-    np.integer,
-    slice,
-    Tuple[int],
-    List[int],
-    Tuple[int, np.integer],
-    List[np.integer],
-    EllipsisType,
-]
+# ExtIndex is a single-slot index that enables custom slicing options, including
+# value-based indexing
 NpIndexNoEllipsis = Union[
     int,
     np.integer,
@@ -51,42 +44,23 @@ NpIndexNoEllipsis = Union[
     Tuple[int, np.integer],
     List[np.integer],
 ]
+NpIndex = Union[NpIndexNoEllipsis, EllipsisType]
+ExtIndex = Union[NpIndex, float, complex]
 
-# Tuple of standard numpy indices spans/can span multiple slots; with and without
-# Ellipsis
-NpIndexTuple = Tuple[NpIndex, ...]
+# Tuple of standard numpy or extended indices spans/can span multiple slots; with and
+# without Ellipsis
 NpIndexTupleNoEllipsis = Tuple[NpIndexNoEllipsis, ...]
+NpIndexTuple = Tuple[NpIndex, ...]
+ExtIndexTuple = Tuple[ExtIndex, ...]
 
-# Single- or multi-slot numpy index; with and without Ellipsis
-NpIndices = Union[NpIndex, NpIndexTuple]
+# Single- or multi-slot numpy or extended index; with and without Ellipsis
 NpIndicesNoEllipsis = Union[NpIndexNoEllipsis, NpIndexTupleNoEllipsis]
+NpIndices = Union[NpIndex, NpIndexTuple]
+ExtIndices = Union[ExtIndex, ExtIndexTuple]
 
 # Numpy: valid slice(a, b, c) entry types
 NpSliceEntry = Union[int, np.integer, None]
-
-# ExtIndex supports custom slicing options, including value-based indexing
-# It represents a single slot index.
-ExtIndex = Union[
-    int,
-    np.integer,
-    float,
-    complex,
-    slice,
-    Tuple[int, ...],
-    List[int],
-    Tuple[np.integer, ...],
-    List[np.integer],
-    EllipsisType,
-]
-
-# ExtIndexTuple represents a tuple of ExtIndex, spans/can span multiple slots
-ExtIndexTuple = Tuple[ExtIndex, ...]
-
-# ExtIndices can be a single-slot extended index or a multi-slot extended index
-ExtIndices = Union[ExtIndex, ExtIndexTuple]
-
-# ExtSliceEntry: valid types for entries in slice(a, b, c) for extended slicing
-ExtSliceEntry = Union[int, float, complex, str, None]
+ExtSliceEntry = Union[NpSliceEntry, float, complex, str]
 
 
 def idx_for_value(value: Union[int, float, complex], param_vals: ndarray) -> int:
@@ -125,7 +99,7 @@ def convert_to_std_npindex(
 
 
 def process_ellipsis(
-    array: np.ndarray, multi_idx: NpIndexTuple
+    array: Union["Parameters", np.ndarray], multi_idx: NpIndexTuple
 ) -> NpIndexTupleNoEllipsis:
     """
     Removes `...` from the multi-index by explicit slicing.
@@ -499,7 +473,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         cls, input_array: np.ndarray, values_by_name: Dict[str, Iterable]
     ) -> "NamedSlotsNdarray":
         implied_shape = tuple(len(values) for name, values in values_by_name.items())
-        if input_array.shape[0 : len(values_by_name)] != implied_shape:
+        if input_array.shape[0: len(values_by_name)] != implied_shape:
             raise ValueError(
                 "Given input array {} with shape {} not compatible with "
                 "provided dict calling for shape {}. values_by_name: {}".format(
@@ -556,7 +530,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
         # needed for multiprocessing / proper pickling
         pickled_state = super().__reduce__()
         new_state = pickled_state[2] + (self._parameters,)
-        return (pickled_state[0], pickled_state[1], new_state)
+        return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         # needed for multiprocessing / proper pickling
