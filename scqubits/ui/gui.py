@@ -768,10 +768,8 @@ class GUI:
                 self.qubit_plot_options_widgets["scan_dropdown"].value
             ].disabled = False
 
-            if (
-                isinstance(self.active_qubit, scq.FluxQubit)
-                or isinstance(self.active_qubit, scq.ZeroPi)
-                or isinstance(self.active_qubit, scq.Cos2PhiQubit)
+            if isinstance(
+                self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
             ):
                 which_widget = self.qubit_plot_options_widgets[
                     "wavefunction_single_state_selector"

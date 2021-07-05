@@ -148,7 +148,10 @@ def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) ->
     elif key == "figsize":
         figure.set_size_inches(value)
     elif key == "grid":
-        axes.grid(**value) if isinstance(value, dict) else axes.grid(value)
+        if isinstance(value, dict):
+            axes.grid(**value)
+        else:
+            axes.grid(value)
 
 
 def wavefunction1d(
@@ -603,7 +606,7 @@ def data_vs_paramvals(
         if _LABELLINES_ENABLED:
             try:
                 labelLines(axes.get_lines(), zorder=2.0)
-            except Exception:
+            except NameError:
                 pass
         else:
             axes.legend(
