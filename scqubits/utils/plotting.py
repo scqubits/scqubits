@@ -12,7 +12,6 @@
 import functools
 import operator
 import os
-import warnings
 
 from typing import (
     TYPE_CHECKING,
@@ -33,6 +32,7 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from numpy import ndarray
 
 import scqubits.core.constants as constants
 import scqubits.settings as settings
@@ -80,12 +80,15 @@ def _extract_kwargs_options(
 
     """
     direct_plot_options = direct_plot_options or _direct_plot_options
-    d = {}
-    if plot_type in direct_plot_options:
-        for key in kwargs:
-            if key in direct_plot_options[plot_type]:
-                d[key] = kwargs[key]
-    return d
+    if plot_type not in direct_plot_options:
+        return {}
+
+    selected_options = {}
+
+    for key in kwargs:
+        if key in direct_plot_options[plot_type]:
+            selected_options[key] = kwargs[key]
+    return selected_options
 
 
 def _process_options(
@@ -127,13 +130,7 @@ def _process_options(
         figure.savefig(os.path.splitext(filename)[0] + ".pdf")
 
     if settings.DESPINE and not axes.name == "3d":
-        # Hide the right and top spines
-        axes.spines["right"].set_visible(False)
-        axes.spines["top"].set_visible(False)
-
-        # Only show ticks on the left and bottom spines
-        axes.yaxis.set_ticks_position("left")
-        axes.xaxis.set_ticks_position("bottom")
+        despine_axes(axes)
 
 
 def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) -> None:
@@ -156,7 +153,7 @@ def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) ->
 
 def wavefunction1d(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
-    potential_vals: np.ndarray = None,
+    potential_vals: Optional[np.ndarray] = None,
     offset: Union[float, Iterable[float]] = 0,
     scaling: Optional[float] = None,
     **kwargs
@@ -184,72 +181,21 @@ def wavefunction1d(
     """
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    offset_list = [offset] if not isinstance(offset, (list, np.ndarray)) else offset
-    wavefunc_list = [wavefuncs] if not isinstance(wavefuncs, list) else wavefuncs
-
-    scale_constant = renormalization_factor(wavefunc_list[0], potential_vals)
-    for wavefunc in wavefunc_list:
-        wavefunc.amplitudes *= scale_constant
-
-    scale_factor = scaling or defaults.set_wavefunction_scaling(
-        wavefunc_list, potential_vals
-    )
+    offset_list = utils.to_list(offset)
+    wavefunc_list = utils.to_list(wavefuncs)
+    wavefunc_list = scale_wavefunctions(wavefunc_list, potential_vals, scaling)
 
     for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
-        x_vals = wavefunction.basis_labels
-        y_vals = energy_offset + scale_factor * wavefunction.amplitudes
-        offset_vals = [energy_offset] * len(x_vals)
-
-        axes.plot(x_vals, y_vals, **_extract_kwargs_options(kwargs, "plot"))
-        axes.fill_between(
-            x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True
+        plot_wavefunction_to_axes(
+            axes, wavefunction, energy_offset, **kwargs
         )
 
     if potential_vals is not None:
-        y_min = np.min(potential_vals)
-        y_max = np.max(offset_list)
-        y_range = y_max - y_min
-
-        y_max += 0.3 * y_range
-        y_min = np.min(potential_vals) - 0.1 * y_range
-        axes.set_ylim([y_min, y_max])
-
-        axes.plot(
-            x_vals,
-            potential_vals,
-            color="gray",
-            **_extract_kwargs_options(kwargs, "plot")
-        )
+        x_vals = wavefunc_list[0].basis_labels
+        plot_potential_to_axes(axes, x_vals, potential_vals, offset_list, **kwargs)
 
     _process_options(fig, axes, **kwargs)
     return fig, axes
-
-
-def renormalization_factor(
-    wavefunc: "WaveFunction", potential_vals: np.ndarray
-) -> float:
-    """
-    Takes the amplitudes of one wavefunction and the potential values to scale the
-    dimensionless amplitude to a (pseudo-)energy that allows us to plot wavefunctions
-    and energies in the same plot.
-
-    Parameters
-    ----------
-    wavefunc:
-        ndarray of wavefunction amplitudes
-    potential_vals:
-        array of potential energy values (that determine the energy range on the y axis
-
-    Returns
-    -------
-    renormalization factor that converts the wavefunction amplitudes into energy units
-    """
-    FILL_FACTOR = 0.1
-    energy_range = np.max(potential_vals) - np.min(potential_vals)
-    amplitude_range = np.max(wavefunc.amplitudes) - np.min(wavefunc.amplitudes)
-    if amplitude_range < 1.0e-10:
-        return 0.0
-    return FILL_FACTOR * energy_range / amplitude_range
 
 
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
@@ -595,28 +541,30 @@ def data_vs_paramvals(
 
     if label_list is None:
         axes.plot(xdata, ydata, **_extract_kwargs_options(kwargs, "plot"))
+        _process_options(fig, axes, **kwargs)
+        return fig, axes
+
+    for idx, ydataset in enumerate(ydata.T):
+        axes.plot(
+            xdata,
+            ydataset,
+            label=label_list[idx],
+            **_extract_kwargs_options(kwargs, "plot")
+        )
+    if _LABELLINES_ENABLED:
+        try:
+            labelLines(axes.get_lines(), zorder=2.0)
+        except Exception:
+            pass
     else:
-        for idx, ydataset in enumerate(ydata.T):
-            axes.plot(
-                xdata,
-                ydataset,
-                label=label_list[idx],
-                **_extract_kwargs_options(kwargs, "plot")
-            )
-        if _LABELLINES_ENABLED:
-            try:
-                labelLines(axes.get_lines(), zorder=2.0)
-            except NameError:
-                pass
-        else:
-            axes.legend(
-                bbox_to_anchor=(1.04, 0.5),
-                loc="center left",
-                borderaxespad=0,
-                frameon=False,
-            )
-            # legend(loc="center left", bbox_to_anchor=(1, 0.5))
-    _process_options(fig, axes, **kwargs)
+        axes.legend(
+            bbox_to_anchor=(1.04, 0.5),
+            loc="center left",
+            borderaxespad=0,
+            frameon=False,
+        )
+        # legend(loc="center left", bbox_to_anchor=(1, 0.5))
+
     return fig, axes
 
 
@@ -716,3 +664,62 @@ def matelem_vs_paramvals(
         axes.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     _process_options(fig, axes, opts=defaults.matelem_vs_paramvals(specdata), **kwargs)
     return fig, axes
+
+
+def despine_axes(axes: Axes) -> None:
+    # Hide the right and top spines
+    axes.spines["right"].set_visible(False)
+    axes.spines["top"].set_visible(False)
+
+    # Only show ticks on the left and bottom spines
+    axes.yaxis.set_ticks_position("left")
+    axes.xaxis.set_ticks_position("bottom")
+
+
+def scale_wavefunctions(
+    wavefunc_list: List["WaveFunction"], potential_vals: np.ndarray, scaling
+) -> List["WaveFunction"]:
+    for wavefunc in wavefunc_list:
+        wavefunc.rescale_to_potential(potential_vals)
+    adaptive_scalefactor = scaling or defaults.set_wavefunction_scaling(
+        wavefunc_list, potential_vals
+    )
+    for wavefunc in wavefunc_list:
+        wavefunc.rescale(adaptive_scalefactor)
+    return wavefunc_list
+
+
+def plot_wavefunction_to_axes(
+    axes: Axes,
+    wavefunction: "WaveFunction",
+    energy_offset: float,
+    **kwargs
+) -> None:
+    x_vals = wavefunction.basis_labels
+    y_vals = energy_offset + wavefunction.amplitudes
+    offset_vals = [energy_offset] * len(x_vals)
+
+    axes.plot(x_vals, y_vals, **_extract_kwargs_options(kwargs, "plot"))
+    axes.fill_between(
+        x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True
+    )
+
+
+def plot_potential_to_axes(
+    axes: Axes,
+    x_vals: ndarray,
+    potential_vals: Union[ndarray, List[float]],
+    offset_list: Union[ndarray, List[float]],
+    **kwargs
+) -> None:
+    y_min = np.min(potential_vals)
+    y_max = np.max(offset_list)
+    y_range = y_max - y_min
+
+    y_max += 0.3 * y_range
+    y_min = np.min(potential_vals) - 0.1 * y_range
+    axes.set_ylim([y_min, y_max])
+
+    axes.plot(
+        x_vals, potential_vals, color="gray", **_extract_kwargs_options(kwargs, "plot")
+    )

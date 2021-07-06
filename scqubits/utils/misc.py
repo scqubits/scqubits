@@ -205,3 +205,9 @@ def tuple_to_short_str(the_tuple: tuple) -> str:
     for entry in the_tuple:
         short_str += str(entry) + ","
     return short_str[:-1]
+
+
+def to_list(obj: Any) -> list:
+    if isinstance(obj, (list, np.ndarray)):
+        return obj
+    return [obj]

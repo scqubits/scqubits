@@ -11,9 +11,10 @@
 
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
+import numpy as np
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from numpy import ndarray
 
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
@@ -43,11 +44,33 @@ class WaveFunction:
     """
 
     def __init__(
-        self, basis_labels: ndarray, amplitudes: ndarray, energy: float = None
+        self, basis_labels: np.ndarray, amplitudes: np.ndarray, energy: float = None
     ) -> None:
         self.basis_labels = basis_labels
         self.amplitudes = amplitudes
         self.energy = energy
+
+    def rescale(self, scale_factor: float) -> None:
+        """Rescale the wavefunction amplitudes by a given factor"""
+        self.amplitudes *= scale_factor
+
+    def rescale_to_potential(self, potential_vals: np.ndarray):
+        """
+        Rescale the dimensionless amplitude to a (pseudo-)energy that allows us to plot
+        wavefunctions and potential energies in the same plot.
+
+        Parameters
+        ----------
+        potential_vals:
+            array of potential energy values (that determine the energy range on the y axis
+
+        """
+        FILL_FACTOR = 0.1
+        energy_range = np.max(potential_vals) - np.min(potential_vals)
+        amplitude_range = np.max(self.amplitudes) - np.min(self.amplitudes)
+        if amplitude_range < 1.0e-10:
+            return 0.0
+        self.amplitudes *= FILL_FACTOR * energy_range / amplitude_range
 
 
 # —WaveFunctionOnGrid class—————————————————————————————————————————————————————————————
@@ -68,7 +91,7 @@ class WaveFunctionOnGrid:
     """
 
     def __init__(
-        self, gridspec: "GridSpec", amplitudes: ndarray, energy: float = None
+        self, gridspec: "GridSpec", amplitudes: np.ndarray, energy: float = None
     ) -> None:
         self.gridspec = gridspec
         self.amplitudes = amplitudes
@@ -99,13 +122,13 @@ class DataStore(serializers.Serializable):
         self,
         system_params: Dict[str, Any],
         param_name: str = None,
-        param_vals: ndarray = None,
+        param_vals: np.ndarray = None,
         **kwargs
     ) -> None:
         self.system_params = system_params
         self.param_name = param_name
         self.param_vals = param_vals
-        if isinstance(param_vals, ndarray):
+        if isinstance(param_vals, np.ndarray):
             self.param_count = len(self.param_vals)  # type: ignore
         else:
             self.param_count = 1  # just one value if there is no parameter sweep
@@ -155,8 +178,8 @@ class SpectrumData(DataStore):
         name of parameter being varied
     param_vals:
         parameter values for which spectrum data are stored
-    state_table: Union[List[QutipEigenstates], ndarray, List[ndarray]]
-        eigenstate data stored for each `param_vals` point, either as pure ndarray or
+    state_table: Union[List[QutipEigenstates], np.ndarray, List[np.ndarray]]
+        eigenstate data stored for each `param_vals` point, either as pure np.ndarray or
         list of qutip.qobj
     matrixelem_table:
         matrix element data stored for each `param_vals` point
@@ -165,12 +188,12 @@ class SpectrumData(DataStore):
     # mark for file serializers purposes:
     def __init__(
         self,
-        energy_table: Union[ndarray, list],
+        energy_table: Union[np.ndarray, list],
         system_params: Dict[str, Any],
         param_name: str = None,
-        param_vals: ndarray = None,
-        state_table: Union[List[QutipEigenstates], ndarray, List[ndarray]] = None,
-        matrixelem_table: ndarray = None,
+        param_vals: np.ndarray = None,
+        state_table: Union[List[QutipEigenstates], np.ndarray, List[np.ndarray]] = None,
+        matrixelem_table: np.ndarray = None,
         **kwargs
     ) -> None:
         self.system_params = system_params
@@ -178,7 +201,7 @@ class SpectrumData(DataStore):
         self.param_vals = param_vals
         self.energy_table = energy_table
         self.state_table = state_table
-        self.matrixelem_table: ndarray = matrixelem_table
+        self.matrixelem_table: np.ndarray = matrixelem_table
         super().__init__(
             system_params=system_params,
             param_name=param_name,
