@@ -3,7 +3,7 @@ from itertools import product
 import numpy as np
 from qutip import qeye, sigmax, sigmay, sigmaz, tensor, basis, Qobj
 from scipy.linalg import inv
-from scipy.optimize import root
+from scipy.optimize import root, minimize
 from sympy import Matrix, S, diff, hessian, simplify, solve, symbols
 
 import scqubits.core.qubit_base as base
@@ -222,7 +222,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             )
 
         return (
-            flux_shift_qubit(self.ELa) / (2.0 * np.pi),
+            -flux_shift_qubit(self.ELa) / (2.0 * np.pi),
             flux_shift_qubit(self.ELb) / (2.0 * np.pi),
         )
 
@@ -283,6 +283,37 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         phi_a_01 = self._get_phi_01(fluxonium_a)
         phi_b_01 = self._get_phi_01(fluxonium_b)
         return J * phi_a_01 * phi_b_01
+
+    def off_location_coupler_flux(self):
+        def _find_J(flux_c):
+            self.flux_c = flux_c
+            return self.J_eff_total()
+        result = root(_find_J, x0=np.array([0.28]))
+        assert result.success is True
+        return result.x[0]
+
+    def off_location_exact_sweet_spot_fluxes(self):
+        flux_c = self.off_location_coupler_flux()
+        self.flux_c = flux_c
+
+        def _find_sweet_spot(params):
+            flux_a, flux_b = params
+            self.flux_a = flux_a
+            self.flux_b = flux_b
+            hilbert_space = self.generate_coupled_system()
+            dressed_hamiltonian = hilbert_space.hamiltonian()
+            evals, evecs_qobj = dressed_hamiltonian.eigenstates(eigvals=3)
+            evals = evals - evals[0]
+            return evals[2]
+        result = minimize(_find_sweet_spot, x0=np.array([0.5, 0.5]), bounds=((0.4, 0.6), (0.4, 0.6)))
+        assert result.success
+        return flux_c, result.x[0], result.x[1]
+
+    def off_location_effective_sweet_spot_fluxes(self):
+        flux_c = self.off_location_coupler_flux()
+        self.flux_c = flux_c
+        flux_shift_a, flux_shift_b = self.find_flux_shift()
+        return flux_c, 0.50 + flux_shift_a, 0.50 + flux_shift_b
 
     def schrieffer_wolff_born_oppenheimer_effective_hamiltonian(self):
         (fluxonium_a, fluxonium_b, J) = self._setup_effective_calculation()

@@ -33,6 +33,7 @@ from scqubits.core.current_mirror_vtb import (
     CurrentMirrorVTBGlobalSqueezing,
     CurrentMirrorVTBSqueezing,
 )
+from scqubits.core.tunable_coupler import TunableCouplerVTB, TunableCouplerVTBGlobal
 from scqubits.core.discretization import Grid1d
 from scqubits.core.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
