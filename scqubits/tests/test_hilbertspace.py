@@ -378,3 +378,7 @@ class TestHilbertSpace:
         hilbertspc.generate_lookup()
         hilbertspc.filewrite(self.tmpdir + "test.h5")
         hilbertspc_copy = scq.read(self.tmpdir + "test.h5")
+
+    @staticmethod
+    def test_HilbertSpace_GUI():
+        hilbertspace_new = scq.HilbertSpace.create()
