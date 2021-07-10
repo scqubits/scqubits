@@ -242,9 +242,7 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
         self.min_vals = minmaxpts_array[:, 0]
         self.max_vals = minmaxpts_array[:, 1]
         self.var_count = len(self.min_vals)
-        self.pt_counts = minmaxpts_array[:, 2].astype(
-            np.int
-        )  # these are used as indices; need to be whole numbers.
+        self.pt_counts = minmaxpts_array[:, 2].astype(int)  # used as int indices
 
     def __str__(self) -> str:
         output = "    GridSpec ......"
