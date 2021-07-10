@@ -1419,3 +1419,30 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
              np.sum(gamma1_ind_1)
         )
         return 1 / (gamma1_ind_tot) * 1e-6
+
+    def get_t1_source(self, g_state, e_state):
+        """
+        calculate the contribution to total depolarization time from each noise source
+        unit in time (ms)
+        """
+        inductive = 1 / ( 1/self.get_t1_inductive_loss(g_state) +
+                          1/self.get_t1_inductive_loss(e_state))
+        capacitive = 1 / (1 / self.get_t1_capacitive_loss(g_state) +
+                         1 / self.get_t1_capacitive_loss(e_state))
+        qp = 1 / (1 / self.get_t1_qp_loss(g_state) +
+                         1 / self.get_t1_qp_loss(e_state))
+        total = 1 / (1/inductive + 1/capacitive + 1/qp)
+        return inductive, capacitive, qp, total
+
+    def get_t1_channel(self):
+        """
+        calculate the contribution to total depolarization time from each transition
+        within the lowest four levels, involving the logical states
+        unit in time (ms)
+        specific for point A
+        """
+        g_time = self.get_noise_channel(0)
+        e_time = self.get_noise_channel(2)
+        total = 1 / (1/g_time[0]+ 1/g_time[1]+ 1/g_time[2]+ 1/e_time[0]+ 1/e_time[1]+
+                     1/e_time[2])
+        return g_time[0], g_time[1], g_time[2], e_time[0], e_time[1], e_time[2], total
