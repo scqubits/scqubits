@@ -1632,7 +1632,7 @@ class NoisySystem(ABC):
                 return Y_qp
 
         def spectral_density(omega):
-            """Based on Eq. 19 in Smith et al (2020). """
+            """Based on Eq. 19 in Smith et al (2020)."""
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (

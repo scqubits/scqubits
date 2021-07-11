@@ -47,7 +47,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
     @abstractmethod
     def d_hamiltonian_d_EJ3(self) -> ndarray:
         pass
-    
+
     @classmethod
     @abstractmethod
     def supported_noise_channels(self) -> List[str]:

@@ -371,7 +371,7 @@ class SpectrumLookupMixin:
     """
     SpectrumLookupMixin is used as a mix-in class by `ParameterSweep`. It makes various
     spectrum and spectrum lookup related methods directly available at the
-    `ParameterSweep` level. 
+    `ParameterSweep` level.
     """
 
     def __init__(self, hilbertspace: "HilbertSpace"):

@@ -55,7 +55,9 @@ def bare_matrixelement(
     subsys_index = sweep.get_subsys_index(subsystem)
     bare_evecs = sweep["bare_evecs"][subsys_index][paramindex_tuple]
     return subsystem.matrixelement_table(
-        operator=operator_name, evecs=bare_evecs, evals_count=subsystem.truncated_dim,
+        operator=operator_name,
+        evecs=bare_evecs,
+        evals_count=subsystem.truncated_dim,
     )
 
 
