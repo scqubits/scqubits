@@ -12,7 +12,7 @@
 import os
 import warnings
 
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 import scipy as sp
@@ -85,6 +85,9 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         oscillator length (required to define phi_operator and n_operator)
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     E_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     l_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -95,8 +98,9 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         omega: Union[float, None] = None,
         l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
+        id_str: Optional[str] = None
     ) -> None:
-        self._sys_type = type(self).__name__
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self._evec_dtype = np.float_
         self.truncated_dim: int = truncated_dim
         self.l_osc: Union[None, float] = l_osc
@@ -240,6 +244,9 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         oscillator length (used to define phi_operator and n_operator)
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     K = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
@@ -249,12 +256,14 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         K: float,
         l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
+        id_str: Optional[str] = None
     ) -> None:
 
         self.K: float = K
 
-        Oscillator.__init__(
-            self, E_osc=E_osc, omega=None, l_osc=l_osc, truncated_dim=truncated_dim
+        super().__init__(
+            self, E_osc=E_osc, omega=None, l_osc=l_osc, truncated_dim=truncated_dim,
+            id_str=id_str
         )
 
         self._image_filename = os.path.join(

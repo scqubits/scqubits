@@ -56,6 +56,9 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         charge basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -63,14 +66,15 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
     def __init__(
-        self, EJ: float, EC: float, ng: float, ncut: int, truncated_dim: int = 6
+        self, EJ: float, EC: float, ng: float, ncut: int, truncated_dim: int = 6,
+            id_str: Optional[str] = None
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ
         self.EC = EC
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
@@ -383,6 +387,9 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         charge basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     EJmax = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     d = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -397,7 +404,9 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         ng: float,
         ncut: int,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJmax = EJmax
         self.EC = EC
         self.d = d
@@ -405,7 +414,6 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
