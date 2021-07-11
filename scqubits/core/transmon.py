@@ -448,14 +448,6 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             "t1_charge_impedance",
         ]
 
-    @classmethod
-    def effective_noise_channels(cls) -> List[str]:
-        """Return a default list of channels used when calculating effective t1 and
-        t2 noise."""
-        noise_channels = cls.supported_noise_channels()
-        noise_channels.remove("t1_charge_impedance")
-        return noise_channels
-
     def d_hamiltonian_d_flux(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
         to `flux`."""
