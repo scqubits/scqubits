@@ -75,7 +75,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         flux: float,
         cutoff: int,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ

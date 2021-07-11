@@ -98,7 +98,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         omega: Union[float, None] = None,
         l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
-        id_str: Optional[str] = None
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self._evec_dtype = np.float_
@@ -256,14 +256,18 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         K: float,
         l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
-        id_str: Optional[str] = None
+        id_str: Optional[str] = None,
     ) -> None:
 
         self.K: float = K
 
         super().__init__(
-            self, E_osc=E_osc, omega=None, l_osc=l_osc, truncated_dim=truncated_dim,
-            id_str=id_str
+            self,
+            E_osc=E_osc,
+            omega=None,
+            l_osc=l_osc,
+            truncated_dim=truncated_dim,
+            id_str=id_str,
         )
 
         self._image_filename = os.path.join(

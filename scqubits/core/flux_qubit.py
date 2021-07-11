@@ -326,7 +326,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         flux: float,
         ncut: int,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ1 = EJ1

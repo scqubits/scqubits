@@ -444,7 +444,8 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             self.interaction_list = tuple(interaction_list)
         else:
             self.interaction_list = []
-        self._interaction_term_by_id_str = {"InteractionTerm_{}".format(index): interaction_term
+        self._interaction_term_by_id_str = {
+            "InteractionTerm_{}".format(index): interaction_term
             for index, interaction_term in enumerate(self.interaction_list)
         }
 

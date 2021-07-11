@@ -66,8 +66,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
     def __init__(
-        self, EJ: float, EC: float, ng: float, ncut: int, truncated_dim: int = 6,
-            id_str: Optional[str] = None
+        self,
+        EJ: float,
+        EC: float,
+        ng: float,
+        ncut: int,
+        truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ
@@ -404,7 +409,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         ng: float,
         ncut: int,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJmax = EJmax

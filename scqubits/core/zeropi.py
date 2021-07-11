@@ -123,7 +123,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         dCJ: float = 0.0,
         ECS: float = None,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
 

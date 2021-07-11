@@ -484,7 +484,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         zeta_cut: int,
         phi_cut: int,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ

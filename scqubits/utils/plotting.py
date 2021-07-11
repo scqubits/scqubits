@@ -45,6 +45,7 @@ if TYPE_CHECKING:
 
 try:
     from labellines import labelLines
+
     _LABELLINES_ENABLED = True
 except ImportError:
     _LABELLINES_ENABLED = False

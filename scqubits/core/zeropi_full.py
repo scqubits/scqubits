@@ -156,7 +156,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         ncut: int,
         ECS: float = None,
         truncated_dim: int = 6,
-        id_str: Optional[str] = None
+        id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self._zeropi = scqubits.ZeroPi(
@@ -173,7 +173,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             ECS=ECS,
             # the zeropi_cutoff defines the truncated_dim of the "base" zeropi object
             truncated_dim=zeropi_cutoff,
-            id_str=self._id_str + " [interior ZeroPi]"
+            id_str=self._id_str + " [interior ZeroPi]",
         )
         self.dC = dC
         self.dEL = dEL
