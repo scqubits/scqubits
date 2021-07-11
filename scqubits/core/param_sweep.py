@@ -80,6 +80,10 @@ class ParameterSweepBase(ABC):
     def get_subsys(self, index: int) -> QuantumSys:
         return self._hilbertspace[index]
 
+    @property
+    def hilbertspace(self):
+        return self._hilbertspace
+
     def get_subsys_index(self, subsys: QuantumSys) -> int:
         return self._hilbertspace.get_subsys_index(subsys)
 
