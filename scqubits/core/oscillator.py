@@ -95,7 +95,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     def __init__(
         self,
         E_osc: Union[float, None] = None,
-        omega: Union[float, None] = None,
         l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
         id_str: Optional[str] = None,
@@ -104,25 +103,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         self._evec_dtype = np.float_
         self.truncated_dim: int = truncated_dim
         self.l_osc: Union[None, float] = l_osc
-
-        # Support for omega will be rolled back eventually. For now allow with
-        # deprecation warnings.
-        if omega:
-            warnings.warn(
-                "Przestarza\u0142e! To avoid confusion about 2pi factors, use of omega "
-                "is deprecated. Use E_osc instead.",
-                FutureWarning,
-            )
-            self.E_osc = omega
-        # end of code supporting deprecated omega
-        elif E_osc:
-            self.E_osc = E_osc
-        else:
-            raise ValueError("E_osc is a mandatory argument.")
-
-        if "omega" in self._init_params:
-            self._init_params.remove("omega")
-
+        self.E_osc = E_osc
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.jpg"
         )
