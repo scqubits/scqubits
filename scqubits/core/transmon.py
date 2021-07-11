@@ -82,7 +82,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def default_params() -> Dict[str, Any]:
         return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -91,10 +92,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             "t1_charge_impedance",
         ]
 
-    def effective_noise_channels(self) -> List[str]:
+    @classmethod
+    def effective_noise_channels(cls) -> List[str]:
         """Return a default list of channels used when calculating effective t1 and
         t2 noise."""
-        noise_channels = self.supported_noise_channels()
+        noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
 
@@ -434,7 +436,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             "truncated_dim": 10,
         }
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_flux",
@@ -444,6 +447,14 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             "t1_flux_bias_line",
             "t1_charge_impedance",
         ]
+
+    @classmethod
+    def effective_noise_channels(cls) -> List[str]:
+        """Return a default list of channels used when calculating effective t1 and
+        t2 noise."""
+        noise_channels = cls.supported_noise_channels()
+        noise_channels.remove("t1_charge_impedance")
+        return noise_channels
 
     def d_hamiltonian_d_flux(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect

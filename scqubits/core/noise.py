@@ -100,19 +100,21 @@ NOISE_PARAMS = {
 
 
 class NoisySystem(ABC):
+    @classmethod
     @abstractmethod
-    def supported_noise_channels(self) -> List[str]:
+    def supported_noise_channels(cls) -> List[str]:
         pass
 
     @abstractmethod
     def set_and_return(self, attr_name: str, value: Any) -> object:
         pass
 
-    def effective_noise_channels(self) -> List[str]:
+    @classmethod
+    def effective_noise_channels(cls) -> List[str]:
         """Return a list of noise channels that are used when calculating the
         effective noise (i.e. via `t1_effective` and `t2_effective`.
         """
-        return self.supported_noise_channels()
+        return cls.supported_noise_channels()
 
     def plot_coherence_vs_paramvals(
         self,
