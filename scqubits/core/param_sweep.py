@@ -592,11 +592,14 @@ class ParameterSweepBase(ABC):
         """
         if isinstance(operator, str):
             operator_func = functools.partial(
-                sweeps.bare_matrixelement, operator_name=operator, subsystem=subsystem,
+                sweeps.bare_matrixelement,
+                operator_name=operator,
+                subsystem=subsystem,
             )
         elif isinstance(operator, Qobj):
             operator_func = functools.partial(
-                sweeps.dressed_matrixelement, operator=operator,
+                sweeps.dressed_matrixelement,
+                operator=operator,
             )
         else:
             raise TypeError(
@@ -604,7 +607,10 @@ class ParameterSweepBase(ABC):
                 "expected: str or Qobj."
             )
 
-        matrix_element_data = generator(self, operator_func,)
+        matrix_element_data = generator(
+            self,
+            operator_func,
+        )
         self._data[sweep_name] = matrix_element_data
 
 
@@ -900,7 +906,9 @@ class ParameterSweep(
         esys_array[1] = evecs
         return esys_array
 
-    def _dressed_spectrum_sweep(self,) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
+    def _dressed_spectrum_sweep(
+        self,
+    ) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
         """
 
         Returns
@@ -1144,7 +1152,11 @@ def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
     data_array = list(
         tqdm(
             map(
-                functools.partial(func_effective, params=reduced_parameters, **kwargs,),
+                functools.partial(
+                    func_effective,
+                    params=reduced_parameters,
+                    **kwargs,
+                ),
                 itertools.product(*reduced_parameters.ranges),
             ),
             total=total_count,
