@@ -11,6 +11,7 @@
 
 import copy
 import functools
+import inspect
 import itertools
 import warnings
 
@@ -138,6 +139,20 @@ class ParameterSweepBase(ABC):
                 self._out_of_sync = True
             elif event == "PARAMETERSWEEP_UPDATE" and sender is self:
                 self._out_of_sync = True
+
+    def set_update_func(self, update_hilbertspace: Callable) -> Callable:
+        """Account for the two possible signatures of the `update_hilbertspace`
+        function. Inspect whether a `self` argument is given. If not, return a
+        function that accepts `self` as a dummy argument."""
+        arguments = inspect.signature(update_hilbertspace)
+        if len(arguments.parameters) == len(self._parameters) + 1:
+            # update_hilbertspace function already includes self argument
+            return update_hilbertspace
+
+        # function is missing self argument; create function with self dummy variable
+        def full_update_func(sweep: "ParameterSweep", *args):
+            return update_hilbertspace(*args)
+        return full_update_func
 
     @property
     def bare_specdata_list(self) -> List[SpectrumData]:
@@ -649,7 +664,12 @@ class ParameterSweep(
         and the set of values to be used in the sweep.
     update_hilbertspace:
         function that updates the associated `hilbertspace` object with a given
-        set of parameters
+        set of parameters; signature is either
+        `update_hilbertspace(paramval1, paramval2, ...)`
+        or
+        `update_hilbertspace(self, paramval1, paramval2, ...)`
+        where `self` makes the `ParameterSweep` instance available, and thereby
+        dict-like access to subsystems and interaction terms
     evals_count:
         number of dressed eigenvalues/eigenstates to keep. (The number of bare
         eigenvalues/eigenstates is determined for each subsystems by `truncated_dim`.)
@@ -674,6 +694,15 @@ class ParameterSweep(
     autorun:
         Determines whether to directly run the sweep or delay it until `.run()` is
         called manually. (Default: `settings.AUTORUN_SWEEP=True`)
+    deepcopy:
+        if set to True, the parameter sweep is run with an exact copy of the Hilbert
+        space; this ensures that all parameters after the sweep are identical to
+        parameters before the sweep. Note: changing global HilbertSpace or
+        QuantumSystem attributes will have no effect with this option; all updates
+        must be made via `<ParameterSweep>.hilbertspace[<id_str>] = ... If
+        set to False (default), updates to global instances have the expected effect.
+        The HilbertSpace object and all its constituent parts are left in the state
+        reached by the very final parameter update.
     num_cpus:
         number of CPU cores requested for computing the sweep
         (default value `settings.NUM_CPUS`)
@@ -703,16 +732,18 @@ class ParameterSweep(
         subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
         bare_only: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
+        deepcopy: bool = False,
         num_cpus: Optional[int] = None,
     ) -> None:
         num_cpus = num_cpus or settings.NUM_CPUS
         self._parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
         self._evals_count = evals_count
-        self._update_hilbertspace = update_hilbertspace
+        self._update_hilbertspace = self.set_update_func(update_hilbertspace)
         self._subsys_update_info = subsys_update_info
         self._data: Dict[str, Optional[NamedSlotsNdarray]] = {}
         self._bare_only = bare_only
+        self._deepcopy = deepcopy
         self._num_cpus = num_cpus
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
 
@@ -727,7 +758,7 @@ class ParameterSweep(
 
     def cause_dispatch(self) -> None:
         initial_parameters = tuple(paramvals[0] for paramvals in self._parameters)
-        self._update_hilbertspace(*initial_parameters)
+        self._update_hilbertspace(self, *initial_parameters)
 
     @classmethod
     def deserialize(cls, iodata: "IOData") -> "StoredSweep":
@@ -760,8 +791,14 @@ class ParameterSweep(
         """Create all sweep data: bare spectral data, dressed spectral data, lookup
         data and custom sweep data."""
         # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
-        self.cause_dispatch()
+
+        if self._deepcopy:
+            stored_hilbertspace = copy.deepcopy(self._hilbertspace)
+            self._hilbertspace = copy.deepcopy(self._hilbertspace)
+        else:
+            self.cause_dispatch()
         settings.DISPATCH_ENABLED = False
+
         self._data["bare_evals"], self._data["bare_evecs"] = self._bare_spectrum_sweep()
         if not self._bare_only:
             self._data["evals"], self._data["evecs"] = self._dressed_spectrum_sweep()
@@ -771,6 +808,8 @@ class ParameterSweep(
                 self._data["chi"],
                 self._data["kerr"],
             ) = self._dispersive_coefficients()
+        if self._deepcopy:
+            self._hilbertspace = stored_hilbertspace  # restore original state
         settings.DISPATCH_ENABLED = True
 
     def _bare_spectrum_sweep(self) -> Tuple[NamedSlotsNdarray, NamedSlotsNdarray]:
@@ -810,7 +849,7 @@ class ParameterSweep(
     def _update_subsys_compute_esys(
         self, update_func: Callable, subsystem: QuantumSys, paramval_tuple: Tuple[float]
     ) -> ndarray:
-        update_func(*paramval_tuple)
+        update_func(self, *paramval_tuple)
         evals, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
         esys_array = np.empty(shape=(2,), dtype=object)
         esys_array[0] = evals
@@ -887,7 +926,7 @@ class ParameterSweep(
         paramindex_tuple: Tuple[int],
     ) -> ndarray:
         paramval_tuple = self._parameters[paramindex_tuple]
-        update_func(*paramval_tuple)
+        update_func(self, *paramval_tuple)
 
         assert self._data is not None
         bare_esys = {
