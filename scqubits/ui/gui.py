@@ -1094,9 +1094,7 @@ class GUI:
                 layout=widgets.Layout(width="800px"),
             ),
             "plot_buttons": widgets.ToggleButtons(
-                options=self.plot_choices,
-                description="Plot:",
-                button_style="info",
+                options=self.plot_choices, description="Plot:", button_style="info",
             ),
             "show_qubitinfo_checkbox": widgets.Checkbox(
                 value=False, description="qubit info", disabled=False
