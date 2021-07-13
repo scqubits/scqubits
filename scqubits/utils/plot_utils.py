@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 # A dictionary of plotting options that are directly passed to specific matplotlib's
 # plot commands.
 _direct_plot_options = {
-    "plot": ("alpha", "color", "linestyle", "linewidth", "marker", "markersize"),
+    "plot": ("alpha", "color", "linestyle", "linewidth", "marker", "markersize",
+             "legend"),
     "imshow": ("interpolation",),
     "contourf": tuple(),  # empty for now
 }
