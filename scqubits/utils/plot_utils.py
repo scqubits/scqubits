@@ -36,7 +36,7 @@ _direct_plot_options = {
         "linewidth",
         "marker",
         "markersize",
-        "legend",
+        "label",
     ),
     "imshow": ("interpolation",),
     "contourf": tuple(),  # empty for now
