@@ -14,7 +14,8 @@ import numpy as np
 
 import scqubits.settings
 
-from scqubits import Fluxonium, FluxQubit, Grid1d, Transmon, TunableTransmon, ZeroPi
+from scqubits import Fluxonium, FluxQubit, Grid1d, Transmon, TunableTransmon, ZeroPi,\
+    Cos2PhiQubit
 
 # WE do not need a warning during testing
 scqubits.settings.T1_DEFAULT_WARNING = False
@@ -67,6 +68,10 @@ data = {
     ),
     "ZeroPi": np.array(
         [3806664.01882053, 41202847.68864658, np.inf, np.inf, np.inf, 3484716.71474053]
+    ),
+    "Cos2PhiQubit": np.array(
+        [138385704.8120299, np.inf, np.inf, 1252199267.3149421, 1273137.1296252932,
+         422898419.10840535, 1268030.4864707834, 2490421.4209534894]
     ),
 }
 
@@ -139,3 +144,20 @@ class TestNoise:
             ncut=30,
         )
         assert compare_coherence_to_reference(qubit, "ZeroPi")
+
+    def test_Cos2PhiQubit(self):
+        qubit = Cos2PhiQubit(
+            EJ=15.0,
+            ECJ=2.0,
+            EL=1.0,
+            EC=0.04,
+            dCJ=0.0,
+            dL=0.6,
+            dEJ=0.0,
+            flux=0.5,
+            ng=0.0,
+            ncut=7,
+            zeta_cut=30,
+            phi_cut=7,
+        )
+        assert compare_coherence_to_reference(qubit, "Cos2PhiQubit")
