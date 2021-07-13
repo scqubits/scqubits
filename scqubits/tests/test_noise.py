@@ -13,6 +13,7 @@
 import numpy as np
 
 import scqubits.settings
+
 from scqubits import Fluxonium, FluxQubit, Grid1d, Transmon, TunableTransmon, ZeroPi
 
 # WE do not need a warning during testing

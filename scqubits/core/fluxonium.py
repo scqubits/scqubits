@@ -94,7 +94,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             "truncated_dim": 10,
         }
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -106,9 +107,10 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             "t1_quasiparticle_tunneling",
         ]
 
-    def effective_noise_channels(self) -> List[str]:
+    @classmethod
+    def effective_noise_channels(cls) -> List[str]:
         """Return a default list of channels used when calculating effective t1 and t2 nosie."""
-        noise_channels = self.supported_noise_channels()
+        noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
 

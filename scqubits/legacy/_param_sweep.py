@@ -133,7 +133,7 @@ class _ParameterSweep(
     composite quantum system, as an externa, parameter, such as flux, is swept over
     some given interval of values. Upon initialization, these data are calculated and
     stored internally, so that plots can be generated efficiently. This is of
-    particular use for interactive displays used in the Explorer class.
+    particular use for interactive displays used in the Explorer_ class.
 
     Parameters
     ----------
@@ -153,7 +153,7 @@ class _ParameterSweep(
         update_hilbertspace(param_val) specifies how a change in the external
         parameter affects the Hilbert space components
     num_cpus:
-        number of CPUS requested for computing the sweep (default value settings.NUM_CPUS)
+        number of CPUS requested for computing the sweep (default: settings.NUM_CPUS)
     """
 
     param_name = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
@@ -197,7 +197,7 @@ class _ParameterSweep(
 
     def run(self) -> None:
         """Top-level method for generating all parameter sweep data"""
-        self.cause_dispatch()  # generate one dispatch before temporarily disabling CENTRAL_DISPATCH
+        self.cause_dispatch()  # one dispatch before temp. disabling CENTRAL_DISPATCH
         settings.DISPATCH_ENABLED = False
         bare_specdata_list = self._compute_bare_specdata_sweep()
         dressed_specdata = self._compute_dressed_specdata_sweep(bare_specdata_list)

@@ -65,7 +65,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         pass
 
     def t1_inductive(
-        self,
+        self: "Cos2PhiQubit",
         i: int = 1,
         j: int = 0,
         Q_ind: Union[float, Callable] = None,
@@ -196,7 +196,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             return 1 / (rate_1 + rate_2)
 
     def t1_capacitive(
-        self,
+        self: "Cos2PhiQubit",
         i: int = 1,
         j: int = 0,
         Q_cap: Union[float, Callable] = None,
@@ -318,7 +318,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             return 1 / (rate_1 + rate_2)
 
     def t1_purcell(
-        self,
+        self: "Cos2PhiQubit",
         i: int = 1,
         j: int = 0,
         Q_cap: Union[float, Callable] = None,
@@ -406,7 +406,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         )
 
 
-# -Cosine two phi qubit ----------------------------------------------------------------------------------
+# -Cosine two phi qubit ----------------------------------------------------------------
 class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit):
     r"""Cosine Two Phi Qubit
 
@@ -529,7 +529,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         cosinetwophiqubit.widget()
         return cosinetwophiqubit
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",

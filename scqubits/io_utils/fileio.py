@@ -34,8 +34,8 @@ class IOData:
     def __init__(
         self,
         typename: str,
-        attributes: Dict[str, Any],
-        ndarrays: Dict[str, ndarray],
+        attributes: Union[Dict[str, Any], None],
+        ndarrays: Union[Dict[str, ndarray], None],
         objects: Any = None,
     ) -> None:
         self.typename = typename
@@ -44,7 +44,8 @@ class IOData:
         self.objects = objects or {}
 
     def as_kwargs(self) -> Dict[str, Any]:
-        """Return a joint dictionary of attributes, ndarrays, and objects, as used in __init__ calls"""
+        """Return a joint dictionary of attributes, ndarrays, and objects, as used in
+        __init__ calls"""
         return {**self.attributes, **self.ndarrays, **self.objects}
 
 
@@ -88,8 +89,8 @@ def deserialize(iodata: IOData) -> Any:
 
 def write(the_object: Any, filename: str, file_handle: h5py.Group = None) -> None:
     """
-    Write `the_object` to a file with name `filename`. The optional `file_handle` parameter is used as a group name
-    in case of h5 files.
+    Write `the_object` to a file with name `filename`. The optional `file_handle`
+    parameter is used as a group name in case of h5 files.
 
     Parameters
     ----------
@@ -130,7 +131,8 @@ class FileIOFactory:
 
     def get_writer(self, file_name: str, file_handle: h5py.Group = None) -> "IOWriter":
         """
-        Based on the extension of the provided file name, return the appropriate writer engine.
+        Based on the extension of the provided file name, return the appropriate
+        writer engine.
         """
         import scqubits.io_utils.fileio_backends as io_backends
 
@@ -151,7 +153,8 @@ class FileIOFactory:
         get_external_reader: Callable = None,
     ) -> Union["CSVReader", "H5Reader"]:
         """
-        Based on the extension of the provided file name, return the appropriate reader engine.
+        Based on the extension of the provided file name, return the appropriate
+        reader engine.
         """
         if get_external_reader:
             return get_external_reader(file_name, file_handle=file_handle)

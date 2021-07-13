@@ -13,7 +13,7 @@
 import numpy as np
 
 import scqubits.core.storage as storage
-import scqubits.core.sweep_observables as observable
+import scqubits.legacy.sweep_observables as observable
 import scqubits.settings as settings
 import scqubits.utils.spectrum_utils as spec_utils
 

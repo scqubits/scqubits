@@ -39,6 +39,8 @@ def number(dimension: int, prefactor: Union[float, complex] = None) -> ndarray:
 
     Parameters
     ----------
+    dimension:
+        matrix dimension
     prefactor:
         prefactor multiplying the number operator matrix
 
