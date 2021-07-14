@@ -10,9 +10,9 @@
 ############################################################################
 
 import numpy as np
+import os
 from scipy import sparse
 from scipy.sparse.linalg import eigsh
-from scipy.special import kn
 
 import scqubits.core.constants as constants
 import scqubits.core.discretization as discretization
@@ -21,7 +21,11 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
-import scqubits.utils.spectrum_utils as matele_utils
+import scqubits.core.descriptors as descriptors
+from scqubits.core.storage import WaveFunctionOnGrid
+from typing import Any, Callable, Dict, List, Tuple, Union
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 
 # — Inductively-shunted Rhombus circuit ————————————————————————
@@ -36,6 +40,8 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         junction charging energy
     EL: float
         inductive energy
+    ELA: float
+        additional inductive energy
     flux_c: float
         common part of the external flux, e.g., 1 corresponds to one flux quantum
     flux_d: float
@@ -43,25 +49,39 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
     kbt: float
         photon temperature
     """
+    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    ELA = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    flux_c = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    flux_d = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    phi_grid = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    theta_grid = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
 
-    def __init__(self, EJ, EC, EL, flux_c, flux_d):
+    def __init__(self, EJ, EC, EL, ELA, flux_c, flux_d, truncated_dim: int = 6):
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
+        self.ELA = ELA
         self.flux_c = flux_c
         self.flux_d = flux_d
         self.phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.theta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
-        self.truncated_dim = 30
+        self.truncated_dim = truncated_dim
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
+        self._image_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "qubit_img/cos2phi-qubit.jpg",
+        )
 
     @staticmethod
     def default_params():
         return {
-            "EJ": 15.0,
-            "EC": 3.5,
-            "EL": 0.32,
+            "EJ": 4.5,
+            "EC": 1.0,
+            "EL": 0.1,
+            "ELA": 0.1,
             "flux_c": 0.5,
             "flux_d": 0.0,
         }
@@ -271,24 +291,27 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         )
 
         phi_ind = (
-            self.EL
-            * (self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux_c)
-            ** 2
+                self.EL
+                * (
+                            self.phi_operator() - self.total_identity() * 2 * np.pi * self.flux_c)
+                ** 2
         )
         theta_ind = (
-            self.EL
-            * (self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d)
-            ** 2
+                self.EL
+                / (1 + 2 * self.EL / self.ELA)
+                * (
+                            self.theta_operator() - self.total_identity() * 2 * np.pi * self.flux_d)
+                ** 2
         )
 
         # note the 2EJ constant term is added to be consistent with the 'LM' option in _evals_calc and _esys_calc
         phi_theta_junction = (
-            -2
-            * self.EJ
-            * self._kron2(
-                self._cos_phi_div_operator(1.0), self._cos_theta_div_operator(1.0)
-            )
-            + 2 * self.EJ * self.total_identity()
+                -2
+                * self.EJ
+                * self._kron2(
+            self._cos_phi_div_operator(1.0), self._cos_theta_div_operator(1.0)
+        )
+                + 2 * self.EJ * self.total_identity()
         )
 
         return tot_kinetic + phi_ind + theta_ind + phi_theta_junction
@@ -308,10 +331,16 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         -------
         float or ndarray
         """
-        return 0
+        return (
+                self.EL * (phi - 2 * np.pi * self.flux_c) ** 2
+                + self.EL
+                / (1 + 2 * self.EL / self.ELA)
+                * (theta - 2 * np.pi * self.flux_d) ** 2
+                - 2 * self.EJ * np.cos(phi) * np.cos(theta)
+        )
 
     def plot_potential(
-        self, phi_grid=None, theta_grid=None, contour_vals=None, **kwargs
+            self, phi_grid=None, theta_grid=None, contour_vals=None, **kwargs
     ):
         """
         Draw contour plot of the potential energy.
@@ -360,7 +389,8 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def wavefunction(self, esys=None, which=0, phi_grid=None, theta_grid=None):
+    def wavefunction(self, esys=None, which=0, phi_grid=None,
+                     theta_grid=None) -> WaveFunctionOnGrid:
         """Returns a wave function in `phi`, `theta` basis
 
         Parameters
@@ -401,15 +431,15 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
         return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
     def plot_wavefunction(
-        self,
-        esys=None,
-        which=0,
-        phi_grid=None,
-        theta_grid=None,
-        mode="abs",
-        zero_calibrate=True,
-        **kwargs
-    ):
+            self,
+            esys=None,
+            which=0,
+            phi_grid=None,
+            theta_grid=None,
+            mode="abs",
+            zero_calibrate=True,
+            **kwargs
+    ) -> Tuple[Figure, Axes]:
         """
         Plots 2D wave function in `phi`, `theta` basis
 
@@ -455,8 +485,10 @@ class Protomon(base.QubitBaseClass, serializers.Serializable):
                 wavefunc.amplitudes.reshape(phi_grid.pt_count, theta_grid.pt_count)
             )
         )
-
-        fig, axes = plot.wavefunction2d(
-            wavefunc, zero_calibrate=zero_calibrate, **kwargs
+        return plot.wavefunction2d(
+            wavefunc,
+            zero_calibrate=zero_calibrate,
+            ylabel=r"$\theta$",
+            xlabel=r"$\phi$",
+            **kwargs
         )
-        return fig, axes

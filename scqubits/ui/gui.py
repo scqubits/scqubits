@@ -167,6 +167,7 @@ class GUI:
             "flux_c": {"min": 0, "max": 1},
             "flux_d": {"min": 0, "max": 1},
             "EL": {"min": 1e-10, "max": 5},
+            "ELA": {"min": 1e-10, "max": 5},
             "scale": None,
             "num_sample": 50,
         }
@@ -198,7 +199,7 @@ class GUI:
             "FluxQubit",
             "ZeroPi",
             "FullZeroPi",
-            "Cos2PhiQubit"
+            "Cos2PhiQubit",
             "Protomon",
         ]
         self.gui_active = True
@@ -778,6 +779,7 @@ class GUI:
                 isinstance(self.active_qubit, scq.FluxQubit)
                 or isinstance(self.active_qubit, scq.ZeroPi)
                 or isinstance(self.active_qubit, scq.Cos2PhiQubit)
+                or isinstance(self.active_qubit, scq.Protomon)
             ):
                 which_widget = self.qubit_plot_options_widgets[
                     "wavefunction_single_state_selector"
@@ -789,7 +791,8 @@ class GUI:
 
             if isinstance(self.active_qubit, scq.ZeroPi):
                 interactive_choice = self.grid_wavefunction_plot
-            elif isinstance(self.active_qubit, (scq.FluxQubit, scq.Cos2PhiQubit)):
+            elif isinstance(self.active_qubit, (scq.FluxQubit, scq.Cos2PhiQubit,
+                                                scq.Protomon)):
                 interactive_choice = self.wavefunction_plot
             else:
                 interactive_choice = self.scaled_wavefunction_plot
