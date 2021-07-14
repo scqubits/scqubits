@@ -63,6 +63,9 @@ except NameError:
 # spectrum utils
 from scqubits.utils.spectrum_utils import identity_wrap
 
+# for showing scqubits info
+from scqubits.utils.misc import about, cite
+
 # version
 try:
     from scqubits.version import version as __version__
