@@ -160,6 +160,16 @@ class GUI:
             "scale": None,
             "num_sample": 50,
         }
+        protomon_defaults = {
+            **global_defaults,
+            "scan_param": "flux_c",
+            "operator": "n_phi_operator",
+            "flux_c": {"min": 0, "max": 1},
+            "flux_d": {"min": 0, "max": 1},
+            "EL": {"min": 1e-10, "max": 5},
+            "scale": None,
+            "num_sample": 50,
+        }
         self.qubit_defaults = {
             "Transmon": transmon_defaults,
             "TunableTransmon": tunabletransmon_defaults,
@@ -168,6 +178,7 @@ class GUI:
             "ZeroPi": zeropi_defaults,
             "FullZeroPi": fullzeropi_defaults,
             "Cos2PhiQubit": cos2phiqubit_defaults,
+            "Protomon": protomon_defaults
         }
         self.grid_defaults = {
             "grid_min_val": -6 * np.pi,
@@ -187,11 +198,13 @@ class GUI:
             "FluxQubit",
             "ZeroPi",
             "FullZeroPi",
-            "Cos2PhiQubit",
+            "Cos2PhiQubit"
+            "Protomon",
         ]
         self.gui_active = True
         self.qubit_change = True
-        self.slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
+        self.slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit",
+                            "Protomon"]
         self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
         self.fig: Figure
         self.qubit_current_params: Dict[str, Union[int, float, None]] = {}

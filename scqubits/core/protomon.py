@@ -25,7 +25,7 @@ import scqubits.utils.spectrum_utils as matele_utils
 
 
 # — Inductively-shunted Rhombus circuit ————————————————————————
-class BareProtomon(base.QubitBaseClass, serializers.Serializable):
+class Protomon(base.QubitBaseClass, serializers.Serializable):
     r"""inductively-shunted Rhombus qubit, with the harmonic mode in the ground state
 
     Parameters
@@ -53,7 +53,6 @@ class BareProtomon(base.QubitBaseClass, serializers.Serializable):
         self.phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.theta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self.truncated_dim = 30
-        self.ph = 0  # placeholder
         self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
 
@@ -63,7 +62,6 @@ class BareProtomon(base.QubitBaseClass, serializers.Serializable):
             "EJ": 15.0,
             "EC": 3.5,
             "EL": 0.32,
-            "ELA": 0.32,
             "flux_c": 0.5,
             "flux_d": 0.0,
         }
@@ -402,7 +400,7 @@ class BareProtomon(base.QubitBaseClass, serializers.Serializable):
         )
         return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
 
-    def plot_phi_theta_wavefunction(
+    def plot_wavefunction(
         self,
         esys=None,
         which=0,
@@ -461,12 +459,4 @@ class BareProtomon(base.QubitBaseClass, serializers.Serializable):
         fig, axes = plot.wavefunction2d(
             wavefunc, zero_calibrate=zero_calibrate, **kwargs
         )
-        axes.set_xlim([-2 * np.pi, 2 * np.pi])
-        axes.set_ylim([-1 * np.pi, 3 * np.pi])
-        axes.set_ylabel(r"$\phi$")
-        axes.set_xlabel(r"$\theta$")
-        axes.set_xticks([-np.pi, 0, np.pi])
-        axes.set_xticklabels(["-$\pi$", "$0$", "$\pi$"])
-        axes.set_yticks([0, np.pi, 2 * np.pi])
-        axes.set_yticklabels(["0", "$\pi$", "$2\pi$"])
         return fig, axes
