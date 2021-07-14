@@ -9,79 +9,86 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import functools
-import itertools
-
-from typing import TYPE_CHECKING, Any, Tuple
+from typing import TYPE_CHECKING, Tuple
 
 import numpy as np
 
-import scqubits.settings as settings
+from qutip import Qobj
 
-from scqubits.core.namedslots_array import NamedSlotsNdarray
+from scqubits.core.qubit_base import QubitBaseClass
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
 
 
-if settings.IN_IPYTHON:
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
-
-
-def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
-    """Method for computing custom data as a function of the external parameter,
-    calculated via the function `func`.
+def bare_matrixelement(
+    sweep: "ParameterSweep",
+    paramindex_tuple: Tuple[int, ...],
+    paramvals_tuple: Tuple[float, ...],
+    operator_name: str,
+    subsystem: QubitBaseClass,
+) -> np.ndarray:
+    """
+    Given parameter sweep data, compute and return a matrix element table using the bare
+    states of the specified subsystem.
 
     Parameters
     ----------
     sweep:
-        ParameterSweep object containing HilbertSpace and spectral information
-    func:
-        signature: `func(parametersweep, [paramindex_tuple, paramvals_tuple,
-        **kwargs])`, specifies how to calculate the data for a single choice of
-        parameter(s)
-    **kwargs:
-        keyword arguments to be included in func
+        `ParameterSweep` object to be used for the computation
+    paramindex_tuple:
+        a complete set of parameter indices (i.e. a single point in the multi-dim
+        parameter space)
+    paramvals_tuple:
+        [not used, but required by `generator` interface]
+    operator_name:
+        operator for which matrix elements are requested, given in string form
+    subsystem:
+        subsystem belonging to the underlying Hilbert space and compatible with the
+        specified operator name
 
     Returns
     -------
-        array of custom data
+        ndarray of matrix elements, in general complex-valued; shape: square array of
+        size set by the truncated_dim of the subsystem
     """
-    reduced_parameters = sweep._parameters.create_sliced(
-        sweep._current_param_indices, remove_fixed=False
+    subsys_index = sweep.get_subsys_index(subsystem)
+    bare_evecs = sweep["bare_evecs"][subsys_index][paramindex_tuple]
+    return subsystem.matrixelement_table(
+        operator=operator_name,
+        evecs=bare_evecs,
+        evals_count=subsystem.truncated_dim,
     )
-    total_count = np.prod(reduced_parameters.counts)
 
-    def func_effective(paramindex_tuple: Tuple[int], params, **kw) -> Any:
-        paramvals_tuple = params[paramindex_tuple]
-        return func(
-            sweep,
-            paramindex_tuple=paramindex_tuple,
-            paramvals_tuple=paramvals_tuple,
-            **kw,
-        )
 
-    if hasattr(func, "__name__"):
-        func_name = func.__name__
-    else:
-        func_name = ""
+def dressed_matrixelement(
+    sweep: "ParameterSweep",
+    paramindex_tuple: Tuple[int, ...],
+    paramvals_tuple: Tuple[float, ...],
+    operator: Qobj,
+) -> np.ndarray:
+    """
+    Given parameter sweep data, compute and return a matrix element table using the
+    dressed states of the composite Hilbert space.
 
-    data_array = list(
-        tqdm(
-            map(
-                functools.partial(func_effective, params=reduced_parameters, **kwargs,),
-                itertools.product(*reduced_parameters.ranges),
-            ),
-            total=total_count,
-            desc="sweeping " + func_name,
-            leave=False,
-            disable=settings.PROGRESSBAR_DISABLED,
-        )
-    )
-    data_array = np.asarray(data_array)
-    return NamedSlotsNdarray(
-        data_array.reshape(reduced_parameters.counts),
-        reduced_parameters.paramvals_by_name,
+    Parameters
+    ----------
+    sweep:
+        `ParameterSweep` object to be used for the computation
+    paramindex_tuple:
+        a complete set of parameter indices (i.e. a single point in the multi-dim
+        parameter space)
+    paramvals_tuple:
+        [not used, but required by `generator` interface]
+    operator:
+        given as `Qobj`, valid operator in the full Hilbert space
+
+    Returns
+    -------
+        ndarray of matrix elements, in general complex-valued; shape: square array of
+        size set by the truncated_dim of the subsystem
+    """
+    evecs = sweep["evecs"][paramindex_tuple]
+    return np.asarray(
+        [[operator.matrix_element(evec1, evec2) for evec1 in evecs] for evec2 in evecs]
     )

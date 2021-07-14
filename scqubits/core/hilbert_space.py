@@ -173,7 +173,9 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     add_hc = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
 
     def __new__(
-        cls, *args, **kwargs,
+        cls,
+        *args,
+        **kwargs,
     ) -> Union["InteractionTerm", InteractionTermLegacy]:
         """This takes care of legacy use of the InteractionTerm class"""
         if "subsys1" in kwargs:
@@ -588,7 +590,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     # HilbertSpace: energy spectrum
     ##################################################################################
     def eigenvals(
-        self, evals_count: int = 6, bare_esys: Optional[Dict[int, ndarray]] = None,
+        self,
+        evals_count: int = 6,
+        bare_esys: Optional[Dict[int, ndarray]] = None,
     ) -> ndarray:
         """Calculates eigenvalues of the full Hamiltonian using
         `qutip.Qob.eigenenergies()`.
@@ -605,7 +609,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         return hamiltonian_mat.eigenenergies(eigvals=evals_count)
 
     def eigensys(
-        self, evals_count: int = 6, bare_esys: Optional[Dict[int, ndarray]] = None,
+        self,
+        evals_count: int = 6,
+        bare_esys: Optional[Dict[int, ndarray]] = None,
     ) -> Tuple[ndarray, QutipEigenstates]:
         """Calculates eigenvalues and eigenvectors of the full Hamiltonian using
         `qutip.Qob.eigenstates()`.
@@ -651,7 +657,10 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     # HilbertSpace: Hamiltonian (bare, interaction, full)
     #######################################################
 
-    def hamiltonian(self, bare_esys: Optional[Dict[int, ndarray]] = None,) -> Qobj:
+    def hamiltonian(
+        self,
+        bare_esys: Optional[Dict[int, ndarray]] = None,
+    ) -> Qobj:
         """
         Parameters
         ----------

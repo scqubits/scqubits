@@ -48,6 +48,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
     def d_hamiltonian_d_EJ3(self) -> ndarray:
         pass
 
+    @classmethod
     @abstractmethod
     def supported_noise_channels(self) -> List[str]:
         pass
@@ -364,7 +365,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             "truncated_dim": 10,
         }
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc1",

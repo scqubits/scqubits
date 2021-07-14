@@ -11,9 +11,10 @@
 
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
+import numpy as np
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from numpy import ndarray
 
 import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.plotting as plot
@@ -24,17 +25,18 @@ if TYPE_CHECKING:
     from scqubits.core.discretization import GridSpec
 
 
-# —WaveFunction class———————————————————————————————————————————————————————————————————————————————————————————————————
+# —WaveFunction class———————————————————————————————————————————————————————————————————
 
 
 class WaveFunction:
-    """Container for wave function amplitudes defined for a specific basis. Optionally, a corresponding
-    energy is saved as well.
+    """Container for wave function amplitudes defined for a specific basis.
+    Optionally,  a corresponding energy is saved as well.
 
     Parameters
     ----------
     basis_labels:
-        labels of basis states; for example, in position basis: values of position variable
+        labels of basis states; for example, in position basis: values of position
+        variable
     amplitudes:
         wave function amplitudes for each basis label value
     energy:
@@ -42,19 +44,41 @@ class WaveFunction:
     """
 
     def __init__(
-        self, basis_labels: ndarray, amplitudes: ndarray, energy: float = None
+        self, basis_labels: np.ndarray, amplitudes: np.ndarray, energy: float = None
     ) -> None:
         self.basis_labels = basis_labels
         self.amplitudes = amplitudes
         self.energy = energy
 
+    def rescale(self, scale_factor: float) -> None:
+        """Rescale the wavefunction amplitudes by a given factor"""
+        self.amplitudes *= scale_factor
 
-# —WaveFunctionOnGrid class—————————————————————————————————————————————————————————————————————————————————————————————
+    def rescale_to_potential(self, potential_vals: np.ndarray):
+        """
+        Rescale the dimensionless amplitude to a (pseudo-)energy that allows us to plot
+        wavefunctions and potential energies in the same plot.
+
+        Parameters
+        ----------
+        potential_vals:
+            array of potential energy values (that determine the energy range on the y axis
+
+        """
+        FILL_FACTOR = 0.1
+        energy_range = np.max(potential_vals) - np.min(potential_vals)
+        amplitude_range = np.max(self.amplitudes) - np.min(self.amplitudes)
+        if amplitude_range < 1.0e-10:
+            return 0.0
+        self.amplitudes *= FILL_FACTOR * energy_range / amplitude_range
+
+
+# —WaveFunctionOnGrid class—————————————————————————————————————————————————————————————
 
 
 class WaveFunctionOnGrid:
-    """Container for wave function amplitudes defined on a coordinate grid (arbitrary dimensions).
-    Optionally, a corresponding eigenenergy is saved as well.
+    """Container for wave function amplitudes defined on a coordinate grid (arbitrary
+    dimensions). Optionally, a corresponding eigenenergy is saved as well.
 
     Parameters
     ----------
@@ -67,18 +91,19 @@ class WaveFunctionOnGrid:
     """
 
     def __init__(
-        self, gridspec: "GridSpec", amplitudes: ndarray, energy: float = None
+        self, gridspec: "GridSpec", amplitudes: np.ndarray, energy: float = None
     ) -> None:
         self.gridspec = gridspec
         self.amplitudes = amplitudes
         self.energy = energy
 
 
-# —BaseData class———————————————————————————————————————————————————————————————————————————————————————————————————
+# —BaseData class———————————————————————————————————————————————————————————————————————
 
 
 class DataStore(serializers.Serializable):
-    """Base class for storing and processing spectral data and custom data from parameter sweeps.
+    """Base class for storing and processing spectral data and custom data from
+    parameter sweeps.
 
     Parameters
     ----------
@@ -89,20 +114,21 @@ class DataStore(serializers.Serializable):
     param_vals:
         parameter values for which spectrum data are stored
     **kwargs:
-        keyword arguments for data to be stored: ``dataname=data``, where data should be an array-like object
+        keyword arguments for data to be stored: ``dataname=data``, where data should be
+        an array-like object
     """
 
     def __init__(
         self,
         system_params: Dict[str, Any],
         param_name: str = None,
-        param_vals: ndarray = None,
+        param_vals: np.ndarray = None,
         **kwargs
     ) -> None:
         self.system_params = system_params
         self.param_name = param_name
         self.param_vals = param_vals
-        if isinstance(param_vals, ndarray):
+        if isinstance(param_vals, np.ndarray):
             self.param_count = len(self.param_vals)  # type: ignore
         else:
             self.param_count = 1  # just one value if there is no parameter sweep
@@ -122,8 +148,8 @@ class DataStore(serializers.Serializable):
         Parameters
         ----------
         **kwargs:
-            ``dataname=data`` with ``data`` an array-like object. The data set will be accessible through
-            ``<DataStorage>.dataname``.
+            ``dataname=data`` with ``data`` an array-like object. The data set will
+            be  accessible through ``<DataStorage>.dataname``.
         """
         for dataname, data in kwargs.items():
             setattr(self, dataname, data)
@@ -133,7 +159,7 @@ class DataStore(serializers.Serializable):
             )  # register additional dataset for file IO
 
 
-# —SpectrumData class———————————————————————————————————————————————————————————————————————————————————————————————————
+# —SpectrumData class———————————————————————————————————————————————————————————————————
 
 
 class SpectrumData(DataStore):
@@ -152,8 +178,8 @@ class SpectrumData(DataStore):
         name of parameter being varied
     param_vals:
         parameter values for which spectrum data are stored
-    state_table: Union[List[QutipEigenstates], ndarray, List[ndarray]]
-        eigenstate data stored for each `param_vals` point, either as pure ndarray or
+    state_table: Union[List[QutipEigenstates], np.ndarray, List[np.ndarray]]
+        eigenstate data stored for each `param_vals` point, either as pure np.ndarray or
         list of qutip.qobj
     matrixelem_table:
         matrix element data stored for each `param_vals` point
@@ -162,12 +188,12 @@ class SpectrumData(DataStore):
     # mark for file serializers purposes:
     def __init__(
         self,
-        energy_table: ndarray,
+        energy_table: Union[np.ndarray, list],
         system_params: Dict[str, Any],
         param_name: str = None,
-        param_vals: ndarray = None,
-        state_table: Union[List[QutipEigenstates], ndarray, List[ndarray]] = None,
-        matrixelem_table: ndarray = None,
+        param_vals: np.ndarray = None,
+        state_table: Union[List[QutipEigenstates], np.ndarray, List[np.ndarray]] = None,
+        matrixelem_table: np.ndarray = None,
         **kwargs
     ) -> None:
         self.system_params = system_params
@@ -175,7 +201,7 @@ class SpectrumData(DataStore):
         self.param_vals = param_vals
         self.energy_table = energy_table
         self.state_table = state_table
-        self.matrixelem_table: ndarray = matrixelem_table
+        self.matrixelem_table: np.ndarray = matrixelem_table
         super().__init__(
             system_params=system_params,
             param_name=param_name,

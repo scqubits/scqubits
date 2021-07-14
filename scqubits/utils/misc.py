@@ -28,8 +28,8 @@ else:
 
 
 def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]:
-    """
-    Processes different ways of specifying the selection of wanted eigenvalues/eigenstates.
+    """Processes different ways of specifying the selection of  wanted
+    eigenvalues/eigenstates.
 
     Parameters
     ----------
@@ -198,3 +198,16 @@ def get_shape(lst, shape=()):
     shape = get_shape(lst[0], shape)
 
     return shape
+
+
+def tuple_to_short_str(the_tuple: tuple) -> str:
+    short_str = ""
+    for entry in the_tuple:
+        short_str += str(entry) + ","
+    return short_str[:-1]
+
+
+def to_list(obj: Any) -> list:
+    if isinstance(obj, (list, np.ndarray)):
+        return obj
+    return [obj]

@@ -39,8 +39,8 @@ def create_widget(
     Parameters
     ----------
     callback_func:
-        callback_function depends on all the parameters provided as keys (str) in the parameter_dict, and is called upon
-        changes of values inside the widgets
+        callback_function depends on all the parameters provided as keys (str) in the
+        parameter_dict, and is called upon changes of values inside the widgets
     init_params:
         names and values of initialization parameters
     image_filename:

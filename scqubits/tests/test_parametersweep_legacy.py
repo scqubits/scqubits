@@ -17,8 +17,8 @@ import scqubits as scq
 
 from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
-from scqubits.core.sweep_generators import generate_diffspec_sweep
-from scqubits.utils.spectrum_utils import absorption_spectrum, get_matrixelement_table
+from scqubits.legacy.sweep_generators import generate_diffspec_sweep
+from scqubits.utils.spectrum_utils import absorption_spectrum
 
 
 @pytest.mark.usefixtures("num_cpus")

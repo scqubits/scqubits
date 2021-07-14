@@ -65,7 +65,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         pass
 
     def t1_inductive(
-        self,
+        self: "Cos2PhiQubit",
         i: int = 1,
         j: int = 0,
         Q_ind: Union[float, Callable] = None,
@@ -196,7 +196,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             return 1 / (rate_1 + rate_2)
 
     def t1_capacitive(
-        self,
+        self: "Cos2PhiQubit",
         i: int = 1,
         j: int = 0,
         Q_cap: Union[float, Callable] = None,
@@ -318,7 +318,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             return 1 / (rate_1 + rate_2)
 
     def t1_purcell(
-        self,
+        self: "Cos2PhiQubit",
         i: int = 1,
         j: int = 0,
         Q_cap: Union[float, Callable] = None,
@@ -406,7 +406,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         )
 
 
-# -Cosine two phi qubit ----------------------------------------------------------------------------------
+# -Cosine two phi qubit ----------------------------------------------------------------
 class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit):
     r"""Cosine Two Phi Qubit
 
@@ -501,7 +501,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self._default_zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_theta_grid = discretization.Grid1d(-0.5 * np.pi, 1.5 * np.pi, 100)
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/cos2phi-qubit.jpg",
+            os.path.dirname(os.path.abspath(__file__)),
+            "qubit_img/cos2phi-qubit.jpg",
         )
 
     @staticmethod
@@ -528,7 +529,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         cosinetwophiqubit.widget()
         return cosinetwophiqubit
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -1151,6 +1153,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return junction_mat + dis_junction_mat
 
     def d_hamiltonian_d_ng(self) -> csc_matrix:
-        return 4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator() - 4 * self._disordered_ecj() * (
-            self.n_theta_operator() - self.ng - self.n_zeta_operator()
+        return (
+            4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
+            - 4
+            * self._disordered_ecj()
+            * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
         )

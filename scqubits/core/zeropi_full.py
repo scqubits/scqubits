@@ -212,7 +212,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeropi.widget()
         return zeropi
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -320,7 +321,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         ) + sparse.kron(zeropi_coupling.conjugate().T, op.creation_sparse(zeta_dim))
 
         if return_parts:
-            return (hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat)
+            return hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat
 
         return hamiltonian_mat.tocsc()
 

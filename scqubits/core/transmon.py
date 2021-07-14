@@ -82,7 +82,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def default_params() -> Dict[str, Any]:
         return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -91,9 +92,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             "t1_charge_impedance",
         ]
 
-    def effective_noise_channels(self) -> List[str]:
-        """Return a default list of channels used when calculating effective t1 and t2 nosie."""
-        noise_channels = self.supported_noise_channels()
+    @classmethod
+    def effective_noise_channels(cls) -> List[str]:
+        """Return a default list of channels used when calculating effective t1 and
+        t2 noise."""
+        noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
 
@@ -136,11 +139,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return hamiltonian_mat
 
     def d_hamiltonian_d_ng(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to charge offset `ng`."""
+        """Returns operator representing a derivative of the Hamiltonian with respect to
+        charge offset `ng`."""
         return -8 * self.EC * self.n_operator()
 
     def d_hamiltonian_d_EJ(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to EJ."""
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to EJ."""
         return -self.cos_phi_operator()
 
     def hilbertdim(self) -> int:
@@ -213,14 +218,15 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def numberbasis_wavefunction(
         self, esys: Tuple[ndarray, ndarray] = None, which: int = 0
     ) -> WaveFunction:
-        """Return the transmon wave function in number basis. The specific index of the wave function to be returned is
-        `which`.
+        """Return the transmon wave function in number basis. The specific index of the
+        wave function to be returned is `which`.
 
         Parameters
         ----------
         esys:
-            if `None`, the eigensystem is calculated on the fly; otherwise, the provided eigenvalue, eigenvector arrays
-            as obtained from `.eigensystem()`, are used (default value = None)
+            if `None`, the eigensystem is calculated on the fly; otherwise, the provided
+            eigenvalue, eigenvector arrays as obtained from `.eigensystem()`,
+            are used (default value = None)
         which:
             eigenfunction index (default value = 0)
         """
@@ -238,14 +244,15 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         which: int = 0,
         phi_grid: Grid1d = None,
     ) -> WaveFunction:
-        """Return the transmon wave function in phase basis. The specific index of the wavefunction is `which`.
-        `esys` can be provided, but if set to `None` then it is calculated on the fly.
+        """Return the transmon wave function in phase basis. The specific index of the
+        wavefunction is `which`. `esys` can be provided, but if set to `None` then it is
+        calculated on the fly.
 
         Parameters
         ----------
         esys:
-            if None, the eigensystem is calculated on the fly; otherwise, the provided eigenvalue, eigenvector arrays
-            as obtained from `.eigensystem()` are used
+            if None, the eigensystem is calculated on the fly; otherwise, the provided
+            eigenvalue, eigenvector arrays as obtained from `.eigensystem()` are used
         which:
             eigenfunction index (default value = 0)
         phi_grid:
@@ -364,7 +371,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     Parameters
     ----------
     EJmax:
-       maximum effective Josephson energy (sum of the Josephson energies of the two junctions)
+       maximum effective Josephson energy (sum of the Josephson energies of the two
+       junctions)
     d:
         junction asymmetry parameter
     EC:
@@ -428,7 +436,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             "truncated_dim": 10,
         }
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_flux",

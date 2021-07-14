@@ -9,16 +9,9 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import functools
-import operator
-import os
-import warnings
-
 from typing import (
     TYPE_CHECKING,
-    Any,
     Callable,
-    Dict,
     Iterable,
     List,
     Optional,
@@ -35,9 +28,17 @@ from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import scqubits.core.constants as constants
-import scqubits.settings as settings
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
+from scqubits.utils.plot_utils import (
+    _extract_kwargs_options,
+    _process_options,
+    add_numbers_to_axes,
+    color_normalize,
+    plot_potential_to_axes,
+    plot_wavefunction_to_axes,
+    scale_wavefunctions,
+)
 
 if TYPE_CHECKING:
     from scqubits.core.storage import SpectrumData, WaveFunction, WaveFunctionOnGrid
@@ -50,116 +51,16 @@ except ImportError:
     _LABELLINES_ENABLED = False
 
 
-# A dictionary of plotting options that are directly passed to specific matplotlib's
-# plot commands.
-_direct_plot_options = {
-    "plot": ("alpha", "color", "linestyle", "linewidth", "marker", "markersize"),
-    "imshow": ("interpolation",),
-    "contourf": tuple(),  # empty for now
-}
-
-
-def _extract_kwargs_options(
-    kwargs: Dict[str, Any], plot_type: str, direct_plot_options: Dict[str, Any] = None
-) -> Dict[str, Any]:
-    """
-    Select options from kwargs for a given plot_type and return them in a dictionary.
-
-    Parameters
-    ----------
-    kwargs:
-        dictionary with options that can be passed to different plotting commands
-    plot_type:
-        a type of plot for which the options should be selected
-    direct_plot_options:
-        a lookup dictionary with supported options for a given plot_type
-
-    Returns
-    ----------
-        dictionary with key/value pairs corresponding to selected options from kwargs
-
-    """
-    direct_plot_options = direct_plot_options or _direct_plot_options
-    d = {}
-    if plot_type in direct_plot_options:
-        for key in kwargs:
-            if key in direct_plot_options[plot_type]:
-                d[key] = kwargs[key]
-    return d
-
-
-def _process_options(
-    figure: Figure, axes: Axes, opts: Dict[str, Any] = None, **kwargs
-) -> None:
-    """
-    Processes plotting options.
-
-    Parameters
-    ----------
-    figure:
-    axes:
-    opts:
-        keyword dictionary with custom options
-    **kwargs:
-        standard plotting option (see separate documentation)
-    """
-    opts = opts or {}
-
-    # Only process items in kwargs that would not have been
-    # processed through _extract_kwargs_options()
-    filtered_kwargs = {
-        key: value
-        for key, value in kwargs.items()
-        if key not in functools.reduce(operator.concat, _direct_plot_options.values())
-    }  # type: ignore
-
-    option_dict = {**opts, **filtered_kwargs}
-
-    for key, value in option_dict.items():
-        if key in defaults.SPECIAL_PLOT_OPTIONS:
-            _process_special_option(figure, axes, key, value)
-        else:
-            set_method = getattr(axes, "set_" + key)
-            set_method(value)
-
-    filename = kwargs.get("filename")
-    if filename:
-        figure.savefig(os.path.splitext(filename)[0] + ".pdf")
-
-    if settings.DESPINE and not axes.name == "3d":
-        # Hide the right and top spines
-        axes.spines["right"].set_visible(False)
-        axes.spines["top"].set_visible(False)
-
-        # Only show ticks on the left and bottom spines
-        axes.yaxis.set_ticks_position("left")
-        axes.xaxis.set_ticks_position("bottom")
-
-
-def _process_special_option(figure: Figure, axes: Axes, key: str, value: Any) -> None:
-    """Processes a single 'special' option, i.e., one internal to scqubits and not to be handed further down to
-    matplotlib.
-    """
-    if key == "ymax":
-        ymax = value
-        ymin, _ = axes.get_ylim()
-        ymin = ymin - (ymax - ymin) * 0.05
-        axes.set_ylim(ymin, ymax)
-    elif key == "figsize":
-        figure.set_size_inches(value)
-    elif key == "grid":
-        axes.grid(**value) if isinstance(value, dict) else axes.grid(value)
-
-
 def wavefunction1d(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
-    potential_vals: np.ndarray = None,
+    potential_vals: Optional[np.ndarray] = None,
     offset: Union[float, Iterable[float]] = 0,
     scaling: Optional[float] = None,
     **kwargs
 ) -> Tuple[Figure, Axes]:
     """
-    Plots the amplitude of a single real-valued 1d wave function, along with the potential energy if provided.
+    Plots the amplitude of a single real-valued 1d wave function, along with the
+    potential energy if provided.
 
     Parameters
     ----------
@@ -180,72 +81,19 @@ def wavefunction1d(
     """
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
-    offset_list = [offset] if not isinstance(offset, (list, np.ndarray)) else offset
-    wavefunc_list = [wavefuncs] if not isinstance(wavefuncs, list) else wavefuncs
-
-    scale_constant = renormalization_factor(wavefunc_list[0], potential_vals)
-    for wavefunc in wavefunc_list:
-        wavefunc.amplitudes *= scale_constant
-
-    scale_factor = scaling or defaults.set_wavefunction_scaling(
-        wavefunc_list, potential_vals
-    )
+    offset_list = utils.to_list(offset)
+    wavefunc_list = utils.to_list(wavefuncs)
+    wavefunc_list = scale_wavefunctions(wavefunc_list, potential_vals, scaling)
 
     for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
-        x_vals = wavefunction.basis_labels
-        y_vals = energy_offset + scale_factor * wavefunction.amplitudes
-        offset_vals = [energy_offset] * len(x_vals)
-
-        axes.plot(x_vals, y_vals, **_extract_kwargs_options(kwargs, "plot"))
-        axes.fill_between(
-            x_vals, y_vals, offset_vals, where=(y_vals != offset_vals), interpolate=True
-        )
+        plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
 
     if potential_vals is not None:
-        y_min = np.min(potential_vals)
-        y_max = np.max(offset_list)
-        y_range = y_max - y_min
-
-        y_max += 0.3 * y_range
-        y_min = np.min(potential_vals) - 0.1 * y_range
-        axes.set_ylim([y_min, y_max])
-
-        axes.plot(
-            x_vals,
-            potential_vals,
-            color="gray",
-            **_extract_kwargs_options(kwargs, "plot")
-        )
+        x_vals = wavefunc_list[0].basis_labels
+        plot_potential_to_axes(axes, x_vals, potential_vals, offset_list, **kwargs)
 
     _process_options(fig, axes, **kwargs)
     return fig, axes
-
-
-def renormalization_factor(
-    wavefunc: "WaveFunction", potential_vals: np.ndarray
-) -> float:
-    """
-    Takes the amplitudes of one wavefunction and the potential values to scale the
-    dimensionless amplitude to a (pseudo-)energy that allows us to plot wavefunctions
-    and energies in the same plot.
-
-    Parameters
-    ----------
-    wavefunc:
-        ndarray of wavefunction amplitudes
-    potential_vals:
-        array of potential energy values (that determine the energy range on the y axis
-
-    Returns
-    -------
-    renormalization factor that converts the wavefunction amplitudes into energy units
-    """
-    FILL_FACTOR = 0.1
-    energy_range = np.max(potential_vals) - np.min(potential_vals)
-    amplitude_range = np.max(wavefunc.amplitudes) - np.min(wavefunc.amplitudes)
-    if amplitude_range < 1.0e-10:
-        return 0.0
-    return FILL_FACTOR * energy_range / amplitude_range
 
 
 def wavefunction1d_discrete(wavefunc: "WaveFunction", **kwargs) -> Tuple[Figure, Axes]:
@@ -453,34 +301,22 @@ def matrix_skyscraper(
     modefunction = constants.MODE_FUNC_DICT[mode]
     zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
 
-    min_zheight, max_zheight = min(zheight), max(zheight)
-
-    if mode == "abs" or mode == "abs_sqr":
-        nrm = mpl.colors.Normalize(
-            0, max_zheight
-        )  # normalize colors between 0 and max. data
-    else:
-        nrm = mpl.colors.Normalize(
-            min_zheight, max_zheight
-        )  # normalize colors between min. and max. of data
-
+    min_zheight, max_zheight, nrm = color_normalize(zheight, mode)
     colors = plt.cm.viridis(nrm(zheight))  # list of colors for each bar
 
     # skyscraper plot
     axes.view_init(azim=210, elev=23)
     axes.bar3d(xgrid, ygrid, zbottom, dx, dy, zheight, color=colors)
 
-    if mode == "abs" or mode == "abs_sqr":
-        min_z, max_z = 0, max_zheight
-    else:  # mode is "real" or "imag"
-        min_z = 0 if min_zheight > 0 else min_zheight
-        max_z = 0 if max_zheight < 0 else max_zheight
+    if mode in ["real", "imag"]:
+        min_zheight = 0 if min_zheight > 0 else min_zheight
+        max_zheight = 0 if max_zheight < 0 else max_zheight
 
-    if min_z == max_z:
+    if min_zheight == max_zheight:
         # pad with small values so we don't get warnings
-        max_z += 0.0000001
+        max_zheight += 0.0000001
 
-    axes.set_zlim3d([min_z, max_z])
+    axes.set_zlim3d([min_zheight, max_zheight])
 
     for axis, locs in [
         (axes.xaxis, np.arange(x_count)),
@@ -522,14 +358,7 @@ def matrix2d(
     modefunction = constants.MODE_FUNC_DICT[mode]
     zheight = modefunction(matrix).flatten()  # height of bars from matrix elements
 
-    if mode == "abs" or mode == "abs_sqr":
-        nrm = mpl.colors.Normalize(
-            0, max(zheight)
-        )  # normalize colors between 0 and max. data
-    else:
-        nrm = mpl.colors.Normalize(
-            min(zheight), max(zheight)
-        )  # normalize colors between min. and max. of data
+    min_zheight, max_zheight, nrm = color_normalize(zheight, mode)
 
     axes.matshow(modefunction(matrix), cmap=plt.cm.viridis, interpolation=None)
     cax, _ = mpl.colorbar.make_axes(
@@ -538,18 +367,8 @@ def matrix2d(
     mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
 
     if show_numbers:
-        for y_index in range(matrix.shape[0]):
-            for x_index in range(matrix.shape[1]):
-                axes.text(
-                    x_index,
-                    y_index,
-                    "{:.03f}".format(modefunction(matrix[y_index, x_index])),
-                    va="center",
-                    ha="center",
-                    fontsize=8,
-                    rotation=45,
-                    color="white",
-                )
+        add_numbers_to_axes(axes, matrix, modefunction)
+
     # shift the grid
     for axis, locs in [
         (axes.xaxis, np.arange(matrix.shape[1])),
@@ -591,28 +410,30 @@ def data_vs_paramvals(
 
     if label_list is None:
         axes.plot(xdata, ydata, **_extract_kwargs_options(kwargs, "plot"))
+        _process_options(fig, axes, **kwargs)
+        return fig, axes
+
+    for idx, ydataset in enumerate(ydata.T):
+        axes.plot(
+            xdata,
+            ydataset,
+            label=label_list[idx],
+            **_extract_kwargs_options(kwargs, "plot")
+        )
+    if _LABELLINES_ENABLED:
+        try:
+            labelLines(axes.get_lines(), zorder=2.0)
+        except Exception:
+            pass
     else:
-        for idx, ydataset in enumerate(ydata.T):
-            axes.plot(
-                xdata,
-                ydataset,
-                label=label_list[idx],
-                **_extract_kwargs_options(kwargs, "plot")
-            )
-        if _LABELLINES_ENABLED:
-            try:
-                labelLines(axes.get_lines(), zorder=2.0)
-            except Exception:
-                pass
-        else:
-            axes.legend(
-                bbox_to_anchor=(1.04, 0.5),
-                loc="center left",
-                borderaxespad=0,
-                frameon=False,
-            )
-            # legend(loc="center left", bbox_to_anchor=(1, 0.5))
-    _process_options(fig, axes, **kwargs)
+        axes.legend(
+            bbox_to_anchor=(1.04, 0.5),
+            loc="center left",
+            borderaxespad=0,
+            frameon=False,
+        )
+        # legend(loc="center left", bbox_to_anchor=(1, 0.5))
+
     return fig, axes
 
 
