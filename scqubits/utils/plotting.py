@@ -9,15 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Tuple, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -30,6 +22,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import scqubits.core.constants as constants
 import scqubits.utils.misc as utils
 import scqubits.utils.plot_defaults as defaults
+
 from scqubits.utils.plot_utils import (
     _extract_kwargs_options,
     _process_options,

@@ -14,8 +14,15 @@ import numpy as np
 
 import scqubits.settings
 
-from scqubits import Fluxonium, FluxQubit, Grid1d, Transmon, TunableTransmon, ZeroPi,\
-    Cos2PhiQubit
+from scqubits import (
+    Cos2PhiQubit,
+    Fluxonium,
+    FluxQubit,
+    Grid1d,
+    Transmon,
+    TunableTransmon,
+    ZeroPi,
+)
 
 # WE do not need a warning during testing
 scqubits.settings.T1_DEFAULT_WARNING = False
@@ -70,8 +77,16 @@ data = {
         [3806664.01882053, 41202847.68864658, np.inf, np.inf, np.inf, 3484716.71474053]
     ),
     "Cos2PhiQubit": np.array(
-        [138385704.8120299, np.inf, np.inf, 1252199267.3149421, 1273137.1296252932,
-         422898419.10840535, 1268030.4864707834, 2490421.4209534894]
+        [
+            138385704.8120299,
+            np.inf,
+            np.inf,
+            1252199267.3149421,
+            1273137.1296252932,
+            422898419.10840535,
+            1268030.4864707834,
+            2490421.4209534894,
+        ]
     ),
 }
 
