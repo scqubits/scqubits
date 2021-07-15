@@ -21,11 +21,11 @@ import numpy as np
 import qutip as q
 import qutip.qobj as qt
 import scipy as sp
-
 from io import StringIO
 
+import scqubits as scq
+
 from scqubits.settings import IN_IPYTHON
-from scqubits.version import version
 
 if IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -243,7 +243,7 @@ def about(print_info=True):
     fs.write(
         "Online documentation page: https://scqubits.readthedocs.io/en/latest/\n\n"
     )
-    fs.write("scqubits version: {}\n".format(version))
+    fs.write("scqubits version: {}\n".format(scq.__version__))
     fs.write("numpy version:    {}\n".format(np.__version__))
     fs.write("scipy version:    {}\n".format(sp.__version__))
     fs.write("QuTiP version:    {}\n".format(q.__version__))
