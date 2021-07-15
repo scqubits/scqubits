@@ -44,6 +44,7 @@ jobs:
       pip install pytest pytest-azurepipelines
       pip install pathos
       pip install .
+      python -c "import scqubits.version"
     displayName: 'Install scqubits'
   - script: |
       pytest -v --pyargs scqubits
