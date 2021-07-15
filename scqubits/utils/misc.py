@@ -14,7 +14,7 @@ import functools
 import platform
 import warnings
 
-from collections import Sequence
+from collections.abc import Sequence
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
