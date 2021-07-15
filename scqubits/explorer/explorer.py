@@ -177,11 +177,7 @@ class Explorer:
                 self.sweep, qbt_subsys, param_val, fig_ax(1)
             )
             panels.display_charge_matrixelems(
-                self.sweep,
-                initial_bare,
-                qbt_index,
-                param_val,
-                fig_ax(5),
+                self.sweep, initial_bare, qbt_index, param_val, fig_ax(5),
             )
 
         # Panel 3 ----------------------------------
