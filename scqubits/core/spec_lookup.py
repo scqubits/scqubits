@@ -418,7 +418,7 @@ class SpectrumLookupMixin:
         self: "ParameterSweep", param_indices: Tuple[int, ...]
     ) -> ndarray:
         """
-        For a single set of parameter values, specified by with a tuple of indices
+        For a single set of parameter values, specified by a tuple of indices
         ``param_indices``, create an array of the dressed-state indices in an order
         that corresponds one to one to the bare product states with largest overlap
         (whenever possible).

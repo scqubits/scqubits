@@ -51,7 +51,7 @@ def display_bare_wavefunctions(
     evals = sweep["bare_evals"][subsys_index][float(param_val)]
     evecs = sweep["bare_evecs"][subsys_index][float(param_val)]
     settings.DISPATCH_ENABLED = False
-    sweep._update_hilbertspace(param_val)
+    sweep._update_hilbertspace(sweep, param_val)
     settings.DISPATCH_ENABLED = True
     __ = subsys.plot_wavefunction(
         which=-1, esys=(evals, evecs), title=title, fig_ax=fig_ax
