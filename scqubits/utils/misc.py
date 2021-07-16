@@ -18,8 +18,7 @@ from collections.abc import Sequence
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
-import qutip as q
-import qutip.qobj as qt
+import qutip as qt
 import scipy as sp
 from io import StringIO
 
@@ -246,7 +245,7 @@ def about(print_info=True):
     fs.write("scqubits version: {}\n".format(scq.__version__))
     fs.write("numpy version:    {}\n".format(np.__version__))
     fs.write("scipy version:    {}\n".format(sp.__version__))
-    fs.write("QuTiP version:    {}\n".format(q.__version__))
+    fs.write("QuTiP version:    {}\n".format(qt.__version__))
     fs.write(
         "Platform:         {} ({})\n".format(platform.system(), platform.machine())
     )
