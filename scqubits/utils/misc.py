@@ -22,8 +22,6 @@ import qutip as qt
 import scipy as sp
 from io import StringIO
 
-import scqubits as scq
-
 from scqubits.settings import IN_IPYTHON
 
 if IN_IPYTHON:
@@ -233,6 +231,7 @@ def about(print_info=True):
     -------
     None or str
     """
+    from scqubits import __version__
     fs = StringIO()
 
     fs.write("scqubits: a Python library for simulating superconducting qubits\n")
@@ -242,7 +241,7 @@ def about(print_info=True):
     fs.write(
         "Online documentation page: https://scqubits.readthedocs.io/en/latest/\n\n"
     )
-    fs.write("scqubits version: {}\n".format(scq.__version__))
+    fs.write("scqubits version: {}\n".format(__version__))
     fs.write("numpy version:    {}\n".format(np.__version__))
     fs.write("scipy version:    {}\n".format(sp.__version__))
     fs.write("QuTiP version:    {}\n".format(qt.__version__))
