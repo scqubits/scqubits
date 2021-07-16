@@ -12,7 +12,7 @@
 import os
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import scipy as sp
@@ -294,6 +294,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
     EJ1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -324,7 +327,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         flux: float,
         ncut: int,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ1 = EJ1
         self.EJ2 = EJ2
         self.EJ3 = EJ3
@@ -338,7 +343,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
         self._default_grid = discretization.Grid1d(
             -np.pi / 2, 3 * np.pi / 2, 100

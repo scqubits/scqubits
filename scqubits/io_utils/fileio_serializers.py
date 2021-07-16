@@ -65,6 +65,8 @@ class Serializable(ABC):
         Convert the content of the current class instance into IOData format.
         """
         initdata = {name: getattr(self, name) for name in self._init_params}
+        if hasattr(self, "_id_str"):
+            initdata["id_str"] = self._id_str
         iodata = dict_serialize(initdata)
         iodata.typename = type(self).__name__
         return iodata
@@ -325,4 +327,6 @@ def get_init_params(obj: Serializable) -> List[str]:
         init_params.remove("self")
     if "kwargs" in init_params:
         init_params.remove("kwargs")
+    # if "id_str" in init_params:
+    #     init_params.remove("id_str")
     return init_params

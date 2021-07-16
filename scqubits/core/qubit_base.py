@@ -67,11 +67,20 @@ class QuantumSystem(DispatchClient, ABC):
     # To facilitate warnings in set_units, introduce a counter keeping track of the
     # number of QuantumSystem instances
     _quantumsystem_counter: int = 0
+    # To enable autogeneration of id_str, keep a record of all subclass types and
+    # corresponding counts of instances
+    _instance_counter: Dict[str, int] = {}
 
     subclasses: List[ABCMeta] = []
 
     def __new__(cls, *args, **kwargs) -> "QuantumSystem":
         QuantumSystem._quantumsystem_counter += 1
+
+        if cls.__name__ not in QuantumSystem._instance_counter:
+            QuantumSystem._instance_counter[cls.__name__] = 1
+        else:
+            QuantumSystem._instance_counter[cls.__name__] += 1
+
         return super().__new__(cls)
 
     def __del__(self) -> None:
@@ -83,6 +92,10 @@ class QuantumSystem(DispatchClient, ABC):
             QuantumSystem._quantumsystem_counter -= 1
         except (NameError, AttributeError):
             pass
+
+    def __init__(self, id_str: Union[str, None]):
+        self._sys_type = type(self).__name__
+        self._id_str = id_str or self._autogenerate_id_str()
 
     def __init_subclass__(cls):
         """Used to register all non-abstract subclasses as a list in
@@ -101,7 +114,9 @@ class QuantumSystem(DispatchClient, ABC):
 
     def __str__(self) -> str:
         indent_length = 20
-        name_prepend = self._sys_type.ljust(indent_length, "-") + "|\n"
+        name_prepend = self._sys_type.ljust(indent_length, "-") + "| [{}]\n".format(
+            self._id_str
+        )
 
         output = ""
         for param_name in self.default_params().keys():
@@ -120,6 +135,14 @@ class QuantumSystem(DispatchClient, ABC):
 
     def __hash__(self):
         return super().__hash__()
+
+    def _autogenerate_id_str(self):
+        name = self._sys_type
+        return "{}_{}".format(name, QuantumSystem._instance_counter[name])
+
+    @property
+    def id_str(self):
+        return self._id_str
 
     def get_initdata(self) -> Dict[str, Any]:
         """Returns dict appropriate for creating/initializing a new Serializable
@@ -141,6 +164,7 @@ class QuantumSystem(DispatchClient, ABC):
     def widget(self, params: Dict[str, Any] = None):
         """Use ipywidgets to modify parameters of class instance"""
         init_params = params or self.get_initdata()
+        init_params.pop("id_str", None)
         ui.create_widget(
             self.set_params, init_params, image_filename=self._image_filename
         )
