@@ -86,18 +86,18 @@ class CentralDispatch:
             "Registering {} for {}. welcome.".format(type(who).__name__, event)
         )
         if callback is None:
-            callback_ref = weakref.WeakMethod(getattr(who, "receive"))
+            # callback_ref = weakref.WeakMethod(getattr(who, "receive"))
             # For purposes of garbage collection, this should preferably be:
             # callback_ref = weakref.WeakMethod(getattr(who, 'receive'))
             # Intermittently, pathos has balked on pickling this. Workaround that
             # will likely prevent proper garbage collection:
             #
-            # callback_ref = getattr(who, "receive")
+            callback_ref = getattr(who, "receive")
         else:
-            callback_ref = weakref.WeakMethod(callback)
+            # callback_ref = weakref.WeakMethod(callback)
             # See comment just above. Workaround if pathos fails to pickle:
             #
-            # callback_ref = callback
+            callback_ref = callback
         self.get_clients_dict(event)[who] = callback_ref
 
     def unregister(self, event: str, who: "DispatchClient") -> None:
