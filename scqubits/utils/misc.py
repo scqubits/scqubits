@@ -232,6 +232,7 @@ def about(print_info=True):
     None or str
     """
     from scqubits import __version__
+
     fs = StringIO()
 
     fs.write("scqubits: a Python library for simulating superconducting qubits\n")

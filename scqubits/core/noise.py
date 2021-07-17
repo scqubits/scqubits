@@ -228,8 +228,9 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False:
+        # Add a ylabel if we're plot coherence times (and not rates)
+        # and if scale is 1
+        if not common_noise_options.get("get_rate", False) and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
 
         plotting_options.update(
@@ -573,7 +574,7 @@ class NoisySystem(ABC):
                     spectrum_data.energy_table[v_i, :],
                     spectrum_data.state_table[v_i],
                 ),
-                get_rate=get_rate
+                get_rate=get_rate,
             )
             for v_i, v in enumerate(param_vals)
         ]
