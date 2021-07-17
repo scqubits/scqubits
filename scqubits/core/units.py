@@ -27,7 +27,6 @@ _units_factor = {"GHz": 1e9, "MHz": 1e6, "kHz": 1e3, "Hz": 1.0}
 # labels for time units obtained from 1/frequency units
 _units_time_labels = {"GHz": r"$ns$", "MHz": r"$\mu s$", "kHz": r"$ms$", "Hz": r"$s$"}
 
-
 def get_units() -> str:
     """Get system units."""
     return _current_units

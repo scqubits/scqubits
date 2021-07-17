@@ -313,6 +313,7 @@ class NoisySystem(ABC):
         noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
+        get_rate: bool = False,
         scale: float = 1,
         num_cpus: Optional[int] = None,
         **kwargs
@@ -352,6 +353,8 @@ class NoisySystem(ABC):
             common options used when calculating coherence times
         spectrum_data:
             spectral data used during noise calculations
+        get_rate:
+            determines if rate or time should be plotted
         scale:
             a number that all data is multiplied by before being plotted
         num_cpus:
@@ -436,11 +439,14 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        plotting_options.update(kwargs)
 
-        # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False:
+        # Add a ylabel if we are plotting coherence times
+        # and if scale is exactly 1
+        if not get_rate and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
+
+        # Users can overwrite plotting options
+        plotting_options.update(kwargs)
 
         fig, axes = plotting.data_vs_paramvals(
             param_vals, noise_vals, **plotting_options
@@ -457,6 +463,7 @@ class NoisySystem(ABC):
         noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
+        get_rate: bool = False,
         scale: float = 1,
         num_cpus: Optional[int] = None,
         **kwargs
@@ -498,6 +505,8 @@ class NoisySystem(ABC):
             common options used when calculating coherence times
         spectrum_data:
             spectral data used during noise calculations
+        get_rate:
+            determines if rate or time should be plotted
         scale:
             a number that all data is multiplied by before being plotted
         num_cpus:
@@ -564,6 +573,7 @@ class NoisySystem(ABC):
                     spectrum_data.energy_table[v_i, :],
                     spectrum_data.state_table[v_i],
                 ),
+                get_rate=get_rate
             )
             for v_i, v in enumerate(param_vals)
         ]
@@ -578,11 +588,14 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False:
+        # Add a ylabel if we are plotting coherence times
+        # and if scale is exactly 1
+        if not get_rate and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
 
+        # Users can overwrite plotting options
         plotting_options.update(kwargs)
+
         fig, axes = plotting.data_vs_paramvals(
             param_vals, noise_vals, **plotting_options
         )
