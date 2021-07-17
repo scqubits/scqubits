@@ -228,7 +228,7 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Add a ylabel if we're plot coherence times (and not rates)
+        # Add a ylabel if we are plotting coherence times (and not rates)
         # and if scale is 1
         if not common_noise_options.get("get_rate", False) and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
@@ -1213,7 +1213,7 @@ class NoisySystem(ABC):
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False,
+        get_rate: bool = False
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
