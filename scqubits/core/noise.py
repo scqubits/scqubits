@@ -1113,7 +1113,7 @@ class NoisySystem(ABC):
         spectral_density: Callable,
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""
         Calculate the transition time (or rate) using Fermi's Golden Rule due to a
@@ -1213,7 +1213,7 @@ class NoisySystem(ABC):
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
@@ -1289,7 +1289,7 @@ class NoisySystem(ABC):
             spectral_density=spectral_density,
             total=total,
             esys=esys,
-            get_rate=get_rate
+            get_rate=get_rate,
         )
 
     def t1_charge_impedance(
@@ -1300,7 +1300,7 @@ class NoisySystem(ABC):
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
@@ -1359,7 +1359,7 @@ class NoisySystem(ABC):
             spectral_density=spectral_density,
             total=total,
             esys=esys,
-            get_rate=get_rate
+            get_rate=get_rate,
         )
 
     def t1_flux_bias_line(
@@ -1371,7 +1371,7 @@ class NoisySystem(ABC):
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""Noise due to a bias flux line.
 
@@ -1441,7 +1441,7 @@ class NoisySystem(ABC):
             spectral_density=spectral_density,
             total=total,
             esys=esys,
-            get_rate=get_rate
+            get_rate=get_rate,
         )
 
     def t1_inductive(
@@ -1452,7 +1452,7 @@ class NoisySystem(ABC):
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""
         :math:`T_1` due to inductive dissipation in a superinductor.
@@ -1540,7 +1540,7 @@ class NoisySystem(ABC):
             spectral_density=spectral_density,
             total=total,
             esys=esys,
-            get_rate=get_rate
+            get_rate=get_rate,
         )
 
     def t1_quasiparticle_tunneling(
@@ -1553,7 +1553,7 @@ class NoisySystem(ABC):
         Delta: float = NOISE_PARAMS["Delta"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
@@ -1659,5 +1659,5 @@ class NoisySystem(ABC):
             spectral_density=spectral_density,
             total=total,
             esys=esys,
-            get_rate=get_rate
+            get_rate=get_rate,
         )
