@@ -225,7 +225,7 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         return (
             -2.0 * self.EJ * np.cos(theta) * np.cos(phi/2.0 + 2.0 * np.pi * self.flux / 2.0)
             + (1/2.0) * self.EL * phi ** 2
-            -2.0 * self.EJ * self.dEJ * np.sin(thetas) * np.sin(phi/2.0 + 2.0 * np.pi * self.flux / 2.0)
+            -2.0 * self.EJ * self.dEJ * np.sin(theta) * np.sin(phi/2.0 + 2.0 * np.pi * self.flux / 2.0)
         )
 
     def sparse_kinetic_mat(self) -> csc_matrix:
