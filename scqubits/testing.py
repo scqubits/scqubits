@@ -2,7 +2,7 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
@@ -19,4 +19,4 @@ def run():
     Run the pytest scripts for scqubits.
     """
     # runs tests in scqubits.tests directory
-    pytest.main(['-v', TESTDIR])
+    pytest.main(["-v", TESTDIR])

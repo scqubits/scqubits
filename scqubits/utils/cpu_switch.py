@@ -2,20 +2,22 @@
 #
 # This file is part of scqubits.
 #
-#    Copyright (c) 2019, Jens Koch and Peter Groszkowski
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
 #
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from typing import Callable
+
 import scqubits.settings as settings
 
 
-def get_map_method(num_cpus):
+def get_map_method(num_cpus: int) -> Callable:
     """
-    Selects the correct `.map` method depending on the specified number of desired cores. If num_cpus>1, the
-    multiprocessing/pathos pool is started here.
+    Selects the correct `.map` method depending on the specified number of desired
+    cores. If num_cpus>1, the multiprocessing/pathos pool is started here.
 
     Parameters
     ----------
@@ -31,24 +33,32 @@ def get_map_method(num_cpus):
 
     # num_cpus > 1 -----------------
 
-    # windows may require special treatment
-    # if sys.platform == 'win32' and settings.POOL is None:
-    #     warnings.warn("Windows users may explicitly need to  provide scqubits.settings.POOL.")
+    # windows may require special treatment if sys.platform == 'win32' and
+    # settings.POOL is None: warnings.warn("Windows users may explicitly need to
+    # provide scqubits.settings.POOL.")
 
     # user is asking for more than 1 cpu; start pool from here
-    if settings.MULTIPROC == 'pathos':
+    if settings.MULTIPROC == "pathos":
         try:
-            import pathos
             import dill
+            import pathos
         except ImportError:
-            raise ImportError("scqubits multiprocessing mode set to 'pathos'. Need but cannot find 'pathos'/'dill'!")
+            raise ImportError(
+                "scqubits multiprocessing mode set to 'pathos'. Need but cannot find"
+                " 'pathos'/'dill'!"
+            )
         else:
-            dill.settings['recurse'] = True
+            dill.settings["recurse"] = True
             settings.POOL = pathos.pools.ProcessPool(nodes=num_cpus)
             return settings.POOL.map
-    if settings.MULTIPROC == 'multiprocessing':
+    if settings.MULTIPROC == "multiprocessing":
         import multiprocessing
+
         settings.POOL = multiprocessing.Pool(processes=num_cpus)
         return settings.POOL.map
     else:
-        raise ValueError("Unknown multiprocessing type: settings.MULTIPROC = {}".format(settings.MULTIPROC))
+        raise ValueError(
+            "Unknown multiprocessing type: settings.MULTIPROC = {}".format(
+                settings.MULTIPROC
+            )
+        )
