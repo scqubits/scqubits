@@ -70,7 +70,9 @@ PACKAGES = [
     "scqubits/tests",
     "scqubits/utils",
     "scqubits/ui",
-    "scqubits/io_utils",
+    "scqubits/io_utils"
+    "scqubits/legacy",
+    "scqubits/explorer"
 ]
 
 PYTHON_VERSION = ">=3.6"
