@@ -79,8 +79,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     ----------
     E_osc:
         energy of the oscillator
-    omega:
-        (deprecated) alternative way of specifying the energy of the oscillator
     l_osc:
         oscillator length (required to define phi_operator and n_operator)
     truncated_dim:
@@ -111,27 +109,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {"E_osc": 5.0, "l_osc": 1, "truncated_dim": _default_evals_count}
-
-    def get_omega(self) -> float:
-        # Support for omega will be rolled back eventually. For now allow with
-        # deprecation warnings.
-        warnings.warn(
-            "To avoid confusion about 2pi factors, use of omega is deprecated. Use"
-            " E_osc instead.",
-            FutureWarning,
-        )
-        return self.E_osc
-
-    def set_omega(self, value: float):
-        warnings.warn(
-            "To avoid confusion about 2pi factors, use of omega is deprecated. Use"
-            " E_osc instead.",
-            FutureWarning,
-        )
-        self.E_osc = value
-
-    omega = property(get_omega, set_omega)
-    # end of code for deprecated omega
 
     def eigenvals(self, evals_count: int = _default_evals_count) -> ndarray:
         """Returns array of eigenvalues.
@@ -243,9 +220,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         self.K: float = K
 
         super().__init__(
-            self,
             E_osc=E_osc,
-            omega=None,
             l_osc=l_osc,
             truncated_dim=truncated_dim,
             id_str=id_str,
