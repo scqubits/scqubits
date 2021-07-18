@@ -15,12 +15,12 @@ import platform
 import warnings
 
 from collections.abc import Sequence
+from io import StringIO
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 import qutip as qt
 import scipy as sp
-from io import StringIO
 
 from scqubits.settings import IN_IPYTHON
 

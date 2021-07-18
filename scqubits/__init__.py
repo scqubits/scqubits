@@ -60,11 +60,11 @@ except NameError:
         ImportWarning,
     )
 
-# spectrum utils
-from scqubits.utils.spectrum_utils import identity_wrap
-
 # for showing scqubits info
 from scqubits.utils.misc import about, cite
+
+# spectrum utils
+from scqubits.utils.spectrum_utils import identity_wrap
 
 # version
 try:

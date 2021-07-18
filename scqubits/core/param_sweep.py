@@ -17,7 +17,17 @@ import warnings
 
 from abc import ABC
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 
@@ -70,9 +80,9 @@ class ParameterSweepBase(ABC):
     StoredSweep
     """
 
-    _parameters = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _evals_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _data = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    _parameters: Parameters = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    _evals_count: int = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    _data: Dict[str, Any] = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
     _hilbertspace: HilbertSpace
 
     _out_of_sync = False
@@ -375,7 +385,7 @@ class ParameterSweepBase(ABC):
             )
 
         if len(initial_state) < len(self._hilbertspace):
-            initial_state = self._complete_initial_state(initial_state, subsys_list)
+            initial_state = self._complete_state(initial_state, subsys_list)
 
         final_states_list = self._get_final_states(
             initial_state, subsys_list, final, sidebands
@@ -982,12 +992,14 @@ class ParameterSweep(
                 )
             )
 
-        spectrum_data = np.asarray(spectrum_data, dtype=object)
-        spectrum_data = spectrum_data.reshape((*self._parameters.counts, 2))
+        spectrum_data_ndarray = np.asarray(spectrum_data, dtype=object)
+        spectrum_data_ndarray = spectrum_data_ndarray.reshape(
+            (*self._parameters.counts, 2)
+        )
         slotparamvals_by_name = OrderedDict(self._parameters.ordered_dict.copy())
 
-        evals = np.asarray(spectrum_data[..., 0].tolist())
-        evecs = spectrum_data[..., 1]
+        evals = np.asarray(spectrum_data_ndarray[..., 0].tolist())
+        evecs = spectrum_data_ndarray[..., 1]
 
         return (
             NamedSlotsNdarray(evals, slotparamvals_by_name),
@@ -1093,19 +1105,25 @@ class StoredSweep(
     dispatch.DispatchClient,
     serializers.Serializable,
 ):
-    _parameters = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _evals_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _data = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    _parameters: Parameters = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    _evals_count: int = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    _data: Dict[str, Any] = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
     _hilbertspace: HilbertSpace
 
-    def __init__(self, paramvals_by_name, hilbertspace, evals_count, _data) -> None:
+    def __init__(
+        self,
+        paramvals_by_name: Dict[str, Union[ndarray, Iterable]],
+        hilbertspace: HilbertSpace,
+        evals_count: int,
+        _data,
+    ) -> None:
         self._parameters = Parameters(paramvals_by_name)
         self._hilbertspace = hilbertspace
         self._evals_count = evals_count
         self._data = _data
 
         self._out_of_sync = False
-        self._current_param_indices = slice(None, None, None)
+        self._current_param_indices: NpIndices = slice(None, None, None)
 
     @classmethod
     def deserialize(cls, iodata: "IOData") -> "StoredSweep":
@@ -1150,7 +1168,7 @@ class StoredSweep(
         )
 
 
-def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
+def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarray:
     """Method for computing custom data as a function of the external parameter,
     calculated via the function `func`.
 
@@ -1205,12 +1223,12 @@ def generator(sweep: "ParameterSweep", func: callable, **kwargs) -> np.ndarray:
             disable=settings.PROGRESSBAR_DISABLED,
         )
     )
-    element_shape = tuple()
+    element_shape: Tuple[int, ...] = tuple()
     if isinstance(data_array[0], np.ndarray):
         element_shape = data_array[0].shape
 
-    data_array = np.asarray(data_array)
+    data_ndarray = np.asarray(data_array)
     return NamedSlotsNdarray(
-        data_array.reshape(reduced_parameters.counts + element_shape),
+        data_ndarray.reshape(reduced_parameters.counts + element_shape),
         reduced_parameters.paramvals_by_name,
     )

@@ -251,7 +251,7 @@ class Parameters:
 
     def __init__(
         self,
-        paramvals_by_name: Dict[str, ndarray],
+        paramvals_by_name: Dict[str, Union[ndarray, Iterable]],
         paramnames_list: Optional[List[str]] = None,
     ) -> None:
         if paramnames_list is not None:

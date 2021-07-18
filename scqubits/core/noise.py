@@ -1213,7 +1213,7 @@ class NoisySystem(ABC):
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
