@@ -9,7 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import scipy as sp

@@ -16,7 +16,6 @@ import pytest
 
 import scqubits as scq
 
-from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.param_sweep import ParameterSweep
 
 

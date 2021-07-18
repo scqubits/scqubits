@@ -12,7 +12,7 @@
 import itertools
 import weakref
 
-from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
