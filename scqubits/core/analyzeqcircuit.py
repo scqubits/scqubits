@@ -1,5 +1,7 @@
 from abc import ABC, ABCMeta, abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from numpy.core.fromnumeric import var
+from numpy.core.function_base import linspace
 
 import sympy
 import numpy as np
@@ -706,14 +708,59 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ##################################################################
     ############# Functions for plotting wavefunction ################
     ##################################################################
+    def plot_wavefunction(self, n = 0, var_indices=(0,), mode="abs"):
+        global cutoff_list, wf, wf_plot, grids
+        dims = tuple(np.sort(var_indices) - 1) # taking the var indices and identifying the dimensions.
+        
+        eigs, wf = self.eigensys()
 
-    # def plot_potential_1D(self, param_name, param_grid = None):
-    #     if param_grid is None:
-    #         potential = self.potential_energy(param_name)
-    #         plt.plot(potential)
-    #     else:
-    #         potential = self.potential_energy(**{param_name : param_grid})
-    #         plt.plot(param_grid.make_linspace(), potential)
+        cutoffs_dict = self.get_cutoffs()
+
+        cutoff_list = []
+        grids = []
+        for cutoff_type in cutoffs_dict.keys():
+            if "cutoff_cyclic" in cutoff_type or "cutoff_periodic" in cutoff_type:
+                cutoff_list.append([2 * k + 1 for k in cutoffs_dict[cutoff_type]])
+                grids.append([list(range(-k, k + 1)) for k in cutoffs_dict[cutoff_type]])
+            elif "cutoff_discrete" in cutoff_type:
+                cutoff_list.append([k for k in cutoffs_dict[cutoff_type]])
+                grids.append([np.linspace(-6*np.pi, 6*np.pi, k) for k in cutoffs_dict[cutoff_type]])
+        cutoff_list = [i for j in cutoff_list for i in j] # concatenating the sublists
+        grids = [i for j in grids for i in j] # concatenating the sublists
+        
+        var_types = []
+
+        for var_index in var_indices:
+            if var_index in self.var_indices['cyclic'] or var_index in self.var_indices['periodic']:
+                var_types.append("Charge in units of 2e, Variable:")
+            else:
+                var_types.append("Dimensionless Flux, Variable:")
+            
+
+        # selecting the n wave funciton according to the input
+        wf_reshaped = wf[:, n].reshape(*cutoff_list)
+
+        if len(dims) > 2:
+            raise AttributeError("Cannot plot wavefunction in more than 2 dimensions. The number of dimensions in dims should be less than 2.")
+
+        wf_plot = (np.sum(wf_reshaped, axis=tuple([i for i in range(len(cutoff_list)) if i not in dims]))).T
+
+        if len(dims) == 1:
+            plt.plot(grids[dims[0]], eval("np." + mode + "(wf_plot)"))
+            plt.xlabel(str(dims[0]))
+        elif len(dims) == 2:
+            x, y = np.meshgrid(grids[dims[0]], grids[dims[1]])
+            plt.contourf(x, y, eval("np." + mode + "(wf_plot)"))
+            plt.xlabel(var_types[0] + str(var_indices[0]))
+            plt.ylabel(var_types[1] + str(var_indices[1]))
+        plt.title("Distribution of Wavefuntion along variables " + str(var_indices))
+
+
+
+
+        
+
+
 
     ##################################################################
     ########### Functions from scqubits.core.qubit_base ##############
