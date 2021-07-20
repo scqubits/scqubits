@@ -725,12 +725,13 @@ class CustomQCircuit(serializers.Serializable):
 
         return self.flux_branches
 
-    def lagrangian_sym(self):
+    def lagrangian_sym(self, basis=None):
         """
         Outputs the Lagrangian of the circuit in terms of the new variables
         output: (number of cyclic variables, periodic variables, Sympy expression)
         """
-        basis = self.variable_transformation_matrix()
+        if basis is None: # using the Lagrangian for a different transformation matrix
+            basis = self.variable_transformation_matrix()
         flux_branches = self._flux_loops()
 
         y_vars = [
