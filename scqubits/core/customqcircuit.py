@@ -730,7 +730,7 @@ class CustomQCircuit(serializers.Serializable):
         Outputs the Lagrangian of the circuit in terms of the new variables
         output: (number of cyclic variables, periodic variables, Sympy expression)
         """
-        if basis is None: # using the Lagrangian for a different transformation matrix
+        if basis is None:  # using the Lagrangian for a different transformation matrix
             basis = self.variable_transformation_matrix()
         flux_branches = self._flux_loops()
 

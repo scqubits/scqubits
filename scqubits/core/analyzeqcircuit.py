@@ -626,21 +626,29 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         potential_sym = self.potential
 
         # constructing the grids
-        parameters = dict.fromkeys(["y" + str(index) for index in var_indices] +
-        [var.name for var in self.external_flux_vars] + [var.name for var in self.param_vars])
+        parameters = dict.fromkeys(
+            ["y" + str(index) for index in var_indices]
+            + [var.name for var in self.external_flux_vars]
+            + [var.name for var in self.param_vars]
+        )
 
         for var_name in kwargs:
             if isinstance(kwargs[var_name], np.ndarray):
                 parameters[var_name] = kwargs[var_name]
-            elif isinstance(kwargs[var_name], int) or isinstance(kwargs[var_name], float):
+            elif isinstance(kwargs[var_name], int) or isinstance(
+                kwargs[var_name], float
+            ):
                 parameters[var_name] = kwargs[var_name]
             else:
-                raise AttributeError("Only float, Numpy ndarray or int assignments are allowed.")
-
+                raise AttributeError(
+                    "Only float, Numpy ndarray or int assignments are allowed."
+                )
 
         for var_name in parameters.keys():
             if parameters[var_name] is None:
-                if var_name in [var.name for var in self.param_vars] + [var.name for var in self.external_flux_vars]:
+                if var_name in [var.name for var in self.param_vars] + [
+                    var.name for var in self.external_flux_vars
+                ]:
                     parameters[var_name] = getattr(self, var_name)
                 elif var_name in ["y" + str(index) for index in var_indices]:
                     raise AttributeError(var_name + " is not set.")
@@ -648,17 +656,18 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         # adding external fluxes
         for var_name in self.external_flux_vars:
             parameters
-            
+
         # creating a meshgrid for multiple dimensions
         sweep_vars = {}
         for var_name in kwargs:
             if isinstance(kwargs[var_name], np.ndarray):
                 sweep_vars[var_name] = kwargs[var_name]
         if len(sweep_vars) > 1:
-            sweep_vars.update(zip(sweep_vars, np.meshgrid(*[grid for grid in sweep_vars.values()])))
+            sweep_vars.update(
+                zip(sweep_vars, np.meshgrid(*[grid for grid in sweep_vars.values()]))
+            )
             for var_name in sweep_vars:
                 parameters[var_name] = sweep_vars[var_name]
-            
 
         potential_func = lambdify(parameters.keys(), potential_sym, "numpy")
 
@@ -674,8 +683,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         potential_sym = self.potential
 
         # constructing the grids
-        parameters = dict.fromkeys(["y" + str(index) for index in var_indices] +
-        [var.name for var in self.external_flux_vars] + [var.name for var in self.param_vars])
+        parameters = dict.fromkeys(
+            ["y" + str(index) for index in var_indices]
+            + [var.name for var in self.external_flux_vars]
+            + [var.name for var in self.param_vars]
+        )
 
         sweep_vars = {}
         for var_name in kwargs:
@@ -687,10 +699,12 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                 parameters[var_name] = sweep_vars[var_name]
 
         if len(sweep_vars) > 2:
-            raise AttributeError("Cannot plot with a dimension greater than 3; Only give a maximum of two grid inputs")
+            raise AttributeError(
+                "Cannot plot with a dimension greater than 3; Only give a maximum of two grid inputs"
+            )
 
         potential_energies = self.potential_energy(**kwargs)
-        
+
         if len(sweep_vars) == 1:
             plot = plt.plot(*(list(sweep_vars.values()) + [potential_energies]))
             plt.xlabel(list(sweep_vars.keys())[0])
@@ -708,10 +722,12 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ##################################################################
     ############# Functions for plotting wavefunction ################
     ##################################################################
-    def plot_wavefunction(self, n = 0, var_indices=(0,), mode="abs"):
+    def plot_wavefunction(self, n=0, var_indices=(0,), mode="abs"):
         global cutoff_list, wf, wf_plot, grids
-        dims = tuple(np.sort(var_indices) - 1) # taking the var indices and identifying the dimensions.
-        
+        dims = tuple(
+            np.sort(var_indices) - 1
+        )  # taking the var indices and identifying the dimensions.
+
         eigs, wf = self.eigensys()
 
         cutoffs_dict = self.get_cutoffs()
@@ -721,29 +737,45 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         for cutoff_type in cutoffs_dict.keys():
             if "cutoff_cyclic" in cutoff_type or "cutoff_periodic" in cutoff_type:
                 cutoff_list.append([2 * k + 1 for k in cutoffs_dict[cutoff_type]])
-                grids.append([list(range(-k, k + 1)) for k in cutoffs_dict[cutoff_type]])
+                grids.append(
+                    [list(range(-k, k + 1)) for k in cutoffs_dict[cutoff_type]]
+                )
             elif "cutoff_discrete" in cutoff_type:
                 cutoff_list.append([k for k in cutoffs_dict[cutoff_type]])
-                grids.append([np.linspace(-6*np.pi, 6*np.pi, k) for k in cutoffs_dict[cutoff_type]])
-        cutoff_list = [i for j in cutoff_list for i in j] # concatenating the sublists
-        grids = [i for j in grids for i in j] # concatenating the sublists
-        
+                grids.append(
+                    [
+                        np.linspace(-6 * np.pi, 6 * np.pi, k)
+                        for k in cutoffs_dict[cutoff_type]
+                    ]
+                )
+        cutoff_list = [i for j in cutoff_list for i in j]  # concatenating the sublists
+        grids = [i for j in grids for i in j]  # concatenating the sublists
+
         var_types = []
 
         for var_index in var_indices:
-            if var_index in self.var_indices['cyclic'] or var_index in self.var_indices['periodic']:
+            if (
+                var_index in self.var_indices["cyclic"]
+                or var_index in self.var_indices["periodic"]
+            ):
                 var_types.append("Charge in units of 2e, Variable:")
             else:
                 var_types.append("Dimensionless Flux, Variable:")
-            
 
         # selecting the n wave funciton according to the input
         wf_reshaped = wf[:, n].reshape(*cutoff_list)
 
         if len(dims) > 2:
-            raise AttributeError("Cannot plot wavefunction in more than 2 dimensions. The number of dimensions in dims should be less than 2.")
+            raise AttributeError(
+                "Cannot plot wavefunction in more than 2 dimensions. The number of dimensions in dims should be less than 2."
+            )
 
-        wf_plot = (np.sum(wf_reshaped, axis=tuple([i for i in range(len(cutoff_list)) if i not in dims]))).T
+        wf_plot = (
+            np.sum(
+                wf_reshaped,
+                axis=tuple([i for i in range(len(cutoff_list)) if i not in dims]),
+            )
+        ).T
 
         if len(dims) == 1:
             plt.plot(grids[dims[0]], eval("np." + mode + "(wf_plot)"))
@@ -754,13 +786,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             plt.xlabel(var_types[0] + str(var_indices[0]))
             plt.ylabel(var_types[1] + str(var_indices[1]))
         plt.title("Distribution of Wavefuntion along variables " + str(var_indices))
-
-
-
-
-        
-
-
 
     ##################################################################
     ########### Functions from scqubits.core.qubit_base ##############
