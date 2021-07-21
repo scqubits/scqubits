@@ -779,7 +779,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         if len(dims) == 1:
             plt.plot(grids[dims[0]], eval("np." + mode + "(wf_plot)"))
-            plt.xlabel(str(dims[0]))
+            plt.xlabel(str(var_indices[0]))
         elif len(dims) == 2:
             x, y = np.meshgrid(grids[dims[0]], grids[dims[1]])
             plt.contourf(x, y, eval("np." + mode + "(wf_plot)"))
