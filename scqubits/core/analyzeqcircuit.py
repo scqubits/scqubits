@@ -722,7 +722,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ##################################################################
     ############# Functions for plotting wavefunction ################
     ##################################################################
-    def plot_wavefunction(self, n=0, var_indices=(0,), mode="abs"):
+    def plot_wavefunction(self, n=0, var_indices=(1,), mode="abs"):
         global cutoff_list, wf, wf_plot, grids
         dims = tuple(
             np.sort(var_indices) - 1
