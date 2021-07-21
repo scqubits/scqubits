@@ -785,6 +785,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             plt.contourf(x, y, eval("np." + mode + "(wf_plot)"))
             plt.xlabel(var_types[0] + str(var_indices[0]))
             plt.ylabel(var_types[1] + str(var_indices[1]))
+            plt.colorbar()
         plt.title("Distribution of Wavefuntion along variables " + str(var_indices))
 
     ##################################################################
