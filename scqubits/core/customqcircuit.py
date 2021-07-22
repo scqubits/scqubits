@@ -191,6 +191,7 @@ class CustomQCircuit(serializers.Serializable):
         self.param_vars = []
 
         self.H = None
+        self._L = None # to store the internally used Lagrangian
         self.L = None
         self.L_old = None  # symbolic Lagrangian in terms of untransformed generalized flux variables
         self.potential = (
@@ -768,9 +769,28 @@ class CustomQCircuit(serializers.Serializable):
         for i in self.var_indices["zombie"]:
             sub = sympy.solve(L_new.diff(symbols("y" + str(i))), symbols("y" + str(i)))
             L_new = L_new.replace(symbols("y" + str(i)), sub[0])
-        # Updating the class properties
+
+        self._L = L_new # using a separate variable to store Lagrangian as used by code internally
+
+        ############# Updating the class properties ###################
+
         self.L = L_new.expand()
-        self.L_old = L_old
+        self.L_old = L_old        
+
+        # Replacing energies with capacitances if the circuit mode is symbolic
+        if self.mode == "sym":
+            # finding the unique capacitances
+            uniq_capacitances = []
+            element_param = {"C": "E_C", "JJ": "E_CJ"}
+            for c, b in enumerate([t for t in self.branches if t.type == "C" or t.type == "JJ"]):
+                if len(set(b.nodes)) > 1: # check to see if branch is shorted
+                    if b.parameters[element_param[b.type]] not in uniq_capacitances:
+                        uniq_capacitances.append(b.parameters[element_param[b.type]])
+            
+            for index, var in enumerate(uniq_capacitances):
+                self.L = self.L.subs(var, 1/(8*symbols("C" + str(index + 1))) )
+                self.L_old = self.L_old.subs(var, 1/(8*symbols("C" + str(index + 1))) )
+                
 
         return self.L
 
@@ -778,8 +798,9 @@ class CustomQCircuit(serializers.Serializable):
         """
         Outputs the Hamiltonian of the circuit in terms of the new variables
         output: (number of cyclic variables, periodic variables, Sympy expression)
-        """
-        L = self.lagrangian_sym()
+        """ 
+        self.lagrangian_sym()
+        L = self._L
         y_vars = [
             symbols("y" + str(i)) for i in range(1, len(self.nodes) + 1)
         ]  # defining the θ variables
