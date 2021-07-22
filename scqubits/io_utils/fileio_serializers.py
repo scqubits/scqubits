@@ -66,7 +66,7 @@ class Serializable(ABC):
         """
         initdata = {name: getattr(self, name) for name in self._init_params}
         if hasattr(self, "_id_str"):
-            initdata["id_str"] = self._id_str
+            initdata["id_str"] = self._id_str  # type:ignore
         iodata = dict_serialize(initdata)
         iodata.typename = type(self).__name__
         return iodata

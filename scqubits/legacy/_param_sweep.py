@@ -32,8 +32,9 @@ import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 
+from scqubits.core.generic_qubit import GenericQubit
 from scqubits.core.hilbert_space import HilbertSpace
-from scqubits.core.oscillator import Oscillator
+from scqubits.core.oscillator import KerrOscillator, Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import DataStore, SpectrumData
@@ -48,7 +49,7 @@ else:
     from tqdm import tqdm
 
 
-QuantumSys = Union[QubitBaseClass, Oscillator]
+QuantumSys = Union[QubitBaseClass, Oscillator, KerrOscillator, GenericQubit]
 
 
 class _ParameterSweepBase(ABC):

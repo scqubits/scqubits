@@ -17,17 +17,7 @@ import warnings
 
 from abc import ABC
 from collections import OrderedDict
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -45,13 +35,14 @@ import scqubits.utils.misc as utils
 import scqubits.utils.plotting as plot
 
 from scqubits import settings as settings
+from scqubits.core.generic_qubit import GenericQubit
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.core.namedslots_array import (
     NamedSlotsNdarray,
     Parameters,
     convert_to_std_npindex,
 )
-from scqubits.core.oscillator import Oscillator
+from scqubits.core.oscillator import KerrOscillator, Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.spec_lookup import SpectrumLookupMixin
 from scqubits.core.storage import SpectrumData
@@ -66,7 +57,7 @@ else:
     from tqdm import tqdm
 
 
-QuantumSys = Union[QubitBaseClass, Oscillator]
+QuantumSys = Union[QubitBaseClass, Oscillator, KerrOscillator, GenericQubit]
 GIndex = Union[int, float, complex, slice, Tuple[int], List[int]]
 GIndexTuple = Tuple[GIndex, ...]
 NpIndex = Union[int, slice, Tuple[int], List[int]]
@@ -176,7 +167,7 @@ class ParameterSweepBase(ABC):
             List of `SpectrumData` objects with bare eigensystem data, one per subsystem
         """
         multi_index = self._current_param_indices
-        sweep_param_indices = self.get_sweep_indices(multi_index)
+        sweep_param_indices = self.get_sweep_indices(multi_index)  # type:ignore
         if len(sweep_param_indices) != 1:
             raise ValueError(
                 "All but one parameter must be fixed for `bare_specdata_list`."
@@ -209,7 +200,7 @@ class ParameterSweepBase(ABC):
             `SpectrumData` object with bare eigensystem data
         """
         multi_index = self._current_param_indices
-        sweep_param_indices = self.get_sweep_indices(multi_index)
+        sweep_param_indices = self.get_sweep_indices(multi_index)  # type:ignore
         if len(sweep_param_indices) != 1:
             raise ValueError(
                 "All but one parameter must be fixed for `dressed_specdata`."
@@ -266,7 +257,7 @@ class ParameterSweepBase(ABC):
 
     def _get_final_states(
         self,
-        initial_state: Tuple[int],
+        initial_state: Tuple[int, ...],
         subsys_list: List[QuantumSys],
         final: Union[Tuple[int, ...], None],
         sidebands: bool,
@@ -286,13 +277,13 @@ class ParameterSweepBase(ABC):
         range_list = [range(dim) for dim in self._hilbertspace.subsystem_dims]
         for subsys_index, subsys in enumerate(self._hilbertspace):
             if subsys not in subsys_list:
-                range_list[subsys_index] = [initial_state[subsys_index]]
+                range_list[subsys_index] = [initial_state[subsys_index]]  # type:ignore
         final_state_list = list(itertools.product(*range_list))
         return final_state_list
 
     def _complete_state(
         self,
-        partial_state: Union[List[int], Tuple[int]],
+        partial_state: Union[List[int], Tuple[int, ...]],
         subsys_list: List[QuantumSys],
     ) -> List[int]:
         """A partial state only includes entries for active subsystems. Complete this
@@ -366,7 +357,9 @@ class ParameterSweepBase(ABC):
 
         if subsystems is None:
             subsys_list = self._hilbertspace.subsys_list
-        elif isinstance(subsystems, (QubitBaseClass, Oscillator)):
+        elif isinstance(
+            subsystems, (QubitBaseClass, Oscillator, KerrOscillator, GenericQubit)
+        ):
             subsys_list = [subsystems]
         else:
             subsys_list = subsystems
@@ -385,7 +378,7 @@ class ParameterSweepBase(ABC):
             )
 
         if len(initial_state) < len(self._hilbertspace):
-            initial_state = self._complete_state(initial_state, subsys_list)
+            initial_state = tuple(self._complete_state(initial_state, subsys_list))
 
         final_states_list = self._get_final_states(
             initial_state, subsys_list, final, sidebands
@@ -415,7 +408,7 @@ class ParameterSweepBase(ABC):
         self._current_param_indices = slice(None, None, None)
 
         if not as_specdata:
-            return transitions, transition_energies
+            return transitions, transition_energies  # type:ignore
 
         label_list = [
             r"{}$\to${}".format(
@@ -514,10 +507,14 @@ class ParameterSweepBase(ABC):
                 "sweep by pre-slicing, e.g.,  <ParameterSweep>[0, :, "
                 "0].plot_transitions(...)"
             )
+
+        initial_tuple = (initial,) if isinstance(initial, int) else initial
+        final_tuple = (final,) if isinstance(final, int) else final
+
         specdata = self.transitions(
             subsystems,
-            initial,
-            final,
+            initial_tuple,
+            final_tuple,
             sidebands,
             photon_number,
             make_positive,
@@ -525,7 +522,7 @@ class ParameterSweepBase(ABC):
             param_indices=param_indices,
         )
         specdata_all = copy.deepcopy(self[param_indices].dressed_specdata)
-        specdata_all.energy_table -= specdata.subtract
+        specdata_all.energy_table -= specdata.subtract  # type:ignore
         specdata_all.energy_table /= photon_number
         if make_positive:
             specdata_all.energy_table = np.abs(specdata_all.energy_table)
@@ -544,8 +541,8 @@ class ParameterSweepBase(ABC):
 
         labellines_status = plot._LABELLINES_ENABLED
         plot._LABELLINES_ENABLED = False
-        fig, axes = specdata.plot_evals_vs_paramvals(
-            label_list=specdata.labels, fig_ax=fig_ax, **kwargs
+        fig, axes = specdata.plot_evals_vs_paramvals(  # type:ignore
+            label_list=specdata.labels, fig_ax=fig_ax, **kwargs  # type:ignore
         )
         plot._LABELLINES_ENABLED = labellines_status
         return fig, axes
@@ -640,7 +637,7 @@ class ParameterSweepBase(ABC):
         self._data[sweep_name] = matrix_element_data
 
 
-class ParameterSweep(
+class ParameterSweep(  # type:ignore
     ParameterSweepBase,
     SpectrumLookupMixin,
     dispatch.DispatchClient,
@@ -720,7 +717,9 @@ class ParameterSweep(
 
     """
 
-    def __new__(cls, *args, **kwargs) -> "Union[ParameterSweep, _ParameterSweep]":
+    def __new__(  # type:ignore
+        cls, *args, **kwargs
+    ) -> "Union[ParameterSweep, _ParameterSweep]":
         if args and isinstance(args[0], str) or "param_name" in kwargs:
             # old-style ParameterSweep interface is being used
             warnings.warn(
@@ -732,7 +731,7 @@ class ParameterSweep(
 
             return _ParameterSweep(*args, **kwargs)
         else:
-            return super().__new__(cls, *args, **kwargs)
+            return super().__new__(cls, *args, **kwargs)  # type:ignore
 
     def __init__(
         self,
@@ -752,7 +751,7 @@ class ParameterSweep(
         self._evals_count = evals_count
         self._update_hilbertspace = self.set_update_func(update_hilbertspace)
         self._subsys_update_info = subsys_update_info
-        self._data: Dict[str, Optional[NamedSlotsNdarray]] = {}
+        self._data: Dict[str, NamedSlotsNdarray] = {}
         self._bare_only = bare_only
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
@@ -940,7 +939,7 @@ class ParameterSweep(
         update_func(self, *paramval_tuple)
 
         assert self._data is not None
-        bare_esys = {
+        bare_esys: Dict[int, List[ndarray]] = {
             subsys_index: [
                 self._data["bare_evals"][subsys_index][paramindex_tuple],
                 self._data["bare_evecs"][subsys_index][paramindex_tuple],
@@ -949,7 +948,7 @@ class ParameterSweep(
         }
 
         evals, evecs = hilbertspace.eigensys(
-            evals_count=evals_count, bare_esys=bare_esys
+            evals_count=evals_count, bare_esys=bare_esys  # type:ignore
         )
         esys_array = np.empty(shape=(2,), dtype=object)
         esys_array[0] = evals
@@ -1108,11 +1107,11 @@ class StoredSweep(
     _parameters: Parameters = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
     _evals_count: int = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
     _data: Dict[str, Any] = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _hilbertspace: HilbertSpace
+    _hilbertspace: HilbertSpace  # type:ignore
 
     def __init__(
         self,
-        paramvals_by_name: Dict[str, Union[ndarray, Iterable]],
+        paramvals_by_name: Dict[str, ndarray],
         hilbertspace: HilbertSpace,
         evals_count: int,
         _data,

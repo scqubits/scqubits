@@ -65,7 +65,8 @@ class WatchedProperty:
         if instance is None:  # when accessed on class level rather than instance level
             return self
 
-        if self.inner and self.attr_name:
+        assert self.attr_name
+        if self.inner:
             inner_instance = instance.__dict__[self.inner]
             return getattr(inner_instance, self.attr_name)
         return instance.__dict__[self.attr_name]
@@ -76,6 +77,7 @@ class WatchedProperty:
             setattr(inner_instance, self.attr_name, value)
             # Rely on inner_instance.attr_name to do the broadcasting.
         else:
+            assert self.attr_name
             if self.attr_name not in instance.__dict__:
                 instance.__dict__[self.attr_name] = value
                 # Rely on inner_instance.attr_name to do the broadcasting.

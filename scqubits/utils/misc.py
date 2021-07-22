@@ -210,9 +210,11 @@ def tuple_to_short_str(the_tuple: tuple) -> str:
     return short_str[:-1]
 
 
-def to_list(obj: Any) -> list:
-    if isinstance(obj, (list, np.ndarray)):
+def to_list(obj: Any) -> List[Any]:
+    if isinstance(obj, list):
         return obj
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
     return [obj]
 
 

@@ -23,7 +23,7 @@ class QutipEigenstates(np.ndarray, Serializable):
 
     # https://docs.scipy.org/doc/numpy/user/basics.subclassing.html#extra-gotchas-custom-del-methods-and-ndarray-base
     @classmethod
-    def deserialize(cls, io_data: IOData) -> "QutipEigenstates":
+    def deserialize(cls, io_data: IOData) -> np.ndarray:  # type:ignore
         """
         Take the given IOData and return an instance of the described class, initialized
         with the data stored in io_data.

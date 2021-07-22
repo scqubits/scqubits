@@ -65,14 +65,14 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         pass
 
     def t1_inductive(
-        self: "Cos2PhiQubit",
+        self,
         i: int = 1,
         j: int = 0,
         Q_ind: Union[float, Callable] = None,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""
         :math:`T_1` due to inductive dissipation in superinductors.
@@ -175,7 +175,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             spectral_density=spectral_density1,
             total=total,
             esys=esys,
-            get_rate=True
+            get_rate=True,
         )
         rate_2 = self.t1(
             i=i,
@@ -184,7 +184,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             spectral_density=spectral_density2,
             total=total,
             esys=esys,
-            get_rate=True
+            get_rate=True,
         )
 
         if get_rate:
@@ -193,14 +193,14 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             return 1 / (rate_1 + rate_2)
 
     def t1_capacitive(
-        self: "Cos2PhiQubit",
+        self,
         i: int = 1,
         j: int = 0,
         Q_cap: Union[float, Callable] = None,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in Josephson junction
@@ -294,7 +294,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             spectral_density=spectral_density1,
             total=total,
             esys=esys,
-            get_rate=True
+            get_rate=True,
         )
         rate_2 = self.t1(
             i=i,
@@ -303,7 +303,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             spectral_density=spectral_density2,
             total=total,
             esys=esys,
-            get_rate=True
+            get_rate=True,
         )
 
         if get_rate:
@@ -312,14 +312,14 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             return 1 / (rate_1 + rate_2)
 
     def t1_purcell(
-        self: "Cos2PhiQubit",
+        self,
         i: int = 1,
         j: int = 0,
         Q_cap: Union[float, Callable] = None,
         T: float = NOISE_PARAMS["T"],
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
-        get_rate: bool = False
+        get_rate: bool = False,
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the shunt capacitor.
@@ -394,7 +394,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             spectral_density=spectral_density,
             total=total,
             esys=esys,
-            get_rate=get_rate
+            get_rate=get_rate,
         )
 
 

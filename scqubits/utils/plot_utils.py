@@ -12,7 +12,7 @@ import functools
 import operator
 import os
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib as mpl
 import numpy as np
@@ -99,8 +99,11 @@ def _process_options(
     filtered_kwargs = {
         key: value
         for key, value in kwargs.items()
-        if key not in functools.reduce(operator.concat, _direct_plot_options.values())
-    }  # type: ignore
+        if key
+        not in functools.reduce(
+            operator.concat, _direct_plot_options.values()  # type:ignore
+        )
+    }
 
     option_dict = {**opts, **filtered_kwargs}
 
@@ -148,7 +151,9 @@ def despine_axes(axes: Axes) -> None:
 
 
 def scale_wavefunctions(
-    wavefunc_list: List["WaveFunction"], potential_vals: np.ndarray, scaling: float
+    wavefunc_list: List["WaveFunction"],
+    potential_vals: np.ndarray,
+    scaling: Optional[float],
 ) -> List["WaveFunction"]:
     for wavefunc in wavefunc_list:
         wavefunc.rescale_to_potential(potential_vals)

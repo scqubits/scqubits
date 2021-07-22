@@ -86,8 +86,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    E_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    l_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    E_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")  # type:ignore
+    l_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")  # type:ignore
 
     def __init__(
         self,
@@ -98,8 +98,8 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self._evec_dtype = np.float_
-        self.truncated_dim: int = truncated_dim
-        self.l_osc: Union[None, float] = l_osc
+        self.truncated_dim: int = truncated_dim  # type:ignore
+        self.l_osc: Union[None, float] = l_osc  # type:ignore
         self.E_osc = E_osc
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.jpg"
@@ -205,7 +205,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    K = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    K = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")  # type:ignore
 
     def __init__(
         self,
@@ -216,7 +216,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         id_str: Optional[str] = None,
     ) -> None:
 
-        self.K: float = K
+        self.K: float = K  # type:ignore
 
         super().__init__(
             E_osc=E_osc,

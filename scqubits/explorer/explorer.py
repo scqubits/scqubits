@@ -21,10 +21,11 @@ from matplotlib.figure import Figure
 import scqubits.explorer.explorer_panels as panels
 import scqubits.utils.misc as utils
 
+from scqubits.core.qubit_base import QubitBaseClass1d
+
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
     from scqubits.legacy._explorer import Explorer_
-    from scqubits.legacy._param_sweep import _ParameterSweep
 
 
 try:
@@ -60,7 +61,7 @@ class Explorer:
         custom size of individual panels in plot (optional)
     """
 
-    def __new__(cls, *args, **kwargs) -> "Union[Explorer, Explorer_]":
+    def __new__(cls, *args, **kwargs) -> "Union[Explorer, Explorer_]":  # type:ignore
         if "sweep" in kwargs:
             sweep = kwargs["sweep"]
         else:
@@ -80,9 +81,9 @@ class Explorer:
 
     def __init__(
         self,
-        sweep: Union["ParameterSweep", "_ParameterSweep"],
+        sweep: "ParameterSweep",
         evals_count: int,
-        figsize: Tuple[int, int] = (10.5, 8),
+        figsize: Tuple[float, float] = (10.5, 8),
     ) -> None:
         if len(sweep.param_info) > 1:
             raise ValueError(
@@ -157,6 +158,9 @@ class Explorer:
             self.sweep[param_index].energy_by_dressed_index(final_index) - energy_ground
         )
         qbt_subsys = self.sweep.get_subsys(qbt_index)
+        assert isinstance(qbt_subsys, QubitBaseClass1d), (
+            "Unsupported qubit. " "Explorer currently only " "accepts 1d qubits."
+        )
 
         row_count = 3
         column_count = 2

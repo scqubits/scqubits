@@ -21,11 +21,17 @@ from qutip import Qobj
 from scipy.sparse import csc_matrix, dia_matrix
 
 if TYPE_CHECKING:
-    from scqubits import Oscillator, ParameterSweep, SpectrumData
+    from scqubits import (
+        GenericQubit,
+        KerrOscillator,
+        Oscillator,
+        ParameterSweep,
+        SpectrumData,
+    )
     from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
-    QuantumSys = Union[QubitBaseClass, Oscillator]
+QuantumSys = Union["QubitBaseClass", "Oscillator", "KerrOscillator", "GenericQubit"]
 
 
 def order_eigensystem(
@@ -127,18 +133,19 @@ def matrix_element(
 
     if isinstance(state1, qt.Qobj):
         vec1 = state1.data.toarray()
-        vec2 = state2.data.toarray()
     else:
         vec1 = state1
+
+    if isinstance(state2, qt.Qobj):
+        vec2 = state2.data.toarray()
+    else:
         vec2 = state2
 
     if isinstance(op_matrix, np.ndarray):  # Is operator given in dense form?
-        return np.vdot(
-            vec1, np.dot(operator, vec2)
-        )  # Yes - use numpy's 'vdot' and 'dot'.
-    return np.vdot(
-        vec1, op_matrix.dot(vec2)
-    )  # No, operator is sparse. Must use its own 'dot' method.
+        # Yes - use numpy's 'vdot' and 'dot'.
+        return np.vdot(vec1, np.dot(operator, vec2))
+    # No, operator is sparse. Must use its own 'dot' method.
+    return np.vdot(vec1, op_matrix.dot(vec2))
 
 
 def get_matrixelement_table(
@@ -242,7 +249,8 @@ def absorption_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     the energy of the select state. Resulting negative frequencies, if the reference
     state is not the ground state, are omitted.
     """
-    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
+    assert isinstance(spectrum_data.energy_table, ndarray)
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)  # type:ignore
     return spectrum_data
 
 
@@ -253,8 +261,9 @@ def emission_spectrum(spectrum_data: "SpectrumData") -> "SpectrumData":
     select state, and multiplying the result by -1. Resulting negative frequencies,
     corresponding to absorption instead, are omitted.
     """
+    assert isinstance(spectrum_data.energy_table, ndarray)
     spectrum_data.energy_table *= -1.0
-    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)
+    spectrum_data.energy_table = spectrum_data.energy_table.clip(min=0.0)  # type:ignore
     return spectrum_data
 
 
@@ -403,7 +412,7 @@ def identity_wrap(
         internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
     """
     subsys_operator = convert_operator_to_qobj(
-        operator, subsystem, op_in_eigenbasis, evecs
+        operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
     )
     operator_identitywrap_list = [
         qt.operators.qeye(the_subsys.truncated_dim) for the_subsys in subsys_list

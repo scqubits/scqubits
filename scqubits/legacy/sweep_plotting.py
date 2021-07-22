@@ -143,7 +143,9 @@ def bare_wavefunction(
     sweep.update_hilbertspace(param_val)
     param_index = np.searchsorted(sweep.param_vals, param_val)
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
-    evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]
+    evecs = sweep.bare_specdata_list[subsys_index].state_table[
+        param_index
+    ]  # type:ignore
     return subsys.plot_wavefunction(
         esys=(evals, evecs), which=which, mode="real", phi_grid=phi_grid, **kwargs
     )
@@ -160,7 +162,7 @@ def chi(datastore: "DataStore", **kwargs) -> Tuple[Figure, Axes]:
     **kwargs:
         standard plotting option (see separate documentation)
     """
-    ydata = datastore.chi
+    ydata = datastore.chi  # type:ignore
     xdata = datastore.param_vals
     state_count = ydata.shape[1]
     label_list = list(range(state_count))
@@ -180,6 +182,8 @@ def kerr(datastore: "DataStore", qubit_level=None, **kwargs) -> Tuple[Figure, Ax
     ----------
     datastore:
         contains sweep data for the Kerr shift, stored as specdata.kerr
+    qubit_level:
+        (optional)
     **kwargs:
         standard plotting option (see separate documentation)
     """
@@ -187,9 +191,7 @@ def kerr(datastore: "DataStore", qubit_level=None, **kwargs) -> Tuple[Figure, Ax
     xdata = datastore.param_vals
     state_count = len(ydata)
     label_list = list(range(state_count)) if qubit_level is None else None
-    return plot.data_vs_paramvals(
-        xdata, ydata.T, label_list=label_list
-    )  # , **defaults.chi(datastore.param_name, **kwargs))
+    return plot.data_vs_paramvals(xdata, ydata.T, label_list=label_list, **kwargs)
 
 
 def chi_01(
@@ -206,14 +208,14 @@ def chi_01(
     **kwargs: dict
         standard plotting option (see separate documentation)
     """
-    ydata = datastore.chi
+    ydata = datastore.chi  # type:ignore
     xdata = datastore.param_vals
     yval = ydata[param_index]
     return plot.data_vs_paramvals(
         xdata,
         ydata,
         label_list=None,
-        **defaults.chi01(datastore.param_name, yval, **kwargs)
+        **defaults.chi01(datastore.param_name, yval, **kwargs)  # type:ignore
     )
 
 

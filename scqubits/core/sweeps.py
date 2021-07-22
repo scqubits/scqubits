@@ -58,7 +58,7 @@ def bare_matrixelement(
         operator=operator_name,
         evecs=bare_evecs,
         evals_count=subsystem.truncated_dim,
-    )
+    )  # type:ignore
 
 
 def dressed_matrixelement(

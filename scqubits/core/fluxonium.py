@@ -249,7 +249,10 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         )
 
     def wavefunction(
-        self, esys: Tuple[ndarray, ndarray], which: int = 0, phi_grid: "Grid1d" = None
+        self,
+        esys: Optional[Tuple[ndarray, ndarray]],
+        which: int = 0,
+        phi_grid: "Grid1d" = None,
     ) -> storage.WaveFunction:
         """Returns a fluxonium wave function in `phi` basis
 
