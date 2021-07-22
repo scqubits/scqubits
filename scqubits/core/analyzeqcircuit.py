@@ -141,7 +141,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         "sym" : The circuit parameters are given as symbols in the input file
         """
         H = (
-            self.H.expand()
+            self.H.cancel().expand()
         )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
 
         # Defining the list of discretized_phi variables
