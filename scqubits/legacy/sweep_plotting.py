@@ -17,19 +17,20 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-import scqubits.core.sweep_generators as sweep_gen
+import scqubits.legacy.sweep_generators as sweep_gen
 import scqubits.utils.plot_defaults as defaults
 import scqubits.utils.plotting as plot
 
 if TYPE_CHECKING:
-    from scqubits import DataStore, Grid1d, Oscillator, ParameterSweep, SpectrumData
+    from scqubits import DataStore, Grid1d, Oscillator, SpectrumData
     from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass, QubitBaseClass1d
+    from scqubits.legacy._param_sweep import _ParameterSweep
 
     QuantumSys = Union[QubitBaseClass, Oscillator]
 
 
 def bare_spectrum(
-    sweep: "ParameterSweep",
+    sweep: "_ParameterSweep",
     subsys: "QuantumSys",
     which: Union[int, List[int]] = -1,
     **kwargs
@@ -42,8 +43,8 @@ def bare_spectrum(
     sweep:
     subsys:
     which:
-        default: -1, signals to plot all wavefunctions within the truncated Hilbert space;
-        int>0: plot wavefunctions 0..int-1; list(int) plot specific wavefunctions
+        default: -1, signals to plot all wavefunctions within the truncated Hilbert
+        space; int>0: plot wavefunctions 0..int-1; list(int) plot specific wavefunctions
     **kwargs:
         standard plotting option (see separate documentation)
     """
@@ -54,7 +55,7 @@ def bare_spectrum(
     return specdata.plot_evals_vs_paramvals(which=which, **kwargs)
 
 
-def dressed_spectrum(sweep: "ParameterSweep", **kwargs) -> Tuple[Figure, Axes]:
+def dressed_spectrum(sweep: "_ParameterSweep", **kwargs) -> Tuple[Figure, Axes]:
     """
     Plots energy spectrum of dressed system
 
@@ -70,11 +71,11 @@ def dressed_spectrum(sweep: "ParameterSweep", **kwargs) -> Tuple[Figure, Axes]:
 
 
 def difference_spectrum(
-    sweep: "ParameterSweep", initial_state_ind: int = 0, **kwargs
+    sweep: "_ParameterSweep", initial_state_ind: int = 0, **kwargs
 ) -> Tuple[Figure, Axes]:
     """
-    Plots a transition energy spectrum with reference to the given initial_state_ind, obtained by taking energy
-    differences of the eigenenergy spectrum.
+    Plots a transition energy spectrum with reference to the given initial_state_ind,
+    obtained by taking energy differences of the eigenenergy spectrum.
 
     Parameters
     ----------
@@ -89,7 +90,7 @@ def difference_spectrum(
 
 
 def n_photon_qubit_spectrum(
-    sweep: "ParameterSweep",
+    sweep: "_ParameterSweep",
     photonnumber: int,
     initial_state_labels: Tuple[int, ...],
     **kwargs
@@ -114,7 +115,7 @@ def n_photon_qubit_spectrum(
 
 
 def bare_wavefunction(
-    sweep: "ParameterSweep",
+    sweep: "_ParameterSweep",
     param_val: float,
     subsys: "QubitBaseClass1d",
     which: Union[int, List[int]] = -1,
@@ -142,7 +143,9 @@ def bare_wavefunction(
     sweep.update_hilbertspace(param_val)
     param_index = np.searchsorted(sweep.param_vals, param_val)
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
-    evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]
+    evecs = sweep.bare_specdata_list[subsys_index].state_table[
+        param_index
+    ]  # type:ignore
     return subsys.plot_wavefunction(
         esys=(evals, evecs), which=which, mode="real", phi_grid=phi_grid, **kwargs
     )
@@ -159,7 +162,7 @@ def chi(datastore: "DataStore", **kwargs) -> Tuple[Figure, Axes]:
     **kwargs:
         standard plotting option (see separate documentation)
     """
-    ydata = datastore.chi
+    ydata = datastore.chi  # type:ignore
     xdata = datastore.param_vals
     state_count = ydata.shape[1]
     label_list = list(range(state_count))
@@ -179,6 +182,8 @@ def kerr(datastore: "DataStore", qubit_level=None, **kwargs) -> Tuple[Figure, Ax
     ----------
     datastore:
         contains sweep data for the Kerr shift, stored as specdata.kerr
+    qubit_level:
+        (optional)
     **kwargs:
         standard plotting option (see separate documentation)
     """
@@ -186,9 +191,7 @@ def kerr(datastore: "DataStore", qubit_level=None, **kwargs) -> Tuple[Figure, Ax
     xdata = datastore.param_vals
     state_count = len(ydata)
     label_list = list(range(state_count)) if qubit_level is None else None
-    return plot.data_vs_paramvals(
-        xdata, ydata.T, label_list=label_list
-    )  # , **defaults.chi(datastore.param_name, **kwargs))
+    return plot.data_vs_paramvals(xdata, ydata.T, label_list=label_list, **kwargs)
 
 
 def chi_01(
@@ -205,14 +208,14 @@ def chi_01(
     **kwargs: dict
         standard plotting option (see separate documentation)
     """
-    ydata = datastore.chi
+    ydata = datastore.chi  # type:ignore
     xdata = datastore.param_vals
     yval = ydata[param_index]
     return plot.data_vs_paramvals(
         xdata,
         ydata,
         label_list=None,
-        **defaults.chi01(datastore.param_name, yval, **kwargs)
+        **defaults.chi01(datastore.param_name, yval, **kwargs)  # type:ignore
     )
 
 

@@ -94,7 +94,7 @@ class CentralDispatch:
             #
             # callback_ref = getattr(who, "receive")
         else:
-            callback_ref = weakref.WeakMethod(callback)
+            callback_ref = weakref.WeakMethod(callback)  # type:ignore
             # See comment just above. Workaround if pathos fails to pickle:
             #
             # callback_ref = callback

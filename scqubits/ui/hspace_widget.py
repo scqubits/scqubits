@@ -173,13 +173,13 @@ class HilbertSpaceUi:
         self.connect_ui()
 
     @staticmethod
-    def possible_operators(subsystem: QuantumSys) -> List[str]:
+    def possible_operators(subsystem: str) -> List[str]:
         if subsystem is None:
             return []
         main = importlib.import_module("__main__")
         return [
             method_name + "()"
-            for method_name in dir(main.__dict__[subsystem])
+            for method_name in dir(main.__dict__[subsystem])  # type:ignore
             if "_operator" in method_name and method_name[0] != "_"
         ]
 

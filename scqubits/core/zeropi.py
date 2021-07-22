@@ -96,6 +96,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         of EC
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
    """
     EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     EL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -120,7 +123,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         dCJ: float = 0.0,
         ECS: float = None,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
+
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
@@ -140,7 +146,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         self.grid = grid
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
 
         # _default_grid is for *theta*, needed for plotting wavefunction
@@ -178,7 +183,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         zeropi.widget()
         return zeropi
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -190,6 +196,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def widget(self, params: Dict[str, Any] = None) -> None:
         init_params = params or self.get_initdata()
+        init_params.pop("id_str", None)
         del init_params["grid"]
         init_params["grid_max_val"] = self.grid.max_val
         init_params["grid_min_val"] = self.grid.min_val

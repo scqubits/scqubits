@@ -48,8 +48,6 @@ import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
 
-from scqubits.core.oscillator import Oscillator
-from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.storage import SpectrumData
 from scqubits.io_utils.fileio_qutip import QutipEigenstates
 
@@ -59,10 +57,17 @@ else:
     from tqdm import tqdm
 
 if TYPE_CHECKING:
+    from scqubits import GenericQubit, KerrOscillator, Oscillator
+    from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio import IOData
 
+QuantumSys = Union["QubitBaseClass", "Oscillator", "KerrOscillator", "GenericQubit"]
 
-QuantumSys = Union[QubitBaseClass, Oscillator]
+
+def has_duplicate_id_str(subsystem_list: List[QuantumSys]):
+    id_str_list = [obj._id_str for obj in subsystem_list]
+    id_str_set = set(obj._id_str for obj in subsystem_list)
+    return len(id_str_set) != len(id_str_list)
 
 
 class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
@@ -172,8 +177,10 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
     operator_list = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
     add_hc = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
 
-    def __new__(
-        cls, *args, **kwargs,
+    def __new__(  # type:ignore
+        cls,
+        *args,
+        **kwargs,
     ) -> Union["InteractionTerm", InteractionTermLegacy]:
         """This takes care of legacy use of the InteractionTerm class"""
         if "subsys1" in kwargs:
@@ -182,7 +189,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                 "to be supported in the future.",
                 FutureWarning,
             )
-            return InteractionTermLegacy(
+            return InteractionTermLegacy(  # type:ignore
                 g_strength=kwargs["g_strength"],
                 op1=kwargs["op1"],
                 subsys1=kwargs["subsys1"],
@@ -192,7 +199,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
                 add_hc=kwargs.pop("add_hc", None),
             )
         else:
-            return super().__new__(cls)
+            return super().__new__(cls)  # type:ignore
 
     def __init__(
         self,
@@ -425,12 +432,23 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         subsystem_list: List[QuantumSys],
         interaction_list: List[InteractionTerm] = None,
     ) -> None:
+        if has_duplicate_id_str(subsystem_list):
+            raise ValueError(
+                "Subsystem list must not contain multiple objects with "
+                "the same `id_str` name."
+            )
         self._subsystems: Tuple[QuantumSys, ...] = tuple(subsystem_list)
-        self.subsys_list = subsystem_list
+        self._subsys_by_id_str = {
+            obj._id_str: self[index] for index, obj in enumerate(self)
+        }
         if interaction_list:
             self.interaction_list = tuple(interaction_list)
         else:
             self.interaction_list = []
+        self._interaction_term_by_id_str = {
+            "InteractionTerm_{}".format(index): interaction_term
+            for index, interaction_term in enumerate(self.interaction_list)
+        }
 
         self._lookup: Optional[spec_lookup.SpectrumLookup] = None
         self._osc_subsys_list = [
@@ -444,8 +462,19 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         dispatch.CENTRAL_DISPATCH.register("INTERACTIONTERM_UPDATE", self)
         dispatch.CENTRAL_DISPATCH.register("INTERACTIONLIST_UPDATE", self)
 
-    def __getitem__(self, index: int) -> QuantumSys:
-        return self._subsystems[index]
+    def __getitem__(self, key: Union[int, str]) -> QuantumSys:
+        if isinstance(key, int):
+            return self._subsystems[key]
+        if key in self._subsys_by_id_str:
+            return self._subsys_by_id_str[key]
+        if key in self._interaction_term_by_id_str:
+            return self._interaction_term_by_id_str[key]
+
+        raise KeyError(
+            "Unrecognized key: {}. Key must be an integer index or a "
+            "string specifying a subsystem or interaction term part of "
+            "HilbertSpace.".format(key)
+        )
 
     def __iter__(self) -> Iterator[QuantumSys]:
         return iter(self._subsystems)
@@ -463,12 +492,22 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             output += "\n\n"
             output += "HilbertSpace:  interaction terms\n"
             output += "--------------------------------\n"
-            for interaction_term in self.interaction_list:
-                output += "\n" + str(interaction_term) + "\n"
+
+            for id_str, interaction_term in self._interaction_term_by_id_str.items():
+                indent_length = 25
+                term_output = "InteractionTerm".ljust(indent_length, "-")
+                term_output += "| [{}]\n".format(id_str)
+                term_output += "\n".join(str(interaction_term).splitlines()[1:])
+                term_output += "\n\n"
+                output += term_output
         return output
 
     def __len__(self):
         return len(self._subsystems)
+
+    @property
+    def subsys_list(self) -> List[QuantumSys]:
+        return list(self._subsystems)
 
     ###################################################################################
     # HilbertSpace: file IO methods
@@ -481,10 +520,10 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         """
         alldata_dict = io_data.as_kwargs()
         lookup = alldata_dict.pop("_lookup", None)
-        new_hilbertspace = cls(**alldata_dict)
-        new_hilbertspace._lookup = lookup
+        new_hilbertspace: "HilbertSpace" = cls(**alldata_dict)
         if lookup is not None:
-            new_hilbertspace._lookup._hilbertspace = weakref.proxy(new_hilbertspace)
+            lookup._hilbertspace = weakref.proxy(new_hilbertspace)
+        new_hilbertspace._lookup = lookup
         return new_hilbertspace
 
     def serialize(self) -> "IOData":
@@ -552,7 +591,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     @property
     def dimension(self) -> int:
         """Returns total dimension of joint Hilbert space"""
-        return np.prod(np.asarray(self.subsystem_dims))
+        return np.prod(np.asarray(self.subsystem_dims))  # type:ignore
 
     @property
     def subsystem_count(self) -> int:
@@ -588,7 +627,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     # HilbertSpace: energy spectrum
     ##################################################################################
     def eigenvals(
-        self, evals_count: int = 6, bare_esys: Optional[Dict[int, ndarray]] = None,
+        self,
+        evals_count: int = 6,
+        bare_esys: Optional[Dict[int, Union[ndarray, List[ndarray]]]] = None,
     ) -> ndarray:
         """Calculates eigenvalues of the full Hamiltonian using
         `qutip.Qob.eigenenergies()`.
@@ -601,11 +642,13 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             optionally, the bare eigensystems for each subsystem can be provided to
             speed up computation; these are provided in dict form via <subsys>: esys
         """
-        hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
+        hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
         return hamiltonian_mat.eigenenergies(eigvals=evals_count)
 
     def eigensys(
-        self, evals_count: int = 6, bare_esys: Optional[Dict[int, ndarray]] = None,
+        self,
+        evals_count: int = 6,
+        bare_esys: Optional[Dict[int, Union[ndarray, List[ndarray]]]] = None,
     ) -> Tuple[ndarray, QutipEigenstates]:
         """Calculates eigenvalues and eigenvectors of the full Hamiltonian using
         `qutip.Qob.eigenstates()`.
@@ -622,7 +665,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         -------
             eigenvalues and eigenvectors
         """
-        hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)
+        hamiltonian_mat = self.hamiltonian(bare_esys=bare_esys)  # type:ignore
         evals, evecs = hamiltonian_mat.eigenstates(eigvals=evals_count)
         evecs = evecs.view(scqubits.io_utils.fileio_qutip.QutipEigenstates)
         return evals, evecs
@@ -632,7 +675,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         paramval: float,
         update_hilbertspace: Callable,
         evals_count: int,
-        bare_esys: Optional[Dict[int, ndarray]] = None,
+        bare_esys: Optional[Dict[int, Union[ndarray, List[ndarray]]]] = None,
     ) -> Tuple[ndarray, QutipEigenstates]:
         update_hilbertspace(paramval)
         return self.eigensys(evals_count, bare_esys=bare_esys)
@@ -642,7 +685,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         paramval: float,
         update_hilbertspace: Callable,
         evals_count: int,
-        bare_esys: Optional[Dict[int, ndarray]] = None,
+        bare_esys: Optional[Dict[int, Union[ndarray, List[ndarray]]]] = None,
     ) -> ndarray:
         update_hilbertspace(paramval)
         return self.eigenvals(evals_count, bare_esys=bare_esys)
@@ -651,7 +694,10 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     # HilbertSpace: Hamiltonian (bare, interaction, full)
     #######################################################
 
-    def hamiltonian(self, bare_esys: Optional[Dict[int, ndarray]] = None,) -> Qobj:
+    def hamiltonian(
+        self,
+        bare_esys: Optional[Dict[int, ndarray]] = None,
+    ) -> Qobj:
         """
         Parameters
         ----------
@@ -771,9 +817,10 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             Eigenenergies can be provided as `evals`; otherwise, they are calculated.
         """
         evals_count = subsystem.truncated_dim
+
         if evals is None:
-            evals = subsystem.eigenvals(evals_count=evals_count)
-        diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))
+            evals = subsystem.eigenvals(evals_count=evals_count)  # type:ignore
+        diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))  # type:ignore
         return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsys_list)
 
     ###################################################################################
@@ -890,7 +937,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             )
         else:
             func = functools.partial(
-                self._evals_for_paramval,
+                self._evals_for_paramval,  # type:ignore
                 update_hilbertspace=update_hilbertspace,
                 evals_count=evals_count,
             )
@@ -898,18 +945,19 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                 "Parallel computation of eigensystems [num_cpus={}]".format(num_cpus),
                 num_cpus,
             ):
-                eigenvalue_table = list(
-                    target_map(
-                        func,
-                        tqdm(
-                            param_vals,
-                            desc="Spectral data",
-                            leave=False,
-                            disable=(num_cpus > 1),
-                        ),
+                eigenvalue_table = np.asarray(
+                    list(
+                        target_map(
+                            func,
+                            tqdm(
+                                param_vals,
+                                desc="Spectral data",
+                                leave=False,
+                                disable=(num_cpus > 1),
+                            ),
+                        )
                     )
                 )
-            eigenvalue_table = np.asarray(eigenvalue_table)
             eigenstate_table = None  # type: ignore
 
         return storage.SpectrumData(
@@ -923,7 +971,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     ###################################################################################
     # HilbertSpace: add interaction and parsing arguments to .add_interaction
     ###################################################################################
-    def add_interaction(self, check_validity=True, **kwargs) -> None:
+    def add_interaction(
+        self, check_validity=True, id_str: Optional[str] = None, **kwargs
+    ) -> None:
         """
         Specify the interaction between subsystems making up the `HilbertSpace`
         instance. `add_interaction(...)` offers three different interfaces:
@@ -938,7 +988,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
             signature::
 
-                .add_interation(g=<float>,
+                .add_interaction(g=<float>,
                                 op1=(<ndarray>, <QuantumSystem>),
                                 op2=(<csc_matrix>, <QuantumSystem>),
                                  …,
@@ -966,10 +1016,14 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
 
                 .add_interaction(qobj=<Qobj>)
 
-
+        id_str:
+            optional string by which this instance can be referred to in `HilbertSpace`
+            and `ParameterSweep`. If not provided, an id is auto-generated.
         """
         if "expr" in kwargs:
-            interaction = self._parse_interactiontermstr(**kwargs)
+            interaction: Union[
+                InteractionTerm, InteractionTermStr
+            ] = self._parse_interactiontermstr(**kwargs)
         elif "qobj" in kwargs:
             interaction = self._parse_qobj(**kwargs)
         elif "op1" in kwargs:
@@ -982,12 +1036,17 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             self._lookup._out_of_sync = True
 
         self.interaction_list.append(interaction)
+
+        id_str = id_str or "Interaction_{}".format(len(self.interaction_list))
+        self._interaction_term_by_id_str[id_str] = interaction
+
         if not check_validity:
             return None
         try:
             _ = self.interaction_hamiltonian()
         except:
             self.interaction_list.pop()
+            del self._interaction_term_by_id_str[id_str]
             raise ValueError("Invalid Interaction Term")
 
     def _parse_interactiontermstr(self, **kwargs) -> InteractionTermStr:
@@ -1044,7 +1103,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         self, op: Union[Callable, Tuple[Union[ndarray, csc_matrix], QuantumSys]]
     ) -> Tuple[int, Union[ndarray, csc_matrix]]:
         if callable(op):
-            return self.get_subsys_index(op.__self__), op()
+            return self.get_subsys_index(op.__self__), op()  # type:ignore
         if not isinstance(op, tuple):
             raise TypeError("Cannot interpret specified operator {}".format(op))
         if len(op) == 2:

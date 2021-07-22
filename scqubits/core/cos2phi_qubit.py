@@ -13,7 +13,7 @@ import math
 import os
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import scipy as sp
@@ -73,7 +73,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to inductive dissipation in superinductors.
@@ -177,7 +176,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             total=total,
             esys=esys,
             get_rate=True,
-            **kwargs
         )
         rate_2 = self.t1(
             i=i,
@@ -187,7 +185,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             total=total,
             esys=esys,
             get_rate=True,
-            **kwargs
         )
 
         if get_rate:
@@ -204,7 +201,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in Josephson junction
@@ -299,7 +295,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             total=total,
             esys=esys,
             get_rate=True,
-            **kwargs
         )
         rate_2 = self.t1(
             i=i,
@@ -309,7 +304,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             total=total,
             esys=esys,
             get_rate=True,
-            **kwargs
         )
 
         if get_rate:
@@ -326,7 +320,6 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the shunt capacitor.
@@ -402,11 +395,10 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )
 
 
-# -Cosine two phi qubit ----------------------------------------------------------------------------------
+# -Cosine two phi qubit ----------------------------------------------------------------
 class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQubit):
     r"""Cosine Two Phi Qubit
 
@@ -452,6 +444,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         number of harmonic oscillator basis for :math:`\phi` variable
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -481,7 +476,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         zeta_cut: int,
         phi_cut: int,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ
         self.ECJ = ECJ
         self.EL = EL
@@ -495,13 +492,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self.zeta_cut = zeta_cut
         self.phi_cut = phi_cut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_theta_grid = discretization.Grid1d(-0.5 * np.pi, 1.5 * np.pi, 100)
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/cos2phi-qubit.jpg",
+            os.path.dirname(os.path.abspath(__file__)),
+            "qubit_img/cos2phi-qubit.jpg",
         )
 
     @staticmethod
@@ -528,7 +525,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         cosinetwophiqubit.widget()
         return cosinetwophiqubit
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -606,13 +604,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def phi_operator(self) -> csc_matrix:
-        """Returns :math:`\\phi` operator"""
+        r"""Returns :math:`\phi` operator"""
         return self._kron3(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         )
 
     def _n_phi_operator(self) -> csc_matrix:
-        """
+        r"""
         Returns
         -------
             `n_\phi` operator in the harmonic oscillator basis"""
@@ -624,7 +622,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def n_phi_operator(self) -> csc_matrix:
-        """Returns :math:`n_\\phi` operator"""
+        r"""Returns :math:`n_\phi` operator"""
         return self._kron3(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
         )
@@ -642,13 +640,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def zeta_operator(self) -> csc_matrix:
-        """Returns :math:`\\zeta` operator"""
+        r"""Returns :math:`\zeta` operator"""
         return self._kron3(
             self._identity_phi(), self._zeta_operator(), self._identity_theta()
         )
 
     def _n_zeta_operator(self) -> csc_matrix:
-        """
+        r"""
         Returns
         -------
             `n_\zeta` operator in the harmonic oscillator basis"""
@@ -660,7 +658,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def n_zeta_operator(self) -> csc_matrix:
-        """Returns :math:`n_\\zeta` operator"""
+        r"""Returns :math:`n_\zeta` operator"""
         return self._kron3(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
         )
@@ -702,13 +700,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         ).tocsc()
 
     def n_theta_operator(self) -> csc_matrix:
-        """Returns :math:`n_\\theta` operator"""
+        r"""Returns :math:`n_\theta` operator"""
         return self._kron3(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
         )
 
     def _cos_theta_operator(self) -> csc_matrix:
-        """Returns operator :math:`\\cos \\theta` in the charge basis"""
+        r"""Returns operator :math:`\cos \theta` in the charge basis"""
         cos_op = (
             0.5
             * sparse.dia_matrix(
@@ -726,7 +724,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return cos_op
 
     def _sin_theta_operator(self) -> csc_matrix:
-        """Returns operator :math:`\\sin \\theta` in the charge basis"""
+        r"""Returns operator :math:`\sin \theta` in the charge basis"""
         sin_op = (
             0.5
             * sparse.dia_matrix(
@@ -751,13 +749,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     def _identity_phi(self) -> csc_matrix:
         """
-        Returns Identity operator acting only on the :math:`\phi` Hilbert subspace.
+        Returns Identity operator acting only on the :math:`\\phi` Hilbert subspace.
         """
         dimension = self._dim_phi()
         return sparse.eye(dimension)
 
     def _identity_zeta(self) -> csc_matrix:
-        """
+        r"""
         Returns Identity operator acting only on the :math:`\zeta` Hilbert subspace.
         """
         dimension = self._dim_zeta()
@@ -1151,6 +1149,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return junction_mat + dis_junction_mat
 
     def d_hamiltonian_d_ng(self) -> csc_matrix:
-        return 4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator() - 4 * self._disordered_ecj() * (
-            self.n_theta_operator() - self.ng - self.n_zeta_operator()
+        return (
+            4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
+            - 4
+            * self._disordered_ecj()
+            * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
         )

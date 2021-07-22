@@ -7,23 +7,25 @@
 #
 #     This source code is licensed under the BSD-style license found in the
 #     LICENSE file in the root directory of this source tree.
-"""scqubits is an open-source Python library for simulating superconducting qubits. It is meant to give the user a \
-convenient way to obtain energy spectra of common superconducting qubits, plot energy levels as a function of external \
-parameters, calculate matrix elements etc. The library further provides an interface to QuTiP, making it easy to work \
-with composite Hilbert spaces consisting of coupled superconducting qubits and harmonic modes. Internally, numerics \
-within scqubits is carried out with the help of Numpy and Scipy; plotting capabilities rely on Matplotlib."""
-#######################################################################################################################
+"""scqubits is an open-source Python library for simulating superconducting qubits.
+It is meant to give the user a convenient way to obtain energy spectra of common
+superconducting qubits, plot energy levels as a function of external parameters,
+calculate matrix elements etc. The library further provides an interface to QuTiP,
+making it easy to work with composite Hilbert spaces consisting of coupled
+superconducting qubits and harmonic modes. Internally, numerics within scqubits is
+carried out with the help of Numpy and Scipy; plotting capabilities rely on
+Matplotlib."""
+#######################################################################################
 
 
 import warnings
 
-import scqubits.settings
+from scqubits import settings
 
 # core
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
 from scqubits.core.discretization import Grid1d
-from scqubits.core.explorer import Explorer
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.generic_qubit import GenericQubit
@@ -43,8 +45,11 @@ from scqubits.core.units import (
 )
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
+
 from scqubits.core.customqcircuit import CustomQCircuit
 from scqubits.core.analyzeqcircuit import AnalyzeQCircuit
+
+from scqubits.explorer.explorer import Explorer
 # file IO
 from scqubits.io_utils.fileio import read, write
 
@@ -53,9 +58,13 @@ try:
     from scqubits.ui.gui import GUI
 except NameError:
     warnings.warn(
-        "scqubits: could not import GUI - consider installing ipywidgets (optional dependency)?",
+        "scqubits: could not import GUI - consider installing ipywidgets "
+        "(optional dependency)?",
         ImportWarning,
     )
+
+# for showing scqubits info
+from scqubits.utils.misc import about, cite
 
 # spectrum utils
 from scqubits.utils.spectrum_utils import identity_wrap
@@ -64,6 +73,7 @@ from scqubits.utils.spectrum_utils import identity_wrap
 try:
     from scqubits.version import version as __version__
 except ImportError:
+    __version__ = "???"
     warnings.warn(
         "scqubits: missing version information - did scqubits install correctly?",
         ImportWarning,

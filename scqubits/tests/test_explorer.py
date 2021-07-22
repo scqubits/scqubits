@@ -12,20 +12,19 @@
 
 import numpy as np
 
-import scqubits as qubit
-import scqubits.core.sweep_generators as swp
+import scqubits as scq
 
 from scqubits import Explorer, InteractionTerm, ParameterSweep
 
 
-def test_explorer():
-    qbt = qubit.Fluxonium(
+def test_explorer_legacy():
+    qbt = scq.Fluxonium(
         EJ=2.55, EC=0.72, EL=0.12, flux=0.0, cutoff=110, truncated_dim=9
     )
 
-    osc = qubit.Oscillator(E_osc=4.0, truncated_dim=5)
+    osc = scq.Oscillator(E_osc=4.0, truncated_dim=5)
 
-    hilbertspace = qubit.HilbertSpace([qbt, osc])
+    hilbertspace = scq.HilbertSpace([qbt, osc])
 
     interaction = InteractionTerm(
         g_strength=0.2,
@@ -38,7 +37,7 @@ def test_explorer():
     interaction_list = [interaction]
     hilbertspace.interaction_list = interaction_list
 
-    param_name = "$\Phi_{ext}/\Phi_0$"
+    param_name = r"$\Phi_{ext}/\Phi_0$"
     param_vals = np.linspace(-0.5, 0.5, 100)
 
     subsys_update_list = [qbt]
@@ -57,4 +56,34 @@ def test_explorer():
 
     explorer = Explorer(sweep=sweep, evals_count=10)
 
+    explorer.interact()
+
+
+def test_explorer():
+    qbt = scq.Fluxonium(
+        EJ=2.55, EC=0.72, EL=0.12, flux=0.0, cutoff=110, truncated_dim=9
+    )
+
+    osc = scq.Oscillator(E_osc=4.0, truncated_dim=5)
+
+    hilbertspace = scq.HilbertSpace([qbt, osc])
+    hilbertspace.add_interaction(
+        g_strength=0.2, op1=qbt.n_operator, op2=osc.creation_operator, add_hc=True
+    )
+    param_name = r"$\Phi_{ext}/\Phi_0$"
+    param_vals = np.linspace(-0.5, 0.5, 101)
+
+    subsys_update_list = [qbt]
+
+    def update_hilbertspace(param_val):
+        qbt.flux = param_val
+
+    sweep = scq.ParameterSweep(
+        paramvals_by_name={param_name: param_vals},
+        evals_count=10,
+        hilbertspace=hilbertspace,
+        subsys_update_info={param_name: [qbt]},
+        update_hilbertspace=update_hilbertspace,
+    )
+    explorer = scq.Explorer(sweep=sweep, evals_count=10)
     explorer.interact()

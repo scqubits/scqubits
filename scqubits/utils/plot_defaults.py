@@ -18,8 +18,8 @@ import scqubits.core.constants as constants
 import scqubits.core.units as units
 
 if TYPE_CHECKING:
-    from scqubits import ParameterSweep
     from scqubits.core.storage import DataStore, SpectrumData, WaveFunction
+    from scqubits.legacy._param_sweep import _ParameterSweep
 
 
 NAME_REPLACEMENTS = {
@@ -43,7 +43,8 @@ def recast_name(raw_name: Union[str, None]) -> str:
 
 
 def set_wavefunction_scaling(
-    wavefunctions: "List[WaveFunction]", potential_vals: np.ndarray,
+    wavefunctions: "List[WaveFunction]",
+    potential_vals: np.ndarray,
 ) -> float:
     """
     Sets the scaling parameter for 1d wavefunctions
@@ -139,7 +140,9 @@ def wavefunction2d() -> Dict[str, Any]:
     return {"figsize": (8, 3)}
 
 
-def contours(x_vals: np.ndarray, y_vals: np.ndarray) -> Dict[str, Any]:
+def contours(
+    x_vals: Union[List[float], np.ndarray], y_vals: Union[List[float], np.ndarray]
+) -> Dict[str, Any]:
     """Plot defaults for plotting.contours"""
     aspect_ratio = (y_vals[-1] - y_vals[0]) / (x_vals[-1] - x_vals[0])
     figsize = (8, 8 * aspect_ratio)
@@ -165,7 +168,7 @@ def matelem_vs_paramvals(
     return {"xlabel": recast_name(specdata.param_name), "ylabel": "matrix element"}
 
 
-def dressed_spectrum(sweep: "ParameterSweep", **kwargs) -> Dict[str, Any]:
+def dressed_spectrum(sweep: "_ParameterSweep", **kwargs) -> Dict[str, Any]:
     """Plot defaults for sweep_plotting.dressed_spectrum"""
     if "ylim" not in kwargs:
         kwargs["ymax"] = kwargs.get("ymax") or min(

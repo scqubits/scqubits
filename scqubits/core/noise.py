@@ -100,19 +100,21 @@ NOISE_PARAMS = {
 
 
 class NoisySystem(ABC):
+    @classmethod
     @abstractmethod
-    def supported_noise_channels(self) -> List[str]:
+    def supported_noise_channels(cls) -> List[str]:
         pass
 
     @abstractmethod
     def set_and_return(self, attr_name: str, value: Any) -> object:
         pass
 
-    def effective_noise_channels(self) -> List[str]:
+    @classmethod
+    def effective_noise_channels(cls) -> List[str]:
         """Return a list of noise channels that are used when calculating the
         effective noise (i.e. via `t1_effective` and `t2_effective`.
         """
-        return self.supported_noise_channels()
+        return cls.supported_noise_channels()
 
     def plot_coherence_vs_paramvals(
         self,
@@ -194,7 +196,7 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
                 param_name,  # type: ignore
                 param_vals,
                 evals_count=max_level + 1,
@@ -226,8 +228,9 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False:
+        # Add a ylabel if we are plotting coherence times (and not rates)
+        # and if scale is 1
+        if not common_noise_options.get("get_rate", False) and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
 
         plotting_options.update(
@@ -237,7 +240,7 @@ class NoisySystem(ABC):
         # remember current value of param_name
         current_val = getattr(self, param_name)
 
-        for n, noise_channel in enumerate(noise_channels):
+        for n, noise_channel in enumerate(noise_channels):  # type:ignore
 
             # case 1: noise_channel is a string representing the noise method
             if isinstance(noise_channel, str):
@@ -245,17 +248,21 @@ class NoisySystem(ABC):
                 noise_channel_method = noise_channel
 
                 # calculate the noise over the full param span in param_vals
-                noise_vals = [
-                    scale
-                    * getattr(self.set_and_return(param_name, v), noise_channel_method)(
-                        esys=(
-                            spectrum_data.energy_table[v_i, :],
-                            spectrum_data.state_table[v_i],
-                        ),
-                        **common_noise_options
-                    )
-                    for v_i, v in enumerate(param_vals)
-                ]
+                noise_vals = np.asarray(
+                    [
+                        scale
+                        * getattr(
+                            self.set_and_return(param_name, v), noise_channel_method
+                        )(
+                            esys=(
+                                spectrum_data.energy_table[v_i, :],  # type:ignore
+                                spectrum_data.state_table[v_i],  # type:ignore
+                            ),
+                            **common_noise_options
+                        )
+                        for v_i, v in enumerate(param_vals)
+                    ]
+                )
 
             # case 2: noise_channel is a tuple representing the noise method and
             # default options
@@ -270,17 +277,21 @@ class NoisySystem(ABC):
                 options.update(noise_channel[1])
 
                 # calculate the noise over the full param span in param_vals
-                noise_vals = [
-                    scale
-                    * getattr(self.set_and_return(param_name, v), noise_channel_method)(
-                        esys=(
-                            spectrum_data.energy_table[v_i, :],
-                            spectrum_data.state_table[v_i],
-                        ),
-                        **options
-                    )
-                    for v_i, v in enumerate(param_vals)
-                ]
+                noise_vals = np.asarray(
+                    [
+                        scale
+                        * getattr(
+                            self.set_and_return(param_name, v), noise_channel_method
+                        )(
+                            esys=(
+                                spectrum_data.energy_table[v_i, :],  # type:ignore
+                                spectrum_data.state_table[v_i],  # type:ignore
+                            ),
+                            **options
+                        )
+                        for v_i, v in enumerate(param_vals)
+                    ]
+                )
 
             else:
                 raise ValueError(
@@ -311,6 +322,7 @@ class NoisySystem(ABC):
         noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
+        get_rate: bool = False,
         scale: float = 1,
         num_cpus: Optional[int] = None,
         **kwargs
@@ -350,6 +362,8 @@ class NoisySystem(ABC):
             common options used when calculating coherence times
         spectrum_data:
             spectral data used during noise calculations
+        get_rate:
+            determines if rate or time should be plotted
         scale:
             a number that all data is multiplied by before being plotted
         num_cpus:
@@ -397,7 +411,7 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
                 param_name,
                 param_vals,
                 evals_count=max_level + 1,  # type: ignore
@@ -411,21 +425,23 @@ class NoisySystem(ABC):
         current_val = getattr(self, param_name)
 
         # calculate the noise over the full param span in param_vals
-        noise_vals = [
-            scale
-            * self.set_and_return(param_name, v).t1_effective(  # type: ignore
-                noise_channels=noise_channels,
-                common_noise_options=common_noise_options,
-                esys=(
-                    spectrum_data.energy_table[v_i, :],
-                    spectrum_data.state_table[v_i],
-                ),
-            )
-            for v_i, v in enumerate(param_vals)
-        ]
+        noise_vals = np.asarray(
+            [
+                scale
+                * self.set_and_return(param_name, v).t1_effective(  # type: ignore
+                    noise_channels=noise_channels,
+                    common_noise_options=common_noise_options,
+                    esys=(
+                        spectrum_data.energy_table[v_i, :],  # type:ignore
+                        spectrum_data.state_table[v_i],  # type:ignore
+                    ),
+                )
+                for v_i, v in enumerate(param_vals)
+            ]
+        )
 
         # Set the parameter we varied to its initial value
-        setattr(self, param_name, current_val)
+        setattr(self, param_name, current_val)  # type:ignore
 
         plotting_options = {
             "fig_ax": plt.subplots(1),
@@ -434,11 +450,14 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        plotting_options.update(kwargs)
 
-        # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False:
+        # Add a ylabel if we are plotting coherence times
+        # and if scale is exactly 1
+        if not get_rate and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
+
+        # Users can overwrite plotting options
+        plotting_options.update(kwargs)
 
         fig, axes = plotting.data_vs_paramvals(
             param_vals, noise_vals, **plotting_options
@@ -455,6 +474,7 @@ class NoisySystem(ABC):
         noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
+        get_rate: bool = False,
         scale: float = 1,
         num_cpus: Optional[int] = None,
         **kwargs
@@ -496,6 +516,8 @@ class NoisySystem(ABC):
             common options used when calculating coherence times
         spectrum_data:
             spectral data used during noise calculations
+        get_rate:
+            determines if rate or time should be plotted
         scale:
             a number that all data is multiplied by before being plotted
         num_cpus:
@@ -539,7 +561,7 @@ class NoisySystem(ABC):
                     opts = noise_channel[1]
                     max_level = max(max_level, opts.get("i", 1), opts.get("j", 1))
 
-            spectrum_data = self.get_spectrum_vs_paramvals(
+            spectrum_data = self.get_spectrum_vs_paramvals(  # type:ignore
                 param_name,
                 param_vals,
                 evals_count=max_level + 1,  # type: ignore
@@ -553,18 +575,21 @@ class NoisySystem(ABC):
         current_val = getattr(self, param_name)
 
         # calculate the noise over the full param span in param_vals
-        noise_vals = [
-            scale
-            * self.set_and_return(param_name, v).t2_effective(  # type: ignore
-                noise_channels=noise_channels,
-                common_noise_options=common_noise_options,
-                esys=(
-                    spectrum_data.energy_table[v_i, :],
-                    spectrum_data.state_table[v_i],
-                ),
-            )
-            for v_i, v in enumerate(param_vals)
-        ]
+        noise_vals = np.asarray(
+            [
+                scale
+                * self.set_and_return(param_name, v).t2_effective(  # type: ignore
+                    noise_channels=noise_channels,
+                    common_noise_options=common_noise_options,
+                    esys=(
+                        spectrum_data.energy_table[v_i, :],  # type:ignore
+                        spectrum_data.state_table[v_i],  # type:ignore
+                    ),
+                    get_rate=get_rate,
+                )
+                for v_i, v in enumerate(param_vals)
+            ]
+        )
 
         # Set the parameter we varied to its initial value
         setattr(self, param_name, current_val)
@@ -576,11 +601,14 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False:
+        # Add a ylabel if we are plotting coherence times
+        # and if scale is exactly 1
+        if not get_rate and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
 
+        # Users can overwrite plotting options
         plotting_options.update(kwargs)
+
         fig, axes = plotting.data_vs_paramvals(
             param_vals, noise_vals, **plotting_options
         )
@@ -786,7 +814,6 @@ class NoisySystem(ABC):
         common_noise_options: Dict = None,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         Calculate the effective :math:`T_2` time (or rate).
@@ -1099,7 +1126,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         Calculate the transition time (or rate) using Fermi's Golden Rule due to a
@@ -1200,7 +1226,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
@@ -1277,7 +1302,6 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )
 
     def t1_charge_impedance(
@@ -1289,7 +1313,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
@@ -1349,7 +1372,6 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )
 
     def t1_flux_bias_line(
@@ -1362,7 +1384,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""Noise due to a bias flux line.
 
@@ -1433,7 +1454,6 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )
 
     def t1_inductive(
@@ -1445,7 +1465,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to inductive dissipation in a superinductor.
@@ -1534,7 +1553,6 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )
 
     def t1_quasiparticle_tunneling(
@@ -1548,7 +1566,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
@@ -1630,7 +1647,7 @@ class NoisySystem(ABC):
                 return Y_qp
 
         def spectral_density(omega):
-            """Based on Eq. 19 in Smith et al (2020). """
+            """Based on Eq. 19 in Smith et al (2020)."""
             therm_ratio = calc_therm_ratio(omega, T)
 
             return (
@@ -1655,5 +1672,4 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )

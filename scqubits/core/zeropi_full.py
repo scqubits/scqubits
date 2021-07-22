@@ -11,7 +11,7 @@
 
 import os
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -95,6 +95,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         of EC
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     EJ = descriptors.WatchedProperty(
         "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
@@ -153,7 +156,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         ncut: int,
         ECS: float = None,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self._zeropi = scqubits.ZeroPi(
             EJ=EJ,
             EL=EL,
@@ -168,11 +173,11 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             ECS=ECS,
             # the zeropi_cutoff defines the truncated_dim of the "base" zeropi object
             truncated_dim=zeropi_cutoff,
+            id_str=self._id_str + " [interior ZeroPi]",
         )
         self.dC = dC
         self.dEL = dEL
         self.zeta_cutoff = zeta_cutoff
-        self._sys_type = type(self).__name__
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
         self._init_params.remove(
@@ -212,7 +217,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         zeropi.widget()
         return zeropi
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -223,6 +229,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def widget(self, params: Dict[str, Any] = None) -> None:
         init_params = params or self.get_initdata()
+        init_params.pop("id_str", None)
         del init_params["grid"]
         init_params["grid_max_val"] = self.grid.max_val
         init_params["grid_min_val"] = self.grid.min_val
@@ -320,7 +327,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         ) + sparse.kron(zeropi_coupling.conjugate().T, op.creation_sparse(zeta_dim))
 
         if return_parts:
-            return (hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat)
+            return hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat
 
         return hamiltonian_mat.tocsc()
 
