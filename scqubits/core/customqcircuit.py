@@ -847,6 +847,6 @@ class CustomQCircuit(serializers.Serializable):
             ]
 
         # Updating the class property
-        self.H = H  # .expand()
+        self.H = H.cancel()  # .expand()
 
         return self.H
