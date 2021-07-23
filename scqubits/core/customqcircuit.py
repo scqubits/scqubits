@@ -576,16 +576,16 @@ class CustomQCircuit(serializers.Serializable):
                     b.nodes[1].id == 0
                 ):  # if loop to check for the presence of ground node
                     J += -b.parameters["E_J"] * sympy.cos(
-                        -symbols("x" + str(b.nodes[0].id)) + phi_ext
+                        -symbols("φ" + str(b.nodes[0].id)) + phi_ext
                     )
                 elif b.nodes[0].id == 0:
                     J += -b.parameters["E_J"] * sympy.cos(
-                        symbols("x" + str(b.nodes[1].id)) + phi_ext
+                        symbols("φ" + str(b.nodes[1].id)) + phi_ext
                     )
                 else:
                     J += -b.parameters["E_J"] * sympy.cos(
-                        symbols("x" + str(b.nodes[1].id))
-                        - symbols("x" + str(b.nodes[0].id))
+                        symbols("φ" + str(b.nodes[1].id))
+                        - symbols("φ" + str(b.nodes[0].id))
                         + phi_ext
                     )
         return J
@@ -600,21 +600,21 @@ class CustomQCircuit(serializers.Serializable):
                     C += (
                         1
                         / (16 * b.parameters[element_param[b.type]])
-                        * (symbols("vx" + str(b.nodes[0].id))) ** 2
+                        * (symbols("vφ" + str(b.nodes[0].id))) ** 2
                     )
                 elif b.nodes[0].id == 0:
                     C += (
                         1
                         / (16 * b.parameters[element_param[b.type]])
-                        * (-symbols("vx" + str(b.nodes[1].id))) ** 2
+                        * (-symbols("vφ" + str(b.nodes[1].id))) ** 2
                     )
                 else:
                     C += (
                         1
                         / (16 * b.parameters[element_param[b.type]])
                         * (
-                            symbols("vx" + str(b.nodes[1].id))
-                            - symbols("vx" + str(b.nodes[0].id))
+                            symbols("vφ" + str(b.nodes[1].id))
+                            - symbols("vφ" + str(b.nodes[0].id))
                         )
                         ** 2
                     )
@@ -634,21 +634,21 @@ class CustomQCircuit(serializers.Serializable):
                     L += (
                         0.5
                         * b.parameters["E_L"]
-                        * (symbols("x" + str(b.nodes[1].id)) + phi_ext) ** 2
+                        * (symbols("φ" + str(b.nodes[1].id)) + phi_ext) ** 2
                     )
                 elif b.nodes[1].id == 0:
                     L += (
                         0.5
                         * b.parameters["E_L"]
-                        * (-symbols("x" + str(b.nodes[0].id)) + phi_ext) ** 2
+                        * (-symbols("φ" + str(b.nodes[0].id)) + phi_ext) ** 2
                     )
                 else:
                     L += (
                         0.5
                         * b.parameters["E_L"]
                         * (
-                            symbols("x" + str(b.nodes[1].id))
-                            - symbols("x" + str(b.nodes[0].id))
+                            symbols("φ" + str(b.nodes[1].id))
+                            - symbols("φ" + str(b.nodes[0].id))
                             + phi_ext
                         )
                         ** 2
@@ -736,9 +736,9 @@ class CustomQCircuit(serializers.Serializable):
         flux_branches = self._flux_loops()
 
         y_vars = [
-            symbols("y" + str(i)) for i in range(1, len(self.nodes) + 1)
+            symbols("θ" + str(i)) for i in range(1, len(self.nodes) + 1)
         ]  # defining the θ variables
-        y_dot_vars = [symbols("vy" + str(i)) for i in range(1, len(self.nodes) + 1)]
+        y_dot_vars = [symbols("vθ" + str(i)) for i in range(1, len(self.nodes) + 1)]
         x_vars = (basis).dot(y_vars)  # writing φ in terms of θ variables
         x_dot_vars = (basis).dot(y_dot_vars)
 
@@ -757,18 +757,18 @@ class CustomQCircuit(serializers.Serializable):
         potential_new = potential_old.copy()
 
         for i in range(len(self.nodes)):  # converting to new variables
-            L_new = L_new.subs(symbols("x" + str(i + 1)), x_vars[i]).subs(
-                symbols("vx" + str(i + 1)), x_dot_vars[i]
+            L_new = L_new.subs(symbols("φ" + str(i + 1)), x_vars[i]).subs(
+                symbols("vφ" + str(i + 1)), x_dot_vars[i]
             )
-            potential_new = potential_new.subs(symbols("x" + str(i + 1)), x_vars[i])
+            potential_new = potential_new.subs(symbols("φ" + str(i + 1)), x_vars[i])
 
         # calculating and storing the expression for potential energy
         self.potential = potential_new
 
         # eliminating the zombie variables
         for i in self.var_indices["zombie"]:
-            sub = sympy.solve(L_new.diff(symbols("y" + str(i))), symbols("y" + str(i)))
-            L_new = L_new.replace(symbols("y" + str(i)), sub[0])
+            sub = sympy.solve(L_new.diff(symbols("θ" + str(i))), symbols("θ" + str(i)))
+            L_new = L_new.replace(symbols("θ" + str(i)), sub[0])
 
         self._L = L_new # using a separate variable to store Lagrangian as used by code internally
 
@@ -802,14 +802,14 @@ class CustomQCircuit(serializers.Serializable):
         self.lagrangian_sym()
         L = self._L
         y_vars = [
-            symbols("y" + str(i)) for i in range(1, len(self.nodes) + 1)
+            symbols("θ" + str(i)) for i in range(1, len(self.nodes) + 1)
         ]  # defining the θ variables
-        y_dot_vars = [symbols("vy" + str(i)) for i in range(1, len(self.nodes) + 1)]
+        y_dot_vars = [symbols("vθ" + str(i)) for i in range(1, len(self.nodes) + 1)]
         # x_vars = (self.trans_mat).dot(y_vars) # writing φ in terms of θ variables
         # x_dot_vars = (self.trans_mat).dot(y_dot_vars)
 
         p_y_vars = [
-            symbols("p" + str(i)) for i in range(1, len(self.nodes) + 1)
+            symbols("Q" + str(i)) for i in range(1, len(self.nodes) + 1)
         ]  # defining the momentum variables
         p_y = np.array(
             [L.diff(i) for i in y_dot_vars]
@@ -833,14 +833,14 @@ class CustomQCircuit(serializers.Serializable):
         for c in self.var_indices[
             "cyclic"
         ]:  # To make it clear that the charge basis is used for cyclic variables
-            H = H.subs(symbols("p" + str(c)), symbols("n" + str(c)))
+            H = H.subs(symbols("Q" + str(c)), symbols("n" + str(c)))
 
         self.offset_charge_vars = []
         for p in self.var_indices[
             "periodic"
         ]:  # same as above for periodic variables and adding the offset charge variables
             H = H.subs(
-                symbols("p" + str(p)), symbols("n" + str(p)) + symbols("ng_" + str(p))
+                symbols("Q" + str(p)), symbols("n" + str(p)) + symbols("ng_" + str(p))
             )
             self.offset_charge_vars = self.offset_charge_vars + [
                 symbols("ng_" + str(p))

@@ -145,22 +145,22 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
 
         # Defining the list of discretized_phi variables
-        y_symbols = [symbols("y" + str(i)) for i in self.var_indices["discretized_phi"]]
-        p_symbols = [symbols("p" + str(i)) for i in self.var_indices["discretized_phi"]]
+        y_symbols = [symbols("θ" + str(i)) for i in self.var_indices["discretized_phi"]]
+        p_symbols = [symbols("Q" + str(i)) for i in self.var_indices["discretized_phi"]]
         ps_symbols = [
-            symbols("ps" + str(i)) for i in self.var_indices["discretized_phi"]
+            symbols("Qs" + str(i)) for i in self.var_indices["discretized_phi"]
         ]
 
         # marking the squared momentum operators with a separate symbol
         for i in self.var_indices["discretized_phi"]:
-            H = H.replace(symbols("p" + str(i)) ** 2, symbols("ps" + str(i)))
+            H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
 
         # Defining the list of variables for periodic operators
         periodic_symbols_ys = [
-            symbols("ys" + str(i)) for i in self.var_indices["periodic"]
+            symbols("θs" + str(i)) for i in self.var_indices["periodic"]
         ]
         periodic_symbols_yc = [
-            symbols("yc" + str(i)) for i in self.var_indices["periodic"]
+            symbols("θc" + str(i)) for i in self.var_indices["periodic"]
         ]
         periodic_symbols_n = [
             symbols("n" + str(i)) for i in self.var_indices["periodic"]
@@ -172,8 +172,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         H = sympy.expand_trig(H).expand()
         for i in self.var_indices["periodic"]:
             H = H.replace(
-                sympy.cos(1.0 * symbols("y" + str(i))), symbols("yc" + str(i))
-            ).replace(sympy.sin(1.0 * symbols("y" + str(i))), symbols("ys" + str(i)))
+                sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
+            ).replace(sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i)))
         # Defining the list of variables for cyclic operators
         cyclic_symbols = [symbols("n" + str(i)) for i in self.var_indices["cyclic"]]
 
@@ -184,7 +184,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         constants = [
             i
             for i in coeff_dict
-            if "p" not in str(i) and "y" not in str(i) and "n" not in str(i)
+            if "Q" not in str(i) and "θ" not in str(i) and "n" not in str(i)
         ]
         for i in constants:
             H = H - i * coeff_dict[i]  # + i*coeff_dict[i]*symbols("I")).expand()
@@ -627,7 +627,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         # constructing the grids
         parameters = dict.fromkeys(
-            ["y" + str(index) for index in var_indices]
+            ["θ" + str(index) for index in var_indices]
             + [var.name for var in self.external_flux_vars]
             + [var.name for var in self.param_vars]
         )
@@ -650,7 +650,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                     var.name for var in self.external_flux_vars
                 ]:
                     parameters[var_name] = getattr(self, var_name)
-                elif var_name in ["y" + str(index) for index in var_indices]:
+                elif var_name in ["θ" + str(index) for index in var_indices]:
                     raise AttributeError(var_name + " is not set.")
 
         # adding external fluxes
@@ -684,7 +684,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         # constructing the grids
         parameters = dict.fromkeys(
-            ["y" + str(index) for index in var_indices]
+            ["θ" + str(index) for index in var_indices]
             + [var.name for var in self.external_flux_vars]
             + [var.name for var in self.param_vars]
         )
