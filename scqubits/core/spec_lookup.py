@@ -20,7 +20,6 @@ import qutip as qt
 
 from numpy import ndarray
 from qutip import Qobj
-from typing_extensions import Protocol
 
 import scqubits
 import scqubits.io_utils.fileio_serializers as serializers
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
     from scqubits.legacy._param_sweep import _ParameterSweep
     from scqubits.utils.typedefs import QuantumSys
+    from typing_extensions import Protocol
 
     class MixinCompatible("SpectrumLookupMixin", Protocol):
         def __getitem__(self, key: Any) -> Any:

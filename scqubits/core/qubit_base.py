@@ -36,7 +36,6 @@ import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
-from typing_extensions import Literal
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
@@ -65,6 +64,7 @@ else:
 
 if TYPE_CHECKING:
     from scqubits.core.storage import WaveFunction
+    from typing_extensions import Literal
 
 
 LevelsTuple = Tuple[int, ...]
@@ -248,7 +248,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         self,
         evals_count: int = 6,
         filename: str = None,
-        return_spectrumdata: Literal[False] = False,
+        return_spectrumdata: "Literal[False]" = False,
     ) -> ndarray:
         ...
 
@@ -257,7 +257,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         self,
         evals_count: int,
         filename: str,
-        return_spectrumdata: Literal[True],
+        return_spectrumdata: "Literal[True]",
     ) -> SpectrumData:
         ...
 
@@ -299,7 +299,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         self,
         evals_count: int = 6,
         filename: str = None,
-        return_spectrumdata: Literal[False] = False,
+        return_spectrumdata: "Literal[False]" = False,
     ) -> Tuple[ndarray, ndarray]:
         ...
 
@@ -308,7 +308,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         self,
         evals_count: int,
         filename: Optional[str],
-        return_spectrumdata: Literal[True],
+        return_spectrumdata: "Literal[True]",
     ) -> SpectrumData:
         ...
 

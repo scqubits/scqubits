@@ -12,13 +12,11 @@
 
 import numpy as np
 
-from typing_extensions import Final
-
 # supported file types
-FILE_TYPES: Final = [".h5 | .hdf5", ".csv"]
+FILE_TYPES = [".h5 | .hdf5", ".csv"]
 
 # helper functions for plotting wave functions
-MODE_FUNC_DICT: Final = {
+MODE_FUNC_DICT = {
     "abs_sqr": (lambda x: np.abs(x) ** 2),
     "abs": np.abs,
     "real": np.real,
@@ -27,7 +25,7 @@ MODE_FUNC_DICT: Final = {
 
 # the following string manipulations are used in automatic generation of default
 # ylabels of wavefunction plots
-MODE_STR_DICT: Final = {
+MODE_STR_DICT = {
     "abs_sqr": (lambda x: "$|$" + x + "$|^2$"),
     "abs": (lambda x: "$|$" + x + "$|$"),
     "real": (lambda x: "Re " + x),
@@ -35,6 +33,6 @@ MODE_STR_DICT: Final = {
 }
 
 # enumerate variables for zero-pi qubit
-PHI_INDEX: Final = 0
-THETA_INDEX: Final = 1
-ZETA_INDEX: Final = 2
+PHI_INDEX = 0
+THETA_INDEX = 1
+ZETA_INDEX = 2
