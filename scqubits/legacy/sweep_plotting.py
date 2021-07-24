@@ -1,6 +1,7 @@
 # sweep_plotting.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -143,9 +144,7 @@ def bare_wavefunction(
     sweep.update_hilbertspace(param_val)
     param_index = np.searchsorted(sweep.param_vals, param_val)
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
-    evecs = sweep.bare_specdata_list[subsys_index].state_table[
-        param_index
-    ]  # type:ignore
+    evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]
     return subsys.plot_wavefunction(
         esys=(evals, evecs), which=which, mode="real", phi_grid=phi_grid, **kwargs
     )
@@ -164,6 +163,8 @@ def chi(datastore: "DataStore", **kwargs) -> Tuple[Figure, Axes]:
     """
     ydata = datastore.chi  # type:ignore
     xdata = datastore.param_vals
+    assert xdata is not None
+
     state_count = ydata.shape[1]
     label_list = list(range(state_count))
     return plot.data_vs_paramvals(
@@ -189,6 +190,8 @@ def kerr(datastore: "DataStore", qubit_level=None, **kwargs) -> Tuple[Figure, Ax
     """
     ydata = datastore.kerr if qubit_level is None else datastore.kerr[:, qubit_level]
     xdata = datastore.param_vals
+    assert xdata is not None
+
     state_count = len(ydata)
     label_list = list(range(state_count)) if qubit_level is None else None
     return plot.data_vs_paramvals(xdata, ydata.T, label_list=label_list, **kwargs)
@@ -210,12 +213,14 @@ def chi_01(
     """
     ydata = datastore.chi  # type:ignore
     xdata = datastore.param_vals
+    assert xdata is not None
+
     yval = ydata[param_index]
     return plot.data_vs_paramvals(
         xdata,
         ydata,
         label_list=None,
-        **defaults.chi01(datastore.param_name, yval, **kwargs)  # type:ignore
+        **defaults.chi01(datastore.param_name, yval, **kwargs)
     )
 
 

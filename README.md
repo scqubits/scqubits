@@ -11,6 +11,14 @@ easy to work with composite Hilbert spaces consisting of coupled superconducting
 Internally, numerics within scqubits is carried out with the help of Numpy and Scipy; plotting capabilities rely on
 Matplotlib.
 
+If scqubits is helpful to you in your research, please support its continued 
+development and maintenance. Use of scqubits in research publications is 
+appropriately acknowledged by citing:
+
+_Peter Groszkowski and Jens Koch, 'scqubits:  a Python package for superconducting 
+qubits', arXiv:2107.08552 (2021)._ https://arxiv.org/abs/2107.08552
+
+
 [![CodeFactor](https://www.codefactor.io/repository/github/scqubits/scqubits/badge)](https://www.codefactor.io/repository/github/scqubits/scqubits)
 [![codecov](https://codecov.io/gh/scqubits/scqubits/branch/master/graph/badge.svg?token=PUBXSHF6HU)](https://codecov.io/gh/scqubits/scqubits)
 

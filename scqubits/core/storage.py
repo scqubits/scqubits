@@ -1,6 +1,7 @@
 # storage.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -188,7 +189,7 @@ class SpectrumData(DataStore):
     # mark for file serializers purposes:
     def __init__(
         self,
-        energy_table: Union[np.ndarray, list],
+        energy_table: np.ndarray,  # Union[np.ndarray, list],
         system_params: Dict[str, Any],
         param_name: str = None,
         param_vals: np.ndarray = None,
