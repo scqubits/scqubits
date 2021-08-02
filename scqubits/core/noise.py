@@ -1,6 +1,7 @@
 # noise.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -178,10 +179,10 @@ class NoisySystem(ABC):
 
         # if we only have a single noise channel to consider (and hence are given a
         # str), put it into a one element list
-        noise_channels = (
-            [noise_channels] if isinstance(noise_channels, str) else noise_channels
+        noise_channels = cast(
+            List,
+            ([noise_channels] if isinstance(noise_channels, str) else noise_channels),
         )
-        cast(List, noise_channels)
 
         if spectrum_data is None:
             # We have to figure out the largest energy level involved in the

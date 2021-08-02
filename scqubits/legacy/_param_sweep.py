@@ -1,6 +1,7 @@
 # param_sweep.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -32,9 +33,8 @@ import scqubits.settings as settings
 import scqubits.utils.cpu_switch as cpu_switch
 import scqubits.utils.misc as utils
 
-from scqubits.core.generic_qubit import GenericQubit
 from scqubits.core.hilbert_space import HilbertSpace
-from scqubits.core.oscillator import KerrOscillator, Oscillator
+from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.spec_lookup import SpectrumLookup
 from scqubits.core.storage import DataStore, SpectrumData
@@ -48,8 +48,7 @@ if settings.IN_IPYTHON:
 else:
     from tqdm import tqdm
 
-
-QuantumSys = Union[QubitBaseClass, Oscillator, KerrOscillator, GenericQubit]
+from scqubits.utils.typedefs import QuantumSys
 
 
 class _ParameterSweepBase(ABC):

@@ -1,6 +1,7 @@
 # param_sweep.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -17,7 +18,17 @@ import warnings
 
 from abc import ABC
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 
 import numpy as np
 
@@ -25,6 +36,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
 from qutip import Qobj
+from typing_extensions import Literal
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -56,13 +68,7 @@ if settings.IN_IPYTHON:
 else:
     from tqdm import tqdm
 
-
-QuantumSys = Union[QubitBaseClass, Oscillator, KerrOscillator, GenericQubit]
-GIndex = Union[int, float, complex, slice, Tuple[int], List[int]]
-GIndexTuple = Tuple[GIndex, ...]
-NpIndex = Union[int, slice, Tuple[int], List[int]]
-NpIndexTuple = Tuple[NpIndex, ...]
-NpIndices = Union[NpIndex, NpIndexTuple]
+from scqubits.utils.typedefs import GIndexTuple, NpIndices, QuantumSys
 
 
 class ParameterSweepBase(ABC):
@@ -294,17 +300,48 @@ class ParameterSweepBase(ABC):
             state_full[subsys_index] = entry
         return state_full
 
+    @overload
     def transitions(
         self,
+        as_specdata: Literal[True] = True,
         subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Tuple[int, ...]] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = False,
-        as_specdata: bool = False,
         param_indices: Optional[NpIndices] = None,
-    ) -> Union[Tuple[List[Tuple[int, ...]], List[NamedSlotsNdarray]], SpectrumData]:
+    ) -> SpectrumData:
+        ...
+
+    @overload
+    def transitions(
+        self,
+        as_specdata: Literal[False],
+        subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
+        initial: Optional[Union[int, Tuple[int, ...]]] = None,
+        final: Optional[Tuple[int, ...]] = None,
+        sidebands: bool = False,
+        photon_number: int = 1,
+        make_positive: bool = False,
+        param_indices: Optional[NpIndices] = None,
+    ) -> Tuple[List[Tuple[Tuple[int, ...], Tuple[int, ...]]], List[NamedSlotsNdarray]]:
+        ...
+
+    def transitions(
+        self,
+        as_specdata: bool = False,
+        subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
+        initial: Optional[Union[int, Tuple[int, ...]]] = None,
+        final: Optional[Tuple[int, ...]] = None,
+        sidebands: bool = False,
+        photon_number: int = 1,
+        make_positive: bool = False,
+        param_indices: Optional[NpIndices] = None,
+    ) -> Union[
+        Tuple[List[Tuple[Tuple[int, ...], Tuple[int, ...]]], List[NamedSlotsNdarray]],
+        SpectrumData,
+    ]:
         """
         Use dressed eigenenergy data and lookup based on bare product state labels to
         extract transition energy data. Usage is based on preslicing to select all or
@@ -408,7 +445,7 @@ class ParameterSweepBase(ABC):
         self._current_param_indices = slice(None, None, None)
 
         if not as_specdata:
-            return transitions, transition_energies  # type:ignore
+            return transitions, transition_energies
 
         label_list = [
             r"{}$\to${}".format(
@@ -512,12 +549,12 @@ class ParameterSweepBase(ABC):
         final_tuple = (final,) if isinstance(final, int) else final
 
         specdata = self.transitions(
-            subsystems,
-            initial_tuple,
-            final_tuple,
-            sidebands,
-            photon_number,
-            make_positive,
+            subsystems=subsystems,
+            initial=initial_tuple,
+            final=final_tuple,
+            sidebands=sidebands,
+            photon_number=photon_number,
+            make_positive=make_positive,
             as_specdata=True,
             param_indices=param_indices,
         )

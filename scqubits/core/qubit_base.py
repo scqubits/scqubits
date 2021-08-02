@@ -1,6 +1,7 @@
 # qubit_base.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -16,7 +17,17 @@ import functools
 import inspect
 
 from abc import ABC, ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,6 +64,7 @@ else:
 
 if TYPE_CHECKING:
     from scqubits.core.storage import WaveFunction
+    from typing_extensions import Literal
 
 
 LevelsTuple = Tuple[int, ...]
@@ -231,6 +243,24 @@ class QubitBaseClass(QuantumSystem, ABC):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
+    @overload
+    def eigenvals(
+        self,
+        evals_count: int = 6,
+        filename: str = None,
+        return_spectrumdata: "Literal[False]" = False,
+    ) -> ndarray:
+        ...
+
+    @overload
+    def eigenvals(
+        self,
+        evals_count: int,
+        filename: str,
+        return_spectrumdata: "Literal[True]",
+    ) -> SpectrumData:
+        ...
+
     def eigenvals(
         self,
         evals_count: int = 6,
@@ -264,12 +294,30 @@ class QubitBaseClass(QuantumSystem, ABC):
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else evals
 
+    @overload
+    def eigensys(
+        self,
+        evals_count: int = 6,
+        filename: str = None,
+        return_spectrumdata: "Literal[False]" = False,
+    ) -> Tuple[ndarray, ndarray]:
+        ...
+
+    @overload
+    def eigensys(
+        self,
+        evals_count: int,
+        filename: Optional[str],
+        return_spectrumdata: "Literal[True]",
+    ) -> SpectrumData:
+        ...
+
     def eigensys(
         self,
         evals_count: int = 6,
         filename: str = None,
         return_spectrumdata: bool = False,
-    ) -> Tuple[ndarray, ndarray]:
+    ) -> Union[Tuple[ndarray, ndarray], SpectrumData]:
         """Calculates eigenvalues and corresponding eigenvectors using
         `scipy.linalg.eigh`. Returns two numpy arrays containing the eigenvalues and
         eigenvectors, respectively.
@@ -296,7 +344,7 @@ class QubitBaseClass(QuantumSystem, ABC):
             )
         if filename:
             specdata.filewrite(filename)
-        return specdata if return_spectrumdata else (evals, evecs)  # type: ignore
+        return specdata if return_spectrumdata else (evals, evecs)
 
     def matrixelement_table(
         self,
@@ -345,13 +393,13 @@ class QubitBaseClass(QuantumSystem, ABC):
         self, paramval: float, param_name: str, evals_count: int
     ) -> Tuple[ndarray, ndarray]:
         setattr(self, param_name, paramval)
-        return self.eigensys(evals_count)
+        return self.eigensys(evals_count=evals_count)
 
     def _evals_for_paramval(
         self, paramval: float, param_name: str, evals_count: int
     ) -> ndarray:
         setattr(self, param_name, paramval)
-        return self.eigenvals(evals_count)  # type:ignore
+        return self.eigenvals(evals_count)
 
     def get_spectrum_vs_paramvals(
         self,
@@ -437,7 +485,7 @@ class QubitBaseClass(QuantumSystem, ABC):
                         ),
                     )
                 )
-            eigenvalue_table, eigenstate_table = recast_esys_mapdata(  # type:ignore
+            eigenvalue_table, eigenstate_table = recast_esys_mapdata(
                 eigensystem_mapdata
             )
 
@@ -635,13 +683,14 @@ class QubitBaseClass(QuantumSystem, ABC):
             shape=(paramvals_count, evals_count, evals_count), dtype=np.complex_
         )
 
+        assert spectrumdata.state_table is not None
         for index, paramval in tqdm(
             enumerate(param_vals),
             total=len(param_vals),
             disable=settings.PROGRESSBAR_DISABLED,
             leave=False,
         ):
-            evecs = spectrumdata.state_table[index]  # type: ignore
+            evecs = spectrumdata.state_table[index]
             matelem_table[index] = self.matrixelement_table(
                 operator, evecs=evecs, evals_count=evals_count
             )
@@ -972,7 +1021,7 @@ class QubitBaseClass1d(QubitBaseClass):
         else:
             evals, _ = esys
 
-        energies = evals[list(wavefunc_indices)]  # type:ignore
+        energies = evals[list(wavefunc_indices)]
 
         phi_grid = phi_grid or self._default_grid
         potential_vals = self.potential(phi_grid.make_linspace())

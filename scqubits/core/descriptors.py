@@ -1,6 +1,7 @@
 # descriptors.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -24,12 +25,12 @@ class ReadOnlyProperty:
     def __set_name__(self, owner, name: str):
         self.name = "_" + name
 
-    def __get__(self, instance, *args, **kwargs):
+    def __get__(self, instance: Any, *args, **kwargs) -> Any:
         if instance is None:  # when accessed on class level rather than instance level
             return self
         return instance.__dict__[self.name]
 
-    def __set__(self, instance, value):
+    def __set__(self, instance: Any, value: Any):
         raise AttributeError("Property is for reading only, cannot assign to it.")
 
 

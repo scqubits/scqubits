@@ -1,6 +1,7 @@
 # hilbert_space.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -57,11 +58,9 @@ else:
     from tqdm import tqdm
 
 if TYPE_CHECKING:
-    from scqubits import GenericQubit, KerrOscillator, Oscillator
-    from scqubits.core.qubit_base import QubitBaseClass
     from scqubits.io_utils.fileio import IOData
 
-QuantumSys = Union["QubitBaseClass", "Oscillator", "KerrOscillator", "GenericQubit"]
+from scqubits.utils.typedefs import QuantumSys
 
 
 def has_duplicate_id_str(subsystem_list: List[QuantumSys]):
@@ -607,15 +606,17 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             evals, evecs = subsys.eigensys(evals_count=subsys.truncated_dim)
             bare_specdata_list.append(
                 storage.SpectrumData(
-                    energy_table=[evals],
-                    state_table=[evecs],
+                    energy_table=np.asarray([evals]),
+                    state_table=np.asarray([evecs]),
                     system_params=subsys.get_initdata(),
                 )
             )
 
         evals, evecs = self.eigensys(evals_count=self.dimension)
         dressed_specdata = storage.SpectrumData(
-            energy_table=[evals], state_table=[evecs], system_params=self.get_initdata()
+            energy_table=np.asarray([evals]),
+            state_table=[evecs],
+            system_params=self.get_initdata(),
         )
         self._lookup = spec_lookup.SpectrumLookup(
             self,
@@ -819,7 +820,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         evals_count = subsystem.truncated_dim
 
         if evals is None:
-            evals = subsystem.eigenvals(evals_count=evals_count)  # type:ignore
+            evals = subsystem.eigenvals(evals_count=evals_count)
         diag_qt_op = qt.Qobj(inpt=np.diagflat(evals[0:evals_count]))  # type:ignore
         return spec_utils.identity_wrap(diag_qt_op, subsystem, self.subsys_list)
 

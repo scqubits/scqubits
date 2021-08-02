@@ -1,6 +1,7 @@
 # fileio_qutip.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -21,7 +22,6 @@ class QutipEigenstates(np.ndarray, Serializable):
     """Wrapper class that adds serialization functionality to the numpy
     ndarray class."""
 
-    # https://docs.scipy.org/doc/numpy/user/basics.subclassing.html#extra-gotchas-custom-del-methods-and-ndarray-base
     @classmethod
     def deserialize(cls, io_data: IOData) -> np.ndarray:  # type:ignore
         """

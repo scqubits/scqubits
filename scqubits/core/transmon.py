@@ -1,6 +1,7 @@
 # transmon.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -245,7 +246,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            esys = self.eigensys(evals_count)
+            esys = self.eigensys(evals_count=evals_count)
         evals, evecs = esys
 
         n_vals = np.arange(-self.ncut, self.ncut + 1)
@@ -273,7 +274,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            evals, evecs = self.eigensys(evals_count)
+            evals, evecs = self.eigensys(evals_count=evals_count)
         else:
             evals, evecs = esys
 
@@ -341,30 +342,30 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                 [
                     [
                         np.abs(
-                            specdata_ng_0.energy_table[param_index, j]  # type:ignore
-                            - specdata_ng_05.energy_table[param_index, j]  # type:ignore
+                            specdata_ng_0.energy_table[param_index, j]
+                            - specdata_ng_05.energy_table[param_index, j]
                         )
                         for param_index, _ in enumerate(param_vals)
                     ]
                     for j in levels_tuple
                 ]
             )
-            return specdata_ng_0.energy_table, dispersion  # type:ignore
+            return specdata_ng_0.energy_table, dispersion
 
         dispersion_list = []
         for i, j in transitions_tuple:
             list_ij = []
             for param_index, _ in enumerate(param_vals):
-                ei_0 = specdata_ng_0.energy_table[param_index, i]  # type:ignore
-                ei_05 = specdata_ng_05.energy_table[param_index, i]  # type:ignore
-                ej_0 = specdata_ng_0.energy_table[param_index, j]  # type:ignore
-                ej_05 = specdata_ng_05.energy_table[param_index, j]  # type:ignore
+                ei_0 = specdata_ng_0.energy_table[param_index, i]
+                ei_05 = specdata_ng_05.energy_table[param_index, i]
+                ej_0 = specdata_ng_0.energy_table[param_index, j]
+                ej_05 = specdata_ng_05.energy_table[param_index, j]
                 list_ij.append(
                     np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                     - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                 )
             dispersion_list.append(list_ij)
-        return specdata_ng_0.energy_table, np.asarray(dispersion_list)  # type:ignore
+        return specdata_ng_0.energy_table, np.asarray(dispersion_list)
 
 
 # — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————

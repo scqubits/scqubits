@@ -1,6 +1,7 @@
 # fluxonium.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -267,7 +268,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            evals, evecs = self.eigensys(evals_count)
+            evals, evecs = self.eigensys(evals_count=evals_count)
         else:
             evals, evecs = esys
         dim = self.hilbertdim()
