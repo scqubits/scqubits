@@ -77,7 +77,7 @@ TransitionsTuple = Tuple[Transition, ...]
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
 
-    truncated_dim = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")  # type:ignore
+    truncated_dim = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
     _init_params: List[str]
     _image_filename: str
     _evec_dtype: type
@@ -345,6 +345,28 @@ class QubitBaseClass(QuantumSystem, ABC):
         if filename:
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else (evals, evecs)
+
+    @overload
+    def matrixelement_table(
+        self,
+        operator: str,
+        evecs: ndarray = None,
+        evals_count: int = 6,
+        filename: str = None,
+        return_datastore: "Literal[False]" = False,
+    ) -> ndarray:
+        ...
+
+    @overload
+    def matrixelement_table(
+        self,
+        operator: str,
+        evecs: ndarray,
+        evals_count: int,
+        filename: Optional[str],
+        return_datastore: "Literal[True]",
+    ) -> DataStore:
+        ...
 
     def matrixelement_table(
         self,

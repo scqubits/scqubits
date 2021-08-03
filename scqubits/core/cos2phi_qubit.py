@@ -150,7 +150,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             )  # We assume that system energies are given in units of frequency
             return s
 
-        noise_op1 = self.phi_1_operator()  # type: ignore
+        noise_op1 = self.phi_1_operator()
 
         def spectral_density2(omega):
             therm_ratio = calc_therm_ratio(omega, T)
@@ -167,7 +167,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             )  # We assume that system energies are given in units of frequency
             return s
 
-        noise_op2 = self.phi_2_operator()  # type: ignore
+        noise_op2 = self.phi_2_operator()
 
         rate_1 = self.t1(
             i=i,
@@ -285,8 +285,8 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             )  # We assume that system energies are given in units of frequency
             return s2
 
-        noise_op1 = self.n_1_operator()  # type: ignore
-        noise_op2 = self.n_2_operator()  # type: ignore
+        noise_op1 = self.n_1_operator()
+        noise_op2 = self.n_2_operator()
 
         rate_1 = self.t1(
             i=i,
@@ -386,7 +386,7 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
             )  # We assume that system energies are given in units of frequency
             return s
 
-        noise_op = self.n_zeta_operator()  # type: ignore
+        noise_op = self.n_zeta_operator()
 
         return self.t1(
             i=i,
@@ -449,18 +449,18 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    dCJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    dL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    dEJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    zeta_cut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    phi_cut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    dCJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    dL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    dEJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+    zeta_cut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+    phi_cut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,

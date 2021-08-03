@@ -389,7 +389,7 @@ class SpectrumLookupMixin:
 
     def __init__(self, hilbertspace: "HilbertSpace"):
         if not hasattr(self, "_hilbertspace"):
-            self._hilbertspace = weakref.ref(hilbertspace)
+            self._hilbertspace = cast("HilbertSpace", weakref.ref(hilbertspace))
 
     @property
     def _bare_product_states_labels(self) -> List[Tuple[int, ...]]:

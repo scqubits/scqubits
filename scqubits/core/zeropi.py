@@ -102,14 +102,14 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
    """
-    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    dEJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    dCJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    dEJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    dCJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,

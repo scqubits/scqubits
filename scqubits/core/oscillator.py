@@ -87,12 +87,12 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    E_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")  # type:ignore
-    l_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")  # type:ignore
+    E_osc = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    l_osc = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
-        E_osc: Union[float, None] = None,
+        E_osc: float,
         l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
         id_str: Optional[str] = None,
@@ -206,7 +206,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    K = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")  # type:ignore
+    K = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,

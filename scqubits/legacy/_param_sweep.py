@@ -57,11 +57,11 @@ class _ParameterSweepBase(ABC):
     StoredSweep
     """
 
-    param_name = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    param_vals = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    param_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    evals_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    lookup = descriptors.ReadOnlyProperty()
+    param_name = descriptors.WatchedProperty(str, "PARAMETERSWEEP_UPDATE")
+    param_vals = descriptors.WatchedProperty(ndarray, "PARAMETERSWEEP_UPDATE")
+    param_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
+    evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
+    lookup = descriptors.ReadOnlyProperty(SpectrumLookup)
     _hilbertspace: hspace.HilbertSpace
 
     def get_subsys(self, index: int) -> QuantumSys:
@@ -156,13 +156,15 @@ class _ParameterSweep(
         number of CPUS requested for computing the sweep (default: settings.NUM_CPUS)
     """
 
-    param_name = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    param_vals = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    param_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    evals_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    subsys_update_list = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    update_hilbertspace = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    lookup = descriptors.ReadOnlyProperty()
+    param_name = descriptors.WatchedProperty(str, "PARAMETERSWEEP_UPDATE")
+    param_vals = descriptors.WatchedProperty(ndarray, "PARAMETERSWEEP_UPDATE")
+    param_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
+    evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
+    subsys_update_list = descriptors.WatchedProperty(
+        List[QuantumSys], "PARAMETERSWEEP_UPDATE"
+    )
+    update_hilbertspace = descriptors.WatchedProperty(Callable, "PARAMETERSWEEP_UPDATE")
+    lookup = descriptors.ReadOnlyProperty(SpectrumLookup)
 
     def __init__(
         self,
@@ -524,11 +526,11 @@ class _ParameterSweep(
 class _StoredSweep(
     _ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
-    param_name = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    param_vals = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    param_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    evals_count = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    lookup = descriptors.ReadOnlyProperty()
+    param_name = descriptors.WatchedProperty(str, "PARAMETERSWEEP_UPDATE")
+    param_vals = descriptors.WatchedProperty(ndarray, "PARAMETERSWEEP_UPDATE")
+    param_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
+    evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
+    lookup = descriptors.ReadOnlyProperty(SpectrumLookup)
 
     def __init__(
         self,
