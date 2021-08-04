@@ -465,7 +465,7 @@ class CustomQCircuit(serializers.Serializable):
 
         standard_basis = np.array(standard_basis)
 
-        standard_basis = np.identity(len(self.nodes))
+        # standard_basis = np.identity(len(self.nodes))
         #         standard_basis = np.ones([len(nodes),len(nodes)]) - 2*np.identity(len(nodes))
 
         new_basis = modes.copy()  # starting with the cyclic modes
@@ -821,7 +821,7 @@ class CustomQCircuit(serializers.Serializable):
             + self.var_indices["discretized_phi"]
         )
         y_dot_py = sympy.linsolve(
-            (p_y - np.array(p_y_vars)).tolist()[:var_indices],
+            [exp.cancel() for exp in (p_y - np.array(p_y_vars)).tolist()[:var_indices]],
             tuple(y_dot_vars[:var_indices]),
         )
         y_dot_py = list(list(y_dot_py)[0])
@@ -848,5 +848,7 @@ class CustomQCircuit(serializers.Serializable):
 
         # Updating the class property
         self.H = H.cancel()  # .expand()
+
+        
 
         return self.H
