@@ -425,7 +425,7 @@ def data_vs_paramvals(
             borderaxespad=0,
             frameon=False,
         )
-
+    _process_options(fig, axes, **kwargs)
     return fig, axes
 
 
