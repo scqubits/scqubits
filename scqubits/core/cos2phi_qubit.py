@@ -13,7 +13,7 @@ import math
 import os
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import scipy as sp
@@ -452,6 +452,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         number of harmonic oscillator basis for :math:`\phi` variable
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -481,7 +484,9 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         zeta_cut: int,
         phi_cut: int,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ
         self.ECJ = ECJ
         self.EL = EL
@@ -495,7 +500,6 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         self.zeta_cut = zeta_cut
         self.phi_cut = phi_cut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_phi_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
         self._default_zeta_grid = discretization.Grid1d(-4 * np.pi, 4 * np.pi, 100)
@@ -608,13 +612,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def phi_operator(self) -> csc_matrix:
-        """Returns :math:`\\phi` operator"""
+        r"""Returns :math:`\phi` operator"""
         return self._kron3(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         )
 
     def _n_phi_operator(self) -> csc_matrix:
-        """
+        r"""
         Returns
         -------
             `n_\phi` operator in the harmonic oscillator basis"""
@@ -626,7 +630,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def n_phi_operator(self) -> csc_matrix:
-        """Returns :math:`n_\\phi` operator"""
+        r"""Returns :math:`n_\phi` operator"""
         return self._kron3(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
         )
@@ -644,13 +648,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def zeta_operator(self) -> csc_matrix:
-        """Returns :math:`\\zeta` operator"""
+        r"""Returns :math:`\zeta` operator"""
         return self._kron3(
             self._identity_phi(), self._zeta_operator(), self._identity_theta()
         )
 
     def _n_zeta_operator(self) -> csc_matrix:
-        """
+        r"""
         Returns
         -------
             `n_\zeta` operator in the harmonic oscillator basis"""
@@ -662,7 +666,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
 
     def n_zeta_operator(self) -> csc_matrix:
-        """Returns :math:`n_\\zeta` operator"""
+        r"""Returns :math:`n_\zeta` operator"""
         return self._kron3(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
         )
@@ -704,13 +708,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         ).tocsc()
 
     def n_theta_operator(self) -> csc_matrix:
-        """Returns :math:`n_\\theta` operator"""
+        r"""Returns :math:`n_\theta` operator"""
         return self._kron3(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
         )
 
     def _cos_theta_operator(self) -> csc_matrix:
-        """Returns operator :math:`\\cos \\theta` in the charge basis"""
+        r"""Returns operator :math:`\cos \theta` in the charge basis"""
         cos_op = (
             0.5
             * sparse.dia_matrix(
@@ -728,7 +732,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         return cos_op
 
     def _sin_theta_operator(self) -> csc_matrix:
-        """Returns operator :math:`\\sin \\theta` in the charge basis"""
+        r"""Returns operator :math:`\sin \theta` in the charge basis"""
         sin_op = (
             0.5
             * sparse.dia_matrix(
@@ -753,13 +757,13 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
 
     def _identity_phi(self) -> csc_matrix:
         """
-        Returns Identity operator acting only on the :math:`\phi` Hilbert subspace.
+        Returns Identity operator acting only on the :math:`\\phi` Hilbert subspace.
         """
         dimension = self._dim_phi()
         return sparse.eye(dimension)
 
     def _identity_zeta(self) -> csc_matrix:
-        """
+        r"""
         Returns Identity operator acting only on the :math:`\zeta` Hilbert subspace.
         """
         dimension = self._dim_zeta()

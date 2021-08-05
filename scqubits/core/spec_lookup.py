@@ -12,7 +12,7 @@
 import itertools
 import weakref
 
-from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from scqubits.core.qubit_base import QuantumSystem
     from scqubits.io_utils.fileio import IOData
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
+    from scqubits.legacy._param_sweep import _ParameterSweep
 
 
 class SpectrumLookup(serializers.Serializable):
@@ -64,7 +65,7 @@ class SpectrumLookup(serializers.Serializable):
 
     def __init__(
         self,
-        framework: "Union[ParameterSweep, HilbertSpace, None]",
+        framework: "Union[_ParameterSweep, HilbertSpace, None]",
         dressed_specdata: "SpectrumData",
         bare_specdata_list: List["SpectrumData"],
         auto_run: bool = True,
@@ -418,7 +419,7 @@ class SpectrumLookupMixin:
         self: "ParameterSweep", param_indices: Tuple[int, ...]
     ) -> ndarray:
         """
-        For a single set of parameter values, specified by with a tuple of indices
+        For a single set of parameter values, specified by a tuple of indices
         ``param_indices``, create an array of the dressed-state indices in an order
         that corresponds one to one to the bare product states with largest overlap
         (whenever possible).
@@ -448,7 +449,7 @@ class SpectrumLookupMixin:
         return np.asarray(dressed_indices)
 
     def set_npindextuple(
-        self, param_indices: Optional[NpIndices] = None
+        self: "ParameterSweep", param_indices: Optional[NpIndices] = None
     ) -> NpIndexTuple:
         param_indices = param_indices or self._current_param_indices
         if not isinstance(param_indices, tuple):
@@ -630,7 +631,7 @@ class SpectrumLookupMixin:
             dressed energy
         """
         param_indices = self.set_npindextuple(param_indices)
-        self._current_param_indices = slice(None, None, None)
+        self._current_param_indices: NpIndices = slice(None, None, None)
         energies = self["evals"][param_indices + (dressed_index,)]
         if subtract_ground:
             energies -= self["evals"][param_indices + (0,)]

@@ -228,8 +228,9 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False:
+        # Add a ylabel if we are plotting coherence times (and not rates)
+        # and if scale is 1
+        if not common_noise_options.get("get_rate", False) and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
 
         plotting_options.update(
@@ -313,6 +314,7 @@ class NoisySystem(ABC):
         noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
+        get_rate: bool = False,
         scale: float = 1,
         num_cpus: Optional[int] = None,
         **kwargs
@@ -352,6 +354,8 @@ class NoisySystem(ABC):
             common options used when calculating coherence times
         spectrum_data:
             spectral data used during noise calculations
+        get_rate:
+            determines if rate or time should be plotted
         scale:
             a number that all data is multiplied by before being plotted
         num_cpus:
@@ -436,11 +440,14 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        plotting_options.update(kwargs)
 
-        # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False:
+        # Add a ylabel if we are plotting coherence times
+        # and if scale is exactly 1
+        if not get_rate and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
+
+        # Users can overwrite plotting options
+        plotting_options.update(kwargs)
 
         fig, axes = plotting.data_vs_paramvals(
             param_vals, noise_vals, **plotting_options
@@ -457,6 +464,7 @@ class NoisySystem(ABC):
         noise_channels: Union[str, List[str], List[Tuple[str, Dict]]] = None,
         common_noise_options: Dict = None,
         spectrum_data: SpectrumData = None,
+        get_rate: bool = False,
         scale: float = 1,
         num_cpus: Optional[int] = None,
         **kwargs
@@ -498,6 +506,8 @@ class NoisySystem(ABC):
             common options used when calculating coherence times
         spectrum_data:
             spectral data used during noise calculations
+        get_rate:
+            determines if rate or time should be plotted
         scale:
             a number that all data is multiplied by before being plotted
         num_cpus:
@@ -564,6 +574,7 @@ class NoisySystem(ABC):
                     spectrum_data.energy_table[v_i, :],
                     spectrum_data.state_table[v_i],
                 ),
+                get_rate=get_rate,
             )
             for v_i, v in enumerate(param_vals)
         ]
@@ -578,11 +589,14 @@ class NoisySystem(ABC):
             "yscale": "log",
             "grid": True,
         }
-        # Do not add a ylabel if we're explicitly instructed to plot rates
-        if common_noise_options.get("get_rate", False) is False:
+        # Add a ylabel if we are plotting coherence times
+        # and if scale is exactly 1
+        if not get_rate and scale == 1:
             plotting_options["ylabel"] = units.get_units_time_label()
 
+        # Users can overwrite plotting options
         plotting_options.update(kwargs)
+
         fig, axes = plotting.data_vs_paramvals(
             param_vals, noise_vals, **plotting_options
         )
@@ -788,7 +802,6 @@ class NoisySystem(ABC):
         common_noise_options: Dict = None,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         Calculate the effective :math:`T_2` time (or rate).
@@ -1101,7 +1114,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         Calculate the transition time (or rate) using Fermi's Golden Rule due to a
@@ -1202,7 +1214,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
@@ -1279,7 +1290,6 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )
 
     def t1_charge_impedance(
@@ -1291,7 +1301,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""Noise due to charge coupling to an impedance (such as a transmission line).
 
@@ -1351,7 +1360,6 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )
 
     def t1_flux_bias_line(
@@ -1364,7 +1372,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""Noise due to a bias flux line.
 
@@ -1435,7 +1442,6 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )
 
     def t1_inductive(
@@ -1447,7 +1453,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""
         :math:`T_1` due to inductive dissipation in a superinductor.
@@ -1536,7 +1541,6 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )
 
     def t1_quasiparticle_tunneling(
@@ -1550,7 +1554,6 @@ class NoisySystem(ABC):
         total: bool = True,
         esys: Tuple[ndarray, ndarray] = None,
         get_rate: bool = False,
-        **kwargs
     ) -> float:
         r"""Noise due to quasiparticle tunneling across a Josephson junction.
 
@@ -1657,5 +1660,4 @@ class NoisySystem(ABC):
             total=total,
             esys=esys,
             get_rate=get_rate,
-            **kwargs
         )

@@ -43,8 +43,8 @@ EXTRA_KWARGS = {}
 
 # version information about scqubits goes here
 MAJOR = 2
-MINOR = 1
-MICRO = 0
+MINOR = 2
+MICRO = 1
 ISRELEASED = True
 
 VERSION = "%d.%d.%d" % (MAJOR, MINOR, MICRO)
@@ -71,6 +71,8 @@ PACKAGES = [
     "scqubits/utils",
     "scqubits/ui",
     "scqubits/io_utils",
+    "scqubits/legacy",
+    "scqubits/explorer"
 ]
 
 PYTHON_VERSION = ">=3.6"

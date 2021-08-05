@@ -13,7 +13,7 @@ import cmath
 import math
 import os
 
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import scipy as sp
@@ -57,6 +57,9 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         number of harm. osc. basis states used in diagonalization
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
     EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
@@ -72,14 +75,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         flux: float,
         cutoff: int,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ
         self.EC = EC
         self.EL = EL
         self.flux = flux
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
         self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-4.5 * np.pi, 4.5 * np.pi, 151)
         self._image_filename = os.path.join(

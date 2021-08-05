@@ -11,10 +11,12 @@
 import functools
 import operator
 import os
-from typing import Any, Callable, Dict, List, Tuple, TYPE_CHECKING, Union
+
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
 
 import matplotlib as mpl
 import numpy as np
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
