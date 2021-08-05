@@ -425,7 +425,6 @@ def data_vs_paramvals(
             borderaxespad=0,
             frameon=False,
         )
-        # legend(loc="center left", bbox_to_anchor=(1, 0.5))
 
     return fig, axes
 
