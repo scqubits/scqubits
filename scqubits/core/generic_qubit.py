@@ -47,7 +47,7 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     _sys_type: str
     _init_params: list
 
-    E = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    E = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(self, E: float, id_str: Optional[str] = None) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)

@@ -101,42 +101,45 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     EJ = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     EL = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     ECJ = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     EC = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     ECS = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     dEJ = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     dCJ = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
-    dC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    dEL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    dC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    dEL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     flux = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     grid = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        Grid1d, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     ncut = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        int, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     zeropi_cutoff = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi", attr_name="truncated_dim"
+        int,
+        "QUANTUMSYSTEM_UPDATE",
+        inner_object_name="_zeropi",
+        attr_name="truncated_dim",
     )
 
     def __init__(

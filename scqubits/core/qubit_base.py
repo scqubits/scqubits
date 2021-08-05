@@ -77,7 +77,7 @@ TransitionsTuple = Tuple[Transition, ...]
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
 
-    truncated_dim = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")  # type:ignore
+    truncated_dim = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
     _init_params: List[str]
     _image_filename: str
     _evec_dtype: type
@@ -346,6 +346,28 @@ class QubitBaseClass(QuantumSystem, ABC):
             specdata.filewrite(filename)
         return specdata if return_spectrumdata else (evals, evecs)
 
+    @overload
+    def matrixelement_table(
+        self,
+        operator: str,
+        evecs: ndarray = None,
+        evals_count: int = 6,
+        filename: str = None,
+        return_datastore: "Literal[False]" = False,
+    ) -> ndarray:
+        ...
+
+    @overload
+    def matrixelement_table(
+        self,
+        operator: str,
+        evecs: ndarray,
+        evals_count: int,
+        filename: Optional[str],
+        return_datastore: "Literal[True]",
+    ) -> DataStore:
+        ...
+
     def matrixelement_table(
         self,
         operator: str,
@@ -610,14 +632,32 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
-        if isinstance(levels, int):
-            # presence of levels argument will overwrite `transitions`
-            levels_tuple: Optional[LevelsTuple] = (levels,)
-            transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+        if levels is not None:
+            if isinstance(levels, int):
+                # presence of levels argument will overwrite `transitions`;
+                # here: single level
+                levels_tuple: Optional[LevelsTuple] = (levels,)
+                transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+            elif isinstance(levels, tuple):
+                # presence of levels argument will overwrite `transitions`;
+                # here: multiple levels
+                levels_tuple: Optional[LevelsTuple] = levels
+                transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+            else:
+                raise ValueError("Invalid `levels` specification: expect int or tuple "
+                                 "of int")
         elif isinstance(transitions[0], int):
             # transitions is inferred to be of form (i, j), so only a single one
             transitions_tuple = (transitions,)  # type:ignore
             levels_tuple = None
+        elif isinstance(transitions[0], tuple):
+            # transitions is inferred to be of form ((i1, j1), ...) ,
+            # there are multiple transitions
+            transitions_tuple = transitions
+            levels_tuple = None
+        else:
+            raise ValueError("Invalid `transitions` specification: expect either ("
+                             "int, int)  or ((int, int), ...)")
 
         eigenenergies, dispersion = self._compute_dispersion(
             dispersion_name,

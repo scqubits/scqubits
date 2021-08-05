@@ -68,7 +68,7 @@ if settings.IN_IPYTHON:
 else:
     from tqdm import tqdm
 
-from scqubits.utils.typedefs import GIndexTuple, NpIndices, QuantumSys
+from scqubits.utils.typedefs import GIndexTuple, NpIndices, QuantumSys, QubitList
 
 
 class ParameterSweepBase(ABC):
@@ -77,9 +77,9 @@ class ParameterSweepBase(ABC):
     StoredSweep
     """
 
-    _parameters: Parameters = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _evals_count: int = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _data: Dict[str, Any] = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
+    _parameters = descriptors.WatchedProperty(Parameters, "PARAMETERSWEEP_UPDATE")
+    _evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
+    _data = descriptors.WatchedProperty(Dict[str, ndarray], "PARAMETERSWEEP_UPDATE")
     _hilbertspace: HilbertSpace
 
     _out_of_sync = False
@@ -100,7 +100,7 @@ class ParameterSweepBase(ABC):
         return self._hilbertspace.osc_subsys_list
 
     @property
-    def qbt_subsys_list(self) -> List[QubitBaseClass]:
+    def qbt_subsys_list(self) -> QubitList:
         return self._hilbertspace.qbt_subsys_list
 
     @property
@@ -788,7 +788,7 @@ class ParameterSweep(  # type:ignore
         self._evals_count = evals_count
         self._update_hilbertspace = self.set_update_func(update_hilbertspace)
         self._subsys_update_info = subsys_update_info
-        self._data: Dict[str, NamedSlotsNdarray] = {}
+        self._data = {}
         self._bare_only = bare_only
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
@@ -1141,10 +1141,10 @@ class StoredSweep(
     dispatch.DispatchClient,
     serializers.Serializable,
 ):
-    _parameters: Parameters = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _evals_count: int = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _data: Dict[str, Any] = descriptors.WatchedProperty("PARAMETERSWEEP_UPDATE")
-    _hilbertspace: HilbertSpace  # type:ignore
+    _parameters = descriptors.WatchedProperty(Parameters, "PARAMETERSWEEP_UPDATE")
+    _evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
+    _data = descriptors.WatchedProperty(Dict[str, ndarray], "PARAMETERSWEEP_UPDATE")
+    _hilbertspace: HilbertSpace
 
     def __init__(
         self,

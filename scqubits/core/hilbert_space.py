@@ -26,7 +26,9 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     Union,
+    cast,
 )
 
 import numpy as np
@@ -35,6 +37,7 @@ import qutip as qt
 from numpy import ndarray
 from qutip.qobj import Qobj
 from scipy.sparse import csc_matrix, dia_matrix
+from typing_extensions import overload
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
@@ -60,7 +63,12 @@ else:
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
 
-from scqubits.utils.typedefs import QuantumSys
+from scqubits.utils.typedefs import (
+    OperatorSpecification,
+    OscillatorList,
+    QubitList,
+    QuantumSys,
+)
 
 
 def has_duplicate_id_str(subsystem_list: List[QuantumSys]):
@@ -95,19 +103,19 @@ class InteractionTermLegacy(dispatch.DispatchClient, serializers.Serializable):
         conjugate is added.
     """
 
-    g_strength = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
-    subsys1 = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
-    subsys2 = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
-    op1 = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
-    op2 = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
+    g_strength = descriptors.WatchedProperty(complex, "INTERACTIONTERM_UPDATE")
+    subsys1 = descriptors.WatchedProperty(QuantumSys, "INTERACTIONTERM_UPDATE")
+    subsys2 = descriptors.WatchedProperty(QuantumSys, "INTERACTIONTERM_UPDATE")
+    op1 = descriptors.WatchedProperty(OperatorSpecification, "INTERACTIONTERM_UPDATE")
+    op2 = descriptors.WatchedProperty(OperatorSpecification, "INTERACTIONTERM_UPDATE")
 
     def __init__(
         self,
         g_strength: Union[float, complex],
         subsys1: QuantumSys,
-        op1: Union[str, ndarray, csc_matrix, dia_matrix],
+        op1: OperatorSpecification,
         subsys2: QuantumSys,
-        op2: Union[str, ndarray, csc_matrix, dia_matrix],
+        op2: OperatorSpecification,
         add_hc: bool = False,
         hilbertspace: "HilbertSpace" = None,
     ) -> None:
@@ -172,9 +180,11 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         conjugate is added.
     """
 
-    g_strength = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
-    operator_list = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
-    add_hc = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
+    g_strength = descriptors.WatchedProperty(complex, "INTERACTIONTERM_UPDATE")
+    operator_list = descriptors.WatchedProperty(
+        List[Tuple[int, Union[ndarray, csc_matrix]]], "INTERACTIONTERM_UPDATE"
+    )
+    add_hc = descriptors.WatchedProperty(bool, "INTERACTIONTERM_UPDATE")
 
     def __new__(  # type:ignore
         cls,
@@ -253,7 +263,7 @@ class InteractionTerm(dispatch.DispatchClient, serializers.Serializable):
         -------
             Hamiltonian in `qutip.Qobj` format
         """
-        hamiltonian = self.g_strength
+        hamiltonian = cast(Qobj, self.g_strength)
         id_wrapped_ops = self.id_wrap_all_ops(
             self.operator_list, subsystem_list, bare_esys=bare_esys
         )
@@ -306,9 +316,12 @@ class InteractionTermStr(dispatch.DispatchClient, serializers.Serializable):
 
     """
 
-    expr = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
-    operator_list = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
-    add_hc = descriptors.WatchedProperty("INTERACTIONTERM_UPDATE")
+    expr = descriptors.WatchedProperty(str, "INTERACTIONTERM_UPDATE")
+    operator_list = descriptors.WatchedProperty(
+        List[Tuple[int, str, Union[ndarray, csc_matrix, dia_matrix]]],
+        "INTERACTIONTERM_UPDATE",
+    )
+    add_hc = descriptors.WatchedProperty(bool, "INTERACTIONTERM_UPDATE")
 
     def __init__(
         self,
@@ -421,15 +434,17 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     of an external parameter.
     """
 
-    osc_subsys_list = descriptors.ReadOnlyProperty()
-    qbt_subsys_list = descriptors.ReadOnlyProperty()
-    lookup = descriptors.ReadOnlyProperty()
-    interaction_list = descriptors.WatchedProperty("INTERACTIONLIST_UPDATE")
+    osc_subsys_list = descriptors.ReadOnlyProperty(OscillatorList)
+    qbt_subsys_list = descriptors.ReadOnlyProperty(QubitList)
+    lookup = descriptors.ReadOnlyProperty(spec_lookup.SpectrumLookup)
+    interaction_list = descriptors.WatchedProperty(
+        Tuple[Union[InteractionTerm, InteractionTermStr], ...], "INTERACTIONLIST_UPDATE"
+    )
 
     def __init__(
         self,
         subsystem_list: List[QuantumSys],
-        interaction_list: List[InteractionTerm] = None,
+        interaction_list: List[Union[InteractionTerm, InteractionTermStr]] = None,
     ) -> None:
         if has_duplicate_id_str(subsystem_list):
             raise ValueError(
@@ -461,7 +476,19 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         dispatch.CENTRAL_DISPATCH.register("INTERACTIONTERM_UPDATE", self)
         dispatch.CENTRAL_DISPATCH.register("INTERACTIONLIST_UPDATE", self)
 
-    def __getitem__(self, key: Union[int, str]) -> QuantumSys:
+    @overload
+    def __getitem__(self, key: int) -> QuantumSys:
+        ...
+
+    @overload
+    def __getitem__(
+        self, key: str
+    ) -> Union[QuantumSys, InteractionTerm, InteractionTermStr]:
+        ...
+
+    def __getitem__(
+        self, key: Union[int, str]
+    ) -> Union[QuantumSys, InteractionTerm, InteractionTermStr]:
         if isinstance(key, int):
             return self._subsystems[key]
         if key in self._subsys_by_id_str:
@@ -549,7 +576,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     @classmethod
     def create(cls) -> "HilbertSpace":
         hilbertspace = cls([])
-        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)  # type: ignore
+        scqubits.ui.hspace_widget.create_hilbertspace_widget(hilbertspace.__init__)
         return hilbertspace
 
     ###################################################################################

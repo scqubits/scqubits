@@ -12,11 +12,19 @@
 
 from typing import TYPE_CHECKING, List, Tuple, Union
 
+from numpy import ndarray
+from scipy.sparse import csc_matrix, dia_matrix
+
 if TYPE_CHECKING:
     from scqubits import GenericQubit, KerrOscillator, Oscillator
     from scqubits.core.qubit_base import QubitBaseClass
 
 QuantumSys = Union["QubitBaseClass", "Oscillator", "KerrOscillator", "GenericQubit"]
+
+OscillatorList = List["Oscillator"]
+QubitList = List[Union["QubitBaseClass", "GenericQubit", "KerrOscillator"]]
+
+OperatorSpecification = Union[str, ndarray, csc_matrix, dia_matrix]
 
 NpIndex = Union[int, slice, Tuple[int], List[int]]
 NpIndexTuple = Tuple[NpIndex, ...]

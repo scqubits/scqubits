@@ -300,18 +300,18 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
-    EJ1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EJ2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EJ3 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ3 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECg1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECg2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
