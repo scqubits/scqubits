@@ -632,14 +632,32 @@ class QubitBaseClass(QuantumSystem, ABC):
             number of cores to be used for computation
             (default value: settings.NUM_CPUS)
         """
-        if isinstance(levels, int):
-            # presence of levels argument will overwrite `transitions`
-            levels_tuple: Optional[LevelsTuple] = (levels,)
-            transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+        if levels is not None:
+            if isinstance(levels, int):
+                # presence of levels argument will overwrite `transitions`;
+                # here: single level
+                levels_tuple: Optional[LevelsTuple] = (levels,)
+                transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+            elif isinstance(levels, tuple):
+                # presence of levels argument will overwrite `transitions`;
+                # here: multiple levels
+                levels_tuple: Optional[LevelsTuple] = levels
+                transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
+            else:
+                raise ValueError("Invalid `levels` specification: expect int or tuple "
+                                 "of int")
         elif isinstance(transitions[0], int):
             # transitions is inferred to be of form (i, j), so only a single one
             transitions_tuple = (transitions,)  # type:ignore
             levels_tuple = None
+        elif isinstance(transitions[0], tuple):
+            # transitions is inferred to be of form ((i1, j1), ...) ,
+            # there are multiple transitions
+            transitions_tuple = transitions
+            levels_tuple = None
+        else:
+            raise ValueError("Invalid `transitions` specification: expect either ("
+                             "int, int)  or ((int, int), ...)")
 
         eigenenergies, dispersion = self._compute_dispersion(
             dispersion_name,
