@@ -688,6 +688,17 @@ class CustomQCircuit(serializers.Serializable):
 
         for i in range(0, len(node_sets)):
             for n in node_sets[i]:
+                next_branches=[]
+                for b in n.branches:
+                    if b.type != "C":
+                        if b.nodes[0] != n:
+                            next_nodes.append(b.nodes[0])
+                        else:
+                            next_nodes.append(b.nodes[1])
+                        next_branches.append(b)
+
+
+            for n in node_sets[i]:
                 next_branches = []
                 next_nodes = []
                 loop_branches = []
@@ -706,10 +717,16 @@ class CustomQCircuit(serializers.Serializable):
                     for p in range(0, len(node_sets)):
                         if k in node_sets[p]:
                             next_nodes_set.append(p + 1)
+                        else:
+                            next_nodes_set.append(0)
+
+                branches_next_set = set([b.type for x,b in enumerate(next_branches) if next_nodes_set[x] > i + 1])
+                if len(branches_next_set) == 1 and branches_next_set[0] == "C":
+                    continue
 
                 # identifying the branches accordingly
                 for j in range(len(next_nodes)):
-                    if next_nodes_set[j] > i + 1:
+                    if next_nodes_set[j] >= i + 1:
                         loop_branches.append(next_branches[j])
 
                 if len(loop_branches) > 1:
@@ -719,7 +736,7 @@ class CustomQCircuit(serializers.Serializable):
 
         # setting the class property
         if len(flux_branches) > 0:
-            self.flux_branches = [i for j in flux_branches for i in j]
+            self.flux_branches = list(set([i for j in flux_branches for i in j]))
             self.external_flux_vars = [
                 symbols("Φ" + str(i + 1)) for i in range(len(self.flux_branches))
             ]
