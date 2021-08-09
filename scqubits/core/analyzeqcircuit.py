@@ -725,7 +725,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ############# Functions for plotting wavefunction ################
     ##################################################################
     def plot_wavefunction(self, n=0, var_indices=(1,), mode="abs"):
-        global cutoff_list, wf, wf_plot, grids
         dims = tuple(
             np.sort(var_indices) - 1
         )  # taking the var indices and identifying the dimensions.
@@ -755,7 +754,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         var_types = []
 
-        for var_index in var_indices:
+        for var_index in np.sort(var_indices):
             if (
                 var_index in self.var_indices["cyclic"]
                 or var_index in self.var_indices["periodic"]
@@ -774,19 +773,19 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         wf_plot = (
             np.sum(
-                wf_reshaped,
+                eval("np." + mode + "(wf_reshaped)"),
                 axis=tuple([i for i in range(len(cutoff_list)) if i not in dims]),
             )
         ).T
 
         if len(dims) == 1:
             plt.plot(grids[dims[0]], eval("np." + mode + "(wf_plot)"))
-            plt.xlabel(str(var_indices[0]))
+            plt.xlabel(var_types[0] + str(var_indices[0]))
         elif len(dims) == 2:
             x, y = np.meshgrid(grids[dims[0]], grids[dims[1]])
-            plt.contourf(x, y, eval("np." + mode + "(wf_plot)"))
-            plt.xlabel(var_types[0] + str(var_indices[0]))
-            plt.ylabel(var_types[1] + str(var_indices[1]))
+            plt.contourf(x, y, wf_plot)
+            plt.xlabel(var_types[0] + str(np.sort(var_indices)[0]))
+            plt.ylabel(var_types[1] + str(np.sort(var_indices)[1]))
             plt.colorbar()
         plt.title("Distribution of Wavefuntion along variables " + str(var_indices))
 
