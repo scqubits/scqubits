@@ -1,6 +1,7 @@
 # fileio_serializers.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -66,7 +67,7 @@ class Serializable(ABC):
         """
         initdata = {name: getattr(self, name) for name in self._init_params}
         if hasattr(self, "_id_str"):
-            initdata["id_str"] = self._id_str
+            initdata["id_str"] = self._id_str  # type:ignore
         iodata = dict_serialize(initdata)
         iodata.typename = type(self).__name__
         return iodata

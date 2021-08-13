@@ -1,6 +1,7 @@
 # fileio_backends.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -326,11 +327,13 @@ class CSVReader:
             for datalabel, dataname in meta_dict.items()
             if re.match(r"dataset\d+$", datalabel)
         ]
-        data_slices = [
-            ast.literal_eval(value)
-            for key, value in meta_dict.items()
-            if re.match(r"dataset\d+.slices", key)
-        ]
+        data_slices = np.asarray(
+            [
+                ast.literal_eval(value)
+                for key, value in meta_dict.items()
+                if re.match(r"dataset\d+.slices", key)
+            ]
+        )
         return attributes, data_names, data_slices
 
     @staticmethod

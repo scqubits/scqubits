@@ -1,6 +1,7 @@
 # flux_qubit.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -299,18 +300,18 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
-    EJ1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EJ2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EJ3 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ3 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECg1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECg2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -634,7 +635,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         """
         evals_count = max(which + 1, 3)
         if esys is None:
-            _, evecs = self.eigensys(evals_count)
+            _, evecs = self.eigensys(evals_count=evals_count)
         else:
             _, evecs = esys
         phi_grid = phi_grid or self._default_grid

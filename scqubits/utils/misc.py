@@ -1,6 +1,7 @@
 # misc.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -210,9 +211,11 @@ def tuple_to_short_str(the_tuple: tuple) -> str:
     return short_str[:-1]
 
 
-def to_list(obj: Any) -> list:
-    if isinstance(obj, (list, np.ndarray)):
+def to_list(obj: Any) -> List[Any]:
+    if isinstance(obj, list):
         return obj
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
     return [obj]
 
 
@@ -274,7 +277,10 @@ def cite(print_info=True):
     """
     fs = StringIO()
 
-    fs.write("scqubits package citation (coming soon!)\n")
+    fs.write(
+        "Peter Groszkowski and Jens Koch, 'scqubits: a Python package for "
+        "superconducting qubits', arXiv:2107.08552 (2021).\n"
+    )
 
     if print_info:
         print(fs.getvalue())

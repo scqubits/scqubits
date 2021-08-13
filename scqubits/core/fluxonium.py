@@ -1,6 +1,7 @@
 # fluxonium.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -61,11 +62,11 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    cutoff = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    cutoff = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -249,7 +250,10 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         )
 
     def wavefunction(
-        self, esys: Tuple[ndarray, ndarray], which: int = 0, phi_grid: "Grid1d" = None
+        self,
+        esys: Optional[Tuple[ndarray, ndarray]],
+        which: int = 0,
+        phi_grid: "Grid1d" = None,
     ) -> storage.WaveFunction:
         """Returns a fluxonium wave function in `phi` basis
 
@@ -264,7 +268,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            evals, evecs = self.eigensys(evals_count)
+            evals, evecs = self.eigensys(evals_count=evals_count)
         else:
             evals, evecs = esys
         dim = self.hilbertdim()

@@ -1,6 +1,7 @@
 # oscillator.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -86,20 +87,20 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    E_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    l_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    E_osc = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    l_osc = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
-        E_osc: Union[float, None] = None,
+        E_osc: float,
         l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
         id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self._evec_dtype = np.float_
-        self.truncated_dim: int = truncated_dim
-        self.l_osc: Union[None, float] = l_osc
+        self.truncated_dim: int = truncated_dim  # type:ignore
+        self.l_osc: Union[None, float] = l_osc  # type:ignore
         self.E_osc = E_osc
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.jpg"
@@ -205,7 +206,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    K = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    K = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -216,7 +217,7 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         id_str: Optional[str] = None,
     ) -> None:
 
-        self.K: float = K
+        self.K: float = K  # type:ignore
 
         super().__init__(
             E_osc=E_osc,

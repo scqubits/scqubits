@@ -1,6 +1,7 @@
 # explorer_panels.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -9,7 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Tuple, Union
 
 import numpy as np
 
@@ -20,21 +21,22 @@ from scqubits import settings
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
-    from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass1d
+    from scqubits.core.qubit_base import QubitBaseClass, QubitBaseClass1d
+    from scqubits.core.oscillator import Oscillator
 
 import scqubits.core.units as units
 
 
 def display_bare_spectrum(
     sweep: "ParameterSweep",
-    subsys: "QuantumSystem",
+    subsys: Union["QubitBaseClass", "Oscillator"],
     param_val: float,
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
     subsys_index = sweep.get_subsys_index(subsys)
     title = "bare spectrum: subsystem {} ({})".format(subsys_index, subsys._sys_type)
 
-    fig, axes = sweep["bare_evals"]["subsys":subsys_index].plot(
+    fig, axes = sweep["bare_evals"]["subsys":subsys_index].plot(  # type:ignore
         title=title, fig_ax=fig_ax
     )
     axes.axvline(param_val, color="gray", linestyle=":")
@@ -79,7 +81,7 @@ def display_dressed_spectrum(
 def display_n_photon_qubit_transitions(
     sweep: "ParameterSweep",
     photonnumber: int,
-    subsys: "QubitBaseClass1d",
+    subsys: "QubitBaseClass",
     initial_bare: Tuple[int, ...],
     param_val: float,
     fig_ax: Tuple[Figure, Axes],

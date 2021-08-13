@@ -1,6 +1,7 @@
 # central_dispatch.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -13,6 +14,7 @@
 import logging
 import warnings
 import weakref
+from types import MethodType
 
 from typing import Callable
 from weakref import WeakKeyDictionary
@@ -68,7 +70,7 @@ class CentralDispatch:
         return self.clients_dict[event]
 
     def register(
-        self, event: str, who: "DispatchClient", callback: Callable = None
+        self, event: str, who: "DispatchClient", callback: MethodType = None
     ) -> None:
         """
         Register object `who` for event `event`. (This modifies `clients_dict`.)

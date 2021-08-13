@@ -1,6 +1,7 @@
 # discretization.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -103,9 +104,9 @@ class Grid1d(dispatch.DispatchClient, serializers.Serializable):
         number of grid points
     """
 
-    min_val = descriptors.WatchedProperty("GRID_UPDATE")
-    max_val = descriptors.WatchedProperty("GRID_UPDATE")
-    pt_count = descriptors.WatchedProperty("GRID_UPDATE")
+    min_val = descriptors.WatchedProperty(float, "GRID_UPDATE")
+    max_val = descriptors.WatchedProperty(float, "GRID_UPDATE")
+    pt_count = descriptors.WatchedProperty(int, "GRID_UPDATE")
 
     def __init__(self, min_val: float, max_val: float, pt_count: int) -> None:
         self.min_val = min_val
@@ -233,10 +234,10 @@ class GridSpec(dispatch.DispatchClient, serializers.Serializable):
         array of with entries [minvalue, maxvalue, number of points]
     """
 
-    min_vals = descriptors.WatchedProperty("GRID_UPDATE")
-    max_vals = descriptors.WatchedProperty("GRID_UPDATE")
-    var_count = descriptors.WatchedProperty("GRID_UPDATE")
-    pt_counts = descriptors.WatchedProperty("GRID_UPDATE")
+    min_vals = descriptors.WatchedProperty(ndarray, "GRID_UPDATE")
+    max_vals = descriptors.WatchedProperty(ndarray, "GRID_UPDATE")
+    var_count = descriptors.WatchedProperty(int, "GRID_UPDATE")
+    pt_counts = descriptors.WatchedProperty(ndarray, "GRID_UPDATE")
 
     def __init__(self, minmaxpts_array: ndarray) -> None:
         self.min_vals = minmaxpts_array[:, 0]

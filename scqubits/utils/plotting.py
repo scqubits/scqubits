@@ -1,6 +1,7 @@
 # plotting.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -46,7 +47,7 @@ except ImportError:
 
 def wavefunction1d(
     wavefuncs: Union["WaveFunction", "List[WaveFunction]"],
-    potential_vals: Optional[np.ndarray] = None,
+    potential_vals: np.ndarray,
     offset: Union[float, Iterable[float]] = 0,
     scaling: Optional[float] = None,
     **kwargs
@@ -75,15 +76,14 @@ def wavefunction1d(
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
 
     offset_list = utils.to_list(offset)
-    wavefunc_list = utils.to_list(wavefuncs)
+    wavefunc_list: List[WaveFunction] = utils.to_list(wavefuncs)
     wavefunc_list = scale_wavefunctions(wavefunc_list, potential_vals, scaling)
 
     for wavefunction, energy_offset in zip(wavefunc_list, offset_list):
         plot_wavefunction_to_axes(axes, wavefunction, energy_offset, **kwargs)
 
-    if potential_vals is not None:
-        x_vals = wavefunc_list[0].basis_labels
-        plot_potential_to_axes(axes, x_vals, potential_vals, offset_list, **kwargs)
+    x_vals = wavefunc_list[0].basis_labels
+    plot_potential_to_axes(axes, x_vals, potential_vals, offset_list, **kwargs)
 
     _process_options(fig, axes, **kwargs)
     return fig, axes
@@ -172,10 +172,10 @@ def wavefunction2d(
 
 
 def contours(
-    x_vals: Iterable[float],
-    y_vals: Iterable[float],
+    x_vals: Union[List[float], np.ndarray],
+    y_vals: Union[List[float], np.ndarray],
     func: Callable,
-    contour_vals: Iterable[float] = None,
+    contour_vals: Union[List[float], np.ndarray] = None,
     show_colorbar: bool = True,
     **kwargs
 ) -> Tuple[Figure, Axes]:
@@ -425,8 +425,7 @@ def data_vs_paramvals(
             borderaxespad=0,
             frameon=False,
         )
-        # legend(loc="center left", bbox_to_anchor=(1, 0.5))
-
+    _process_options(fig, axes, **kwargs)
     return fig, axes
 
 
@@ -461,7 +460,9 @@ def evals_vs_paramvals(
     """
     index_list = utils.process_which(which, specdata.energy_table[0].size)
 
+    assert specdata.param_vals is not None, "SpectrumData is missing parameter values!"
     xdata = specdata.param_vals
+    assert isinstance(specdata.energy_table, np.ndarray)
     ydata = specdata.energy_table[:, index_list]
     if subtract_ground:
         ydata = (ydata.T - ydata[:, 0]).T
@@ -500,6 +501,9 @@ def matelem_vs_paramvals(
     -------
     matplotlib objects for further editing
     """
+    assert specdata.matrixelem_table is not None, (
+        "SpectrumData is missing matrix " "element data!"
+    )
     fig, axes = kwargs.get("fig_ax") or plt.subplots()
     x = specdata.param_vals
     modefunction = constants.MODE_FUNC_DICT[mode]

@@ -2,3 +2,4 @@ h5py>=2.10
 pytest
 ipywidgets
 pathos
+typing_extensions

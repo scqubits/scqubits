@@ -1,6 +1,7 @@
 # namedslots_array.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -114,7 +115,9 @@ def process_ellipsis(
     -------
         Processed multi-index not containing any `...`
     """
-    new_multi_idx: List[NpIndexNoEllipsis] = [slice(None, None, None)] * array.ndim
+    new_multi_idx: List[NpIndexNoEllipsis] = [
+        slice(None, None, None)
+    ] * array.ndim  # type:ignore
     # Replace the slice(None, None, None) entries, starting from beginning until
     # Ellipsis is encountered
     slot = 0
@@ -213,11 +216,20 @@ class ExtIndexTupleObject:
 
     def _name_based_to_np_index_exp(self) -> NpIndexTuple:
         """Converts a name-based multi-index into a standard numpy index_exp."""
-        converted_multi_index = [slice(None, None, None)] * self.slot_count
+        converted_multi_index: List[NpIndex] = [
+            slice(None, None, None)
+        ] * self.slot_count
+
         for extindex_object in self.extindex_tuple:
             if extindex_object.type != "slice.name":
                 raise TypeError("If one index is name-based, all indices must be.")
-            slot_index = self._parameters.index_by_name[extindex_object.name]
+            assert (
+                extindex_object.name is not None
+            ), "Internal error in NamedSlotsNdarray: index missing `name` attribute!"
+            slot_index = self._parameters.index_by_name[
+                extindex_object.name
+            ]  # type:ignore
+            assert isinstance(slot_index, int), "Internal NamedSlotsNdarray error"
             converted_multi_index[slot_index] = extindex_object.std_idx_entry
         return tuple(converted_multi_index)
 
@@ -251,7 +263,7 @@ class Parameters:
 
     def __init__(
         self,
-        paramvals_by_name: Dict[str, Union[ndarray, Iterable]],
+        paramvals_by_name: Dict[str, ndarray],
         paramnames_list: Optional[List[str]] = None,
     ) -> None:
         if paramnames_list is not None:
@@ -298,6 +310,10 @@ class Parameters:
 
     def __iter__(self):
         return iter(self.paramvals_list)
+
+    def ndim(self):
+        # Alias to support numpy's ndim
+        return len(self.paramnames_list)
 
     @property
     def counts_by_name(self) -> Dict[str, int]:
@@ -347,15 +363,15 @@ class Parameters:
         """
         if fixed_values is not None:
             # need to reformat as array of single-entry arrays
-            fixed_values = [np.asarray(value) for value in fixed_values]
+            fixed_values_list = [np.asarray(value) for value in fixed_values]
         else:
-            fixed_values = [
+            fixed_values_list = [
                 np.asarray([self[name][0]]) for name in fixed_parametername_list
             ]
 
         reduced_paramvals_by_name = {name: self[name] for name in self.paramnames_list}
         for index, name in enumerate(fixed_parametername_list):
-            reduced_paramvals_by_name[name] = fixed_values[index]
+            reduced_paramvals_by_name[name] = fixed_values_list[index]
         return Parameters(reduced_paramvals_by_name)
 
     def create_sliced(
@@ -469,7 +485,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     parameters: Parameters
 
     def __new__(
-        cls, input_array: np.ndarray, values_by_name: Dict[str, Iterable]
+        cls, input_array: np.ndarray, values_by_name: Dict[str, ndarray]
     ) -> "NamedSlotsNdarray":
         implied_shape = tuple(len(values) for name, values in values_by_name.items())
         if input_array.shape[0 : len(values_by_name)] != implied_shape:
@@ -479,9 +495,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
                     input_array, input_array.shape, implied_shape, values_by_name
                 )
             )
-
         obj = np.asarray(input_array).view(cls)
-
         obj._parameters = Parameters(values_by_name)
         return obj
 
@@ -493,16 +507,16 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     def __getitem__(self, multi_index: ExtIndices) -> Any:
         """Overwrites the magic method for element selection and slicing to support
         extended string and value based slicing."""
-        multi_index = np.index_exp[multi_index]  # convert to standardized tuple form
+        multi_index_std = np.index_exp[multi_index]  # convert to standard tuple form
         try:
-            obj = super().__getitem__(multi_index)
+            obj = super().__getitem__(multi_index_std)
             # This attempt fails if multi-index is string- or value-based
         except (TypeError, IndexError):
-            multi_index = convert_to_std_npindex(multi_index, self._parameters)
-            obj = super().__getitem__(multi_index)
+            multi_index_std = convert_to_std_npindex(multi_index_std, self._parameters)
+            obj = super().__getitem__(multi_index_std)
 
-        if Ellipsis in multi_index:
-            multi_index = process_ellipsis(self, multi_index)
+        if Ellipsis in multi_index_std:
+            multi_index_std = process_ellipsis(self, multi_index_std)
         # If the resulting obj is a sliced view of the current array, then we must
         # adjust the internal Parameters instance accordingly
         if isinstance(obj, NamedSlotsNdarray):
@@ -510,10 +524,10 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
             dummy_array = np.empty(shape=self._parameters.counts)
             # Check whether all parameters are getting fixed; if not, adjust
             # Parameters for the new object
-            if not isinstance(dummy_array[multi_index[:param_count]], float):
+            if not isinstance(dummy_array[multi_index_std[:param_count]], float):
                 # have not reduced to one element
                 obj._parameters = self._parameters.create_sliced(
-                    multi_index[:param_count]
+                    multi_index_std[:param_count]
                 )
             elif (
                 obj._parameters.paramvals_by_name == self._parameters.paramvals_by_name

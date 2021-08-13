@@ -1,6 +1,7 @@
 # transmon.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -33,6 +34,10 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
 
+LevelsTuple = Tuple[int, ...]
+Transition = Tuple[int, int]
+TransitionsTuple = Tuple[Transition, ...]
+
 # —Cooper pair box / transmon——————————————————————————————————————————————
 
 
@@ -60,10 +65,10 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -241,7 +246,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            esys = self.eigensys(evals_count)
+            esys = self.eigensys(evals_count=evals_count)
         evals, evecs = esys
 
         n_vals = np.arange(-self.ncut, self.ncut + 1)
@@ -249,7 +254,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def wavefunction(
         self,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         which: int = 0,
         phi_grid: Grid1d = None,
     ) -> WaveFunction:
@@ -269,7 +274,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            evals, evecs = self.eigensys(evals_count)
+            evals, evecs = self.eigensys(evals_count=evals_count)
         else:
             evals, evecs = esys
 
@@ -294,8 +299,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         dispersion_name: str,
         param_name: str,
         param_vals: ndarray,
-        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
-        levels: Optional[Union[int, Tuple[int]]] = None,
+        transitions_tuple: TransitionsTuple = ((0, 1),),
+        levels_tuple: Optional[LevelsTuple] = None,
         point_count: int = 50,
         num_cpus: Optional[int] = None,
     ) -> Tuple[ndarray, ndarray]:
@@ -304,13 +309,15 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                 dispersion_name,
                 param_name,
                 param_vals,
-                transitions=transitions,
-                levels=levels,
+                transitions_tuple=transitions_tuple,
+                levels_tuple=levels_tuple,
                 point_count=point_count,
                 num_cpus=num_cpus,
             )
 
-        max_level = np.max(transitions) if levels is None else np.max(levels)
+        max_level = (
+            np.max(transitions_tuple) if levels_tuple is None else np.max(levels_tuple)
+        )
         previous_ng = self.ng
         self.ng = 0.0
         specdata_ng_0 = self.get_spectrum_vs_paramvals(
@@ -330,7 +337,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         )
         self.ng = previous_ng
 
-        if levels is not None:
+        if levels_tuple is not None:
             dispersion = np.asarray(
                 [
                     [
@@ -340,13 +347,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                         )
                         for param_index, _ in enumerate(param_vals)
                     ]
-                    for j in levels
+                    for j in levels_tuple
                 ]
             )
             return specdata_ng_0.energy_table, dispersion
 
-        dispersion = []
-        for i, j in transitions:
+        dispersion_list = []
+        for i, j in transitions_tuple:
             list_ij = []
             for param_index, _ in enumerate(param_vals):
                 ei_0 = specdata_ng_0.energy_table[param_index, i]
@@ -357,8 +364,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                     np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                     - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                 )
-            dispersion.append(list_ij)
-        return specdata_ng_0.energy_table, np.asarray(dispersion)
+            dispersion_list.append(list_ij)
+        return specdata_ng_0.energy_table, np.asarray(dispersion_list)
 
 
 # — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
@@ -398,9 +405,9 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    EJmax = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    d = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJmax = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    d = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -482,8 +489,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         dispersion_name: str,
         param_name: str,
         param_vals: ndarray,
-        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
-        levels: Optional[Union[int, Tuple[int]]] = None,
+        transitions_tuple: TransitionsTuple = ((0, 1),),
+        levels_tuple: Optional[LevelsTuple] = None,
         point_count: int = 50,
         num_cpus: Optional[int] = None,
     ) -> Tuple[ndarray, ndarray]:
@@ -492,13 +499,15 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 dispersion_name,
                 param_name,
                 param_vals,
-                transitions=transitions,
-                levels=levels,
+                transitions_tuple=transitions_tuple,
+                levels_tuple=levels_tuple,
                 point_count=point_count,
                 num_cpus=num_cpus,
             )
 
-        max_level = np.max(transitions) if levels is None else np.max(levels)
+        max_level = (
+            np.max(transitions_tuple) if levels_tuple is None else np.max(levels_tuple)
+        )
         previous_flux = self.flux
         self.flux = 0.0
         specdata_flux_0 = self.get_spectrum_vs_paramvals(
@@ -518,32 +527,34 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         )
         self.flux = previous_flux
 
-        if levels is not None:
+        if levels_tuple is not None:
             dispersion = np.asarray(
                 [
                     [
                         np.abs(
-                            specdata_flux_0.energy_table[param_index, j]
-                            - specdata_flux_05.energy_table[param_index, j]
+                            specdata_flux_0.energy_table[param_index, j]  # type:ignore
+                            - specdata_flux_05.energy_table[
+                                param_index, j
+                            ]  # type:ignore
                         )
                         for param_index, _ in enumerate(param_vals)
                     ]
-                    for j in levels
+                    for j in levels_tuple
                 ]
             )
-            return specdata_flux_0.energy_table, dispersion
+            return specdata_flux_0.energy_table, dispersion  # type:ignore
 
-        dispersion = []
-        for i, j in transitions:
+        dispersion_list = []
+        for i, j in transitions_tuple:
             list_ij = []
             for param_index, _ in enumerate(param_vals):
-                ei_0 = specdata_flux_0.energy_table[param_index, i]
-                ei_05 = specdata_flux_05.energy_table[param_index, i]
-                ej_0 = specdata_flux_0.energy_table[param_index, j]
-                ej_05 = specdata_flux_05.energy_table[param_index, j]
+                ei_0 = specdata_flux_0.energy_table[param_index, i]  # type:ignore
+                ei_05 = specdata_flux_05.energy_table[param_index, i]  # type:ignore
+                ej_0 = specdata_flux_0.energy_table[param_index, j]  # type:ignore
+                ej_05 = specdata_flux_05.energy_table[param_index, j]  # type:ignore
                 list_ij.append(
                     np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                     - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                 )
-            dispersion.append(list_ij)
-        return specdata_flux_0.energy_table, np.asarray(dispersion)
+            dispersion_list.append(list_ij)
+        return specdata_flux_0.energy_table, np.asarray(dispersion_list)  # type:ignore
