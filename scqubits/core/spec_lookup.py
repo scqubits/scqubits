@@ -201,10 +201,10 @@ class SpectrumLookup(serializers.Serializable):
         ):  # for given bare basis index, find dressed index
             max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
             max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
-            if max_overlap < 0.5:  # overlap too low, make no assignment
-                dressed_indices.append(None)
-            else:
+            if max_overlap ** 2 > 0.5:  
                 dressed_indices.append(max_position)
+            else:
+                dressed_indices.append(None) # overlap too low, make no assignment
         return dressed_indices
 
     @utils.check_sync_status
