@@ -19,6 +19,8 @@ import numpy as np
 
 from matplotlib.figure import Axes, Figure
 
+import matplotlib.pyplot as plt
+
 try:
     from ipywidgets import (
         AppLayout,
@@ -351,6 +353,8 @@ class GUI:
             subtract_ground=subtract_ground_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
+        
 
     def grid_evals_vs_paramvals_plot(
         self,
@@ -395,6 +399,7 @@ class GUI:
             subtract_ground=subtract_ground_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def matelem_vs_paramvals_plot(
         self,
@@ -442,6 +447,7 @@ class GUI:
             mode=mode_value,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_matelem_vs_paramvals_plot(
         self,
@@ -489,6 +495,8 @@ class GUI:
             select_elems=matrix_element_state_value,
             mode=mode_value,
         )
+        GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def scaled_wavefunction_plot(
         self,
@@ -530,6 +538,7 @@ class GUI:
             which=eigenvalue_states, mode=mode_value, scaling=scale_value
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def wavefunction_plot(
         self,
@@ -556,6 +565,7 @@ class GUI:
             which=eigenvalue_states, mode=mode_value
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_wavefunction_plot(
         self,
@@ -583,6 +593,7 @@ class GUI:
             which=eigenvalue_states, mode=mode_value
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def matrixelements_plot(
         self,
@@ -627,6 +638,7 @@ class GUI:
             show3d=show3d_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_matrixelements_plot(
         self,
@@ -672,6 +684,7 @@ class GUI:
             show3d=show3d_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     # Methods for create_GUI -----------------------------------------------------------
     def display_qubit_info(self, qubit_info: bool) -> None:
