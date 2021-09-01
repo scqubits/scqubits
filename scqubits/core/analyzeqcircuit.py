@@ -43,8 +43,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         list_branches: list = None,
         ground_node=None,
         mode: str = "sym",
+        basis: str = "simple"
     ):
-        CustomQCircuit.__init__(self, list_nodes, list_branches, ground_node, mode)
+        CustomQCircuit.__init__(self, list_nodes, list_branches, ground_node=ground_node, mode=mode, basis=basis)
 
         # defining additional class properties
 
@@ -107,6 +108,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             circuit.branches,
             ground_node=circuit.ground_node,
             mode=circuit.mode,
+            basis=circuit.basis
         )
 
     ##################################################################

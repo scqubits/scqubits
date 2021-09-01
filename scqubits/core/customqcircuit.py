@@ -12,6 +12,7 @@
 from abc import ABC, ABCMeta, abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 import itertools
+import copy
 
 import sympy
 import numpy as np
@@ -169,7 +170,7 @@ class CustomQCircuit(serializers.Serializable):
     """
 
     def __init__(
-        self, list_nodes: list, list_branches: list, ground_node=None, mode: str = "sym"
+        self, list_nodes: list, list_branches: list, ground_node=None, mode: str = "sym", basis: str = "simple"
     ):
 
         self.branches = list_branches
@@ -197,13 +198,16 @@ class CustomQCircuit(serializers.Serializable):
         self.potential = (
             None  # symbolic expression for the potential energy of the circuit
         )
-        # parameters for grounding of the circuit
+        # parameters for grounding the circuit
         if ground_node != None:
             self.is_grounded = True
             self.ground_node = ground_node
         else:
             self.is_grounded = False
             self.ground_node = None
+
+        # paramater for chosing the basis
+        self.basis = basis # default, the other choice is standard 
 
         # Calling the function to initiate the calss variables
         self.hamiltonian_sym()
@@ -226,7 +230,7 @@ class CustomQCircuit(serializers.Serializable):
         return True
 
     @classmethod
-    def from_input_string(cls, input_string: str, mode: str = "sym"):
+    def from_input_string(cls, input_string: str, mode: str = "sym", basis = "simple"):
         """
         Constructor of class CustomQCircuit:
         - Constructing the instance from an input string
@@ -293,13 +297,13 @@ class CustomQCircuit(serializers.Serializable):
             else:
                 break
 
-        circuit = cls(nodes, branches, ground_node=ground_node, mode=mode)
+        circuit = cls(nodes, branches, ground_node=ground_node, mode=mode, basis=basis)
         circuit.input_string = input_string
 
         return circuit
 
     @classmethod
-    def from_input_file(cls, filename: str, mode: str = "sym"):
+    def from_input_file(cls, filename: str, mode: str = "sym", basis="simple"):
         """
         Constructor of class CustomQCircuit:
         - Constructing the instance from an input file
@@ -308,7 +312,7 @@ class CustomQCircuit(serializers.Serializable):
         file = open(filename, "r")
         input_string = file.read()
         file.close()
-        return cls.from_input_string(input_string, mode=mode)
+        return cls.from_input_string(input_string, mode=mode, basis=basis)
 
     """
     Methods to find the cyclic variables of the circuit
@@ -420,17 +424,20 @@ class CustomQCircuit(serializers.Serializable):
         # including the Σ mode
         Σ = [1 for n in self.nodes]
         if not self.is_grounded:  # only append if the circuit is not grounded
-            cyclic_modes.append(Σ)
+            # cyclic_modes.append(Σ)
+            zombie_modes.append(Σ)
 
         ##################### Finding the LC Modes ##################
         selected_branches = [branch for branch in branches if branch.type == "JJ"]
         LC_modes = independent_modes(selected_branches, single_nodes=False)
 
         ################ Adding periodic and zombie modes to cyclic ones #############
-        modes = cyclic_modes.copy()  # starting with the cyclic modes
+        # modes = cyclic_modes.copy()  # starting with the cyclic modes
+        modes = zombie_modes.copy()  # starting with the cyclic modes
 
         for m in (
-            periodic_modes + zombie_modes
+            # periodic_modes + zombie_modes
+            cyclic_modes + periodic_modes
         ):  # adding the ones which are periodic such that all vectors in modes are LI
             mat = np.array(modes + [m])
             if np.linalg.matrix_rank(mat) == len(mat):
@@ -462,10 +469,11 @@ class CustomQCircuit(serializers.Serializable):
             mat = np.array(standard_basis + [a])
             if np.linalg.matrix_rank(mat) == len(mat):
                 standard_basis = standard_basis + [list(a)]
-
+        
         standard_basis = np.array(standard_basis)
 
-        # standard_basis = np.identity(len(self.nodes))
+        if self.basis == "standard":
+            standard_basis = np.identity(len(self.nodes))
         #         standard_basis = np.ones([len(nodes),len(nodes)]) - 2*np.identity(len(nodes))
 
         new_basis = modes.copy()  # starting with the cyclic modes
@@ -656,22 +664,59 @@ class CustomQCircuit(serializers.Serializable):
         return L
 
     def _flux_loops(self):
-        if self.is_grounded:
-            node_sets = [[self.ground_node]]
+
+        circ_copy = copy.deepcopy(self)
+        ################### removing all the capacitive branches and updating the nodes ################
+        for b in list(circ_copy.branches): 
+            if b.type == "C":
+                for n in b.nodes:
+                    n.branches = [i for i in n.branches if i is not b]
+                circ_copy.branches.remove(b)
+
+        i = 2
+        while i > 1:
+            i = 1
+            for n in circ_copy.nodes:
+                if len(n.branches) == 0:
+                    circ_copy.nodes.remove(n)
+                    i += 1
+                    continue
+                if len(n.branches) == 1:
+                    b = n.branches[0]
+                    circ_copy.branches.remove(b)
+                    for n1 in b.nodes:
+                        if n1 != n:
+                            n1.branches = [i for i in n1.branches if i is not b]
+                            i += 1
+                            continue
+                        else:
+                            circ_copy.nodes.remove(n)
+
+        if circ_copy.nodes == []:
+            return []
+        ##################################################
+
+        ################### Constructing the node_sets ###############
+        if circ_copy.is_grounded:
+            node_sets = [[circ_copy.ground_node]]
         else:
             node_sets = [
-                [self.nodes[0]]
+                [circ_copy.nodes[0]]
             ]  # starting with the first set which has the first node as the only element
 
-        num_nodes = len(self.nodes)
-        if self.is_grounded:
+        num_nodes = len(circ_copy.nodes)
+        if circ_copy.is_grounded:
             num_nodes += 1
 
         i = 0
-        while (
-            len([q for p in node_sets for q in p]) < num_nodes
-        ):  # finding all the sets of nodes and filling node_sets
+        while (len([q for p in node_sets for q in p]) < num_nodes):  # finding all the sets of nodes and filling node_sets
             node_set = []
+            
+            if node_sets[i] == []:
+                for n in circ_copy.nodes:
+                    if n not in [q for p in node_sets for q in p]:
+                        node_sets[i].append(n)
+            
             for n in node_sets[i]:
                 node_set += n.connected_nodes("all")
 
@@ -681,23 +726,15 @@ class CustomQCircuit(serializers.Serializable):
                     for x in list(set(node_set))
                     if x not in [q for p in node_sets[: i + 1] for q in p]
                 ]
-            )
+            )   
             i += 1
+        ###############################################
 
+        ############### Identifying the flux branches ######################
         flux_branches = []  # set of branches where external flux is associated
 
+        flux_branches = []
         for i in range(0, len(node_sets)):
-            for n in node_sets[i]:
-                next_branches=[]
-                for b in n.branches:
-                    if b.type != "C":
-                        if b.nodes[0] != n:
-                            next_nodes.append(b.nodes[0])
-                        else:
-                            next_nodes.append(b.nodes[1])
-                        next_branches.append(b)
-
-
             for n in node_sets[i]:
                 next_branches = []
                 next_nodes = []
@@ -710,19 +747,12 @@ class CustomQCircuit(serializers.Serializable):
                         else:
                             next_nodes.append(b.nodes[1])
                         next_branches.append(b)
-
                 # Indexing which set the nodes belong to
                 next_nodes_set = []
                 for k in next_nodes:
                     for p in range(0, len(node_sets)):
                         if k in node_sets[p]:
                             next_nodes_set.append(p + 1)
-                        else:
-                            next_nodes_set.append(0)
-
-                branches_next_set = set([b.type for x,b in enumerate(next_branches) if next_nodes_set[x] > i + 1])
-                if len(branches_next_set) == 1 and branches_next_set[0] == "C":
-                    continue
 
                 # identifying the branches accordingly
                 for j in range(len(next_nodes)):
@@ -734,11 +764,27 @@ class CustomQCircuit(serializers.Serializable):
                         loop_branches[:-1]
                     )  # selecting n-1 elements in the list for external flux
 
-        # setting the class property
+        def is_same_branch(b1, b2):
+            d1 = b1.__dict__
+            d2 = b2.__dict__
+            if d1["type"] == d2["type"] and d1["parameters"] == d2["parameters"]:
+                if [i.id for i in d1["nodes"]] == [i.id for i in d2["nodes"]]:
+                    return True
+                else:
+                    return False
+            else:
+                False
+        flux_branches = list(set([i for j in flux_branches for i in j]))
+        flux_branches_circ = []
+        for b in flux_branches:
+            flux_branches_circ += [i for i in self.branches if is_same_branch(i,b)]
+        ########################################
+
+        # setting the class properties
         if len(flux_branches) > 0:
-            self.flux_branches = list(set([i for j in flux_branches for i in j]))
+            self.flux_branches = flux_branches_circ
             self.external_flux_vars = [
-                symbols("Φ" + str(i + 1)) for i in range(len(self.flux_branches))
+                symbols("Φ" + str(i + 1)) for i in range(len(flux_branches_circ))
             ]
 
         return self.flux_branches
@@ -864,7 +910,7 @@ class CustomQCircuit(serializers.Serializable):
             ]
 
         # Updating the class property
-        self.H = H.cancel()  # .expand()
+        self.H = H#.cancel()  # .expand()
 
         
 
