@@ -144,7 +144,9 @@ def bare_wavefunction(
     sweep.update_hilbertspace(param_val)
     param_index = np.searchsorted(sweep.param_vals, param_val)
     evals = sweep.bare_specdata_list[subsys_index].energy_table[param_index]
-    evecs = sweep.bare_specdata_list[subsys_index].state_table[param_index]  # type:ignore
+    evecs = sweep.bare_specdata_list[subsys_index].state_table[
+        param_index
+    ]  # type:ignore
     return subsys.plot_wavefunction(
         esys=(evals, evecs), which=which, mode="real", phi_grid=phi_grid, **kwargs
     )

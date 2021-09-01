@@ -644,8 +644,9 @@ class QubitBaseClass(QuantumSystem, ABC):
                 levels_tuple: Optional[LevelsTuple] = levels
                 transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
             else:
-                raise ValueError("Invalid `levels` specification: expect int or tuple "
-                                 "of int")
+                raise ValueError(
+                    "Invalid `levels` specification: expect int or tuple " "of int"
+                )
         elif isinstance(transitions[0], int):
             # transitions is inferred to be of form (i, j), so only a single one
             transitions_tuple = (transitions,)  # type:ignore
@@ -656,8 +657,10 @@ class QubitBaseClass(QuantumSystem, ABC):
             transitions_tuple = transitions
             levels_tuple = None
         else:
-            raise ValueError("Invalid `transitions` specification: expect either ("
-                             "int, int)  or ((int, int), ...)")
+            raise ValueError(
+                "Invalid `transitions` specification: expect either ("
+                "int, int)  or ((int, int), ...)"
+            )
 
         eigenenergies, dispersion = self._compute_dispersion(
             dispersion_name,

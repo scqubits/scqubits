@@ -354,7 +354,6 @@ class GUI:
         )
         GUI.fig_ax = self.fig, ax
         plt.show()
-        
 
     def grid_evals_vs_paramvals_plot(
         self,

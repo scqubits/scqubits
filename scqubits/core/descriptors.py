@@ -30,9 +30,7 @@ class ReadOnlyProperty(Generic[TargetType]):
     def __set_name__(self, owner, name: str):
         self.name = "_" + name
 
-    def __get__(
-        self, instance: Any, *args, **kwargs
-    ) -> TargetType:
+    def __get__(self, instance: Any, *args, **kwargs) -> TargetType:
         if instance is None:  # when accessed on class level rather than instance level
             return self  # type:ignore
         return instance.__dict__[self.name]

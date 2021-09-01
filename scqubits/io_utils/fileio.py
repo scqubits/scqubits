@@ -131,7 +131,9 @@ def read(filename: str, file_handle: "h5py.Group" = None) -> Any:
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format"""
 
-    def get_writer(self, file_name: str, file_handle: "h5py.Group" = None) -> "IOWriter":
+    def get_writer(
+        self, file_name: str, file_handle: "h5py.Group" = None
+    ) -> "IOWriter":
         """
         Based on the extension of the provided file name, return the appropriate
         writer engine.
