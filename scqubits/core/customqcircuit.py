@@ -756,13 +756,27 @@ class CustomQCircuit(serializers.Serializable):
 
                 # identifying the branches accordingly
                 for j in range(len(next_nodes)):
-                    if next_nodes_set[j] >= i + 1:
+                    if next_nodes_set[j] > i + 1:
                         loop_branches.append(next_branches[j])
-
+                
                 if len(loop_branches) > 1:
                     flux_branches.append(
                         loop_branches[:-1]
                     )  # selecting n-1 elements in the list for external flux
+
+                # identifying the loops in the same set
+                self_nodes = []
+                self_branches = []
+                for x,s in enumerate(next_nodes_set):
+                    if s == i+1:
+                        self_nodes.append(next_nodes[i])
+                        self_branches.append(next_branches[i])
+
+                self_nodes = list(set(self_nodes))
+                self_branches = list(set(self_branches))
+
+                if len(self_nodes) == 1 and len(self_branches) > 1:
+                    flux_branches.append(self_branches[:-1]) # selecting n-1 branches for external flux
 
         def is_same_branch(b1, b2):
             d1 = b1.__dict__
