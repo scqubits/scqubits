@@ -170,7 +170,12 @@ class CustomQCircuit(serializers.Serializable):
     """
 
     def __init__(
-        self, list_nodes: list, list_branches: list, ground_node=None, mode: str = "sym", basis: str = "simple"
+        self,
+        list_nodes: list,
+        list_branches: list,
+        ground_node=None,
+        mode: str = "sym",
+        basis: str = "simple",
     ):
 
         self.branches = list_branches
@@ -192,7 +197,7 @@ class CustomQCircuit(serializers.Serializable):
         self.param_vars = []
 
         self.H = None
-        self._L = None # to store the internally used Lagrangian
+        self._L = None  # to store the internally used Lagrangian
         self.L = None
         self.L_old = None  # symbolic Lagrangian in terms of untransformed generalized flux variables
         self.potential = (
@@ -207,7 +212,7 @@ class CustomQCircuit(serializers.Serializable):
             self.ground_node = None
 
         # paramater for chosing the basis
-        self.basis = basis # default, the other choice is standard 
+        self.basis = basis  # default, the other choice is standard
 
         # Calling the function to initiate the calss variables
         self.hamiltonian_sym()
@@ -230,7 +235,7 @@ class CustomQCircuit(serializers.Serializable):
         return True
 
     @classmethod
-    def from_input_string(cls, input_string: str, mode: str = "sym", basis = "simple"):
+    def from_input_string(cls, input_string: str, mode: str = "sym", basis="simple"):
         """
         Constructor of class CustomQCircuit:
         - Constructing the instance from an input string
@@ -437,7 +442,8 @@ class CustomQCircuit(serializers.Serializable):
 
         for m in (
             # periodic_modes + zombie_modes
-            cyclic_modes + periodic_modes
+            cyclic_modes
+            + periodic_modes
         ):  # adding the ones which are periodic such that all vectors in modes are LI
             mat = np.array(modes + [m])
             if np.linalg.matrix_rank(mat) == len(mat):
@@ -469,7 +475,7 @@ class CustomQCircuit(serializers.Serializable):
             mat = np.array(standard_basis + [a])
             if np.linalg.matrix_rank(mat) == len(mat):
                 standard_basis = standard_basis + [list(a)]
-        
+
         standard_basis = np.array(standard_basis)
 
         if self.basis == "standard":
@@ -667,7 +673,7 @@ class CustomQCircuit(serializers.Serializable):
 
         circ_copy = copy.deepcopy(self)
         ################### removing all the capacitive branches and updating the nodes ################
-        for b in list(circ_copy.branches): 
+        for b in list(circ_copy.branches):
             if b.type == "C":
                 for n in b.nodes:
                     n.branches = [i for i in n.branches if i is not b]
@@ -709,14 +715,16 @@ class CustomQCircuit(serializers.Serializable):
             num_nodes += 1
 
         i = 0
-        while (len([q for p in node_sets for q in p]) < num_nodes):  # finding all the sets of nodes and filling node_sets
+        while (
+            len([q for p in node_sets for q in p]) < num_nodes
+        ):  # finding all the sets of nodes and filling node_sets
             node_set = []
-            
+
             if node_sets[i] == []:
                 for n in circ_copy.nodes:
                     if n not in [q for p in node_sets for q in p]:
                         node_sets[i].append(n)
-            
+
             for n in node_sets[i]:
                 node_set += n.connected_nodes("all")
 
@@ -726,7 +734,7 @@ class CustomQCircuit(serializers.Serializable):
                     for x in list(set(node_set))
                     if x not in [q for p in node_sets[: i + 1] for q in p]
                 ]
-            )   
+            )
             i += 1
         ###############################################
 
@@ -758,7 +766,7 @@ class CustomQCircuit(serializers.Serializable):
                 for j in range(len(next_nodes)):
                     if next_nodes_set[j] > i + 1:
                         loop_branches.append(next_branches[j])
-                
+
                 if len(loop_branches) > 1:
                     flux_branches.append(
                         loop_branches[:-1]
@@ -767,8 +775,8 @@ class CustomQCircuit(serializers.Serializable):
                 # identifying the loops in the same set
                 self_nodes = []
                 self_branches = []
-                for x,s in enumerate(next_nodes_set):
-                    if s == i+1:
+                for x, s in enumerate(next_nodes_set):
+                    if s == i + 1:
                         self_nodes.append(next_nodes[i])
                         self_branches.append(next_branches[i])
 
@@ -776,7 +784,9 @@ class CustomQCircuit(serializers.Serializable):
                 self_branches = list(set(self_branches))
 
                 if len(self_nodes) == 1 and len(self_branches) > 1:
-                    flux_branches.append(self_branches[:-1]) # selecting n-1 branches for external flux
+                    flux_branches.append(
+                        self_branches[:-1]
+                    )  # selecting n-1 branches for external flux
 
         def is_same_branch(b1, b2):
             d1 = b1.__dict__
@@ -788,10 +798,11 @@ class CustomQCircuit(serializers.Serializable):
                     return False
             else:
                 False
+
         flux_branches = list(set([i for j in flux_branches for i in j]))
         flux_branches_circ = []
         for b in flux_branches:
-            flux_branches_circ += [i for i in self.branches if is_same_branch(i,b)]
+            flux_branches_circ += [i for i in self.branches if is_same_branch(i, b)]
         ########################################
 
         # setting the class properties
@@ -847,27 +858,30 @@ class CustomQCircuit(serializers.Serializable):
             sub = sympy.solve(L_new.diff(symbols("θ" + str(i))), symbols("θ" + str(i)))
             L_new = L_new.replace(symbols("θ" + str(i)), sub[0])
 
-        self._L = L_new # using a separate variable to store Lagrangian as used by code internally
+        self._L = L_new  # using a separate variable to store Lagrangian as used by code internally
 
         ############# Updating the class properties ###################
 
         self.L = L_new.expand()
-        self.L_old = L_old        
+        self.L_old = L_old
 
         # Replacing energies with capacitances if the circuit mode is symbolic
         if self.mode == "sym":
             # finding the unique capacitances
             uniq_capacitances = []
             element_param = {"C": "E_C", "JJ": "E_CJ"}
-            for c, b in enumerate([t for t in self.branches if t.type == "C" or t.type == "JJ"]):
-                if len(set(b.nodes)) > 1: # check to see if branch is shorted
+            for c, b in enumerate(
+                [t for t in self.branches if t.type == "C" or t.type == "JJ"]
+            ):
+                if len(set(b.nodes)) > 1:  # check to see if branch is shorted
                     if b.parameters[element_param[b.type]] not in uniq_capacitances:
                         uniq_capacitances.append(b.parameters[element_param[b.type]])
-            
+
             for index, var in enumerate(uniq_capacitances):
-                self.L = self.L.subs(var, 1/(8*symbols("C" + str(index + 1))) )
-                self.L_old = self.L_old.subs(var, 1/(8*symbols("C" + str(index + 1))) )
-                
+                self.L = self.L.subs(var, 1 / (8 * symbols("C" + str(index + 1))))
+                self.L_old = self.L_old.subs(
+                    var, 1 / (8 * symbols("C" + str(index + 1)))
+                )
 
         return self.L
 
@@ -875,7 +889,7 @@ class CustomQCircuit(serializers.Serializable):
         """
         Outputs the Hamiltonian of the circuit in terms of the new variables
         output: (number of cyclic variables, periodic variables, Sympy expression)
-        """ 
+        """
         self.lagrangian_sym()
         L = self._L
         y_vars = [
@@ -924,8 +938,6 @@ class CustomQCircuit(serializers.Serializable):
             ]
 
         # Updating the class property
-        self.H = H#.cancel()  # .expand()
-
-        
+        self.H = H  # .cancel()  # .expand()
 
         return self.H

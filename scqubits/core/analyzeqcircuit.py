@@ -43,9 +43,16 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         list_branches: list = None,
         ground_node=None,
         mode: str = "sym",
-        basis: str = "simple"
+        basis: str = "simple",
     ):
-        CustomQCircuit.__init__(self, list_nodes, list_branches, ground_node=ground_node, mode=mode, basis=basis)
+        CustomQCircuit.__init__(
+            self,
+            list_nodes,
+            list_branches,
+            ground_node=ground_node,
+            mode=mode,
+            basis=basis,
+        )
 
         # defining additional class properties
 
@@ -108,7 +115,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             circuit.branches,
             ground_node=circuit.ground_node,
             mode=circuit.mode,
-            basis=circuit.basis
+            basis=circuit.basis,
         )
 
     ##################################################################
@@ -690,8 +697,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             + [var.name for var in self.external_flux_vars]
             + [var.name for var in self.param_vars]
         )
-
-
 
         sweep_vars = {}
         for var_name in kwargs:
