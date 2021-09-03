@@ -82,8 +82,8 @@ class TestSpectrumLookup:
     def test_hilbertspace_lookup_dressed_index(self):
         hilbertspace = self.initialize_hilbertspace()
         hilbertspace.generate_lookup()
-        reference = 21
-        assert hilbertspace.lookup.dressed_index((1, 2, 1)) == reference
+        reference = 7
+        assert hilbertspace.lookup.dressed_index((1, 1, 0)) == reference
 
     def test_hilbertspace_lookup_bare_eigenstates(self):
         hilbertspace = self.initialize_hilbertspace()
