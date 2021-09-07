@@ -63,36 +63,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         self.H_func = None
 
-        # initiating the class properties
-        for var_type in self.var_indices.keys():
-            if var_type == "cyclic":
-                for x, var_index in enumerate(self.var_indices["cyclic"]):
-                    setattr(self, "cutoff_cyclic_" + str(var_index), 3)
-            if var_type == "periodic":
-                for x, var_index in enumerate(self.var_indices["periodic"]):
-                    setattr(self, "cutoff_periodic_" + str(var_index), 5)
-            if var_type == "discretized_phi":
-                for x, var_index in enumerate(self.var_indices["discretized_phi"]):
-                    setattr(self, "cutoff_discrete_" + str(var_index), 30)
-
-        # default values for the parameters
-        for param in self.param_vars:
-            setattr(self, param.name, 1.0)  # setting the default parameters as 1
-        # default values for the external flux vars
-        for flux in self.external_flux_vars:
-            setattr(self, flux.name, 0.0)  # setting the default to zero external flux
-        # default values for the offset charge vars
-        for offset_charge in self.offset_charge_vars:
-            setattr(self, offset_charge.name, 0.0)  # default to zero offset charge
-
-        # setting the __init__params attribute
-        self._init_params = (
-            [param.name for param in self.param_vars]
-            + [flux.name for flux in self.external_flux_vars]
-            + [offset_charge.name for offset_charge in self.offset_charge_vars]
-            + [attr for attr in self.__dict__.keys() if "cutoff" in attr]
-            + ["input_string"]
-        )
         # setting truncated_dim for dispersion calculations
         self.truncated_dim = 6
 
@@ -103,6 +73,36 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         # Hamiltonian function
         if initiate_sym_calc:
+            # initiating the class properties
+            for var_type in self.var_indices.keys():
+                if var_type == "cyclic":
+                    for x, var_index in enumerate(self.var_indices["cyclic"]):
+                        setattr(self, "cutoff_cyclic_" + str(var_index), 3)
+                if var_type == "periodic":
+                    for x, var_index in enumerate(self.var_indices["periodic"]):
+                        setattr(self, "cutoff_periodic_" + str(var_index), 5)
+                if var_type == "discretized_phi":
+                    for x, var_index in enumerate(self.var_indices["discretized_phi"]):
+                        setattr(self, "cutoff_discrete_" + str(var_index), 30)
+            # default values for the parameters
+            for param in self.param_vars:
+                setattr(self, param.name, 1.0)  # setting the default parameters as 1
+            # default values for the external flux vars
+            for flux in self.external_flux_vars:
+                setattr(self, flux.name, 0.0)  # setting the default to zero external flux
+            # default values for the offset charge vars
+            for offset_charge in self.offset_charge_vars:
+                setattr(self, offset_charge.name, 0.0)  # default to zero offset charge
+            
+            # setting the __init__params attribute
+            self._init_params = (
+                [param.name for param in self.param_vars]
+                + [flux.name for flux in self.external_flux_vars]
+                + [offset_charge.name for offset_charge in self.offset_charge_vars]
+                + [attr for attr in self.__dict__.keys() if "cutoff" in attr]
+                + ["input_string"]
+            )
+
             self.H_func = self.hamiltonian_function()
             # initilizing attributes for operators
             self.set_operators()
