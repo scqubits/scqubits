@@ -606,6 +606,41 @@ class CustomQCircuit(serializers.Serializable):
                     )
         return J
 
+    def _C_matrix(self):
+        
+        if not self.is_grounded:
+            N = len(self.nodes)
+            if self.mode == "num":
+                C_mat = np.zeros([N,N], dtype = "object")
+            elif self.mode == "sym":
+                C_mat = sympy.zeros(N)
+            for b in [t for t in self.branches if t.type=="C" or t.type=="JJ"]:
+                if len(set(b.nodes)) > 1: # branch if shorted is not considered
+                    element_param = {"C": "E_C", "JJ": "E_CJ"}
+                    C_mat[b.nodes[0].id - 1, b.nodes[1].id - 1] += -1/(b.parameters[element_param[b.type]]*8)
+        else:
+            N = len(self.nodes) + 1
+            if self.mode == "num":
+                C_mat = np.zeros([N,N], dtype = "object")
+            elif self.mode == "sym":
+                C_mat = sympy.zeros(N)
+            for b in [t for t in self.branches if t.type=="C" or t.type=="JJ"]:
+                if len(set(b.nodes)) > 1: # branch if shorted is not considered
+                    element_param = {"C": "E_C", "JJ": "E_CJ"}
+                    C_mat[b.nodes[0].id, b.nodes[1].id] += -1/(b.parameters[element_param[b.type]]*8)
+
+        if self.mode == "num":
+            C_mat = C_mat + C_mat.T - np.diag(C_mat.diagonal())
+        elif self.mode == "sym":
+            C_mat = C_mat + C_mat.T - sympy.diag(*C_mat.diagonal())
+        
+        for i in range(C_mat.shape[0]):
+            C_mat[i, i] = -np.sum(C_mat[i, :])
+        
+        if self.is_grounded: # if grounded remove the 0th column and row from C_mat
+            C_mat =  C_mat[1:,1:]
+        return C_mat
+
     def _C_terms(self):
         C = 0
         for b in [t for t in self.branches if t.type == "C" or t.type == "JJ"]:
@@ -825,47 +860,54 @@ class CustomQCircuit(serializers.Serializable):
             basis = self.variable_transformation_matrix()
         flux_branches = self._flux_loops()
 
-        y_vars = [
+        φ_vars = [
+            symbols("φ" + str(i)) for i in range(1, len(self.nodes) + 1)
+        ]  # defining the φ variables
+        φ_dot_vars = [
+            symbols("vφ" + str(i)) for i in range(1, len(self.nodes) + 1)
+        ]  # defining the φ variables
+        
+        θ_vars = [
             symbols("θ" + str(i)) for i in range(1, len(self.nodes) + 1)
         ]  # defining the θ variables
-        y_dot_vars = [symbols("vθ" + str(i)) for i in range(1, len(self.nodes) + 1)]
-        x_vars = (basis).dot(y_vars)  # writing φ in terms of θ variables
-        x_dot_vars = (basis).dot(y_dot_vars)
+        θ_dot_vars = [symbols("vθ" + str(i)) for i in range(1, len(self.nodes) + 1)]
+        φ_vars_θ = (basis).dot(θ_vars)  # writing φ in terms of θ variables
+        φ_dot_vars_θ = (basis).dot(θ_dot_vars)
 
-        C_terms = self._C_terms()
-        #         L_mat = self.L_matrix()
-        #         L_terms = ((L_mat).dot(x_vars)).dot(x_vars)*0.5
+        # C_terms = self._C_terms()
+        C_mat = self._C_matrix()
+        if self.mode == "num":
+            C_terms_φ = ((C_mat).dot(φ_dot_vars)).dot(φ_dot_vars)*0.5 # interms of node variables
+            C_terms_θ = ((C_mat).dot(φ_dot_vars_θ)).dot(φ_dot_vars_θ)*0.5 # interms of new variables
+        elif self.mode == "sym":
+            C_terms_φ = (sympy.Matrix(φ_dot_vars).T * C_mat * sympy.Matrix(φ_dot_vars))[0] * 0.5 # interms of node variables
+            C_terms_θ = (sympy.Matrix(φ_dot_vars_θ).T * C_mat * sympy.Matrix(φ_dot_vars_θ))[0] * 0.5 # interms of new variables
+        
+        L_terms_φ = self._L_terms()
 
-        L_terms = self._L_terms()
+        JJ_terms_φ = self._JJ_terms()
 
-        JJ_terms = self._JJ_terms()
+        L_φ = C_terms_φ - L_terms_φ - JJ_terms_φ
 
-        L_old = C_terms - L_terms - JJ_terms
-        potential_old = L_terms + JJ_terms
+        potential_φ = L_terms_φ + JJ_terms_φ
+        potential_θ = potential_φ.copy()
 
-        L_new = L_old.copy()
-        potential_new = potential_old.copy()
-
-        for i in range(len(self.nodes)):  # converting to new variables
-            L_new = L_new.subs(symbols("φ" + str(i + 1)), x_vars[i]).subs(
-                symbols("vφ" + str(i + 1)), x_dot_vars[i]
-            )
-            potential_new = potential_new.subs(symbols("φ" + str(i + 1)), x_vars[i])
-
-        # calculating and storing the expression for potential energy
-        self.potential = potential_new
+        for i in range(len(self.nodes)):  # converting potential to new variables
+            potential_θ = potential_θ.subs(symbols("φ" + str(i + 1)), φ_vars_θ[i])
 
         # eliminating the zombie variables
         for i in self.var_indices["zombie"]:
-            sub = sympy.solve(L_new.diff(symbols("θ" + str(i))), symbols("θ" + str(i)))
-            L_new = L_new.replace(symbols("θ" + str(i)), sub[0])
+            sub = sympy.solve(potential_θ.diff(symbols("θ" + str(i))), symbols("θ" + str(i)))
+            potential_θ = potential_θ.replace(symbols("θ" + str(i)), sub[0])
 
-        self._L = L_new  # using a separate variable to store Lagrangian as used by code internally
+        self.potential = potential_θ
+        L_θ = C_terms_θ - potential_θ
+        self._L = L_θ  # using a separate variable to store Lagrangian as used by code internally
 
         ############# Updating the class properties ###################
 
-        self.L = L_new.expand()
-        self.L_old = L_old
+        self.L = L_θ.expand()
+        self.L_old = L_φ
 
         # Replacing energies with capacitances if the circuit mode is symbolic
         if self.mode == "sym":
@@ -893,35 +935,39 @@ class CustomQCircuit(serializers.Serializable):
         output: (number of cyclic variables, periodic variables, Sympy expression)
         """
         self.lagrangian_sym()
-        L = self._L
-        y_vars = [
-            symbols("θ" + str(i)) for i in range(1, len(self.nodes) + 1)
-        ]  # defining the θ variables
-        y_dot_vars = [symbols("vθ" + str(i)) for i in range(1, len(self.nodes) + 1)]
+        
+        # Excluding the zombie modes
+        if self.is_grounded:
+            n = len(self.var_indices["zombie"])
+        else:
+            n = len(self.var_indices["zombie"]) + 1 
+
+        N = len(self.nodes)
+        basis = self.trans_mat
+        basis_inv = np.linalg.inv(basis)[0:N-n, 0:N-n]
+
+        C_mat_θ = (basis.T * self._C_matrix() * basis)[0:N-n, 0:N-n].inv()  # exlcluding the zombie modes
+
         # x_vars = (self.trans_mat).dot(y_vars) # writing φ in terms of θ variables
         # x_dot_vars = (self.trans_mat).dot(y_dot_vars)
 
-        p_y_vars = [
-            symbols("Q" + str(i)) for i in range(1, len(self.nodes) + 1)
+        p_θ_vars = [
+            symbols("Q" + str(i)) for i in range(1, len(self.nodes) + 1 - n)
         ]  # defining the momentum variables
-        p_y = np.array(
-            [L.diff(i) for i in y_dot_vars]
-        )  # finding the momentum expression in terms of y_dot
+        # p_φ_vars_θ = basis.dot(p_θ_vars) # writing φ in terms of θ variables 
 
         var_indices = len(
             self.var_indices["cyclic"]
             + self.var_indices["periodic"]
             + self.var_indices["discretized_phi"]
         )
-        y_dot_py = sympy.linsolve(
-            [exp.cancel() for exp in (p_y - np.array(p_y_vars)).tolist()[:var_indices]],
-            tuple(y_dot_vars[:var_indices]),
-        )
-        y_dot_py = list(list(y_dot_py)[0])
 
-        H = (p_y[:var_indices].dot(y_dot_vars[:var_indices]) - L).subs(
-            [(y_dot_vars[i], y_dot_py[i]) for i in range(len(y_dot_py))]
-        )
+        if self.mode == "num":
+            C_terms_new = C_mat_θ.dot(p_θ_vars).dot(p_θ_vars) * 0.5 # interms of new variables
+        elif self.mode == "sym":
+            C_terms_new = (sympy.Matrix(p_θ_vars).T * C_mat_θ  * sympy.Matrix(p_θ_vars))[0] * 0.5 # interms of new variables
+
+        H = C_terms_new + self.potential
 
         for c in self.var_indices[
             "cyclic"
