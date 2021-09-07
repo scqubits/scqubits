@@ -176,6 +176,7 @@ class CustomQCircuit(serializers.Serializable):
         ground_node=None,
         mode: str = "sym",
         basis: str = "simple",
+        initiate_sym_calc: bool = True
     ):
 
         self.branches = list_branches
@@ -215,7 +216,8 @@ class CustomQCircuit(serializers.Serializable):
         self.basis = basis  # default, the other choice is standard
 
         # Calling the function to initiate the calss variables
-        self.hamiltonian_sym()
+        if initiate_sym_calc:
+            self.hamiltonian_sym()
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
@@ -235,7 +237,7 @@ class CustomQCircuit(serializers.Serializable):
         return True
 
     @classmethod
-    def from_input_string(cls, input_string: str, mode: str = "sym", basis="simple"):
+    def from_input_string(cls, input_string: str, mode: str = "sym", basis="simple", initiate_sym_calc=True):
         """
         Constructor of class CustomQCircuit:
         - Constructing the instance from an input string
@@ -302,13 +304,13 @@ class CustomQCircuit(serializers.Serializable):
             else:
                 break
 
-        circuit = cls(nodes, branches, ground_node=ground_node, mode=mode, basis=basis)
+        circuit = cls(nodes, branches, ground_node=ground_node, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc)
         circuit.input_string = input_string
 
         return circuit
 
     @classmethod
-    def from_input_file(cls, filename: str, mode: str = "sym", basis="simple"):
+    def from_input_file(cls, filename: str, mode: str = "sym", basis="simple", initiate_sym_calc = True):
         """
         Constructor of class CustomQCircuit:
         - Constructing the instance from an input file
@@ -317,7 +319,7 @@ class CustomQCircuit(serializers.Serializable):
         file = open(filename, "r")
         input_string = file.read()
         file.close()
-        return cls.from_input_string(input_string, mode=mode, basis=basis)
+        return cls.from_input_string(input_string, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc)
 
     """
     Methods to find the cyclic variables of the circuit
@@ -777,8 +779,8 @@ class CustomQCircuit(serializers.Serializable):
                 self_branches = []
                 for x, s in enumerate(next_nodes_set):
                     if s == i + 1:
-                        self_nodes.append(next_nodes[i])
-                        self_branches.append(next_branches[i])
+                        self_nodes.append(next_nodes[x])
+                        self_branches.append(next_branches[x])
 
                 self_nodes = list(set(self_nodes))
                 self_branches = list(set(self_branches))

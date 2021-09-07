@@ -44,6 +44,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         ground_node=None,
         mode: str = "sym",
         basis: str = "simple",
+        initiate_sym_calc: bool = True
     ):
         CustomQCircuit.__init__(
             self,
@@ -52,6 +53,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             ground_node=ground_node,
             mode=mode,
             basis=basis,
+            initiate_sym_calc=initiate_sym_calc
         )
 
         # defining additional class properties
@@ -100,9 +102,10 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         self._default_grid_flux = discretization.Grid1d(-5, 5, 200)
 
         # Hamiltonian function
-        self.H_func = self.hamiltonian_function()
-        # initilizing attributes for operators
-        self.set_operators()
+        if initiate_sym_calc:
+            self.H_func = self.hamiltonian_function()
+            # initilizing attributes for operators
+            self.set_operators()
 
     # constructor to initiate using a CustomQCircuit object
     @classmethod
