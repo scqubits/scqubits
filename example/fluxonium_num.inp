@@ -1,0 +1,5 @@
+nodes: 2
+branches:
+JJ	1,2	10	5
+L	1,2	5
+C	1,2	2

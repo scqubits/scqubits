@@ -71,13 +71,12 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         self._default_grid_charge = discretization.Grid1d(-2 * np.pi, 2 * np.pi, 200)
         self._default_grid_flux = discretization.Grid1d(-5, 5, 200)
 
+        self._discrete_phi_range = (-6*np.pi, 6*np.pi)
+
         # Hamiltonian function
         if initiate_sym_calc:
             # initiating the class properties
             for var_type in self.var_indices.keys():
-                if var_type == "cyclic":
-                    for x, var_index in enumerate(self.var_indices["cyclic"]):
-                        setattr(self, "cutoff_cyclic_" + str(var_index), 3)
                 if var_type == "periodic":
                     for x, var_index in enumerate(self.var_indices["periodic"]):
                         setattr(self, "cutoff_periodic_" + str(var_index), 5)
@@ -103,9 +102,45 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                 + ["input_string"]
             )
 
+            self._id_str = self._autogenerate_id_str() # generating a class attribute to avoid error by parameter sweeps
+
             self.H_func = self.hamiltonian_function()
             # initilizing attributes for operators
             self.set_operators()
+
+    def initiate(self):
+        # initiating the class properties
+        for var_type in self.var_indices.keys():
+            if var_type == "periodic":
+                for x, var_index in enumerate(self.var_indices["periodic"]):
+                    setattr(self, "cutoff_periodic_" + str(var_index), 5)
+            if var_type == "discretized_phi":
+                for x, var_index in enumerate(self.var_indices["discretized_phi"]):
+                    setattr(self, "cutoff_discrete_" + str(var_index), 30)
+        # default values for the parameters
+        for param in self.param_vars:
+            setattr(self, param.name, 1.0)  # setting the default parameters as 1
+        # default values for the external flux vars
+        for flux in self.external_flux_vars:
+            setattr(self, flux.name, 0.0)  # setting the default to zero external flux
+        # default values for the offset charge vars
+        for offset_charge in self.offset_charge_vars:
+            setattr(self, offset_charge.name, 0.0)  # default to zero offset charge
+        
+        # setting the __init__params attribute
+        self._init_params = (
+            [param.name for param in self.param_vars]
+            + [flux.name for flux in self.external_flux_vars]
+            + [offset_charge.name for offset_charge in self.offset_charge_vars]
+            + [attr for attr in self.__dict__.keys() if "cutoff" in attr]
+            + ["input_string"]
+        )
+        
+        self._id_str = self._autogenerate_id_str() # generating a class attribute to avoid error by parameter sweeps
+
+        self.H_func = self.hamiltonian_function()
+        # initilizing attributes for operators
+        self.set_operators()
 
     # constructor to initiate using a CustomQCircuit object
     @classmethod
@@ -252,7 +287,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         """
         cutoff_list = []
         for cutoffs in self.get_cutoffs().keys():
-            if "cutoff_cyclic" in cutoffs or "cutoff_periodic" in cutoffs:
+            if "cutoff_periodic" in cutoffs:
                 cutoff_list.append([2 * k + 1 for k in self.get_cutoffs()[cutoffs]])
             elif "cutoff_discrete" in cutoffs:
                 cutoff_list.append([k for k in self.get_cutoffs()[cutoffs]])
@@ -268,15 +303,15 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         Returns the final operator
         """
         var_index_list = (
-            self.var_indices["cyclic"]
-            + self.var_indices["periodic"]
+            self.var_indices["periodic"]
             + self.var_indices["discretized_phi"]
+            + self.var_indices["cyclic"]
         )
+        var_index_list.sort() # just a precaution
         cutoff_dict = self.get_cutoffs()
 
         if (
-            len(self.var_indices["cyclic"]) != len(cutoff_dict["cutoff_cyclic"])
-            or len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_periodic"])
+            len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_periodic"])
             or len(self.var_indices["discretized_phi"])
             != len(cutoff_dict["cutoff_discrete"])
         ):
@@ -286,7 +321,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         cutoff_list = []
         for cutoff_type in cutoff_dict.keys():
-            if "cutoff_cyclic" in cutoff_type or "cutoff_periodic" in cutoff_type:
+            if "cutoff_periodic" in cutoff_type:
                 cutoff_list.append([2 * k + 1 for k in cutoff_dict[cutoff_type]])
             elif "cutoff_discrete" in cutoff_type:
                 cutoff_list.append([k for k in cutoff_dict[cutoff_type]])
@@ -453,7 +488,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         grids = {}
         for i in self.var_indices["discretized_phi"]:
-            grids[i] = discretization.Grid1d(-6 * np.pi, 6 * np.pi, cutoffs[i])
+            grids[i] = discretization.Grid1d(self._discrete_phi_range[0], self._discrete_phi_range[1], cutoffs[i])
 
         # constructing the operators for normal variables
         normal_operators = [[], [], []]
@@ -509,7 +544,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
     def get_cutoffs(self):
         cutoffs_dict = {
-            "cutoff_cyclic": [],
             "cutoff_periodic": [],
             "cutoff_discrete": [],
         }
@@ -746,7 +780,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         cutoff_list = []
         grids = []
         for cutoff_type in cutoffs_dict.keys():
-            if "cutoff_cyclic" in cutoff_type or "cutoff_periodic" in cutoff_type:
+            if "cutoff_periodic" in cutoff_type:
                 cutoff_list.append([2 * k + 1 for k in cutoffs_dict[cutoff_type]])
                 grids.append(
                     [list(range(-k, k + 1)) for k in cutoffs_dict[cutoff_type]]

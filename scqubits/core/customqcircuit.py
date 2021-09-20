@@ -423,20 +423,20 @@ class CustomQCircuit(serializers.Serializable):
 
         ##################### Finding the Zombie modes ##################
         selected_branches = [branch for branch in branches if branch.type != "L"]
-        zombie_modes = independent_modes(selected_branches)
+        zombie_modes = independent_modes(selected_branches, single_nodes=False)
 
         ##################### Finding the Cyclic Modes ##################
         selected_branches = [branch for branch in branches if branch.type != "C"]
-        cyclic_modes = independent_modes(selected_branches, single_nodes=False)
+        cyclic_modes = independent_modes(selected_branches)
         # including the Σ mode
         Σ = [1 for n in self.nodes]
         if not self.is_grounded:  # only append if the circuit is not grounded
             # cyclic_modes.append(Σ)
             zombie_modes.append(Σ)
 
-        ##################### Finding the LC Modes ##################
-        selected_branches = [branch for branch in branches if branch.type == "JJ"]
-        LC_modes = independent_modes(selected_branches, single_nodes=False)
+        # ##################### Finding the LC Modes ##################
+        # selected_branches = [branch for branch in branches if branch.type == "JJ"]
+        # LC_modes = independent_modes(selected_branches, single_nodes=False)
 
         ################ Adding periodic and zombie modes to cyclic ones #############
         # modes = cyclic_modes.copy()  # starting with the cyclic modes
@@ -527,25 +527,29 @@ class CustomQCircuit(serializers.Serializable):
             if i not in pos_periodic
             if i not in pos_zombie
         ]
-        pos_list = pos_cyclic + pos_periodic + pos_rest + pos_zombie + pos_Σ
+        pos_list =  pos_periodic + pos_rest + pos_cyclic + pos_zombie +  pos_Σ
         # transforming the new_basis matrix
         new_basis = new_basis[pos_list].T
 
         # Updating the class properties
         self.var_indices = {
-            "cyclic": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_cyclic
-            ],
             "periodic": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_periodic
             ],
             "discretized_phi": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_rest
             ],
+            "cyclic": [
+                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_cyclic
+            ],
             "zombie": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_zombie
             ],
         }
+        # creating a class attribute for conserved charges corresponding to cyclic variables
+        for c in self.var_indices["cyclic"]:
+            setattr(self, "Qc" + str(c), 0)
+
 
         # set param_vars
         if self.mode == "sym":
@@ -569,10 +573,13 @@ class CustomQCircuit(serializers.Serializable):
                 param_list += i
         elif self.mode == "num":
             param_list = []
-        self.param_vars = param_list
-        self.trans_mat = new_basis
 
-        return new_basis
+        for c in self.var_indices["cyclic"]:
+            param_list.append(symbols("Qc" + str(c)))
+        self.param_vars = param_list
+        self.trans_mat = np.array(new_basis)
+
+        return np.array(new_basis)
 
     """
     Methods used to construct the Lagrangian of the circuit
@@ -611,7 +618,7 @@ class CustomQCircuit(serializers.Serializable):
         if not self.is_grounded:
             N = len(self.nodes)
             if self.mode == "num":
-                C_mat = np.zeros([N,N], dtype = "object")
+                C_mat = np.zeros([N,N])
             elif self.mode == "sym":
                 C_mat = sympy.zeros(N)
             for b in [t for t in self.branches if t.type=="C" or t.type=="JJ"]:
@@ -621,7 +628,7 @@ class CustomQCircuit(serializers.Serializable):
         else:
             N = len(self.nodes) + 1
             if self.mode == "num":
-                C_mat = np.zeros([N,N], dtype = "object")
+                C_mat = np.zeros([N,N])
             elif self.mode == "sym":
                 C_mat = sympy.zeros(N)
             for b in [t for t in self.branches if t.type=="C" or t.type=="JJ"]:
@@ -807,7 +814,7 @@ class CustomQCircuit(serializers.Serializable):
                 if len(loop_branches) > 1:
                     flux_branches.append(
                         loop_branches[:-1]
-                    )  # selecting n-1 elements in the list for external flux
+                    )  # selecting n-1 elements in the list for external flux @ basis
 
                 # identifying the loops in the same set
                 self_nodes = []
@@ -946,7 +953,10 @@ class CustomQCircuit(serializers.Serializable):
         basis = self.trans_mat
         basis_inv = np.linalg.inv(basis)[0:N-n, 0:N-n]
 
-        C_mat_θ = (basis.T * self._C_matrix() * basis)[0:N-n, 0:N-n].inv()  # exlcluding the zombie modes
+        if self.mode == "sym":
+            C_mat_θ = (basis.T * self._C_matrix() * basis)[0:N-n, 0:N-n].inv()  # exlcluding the zombie modes
+        elif self.mode == "num":
+            C_mat_θ = np.linalg.inv((basis.T @ self._C_matrix() @ basis)[0:N-n, 0:N-n])  # exlcluding the zombie modes
 
         # x_vars = (self.trans_mat).dot(y_vars) # writing φ in terms of θ variables
         # x_dot_vars = (self.trans_mat).dot(y_dot_vars)
@@ -956,23 +966,12 @@ class CustomQCircuit(serializers.Serializable):
         ]  # defining the momentum variables
         # p_φ_vars_θ = basis.dot(p_θ_vars) # writing φ in terms of θ variables 
 
-        var_indices = len(
-            self.var_indices["cyclic"]
-            + self.var_indices["periodic"]
-            + self.var_indices["discretized_phi"]
-        )
-
         if self.mode == "num":
             C_terms_new = C_mat_θ.dot(p_θ_vars).dot(p_θ_vars) * 0.5 # interms of new variables
         elif self.mode == "sym":
             C_terms_new = (sympy.Matrix(p_θ_vars).T * C_mat_θ  * sympy.Matrix(p_θ_vars))[0] * 0.5 # interms of new variables
 
         H = C_terms_new + self.potential
-
-        for c in self.var_indices[
-            "cyclic"
-        ]:  # To make it clear that the charge basis is used for cyclic variables
-            H = H.subs(symbols("Q" + str(c)), symbols("n" + str(c)))
 
         self.offset_charge_vars = []
         for p in self.var_indices[
