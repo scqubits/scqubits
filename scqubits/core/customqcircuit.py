@@ -22,6 +22,7 @@ from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
 from matplotlib import pyplot as plt
+from sympy.core.symbol import Symbol
 from sympy.logic.boolalg import Boolean
 
 import scqubits.core.discretization as discretization
@@ -254,6 +255,12 @@ class CustomQCircuit(serializers.Serializable):
             False  # paramater to identify the presence of ground node in the circuit.
         )
         ground_node = None
+        def isfloat(x):
+            try:
+                float(x)
+                return True
+            except ValueError:
+                return False
 
         for l in range(first_branch, len(lines)):
             if lines[l] != "":
@@ -274,7 +281,16 @@ class CustomQCircuit(serializers.Serializable):
                         len(line) > 3
                     ):  # check to see if all the required parameters are defined
                         if mode == "sym":
-                            parameters = [symbols(line[2]), symbols(line[3])]
+                            if isfloat(line[2]):
+                                p1 = float(line[2])
+                            else:
+                                p1 = symbols(line[2])
+                            if isfloat(line[3]):
+                                p2 = float(line[3])
+                            else:
+                                p2 = symbols(line[3])
+                            
+                            parameters = [p1, p2]
                         elif mode == "num":
                             parameters = [float(line[2]), float(line[3])]
                     else:
@@ -284,7 +300,11 @@ class CustomQCircuit(serializers.Serializable):
                         len(line) > 2
                     ):  # check to see if all the required parameters are defined
                         if mode == "sym":
-                            parameters = [symbols(line[2])]
+                            if isfloat(line[2]):
+                                p = float(line[2])
+                            else:
+                                p = symbols(line[2])
+                            parameters = [p]
                         elif mode == "num":
                             parameters = [float(line[2])]
                     else:
@@ -570,7 +590,7 @@ class CustomQCircuit(serializers.Serializable):
             parameters = [list(set(i)) for i in parameters]
             param_list = []
             for i in parameters:
-                param_list += i
+                param_list += [j for j in i if type(j) == sympy.core.symbol.Symbol]
         elif self.mode == "num":
             param_list = []
 
@@ -962,7 +982,7 @@ class CustomQCircuit(serializers.Serializable):
         # x_dot_vars = (self.trans_mat).dot(y_dot_vars)
 
         p_θ_vars = [
-            symbols("Q" + str(i)) for i in range(1, len(self.nodes) + 1 - n)
+            symbols("Q" + str(i)) if i not in self.var_indices["cyclic"] else symbols("Qc" + str(i)) for i in range(1, len(self.nodes) + 1 - n)
         ]  # defining the momentum variables
         # p_φ_vars_θ = basis.dot(p_θ_vars) # writing φ in terms of θ variables 
 
