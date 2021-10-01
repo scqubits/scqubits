@@ -82,20 +82,20 @@ class VTBBaseMethods(ABC):
     maximum_site_length: int
         maximum displacement allowed for each coordinate of a unit cell vector.
     """
-    num_exc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    num_exc = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
     maximum_unit_cell_vector_length = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE"
+        int, "QUANTUMSYSTEM_UPDATE"
     )
-    number_degrees_freedom = descriptors.ReadOnlyProperty()
-    number_periodic_degrees_freedom = descriptors.ReadOnlyProperty()
-    number_junctions = descriptors.ReadOnlyProperty()
-    harmonic_length_optimization = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    optimize_all_minima = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    extended_grid = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    displacement_vector_cutoff = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    maximum_site_length = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    stitching_coefficients = descriptors.ReadOnlyProperty()
+    number_degrees_freedom = descriptors.ReadOnlyProperty(int)
+    number_periodic_degrees_freedom = descriptors.ReadOnlyProperty(int)
+    number_junctions = descriptors.ReadOnlyProperty(int)
+    harmonic_length_optimization = descriptors.WatchedProperty(bool, "QUANTUMSYSTEM_UPDATE")
+    optimize_all_minima = descriptors.WatchedProperty(bool, "QUANTUMSYSTEM_UPDATE")
+    extended_grid = descriptors.WatchedProperty(Grid1d, "QUANTUMSYSTEM_UPDATE")
+    displacement_vector_cutoff = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    maximum_site_length = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    stitching_coefficients = descriptors.ReadOnlyProperty(ndarray)
 
     def __init__(
         self,
