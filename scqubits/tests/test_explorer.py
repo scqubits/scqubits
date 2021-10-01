@@ -1,7 +1,8 @@
 # test_explorer.py
 # meant to be run with 'pytest'
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -37,7 +38,7 @@ def test_explorer_legacy():
     interaction_list = [interaction]
     hilbertspace.interaction_list = interaction_list
 
-    param_name = "$\Phi_{ext}/\Phi_0$"
+    param_name = r"$\Phi_{ext}/\Phi_0$"
     param_vals = np.linspace(-0.5, 0.5, 100)
 
     subsys_update_list = [qbt]

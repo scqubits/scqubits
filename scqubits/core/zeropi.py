@@ -1,6 +1,7 @@
 # zeropi.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -11,9 +12,11 @@
 
 import os
 import warnings
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
@@ -32,6 +35,7 @@ import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
 import scqubits.utils.spectrum_utils as spec_utils
+
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunctionOnGrid
@@ -48,18 +52,24 @@ class NoisyZeroPi(NoisySystem):
 
 class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     r"""Zero-Pi Qubit
+
     | [1] Brooks et al., Physical Review A, 87(5), 052306 (2013). http://doi.org/10.1103/PhysRevA.87.052306
     | [2] Dempster et al., Phys. Rev. B, 90, 094518 (2014). http://doi.org/10.1103/PhysRevB.90.094518
     | [3] Groszkowski et al., New J. Phys. 20, 043053 (2018). https://doi.org/10.1088/1367-2630/aab7cd
-    Zero-Pi qubit without coupling to the `zeta` mode, i.e., no disorder in `EC` and `EL`,
-    see Eq. (4) in Groszkowski et al., New J. Phys. 20, 043053 (2018),
+
+    Zero-Pi qubit without coupling to the `zeta` mode, i.e., no disorder in `EC` and 
+    `EL`, see Eq. (4) in Groszkowski et al., New J. Phys. 20, 043053 (2018),
+
     .. math::
+
         H &= -2E_\text{CJ}\partial_\phi^2+2E_{\text{C}\Sigma}(i\partial_\theta-n_g)^2
                +2E_{C\Sigma}dC_J\,\partial_\phi\partial_\theta
                -2E_\text{J}\cos\theta\cos(\phi-\varphi_\text{ext}/2)+E_L\phi^2\\
           &\qquad +2E_\text{J} + E_J dE_J \sin\theta\sin(\phi-\phi_\text{ext}/2).
-    Formulation of the Hamiltonian matrix proceeds by discretization of the `phi` variable, and using charge basis for
-    the `theta` variable.
+
+    Formulation of the Hamiltonian matrix proceeds by discretization of the `phi` 
+    variable, and using charge basis for the `theta` variable.
+
     Parameters
     ----------
     EJ:
@@ -69,7 +79,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     ECJ:
         charging energy associated with the two junctions
     EC:
-        charging energy of the large shunting capacitances; set to `None` if `ECS` is provided instead
+        charging energy of the large shunting capacitances; set to `None` if `ECS` is 
+        provided instead
     dEJ:
         relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
     dCJ:
@@ -83,19 +94,22 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     ncut:
         charge number cutoff for `n_theta`,  `n_theta = -ncut, ..., ncut`
     ECS:
-        total charging energy including large shunting capacitances and junction capacitances; may be provided instead
-        of EC
+        total charging energy including large shunting capacitances and junction 
+        capacitances; may be provided instead of EC
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
    """
-    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    dEJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    dCJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    dEJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    dCJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -111,7 +125,10 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         dCJ: float = 0.0,
         ECS: float = None,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
+
         self.EJ = EJ
         self.EL = EL
         self.ECJ = ECJ
@@ -131,7 +148,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         self.grid = grid
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
         self._evec_dtype = np.complex_
 
         # _default_grid is for *theta*, needed for plotting wavefunction
@@ -182,6 +198,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def widget(self, params: Dict[str, Any] = None) -> None:
         init_params = params or self.get_initdata()
+        init_params.pop("id_str", None)
         del init_params["grid"]
         init_params["grid_max_val"] = self.grid.max_val
         init_params["grid_min_val"] = self.grid.min_val
@@ -268,6 +285,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def sparse_kinetic_mat(self) -> csc_matrix:
         """
         Kinetic energy portion of the Hamiltonian.
+
         Returns
         -------
             matrix representing the kinetic energy operator
@@ -304,6 +322,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def sparse_potential_mat(self) -> csc_matrix:
         """
         Potential energy portion of the Hamiltonian.
+
         Returns
         -------
             matrix representing the potential energy operator
@@ -353,7 +372,9 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return potential_mat
 
     def hamiltonian(self) -> csc_matrix:
-        """Calculates Hamiltonian in basis obtained by discretizing phi and employing charge basis for theta.
+        """Calculates Hamiltonian in basis obtained by discretizing phi and employing
+        charge basis for theta.
+
         Returns
         -------
             matrix representing the potential energy operator
@@ -361,11 +382,13 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return self.sparse_kinetic_mat() + self.sparse_potential_mat()
 
     def sparse_d_potential_d_flux_mat(self) -> csc_matrix:
-        r"""Calculates a of the potential energy w.r.t flux, at the current value of flux,
-        as stored in the object.
+        r"""Calculates a of the potential energy w.r.t flux, at the current value of
+        flux, as stored in the object.
+
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
         So if \frac{\partial U}{ \partial \Phi_{\rm ext}}, is needed, the expr returned
         by this function, needs to be multiplied by 1/\Phi_0.
+
         Returns
         -------
             matrix representing the derivative of the potential energy
@@ -383,11 +406,13 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         return -2.0 * np.pi * self.EJ * op_1 - np.pi * self.EJ * self.dEJ * op_2
 
     def d_hamiltonian_d_flux(self) -> csc_matrix:
-        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
-        as stored in the object.
+        r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
+        of flux, as stored in the object.
+
         The flux is assumed to be given in the units of the ratio \Phi_{ext}/\Phi_0.
         So if \frac{\partial H}{ \partial \Phi_{\rm ext}}, is needed, the expr returned
         by this function, needs to be multiplied by 1/\Phi_0.
+
         Returns
         -------
             matrix representing the derivative of the Hamiltonian
@@ -396,6 +421,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def sparse_d_potential_d_EJ_mat(self) -> csc_matrix:
         r"""Calculates a of the potential energy w.r.t EJ.
+
         Returns
         -------
             matrix representing the derivative of the potential energy
@@ -408,6 +434,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     def d_hamiltonian_d_EJ(self) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t EJ.
+
         Returns
         -------
             matrix representing the derivative of the Hamiltonian
@@ -417,6 +444,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
     def d_hamiltonian_d_ng(self) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
+
         Returns
         -------
             matrix representing the derivative of the Hamiltonian
@@ -559,6 +587,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         **kwargs
     ) -> Tuple[Figure, Axes]:
         """Draw contour plot of the potential energy.
+
         Parameters
         ----------
         theta_grid:
@@ -588,6 +617,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         theta_grid: Grid1d = None,
     ) -> WaveFunctionOnGrid:
         """Returns a zero-pi wave function in `phi`, `theta` basis
+
         Parameters
         ----------
         esys:
@@ -599,7 +629,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         """
         evals_count = max(which + 1, 3)
         if esys is None:
-            _, evecs = self.eigensys(evals_count)
+            _, evecs = self.eigensys(evals_count=evals_count)
         else:
             _, evecs = esys
 
@@ -635,6 +665,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         **kwargs
     ) -> Tuple[Figure, Axes]:
         """Plots 2d phase-basis wave function.
+
         Parameters
         ----------
         esys:
@@ -644,9 +675,11 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         theta_grid:
             used for setting a custom grid for theta; if None use self._default_grid
         mode:
-            choices as specified in `constants.MODE_FUNC_DICT` (default value = 'abs_sqr')
+            choices as specified in `constants.MODE_FUNC_DICT`
+            (default value = 'abs_sqr')
         zero_calibrate:
-            if True, colors are adjusted to use zero wavefunction amplitude as the neutral color in the palette
+            if True, colors are adjusted to use zero wavefunction amplitude as the
+            neutral color in the palette
         **kwargs:
             plot options
         """

@@ -1,6 +1,7 @@
 # misc.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -11,13 +12,16 @@
 
 import ast
 import functools
+import platform
 import warnings
 
-from collections import Sequence
+from collections.abc import Sequence
+from io import StringIO
 from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
-import qutip.qobj as qt
+import qutip as qt
+import scipy as sp
 
 from scqubits.settings import IN_IPYTHON
 
@@ -207,7 +211,79 @@ def tuple_to_short_str(the_tuple: tuple) -> str:
     return short_str[:-1]
 
 
-def to_list(obj: Any) -> list:
-    if isinstance(obj, (list, np.ndarray)):
+def to_list(obj: Any) -> List[Any]:
+    if isinstance(obj, list):
         return obj
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
     return [obj]
+
+
+def about(print_info=True):
+    """Prints or returns a string with basic information about
+    scqubits as well as installed version of various packages
+    that scqubits depends on.
+
+    Parameters
+    ----------
+    print_info: bool
+        Flag that determines if string with information should
+        be printed (if True) or returned (if False).
+
+    Returns
+    -------
+    None or str
+    """
+    from scqubits import __version__
+
+    fs = StringIO()
+
+    fs.write("scqubits: a Python library for simulating superconducting qubits\n")
+    fs.write("****************************************************************\n")
+    fs.write("Developed by J. Koch, P. Groszkowski\n")
+    fs.write("Main Github page: https://github.com/scqubits/scqubits\n")
+    fs.write(
+        "Online documentation page: https://scqubits.readthedocs.io/en/latest/\n\n"
+    )
+    fs.write("scqubits version: {}\n".format(__version__))
+    fs.write("numpy version:    {}\n".format(np.__version__))
+    fs.write("scipy version:    {}\n".format(sp.__version__))
+    fs.write("QuTiP version:    {}\n".format(qt.__version__))
+    fs.write(
+        "Platform:         {} ({})\n".format(platform.system(), platform.machine())
+    )
+
+    if print_info:
+        print(fs.getvalue())
+        return None
+    else:
+        return fs.getvalue()
+
+
+def cite(print_info=True):
+    """Prints or returns a string with scqubits citation
+    information.
+
+    Parameters
+    ----------
+    print_info: bool
+        Flag that determines if string with information should
+        be printed (if True) or returned (if False).
+
+    Returns
+    -------
+    None or str
+
+    """
+    fs = StringIO()
+
+    fs.write(
+        "Peter Groszkowski and Jens Koch, 'scqubits: a Python package for "
+        "superconducting qubits', arXiv:2107.08552 (2021).\n"
+    )
+
+    if print_info:
+        print(fs.getvalue())
+        return None
+    else:
+        return fs.getvalue()

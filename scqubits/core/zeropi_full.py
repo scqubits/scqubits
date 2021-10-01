@@ -1,6 +1,7 @@
 # zeropi_full.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -10,9 +11,11 @@
 ############################################################################
 
 import os
-from typing import Any, Dict, List, Tuple, Union
+
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
@@ -27,6 +30,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.spectrum_utils as spec_utils
+
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 
@@ -92,44 +96,50 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         of EC
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
     EJ = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     EL = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     ECJ = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     EC = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     ECS = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     dEJ = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     dCJ = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
-    dC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    dEL = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    dC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    dEL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ng = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     flux = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        float, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     grid = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        Grid1d, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     ncut = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
+        int, "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi"
     )
     zeropi_cutoff = descriptors.WatchedProperty(
-        "QUANTUMSYSTEM_UPDATE", inner_object_name="_zeropi", attr_name="truncated_dim"
+        int,
+        "QUANTUMSYSTEM_UPDATE",
+        inner_object_name="_zeropi",
+        attr_name="truncated_dim",
     )
 
     def __init__(
@@ -150,7 +160,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         ncut: int,
         ECS: float = None,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self._zeropi = scqubits.ZeroPi(
             EJ=EJ,
             EL=EL,
@@ -165,11 +177,11 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             ECS=ECS,
             # the zeropi_cutoff defines the truncated_dim of the "base" zeropi object
             truncated_dim=zeropi_cutoff,
+            id_str=self._id_str + " [interior ZeroPi]",
         )
         self.dC = dC
         self.dEL = dEL
         self.zeta_cutoff = zeta_cutoff
-        self._sys_type = type(self).__name__
         self.truncated_dim = truncated_dim
         self._evec_dtype = np.complex_
         self._init_params.remove(
@@ -221,6 +233,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
     def widget(self, params: Dict[str, Any] = None) -> None:
         init_params = params or self.get_initdata()
+        init_params.pop("id_str", None)
         del init_params["grid"]
         init_params["grid_max_val"] = self.grid.max_val
         init_params["grid_min_val"] = self.grid.min_val
