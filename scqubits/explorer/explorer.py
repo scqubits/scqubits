@@ -48,7 +48,7 @@ class Explorer:
     """
     This class allows interactive exploration of coupled quantum systems. The
     Explorer is currently compatible with systems composed of `Transmon`,
-    `Fluxoniuam` and `Oscillator` subsystems. The Explorer displays pre-calculated
+    `Fluxonium` and `Oscillator` subsystems. The Explorer displays pre-calculated
     spectral data and enables changes of a given parameter by sliders (when inside
     jupyter notebook or jupyter lab).
 
@@ -113,9 +113,8 @@ class Explorer:
         param_val: float,
         photonnumber: int,
         initial_index: int,
-        final_index: int,
-        qbt_index: int,
-        osc_index: int,
+        primary_subsys_index: int,
+        secondary_subsys_index: int,
     ) -> Tuple[Figure, Axes]:
         """
         Create a panel of plots (bare spectra, bare wavefunctions, dressed spectrum,
@@ -128,14 +127,13 @@ class Explorer:
         photonnumber:
             photon number n used for display of n-photon qubit transition
         initial_index:
-            dressed-state index of the initial state used in transition
-        final_index:
-            dressed-state index of the final state used in transition (in dressed
-            spectrum display)
-        qbt_index:
-            index of qubit subsystem for which matrix elements and chi's are displayed
-        osc_index:
-            index of oscillator subsystem for which chi's are calculated
+            initial state index for the bare primary subsystem
+        primary_subsys_index:
+            index of subsystem for which single-system plots are displayed
+        secondary_subsys_index:
+            index of subsystem for which chi or Kerr is computed in conjunction with
+            primary system
+
 
         Returns
         -------
@@ -148,17 +146,17 @@ class Explorer:
         param_index = np.searchsorted(self.param_vals, param_val)
         param_val = self.param_vals[param_index]
 
-        initial_bare = self.sweep[param_index].bare_index(initial_index)
-        final_bare = self.sweep[param_index].bare_index(final_index)
+        initial_bare_list = [0] * len(self.sweep.hilbertspace)
+        initial_bare_list[primary_subsys_index] = initial_index
+        initial_bare = tuple(initial_bare_list)
+
         energy_ground = self.sweep[param_index].energy_by_dressed_index(0)
         energy_initial = (
-            self.sweep[param_index].energy_by_dressed_index(initial_index)
+            self.sweep[param_index].energy_by_bare_index(initial_bare)
             - energy_ground
         )
-        energy_final = (
-            self.sweep[param_index].energy_by_dressed_index(final_index) - energy_ground
-        )
-        qbt_subsys = self.sweep.get_subsys(qbt_index)
+
+        qbt_subsys = self.sweep.get_subsys(primary_subsys_index)
         assert isinstance(qbt_subsys, QubitBaseClass1d), (
             "Unsupported qubit. " "Explorer currently only " "accepts 1d qubits."
         )
@@ -184,31 +182,35 @@ class Explorer:
             panels.display_charge_matrixelems(
                 self.sweep,
                 initial_bare,
-                qbt_index,
+                primary_subsys_index,
                 param_val,
                 fig_ax(5),
             )
 
         # Panel 3 ----------------------------------
-        panels.display_dressed_spectrum(
-            self.sweep,
-            initial_bare,
-            final_bare,
-            energy_initial,
-            energy_final,
-            param_val,
-            fig_ax(2),
-        )
+        # panels.display_dressed_spectrum(
+        #     self.sweep,
+        #     initial_bare,
+        #     final_bare,
+        #     energy_initial,
+        #     energy_final,
+        #     param_val,
+        #     fig_ax(2),
+        # )
+        panels.display_anharmonicity(self.sweep, qbt_subsys, param_val, fig_ax(2))
 
         # Panel 4 ----------------------------------
+        # initial_dressed_index = self.sweep[param_index].dressed_index(initial_bare)
         panels.display_n_photon_qubit_transitions(
-            self.sweep, photonnumber, qbt_subsys, initial_bare, param_val, fig_ax(3)
+            self.sweep, photonnumber, qbt_subsys, initial_bare,
+            param_val, fig_ax(3)
         )
 
         # Panel 5 ----------------------------------
-        panels.display_chi_01(self.sweep, qbt_index, osc_index, param_val, fig_ax(4))
+        # panels.display_chi_01(self.sweep, qbt_index, osc_index, param_val, fig_ax(4))
 
         fig.tight_layout()
+        plt.show()
         return fig, axes_table
 
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
@@ -218,13 +220,14 @@ class Explorer:
         param_max = self.param_vals[-1]
         param_step = self.param_vals[1] - self.param_vals[0]
 
-        qbt_indices = [
-            self.sweep.get_subsys_index(subsystem)
-            for subsystem in self.sweep.qbt_subsys_list
+        subsys_id_to_index = [
+            (subsystem.id_str, self.sweep.get_subsys_index(subsystem))
+            for subsystem in self.sweep.hilbertspace
         ]
-        osc_indices = [
-            self.sweep.get_subsys_index(subsystem)
-            for subsystem in self.sweep.osc_subsys_list
+
+        qbt_id_to_index = [
+            (subsystem.id_str, self.sweep.get_subsys_index(subsystem))
+            for subsystem in self.sweep.qbt_subsys_list
         ]
 
         param_slider = ipywidgets.FloatSlider(
@@ -240,21 +243,13 @@ class Explorer:
         initial_slider = ipywidgets.IntSlider(
             value=0, min=0, max=self.evals_count, description="initial state index"
         )
-        final_slider = ipywidgets.IntSlider(
-            value=1, min=1, max=self.evals_count, description="final state index"
-        )
 
-        qbt_dropdown = ipywidgets.Dropdown(
-            options=qbt_indices, description="qubit subsys"
+        primary_subsys_dropdown = ipywidgets.Dropdown(
+            options=qbt_id_to_index, description="primary subsys"
         )
-        osc_dropdown = ipywidgets.Dropdown(
-            options=osc_indices, description="oscillator subsys"
+        secondary_subsys_dropdown = ipywidgets.Dropdown(
+            options=subsys_id_to_index, description="secondary subsys"
         )
-
-        def update_min_final_index(*args):
-            final_slider.min = initial_slider.value + 1
-
-        initial_slider.observe(update_min_final_index, "value")
 
         out = ipywidgets.interactive_output(
             self.plot_explorer_panels,
@@ -262,15 +257,14 @@ class Explorer:
                 "param_val": param_slider,
                 "photonnumber": photon_slider,
                 "initial_index": initial_slider,
-                "final_index": final_slider,
-                "qbt_index": qbt_dropdown,
-                "osc_index": osc_dropdown,
+                "primary_subsys_index": primary_subsys_dropdown,
+                "secondary_subsys_index": secondary_subsys_dropdown,
             },
         )
 
         left_box = ipywidgets.VBox([param_slider])
-        mid_box = ipywidgets.VBox([initial_slider, final_slider, photon_slider])
-        right_box = ipywidgets.VBox([qbt_dropdown, osc_dropdown])
+        mid_box = ipywidgets.VBox([initial_slider, photon_slider])
+        right_box = ipywidgets.VBox([primary_subsys_dropdown, secondary_subsys_dropdown])
 
         user_interface = ipywidgets.HBox([left_box, mid_box, right_box])
         display(user_interface, out)

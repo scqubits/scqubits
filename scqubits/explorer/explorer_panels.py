@@ -34,9 +34,26 @@ def display_bare_spectrum(
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
     subsys_index = sweep.get_subsys_index(subsys)
-    title = "bare spectrum: subsystem {} ({})".format(subsys_index, subsys._sys_type)
+    title = "bare spectrum: {}".format(subsys.id_str)
 
     fig, axes = sweep["bare_evals"]["subsys":subsys_index].plot(  # type:ignore
+        title=title, fig_ax=fig_ax
+    )
+    axes.axvline(param_val, color="gray", linestyle=":")
+
+
+def display_anharmonicity(
+    sweep: "ParameterSweep",
+    subsys: "QubitBaseClass1d",
+    param_val: float,
+    fig_ax: Tuple[Figure, Axes],
+) -> None:
+    subsys_index = sweep.get_subsys_index(subsys)
+    title = "anharmonicity: {}".format(subsys.id_str)
+
+    bare_evals = sweep["bare_evals"]["subsys":subsys_index]
+    anharmonicity = bare_evals[..., 2] - 2 * bare_evals[..., 1] + bare_evals[..., 0]
+    fig, axes = anharmonicity.plot(  # type:ignore
         title=title, fig_ax=fig_ax
     )
     axes.axvline(param_val, color="gray", linestyle=":")
@@ -49,7 +66,7 @@ def display_bare_wavefunctions(
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
     subsys_index = sweep.get_subsys_index(subsys)
-    title = "wavefunctions: subsystem {} ({})".format(subsys_index, subsys._sys_type)
+    title = "wavefunctions: {}".format(subsys.id_str)
     evals = sweep["bare_evals"][subsys_index][float(param_val)]
     evecs = sweep["bare_evecs"][subsys_index][float(param_val)]
     settings.DISPATCH_ENABLED = False
@@ -86,7 +103,7 @@ def display_n_photon_qubit_transitions(
     param_val: float,
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
-    title = r"{}-photon qubit transitions".format(photonnumber)
+    title = r"{}-photon {} transitions".format(photonnumber, subsys.id_str)
     fig, axes = sweep.plot_transitions(
         subsystems=[subsys],
         initial=initial_bare,
@@ -121,8 +138,8 @@ def display_charge_matrixelems(
 ) -> None:
     subsys = sweep.get_subsys(subsys_index)
     bare_qbt_initial = initial_bare[subsys_index]
-    title = r"charge matrix elements for {} [{}]".format(
-        type(subsys).__name__, subsys_index
+    title = r"charge matrix elements for {}".format(
+        subsys.id_str
     )
     charge_matrixelems = np.abs(
         sweep["n_operator qubit " + str(subsys_index)][:, bare_qbt_initial, :]
