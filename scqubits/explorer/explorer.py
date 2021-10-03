@@ -207,7 +207,8 @@ class Explorer:
         )
 
         # Panel 5 ----------------------------------
-        # panels.display_chi_01(self.sweep, qbt_index, osc_index, param_val, fig_ax(4))
+        panels.display_kerrlike(self.sweep, primary_subsys_index, secondary_subsys_index, param_val,
+                                fig_ax(4))
 
         fig.tight_layout()
         plt.show()
@@ -224,6 +225,7 @@ class Explorer:
             (subsystem.id_str, self.sweep.get_subsys_index(subsystem))
             for subsystem in self.sweep.hilbertspace
         ]
+        subsys_id_to_index.reverse()
 
         qbt_id_to_index = [
             (subsystem.id_str, self.sweep.get_subsys_index(subsystem))

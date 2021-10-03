@@ -438,7 +438,7 @@ class ParameterSweepBase(ABC):
             diff_energies /= photon_number
             if make_positive:
                 diff_energies = np.abs(diff_energies)
-            if not np.isnan(diff_energies.toarray()).all():
+            if not np.isnan(diff_energies).all():
                 transitions.append((initial_state, final_state))
                 transition_energies.append(diff_energies)
 

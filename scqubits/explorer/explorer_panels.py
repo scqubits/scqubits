@@ -18,6 +18,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from scqubits import settings
+from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
@@ -37,7 +38,7 @@ def display_bare_spectrum(
     title = "bare spectrum: {}".format(subsys.id_str)
 
     fig, axes = sweep["bare_evals"]["subsys":subsys_index].plot(  # type:ignore
-        title=title, fig_ax=fig_ax
+        title=title, ylabel="energy [{}]".format(units.get_units()), fig_ax=fig_ax
     )
     axes.axvline(param_val, color="gray", linestyle=":")
 
@@ -54,7 +55,9 @@ def display_anharmonicity(
     bare_evals = sweep["bare_evals"]["subsys":subsys_index]
     anharmonicity = bare_evals[..., 2] - 2 * bare_evals[..., 1] + bare_evals[..., 0]
     fig, axes = anharmonicity.plot(  # type:ignore
-        title=title, fig_ax=fig_ax
+        title=title,
+        ylabel="anharmonicity [{}]".format(units.get_units()),
+        fig_ax=fig_ax,
     )
     axes.axvline(param_val, color="gray", linestyle=":")
 
@@ -104,7 +107,7 @@ def display_n_photon_qubit_transitions(
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
     title = r"{}-photon {} transitions".format(photonnumber, subsys.id_str)
-    fig, axes = sweep.plot_transitions(
+    fig, axes = sweep[:].plot_transitions(
         subsystems=[subsys],
         initial=initial_bare,
         photon_number=photonnumber,
@@ -129,6 +132,46 @@ def display_chi_01(
     axes.axvline(param_val, color="gray", linestyle=":")
 
 
+def display_kerrs(
+    sweep: "ParameterSweep",
+    subsys1_index: int,
+    subsys2_index: int,
+    param_val: float,
+    fig_ax: Tuple[Figure, Axes],
+) -> None:
+    if subsys1_index == subsys2_index:
+        return None
+    kerr_data = sweep["kerr"][subsys1_index, subsys2_index]
+    title = r"Kerr $ij=01,10,11$"
+
+    kerr_datasets = np.asarray(
+        [kerr_data[:, 0, 1], kerr_data[:, 1, 0], kerr_data[:, 1, 1]]
+    ).T
+    kerr_namedarray = NamedSlotsNdarray(kerr_datasets, kerr_data.param_info)
+    fig, axes = kerr_namedarray.plot(
+        title=title,
+        label=["01", "10", "11"],
+        ylabel="Kerr coefficient [{}]".format(units.get_units()),
+        fig_ax=fig_ax,
+    )
+    axes.axvline(param_val, color="gray", linestyle=":")
+
+
+def display_kerrlike(
+    sweep: "ParameterSweep",
+    subsys1_index: int,
+    subsys2_index: int,
+    param_val: float,
+    fig_ax: Tuple[Figure, Axes],
+) -> None:
+    subsys2 = sweep.get_subsys(subsys2_index)
+
+    if subsys2 in sweep.osc_subsys_list:
+        display_chi_01(sweep, subsys1_index, subsys2_index, param_val, fig_ax)
+    else:
+        display_kerrs(sweep, subsys1_index, subsys2_index, param_val, fig_ax)
+
+
 def display_charge_matrixelems(
     sweep: "ParameterSweep",
     initial_bare: Tuple[int, ...],
@@ -138,9 +181,7 @@ def display_charge_matrixelems(
 ) -> None:
     subsys = sweep.get_subsys(subsys_index)
     bare_qbt_initial = initial_bare[subsys_index]
-    title = r"charge matrix elements for {}".format(
-        subsys.id_str
-    )
+    title = r"charge matrix elements for {}".format(subsys.id_str)
     charge_matrixelems = np.abs(
         sweep["n_operator qubit " + str(subsys_index)][:, bare_qbt_initial, :]
     )
@@ -148,7 +189,7 @@ def display_charge_matrixelems(
     fig, axes = charge_matrixelems.plot(
         title=title,
         ylabel=r"$|\langle i |n| j \rangle|$",
-        label_list=["{},{}".format(ini, fin) for fin in indices for ini in indices],
+        label_list=["{},{}".format(bare_qbt_initial, fin) for fin in indices],
         fig_ax=fig_ax,
     )
     axes.axvline(param_val, color="gray", linestyle=":")
