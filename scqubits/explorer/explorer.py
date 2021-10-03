@@ -152,8 +152,7 @@ class Explorer:
 
         energy_ground = self.sweep[param_index].energy_by_dressed_index(0)
         energy_initial = (
-            self.sweep[param_index].energy_by_bare_index(initial_bare)
-            - energy_ground
+            self.sweep[param_index].energy_by_bare_index(initial_bare) - energy_ground
         )
 
         qbt_subsys = self.sweep.get_subsys(primary_subsys_index)
@@ -202,13 +201,17 @@ class Explorer:
         # Panel 4 ----------------------------------
         # initial_dressed_index = self.sweep[param_index].dressed_index(initial_bare)
         panels.display_n_photon_qubit_transitions(
-            self.sweep, photonnumber, qbt_subsys, initial_bare,
-            param_val, fig_ax(3)
+            self.sweep, photonnumber, qbt_subsys, initial_bare, param_val, fig_ax(3)
         )
 
         # Panel 5 ----------------------------------
-        panels.display_kerrlike(self.sweep, primary_subsys_index, secondary_subsys_index, param_val,
-                                fig_ax(4))
+        panels.display_kerrlike(
+            self.sweep,
+            primary_subsys_index,
+            secondary_subsys_index,
+            param_val,
+            fig_ax(4),
+        )
 
         fig.tight_layout()
         plt.show()
@@ -266,7 +269,9 @@ class Explorer:
 
         left_box = ipywidgets.VBox([param_slider])
         mid_box = ipywidgets.VBox([initial_slider, photon_slider])
-        right_box = ipywidgets.VBox([primary_subsys_dropdown, secondary_subsys_dropdown])
+        right_box = ipywidgets.VBox(
+            [primary_subsys_dropdown, secondary_subsys_dropdown]
+        )
 
         user_interface = ipywidgets.HBox([left_box, mid_box, right_box])
         display(user_interface, out)
