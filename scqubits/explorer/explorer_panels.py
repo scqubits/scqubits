@@ -150,8 +150,9 @@ def display_kerrs(
     kerr_namedarray = NamedSlotsNdarray(kerr_datasets, kerr_data.param_info)
     fig, axes = kerr_namedarray.plot(
         title=title,
-        label=["01", "10", "11"],
-        ylabel="Kerr coefficient [{}]".format(units.get_units()),
+        label_list=["01", "10", "11"],
+        ylabel=r"Kerr coefficient $\Lambda^{qq'}_{ll'}$"
+        + "[{}]".format(units.get_units()),
         fig_ax=fig_ax,
     )
     axes.axvline(param_val, color="gray", linestyle=":")
