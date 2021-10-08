@@ -752,17 +752,17 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         cutoff_list = []
         grids = []
         for cutoff_type in cutoffs_dict.keys():
-            if "cutoff_periodic" in cutoff_type:
+            if "cutoff_n" in cutoff_type:
                 cutoff_list.append([2 * k + 1 for k in cutoffs_dict[cutoff_type]])
                 grids.append(
                     [list(range(-k, k + 1)) for k in cutoffs_dict[cutoff_type]]
                 )
-            elif "cutoff_discretized_phi" in cutoff_type:
+            elif "cutoff_phi" in cutoff_type:
                 cutoff_list.append([k for k in cutoffs_dict[cutoff_type]])
                 grids.append(
                     [
-                        np.linspace(self._discretized_phi_range[0], self._discretized_phi_range[1], k)
-                        for k in cutoffs_dict[cutoff_type]
+                        np.linspace(self.discretized_phi_range[k][0], self.discretized_phi_range[k][1], cutoffs_dict[cutoff_type][i])
+                        for i, k in enumerate(self.var_indices["discretized_phi"])
                     ]
                 )
         cutoff_list = [i for j in cutoff_list for i in j]  # concatenating the sublists
@@ -794,7 +794,10 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         ).T
 
         if len(dims) == 1:
-            plt.plot(grids[dims[0]], eval("np." + mode + "(wf_plot)"))
+            if "Charge" in var_types[0]:
+                plt.bar(grids[dims[0]], eval("np." + mode + "(wf_plot)"))
+            else:
+                plt.plot(grids[dims[0]], eval("np." + mode + "(wf_plot)"))
             plt.xlabel(var_types[0] + str(var_indices[0]))
         elif len(dims) == 2:
             x, y = np.meshgrid(grids[dims[0]], grids[dims[1]])

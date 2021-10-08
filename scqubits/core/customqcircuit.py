@@ -103,7 +103,7 @@ class branch:
         if parameters != None:
             if element == "C" or element == "L":
                 self.parameters = {"E_" + element: parameters[0]}
-            elif element == "JJ":
+            elif element == "JJ" or element == "JJ2":
                 self.parameters = {"E_J": parameters[0], "E_CJ": parameters[1]}
         # updating the nodes
         self.nodes[0].branches.append(self)
@@ -112,7 +112,7 @@ class branch:
     def set_parameters(self, parameters: ndarray):
         if self.type == "C" or self.type == "L":
             self.parameters = {self.type: parameters[0]}
-        elif self.type == "JJ":
+        elif self.type == "JJ" or self.type == "JJ2":
             self.parameters = {"E_J": parameters[0], "E_CJ": parameters[1]}
 
     def __str__(self):
@@ -276,7 +276,7 @@ class CustomQCircuit(serializers.Serializable):
 
                 element = line[0]
 
-                if element == "JJ":
+                if element == "JJ" or element == "JJ2":
                     if (
                         len(line) > 3
                     ):  # check to see if all the required parameters are defined
@@ -580,7 +580,7 @@ class CustomQCircuit(serializers.Serializable):
                 [],
             ]  # showing three sublists, Ec's, El's ,Ej's and Ecj's
             for b in self.branches:
-                if b.type == "JJ":
+                if b.type == "JJ" or b.type == "JJ2":
                     parameters[2].append(b.parameters["E_J"])
                     parameters[3].append(b.parameters["E_CJ"])
                 elif b.type == "L":
@@ -633,6 +633,34 @@ class CustomQCircuit(serializers.Serializable):
                     )
         return J
 
+    def _JJ2_terms(self):
+        J = 0
+        for b in [t for t in self.branches if t.type == "JJ2"]:
+            if len(set(b.nodes)) > 1:  # branch if shorted is not considered
+                # adding external flux
+                phi_ext = 0
+                if b in self.flux_branches:
+                    index = self.flux_branches.index(b)
+                    phi_ext += self.external_flux_vars[index]
+
+                if (
+                    b.nodes[1].id == 0
+                ):  # if loop to check for the presence of ground node
+                    J += -b.parameters["E_J"] * sympy.cos(
+                        2*(-symbols("φ" + str(b.nodes[0].id)) + phi_ext)
+                    )
+                elif b.nodes[0].id == 0:
+                    J += -b.parameters["E_J"] * sympy.cos(
+                        2*(symbols("φ" + str(b.nodes[1].id)) + phi_ext)
+                    )
+                else:
+                    J += -b.parameters["E_J"] * sympy.cos(
+                        2*(symbols("φ" + str(b.nodes[1].id))
+                        - symbols("φ" + str(b.nodes[0].id))
+                        + phi_ext)
+                    )
+        return J
+
     def _C_matrix(self):
         
         if not self.is_grounded:
@@ -641,9 +669,9 @@ class CustomQCircuit(serializers.Serializable):
                 C_mat = np.zeros([N,N])
             elif self.mode == "sym":
                 C_mat = sympy.zeros(N)
-            for b in [t for t in self.branches if t.type=="C" or t.type=="JJ"]:
+            for b in [t for t in self.branches if t.type=="C" or t.type=="JJ" or t.type=="JJ2"]:
                 if len(set(b.nodes)) > 1: # branch if shorted is not considered
-                    element_param = {"C": "E_C", "JJ": "E_CJ"}
+                    element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
                     C_mat[b.nodes[0].id - 1, b.nodes[1].id - 1] += -1/(b.parameters[element_param[b.type]]*8)
         else:
             N = len(self.nodes) + 1
@@ -651,9 +679,9 @@ class CustomQCircuit(serializers.Serializable):
                 C_mat = np.zeros([N,N])
             elif self.mode == "sym":
                 C_mat = sympy.zeros(N)
-            for b in [t for t in self.branches if t.type=="C" or t.type=="JJ"]:
+            for b in [t for t in self.branches if t.type=="C" or t.type=="JJ" or t.type=="JJ2"]:
                 if len(set(b.nodes)) > 1: # branch if shorted is not considered
-                    element_param = {"C": "E_C", "JJ": "E_CJ"}
+                    element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
                     C_mat[b.nodes[0].id, b.nodes[1].id] += -1/(b.parameters[element_param[b.type]]*8)
 
         if self.mode == "num":
@@ -670,9 +698,9 @@ class CustomQCircuit(serializers.Serializable):
 
     def _C_terms(self):
         C = 0
-        for b in [t for t in self.branches if t.type == "C" or t.type == "JJ"]:
+        for b in [t for t in self.branches if t.type == "C" or t.type == "JJ" or t.type == "JJ2"]:
             if len(set(b.nodes)) > 1:  # branch if shorted is not considered
-                element_param = {"C": "E_C", "JJ": "E_CJ"}
+                element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
 
                 if b.nodes[1].id == 0:
                     C += (
@@ -884,7 +912,7 @@ class CustomQCircuit(serializers.Serializable):
         output: (number of cyclic variables, periodic variables, Sympy expression)
         """
         if basis is None:  # using the Lagrangian for a different transformation matrix
-            basis = self.variable_transformation_matrix()
+            basis = self.variable_transformation_matrix().astype(int)
         flux_branches = self._flux_loops()
 
         φ_vars = [
@@ -912,7 +940,7 @@ class CustomQCircuit(serializers.Serializable):
         
         L_terms_φ = self._L_terms()
 
-        JJ_terms_φ = self._JJ_terms()
+        JJ_terms_φ = self._JJ_terms() + self._JJ2_terms()
 
         L_φ = C_terms_φ - L_terms_φ - JJ_terms_φ
 
@@ -940,9 +968,9 @@ class CustomQCircuit(serializers.Serializable):
         if self.mode == "sym":
             # finding the unique capacitances
             uniq_capacitances = []
-            element_param = {"C": "E_C", "JJ": "E_CJ"}
+            element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
             for c, b in enumerate(
-                [t for t in self.branches if t.type == "C" or t.type == "JJ"]
+                [t for t in self.branches if t.type == "C" or t.type == "JJ" or t.type == "JJ2"]
             ):
                 if len(set(b.nodes)) > 1:  # check to see if branch is shorted
                     if b.parameters[element_param[b.type]] not in uniq_capacitances:
