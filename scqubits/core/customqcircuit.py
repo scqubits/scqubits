@@ -177,7 +177,7 @@ class CustomQCircuit(serializers.Serializable):
         ground_node=None,
         mode: str = "sym",
         basis: str = "simple",
-        initiate_sym_calc: bool = True
+        initiate_sym_calc: bool = True,
     ):
 
         self.branches = list_branches
@@ -238,7 +238,13 @@ class CustomQCircuit(serializers.Serializable):
         return True
 
     @classmethod
-    def from_input_string(cls, input_string: str, mode: str = "sym", basis="simple", initiate_sym_calc=True):
+    def from_input_string(
+        cls,
+        input_string: str,
+        mode: str = "sym",
+        basis="simple",
+        initiate_sym_calc=True,
+    ):
         """
         Constructor of class CustomQCircuit:
         - Constructing the instance from an input string
@@ -255,6 +261,7 @@ class CustomQCircuit(serializers.Serializable):
             False  # paramater to identify the presence of ground node in the circuit.
         )
         ground_node = None
+
         def isfloat(x):
             try:
                 float(x)
@@ -289,7 +296,7 @@ class CustomQCircuit(serializers.Serializable):
                                 p2 = float(line[3])
                             else:
                                 p2 = symbols(line[3])
-                            
+
                             parameters = [p1, p2]
                         elif mode == "num":
                             parameters = [float(line[2]), float(line[3])]
@@ -324,13 +331,22 @@ class CustomQCircuit(serializers.Serializable):
             else:
                 break
 
-        circuit = cls(nodes, branches, ground_node=ground_node, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc)
+        circuit = cls(
+            nodes,
+            branches,
+            ground_node=ground_node,
+            mode=mode,
+            basis=basis,
+            initiate_sym_calc=initiate_sym_calc,
+        )
         circuit.input_string = input_string
 
         return circuit
 
     @classmethod
-    def from_input_file(cls, filename: str, mode: str = "sym", basis="simple", initiate_sym_calc = True):
+    def from_input_file(
+        cls, filename: str, mode: str = "sym", basis="simple", initiate_sym_calc=True
+    ):
         """
         Constructor of class CustomQCircuit:
         - Constructing the instance from an input file
@@ -339,7 +355,9 @@ class CustomQCircuit(serializers.Serializable):
         file = open(filename, "r")
         input_string = file.read()
         file.close()
-        return cls.from_input_string(input_string, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc)
+        return cls.from_input_string(
+            input_string, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc
+        )
 
     """
     Methods to find the cyclic variables of the circuit
@@ -349,7 +367,6 @@ class CustomQCircuit(serializers.Serializable):
         """
         Method to construct a new set of flux variables of the circuit, such that all the possible cyclic and periodic variables are included.
         """
-        
 
         def independent_modes(branch_subset, single_nodes=True):
             """
@@ -552,7 +569,7 @@ class CustomQCircuit(serializers.Serializable):
             if i not in pos_periodic
             if i not in pos_zombie
         ]
-        pos_list =  pos_periodic + pos_rest + pos_cyclic + pos_zombie +  pos_Σ
+        pos_list = pos_periodic + pos_rest + pos_cyclic + pos_zombie + pos_Σ
         # transforming the new_basis matrix
         new_basis = new_basis[pos_list].T
 
@@ -574,7 +591,6 @@ class CustomQCircuit(serializers.Serializable):
         # creating a class attribute for conserved charges corresponding to cyclic variables
         for c in self.var_indices["cyclic"]:
             setattr(self, "Qc" + str(c), 0)
-
 
         # set param_vars
         if self.mode == "sym":
@@ -652,58 +668,77 @@ class CustomQCircuit(serializers.Serializable):
                     b.nodes[1].id == 0
                 ):  # if loop to check for the presence of ground node
                     J += -b.parameters["E_J"] * sympy.cos(
-                        2*(-symbols("φ" + str(b.nodes[0].id)) + phi_ext)
+                        2 * (-symbols("φ" + str(b.nodes[0].id)) + phi_ext)
                     )
                 elif b.nodes[0].id == 0:
                     J += -b.parameters["E_J"] * sympy.cos(
-                        2*(symbols("φ" + str(b.nodes[1].id)) + phi_ext)
+                        2 * (symbols("φ" + str(b.nodes[1].id)) + phi_ext)
                     )
                 else:
                     J += -b.parameters["E_J"] * sympy.cos(
-                        2*(symbols("φ" + str(b.nodes[1].id))
-                        - symbols("φ" + str(b.nodes[0].id))
-                        + phi_ext)
+                        2
+                        * (
+                            symbols("φ" + str(b.nodes[1].id))
+                            - symbols("φ" + str(b.nodes[0].id))
+                            + phi_ext
+                        )
                     )
         return J
 
     def _C_matrix(self):
-        
+
         if not self.is_grounded:
             N = len(self.nodes)
             if self.mode == "num":
-                C_mat = np.zeros([N,N])
+                C_mat = np.zeros([N, N])
             elif self.mode == "sym":
                 C_mat = sympy.zeros(N)
-            for b in [t for t in self.branches if t.type=="C" or t.type=="JJ" or t.type=="JJ2"]:
-                if len(set(b.nodes)) > 1: # branch if shorted is not considered
+            for b in [
+                t
+                for t in self.branches
+                if t.type == "C" or t.type == "JJ" or t.type == "JJ2"
+            ]:
+                if len(set(b.nodes)) > 1:  # branch if shorted is not considered
                     element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
-                    C_mat[b.nodes[0].id - 1, b.nodes[1].id - 1] += -1/(b.parameters[element_param[b.type]]*8)
+                    C_mat[b.nodes[0].id - 1, b.nodes[1].id - 1] += -1 / (
+                        b.parameters[element_param[b.type]] * 8
+                    )
         else:
             N = len(self.nodes) + 1
             if self.mode == "num":
-                C_mat = np.zeros([N,N])
+                C_mat = np.zeros([N, N])
             elif self.mode == "sym":
                 C_mat = sympy.zeros(N)
-            for b in [t for t in self.branches if t.type=="C" or t.type=="JJ" or t.type=="JJ2"]:
-                if len(set(b.nodes)) > 1: # branch if shorted is not considered
+            for b in [
+                t
+                for t in self.branches
+                if t.type == "C" or t.type == "JJ" or t.type == "JJ2"
+            ]:
+                if len(set(b.nodes)) > 1:  # branch if shorted is not considered
                     element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
-                    C_mat[b.nodes[0].id, b.nodes[1].id] += -1/(b.parameters[element_param[b.type]]*8)
+                    C_mat[b.nodes[0].id, b.nodes[1].id] += -1 / (
+                        b.parameters[element_param[b.type]] * 8
+                    )
 
         if self.mode == "num":
             C_mat = C_mat + C_mat.T - np.diag(C_mat.diagonal())
         elif self.mode == "sym":
             C_mat = C_mat + C_mat.T - sympy.diag(*C_mat.diagonal())
-        
+
         for i in range(C_mat.shape[0]):
             C_mat[i, i] = -np.sum(C_mat[i, :])
-        
-        if self.is_grounded: # if grounded remove the 0th column and row from C_mat
-            C_mat =  C_mat[1:,1:]
+
+        if self.is_grounded:  # if grounded remove the 0th column and row from C_mat
+            C_mat = C_mat[1:, 1:]
         return C_mat
 
     def _C_terms(self):
         C = 0
-        for b in [t for t in self.branches if t.type == "C" or t.type == "JJ" or t.type == "JJ2"]:
+        for b in [
+            t
+            for t in self.branches
+            if t.type == "C" or t.type == "JJ" or t.type == "JJ2"
+        ]:
             if len(set(b.nodes)) > 1:  # branch if shorted is not considered
                 element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
 
@@ -926,7 +961,7 @@ class CustomQCircuit(serializers.Serializable):
         φ_dot_vars = [
             symbols("vφ" + str(i)) for i in range(1, len(self.nodes) + 1)
         ]  # defining the φ variables
-        
+
         θ_vars = [
             symbols("θ" + str(i)) for i in range(1, len(self.nodes) + 1)
         ]  # defining the θ variables
@@ -937,12 +972,22 @@ class CustomQCircuit(serializers.Serializable):
         # C_terms = self._C_terms()
         C_mat = self._C_matrix()
         if self.mode == "num":
-            C_terms_φ = ((C_mat).dot(φ_dot_vars)).dot(φ_dot_vars)*0.5 # interms of node variables
-            C_terms_θ = ((C_mat).dot(φ_dot_vars_θ)).dot(φ_dot_vars_θ)*0.5 # interms of new variables
+            C_terms_φ = ((C_mat).dot(φ_dot_vars)).dot(
+                φ_dot_vars
+            ) * 0.5  # interms of node variables
+            C_terms_θ = ((C_mat).dot(φ_dot_vars_θ)).dot(
+                φ_dot_vars_θ
+            ) * 0.5  # interms of new variables
         elif self.mode == "sym":
-            C_terms_φ = (sympy.Matrix(φ_dot_vars).T * C_mat * sympy.Matrix(φ_dot_vars))[0] * 0.5 # interms of node variables
-            C_terms_θ = (sympy.Matrix(φ_dot_vars_θ).T * C_mat * sympy.Matrix(φ_dot_vars_θ))[0] * 0.5 # interms of new variables
-        
+            C_terms_φ = (sympy.Matrix(φ_dot_vars).T * C_mat * sympy.Matrix(φ_dot_vars))[
+                0
+            ] * 0.5  # interms of node variables
+            C_terms_θ = (
+                sympy.Matrix(φ_dot_vars_θ).T * C_mat * sympy.Matrix(φ_dot_vars_θ)
+            )[
+                0
+            ] * 0.5  # interms of new variables
+
         L_terms_φ = self._L_terms()
 
         JJ_terms_φ = self._JJ_terms() + self._JJ2_terms()
@@ -957,7 +1002,9 @@ class CustomQCircuit(serializers.Serializable):
 
         # eliminating the zombie variables
         for i in self.var_indices["zombie"]:
-            sub = sympy.solve(potential_θ.diff(symbols("θ" + str(i))), symbols("θ" + str(i)))
+            sub = sympy.solve(
+                potential_θ.diff(symbols("θ" + str(i))), symbols("θ" + str(i))
+            )
             potential_θ = potential_θ.replace(symbols("θ" + str(i)), sub[0])
 
         self.potential = potential_θ
@@ -975,7 +1022,11 @@ class CustomQCircuit(serializers.Serializable):
             uniq_capacitances = []
             element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
             for c, b in enumerate(
-                [t for t in self.branches if t.type == "C" or t.type == "JJ" or t.type == "JJ2"]
+                [
+                    t
+                    for t in self.branches
+                    if t.type == "C" or t.type == "JJ" or t.type == "JJ2"
+                ]
             ):
                 if len(set(b.nodes)) > 1:  # check to see if branch is shorted
                     if b.parameters[element_param[b.type]] not in uniq_capacitances:
@@ -995,35 +1046,46 @@ class CustomQCircuit(serializers.Serializable):
         output: (number of cyclic variables, periodic variables, Sympy expression)
         """
         self.lagrangian_sym(basis=basis)
-        
+
         # Excluding the zombie modes
         if self.is_grounded:
             n = len(self.var_indices["zombie"])
         else:
-            n = len(self.var_indices["zombie"]) + 1 
+            n = len(self.var_indices["zombie"]) + 1
 
         N = len(self.nodes)
         if basis is None:
             basis = self.trans_mat
-        basis_inv = np.linalg.inv(basis)[0:N-n, 0:N-n]
+        basis_inv = np.linalg.inv(basis)[0 : N - n, 0 : N - n]
 
         if self.mode == "sym":
-            C_mat_θ = (basis.T * self._C_matrix() * basis)[0:N-n, 0:N-n].inv()  # exlcluding the zombie modes
+            C_mat_θ = (basis.T * self._C_matrix() * basis)[
+                0 : N - n, 0 : N - n
+            ].inv()  # exlcluding the zombie modes
         elif self.mode == "num":
-            C_mat_θ = np.linalg.inv((basis.T @ self._C_matrix() @ basis)[0:N-n, 0:N-n])  # exlcluding the zombie modes
+            C_mat_θ = np.linalg.inv(
+                (basis.T @ self._C_matrix() @ basis)[0 : N - n, 0 : N - n]
+            )  # exlcluding the zombie modes
 
         # x_vars = (self.trans_mat).dot(y_vars) # writing φ in terms of θ variables
         # x_dot_vars = (self.trans_mat).dot(y_dot_vars)
 
         p_θ_vars = [
-            symbols("Q" + str(i)) if i not in self.var_indices["cyclic"] else symbols("Qc" + str(i)) for i in range(1, len(self.nodes) + 1 - n)
+            symbols("Q" + str(i))
+            if i not in self.var_indices["cyclic"]
+            else symbols("Qc" + str(i))
+            for i in range(1, len(self.nodes) + 1 - n)
         ]  # defining the momentum variables
-        # p_φ_vars_θ = basis.dot(p_θ_vars) # writing φ in terms of θ variables 
+        # p_φ_vars_θ = basis.dot(p_θ_vars) # writing φ in terms of θ variables
 
         if self.mode == "num":
-            C_terms_new = C_mat_θ.dot(p_θ_vars).dot(p_θ_vars) * 0.5 # interms of new variables
+            C_terms_new = (
+                C_mat_θ.dot(p_θ_vars).dot(p_θ_vars) * 0.5
+            )  # interms of new variables
         elif self.mode == "sym":
-            C_terms_new = (sympy.Matrix(p_θ_vars).T * C_mat_θ  * sympy.Matrix(p_θ_vars))[0] * 0.5 # interms of new variables
+            C_terms_new = (sympy.Matrix(p_θ_vars).T * C_mat_θ * sympy.Matrix(p_θ_vars))[
+                0
+            ] * 0.5  # interms of new variables
 
         H = C_terms_new + self.potential
 

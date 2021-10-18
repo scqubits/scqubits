@@ -44,7 +44,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         ground_node=None,
         mode: str = "sym",
         basis: str = "simple",
-        initiate_sym_calc: bool = True
+        initiate_sym_calc: bool = True,
     ):
         CustomQCircuit.__init__(
             self,
@@ -53,7 +53,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             ground_node=ground_node,
             mode=mode,
             basis=basis,
-            initiate_sym_calc=initiate_sym_calc
+            initiate_sym_calc=initiate_sym_calc,
         )
 
         # defining additional class properties
@@ -70,7 +70,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         self._default_grid_phi = discretization.Grid1d(-6 * np.pi, 6 * np.pi, 200)
 
         self.discretized_phi_range = {}
-        self.cutoffs_list=[]
+        self.cutoffs_list = []
 
         # Hamiltonian function
         if initiate_sym_calc:
@@ -93,14 +93,14 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             setattr(self, param.name, 1.0)  # setting the default parameters as 1
         # setting the ranges for floux ranges used for discrete phi vars
         for v in self.var_indices["discretized_phi"]:
-            self.discretized_phi_range[v] = (-6*np.pi, 6*np.pi)
+            self.discretized_phi_range[v] = (-6 * np.pi, 6 * np.pi)
         # default values for the external flux vars
         for flux in self.external_flux_vars:
             setattr(self, flux.name, 0.0)  # setting the default to zero external flux
         # default values for the offset charge vars
         for offset_charge in self.offset_charge_vars:
             setattr(self, offset_charge.name, 0.0)  # default to zero offset charge
-        
+
         # setting the __init__params attribute
         self._init_params = (
             [param.name for param in self.param_vars]
@@ -109,8 +109,10 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             + self.cutoffs_list
             + ["input_string"]
         )
-        
-        self._id_str = self._autogenerate_id_str() # generating a class attribute to avoid error by parameter sweeps
+
+        self._id_str = (
+            self._autogenerate_id_str()
+        )  # generating a class attribute to avoid error by parameter sweeps
 
         self.hamiltonian_function()
         # initilizing attributes for operators
@@ -195,11 +197,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             H = H.replace(
                 sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
             ).replace(sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i)))
-        
+
         # # Defining the list of variables for cyclic operators
         cyclic_symbols = [symbols("Qc" + str(i)) for i in self.var_indices["cyclic"]]
         for c in cyclic_symbols:
-            H = H.subs(c, c*symbols("I"))
+            H = H.subs(c, c * symbols("I"))
 
         # To include the circuit parameters as parameters for the function if the method is called in "sym" or symbolic mode
 
@@ -246,9 +248,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         # Updating the class properties
         self.vars = {
-            "periodic":[periodic_symbols_yc, periodic_symbols_ys, periodic_symbols_n],
-            "discretized_phi":[y_symbols, p_symbols, ps_symbols],
-            "identity":[symbols("I")]
+            "periodic": [periodic_symbols_yc, periodic_symbols_ys, periodic_symbols_n],
+            "discretized_phi": [y_symbols, p_symbols, ps_symbols],
+            "identity": [symbols("I")],
         }
         self.H_func = func
         setattr(self, "H_f", H)
@@ -279,17 +281,14 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         Returns the final operator
         """
         var_index_list = (
-            self.var_indices["periodic"]
-            + self.var_indices["discretized_phi"]
+            self.var_indices["periodic"] + self.var_indices["discretized_phi"]
         )
-        var_index_list.sort() # just a precaution
+        var_index_list.sort()  # just a precaution
         cutoff_dict = self.get_cutoffs()
 
-        if (
-            len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_n"])
-            or len(self.var_indices["discretized_phi"])
-            != len(cutoff_dict["cutoff_phi"])
-        ):
+        if len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_n"]) or len(
+            self.var_indices["discretized_phi"]
+        ) != len(cutoff_dict["cutoff_phi"]):
             raise AttributeError(
                 "Make sure the cutoffs are only defined for the circuit variables in the class property var_indices, except for zombie variables. "
             )
@@ -465,7 +464,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         grids = {}
         for i in self.var_indices["discretized_phi"]:
-            grids[i] = discretization.Grid1d(self.discretized_phi_range[i][0], self.discretized_phi_range[i][1], cutoffs[i])
+            grids[i] = discretization.Grid1d(
+                self.discretized_phi_range[i][0],
+                self.discretized_phi_range[i][1],
+                cutoffs[i],
+            )
 
         # constructing the operators for normal variables
         normal_operators = [[], [], []]
@@ -506,7 +509,10 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         #     )  # using the same operator as the periodic variables
         #     cyclic_operators.append(self._kron_operator(n_operator, index))
 
-        return {"periodic":periodic_operators, "discretized_phi":normal_operators, "identity": [self._identity()]
+        return {
+            "periodic": periodic_operators,
+            "discretized_phi": normal_operators,
+            "identity": [self._identity()],
         }
 
     ##################################################################
@@ -761,7 +767,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                 cutoff_list.append([k for k in cutoffs_dict[cutoff_type]])
                 grids.append(
                     [
-                        np.linspace(self.discretized_phi_range[k][0], self.discretized_phi_range[k][1], cutoffs_dict[cutoff_type][i])
+                        np.linspace(
+                            self.discretized_phi_range[k][0],
+                            self.discretized_phi_range[k][1],
+                            cutoffs_dict[cutoff_type][i],
+                        )
                         for i, k in enumerate(self.var_indices["discretized_phi"])
                     ]
                 )
@@ -771,9 +781,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         var_types = []
 
         for var_index in np.sort(var_indices):
-            if (
-                var_index in self.var_indices["periodic"]
-            ):
+            if var_index in self.var_indices["periodic"]:
                 var_types.append("Charge in units of 2e, Variable:")
             else:
                 var_types.append("Dimensionless Flux, Variable:")
