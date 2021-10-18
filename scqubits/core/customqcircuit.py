@@ -349,8 +349,7 @@ class CustomQCircuit(serializers.Serializable):
         """
         Method to construct a new set of flux variables of the circuit, such that all the possible cyclic and periodic variables are included.
         """
-        nodes = self.nodes
-        branches = self.branches
+        
 
         def independent_modes(branch_subset, single_nodes=True):
             """
@@ -358,6 +357,10 @@ class CustomQCircuit(serializers.Serializable):
             Optional Variables:
             single_nodes: Boolean, if the single nodes are taken into consideration for basis vectors.
             """
+            nodes = self.nodes.copy()
+            if self.is_grounded:
+                nodes.append(self.ground_node)
+            branches = self.branches
             basis_params = [1, 0]  # numbers used to make basis vectors
 
             for n in nodes:  # reset the node markers
@@ -399,7 +402,7 @@ class CustomQCircuit(serializers.Serializable):
                         )  # marking the nodes depending on which tree they belong to
 
             pos = [
-                node.marker for node in self.nodes
+                node.marker for node in nodes
             ]  # identifies the positions of the sets of nodes connected by the branches in branch_subset; different numbers on two nodes indicates that they are not connected through any of the branches in branch_subset. 0 implies the node does not belong to any of the branches in branch_subset
 
             # step 3: Finding the linearly independent vectors spanning the vector space of pos
@@ -434,19 +437,21 @@ class CustomQCircuit(serializers.Serializable):
                                     for t in range(len(pos))
                                 ]
                             )
+            if self.is_grounded:
+                basis = [i[:-1] for i in basis]
 
             return basis
 
         ##################### Finding the Periodic Modes ##################
-        selected_branches = [branch for branch in branches if branch.type == "L"]
+        selected_branches = [branch for branch in self.branches if branch.type == "L"]
         periodic_modes = independent_modes(selected_branches)
 
         ##################### Finding the Zombie modes ##################
-        selected_branches = [branch for branch in branches if branch.type != "L"]
+        selected_branches = [branch for branch in self.branches if branch.type != "L"]
         zombie_modes = independent_modes(selected_branches, single_nodes=False)
 
         ##################### Finding the Cyclic Modes ##################
-        selected_branches = [branch for branch in branches if branch.type != "C"]
+        selected_branches = [branch for branch in self.branches if branch.type != "C"]
         cyclic_modes = independent_modes(selected_branches)
         # including the Σ mode
         Σ = [1 for n in self.nodes]
@@ -984,12 +989,12 @@ class CustomQCircuit(serializers.Serializable):
 
         return self.L
 
-    def hamiltonian_sym(self):
+    def hamiltonian_sym(self, basis=None):
         """
         Outputs the Hamiltonian of the circuit in terms of the new variables
         output: (number of cyclic variables, periodic variables, Sympy expression)
         """
-        self.lagrangian_sym()
+        self.lagrangian_sym(basis=basis)
         
         # Excluding the zombie modes
         if self.is_grounded:
@@ -998,7 +1003,8 @@ class CustomQCircuit(serializers.Serializable):
             n = len(self.var_indices["zombie"]) + 1 
 
         N = len(self.nodes)
-        basis = self.trans_mat
+        if basis is None:
+            basis = self.trans_mat
         basis_inv = np.linalg.inv(basis)[0:N-n, 0:N-n]
 
         if self.mode == "sym":
