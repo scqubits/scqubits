@@ -1,5 +1,3 @@
-from itertools import product
-
 import numpy as np
 from qutip import qeye, sigmax, sigmay, sigmaz, tensor, basis, Qobj
 from scipy.linalg import inv
@@ -8,7 +6,7 @@ from sympy import Matrix, S, diff, hessian, simplify, solve, symbols
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
+from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.oscillator import Oscillator, convert_to_E_osc, convert_to_l_osc
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_sign
@@ -187,15 +185,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         # low-energy manifold, thus we can approximate the energy denominators as
         # just the coupler energies
         H2 = 0.0
-        # H2 += 0.5 * (self.ELa / 2.)**2 * tensor(self._qubit_self_renormalization(evals_a, phi_a_mat, evals_minus,
-        #                                                                   phi_minus_mat, h_o_plus), qeye(2))
-        # H2 += 0.5 * (self.ELb / 2)**2 * tensor(qeye(2), self._qubit_self_renormalization(evals_b, phi_b_mat,
-        #                                                                                  evals_minus,
-        #                                                                                  phi_minus_mat, h_o_plus))
-        # H2 += 0.5 * (self.ELa / 2) * (self.ELb / 2) * self._qubit_coupling_term(evals_a, evals_b, phi_a_mat, phi_b_mat,
-        #                                                                   evals_minus, phi_minus_mat, h_o_plus)
-        H2 += (self.ELa * self.ELb * phi_a_mat[0, 1] * phi_b_mat[0, 1]
-              * (0.5*self.chi_minus() - 1.0 / (self.EL_tilda())) * tensor(sigmax(), sigmax()))
+        H2 += 0.5 * (self.ELa / 2.)**2 * tensor(self._qubit_self_renormalization(evals_a, phi_a_mat, evals_minus,
+                                                                          phi_minus_mat, h_o_plus), qeye(2))
+        H2 += 0.5 * (self.ELb / 2)**2 * tensor(qeye(2), self._qubit_self_renormalization(evals_b, phi_b_mat,
+                                                                                         evals_minus,
+                                                                                         phi_minus_mat, h_o_plus))
+        H2 += 0.5 * (self.ELa / 2) * (self.ELb / 2) * self._qubit_coupling_term(evals_a, evals_b, phi_a_mat, phi_b_mat,
+                                                                          evals_minus, phi_minus_mat, h_o_plus)
+        # H2 += (self.ELa * self.ELb * phi_a_mat[0, 1] * phi_b_mat[0, 1]
+        #        * (0.5 * self.chi_minus() - 1.0 / (self.EL_tilda())) * tensor(sigmax(), sigmax()))
         return H0 + H1 + H2
 
     def _qubit_self_renormalization(self, evals_q, phi_q_mat, evals_minus, phi_minus_mat, h_o_plus):
@@ -388,7 +386,10 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         assert result.success is True
         return result.x[0]
 
-    def exact_sweet_spot_fluxes(self):
+    def off_location_exact_sweet_spot_fluxes(self):
+        flux_c = self.off_location_coupler_flux()
+        self.flux_c = flux_c
+
         def _find_sweet_spot(params):
             flux_a, flux_b = params
             self.flux_a = flux_a
@@ -398,10 +399,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals, evecs_qobj = dressed_hamiltonian.eigenstates(eigvals=3)
             evals = evals - evals[0]
             return evals[2]
-        result = minimize(_find_sweet_spot, x0=np.array([0.5, 0.5]),
-                          bounds=((0.4, 0.6), (0.4, 0.6)), tol=1e-2)
+        result = minimize(_find_sweet_spot, x0=np.array([0.5, 0.5]), bounds=((0.4, 0.6), (0.4, 0.6)))
         assert result.success
-        return result.x[0], result.x[1]
+        return flux_c, result.x[0], result.x[1]
 
     def off_location_effective_sweet_spot_fluxes(self):
         flux_c = self.off_location_coupler_flux()
@@ -684,15 +684,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
 
     def fluxonium_minus(self):
-        return FluxoniumFluxVariableAllocation(
+        return Fluxonium(
             self.EJC,
             self.fluxonium_minus_charging_energy(),
             self.EL_tilda() / 4.0,
             self.flux_c,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_minus_truncated_dim,
-            flux_fraction_with_inductor=0.0,
-            flux_junction_sign=-1,
+#            flux_fraction_with_inductor=0.0,
+#            flux_junction_sign=-1,
         )
 
     def EL_tilda(self):
