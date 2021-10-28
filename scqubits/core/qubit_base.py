@@ -147,18 +147,7 @@ class QuantumSystem(DispatchClient, ABC):
     def __eq__(self, other: Any):
         if not isinstance(other, type(self)):
             return False
-        all_values_match = True
-        for key, val in self.__dict__.items():
-            try:
-                matches_value = val == other.__dict__[key]
-            except ValueError:
-                arrays_match = np.allclose(val, other.__dict__[key])
-                all_values_match = all_values_match and arrays_match
-            else:
-                all_values_match = all_values_match and matches_value
-            if not all_values_match:
-                return False
-            return True
+        return self.__dict__ == other.__dict__
 
     def __hash__(self):
         return super().__hash__()
