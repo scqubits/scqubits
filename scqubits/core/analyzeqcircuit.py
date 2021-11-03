@@ -746,12 +746,15 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ##################################################################
     ############# Functions for plotting wavefunction ################
     ##################################################################
-    def plot_wavefunction(self, n=0, var_indices=(1,), mode="abs"):
+    def plot_wavefunction(self, n=0, var_indices=(1,), mode="abs", eigensys=None):
         dims = tuple(
             np.sort(var_indices) - 1
         )  # taking the var indices and identifying the dimensions.
 
-        eigs, wf = self.eigensys()
+        if eigensys is None:
+            eigs, wf = self.eigensys()
+        else:
+            eigs, wf = eigensys
 
         cutoffs_dict = self.get_cutoffs()
 
