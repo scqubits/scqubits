@@ -1,5 +1,3 @@
-from itertools import product
-
 import numpy as np
 from qutip import qeye, sigmax, sigmay, sigmaz, tensor, basis, Qobj
 from scipy.linalg import inv
@@ -8,7 +6,7 @@ from sympy import Matrix, S, diff, hessian, simplify, solve, symbols
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
+from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.oscillator import Oscillator, convert_to_E_osc, convert_to_l_osc
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_sign
@@ -140,6 +138,102 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
 
     def off_diagonal_charging(self):
         return self.EC_matrix()[0, 1]
+
+    def schrieffer_wolff_transformation(self):
+        fluxonium_a = self.fluxonium_a()
+        fluxonium_b = self.fluxonium_b()
+        fluxonium_minus = self.fluxonium_minus()
+        h_o_plus = self.h_o_plus()
+        l_osc = h_o_plus.l_osc
+
+        evals_a, evecs_a_uns = fluxonium_a.eigensys(
+            evals_count=fluxonium_a.truncated_dim
+        )
+        evals_b, evecs_b_uns = fluxonium_b.eigensys(
+            evals_count=fluxonium_b.truncated_dim
+        )
+        evals_minus, evecs_minus = fluxonium_minus.eigensys(
+            evals_count=fluxonium_minus.truncated_dim
+        )
+        # Had issues with signs flipping: standardizing overall phase of eigenvectors
+        evecs_a = np.zeros_like(evecs_a_uns)
+        evecs_b = np.zeros_like(evecs_b_uns)
+        evecs_a_uns = evecs_a_uns.T
+        evecs_b_uns = evecs_b_uns.T
+        for k, evec in enumerate(evecs_a_uns):
+            evecs_a[:, k] = standardize_sign(evec)
+        for k, evec in enumerate(evecs_b_uns):
+            evecs_b[:, k] = standardize_sign(evec)
+
+        # Generate matrix elements
+        evals_a = evals_a - evals_a[0]
+        evals_b = evals_b - evals_b[0]
+        evals_minus = evals_minus - evals_minus[0]
+        phi_a_mat = get_matrixelement_table(fluxonium_a.phi_operator(), evecs_a)
+        phi_b_mat = get_matrixelement_table(fluxonium_b.phi_operator(), evecs_b)
+        phi_minus_mat = get_matrixelement_table(
+            fluxonium_minus.phi_operator(), evecs_minus
+        )
+        # project the static Hamiltonian onto the low-energy subspace
+        H0 = -0.5 * evals_a[1] * tensor(sigmaz(), qeye(2)) - 0.5 * evals_b[1] * tensor(qeye(2), sigmaz())
+        # note that the phi_a,b matrix element is off diagonal at the sweetspot, so this will
+        # look like sigmax
+        H1 = phi_minus_mat[0, 0] * (- 0.5 * self.ELa * tensor(Qobj(phi_a_mat[0:2, 0:2]), qeye(2))
+                                    + 0.5 * self.ELb * tensor(qeye(2), Qobj(phi_b_mat[0:2, 0:2])))
+        H1 = 0.0
+        # approximate that the coupler energies are far higher than the energies of the
+        # low-energy manifold, thus we can approximate the energy denominators as
+        # just the coupler energies
+        H2 = 0.0
+        H2 += 0.5 * (self.ELa / 2.)**2 * tensor(self._qubit_self_renormalization(evals_a, phi_a_mat, evals_minus,
+                                                                          phi_minus_mat, h_o_plus), qeye(2))
+        H2 += 0.5 * (self.ELb / 2)**2 * tensor(qeye(2), self._qubit_self_renormalization(evals_b, phi_b_mat,
+                                                                                         evals_minus,
+                                                                                         phi_minus_mat, h_o_plus))
+        H2 += 0.5 * (self.ELa / 2) * (self.ELb / 2) * self._qubit_coupling_term(evals_a, evals_b, phi_a_mat, phi_b_mat,
+                                                                          evals_minus, phi_minus_mat, h_o_plus)
+        # H2 += (self.ELa * self.ELb * phi_a_mat[0, 1] * phi_b_mat[0, 1]
+        #        * (0.5 * self.chi_minus() - 1.0 / (self.EL_tilda())) * tensor(sigmax(), sigmax()))
+        return H0 + H1 + H2
+
+    def _qubit_self_renormalization(self, evals_q, phi_q_mat, evals_minus, phi_minus_mat, h_o_plus):
+        H_eff = 0.0
+        for i in range(2):
+            # note that the phi matrix is off-diagonal
+            j = (i + 1) % 2
+            k = i
+            H_eff += (phi_q_mat[i, j] * phi_q_mat[j, k]
+                      * (self._second_order_h_o_plus_contribution(evals_q, evals_q, h_o_plus, i, j, k, j)
+                         + self._second_order_fluxonium_minus_contribution(evals_q, evals_q, evals_minus,
+                                                                           phi_minus_mat, i, j, k, j)
+                         ) * basis(2, i) * basis(2, k).dag())
+        return H_eff
+
+    def _qubit_coupling_term(self, evals_qa, evals_qb, phi_a_mat, phi_b_mat, evals_minus, phi_minus_mat, h_o_plus):
+        H_eff = 0.0
+        for i in range(2):
+            j = (i + 1) % 2
+            for k in range(2):
+                ell = (k + 1) % 2
+                H_eff += (phi_a_mat[i, j] * phi_b_mat[k, ell]
+                          * (self._second_order_h_o_plus_contribution(evals_qa, evals_qb, h_o_plus, i, j, k, ell)
+                             + self._second_order_h_o_plus_contribution(evals_qa, evals_qb, h_o_plus, j, i, ell, k)
+                             - self._second_order_fluxonium_minus_contribution(evals_qa, evals_qb, evals_minus,
+                                                                               phi_minus_mat, i, j, k, ell)
+                             - self._second_order_fluxonium_minus_contribution(evals_qa, evals_qb, evals_minus,
+                                                                               phi_minus_mat, j, i, ell, k)
+                             ) * tensor(basis(2, i) * basis(2, j).dag(), basis(2, k) * basis(2, ell).dag()))
+        return H_eff
+
+    @staticmethod
+    def _second_order_h_o_plus_contribution(evals_qa, evals_qb, h_o_plus, i, j, k, ell):
+        return (0.5 * h_o_plus.l_osc ** 2 * (1. / (evals_qa[i] - evals_qa[j] - h_o_plus.E_osc)
+                                             + 1. / (evals_qb[k] - evals_qb[ell] - h_o_plus.E_osc)))
+
+    def _second_order_fluxonium_minus_contribution(self, evals_qa, evals_qb, evals_minus, phi_minus_mat, i, j, k, ell):
+        return sum(abs(phi_minus_mat[0, m]) ** 2 * (1. / (evals_qa[i] - evals_qa[j] - evals_minus[m])
+                                                    + 1. / (evals_qb[k] - evals_qb[ell] - evals_minus[m]))
+                   for m in range(1, self.fluxonium_minus_truncated_dim))
 
     def generate_coupled_system(self):
         """Returns a HilbertSpace object of the full system of two fluxonium qubits interacting via
@@ -424,12 +518,12 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         fluxonium_a.truncated_dim = self.fluxonium_truncated_dim
         fluxonium_b.truncated_dim = self.fluxonium_truncated_dim
         hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
-        hilbert_space.add_interaction(
-            g_strength=-0.5 * self.ELa * g_s_expect, op1=fluxonium_a.phi_operator
-        )
-        hilbert_space.add_interaction(
-            g_strength=+0.5 * self.ELb * g_s_expect, op1=fluxonium_b.phi_operator
-        )
+        # hilbert_space.add_interaction(
+        #     g_strength=-0.5 * self.ELa * g_s_expect, op1=fluxonium_a.phi_operator
+        # )
+        # hilbert_space.add_interaction(
+        #     g_strength=+0.5 * self.ELb * g_s_expect, op1=fluxonium_b.phi_operator
+        # )
         hilbert_space.add_interaction(
             g_strength=J, op1=fluxonium_a.phi_operator, op2=fluxonium_b.phi_operator
         )
@@ -590,15 +684,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
 
     def fluxonium_minus(self):
-        return FluxoniumFluxVariableAllocation(
+        return Fluxonium(
             self.EJC,
             self.fluxonium_minus_charging_energy(),
             self.EL_tilda() / 4.0,
             self.flux_c,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_minus_truncated_dim,
-            flux_fraction_with_inductor=0.0,
-            flux_junction_sign=-1,
+#            flux_fraction_with_inductor=0.0,
+#            flux_junction_sign=-1,
         )
 
     def EL_tilda(self):

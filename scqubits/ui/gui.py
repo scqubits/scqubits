@@ -1,6 +1,7 @@
 # gui.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -12,11 +13,13 @@
 
 import inspect
 
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
 from matplotlib.figure import Axes, Figure
+
+import matplotlib.pyplot as plt
 
 try:
     from ipywidgets import (
@@ -53,7 +56,7 @@ from scqubits.core.qubit_base import QubitBaseClass
 class GUI:
 
     # Handle to the most recently generated Figure, Axes tuple
-    fig_ax: Tuple[Figure, Axes] = None
+    fig_ax: Optional[Tuple[Figure, Axes]] = None
 
     def __repr__(self):
         return ""
@@ -192,7 +195,7 @@ class GUI:
         self.gui_active = True
         self.qubit_change = True
         self.slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
-        self.active_defaults: Dict[str, Union[str, Dict[str, Union[int, float]]]] = {}
+        self.active_defaults: Dict[str, Any] = {}
         self.fig: Figure
         self.qubit_current_params: Dict[str, Union[int, float, None]] = {}
         self.qubit_base_params: Dict[str, Union[int, float, None]] = {}
@@ -350,6 +353,7 @@ class GUI:
             subtract_ground=subtract_ground_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_evals_vs_paramvals_plot(
         self,
@@ -394,6 +398,7 @@ class GUI:
             subtract_ground=subtract_ground_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def matelem_vs_paramvals_plot(
         self,
@@ -441,6 +446,7 @@ class GUI:
             mode=mode_value,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_matelem_vs_paramvals_plot(
         self,
@@ -488,13 +494,15 @@ class GUI:
             select_elems=matrix_element_state_value,
             mode=mode_value,
         )
+        GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def scaled_wavefunction_plot(
         self,
         eigenvalue_states: Union[List[int], int],
         mode_value: str,
         manual_scale_tf: bool,
-        scale_value: float,
+        scale_value: Optional[float],
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for
@@ -525,10 +533,11 @@ class GUI:
             scale_value = None
 
         self.update_qubit_params(**params)
-        self.fig, ax = self.active_qubit.plot_wavefunction(
+        self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
             which=eigenvalue_states, mode=mode_value, scaling=scale_value
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def wavefunction_plot(
         self,
@@ -551,10 +560,11 @@ class GUI:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
         self.update_qubit_params(**params)
-        self.fig, ax = self.active_qubit.plot_wavefunction(
+        self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
             which=eigenvalue_states, mode=mode_value
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_wavefunction_plot(
         self,
@@ -578,10 +588,11 @@ class GUI:
             Dictionary of current qubit parameter values (taken from the sliders)
         """
         self.update_grid_qubit_params(**params)
-        self.fig, ax = self.active_qubit.plot_wavefunction(
+        self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
             which=eigenvalue_states, mode=mode_value
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def matrixelements_plot(
         self,
@@ -626,6 +637,7 @@ class GUI:
             show3d=show3d_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_matrixelements_plot(
         self,
@@ -671,6 +683,7 @@ class GUI:
             show3d=show3d_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     # Methods for create_GUI -----------------------------------------------------------
     def display_qubit_info(self, qubit_info: bool) -> None:
@@ -784,7 +797,7 @@ class GUI:
             elif isinstance(self.active_qubit, (scq.FluxQubit, scq.Cos2PhiQubit)):
                 interactive_choice = self.wavefunction_plot
             else:
-                interactive_choice = self.scaled_wavefunction_plot
+                interactive_choice = self.scaled_wavefunction_plot  # type:ignore
 
             if interactive_choice == self.scaled_wavefunction_plot:
                 qubit_plot_interactive = widgets.interactive(

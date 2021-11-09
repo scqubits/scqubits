@@ -86,15 +86,15 @@ class CurrentMirror(base.QubitBaseClass, serializers.Serializable, NoisyCurrentM
     truncated_dim: int, optional
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
-    N = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    number_degrees_freedom = descriptors.ReadOnlyProperty()
-    ECB = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECg = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EJlist = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    nglist = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    N = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
+    number_degrees_freedom = descriptors.ReadOnlyProperty(int)
+    ECB = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJlist = descriptors.WatchedProperty(ndarray, "QUANTUMSYSTEM_UPDATE")
+    nglist = descriptors.WatchedProperty(ndarray, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,

@@ -1,7 +1,8 @@
 # test_spectrumlookup.py
 # meant to be run with 'pytest'
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -80,8 +81,8 @@ class TestSpectrumLookup:
     def test_hilbertspace_lookup_dressed_index(self):
         hilbertspace = self.initialize_hilbertspace()
         hilbertspace.generate_lookup()
-        reference = 21
-        assert hilbertspace.lookup.dressed_index((1, 2, 1)) == reference
+        reference = 7
+        assert hilbertspace.lookup.dressed_index((1, 1, 0)) == reference
 
     def test_hilbertspace_lookup_bare_eigenstates(self):
         hilbertspace = self.initialize_hilbertspace()

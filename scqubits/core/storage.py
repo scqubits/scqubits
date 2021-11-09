@@ -1,6 +1,7 @@
 # storage.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -187,7 +188,7 @@ class SpectrumData(DataStore):
     # mark for file serializers purposes:
     def __init__(
         self,
-        energy_table: Union[np.ndarray, list],
+        energy_table: np.ndarray,  # Union[np.ndarray, list],
         system_params: Dict[str, Any],
         param_name: str = None,
         param_vals: np.ndarray = None,
@@ -200,7 +201,7 @@ class SpectrumData(DataStore):
         self.param_vals = param_vals
         self.energy_table = energy_table
         self.state_table = state_table
-        self.matrixelem_table: np.ndarray = matrixelem_table
+        self.matrixelem_table = matrixelem_table
         super().__init__(
             system_params=system_params,
             param_name=param_name,
@@ -213,7 +214,7 @@ class SpectrumData(DataStore):
 
     def subtract_ground(self) -> None:
         """Subtract ground state energies from spectrum"""
-        self.energy_table -= self.energy_table[:, 0]
+        self.energy_table -= self.energy_table[:, 0]  # type:ignore
 
     def plot_evals_vs_paramvals(
         self,
