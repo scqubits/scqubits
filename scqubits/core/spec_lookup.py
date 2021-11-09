@@ -146,6 +146,35 @@ class SpectrumLookup(serializers.Serializable):
         )  # generate list of bare basis states (tuples)
         return basis_labels_list
 
+    def generate_single_ranked_bare_list(
+        self, dressed_index: int, param_index: int = 0
+    ) -> Tuple[ndarray, List[Tuple[int, ...]]]:
+        """
+        For a given dressed state return a ranked tuple of
+        the overlap with each bare state and the associated label
+        Parameters
+        ----------
+        dressed_index:
+            index of dressed state of interest
+        param_index:
+            relevant if used in the context of a ParameterSweep
+
+        Returns
+        -------
+            ranked bare state overlaps and labels
+        """
+        overlap_matrix = spec_utils.convert_evecs_to_ndarray(
+            self._dressed_specdata.state_table[param_index]
+        )
+        bare_overlaps = np.abs(overlap_matrix[dressed_index, :])
+        sorted_indices = np.argsort(bare_overlaps)[::-1]
+        # need the labels in np array form to sort them
+        # but return them later to original type
+        sorted_labels = np.array(self._generate_bare_labels())[sorted_indices, :]
+        return bare_overlaps[sorted_indices], list(
+            [tuple(label) for label in sorted_labels]
+        )
+
     def _generate_mappings(self) -> List[List[Union[int, None]]]:
         """
         For each parameter value of the parameter sweep (may only be one if called
