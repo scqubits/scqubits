@@ -1,3 +1,6 @@
+import copy
+from typing import Optional
+
 import numpy as np
 from qutip import qeye, sigmax, sigmay, sigmaz, tensor, basis, Qobj
 from scipy.linalg import inv
@@ -6,7 +9,7 @@ from sympy import Matrix, S, diff, hessian, simplify, solve, symbols
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.fluxonium import Fluxonium
+from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
 from scqubits.core.oscillator import Oscillator, convert_to_E_osc, convert_to_l_osc
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_sign
@@ -36,7 +39,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         EJC,
         fluxonium_minus_truncated_dim=6,
         h_o_truncated_dim=3,
+        id_str: Optional[str] = None,
     ):
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJa = EJa
         self.EJb = EJb
         self.ECg_top = ECg_top
@@ -59,6 +64,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         self.EL2 = EL2
         self.EJC = EJC
         self._sys_type = type(self).__name__
+
+    def default_params(self):
+        pass
 
     @staticmethod
     def _U_matrix():
@@ -139,12 +147,202 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     def off_diagonal_charging(self):
         return self.EC_matrix()[0, 1]
 
+    def signed_evals_evecs_qubit_instance(self, qubit_instance):
+        evals, evecs_uns = qubit_instance.eigensys(
+            evals_count=qubit_instance.truncated_dim
+        )
+        evecs = np.zeros_like(evecs_uns)
+        evecs_uns = evecs_uns.T
+        for k, evec in enumerate(evecs_uns):
+            evecs[:, k] = standardize_sign(evec)
+        return evals, evecs
+
+    def schrieffer_wolff_real_flux(self):
+        fluxonium_a = self.fluxonium_a()
+        fluxonium_a_half_flux = copy.copy(fluxonium_a)
+        fluxonium_a_half_flux.flux = 0.5
+        fluxonium_b = self.fluxonium_b()
+        fluxonium_b_half_flux = copy.copy(fluxonium_b)
+        fluxonium_b_half_flux.flux = 0.5
+        fluxonium_minus = self.fluxonium_minus()
+
+        # compute eigenvectors of both original and half flux fluxonia
+        # so that we can take overlaps to project onto the basis
+        # at the sweet spot
+        evals_a, evecs_a = self.signed_evals_evecs_qubit_instance(fluxonium_a)
+        evals_a_half, evecs_a_half = self.signed_evals_evecs_qubit_instance(
+            fluxonium_a_half_flux
+        )
+        evals_b, evecs_b = self.signed_evals_evecs_qubit_instance(fluxonium_b)
+        evals_b_half, evecs_b_half = self.signed_evals_evecs_qubit_instance(
+            fluxonium_b_half_flux
+        )
+        evals_m, evecs_m = self.signed_evals_evecs_qubit_instance(fluxonium_minus)
+
+        # relevant phi matrix elements are w.r.t. fluxonium defined
+        # at the original flux values, not the sweet spot
+        phi_a_mat = get_matrixelement_table(fluxonium_a.phi_operator(), evecs_a)
+        phi_b_mat = get_matrixelement_table(fluxonium_b.phi_operator(), evecs_b)
+        phi_minus_mat = get_matrixelement_table(fluxonium_minus.phi_operator(), evecs_m)
+
+        # compute overlaps and project the zeroth order Hamiltonian
+        # onto the sweet spot basis. Should obtain sigmaz and sigmax for both qubits
+        overlap_a = evecs_a.T @ evecs_a_half
+        overlap_b = evecs_b.T @ evecs_b_half
+        overlap_ab = tensor(Qobj(overlap_a), Qobj(overlap_b)).data.toarray()
+        H_0_a = np.diag(evals_a - evals_a[0])
+        H_0_b = np.diag(evals_b - evals_b[0])
+        H_0_a_half_flux = (overlap_a.T @ H_0_a @ overlap_a)[0:2, 0:2]
+        H_0_b_half_flux = (overlap_b.T @ H_0_b @ overlap_b)[0:2, 0:2]
+        H_0 = tensor(Qobj(H_0_a_half_flux), qeye(2)) + tensor(
+            qeye(2), Qobj(H_0_b_half_flux)
+        )
+
+        # first-order contribution yields sigmax
+        H_1_a = -0.5 * self.ELa * phi_minus_mat[0, 0] * phi_a_mat
+        H_1_b = 0.5 * self.ELb * phi_minus_mat[0, 0] * phi_b_mat
+        H_1_a_half_flux = (overlap_a.T @ H_1_a @ overlap_a)[0:2, 0:2]
+        H_1_b_half_flux = (overlap_b.T @ H_1_b @ overlap_b)[0:2, 0:2]
+        H_1 = tensor(Qobj(H_1_a_half_flux), qeye(2)) + tensor(
+            qeye(2), Qobj(H_1_b_half_flux)
+        )
+
+        # second order calculation
+        H_2_a = self._H2_self_correction_real_flux_coupler(
+            evals_a, evals_m, phi_a_mat, phi_minus_mat, fluxonium_a.EL
+        )
+        H_2_a += self._H2_self_correction_real_flux_highfluxonium(
+            evals_a, phi_a_mat, phi_minus_mat, fluxonium_a.EL
+        )
+        H_2_b = self._H2_self_correction_real_flux_coupler(
+            evals_b, evals_m, phi_b_mat, phi_minus_mat, fluxonium_b.EL
+        )
+        H_2_b += self._H2_self_correction_real_flux_highfluxonium(
+            evals_b, phi_b_mat, phi_minus_mat, fluxonium_b.EL
+        )
+        H_2_a_half_flux = (
+            overlap_a[0:2, 0:2].T @ H_2_a.data.toarray() @ overlap_a[0:2, 0:2]
+        )
+        H_2_b_half_flux = (
+            overlap_b[0:2, 0:2].T @ H_2_b.data.toarray() @ overlap_b[0:2, 0:2]
+        )
+        H_2 = tensor(Qobj(H_2_a_half_flux), qeye(2)) + tensor(
+            qeye(2), Qobj(H_2_b_half_flux)
+        )
+        H_2_ab = self._H2_qubit_coupling_real_flux(
+            evals_a,
+            evals_b,
+            evals_m,
+            phi_a_mat,
+            phi_b_mat,
+            phi_minus_mat,
+            fluxonium_a.EL,
+            fluxonium_b.EL,
+        )
+        H_2_ab_half_flux = (
+            overlap_ab[0:4, 0:4].T @ H_2_ab.data.toarray() @ overlap_ab[0:4, 0:4]
+        )
+        H_2 += Qobj(H_2_ab_half_flux, dims=[[2, 2], [2, 2]])
+        return H_0 + H_1 + H_2
+
+    def _H2_self_correction_real_flux_highfluxonium(
+        self, evals_q, phi_q_mat, phi_minus_mat, EL
+    ):
+        H_2_ = sum(
+            0.5
+            * self._g_minus(ell, ellpp, 0, phi_q_mat, phi_minus_mat, EL)
+            * self._g_minus(ellpp, ellp, 0, phi_q_mat, phi_minus_mat, EL)
+            * (
+                1.0 / (evals_q[ell] - evals_q[ellpp])
+                + 1.0 / (evals_q[ellp] - evals_q[ellpp])
+            )
+            * basis(2, ell)
+            * basis(2, ellp).dag()
+            for ell in range(2)
+            for ellp in range(2)
+            for ellpp in range(2, self.fluxonium_truncated_dim)
+        )
+        return H_2_
+
+    def _H2_self_correction_real_flux_coupler(
+        self, evals_q, evals_m, phi_q_mat, phi_minus_mat, EL
+    ):
+        H_2_ = sum(
+            0.5
+            * self._g_minus(ell, ellpp, n, phi_q_mat, phi_minus_mat, EL)
+            * self._g_minus(ellpp, ellp, n, phi_q_mat, phi_minus_mat, EL)
+            * (
+                1.0 / (evals_q[ell] + evals_m[0] - evals_q[ellpp] - evals_m[n])
+                + 1.0 / (evals_q[ellp] + evals_m[0] - evals_q[ellpp] - evals_m[n])
+            )
+            * basis(2, ell)
+            * basis(2, ellp).dag()
+            for ell in range(2)
+            for ellp in range(2)
+            for ellpp in range(self.fluxonium_truncated_dim)
+            for n in range(1, self.fluxonium_minus_truncated_dim)
+        )
+        H_2_ += sum(
+            0.5
+            * self._g_plus(ell, ellpp, phi_q_mat, EL)
+            * self._g_plus(ellpp, ellp, phi_q_mat, EL)
+            * (
+                1.0 / (evals_q[ell] - evals_q[ellpp] - self.h_o_plus().E_osc)
+                + 1.0 / (evals_q[ellp] - evals_q[ellpp] - self.h_o_plus().E_osc)
+            )
+            * basis(2, ell)
+            * basis(2, ellp).dag()
+            for ell in range(2)
+            for ellp in range(2)
+            for ellpp in range(self.fluxonium_truncated_dim)
+        )
+        return H_2_
+
+    def _H2_qubit_coupling_real_flux(
+        self, evals_a, evals_b, evals_m, phi_a_mat, phi_b_mat, phi_m_mat, ELa, ELb
+    ):
+        H_2_ = sum(
+            -self._g_minus(ell, ellp, n, phi_a_mat, phi_m_mat, ELa)
+            * self._g_minus(ell, ellp, n, phi_a_mat, phi_m_mat, ELa)
+            * (
+                1.0 / (evals_a[ell] + evals_m[0] - evals_a[ellp] - evals_m[n])
+                + 1.0 / (evals_b[m] + evals_m[0] - evals_b[mp] - evals_m[n])
+            )
+            * tensor(basis(2, ell), basis(2, m))
+            * tensor(basis(2, ellp), basis(2, mp)).dag()
+            for ell in range(2)
+            for m in range(2)
+            for ellp in range(2)
+            for mp in range(2)
+            for n in range(1, self.fluxonium_minus_truncated_dim)
+        )
+        H_2_ += sum(
+            self._g_plus(ell, ellp, phi_a_mat, ELa)
+            * self._g_plus(m, mp, phi_b_mat, ELb)
+            * (
+                1.0 / (evals_a[ell] - evals_a[ellp] - self.h_o_plus().E_osc)
+                + 1.0 / (evals_b[m] - evals_b[mp] - self.h_o_plus().E_osc)
+            )
+            * tensor(basis(2, ell), basis(2, m))
+            * tensor(basis(2, ellp), basis(2, mp)).dag()
+            for ell in range(2)
+            for m in range(2)
+            for ellp in range(2)
+            for mp in range(2)
+        )
+        return H_2_
+
+    def _g_minus(self, ell, ellp, n, phi_q_mat, phi_minus_mat, EL):
+        return 0.5 * EL * phi_q_mat[ell, ellp] * phi_minus_mat[0, n]
+
+    def _g_plus(self, ell, ellp, phi_q_mat, EL):
+        return 0.5 * EL * phi_q_mat[ell, ellp] * self.h_o_plus().l_osc / np.sqrt(2)
+
     def schrieffer_wolff_transformation(self):
         fluxonium_a = self.fluxonium_a()
         fluxonium_b = self.fluxonium_b()
         fluxonium_minus = self.fluxonium_minus()
         h_o_plus = self.h_o_plus()
-        l_osc = h_o_plus.l_osc
 
         evals_a, evecs_a_uns = fluxonium_a.eigensys(
             evals_count=fluxonium_a.truncated_dim
@@ -175,65 +373,141 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             fluxonium_minus.phi_operator(), evecs_minus
         )
         # project the static Hamiltonian onto the low-energy subspace
-        H0 = -0.5 * evals_a[1] * tensor(sigmaz(), qeye(2)) - 0.5 * evals_b[1] * tensor(qeye(2), sigmaz())
+        H0 = -0.5 * evals_a[1] * tensor(sigmaz(), qeye(2)) - 0.5 * evals_b[1] * tensor(
+            qeye(2), sigmaz()
+        )
         # note that the phi_a,b matrix element is off diagonal at the sweetspot, so this will
         # look like sigmax
-        H1 = phi_minus_mat[0, 0] * (- 0.5 * self.ELa * tensor(Qobj(phi_a_mat[0:2, 0:2]), qeye(2))
-                                    + 0.5 * self.ELb * tensor(qeye(2), Qobj(phi_b_mat[0:2, 0:2])))
+        H1 = phi_minus_mat[0, 0] * (
+            -0.5 * self.ELa * tensor(Qobj(phi_a_mat[0:2, 0:2]), qeye(2))
+            + 0.5 * self.ELb * tensor(qeye(2), Qobj(phi_b_mat[0:2, 0:2]))
+        )
         H1 = 0.0
         # approximate that the coupler energies are far higher than the energies of the
         # low-energy manifold, thus we can approximate the energy denominators as
         # just the coupler energies
         H2 = 0.0
-        H2 += 0.5 * (self.ELa / 2.)**2 * tensor(self._qubit_self_renormalization(evals_a, phi_a_mat, evals_minus,
-                                                                          phi_minus_mat, h_o_plus), qeye(2))
-        H2 += 0.5 * (self.ELb / 2)**2 * tensor(qeye(2), self._qubit_self_renormalization(evals_b, phi_b_mat,
-                                                                                         evals_minus,
-                                                                                         phi_minus_mat, h_o_plus))
-        H2 += 0.5 * (self.ELa / 2) * (self.ELb / 2) * self._qubit_coupling_term(evals_a, evals_b, phi_a_mat, phi_b_mat,
-                                                                          evals_minus, phi_minus_mat, h_o_plus)
+        H2 += (
+            0.5
+            * (self.ELa / 2.0) ** 2
+            * tensor(
+                self._qubit_self_renormalization(
+                    evals_a, phi_a_mat, evals_minus, phi_minus_mat, h_o_plus
+                ),
+                qeye(2),
+            )
+        )
+        H2 += (
+            0.5
+            * (self.ELb / 2) ** 2
+            * tensor(
+                qeye(2),
+                self._qubit_self_renormalization(
+                    evals_b, phi_b_mat, evals_minus, phi_minus_mat, h_o_plus
+                ),
+            )
+        )
+        H2 += (
+            0.5
+            * (self.ELa / 2)
+            * (self.ELb / 2)
+            * self._qubit_coupling_term(
+                evals_a,
+                evals_b,
+                phi_a_mat,
+                phi_b_mat,
+                evals_minus,
+                phi_minus_mat,
+                h_o_plus,
+            )
+        )
         # H2 += (self.ELa * self.ELb * phi_a_mat[0, 1] * phi_b_mat[0, 1]
         #        * (0.5 * self.chi_minus() - 1.0 / (self.EL_tilda())) * tensor(sigmax(), sigmax()))
         return H0 + H1 + H2
 
-    def _qubit_self_renormalization(self, evals_q, phi_q_mat, evals_minus, phi_minus_mat, h_o_plus):
-        H_eff = 0.0
-        for i in range(2):
-            # note that the phi matrix is off-diagonal
-            j = (i + 1) % 2
-            k = i
-            H_eff += (phi_q_mat[i, j] * phi_q_mat[j, k]
-                      * (self._second_order_h_o_plus_contribution(evals_q, evals_q, h_o_plus, i, j, k, j)
-                         + self._second_order_fluxonium_minus_contribution(evals_q, evals_q, evals_minus,
-                                                                           phi_minus_mat, i, j, k, j)
-                         ) * basis(2, i) * basis(2, k).dag())
-        return H_eff
+    def _qubit_self_renormalization(
+        self, evals_q, phi_q_mat, evals_minus, phi_minus_mat, h_o_plus
+    ):
+        fqdim = self.fluxonium_truncated_dim
+        return sum(
+            phi_q_mat[i, j]
+            * phi_q_mat[j, k]
+            * (
+                self._second_order_h_o_plus_contribution(
+                    evals_q, evals_q, h_o_plus, i, j, k, j
+                )
+                + self._second_order_fluxonium_minus_contribution(
+                    evals_q, evals_q, evals_minus, phi_minus_mat, i, j, k, j
+                )
+            )
+            * basis(2, i)
+            * basis(2, k).dag()
+            for i in range(2)
+            for k in range(2)
+            for j in range(fqdim)
+        )
 
-    def _qubit_coupling_term(self, evals_qa, evals_qb, phi_a_mat, phi_b_mat, evals_minus, phi_minus_mat, h_o_plus):
+    def _qubit_coupling_term(
+        self,
+        evals_qa,
+        evals_qb,
+        phi_a_mat,
+        phi_b_mat,
+        evals_minus,
+        phi_minus_mat,
+        h_o_plus,
+    ):
         H_eff = 0.0
         for i in range(2):
             j = (i + 1) % 2
             for k in range(2):
                 ell = (k + 1) % 2
-                H_eff += (phi_a_mat[i, j] * phi_b_mat[k, ell]
-                          * (self._second_order_h_o_plus_contribution(evals_qa, evals_qb, h_o_plus, i, j, k, ell)
-                             + self._second_order_h_o_plus_contribution(evals_qa, evals_qb, h_o_plus, j, i, ell, k)
-                             - self._second_order_fluxonium_minus_contribution(evals_qa, evals_qb, evals_minus,
-                                                                               phi_minus_mat, i, j, k, ell)
-                             - self._second_order_fluxonium_minus_contribution(evals_qa, evals_qb, evals_minus,
-                                                                               phi_minus_mat, j, i, ell, k)
-                             ) * tensor(basis(2, i) * basis(2, j).dag(), basis(2, k) * basis(2, ell).dag()))
+                H_eff += (
+                    phi_a_mat[i, j]
+                    * phi_b_mat[k, ell]
+                    * (
+                        self._second_order_h_o_plus_contribution(
+                            evals_qa, evals_qb, h_o_plus, i, j, k, ell
+                        )
+                        + self._second_order_h_o_plus_contribution(
+                            evals_qa, evals_qb, h_o_plus, j, i, ell, k
+                        )
+                        - self._second_order_fluxonium_minus_contribution(
+                            evals_qa, evals_qb, evals_minus, phi_minus_mat, i, j, k, ell
+                        )
+                        - self._second_order_fluxonium_minus_contribution(
+                            evals_qa, evals_qb, evals_minus, phi_minus_mat, j, i, ell, k
+                        )
+                    )
+                    * tensor(
+                        basis(2, i) * basis(2, j).dag(),
+                        basis(2, k) * basis(2, ell).dag(),
+                    )
+                )
         return H_eff
 
     @staticmethod
     def _second_order_h_o_plus_contribution(evals_qa, evals_qb, h_o_plus, i, j, k, ell):
-        return (0.5 * h_o_plus.l_osc ** 2 * (1. / (evals_qa[i] - evals_qa[j] - h_o_plus.E_osc)
-                                             + 1. / (evals_qb[k] - evals_qb[ell] - h_o_plus.E_osc)))
+        return (
+            0.5
+            * h_o_plus.l_osc ** 2
+            * (
+                1.0 / (evals_qa[i] - evals_qa[j] - h_o_plus.E_osc)
+                + 1.0 / (evals_qb[k] - evals_qb[ell] - h_o_plus.E_osc)
+            )
+        )
 
-    def _second_order_fluxonium_minus_contribution(self, evals_qa, evals_qb, evals_minus, phi_minus_mat, i, j, k, ell):
-        return sum(abs(phi_minus_mat[0, m]) ** 2 * (1. / (evals_qa[i] - evals_qa[j] - evals_minus[m])
-                                                    + 1. / (evals_qb[k] - evals_qb[ell] - evals_minus[m]))
-                   for m in range(1, self.fluxonium_minus_truncated_dim))
+    def _second_order_fluxonium_minus_contribution(
+        self, evals_qa, evals_qb, evals_minus, phi_minus_mat, i, j, k, ell
+    ):
+        return sum(
+            abs(phi_minus_mat[0, m]) ** 2
+            * (
+                1.0 / (evals_qa[i] - evals_qa[j] - evals_minus[m])
+                + 1.0 / (evals_qb[k] - evals_qb[ell] - evals_minus[m])
+            )
+            for m in range(1, self.fluxonium_minus_truncated_dim)
+        )
 
     def generate_coupled_system(self):
         """Returns a HilbertSpace object of the full system of two fluxonium qubits interacting via
@@ -382,6 +656,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         def _find_J(flux_c):
             self.flux_c = flux_c
             return self.J_eff_total()
+
         result = root(_find_J, x0=np.array([0.28]))
         assert result.success is True
         return result.x[0]
@@ -399,7 +674,10 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals, evecs_qobj = dressed_hamiltonian.eigenstates(eigvals=3)
             evals = evals - evals[0]
             return evals[2]
-        result = minimize(_find_sweet_spot, x0=np.array([0.5, 0.5]), bounds=((0.4, 0.6), (0.4, 0.6)))
+
+        result = minimize(
+            _find_sweet_spot, x0=np.array([0.5, 0.5]), bounds=((0.4, 0.6), (0.4, 0.6))
+        )
         assert result.success
         return flux_c, result.x[0], result.x[1]
 
@@ -408,92 +686,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         self.flux_c = flux_c
         flux_shift_a, flux_shift_b = self.find_flux_shift()
         return flux_c, 0.50 + flux_shift_a, 0.50 + flux_shift_b
-
-    def schrieffer_wolff_born_oppenheimer_effective_hamiltonian(self):
-        (fluxonium_a, fluxonium_b, J) = self._setup_effective_calculation()
-        evals_a, evecs_a_uns = fluxonium_a.eigensys(
-            evals_count=fluxonium_a.truncated_dim
-        )
-        evals_b, evecs_b_uns = fluxonium_b.eigensys(
-            evals_count=fluxonium_b.truncated_dim
-        )
-        # Had issues with signs flipping: standardizing overall phase of eigenvectors
-        evecs_a = np.zeros_like(evecs_a_uns)
-        evecs_b = np.zeros_like(evecs_b_uns)
-        evecs_a_uns = evecs_a_uns.T
-        evecs_b_uns = evecs_b_uns.T
-        for k, evec in enumerate(evecs_a_uns):
-            evecs_a[:, k] = standardize_sign(evec)
-        for k, evec in enumerate(evecs_b_uns):
-            evecs_b[:, k] = standardize_sign(evec)
-
-        # Generate matrix elements
-        evals_a = evals_a - evals_a[0]
-        evals_b = evals_b - evals_b[0]
-        phi_a_mat = get_matrixelement_table(fluxonium_a.phi_operator(), evecs_a)
-        phi_b_mat = get_matrixelement_table(fluxonium_b.phi_operator(), evecs_b)
-        n_a_mat = get_matrixelement_table(fluxonium_a.n_operator(), evecs_a)
-        n_b_mat = get_matrixelement_table(fluxonium_b.n_operator(), evecs_b)
-        dim_a = fluxonium_a.truncated_dim
-        dim_b = fluxonium_b.truncated_dim
-
-        # For ease of using hubbard_operator, define a spin fluxonium with truncated_dim = 2
-        fluxonium_a_spin = self.fluxonium_a()
-        fluxonium_b_spin = self.fluxonium_b()
-        fluxonium_a_spin.EL = fluxonium_a.EL
-        fluxonium_b_spin.EL = fluxonium_b.EL
-        fluxonium_a_spin.truncated_dim = 2
-        fluxonium_b_spin.truncated_dim = 2
-        hilbert_space = HilbertSpace([fluxonium_a_spin, fluxonium_b_spin])
-        dim_low_energy_a = fluxonium_a_spin.truncated_dim
-        dim_low_energy_b = fluxonium_b_spin.truncated_dim
-
-        off_diag = self.off_diagonal_charging()
-
-        def V_op(init_a, fin_a, init_b, fin_b):
-            return (
-                J * phi_a_mat[init_a, fin_a] * phi_b_mat[init_b, fin_b]
-                - 8.0 * off_diag * n_a_mat[init_a, fin_a] * n_b_mat[init_b, fin_b]
-            )
-
-        H_0, H_1, H_2 = 0.0, 0.0, 0.0
-
-        H_0_a = sum(
-            evals_a[j] * hilbert_space.hubbard_operator(j, j, fluxonium_a_spin)
-            for j in range(dim_low_energy_a)
-        )
-        H_0_b = sum(
-            evals_b[j] * hilbert_space.hubbard_operator(j, j, fluxonium_b_spin)
-            for j in range(dim_low_energy_b)
-        )
-        H_0 = H_0_a + H_0_b
-
-        H_1 = sum(
-            (V_op(init_a, fin_a, init_b, fin_b))
-            * hilbert_space.hubbard_operator(init_a, fin_a, fluxonium_a_spin)
-            * hilbert_space.hubbard_operator(init_b, fin_b, fluxonium_b_spin)
-            for init_a in range(dim_low_energy_a)
-            for fin_a in range(dim_low_energy_a)
-            for init_b in range(dim_low_energy_b)
-            for fin_b in range(dim_low_energy_b)
-        )
-
-        # virtual_int_states = list(product(np.arange(0, dim_a), np.arange(0, dim_b)))
-        # virtual_int_states.remove((0, 0))
-        # virtual_int_states.remove((0, 1))
-        # virtual_int_states.remove((1, 0))
-        # virtual_int_states.remove((1, 1))
-        #
-        # H_2 = sum(V_op(init_a, inter_a, init_b, inter_b) * V_op(inter_a, fin_a, inter_b, fin_b)
-        #           * 0.5 * ((evals_a[init_a] + evals_b[init_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1)
-        #                    + (evals_a[fin_a] + evals_b[fin_b] - (evals_a[inter_a] + evals_b[inter_b])) ** (-1))
-        #           * hilbert_space.hubbard_operator(init_a, fin_a, fluxonium_a_spin)
-        #           * hilbert_space.hubbard_operator(init_b, fin_b, fluxonium_b_spin)
-        #           for init_a in range(dim_low_energy_a) for fin_a in range(dim_low_energy_a)
-        #           for init_b in range(dim_low_energy_b) for fin_b in range(dim_low_energy_b)
-        #           for inter_a, inter_b in virtual_int_states)
-
-        return H_0, H_1, H_2
 
     @staticmethod
     def decompose_matrix_into_specific_paulis(sigmai, sigmaj, matrix):
@@ -512,18 +704,21 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                 pauli_list.append((pauli_name[j] + pauli_name[k], coeff))
         return pauli_list
 
+    @staticmethod
+    def decompose_matrix_into_paulis_single_qubit(matrix):
+        pauli_mats = [qeye(2), sigmax(), sigmay(), sigmaz()]
+        pauli_name = ["I", "X", "Y", "Z"]
+        pauli_list = []
+        for j, pauli in enumerate(pauli_mats):
+            coeff = np.trace((pauli * matrix).data.toarray())
+            pauli_list.append((pauli_name[j], coeff))
+        return pauli_list
+
     def born_oppenheimer_effective_hamiltonian_static(self):
         (fluxonium_a, fluxonium_b, J) = self._setup_effective_calculation()
-        g_s_expect = self.fluxonium_minus_gs_expect()
         fluxonium_a.truncated_dim = self.fluxonium_truncated_dim
         fluxonium_b.truncated_dim = self.fluxonium_truncated_dim
         hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
-        # hilbert_space.add_interaction(
-        #     g_strength=-0.5 * self.ELa * g_s_expect, op1=fluxonium_a.phi_operator
-        # )
-        # hilbert_space.add_interaction(
-        #     g_strength=+0.5 * self.ELb * g_s_expect, op1=fluxonium_b.phi_operator
-        # )
         hilbert_space.add_interaction(
             g_strength=J, op1=fluxonium_a.phi_operator, op2=fluxonium_b.phi_operator
         )
@@ -533,79 +728,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             op2=fluxonium_b.n_operator,
         )
         return hilbert_space.hamiltonian()
-
-    def born_oppenheimer_effective_hamiltonian_projected(self):
-        # TODO I realize this basically should amount to an identity operation,
-        # why doesn't that work?
-        (fluxonium_a, fluxonium_b, J) = self._setup_effective_calculation()
-        test_trunc = 2
-        fluxonium_a.truncated_dim, fluxonium_b.truncated_dim = test_trunc, test_trunc
-        flux_a, flux_b = self.flux_a, self.flux_b
-        self.flux_a, self.flux_b = 0.5, 0.5
-        hilbert_space = HilbertSpace([fluxonium_a, fluxonium_b])
-        ham_halfflux = hilbert_space.hamiltonian()
-        evals, evecs = hilbert_space.eigensys(evals_count=2 * test_trunc)
-        hilbert_space.generate_lookup()
-        evecs_halfflux_a = Qobj(hilbert_space.lookup.bare_eigenstates(fluxonium_a))
-        evecs_halfflux_b = Qobj(hilbert_space.lookup.bare_eigenstates(fluxonium_b))
-        unitary_halfflux = tensor([evecs_halfflux_a, evecs_halfflux_b])
-        evecs_halfflux_barebasis = unitary_halfflux * evecs
-        g_s_expect = self.fluxonium_minus_gs_expect()
-        EL_bar_a = fluxonium_a.EL
-        EL_bar_b = fluxonium_b.EL
-        phi_a_coeff = -(
-            EL_bar_a * 2.0 * np.pi * (flux_a - 0.5)
-            + 0.5 * self.ELa * g_s_expect
-            + J * 2.0 * np.pi * (flux_b - 0.5)
-        )
-        phi_b_coeff = -(
-            EL_bar_b * 2.0 * np.pi * (flux_b - 0.5)
-            - 0.5 * self.ELb * g_s_expect
-            + J * 2.0 * np.pi * (flux_a - 0.5)
-        )
-        hilbert_space.add_interaction(
-            g_strength=phi_a_coeff, op1=fluxonium_a.phi_operator
-        )
-        hilbert_space.add_interaction(
-            g_strength=phi_b_coeff, op1=fluxonium_b.phi_operator
-        )
-        hilbert_space.add_interaction(
-            g_strength=J, op1=fluxonium_a.phi_operator, op2=fluxonium_b.phi_operator
-        )
-        hilbert_space.add_interaction(
-            g_strength=-8.0 * self.off_diagonal_charging(),
-            op1=fluxonium_a.n_operator,
-            op2=fluxonium_b.n_operator,
-        )
-        ham_new = hilbert_space.hamiltonian()
-        evals_new, evecs_new = hilbert_space.eigensys(evals_count=2 * test_trunc)
-        #        hilbert_space.generate_lookup()
-        #        evecs_new_a = Qobj(hilbert_space.lookup.bare_eigenstates(fluxonium_a))
-        #        evecs_new_b = Qobj(hilbert_space.lookup.bare_eigenstates(fluxonium_b))
-        #        unitary_new = tensor([evecs_new_a, evecs_new_b])
-        evecs_new_barebasis = unitary_halfflux * evecs_new
-        overlap_matrix = np.zeros((2 * test_trunc, 2 * test_trunc), dtype=object)
-        for i in range(2 * test_trunc):
-            for j in range(2 * test_trunc):
-                overlap_matrix[i, j] = (
-                    evecs_new_barebasis[i].dag() * evecs_halfflux_barebasis[j]
-                )
-        projected_ham = 0.0
-        for j_p in range(2 * test_trunc):
-            for j_p_p in range(2 * test_trunc):
-                val = 0.0
-                for j in range(2 * test_trunc):
-                    val += (
-                        evals_new[j]
-                        * overlap_matrix[j, j_p].conj()
-                        * overlap_matrix[j, j_p_p]
-                    )
-                projected_ham += (
-                    basis(2 * test_trunc, j_p)
-                    * basis(2 * test_trunc, j_p_p).dag()
-                    * val
-                )
-        return projected_ham
 
     def born_oppenheimer_effective_hamiltonian(self):
         (fluxonium_a, fluxonium_b, J) = self._setup_effective_calculation()
@@ -664,21 +786,23 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         return phi_ops, n_ops
 
     def fluxonium_a(self):
-        return Fluxonium(
+        return FluxoniumFluxVariableAllocation(
             self.EJa,
             self.qubit_a_charging_energy(),
             self.ELa,
             self.flux_a,
+            flux_fraction_with_inductor=1.0,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
         )
 
     def fluxonium_b(self):
-        return Fluxonium(
+        return FluxoniumFluxVariableAllocation(
             self.EJb,
             self.qubit_b_charging_energy(),
             self.ELb,
             self.flux_b,
+            flux_fraction_with_inductor=1.0,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
         )
@@ -691,8 +815,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             self.flux_c,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_minus_truncated_dim,
-#            flux_fraction_with_inductor=0.0,
-#            flux_junction_sign=-1,
+            #            flux_fraction_with_inductor=0.0,
+            #            flux_junction_sign=-1,
         )
 
     def EL_tilda(self):
@@ -717,9 +841,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             8.0 * self.h_o_plus_charging_energy(), self.EL_tilda() / 4.0
         )
         return Oscillator(
-            E_osc=E_osc,
-            l_osc=l_osc,
-            truncated_dim=self.h_o_truncated_dim,
+            E_osc=E_osc, l_osc=l_osc, truncated_dim=self.h_o_truncated_dim,
         )
 
 
@@ -781,6 +903,3 @@ class FluxoniumTunableCouplerGrounded(FluxoniumTunableCouplerFloating):
         C_matrix[2, 2] = 1.0 / (2.0 * self.ECm) / 2.0
         C_matrix[3, 3] = 1.0 / (2.0 * self.ECm) / 2.0 + 1.0 / (2.0 * self.ECc)
         return C_matrix
-
-    def default_params(self):
-        pass
