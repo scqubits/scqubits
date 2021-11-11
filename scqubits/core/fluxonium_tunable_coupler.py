@@ -180,16 +180,21 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         evals_m, evecs_m = self.signed_evals_evecs_qubit_instance(fluxonium_minus)
 
         # relevant phi matrix elements are w.r.t. fluxonium defined
-        # at the original flux values, not the sweet spot
-        phi_a_mat = get_matrixelement_table(fluxonium_a.phi_operator(), evecs_a)
-        phi_b_mat = get_matrixelement_table(fluxonium_b.phi_operator(), evecs_b)
+        # at the original flux values, not the sweet spot. However
+        # because we are using FFVA we need to measure phi operator as distance
+        # from the sweet spot (eigenstates not centered at origin)
+        phi_a_mat = get_matrixelement_table(fluxonium_a.phi_operator()
+                                            - np.pi * np.eye(fluxonium_a.cutoff), evecs_a)
+        phi_b_mat = get_matrixelement_table(fluxonium_b.phi_operator()
+                                            - np.pi * np.eye(fluxonium_b.cutoff), evecs_b)
         phi_minus_mat = get_matrixelement_table(fluxonium_minus.phi_operator(), evecs_m)
 
         # compute overlaps and project the zeroth order Hamiltonian
         # onto the sweet spot basis. Should obtain sigmaz and sigmax for both qubits
         overlap_a = evecs_a.T @ evecs_a_half
         overlap_b = evecs_b.T @ evecs_b_half
-        overlap_ab = tensor(Qobj(overlap_a), Qobj(overlap_b)).data.toarray()
+        overlap_ab = tensor(Qobj(overlap_a[0:2, 0:2]),
+                            Qobj(overlap_b[0:2, 0:2])).data.toarray()
         H_0_a = np.diag(evals_a - evals_a[0])
         H_0_b = np.diag(evals_b - evals_b[0])
         H_0_a_half_flux = (overlap_a.T @ H_0_a @ overlap_a)[0:2, 0:2]
@@ -240,7 +245,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             fluxonium_b.EL,
         )
         H_2_ab_half_flux = (
-            overlap_ab[0:4, 0:4].T @ H_2_ab.data.toarray() @ overlap_ab[0:4, 0:4]
+            overlap_ab.T @ H_2_ab.data.toarray() @ overlap_ab
         )
         H_2 += Qobj(H_2_ab_half_flux, dims=[[2, 2], [2, 2]])
         return H_0 + H_1 + H_2
@@ -303,7 +308,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     ):
         H_2_ = sum(
             -self._g_minus(ell, ellp, n, phi_a_mat, phi_m_mat, ELa)
-            * self._g_minus(ell, ellp, n, phi_a_mat, phi_m_mat, ELa)
+            * self._g_minus(m, mp, n, phi_b_mat, phi_m_mat, ELb)
             * (
                 1.0 / (evals_a[ell] + evals_m[0] - evals_a[ellp] - evals_m[n])
                 + 1.0 / (evals_b[m] + evals_m[0] - evals_b[mp] - evals_m[n])
