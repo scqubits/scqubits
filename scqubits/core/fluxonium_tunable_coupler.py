@@ -147,7 +147,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     def off_diagonal_charging(self):
         return self.EC_matrix()[0, 1]
 
-    def signed_evals_evecs_qubit_instance(self, qubit_instance):
+    @staticmethod
+    def signed_evals_evecs_qubit_instance(qubit_instance):
         evals, evecs_uns = qubit_instance.eigensys(
             evals_count=qubit_instance.truncated_dim
         )
@@ -158,10 +159,12 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         return evals, evecs
 
     def schrieffer_wolff_real_flux(self):
-        fluxonium_a = self.fluxonium_a()
+        params_a = self.fluxonium_a().get_initdata()
+        fluxonium_a = FluxoniumFluxVariableAllocation(**params_a, flux_fraction_with_inductor=1.0)
         fluxonium_a_half_flux = copy.copy(fluxonium_a)
         fluxonium_a_half_flux.flux = 0.5
-        fluxonium_b = self.fluxonium_b()
+        params_b = self.fluxonium_b().get_initdata()
+        fluxonium_b = FluxoniumFluxVariableAllocation(**params_b, flux_fraction_with_inductor=1.0)
         fluxonium_b_half_flux = copy.copy(fluxonium_b)
         fluxonium_b_half_flux.flux = 0.5
         fluxonium_minus = self.fluxonium_minus()
@@ -791,23 +794,21 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         return phi_ops, n_ops
 
     def fluxonium_a(self):
-        return FluxoniumFluxVariableAllocation(
+        return Fluxonium(
             self.EJa,
             self.qubit_a_charging_energy(),
             self.ELa,
             self.flux_a,
-            flux_fraction_with_inductor=1.0,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
         )
 
     def fluxonium_b(self):
-        return FluxoniumFluxVariableAllocation(
+        return Fluxonium(
             self.EJb,
             self.qubit_b_charging_energy(),
             self.ELb,
             self.flux_b,
-            flux_fraction_with_inductor=1.0,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
         )

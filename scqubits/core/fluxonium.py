@@ -300,8 +300,9 @@ class FluxoniumFluxVariableAllocation(Fluxonium):
         flux_fraction_with_inductor: float = 0.0,
         flux_junction_sign: int = 1,
         alpha: float = 0.0,
+        id_str: Optional[str] = None,
     ):
-        Fluxonium.__init__(self, EJ, EC, EL, flux, cutoff, truncated_dim)
+        Fluxonium.__init__(self, EJ, EC, EL, flux, cutoff, truncated_dim=truncated_dim, id_str=id_str)
         if flux_fraction_with_inductor < 0.0 or flux_fraction_with_inductor > 1.0:
             raise ValueError("flux_fraction_with_inductor must be between 0.0 and 1.0")
         self.flux_fraction_with_inductor = flux_fraction_with_inductor
