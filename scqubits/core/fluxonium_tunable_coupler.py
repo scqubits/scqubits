@@ -309,12 +309,14 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     def _H2_qubit_coupling_real_flux(
         self, evals_a, evals_b, evals_m, phi_a_mat, phi_b_mat, phi_m_mat, ELa, ELb
     ):
-        H_2_ = sum(
+        H_2_ = 0.5 * sum(
             -self._g_minus(ell, ellp, n, phi_a_mat, phi_m_mat, ELa)
             * self._g_minus(m, mp, n, phi_b_mat, phi_m_mat, ELb)
             * (
                 1.0 / (evals_a[ell] + evals_m[0] - evals_a[ellp] - evals_m[n])
                 + 1.0 / (evals_b[m] + evals_m[0] - evals_b[mp] - evals_m[n])
+                + 1.0 / (evals_a[ellp] + evals_m[0] - evals_a[ell] - evals_m[n])
+                + 1.0 / (evals_b[mp] + evals_m[0] - evals_b[m] - evals_m[n])
             )
             * tensor(basis(2, ell), basis(2, m))
             * tensor(basis(2, ellp), basis(2, mp)).dag()
@@ -324,12 +326,14 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             for mp in range(2)
             for n in range(1, self.fluxonium_minus_truncated_dim)
         )
-        H_2_ += sum(
+        H_2_ += 0.5 * sum(
             self._g_plus(ell, ellp, phi_a_mat, ELa)
             * self._g_plus(m, mp, phi_b_mat, ELb)
             * (
                 1.0 / (evals_a[ell] - evals_a[ellp] - self.h_o_plus().E_osc)
                 + 1.0 / (evals_b[m] - evals_b[mp] - self.h_o_plus().E_osc)
+                + 1.0 / (evals_a[ellp] - evals_a[ell] - self.h_o_plus().E_osc)
+                + 1.0 / (evals_b[mp] - evals_b[m] - self.h_o_plus().E_osc)
             )
             * tensor(basis(2, ell), basis(2, m))
             * tensor(basis(2, ellp), basis(2, mp)).dag()
