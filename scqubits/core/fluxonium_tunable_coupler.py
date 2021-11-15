@@ -148,15 +148,17 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         return self.EC_matrix()[0, 1]
 
     @staticmethod
-    def signed_evals_evecs_qubit_instance(qubit_instance):
+    def signed_evals_evecs_phimat_qubit_instance(qubit_instance):
         evals, evecs_uns = qubit_instance.eigensys(
             evals_count=qubit_instance.truncated_dim
         )
-        evecs = np.zeros_like(evecs_uns)
-        evecs_uns = evecs_uns.T
-        for k, evec in enumerate(evecs_uns):
-            evecs[:, k] = standardize_sign(evec)
-        return evals, evecs
+        evecs = np.zeros_like(evecs_uns).T
+        for k, evec in enumerate(evecs_uns.T):
+            evecs[k, :] = standardize_sign(evec)
+        phi_mat = get_matrixelement_table(
+            qubit_instance.phi_operator(), evecs.T
+        )
+        return evals, evecs.T, phi_mat
 
     def schrieffer_wolff_real_flux(self):
         params_a = self.fluxonium_a().get_initdata()
@@ -172,15 +174,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         # compute eigenvectors of both original and half flux fluxonia
         # so that we can take overlaps to project onto the basis
         # at the sweet spot
-        evals_a, evecs_a = self.signed_evals_evecs_qubit_instance(fluxonium_a)
-        evals_a_half, evecs_a_half = self.signed_evals_evecs_qubit_instance(
+        evals_a, evecs_a, _ = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_a)
+        evals_a_half, evecs_a_half, _ = self.signed_evals_evecs_phimat_qubit_instance(
             fluxonium_a_half_flux
         )
-        evals_b, evecs_b = self.signed_evals_evecs_qubit_instance(fluxonium_b)
-        evals_b_half, evecs_b_half = self.signed_evals_evecs_qubit_instance(
+        evals_b, evecs_b, _ = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_b)
+        evals_b_half, evecs_b_half, _ = self.signed_evals_evecs_phimat_qubit_instance(
             fluxonium_b_half_flux
         )
-        evals_m, evecs_m = self.signed_evals_evecs_qubit_instance(fluxonium_minus)
+        evals_m, evecs_m, phi_minus_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_minus)
 
         # relevant phi matrix elements are w.r.t. fluxonium defined
         # at the original flux values, not the sweet spot. However
@@ -190,7 +192,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                                             - np.pi * np.eye(fluxonium_a.cutoff), evecs_a)
         phi_b_mat = get_matrixelement_table(fluxonium_b.phi_operator()
                                             - np.pi * np.eye(fluxonium_b.cutoff), evecs_b)
-        phi_minus_mat = get_matrixelement_table(fluxonium_minus.phi_operator(), evecs_m)
 
         # compute overlaps and project the zeroth order Hamiltonian
         # onto the sweet spot basis. Should obtain sigmaz and sigmax for both qubits
@@ -198,22 +199,14 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         overlap_b = evecs_b.T @ evecs_b_half
         overlap_ab = tensor(Qobj(overlap_a[0:2, 0:2]),
                             Qobj(overlap_b[0:2, 0:2])).data.toarray()
-        H_0_a = np.diag(evals_a - evals_a[0])
-        H_0_b = np.diag(evals_b - evals_b[0])
-        H_0_a_half_flux = (overlap_a.T @ H_0_a @ overlap_a)[0:2, 0:2]
-        H_0_b_half_flux = (overlap_b.T @ H_0_b @ overlap_b)[0:2, 0:2]
-        H_0 = tensor(Qobj(H_0_a_half_flux), qeye(2)) + tensor(
-            qeye(2), Qobj(H_0_b_half_flux)
-        )
+        H_0_a = np.diag(evals_a - evals_a[0])[0:2, 0:2]
+        H_0_b = np.diag(evals_b - evals_b[0])[0:2, 0:2]
+        H_0 = tensor(Qobj(H_0_a), qeye(2)) + tensor(qeye(2), Qobj(H_0_b))
 
         # first-order contribution yields sigmax
-        H_1_a = -0.5 * self.ELa * phi_minus_mat[0, 0] * phi_a_mat
-        H_1_b = 0.5 * self.ELb * phi_minus_mat[0, 0] * phi_b_mat
-        H_1_a_half_flux = (overlap_a.T @ H_1_a @ overlap_a)[0:2, 0:2]
-        H_1_b_half_flux = (overlap_b.T @ H_1_b @ overlap_b)[0:2, 0:2]
-        H_1 = tensor(Qobj(H_1_a_half_flux), qeye(2)) + tensor(
-            qeye(2), Qobj(H_1_b_half_flux)
-        )
+        H_1_a = (-0.5 * self.ELa * phi_minus_mat[0, 0] * phi_a_mat)[0:2, 0:2]
+        H_1_b = (0.5 * self.ELb * phi_minus_mat[0, 0] * phi_b_mat)[0:2, 0:2]
+        H_1 = tensor(Qobj(H_1_a), qeye(2)) + tensor(qeye(2), Qobj(H_1_b))
 
         # second order calculation
         H_2_a = self._H2_self_correction_real_flux_coupler(
@@ -228,15 +221,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         H_2_b += self._H2_self_correction_real_flux_highfluxonium(
             evals_b, phi_b_mat, phi_minus_mat, fluxonium_b.EL
         )
-        H_2_a_half_flux = (
-            overlap_a[0:2, 0:2].T @ H_2_a.data.toarray() @ overlap_a[0:2, 0:2]
-        )
-        H_2_b_half_flux = (
-            overlap_b[0:2, 0:2].T @ H_2_b.data.toarray() @ overlap_b[0:2, 0:2]
-        )
-        H_2 = tensor(Qobj(H_2_a_half_flux), qeye(2)) + tensor(
-            qeye(2), Qobj(H_2_b_half_flux)
-        )
+        H_2 = tensor(Qobj(H_2_a[0:2, 0:2]), qeye(2)) + tensor(qeye(2), Qobj(H_2_b[0:2, 0:2]))
         H_2_ab = self._H2_qubit_coupling_real_flux(
             evals_a,
             evals_b,
@@ -247,10 +232,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             fluxonium_a.EL,
             fluxonium_b.EL,
         )
-        H_2_ab_half_flux = (
-            overlap_ab.T @ H_2_ab.data.toarray() @ overlap_ab
-        )
-        H_2 += Qobj(H_2_ab_half_flux, dims=[[2, 2], [2, 2]])
+        H_2 += Qobj(H_2_ab, dims=[[2, 2], [2, 2]])
+        H_rotated = (overlap_ab.T @ (H_0+H_1+H_2).data.toarray() @ overlap_ab)
         return H_0 + H_1 + H_2
 
     def _H2_self_correction_real_flux_highfluxonium(
@@ -349,6 +332,78 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
 
     def _g_plus(self, ell, ellp, phi_q_mat, EL):
         return 0.5 * EL * phi_q_mat[ell, ellp] * self.h_o_plus().l_osc / np.sqrt(2)
+
+    def _eps_1(self, evals_minus, evals_i, phi_i_mat, phi_minus_mat, EL, i=0, j=1, n=1):
+        """works for both qubits, need to feed in the right energies, phi_mat and EL"""
+        return (0.5 * EL * phi_minus_mat[0, n] * phi_i_mat[i, j]
+                / (evals_minus[n]+evals_i[j] - evals_minus[0] - evals_i[i]))
+
+    def _eps_1_plus(self, evals_i, phi_i_mat, EL, i=0, j=1):
+        return (0.5 * EL * self.h_o_plus().l_osc * phi_i_mat[i, j]
+                / (self.h_o_plus().E_osc + evals_i[j] - evals_i[i])) / np.sqrt(2)
+
+    def H_c_qobj(self):
+        fluxonium_a = self.fluxonium_a()
+        fluxonium_b = self.fluxonium_b()
+        fluxonium_minus =  self.fluxonium_minus()
+        ELa = fluxonium_a.EL
+        ELb = fluxonium_b.EL
+        ELt = self.EL_tilda()
+        fmdim = fluxonium_minus.truncated_dim
+        fadim = fluxonium_a.truncated_dim
+        fbdim = fluxonium_b.truncated_dim
+        evals_a, _, phi_a_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_a)
+        evals_b, _, phi_b_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_b)
+        evals_minus, _, phi_minus_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_minus)
+        return (-0.25 * ELt * tensor(qeye(fadim), qeye(fbdim), Qobj(phi_minus_mat), qeye(self.h_o_truncated_dim))
+                + 0.5 * ELa * tensor(Qobj(phi_a_mat), qeye(fbdim), qeye(fmdim), qeye(self.h_o_truncated_dim))
+                - 0.5 * ELb * tensor(qeye(fadim), Qobj(phi_b_mat), qeye(fmdim), qeye(self.h_o_truncated_dim))
+                )
+
+    def _bare_product_state_all(self, ell, m, n, p):
+        return tensor(basis(self.fluxonium_truncated_dim, ell),
+                      basis(self.fluxonium_truncated_dim, m),
+                      basis(self.fluxonium_minus_truncated_dim, n),
+                      basis(self.h_o_truncated_dim, p)
+                      )
+
+    def first_order_generator(self):
+        fluxonium_a = self.fluxonium_a()
+        fluxonium_b = self.fluxonium_b()
+        fluxonium_minus = self.fluxonium_minus()
+        ELa = fluxonium_a.EL
+        ELb = fluxonium_b.EL
+        fmdim = fluxonium_minus.truncated_dim
+        fadim = fluxonium_a.truncated_dim
+        fbdim = fluxonium_b.truncated_dim
+        evals_a, _, phi_a_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_a)
+        evals_b, _, phi_b_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_b)
+        evals_minus, _, phi_minus_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_minus)
+        minus_a = sum(self._eps_1(evals_minus, evals_a, phi_a_mat, phi_minus_mat, ELa, i=ell, j=ellp, n=n)
+                      * self._bare_product_state_all(ell, m, 0, 0) * self._bare_product_state_all(ellp, m, n, 0).dag()
+                      for ell in range(2) for m in range(2) for n in range(1, fmdim)
+                      for ellp in range(fadim)
+                      )
+        minus_b = -sum(self._eps_1(evals_minus, evals_b, phi_b_mat, phi_minus_mat, ELb, i=m, j=mp, n=n)
+                       * self._bare_product_state_all(ell, m, 0, 0) * self._bare_product_state_all(ell, mp, n, 0).dag()
+                       for ell in range(2) for m in range(2) for n in range(1, fmdim)
+                       for mp in range(fbdim)
+                       )
+        minus = minus_a + minus_b - (minus_a + minus_b).dag()
+        plus_a = sum(self._eps_1_plus(evals_a, phi_a_mat, ELa, i=ell, j=ellp)
+                     * self._bare_product_state_all(ell, m, 0, 0)
+                     * self._bare_product_state_all(ellp, m, 0, 1).dag()
+                     for ell in range(2) for m in range(2)
+                     for ellp in range(fadim)
+                     )
+        plus_b = sum(self._eps_1_plus(evals_b, phi_b_mat, ELb, i=m, j=mp)
+                     * self._bare_product_state_all(ell, m, 0, 0)
+                     * self._bare_product_state_all(ell, mp, 0, 1).dag()
+                     for ell in range(2) for m in range(2)
+                     for mp in range(fbdim)
+                     )
+        plus = plus_a + plus_b - (plus_a + plus_b).dag()
+        return plus + minus
 
     def schrieffer_wolff_transformation(self):
         fluxonium_a = self.fluxonium_a()
