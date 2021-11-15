@@ -179,8 +179,8 @@ class SpectrumLookup(serializers.Serializable):
         overlap_matrix = spec_utils.convert_evecs_to_ndarray(
             self._dressed_specdata.state_table[param_index]
         )
-        bare_overlaps = np.abs(overlap_matrix[dressed_index, :])
-        sorted_indices = np.argsort(bare_overlaps)[::-1]
+        bare_overlaps = overlap_matrix[dressed_index, :]
+        sorted_indices = np.argsort(np.abs(bare_overlaps))[::-1]
         # need the labels in np array form to sort them
         # but return them later to original type
         sorted_labels = np.array(self._generate_bare_labels())[sorted_indices, :]
