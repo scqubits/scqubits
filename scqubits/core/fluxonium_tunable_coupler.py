@@ -627,6 +627,25 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return hilbert_space
 
+    def generate_coupled_system_sweetspot(self):
+        hilbert_space = self.generate_coupled_system()
+        [fluxonium_a, fluxonium_b, fluxonium_minus, h_o_plus] = hilbert_space.subsystem_list
+        phi_a = fluxonium_a.phi_operator
+        phi_b = fluxonium_b.phi_operator
+        phi_minus = fluxonium_minus.phi_operator
+        phi_plus = h_o_plus.phi_operator
+        offset_flux_a = 2.0 * np.pi * (fluxonium_a.flux - 0.5)
+        offset_flux_b = 2.0 * np.pi * (fluxonium_b.flux - 0.5)
+        fluxonium_a.flux = 0.5
+        fluxonium_b.flux = 0.5
+        hilbert_space.add_interaction(g=-self.ELa * offset_flux_a, op1=phi_a)
+        hilbert_space.add_interaction(g=0.5 * self.ELa * offset_flux_a, op1=phi_plus)
+        hilbert_space.add_interaction(g=0.5 * self.ELa * offset_flux_a, op1=phi_minus)
+        hilbert_space.add_interaction(g=-self.ELb * offset_flux_b, op1=phi_b)
+        hilbert_space.add_interaction(g=0.5 * self.ELb * offset_flux_b, op1=phi_plus)
+        hilbert_space.add_interaction(g=-0.5 * self.ELb * offset_flux_b, op1=phi_minus)
+        return hilbert_space
+
     def hamiltonian(self):
         hilbert_space = self.generate_coupled_system()
         return hilbert_space.hamiltonian().full()
