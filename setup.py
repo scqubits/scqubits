@@ -13,7 +13,7 @@ development and maintenance. Use of scqubits in research publications is
 appropriately acknowledged by citing:
 
 Peter Groszkowski and Jens Koch, 'scqubits:  a Python package for superconducting qubits',
-arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 """
 #
 # This file is part of scqubits.

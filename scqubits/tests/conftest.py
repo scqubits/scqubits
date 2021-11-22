@@ -1,7 +1,7 @@
 # conftest.py  ---  for use with pytest
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
