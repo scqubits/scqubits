@@ -5,12 +5,15 @@ from numpy.core.function_base import linspace
 
 import sympy
 import numpy as np
+import scipy as sp
 from numpy import ndarray
-from sympy import symbols, lambdify
+from sympy import symbols, lambdify, parse_expr
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from scipy.sparse.dia import dia_matrix
 from matplotlib import pyplot as plt
+from scqubits.core import oscillator as osc
+from scqubits.core import operators as op
 
 from scqubits.core.customqcircuit import node, branch
 from scqubits.core.customqcircuit import CustomQCircuit
@@ -45,6 +48,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         mode: str = "sym",
         basis: str = "simple",
         initiate_sym_calc: bool = True,
+        phi_basis: str = 'sparse'
     ):
         CustomQCircuit.__init__(
             self,
@@ -53,6 +57,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             ground_node=ground_node,
             mode=mode,
             basis=basis,
+            phi_basis=phi_basis,
             initiate_sym_calc=initiate_sym_calc,
         )
 
@@ -71,6 +76,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         self.discretized_phi_range = {}
         self.cutoffs_list = []
+        self.phi_basis = phi_basis
 
         # Hamiltonian function
         if initiate_sym_calc:
@@ -130,6 +136,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             ground_node=circuit.ground_node,
             mode=circuit.mode,
             basis=circuit.basis,
+            phi_basis=circuit.phi_basis,
+            initiate_sym_calc=circuit.initiate_sym_calc,
         )
 
     ##################################################################
@@ -167,17 +175,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             self.H.expand()
         )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
 
-        # Defining the list of discretized_phi variables
-        y_symbols = [symbols("θ" + str(i)) for i in self.var_indices["discretized_phi"]]
-        p_symbols = [symbols("Q" + str(i)) for i in self.var_indices["discretized_phi"]]
-        ps_symbols = [
-            symbols("Qs" + str(i)) for i in self.var_indices["discretized_phi"]
-        ]
-
-        # marking the squared momentum operators with a separate symbol
-        for i in self.var_indices["discretized_phi"]:
-            H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
-
         # Defining the list of variables for periodic operators
         periodic_symbols_ys = [
             symbols("θs" + str(i)) for i in self.var_indices["periodic"]
@@ -192,11 +189,65 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             periodic_symbols_ys + periodic_symbols_yc + periodic_symbols_n
         )
         # marking the sin and cos terms of the periodic variables differently
-        H = sympy.expand_trig(H).expand()
+        if len(self.var_indices["periodic"]) > 0:
+            H = sympy.expand_trig(H).expand()
+
         for i in self.var_indices["periodic"]:
             H = H.replace(
                 sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
             ).replace(sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i)))
+
+        # Defining the list of discretized_phi variables
+        y_symbols = [symbols("θ" + str(i)) for i in self.var_indices["discretized_phi"]]
+        p_symbols = [symbols("Q" + str(i)) for i in self.var_indices["discretized_phi"]]
+
+        if self.phi_basis == "sparse":
+
+            ps_symbols = [
+                symbols("Qs" + str(i)) for i in self.var_indices["discretized_phi"]
+            ]
+
+            # marking the squared momentum operators with a separate symbol
+            for i in self.var_indices["discretized_phi"]:
+                H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
+            
+        elif self.phi_basis == "harmonic":
+            osc_freqs = dict.fromkeys(self.var_indices["discretized_phi"])
+            osc_lengths = dict.fromkeys(self.var_indices["discretized_phi"])
+            a_symbols = [symbols("a" + str(i)) for i in self.var_indices["discretized_phi"]]
+            ad_symbols = [symbols("ad" + str(i)) for i in self.var_indices["discretized_phi"]]
+            Nh_symbols = [symbols("Nh" + str(i)) for i in self.var_indices["discretized_phi"]]
+            for i in self.var_indices["discretized_phi"]:
+                ECi = H.coeff("Q" + str(i)+"**2").cancel()/4
+                ELi = H.coeff("θ" + str(i)+"**2").cancel()*2
+                osc_freqs[i] = (8*ELi*ECi)**0.5
+                osc_lengths[i] = (8.0 * ECi / ELi) ** 0.25
+                H = (H - ECi*4*symbols("Q" + str(i))**2 - ELi/2*symbols("θ" + str(i))**2 + osc_freqs[i]*(symbols("Nh" + str(i)))).cancel().expand()
+            # H = H.rewrite((sympy.cos, sympy.sin),sympy.exp)
+            self.osc_freqs = osc_freqs
+            self.osc_lengths = osc_lengths
+
+            for i in self.var_indices["discretized_phi"]:
+                H = H.replace(symbols("θ" + str(i)), (symbols("ad" + str(i)) + symbols("a" + str(i)))*osc_lengths[i]/np.sqrt(2) )
+                H = H.replace(symbols("Q" + str(i)), 1j*(symbols("ad" + str(i)) - symbols("a" + str(i)))/(osc_lengths[i]*np.sqrt(2)) )
+
+            H = H.expand()
+            expr_dict = H.as_coefficients_dict()
+            terms_str = list(expr_dict.keys())
+            coeff_str = list(expr_dict.values())
+            # # from sympy.utilities.iterables import flatten
+            for i,x in enumerate(terms_str):
+                if "a" in str(x) and "cos" not in str(x) and "sin" not in str(x):
+                    orig = coeff_str[i]*x
+                    if "I*" in str(x):
+                        x = 1j*coeff_str[i]*parse_expr("F(" + (str(x).replace("I*","")).replace("*", ",") + ")")
+                    else:
+                        x = coeff_str[i]*parse_expr("F(" + str(x).replace("*", ",") + ")")
+                    H = H - orig + x
+                if "a" in str(x) and ("*cos" in str(x) or "*sin" in str(x)):
+                    orig = coeff_str[i]*x
+                    x = coeff_str[i]*parse_expr("F(" + str(x).replace("*cos", ",cos").replace("*sin",",sin") + ")")
+                    H = H - orig + x
 
         # # Defining the list of variables for cyclic operators
         cyclic_symbols = [symbols("Qc" + str(i)) for i in self.var_indices["cyclic"]]
@@ -210,7 +261,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         constants = [
             i
             for i in coeff_dict
-            if "Q" not in str(i) and "θ" not in str(i) and "n" not in str(i)
+            if "Q" not in str(i) and "θ" not in str(i) and "n" not in str(i) and "a" not in str(i) and "Nh" not in str(i)
         ]
         for i in constants:
             H = H - i * coeff_dict[i]  # + i*coeff_dict[i]*symbols("I")).expand()
@@ -223,35 +274,58 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         for offset_charge in self.offset_charge_vars:
             H = H.subs(offset_charge, offset_charge * symbols("I"))
 
-        # number_variables = (self.var_indices["cyclic"] + self.var_indices["periodic"] + self.var_indices["discretized_phi"]) # eliminating the Σ and zombie vars
-
-        # defining the function from the Hamiltonian
-        func = lambdify(
-            (
-                periodic_symbols
-                + y_symbols
-                + p_symbols
-                + ps_symbols
-                + [symbols("I")]
-                + self.param_vars
-                + self.external_flux_vars
-                + self.offset_charge_vars
-            ),
-            H,
-            [
-                {"exp": self._exp_dia},
-                {"cos": self._cos_dia},
-                {"sin": self._sin_dia},
-                "scipy",
-            ],
-        )
-
         # Updating the class properties
-        self.vars = {
-            "periodic": [periodic_symbols_yc, periodic_symbols_ys, periodic_symbols_n],
-            "discretized_phi": [y_symbols, p_symbols, ps_symbols],
-            "identity": [symbols("I")],
-        }
+        if self.phi_basis == "sparse":
+                    # defining the function from the Hamiltonian
+            func = lambdify(
+                (
+                    periodic_symbols
+                    + y_symbols
+                    + p_symbols
+                    + ps_symbols
+                    + [symbols("I")]
+                    + self.param_vars
+                    + self.external_flux_vars
+                    + self.offset_charge_vars
+                ),
+                H,
+                [
+                    {"exp": self._exp_dia},
+                    {"cos": self._cos_dia},
+                    {"sin": self._sin_dia},
+                    "scipy",
+                ],
+            )
+            self.vars = {
+                "periodic": [periodic_symbols_ys, periodic_symbols_yc, periodic_symbols_n],
+                "discretized_phi": [y_symbols, p_symbols, ps_symbols],
+                "identity": [symbols("I")],
+            }
+        elif self.phi_basis == "harmonic":
+            func = lambdify(
+                (
+                    periodic_symbols
+                    + a_symbols
+                    + ad_symbols
+                    + Nh_symbols
+                    + [symbols("I")]
+                    + self.param_vars
+                    + self.external_flux_vars
+                    + self.offset_charge_vars
+                ),
+                H,
+                [
+                    {"F": lambda *args: np.linalg.multi_dot(args)},
+                    {"cos": sp.linalg.cosm},
+                    {"sin": sp.linalg.sinm},
+                    "scipy",
+                ],
+            )
+            self.vars = {
+                "periodic": [periodic_symbols_ys, periodic_symbols_yc, periodic_symbols_n],
+                "discretized_phi": [a_symbols, ad_symbols, Nh_symbols],
+                "identity": [symbols("I")],
+            }
         self.H_func = func
         setattr(self, "H_f", H)
         return func
@@ -304,26 +378,40 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             j for i in list(cutoff_list) for j in i
         ]  # concatenating the sublists
 
+        if self.phi_basis == "sparse":
+            matrix_format = "csc"
+        elif self.phi_basis == "harmonic":
+            matrix_format = "array"
+
         if len(var_index_list) > 1:
             if index > var_index_list[0]:
                 Identity_l = sparse.identity(
-                    np.prod(cutoff_list[: index - 1]), format="csr"
+                    np.prod(cutoff_list[: index - 1]), format=matrix_format
                 )
             if index < var_index_list[-1]:
-                Identity_r = sparse.identity(np.prod(cutoff_list[index:]), format="csr")
+                Identity_r = sparse.identity(np.prod(cutoff_list[index:]), format=matrix_format)
 
             if index == var_index_list[0]:
-                return sparse.kron(operator, Identity_r, format="csc")
+                return sparse.kron(operator, Identity_r, format=matrix_format)
             elif index == var_index_list[-1]:
-                return sparse.kron(Identity_l, operator, format="csc")
+                return sparse.kron(Identity_l, operator, format=matrix_format)
             else:
                 return sparse.kron(
-                    sparse.kron(Identity_l, operator, format="csc"),
+                    sparse.kron(Identity_l, operator, format=matrix_format),
                     Identity_r,
-                    format="csc",
+                    format=matrix_format,
                 )
         else:
-            return sparse.csc_matrix(operator)
+            if self.phi_basis == "sparse":
+                return sparse.csc_matrix(operator)
+            elif self.phi_basis == "harmonic":
+                return operator
+
+    def _change_sparsity(self, x):
+        if self.phi_basis == "harmonic":
+            return x.toarray()*(1+0j)
+        elif self.phi_basis == "sparse":
+            return x
 
     ## Identity Operator
     def _identity(self) -> csc_matrix:
@@ -472,32 +560,46 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         # constructing the operators for normal variables
         normal_operators = [[], [], []]
-        for v in normal_vars[0]:  # position operators
-            index = int(v.name[1:])
-            x_operator = self._phi_operator(grids[index])
-            normal_operators[0].append(self._kron_operator(x_operator, index))
-        for v in normal_vars[1]:  # momentum operators
-            index = int(v.name[1:])
-            p_operator = self._i_d_dphi_operator(grids[index])
-            normal_operators[1].append(self._kron_operator(p_operator, index))
-        for v in normal_vars[2]:  # squared momentum operators
-            index = int(v.name[2:])
-            ps_operator = self._i_d2_dphi2_operator(grids[index])
-            normal_operators[2].append(self._kron_operator(ps_operator, index))
+        if self.phi_basis == "sparse":
+            for v in normal_vars[0]:  # position operators
+                index = int(v.name[1:])
+                x_operator = self._phi_operator(grids[index])
+                normal_operators[0].append(self._kron_operator(x_operator, index))
+            for v in normal_vars[1]:  # momentum operators
+                index = int(v.name[1:])
+                p_operator = self._i_d_dphi_operator(grids[index])
+                normal_operators[1].append(self._kron_operator(p_operator, index))
+            for v in normal_vars[2]:  # squared momentum operators
+                index = int(v.name[2:])
+                ps_operator = self._i_d2_dphi2_operator(grids[index])
+                normal_operators[2].append(self._kron_operator(ps_operator, index))
+        elif self.phi_basis == "harmonic":
+            for v in normal_vars[0]:  # a or annihilation operators
+                index = int(v.name[1:])
+                x_operator = op.annihilation(cutoffs[index]) * (1+0j)
+                normal_operators[0].append(self._kron_operator(x_operator, index))
+            for v in normal_vars[1]:  # ad or creation operators
+                index = int(v.name[2:])
+                p_operator = op.creation(cutoffs[index]) * (1+0j)
+                normal_operators[1].append(self._kron_operator(p_operator, index))
+            for v in normal_vars[2]:  # Nh or number operators
+                index = int(v.name[2:])
+                ps_operator = op.creation(cutoffs[index]) @ op.annihilation(cutoffs[index]) * (1+0j)
+                normal_operators[2].append(self._kron_operator(ps_operator, index))
 
         # constructing the operators for periodic variables
         periodic_operators = [[], [], []]
         for v in periodic_vars[0]:  # exp(ix) operators; ys
             index = int(v.name[2:])
-            x_operator = self._sin_theta(cutoffs[index])
+            x_operator = self._change_sparsity(self._sin_theta(cutoffs[index]))
             periodic_operators[0].append(self._kron_operator(x_operator, index))
         for v in periodic_vars[1]:  # exp(-ix) operators; yc
             index = int(v.name[2:])
-            x_operator = self._cos_theta(cutoffs[index])
+            x_operator = self._change_sparsity(self._cos_theta(cutoffs[index]))
             periodic_operators[1].append(self._kron_operator(x_operator, index))
         for v in periodic_vars[2]:  # n operators; n
             index = int(v.name[1:])
-            n_operator = self._n_theta_operator(cutoffs[index])
+            n_operator = self._change_sparsity(self._n_theta_operator(cutoffs[index]))
             periodic_operators[2].append(self._kron_operator(n_operator, index))
 
         # # constructing the operators for cyclic variables
@@ -512,7 +614,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         return {
             "periodic": periodic_operators,
             "discretized_phi": normal_operators,
-            "identity": [self._identity()],
+            "identity": [self._change_sparsity(self._identity())],
         }
 
     ##################################################################
@@ -823,16 +925,26 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ##################################################################
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
-        evals = sparse.linalg.eigsh(
-            hamiltonian_mat, return_eigenvectors=False, k=evals_count, which="SA"
-        )
+        if self.phi_basis == "sparse":
+            evals = sparse.linalg.eigsh(
+                hamiltonian_mat, return_eigenvectors=False, k=evals_count, which="SA"
+            )
+        elif self.phi_basis == "harmonic":
+            evals = sp.linalg.eigvalsh(
+                hamiltonian_mat, subset_by_index=[0,evals_count-1]
+                )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
-        evals, evecs = sparse.linalg.eigsh(
-            hamiltonian_mat, return_eigenvectors=True, k=evals_count, which="SA"
-        )
+        if self.phi_basis == "sparse":
+            evals, evecs = sparse.linalg.eigsh(
+                hamiltonian_mat, return_eigenvectors=True, k=evals_count, which="SA"
+            )
+        elif self.phi_basis == "harmonic":
+            evals, evecs = sp.linalg.eigh(
+                hamiltonian_mat, return_eigenvectors=True, subset_by_index=[0,evals_count-1]
+            )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 

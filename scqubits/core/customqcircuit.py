@@ -177,6 +177,7 @@ class CustomQCircuit(serializers.Serializable):
         ground_node=None,
         mode: str = "sym",
         basis: str = "simple",
+        phi_basis: str = "sparse",
         initiate_sym_calc: bool = True,
     ):
 
@@ -215,6 +216,7 @@ class CustomQCircuit(serializers.Serializable):
 
         # paramater for chosing the basis
         self.basis = basis  # default, the other choice is standard
+        self.phi_basis = phi_basis # choising the basis for extended variables
 
         # Calling the function to initiate the calss variables
         if initiate_sym_calc:
@@ -243,6 +245,7 @@ class CustomQCircuit(serializers.Serializable):
         input_string: str,
         mode: str = "sym",
         basis="simple",
+        phi_basis="sparse",
         initiate_sym_calc=True,
     ):
         """
@@ -337,6 +340,7 @@ class CustomQCircuit(serializers.Serializable):
             ground_node=ground_node,
             mode=mode,
             basis=basis,
+            phi_basis=phi_basis,
             initiate_sym_calc=initiate_sym_calc,
         )
         circuit.input_string = input_string
@@ -345,7 +349,7 @@ class CustomQCircuit(serializers.Serializable):
 
     @classmethod
     def from_input_file(
-        cls, filename: str, mode: str = "sym", basis="simple", initiate_sym_calc=True
+        cls, filename: str, mode: str = "sym", basis="simple", phi_basis="sparse", initiate_sym_calc=True
     ):
         """
         Constructor of class CustomQCircuit:
@@ -356,7 +360,7 @@ class CustomQCircuit(serializers.Serializable):
         input_string = file.read()
         file.close()
         return cls.from_input_string(
-            input_string, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc
+            input_string, mode=mode, basis=basis, phi_basis=phi_basis, initiate_sym_calc=initiate_sym_calc
         )
 
     """
