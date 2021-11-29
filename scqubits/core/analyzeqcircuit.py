@@ -6,6 +6,8 @@ from numpy.core.function_base import linspace
 import sympy
 import numpy as np
 import scipy as sp
+import re
+
 from numpy import ndarray
 from sympy import symbols, lambdify, parse_expr
 from scipy import sparse
@@ -237,13 +239,19 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             coeff_str = list(expr_dict.values())
             # # from sympy.utilities.iterables import flatten
             for i,x in enumerate(terms_str):
-                if "a" in str(x) and "cos" not in str(x) and "sin" not in str(x):
+                mat = re.search(r'a\d\*[\w+]*', str(x))
+                mat1 = re.search(r'ad\d\*[\w+]*', str(x))
+
+                if mat and "cos" not in str(x) and "sin" not in str(x):
                     orig = coeff_str[i]*x
-                    if "I*" in str(x):
-                        x = 1j*coeff_str[i]*parse_expr("F(" + (str(x).replace("I*","")).replace("*", ",") + ")")
-                    else:
-                        x = coeff_str[i]*parse_expr("F(" + str(x).replace("*", ",") + ")")
+                    x = coeff_str[i]*parse_expr(str(x).replace(mat.group(), "F(" + mat.group().replace("*", ",") + ")") )
                     H = H - orig + x
+
+                if mat1 and "cos" not in str(x) and "sin" not in str(x):
+                    orig = coeff_str[i]*x
+                    x = coeff_str[i]*parse_expr(str(x).replace(mat1.group(), "F(" + mat1.group().replace("*", ",") + ")") )
+                    H = H - orig + x
+                    
                 if "a" in str(x) and ("*cos" in str(x) or "*sin" in str(x)):
                     orig = coeff_str[i]*x
                     x = coeff_str[i]*parse_expr("F(" + str(x).replace("*cos", ",cos").replace("*sin",",sin") + ")")
