@@ -1,4 +1,3 @@
-import copy
 from typing import Optional
 
 import numpy as np
@@ -9,7 +8,7 @@ from sympy import Matrix, S, diff, hessian, simplify, solve, symbols
 
 import scqubits.core.qubit_base as base
 import scqubits.io_utils.fileio_serializers as serializers
-from scqubits.core.fluxonium import Fluxonium, FluxoniumFluxVariableAllocation
+from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.oscillator import Oscillator, convert_to_E_osc, convert_to_l_osc
 from scqubits.core.hilbert_space import HilbertSpace
 from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_sign
@@ -211,6 +210,24 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         H_eff = H_0 + H_1 + H_2
         return H_eff
 
+    def _H2_self_correction_real_flux_inductive_disorder(
+        self, evals_q, phi_q_mat, phi_minus_mat, EL
+    ):
+        H_2_ = sum(
+            -0.5
+            * self._g_plus_minus(phi_minus_mat)
+            * self._g_plus(ell, ellp, phi_q_mat, EL)
+            * (
+                    1.0 / (evals_q[ell] - evals_q[ellp] - self.h_o_plus().E_osc)
+                    + 1.0 / (evals_q[ellp] - evals_q[ell] - self.h_o_plus().E_osc)
+            )
+            * basis(2, ell)
+            * basis(2, ellp).dag()
+            for ell in range(2)
+            for ellp in range(2)
+        )
+        return H_2_
+
     def _H2_self_correction_real_flux_highfluxonium(
         self, evals_q, phi_q_mat, phi_minus_mat, EL
     ):
@@ -382,16 +399,20 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         mp,
         n,
     ):
-        matelem = self._g_minus(ell, ellp, 0, phi_a_mat, phi_minus_mat, ELa) / (
-            (
-                evals_a[ell]
-                + evals_b[m]
-                + evals_minus[0]
-                - evals_a[ellp]
-                - evals_b[mp]
-                - evals_minus[n]
+        matelem = (
+            self._g_minus(ell, ellp, 0, phi_a_mat, phi_minus_mat, ELa)
+            * self._g_minus(m, mp, n, phi_b_mat, phi_minus_mat, ELb)
+            / (
+                (
+                    evals_a[ell]
+                    + evals_b[m]
+                    + evals_minus[0]
+                    - evals_a[ellp]
+                    - evals_b[mp]
+                    - evals_minus[n]
+                )
+                * (evals_b[m] + evals_minus[0] - evals_b[mp] - evals_minus[n])
             )
-            * (evals_b[m] + evals_minus[0] - evals_b[mp] - evals_minus[n])
         )
         matelem += (
             self._g_minus(ell, ellp, n, phi_a_mat, phi_minus_mat, ELa)
@@ -750,18 +771,13 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         S1_0_contr = sum(self._eps_1(evals_minus, evals_a, phi_a_mat, phi_minus_mat, self.ELa, i=ell,
                                      j=ellprime, n=n)
                          * self._eps_1(evals_minus, evals_b, phi_b_mat, phi_minus_mat, self.ELb, i=mprime,
-                                     j=m, n=n)
+                                       j=m, n=n)
                          + self._eps_1(evals_minus, evals_a, phi_a_mat, phi_minus_mat, self.ELa, i=ellprime,
-                                     j=ell, n=n)
+                                       j=ell, n=n)
                          * self._eps_1(evals_minus, evals_b, phi_b_mat, phi_minus_mat, self.ELb, i=m,
-                                     j=mprime, n=n)
+                                       j=mprime, n=n)
                          for n in range(1, fmdim)
                          ) * phi_minus_mat[0, 0]
-        S1_p_contr = (phi_minus_mat[0, 0]
-                      * self._eps_1_plus(evals_a, phi_a_mat, self.ELa, i=ell, j=ellprime)
-                      * self._eps_1_plus(evals_b, phi_b_mat, self.ELb, i=mprime, j=m)
-                      + self._eps_1_plus(evals_a, phi_a_mat, self.ELa, i=ellprime, j=ell)
-                      * self._eps_1_plus(evals_b, phi_b_mat, self.ELb, i=m, j=mprime))
         S2_contr = sum(
             (
                 self._eps_ab_2(
@@ -794,7 +810,19 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             * phi_minus_mat[0, n]
             for n in range(1, fmdim)
         )
-        return 0.25 * self.EL_tilda() * (S1_m_contr - S2_contr - S1_0_contr - S1_p_contr)
+        return 0.25 * self.EL_tilda() * (S1_m_contr - S2_contr - S1_0_contr)
+
+    @staticmethod
+    def _avg_and_rel_dev(A, B):
+        avg = 0.5 * (A + B)
+        rel_dev = (A - B) / avg
+        return avg, rel_dev
+
+    def _g_plus_minus(self, phi_minus_mat):
+        ELq, dELq = self._avg_and_rel_dev(self.ELa, self.ELb)
+        ELc, dELc = self._avg_and_rel_dev(self.EL1, self.EL2)
+        return ((ELq * dELq + ELc * dELc) * self.h_o_plus().l_osc
+                * phi_minus_mat[0, 0]) / (4 * np.sqrt(2))
 
     def _g_minus(self, ell, ellp, n, phi_q_mat, phi_minus_mat, EL):
         return 0.5 * EL * phi_q_mat[ell, ellp] * phi_minus_mat[0, n]
@@ -1041,9 +1069,20 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
 
     def find_flux_shift(self):
         # TODO sign problem? seems backwards?
+        fluxonium_a = self.fluxonium_a()
+        fluxonium_b = self.fluxonium_b()
+        fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
         fluxonium_minus = self.fluxonium_minus()
+        _, _, phi_a_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_a)
+        _, _, phi_b_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_b)
         _, _, phi_minus_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_minus)
-        return -phi_minus_mat[0, 0] / 2 / (2.0 * np.pi), phi_minus_mat[0, 0] / 2 / (2.0 * np.pi)
+        flux_a_ind = (self._g_plus_minus(phi_minus_mat)
+                      * self._g_plus(0, 1, phi_a_mat, self.ELa) / self.h_o_plus().E_osc)
+        flux_b_ind = (self._g_plus_minus(phi_minus_mat)
+                      * self._g_plus(0, 1, phi_b_mat, self.ELb) / self.h_o_plus().E_osc)
+        flux_shift_a = -phi_minus_mat[0, 0] / 2 + flux_a_ind
+        flux_shift_b = phi_minus_mat[0, 0] / 2 + flux_b_ind
+        return flux_shift_a / (2.0 * np.pi), flux_shift_b / (2.0 * np.pi)
 
     def fluxonium_minus_gs_expect(self):
         fluxonium_minus = self.fluxonium_minus()
