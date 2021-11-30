@@ -1139,16 +1139,17 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         return result.x[0]
 
     def _evals_zeroed(self):
-        evals, _ = self.generate_coupled_system().hamiltonian().eigenstates(eigvals=3)
+        evals, _ = self.generate_coupled_system().hamiltonian().eigenstates(eigvals=4)
         return evals - evals[0]
 
     def _eigenvals_for_flux(self, fluxes):
-        """Vary one qubit's flux near the off position to find the exact sweet spot locations"""
+        """Vary the qubit fluxes to find the exact sweet spot locations"""
         flux_a, flux_b = fluxes
         self.flux_a = flux_a
         self.flux_b = flux_b
         evals = self._evals_zeroed()
-        return np.sqrt(evals[1]**2 + evals[2]**2)
+        # return np.sqrt(evals[1]**2 + evals[2]**2)
+        return evals[3]
 
     def find_flux_shift_exact(self):
         """near the off position, we want to find the exact qubit fluxes necessary to
