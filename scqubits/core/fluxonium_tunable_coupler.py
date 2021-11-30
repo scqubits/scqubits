@@ -1135,32 +1135,20 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             return self.J_eff_total()
 
         result = root(_find_J, x0=np.array([0.28]))
-        assert result.success is True
+        assert result.success
         return result.x[0]
 
     def _evals_zeroed(self):
         evals, _ = self.generate_coupled_system().hamiltonian().eigenstates(eigvals=3)
         return evals - evals[0]
 
-    def _identify_qubit_a_flux_with_eigenvalue(self, epsilon=1e-2):
-        """near the off position, want to identify a qubit excitation with an eigenvalue.
-        Do this by changing the flux a little, and observing which eigenvalue responds"""
-        original_flux_a = self.flux_a
-        evals_og = self._evals_zeroed()
-        self.flux_a = original_flux_a + epsilon
-        evals_new = self._evals_zeroed()
-        absolute_diff = np.abs(evals_og - evals_new)
-        self.flux_a = original_flux_a
-        return np.argmax(absolute_diff)
-
-    def _eigenvals_for_flux(self, flux, qubit_eigval_index, which_qubit='a'):
+    def _eigenvals_for_flux(self, fluxes):
         """Vary one qubit's flux near the off position to find the exact sweet spot locations"""
-        if which_qubit is 'a':
-            self.flux_a = flux
-        elif which_qubit is 'b':
-            self.flux_b = flux
-        evals, evecs_qobj = self.generate_coupled_system().hamiltonian().eigenstates(eigvals=3)
-        return (evals - evals[0])[qubit_eigval_index]
+        flux_a, flux_b = fluxes
+        self.flux_a = flux_a
+        self.flux_b = flux_b
+        evals = self._evals_zeroed()
+        return np.sqrt(evals[1]**2 + evals[2]**2)
 
     def find_flux_shift_exact(self):
         """near the off position, we want to find the exact qubit fluxes necessary to
@@ -1169,20 +1157,13 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         Thus if we vary the qubit fluxes and minimize the excitation energies, we
         should be able to place both qubits at their sweet spots independently"""
         flux_shift_a_seed, flux_shift_b_seed = self.find_flux_shift()
-        qubit_a_index = self._identify_qubit_a_flux_with_eigenvalue()
-        qubit_b_index = 2
-        print(qubit_a_index, qubit_b_index)
 
-        result_a = minimize(
-            self._eigenvals_for_flux, x0=np.array([0.5+flux_shift_a_seed]),
-            bounds=((0.4, 0.6),), tol=1e-4, args=(qubit_a_index, 'a')
+        result = minimize(
+            self._eigenvals_for_flux, x0=np.array([0.5 + flux_shift_a_seed, 0.5 + flux_shift_b_seed]),
+            bounds=((0.4, 0.6), (0.4, 0.6)), tol=1e-4
         )
-        result_b = minimize(
-            self._eigenvals_for_flux, x0=np.array([0.5 + flux_shift_b_seed]),
-            bounds=((0.4, 0.6),), tol=1e-4, args=(qubit_b_index, 'b')
-        )
-        assert result_a.success and result_b.success
-        return result_a.x[0]-0.5, result_b.x[0]-0.5
+        assert result.success
+        return result.x[0]-0.5, result.x[1]-0.5
 
     def off_location_effective_sweet_spot_fluxes(self):
         flux_c = self.off_location_coupler_flux()
