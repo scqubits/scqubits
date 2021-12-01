@@ -9,9 +9,10 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
+
 import warnings
 
-from typing import TYPE_CHECKING, Tuple, Union
+from typing import Dict, List, TYPE_CHECKING, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,9 +24,12 @@ import scqubits.explorer.explorer_panels as panels
 import scqubits.utils.misc as utils
 
 from scqubits.core.qubit_base import QubitBaseClass1d
+from scqubits.core.param_sweep import ParameterSlice
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
+    from scqubits.ui.explorer_widget import Panel
+    from scqubits.core.qubit_base import QuantumSystem
     from scqubits.legacy._explorer import Explorer_
 
 
@@ -275,3 +279,232 @@ class Explorer:
 
         user_interface = ipywidgets.HBox([left_box, mid_box, right_box])
         display(user_interface, out)
+
+
+class Explorer2:
+    """
+    This class allows interactive exploration of coupled quantum systems. The
+    Explorer is currently compatible with systems composed of `Transmon`,
+    `Fluxonium` and `Oscillator` subsystems. The Explorer displays pre-calculated
+    spectral data and enables changes of a given parameter by sliders (when inside
+    jupyter notebook or jupyter lab).
+
+    Parameters
+    ----------
+    sweep:
+        `ParameterSweep` object, must correspond to a 1d sweep
+    panels:
+        list of Panel objects specifying the panels to be displayed
+    options:
+        options in keyword arguments form
+        - figsize: tuple(float, float)
+    """
+
+    def __new__(cls, *args, **kwargs) -> "Union[Explorer, Explorer_]":  # type:ignore
+        if "sweep" in kwargs:
+            sweep = kwargs["sweep"]
+        else:
+            sweep = args[0]
+        if not hasattr(sweep, "keys"):
+            # User has provided legacy version of ParameterSweep object
+            warnings.warn(
+                "You are using a deprecated version of `ParameterSweep` that will "
+                "be removed in the future.",
+                FutureWarning,
+            )
+            from scqubits.legacy._explorer import Explorer_
+
+            return Explorer_(*args, **kwargs)
+        else:
+            return super().__new__(cls)
+
+    def __init__(
+        self,
+        sweep: "ParameterSweep",
+        sweep_param: str,
+        fixed_params: Dict[str, float],
+        panels: List["Panel"],
+        **options
+    ) -> None:
+        self.sweep = sweep
+        self.param_vals = self.sweep.param_info[sweep_param]
+        self.param_count = len(self.param_vals)
+        self.param_name = sweep_param
+        self.fixed_params = fixed_params
+        self.panels = panels
+        self.figsize = options.get("figsize", (10.5, 8))
+
+        self.evals_count = 4  # *******************
+
+        self.subsys_id_to_index = [
+            (subsystem.id_str, self.sweep.get_subsys_index(subsystem))
+            for subsystem in self.sweep.hilbertspace
+        ]
+        self.subsys_id_to_index.reverse()
+
+        self.qbt_id_to_index = [
+            (subsystem.id_str, self.sweep.get_subsys_index(subsystem))
+            for subsystem in self.sweep.qbt_subsys_list
+        ]
+
+        self.param_slider = ipywidgets.SelectionSlider(
+            options=self.param_vals,
+            description=self.param_name,
+            continuous_update=False,
+        )
+
+        self.photon_slider = ipywidgets.IntSlider(
+            value=1, min=1, max=4, description="photon number"
+        )
+        self.initial_slider = ipywidgets.IntSlider(
+            value=0, min=0, max=self.evals_count, description="initial state index"
+        )
+
+        self.primary_subsys_dropdown = ipywidgets.Dropdown(
+            options=self.qbt_id_to_index, description="primary subsys"
+        )
+        self.secondary_subsys_dropdown = ipywidgets.Dropdown(
+            options=self.subsys_id_to_index, description="secondary subsys"
+        )
+
+        self.out = ipywidgets.interactive_output(
+            self.plot_explorer_panels,
+            {
+                "param_val": self.param_slider,
+                "photonnumber": self.photon_slider,
+                "initial_index": self.initial_slider,
+                "primary_subsys_index": self.primary_subsys_dropdown,
+                "secondary_subsys_index": self.secondary_subsys_dropdown,
+            },
+        )
+
+        left_box = ipywidgets.VBox([self.param_slider])
+        mid_box = ipywidgets.VBox([self.initial_slider, self.photon_slider])
+        right_box = ipywidgets.VBox(
+            [self.primary_subsys_dropdown, self.secondary_subsys_dropdown]
+        )
+
+        self.user_interface = ipywidgets.HBox([left_box, mid_box, right_box])
+
+    def plot_explorer_panels(
+        self,
+        param_val: float,
+        photonnumber: int,
+        initial_index: int,
+        primary_subsys_index: int,
+        secondary_subsys_index: int,
+    ) -> Tuple[Figure, Axes]:
+        """
+        Create a panel of plots (bare spectra, bare wavefunctions, dressed spectrum,
+        n-photon qubit transitions, chi).
+
+        Parameters
+        ----------
+        param_val:
+            current value of the external parameter
+        photonnumber:
+            photon number n used for display of n-photon qubit transition
+        initial_index:
+            initial state index for the bare primary subsystem
+        primary_subsys_index:
+            index of subsystem for which single-system plots are displayed
+        secondary_subsys_index:
+            index of subsystem for which chi or Kerr is computed in conjunction with
+            primary system
+
+
+        Returns
+        -------
+            tuple of matplotlib Figure and Axes objects
+        """
+
+        def fig_ax(index):
+            return fig, axes_array_flattened[index]
+
+        param_slice = ParameterSlice(
+            self.param_name,
+            param_val,
+            self.fixed_params,
+            list(self.sweep.param_info.keys()),
+        )
+        initial_bare_list = [0] * len(self.sweep.hilbertspace)
+        initial_bare_list[primary_subsys_index] = initial_index
+        initial_bare = tuple(initial_bare_list)
+
+        energy_ground = self.sweep[param_slice.all].energy_by_dressed_index(0)
+        energy_initial = (
+            self.sweep[param_slice.fixed].energy_by_bare_index(initial_bare)
+            - energy_ground
+        )
+
+        qbt_subsys = self.sweep.get_subsys(primary_subsys_index)
+        assert isinstance(qbt_subsys, QubitBaseClass1d), (
+            "Unsupported qubit. Explorer currently only accepts 1d qubits."
+        )
+
+        row_count = 3
+        column_count = 2
+        fig, axes_table = plt.subplots(
+            ncols=column_count, nrows=row_count, figsize=self.figsize
+        )
+        axes_array_flattened = np.asarray(axes_table).flatten()
+        #
+        # Panel 1 ----------------------------------
+        panels.display_bare_spectrum(self.sweep, qbt_subsys, param_slice, fig_ax(0))
+        #
+        # # Panels 2 and 6----------------------------
+        panels.display_bare_wavefunctions(
+            self.sweep, qbt_subsys, param_slice, fig_ax(1)
+        )
+        #     panels.display_charge_matrixelems(
+        #         self.sweep,
+        #         initial_bare,
+        #         primary_subsys_index,
+        #         param_val,
+        #         fig_ax(5),
+        #     )
+        #
+        # # Panel 3 ----------------------------------
+
+        panels.display_anharmonicity(self.sweep, qbt_subsys, param_slice, fig_ax(2))
+
+        panels.display_n_photon_qubit_transitions(
+            self.sweep, photonnumber, qbt_subsys, initial_bare, param_slice, fig_ax(3)
+        )
+
+        # # Panel 5 ----------------------------------
+        # panels.display_kerrlike(
+        #     self.sweep,
+        #     primary_subsys_index,
+        #     secondary_subsys_index,
+        #     param_val,
+        #     fig_ax(4),
+        # )
+
+        fig.tight_layout()
+        plt.show()
+        return fig, axes_table
+
+    # @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
+    # def interact(self):
+    #     """Drives the interactive display of the plot explorer panels"""
+    #
+    #     self.out = ipywidgets.interactive_output(
+    #         self.plot_explorer_panels,
+    #         {
+    #             "param_val": self.param_slider,
+    #             "photonnumber": self.photon_slider,
+    #             "initial_index": self.initial_slider,
+    #             "primary_subsys_index": self.primary_subsys_dropdown,
+    #             "secondary_subsys_index": self.secondary_subsys_dropdown,
+    #         },
+    #     )
+    #
+    #     left_box = ipywidgets.VBox([self.param_slider])
+    #     mid_box = ipywidgets.VBox([self.initial_slider, self.photon_slider])
+    #     right_box = ipywidgets.VBox(
+    #         [self.primary_subsys_dropdown, self.secondary_subsys_dropdown]
+    #     )
+    #
+    #     self.user_interface = ipywidgets.HBox([left_box, mid_box, right_box])
+    #     display(self.user_interface, self.out)

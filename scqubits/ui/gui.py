@@ -49,12 +49,12 @@ from pathlib import Path
 
 import scqubits as scq
 import scqubits.utils.misc as utils
+import scqubits.ui.gui_defaults as defaults
 
 from scqubits.core.qubit_base import QubitBaseClass
 
 
 class GUI:
-
     # Handle to the most recently generated Figure, Axes tuple
     fig_ax: Optional[Tuple[Figure, Axes]] = None
 
@@ -64,134 +64,7 @@ class GUI:
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS, IPython=_HAS_IPYTHON)
     def __init__(self):
         scq.settings.PROGRESSBAR_DISABLED = False
-        global_defaults = {
-            "mode_wavefunc": "real",
-            "mode_matrixelem": "abs",
-            "ng": {"min": 0, "max": 1},
-            "flux": {"min": 0, "max": 1},
-            "EJ": {"min": 1e-10, "max": 70},
-            "EC": {"min": 1e-10, "max": 5},
-            "int": {"min": 1, "max": 30},
-            "float": {"min": 0, "max": 30},
-        }
-        transmon_defaults = {
-            **global_defaults,
-            "scan_param": "ng",
-            "operator": "n_operator",
-            "ncut": {"min": 10, "max": 50},
-            "scale": 1,
-            "num_sample": 150,
-        }
-        tunabletransmon_defaults = {
-            **global_defaults,
-            "scan_param": "flux",
-            "operator": "n_operator",
-            "EJmax": global_defaults["EJ"],
-            "d": {"min": 0, "max": 1},
-            "ncut": {"min": 10, "max": 50},
-            "scale": 1,
-            "num_sample": 150,
-        }
-        fluxonium_defaults = {
-            **global_defaults,
-            "scan_param": "flux",
-            "operator": "n_operator",
-            "EC": {"min": 1e-2, "max": 5},
-            "EL": {"min": 1e-10, "max": 2},
-            "cutoff": {"min": 10, "max": 120},
-            "scale": 1,
-            "num_sample": 150,
-        }
-        fluxqubit_defaults = {
-            **global_defaults,
-            "scan_param": "flux",
-            "operator": "n_1_operator",
-            "ncut": {"min": 5, "max": 30},
-            "EJ1": global_defaults["EJ"],
-            "EJ2": global_defaults["EJ"],
-            "EJ3": global_defaults["EJ"],
-            "ECJ1": global_defaults["EC"],
-            "ECJ2": global_defaults["EC"],
-            "ECJ3": global_defaults["EC"],
-            "ECg1": global_defaults["EC"],
-            "ECg2": global_defaults["EC"],
-            "ng1": global_defaults["ng"],
-            "ng2": global_defaults["ng"],
-            "scale": None,
-            "num_sample": 100,
-        }
-        zeropi_defaults = {
-            **global_defaults,
-            "scan_param": "flux",
-            "operator": "n_theta_operator",
-            "ncut": {"min": 5, "max": 50},
-            "EL": {"min": 1e-10, "max": 3},
-            "ECJ": {"min": 1e-10, "max": 30},
-            "dEJ": {"min": 0, "max": 1},
-            "dCJ": {"min": 0, "max": 1},
-            "scale": None,
-            "num_sample": 50,
-        }
-        fullzeropi_defaults = {
-            **global_defaults,
-            "scan_param": "flux",
-            "operator": "n_theta_operator",
-            "ncut": {"min": 5, "max": 50},
-            "EL": {"min": 1e-10, "max": 3},
-            "ECJ": {"min": 1e-10, "max": 30},
-            "dEJ": {"min": 0, "max": 1},
-            "dCJ": {"min": 0, "max": 1},
-            "dEL": {"min": 0, "max": 1},
-            "dC": {"min": 0, "max": 1},
-            "zeropi_cutoff": {"min": 5, "max": 30},
-            "zeta_cutoff": {"min": 5, "max": 30},
-            "scale": None,
-            "num_sample": 50,
-        }
-        cos2phiqubit_defaults = {
-            **global_defaults,
-            "scan_param": "flux",
-            "operator": "phi_operator",
-            "EL": {"min": 1e-10, "max": 5},
-            "ECJ": {"min": 1e-10, "max": 30},
-            "dEJ": {"min": 0, "max": 0.99},
-            "dL": {"min": 0, "max": 0.99},
-            "dCJ": {"min": 0, "max": 0.99},
-            "ncut": {"min": 5, "max": 50},
-            "zeta_cut": {"min": 10, "max": 50},
-            "phi_cut": {"min": 5, "max": 30},
-            "scale": None,
-            "num_sample": 50,
-        }
-        self.qubit_defaults = {
-            "Transmon": transmon_defaults,
-            "TunableTransmon": tunabletransmon_defaults,
-            "Fluxonium": fluxonium_defaults,
-            "FluxQubit": fluxqubit_defaults,
-            "ZeroPi": zeropi_defaults,
-            "FullZeroPi": fullzeropi_defaults,
-            "Cos2PhiQubit": cos2phiqubit_defaults,
-        }
-        self.grid_defaults = {
-            "grid_min_val": -6 * np.pi,
-            "grid_max_val": 6 * np.pi,
-            "grid_pt_count": 50,
-        }
-        self.plot_choices = [
-            "Energy spectrum",
-            "Wavefunctions",
-            "Matrix element scan",
-            "Matrix elements",
-        ]
-        self.supported_qubits = [
-            "Transmon",
-            "TunableTransmon",
-            "Fluxonium",
-            "FluxQubit",
-            "ZeroPi",
-            "FullZeroPi",
-            "Cos2PhiQubit",
-        ]
+
         self.gui_active = True
         self.qubit_change = True
         self.slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
@@ -226,9 +99,9 @@ class GUI:
 
             if qubit_name == "ZeroPi" or qubit_name == "FullZeroPi":
                 init_params["grid"] = scq.Grid1d(
-                    min_val=self.grid_defaults["grid_min_val"],
-                    max_val=self.grid_defaults["grid_max_val"],
-                    pt_count=self.grid_defaults["grid_pt_count"],
+                    min_val=defaults.grid_defaults["grid_min_val"],
+                    max_val=defaults.grid_defaults["grid_max_val"],
+                    pt_count=defaults.grid_defaults["grid_pt_count"],
                 )
             self.qubit_current_params = init_params
             self.qubit_change = False
@@ -243,7 +116,7 @@ class GUI:
         ----------
         qubit_name:
         """
-        self.active_defaults = self.qubit_defaults[qubit_name]
+        self.active_defaults = defaults.qubit_defaults[qubit_name]
         self.initialize_qubit(qubit_name)
         self.create_params_dict()
         self.create_plot_settings_widgets()
@@ -301,14 +174,14 @@ class GUI:
         updated_grid = scq.Grid1d(
             min_val=grid_min,
             max_val=grid_max,
-            pt_count=self.grid_defaults["grid_pt_count"],
+            pt_count=defaults.grid_defaults["grid_pt_count"],
         )
         params.update({"grid": updated_grid})
         self.qubit_current_params.update(params)
         del params["grid"]
         params["grid_min_val"] = grid_min
         params["grid_max_val"] = grid_max
-        params["grid_pt_count"] = self.grid_defaults["grid_pt_count"]
+        params["grid_pt_count"] = defaults.grid_defaults["grid_pt_count"]
         self.active_qubit.set_params(**params)
 
     def evals_vs_paramvals_plot(
@@ -1102,12 +975,12 @@ class GUI:
         """
         self.qubit_and_plot_choice_widgets = {
             "qubit_buttons": widgets.ToggleButtons(
-                options=self.supported_qubits,
+                options=defaults.supported_qubits,
                 description="Qubits:",
                 layout=widgets.Layout(width="800px"),
             ),
             "plot_buttons": widgets.ToggleButtons(
-                options=self.plot_choices,
+                options=defaults.plot_choices,
                 description="Plot:",
                 button_style="info",
             ),

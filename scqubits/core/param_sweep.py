@@ -71,6 +71,22 @@ else:
 from scqubits.utils.typedefs import GIndexTuple, NpIndices, QuantumSys, QubitList
 
 
+class ParameterSlice:
+    def __init__(
+        self, param_name: str, param_val: float, fixed_params: Dict[str, float],
+            params_ordered: List[str]
+    ):
+        self.param_name = param_name
+        self.param_val = param_val
+        self.fixed_dict = fixed_params
+        self.all_dict = {param_name: param_val, **fixed_params}
+        self.fixed = tuple(
+            slice(name, value) for name, value in self.fixed_dict.items()
+        )
+        self.all = tuple(slice(name, value) for name, value in self.all_dict.items())
+        self.all_values = [self.all_dict[name] for name in params_ordered]
+
+
 class ParameterSweepBase(ABC):
     """
     The_ParameterSweepBase class is an abstract base class for ParameterSweep and
@@ -87,6 +103,9 @@ class ParameterSweepBase(ABC):
 
     def get_subsys(self, index: int) -> QuantumSys:
         return self._hilbertspace[index]
+
+    def subsys_by_id_str(self, id_str: str) -> QuantumSys:
+        return self._hilbertspace.subsys_by_id_str(id_str)
 
     @property
     def hilbertspace(self):
