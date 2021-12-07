@@ -35,8 +35,8 @@ warnings.filterwarnings(
 )
 
 TESTDIR, _ = os.path.split(scqubits.__file__)
-TESTDIR = os.path.join(TESTDIR, "tests", "")    # local scqubits directory holding tests
-DATADIR = os.path.join(TESTDIR, "data", "")     # local data collection within scqubits
+TESTDIR = os.path.join(TESTDIR, "tests", "")  # local scqubits directory holding tests
+DATADIR = os.path.join(TESTDIR, "data", "")  # local data collection within scqubits
 
 
 def pytest_addoption(parser):

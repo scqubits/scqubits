@@ -130,7 +130,7 @@ def generate_diffspec_sweep(sweep, initial_state_ind=0):
     """
     lookup = sweep.lookup
     param_count = sweep.param_count
-    evals_count = sweep.evals_count
+    evals_count = sweep.subsys_evals_count
     diff_eigenenergy_table = np.empty(shape=(param_count, evals_count))
 
     for param_index in tqdm(

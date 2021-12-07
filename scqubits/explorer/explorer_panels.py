@@ -22,7 +22,7 @@ from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSlice, ParameterSweep
-    from scqubits.core.qubit_base import QubitBaseClass, QubitBaseClass1d
+    from scqubits.core.qubit_base import QubitBaseClass, QubitBaseClass1d, QuantumSystem
     from scqubits.core.oscillator import Oscillator
 
 import scqubits.core.units as units
@@ -33,13 +33,21 @@ def display_bare_spectrum(
     subsys: Union["QubitBaseClass", "Oscillator"],
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
+    evals_count: int = None,
+    subtract_ground: bool = False,
 ) -> None:
     subsys_index = sweep.get_subsys_index(subsys)
     title = "bare spectrum: {}".format(subsys.id_str)
 
-    fig, axes = sweep["bare_evals"]["subsys":subsys_index][param_slice.fixed].plot(  #
-        # type:ignore
-        title=title, ylabel="energy [{}]".format(units.get_units()), fig_ax=fig_ax
+    evals_count = evals_count or -1
+
+    bare_evals = sweep["bare_evals"]["subsys":subsys_index][param_slice.fixed]
+    if subtract_ground:
+        bare_evals = bare_evals - bare_evals[:, 0, np.newaxis]
+    fig, axes = bare_evals[:, 0:evals_count].plot(  # type:ignore
+        title=title,
+        ylabel="energy [{}]".format(units.get_units()),
+        fig_ax=fig_ax,
     )
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
@@ -48,7 +56,7 @@ def display_anharmonicity(
     sweep: "ParameterSweep",
     subsys: "QubitBaseClass1d",
     param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes]
+    fig_ax: Tuple[Figure, Axes],
 ) -> None:
     subsys_index = sweep.get_subsys_index(subsys)
 
@@ -68,7 +76,7 @@ def display_bare_wavefunctions(
     sweep: "ParameterSweep",
     subsys: "QubitBaseClass1d",
     param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes]
+    fig_ax: Tuple[Figure, Axes],
 ) -> None:
     subsys_index = sweep.get_subsys_index(subsys)
 
@@ -100,14 +108,34 @@ def display_dressed_spectrum(
     )
     fig, axes = sweep[param_slice.fixed].plot_transitions(title=title, fig_ax=fig_ax)
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
-    axes.scatter([param_slice.param_val] * 2, [energy_initial, energy_final], s=40,
-                 c="gray")
+    axes.scatter(
+        [param_slice.param_val] * 2, [energy_initial, energy_final], s=40, c="gray"
+    )
 
 
 def display_n_photon_qubit_transitions(
     sweep: "ParameterSweep",
     photonnumber: int,
     subsys: "QubitBaseClass",
+    initial_bare: Tuple[int, ...],
+    param_slice: "ParameterSlice",
+    fig_ax: Tuple[Figure, Axes],
+) -> None:
+    title = r"{}-photon {} transitions".format(photonnumber, subsys.id_str)
+    fig, axes = sweep[param_slice.fixed].plot_transitions(
+        subsystems=[subsys],
+        initial=initial_bare,
+        photon_number=photonnumber,
+        title=title,
+        fig_ax=fig_ax,
+    )
+    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
+
+
+def display_transitions(
+    sweep: "ParameterSweep",
+    photonnumber: int,
+    subsys: "QuantumSystem",
     initial_bare: Tuple[int, ...],
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],

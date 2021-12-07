@@ -271,7 +271,7 @@ class _ParameterSweep(
         initdata = {
             "param_name": self.param_name,
             "param_vals": self.param_vals,
-            "evals_count": self.evals_count,
+            "subsys_evals_count": self.evals_count,
             "hilbertspace": self._hilbertspace,
             "_lookup": self._lookup,
         }

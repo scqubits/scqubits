@@ -73,8 +73,11 @@ from scqubits.utils.typedefs import GIndexTuple, NpIndices, QuantumSys, QubitLis
 
 class ParameterSlice:
     def __init__(
-        self, param_name: str, param_val: float, fixed_params: Dict[str, float],
-            params_ordered: List[str]
+        self,
+        param_name: str,
+        param_val: float,
+        fixed_params: Dict[str, float],
+        params_ordered: List[str],
     ):
         self.param_name = param_name
         self.param_val = param_val
@@ -106,6 +109,12 @@ class ParameterSweepBase(ABC):
 
     def subsys_by_id_str(self, id_str: str) -> QuantumSys:
         return self._hilbertspace.subsys_by_id_str(id_str)
+
+    def subsys_evals_count(self, subsys_index: int) -> int:
+        return self["bare_evals"]["subsys":subsys_index].shape[-1]
+
+    def dressed_evals_count(self) -> int:
+        return self._evals_count
 
     @property
     def hilbertspace(self):
@@ -525,7 +534,7 @@ class ParameterSweepBase(ABC):
             are considered as actively participating in the transitions
         initial:
             initial state from which transitions originate, specified as a bare product
-            state of either all subsystems the subset of active subsystems
+            state of either all subsystems or the subset of active subsystems
             (default: ground state of the system)
         final:
             concrete final state for which the transition energy should be generated; if
@@ -841,7 +850,7 @@ class ParameterSweep(  # type:ignore
         initdata = {
             "paramvals_by_name": self._parameters.ordered_dict,
             "hilbertspace": self._hilbertspace,
-            "evals_count": self._evals_count,
+            "subsys_evals_count": self._evals_count,
             "_data": self._data,
         }
         iodata = serializers.dict_serialize(initdata)
@@ -1287,3 +1296,5 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
         data_ndarray.reshape(reduced_parameters.counts + element_shape),
         reduced_parameters.paramvals_by_name,
     )
+
+

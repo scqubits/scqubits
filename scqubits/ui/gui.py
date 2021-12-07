@@ -225,6 +225,9 @@ class GUI:
             evals_count=eigenvalue_state_value,
             subtract_ground=subtract_ground_tf,
         )
+        # self.fig.canvas.toolbar_visible = False
+        # self.fig.canvas.header_visible = False
+        # self.fig.canvas.footer_visible = False
         GUI.fig_ax = self.fig, ax
         plt.show()
 
