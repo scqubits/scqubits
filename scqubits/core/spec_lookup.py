@@ -47,6 +47,10 @@ if TYPE_CHECKING:
         _data: Dict[str, Any]
         _evals_count: int
         _current_param_indices: NpIndices
+        _ignore_hybridization: bool
+
+
+_OVERLAP_THRESHOLD = 0.5  # used, e.g., in relating bare states to dressed states
 
 
 class SpectrumLookup(serializers.Serializable):
@@ -201,7 +205,7 @@ class SpectrumLookup(serializers.Serializable):
         ):  # for given bare basis index, find dressed index
             max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
             max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
-            if max_overlap ** 2 > 0.5:
+            if max_overlap ** 2 > _OVERLAP_THRESHOLD:
                 dressed_indices.append(max_position)
             else:
                 dressed_indices.append(None)  # overlap too low, make no assignment
@@ -432,7 +436,8 @@ class SpectrumLookupMixin:
         return NamedSlotsNdarray(dressed_indices, parameter_dict)
 
     def _generate_single_mapping(
-        self: "MixinCompatible", param_indices: Tuple[int, ...]
+        self: "MixinCompatible",
+        param_indices: Tuple[int, ...],
     ) -> ndarray:
         """
         For a single set of parameter values, specified by a tuple of indices
@@ -458,7 +463,7 @@ class SpectrumLookupMixin:
         for dressed_index in range(self._evals_count):
             max_position = (np.abs(overlap_matrix[dressed_index, :])).argmax()
             max_overlap = np.abs(overlap_matrix[dressed_index, max_position])
-            if max_overlap ** 2 > 0.5:
+            if self._ignore_hybridization or (max_overlap ** 2 > _OVERLAP_THRESHOLD):
                 overlap_matrix[:, max_position] = 0
                 dressed_indices[int(max_position)] = dressed_index
 

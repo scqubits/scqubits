@@ -452,13 +452,23 @@ class ParameterSweepBase(ABC):
         transitions = []
         transition_energies = []
 
-        if sum(initial_state) == 0:
-            # Identify the (0,0,...,0) state as ground state. Even if it is strongly
-            # hybridized, we can still subtract the true ground state energy. This
-            # addresses issue 103.
-            initial_energies = self[param_indices].energy_by_dressed_index(0)
-        else:
-            initial_energies = self[param_indices].energy_by_bare_index(initial_state)
+        initial_energies = self[param_indices].energy_by_bare_index(initial_state)
+        if np.isnan(initial_energies.toarray().astype(np.float)).any():
+            warnings.warn(
+                "The initial state undergoes significant hybridization. "
+                "Identification with a bare product state was not (fully) "
+                "successful. Consider running ParameterSweep with "
+                "ignore_hybridization=True.\n",
+                UserWarning,
+            )
+        elif sum(initial_state) == 0 and not np.all(
+            initial_energies == self["evals"][param_indices + (0,)]
+        ):
+            warnings.warn(
+                "The state (0,0, ...,0) may not be dispersively connected "
+                "to the true ground state.\n",
+                UserWarning,
+            )
 
         for final_state in final_states_list:
             final_energies = self[param_indices].energy_by_bare_index(final_state)
@@ -764,6 +774,10 @@ class ParameterSweep(  # type:ignore
     bare_only:
         if set to True, only bare eigendata is calculated; useful when performing a
         sweep for a single quantum system, no interaction (default: False)
+    ignore_hybridization:
+        if set to False (default), bare product states and dressed eigenstates are
+        identified if |<psi_bare|psi_dressed>|^2 > 0.5; if True, then identification
+        will always take place based on which bare product state has the maximum overlap
     autorun:
         Determines whether to directly run the sweep or delay it until `.run()` is
         called manually. (Default: `settings.AUTORUN_SWEEP=True`)
@@ -806,6 +820,7 @@ class ParameterSweep(  # type:ignore
         evals_count: int = 20,
         subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
         bare_only: bool = False,
+        ignore_hybridization: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
         deepcopy: bool = False,
         num_cpus: Optional[int] = None,
@@ -818,6 +833,7 @@ class ParameterSweep(  # type:ignore
         self._subsys_update_info = subsys_update_info
         self._data = {}
         self._bare_only = bare_only
+        self._ignore_hybridization = ignore_hybridization
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
@@ -1296,5 +1312,3 @@ def generator(sweep: "ParameterSweepBase", func: Callable, **kwargs) -> np.ndarr
         data_ndarray.reshape(reduced_parameters.counts + element_shape),
         reduced_parameters.paramvals_by_name,
     )
-
-
