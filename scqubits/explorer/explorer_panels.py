@@ -10,7 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Dict, TYPE_CHECKING, Tuple, Union
+from typing import Dict, List, Optional, TYPE_CHECKING, Tuple, Union
 
 import numpy as np
 
@@ -135,17 +135,23 @@ def display_n_photon_qubit_transitions(
 def display_transitions(
     sweep: "ParameterSweep",
     photonnumber: int,
-    subsys: "QuantumSystem",
+    subsys_list: List["QuantumSystem"],
     initial_bare: Tuple[int, ...],
+    sidebands: bool,
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
-    title = r"{}-photon {} transitions".format(photonnumber, subsys.id_str)
+    if len(subsys_list) == 1:
+        title = r"{}-photon {} transitions".format(photonnumber, subsys_list[0].id_str)
+    else:
+        title = r"{}-photon transitions".format(photonnumber)
     fig, axes = sweep[param_slice.fixed].plot_transitions(
-        subsystems=[subsys],
+        subsystems=subsys_list,
         initial=initial_bare,
         photon_number=photonnumber,
         title=title,
+        sidebands=sidebands,
+        coloring=coloring,
         fig_ax=fig_ax,
     )
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
