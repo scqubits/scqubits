@@ -30,6 +30,8 @@ from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices
 
 if TYPE_CHECKING:
+    from typing_extensions import Protocol
+
     from scqubits import HilbertSpace, SpectrumData
     from scqubits.core.param_sweep import Parameters
     from scqubits.core.qubit_base import QuantumSystem
@@ -37,7 +39,6 @@ if TYPE_CHECKING:
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
     from scqubits.legacy._param_sweep import _ParameterSweep
     from scqubits.utils.typedefs import QuantumSys
-    from typing_extensions import Protocol
 
     class MixinCompatible("SpectrumLookupMixin", Protocol):
         def __getitem__(self, key: Any) -> Any:

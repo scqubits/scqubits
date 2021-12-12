@@ -88,6 +88,15 @@ class ParameterSweepBase(ABC):
     def get_subsys(self, index: int) -> QuantumSys:
         return self._hilbertspace[index]
 
+    def subsys_by_id_str(self, id_str: str) -> QuantumSys:
+        return self._hilbertspace.subsys_by_id_str(id_str)
+
+    def subsys_evals_count(self, subsys_index: int) -> int:
+        return self["bare_evals"]["subsys":subsys_index].shape[-1]
+
+    def dressed_evals_count(self) -> int:
+        return self._evals_count
+
     @property
     def hilbertspace(self):
         return self._hilbertspace
@@ -307,6 +316,8 @@ class ParameterSweepBase(ABC):
         subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Tuple[int, ...]] = None,
+        initial_dressed: Optional[int] = None,
+        final_dressed: Optional[int] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = False,
@@ -321,6 +332,8 @@ class ParameterSweepBase(ABC):
         subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Tuple[int, ...]] = None,
+        initial_dressed: Optional[int] = None,
+        final_dressed: Optional[int] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = False,
@@ -334,6 +347,7 @@ class ParameterSweepBase(ABC):
         subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Tuple[int, ...]] = None,
+        initial_dressed: Optional[int] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = False,
@@ -362,10 +376,15 @@ class ParameterSweepBase(ABC):
         initial:
             initial state from which transitions originate, specified as a bare product
             state of either all subsystems the subset of active subsystems
-            (default: ground state of the system)
+            (default: (0,0,...,0) which is usually closest to the ground state)
         final:
             concrete final state for which the transition energy should be generated; if
             not provided, a list of allowed final states is generated
+        initial_dressed:
+            instead of `initial` specifying a state via bare product state labels,
+            `initial_dressed` may be used to specify the initial state by a dressed
+            state index. When using `initial_dressed`, the arguments `subsystem`,
+            `initial`, `final`, and `sidebands` are ignored. (default: None)
         sidebands:
             if set to true, sideband transitions with multiple subsystems changing
             excitation levels are included (default: False)
@@ -391,6 +410,15 @@ class ParameterSweepBase(ABC):
             saving transition label info in an attribute named `labels`.
         """
         param_indices = param_indices or self._current_param_indices
+
+        if initial_dressed is not None:
+            return self.transitions_nd(
+                as_specdata=as_specdata,
+                initial_dressed=initial_dressed,
+                photon_number=photon_number,
+                make_positive=make_positive,
+                param_indices=param_indices,
+            )
 
         if subsystems is None:
             subsys_list = self._hilbertspace.subsys_list
@@ -430,7 +458,8 @@ class ParameterSweepBase(ABC):
                 "The initial state undergoes significant hybridization. "
                 "Identification with a bare product state was not (fully) "
                 "successful. Consider running ParameterSweep with "
-                "ignore_hybridization=True.\n",
+                "`ignore_hybridization=True` or specify `initial_dressed` for "
+                "transitions instead of a bare product state.\n",
                 UserWarning,
             )
         elif sum(initial_state) == 0 and not np.all(
@@ -438,7 +467,8 @@ class ParameterSweepBase(ABC):
         ):
             warnings.warn(
                 "The state (0,0, ...,0) may not be dispersively connected "
-                "to the true ground state.\n",
+                "to the true ground state. Specifying `initial_dressed=0` may be "
+                "preferable.\n",
                 UserWarning,
             )
 
@@ -448,7 +478,7 @@ class ParameterSweepBase(ABC):
             diff_energies /= photon_number
             if make_positive:
                 diff_energies = np.abs(diff_energies)
-            if not np.isnan(diff_energies.toarray()).all():
+            if not np.isnan(diff_energies).all():
                 transitions.append((initial_state, final_state))
                 transition_energies.append(diff_energies)
 
@@ -485,11 +515,116 @@ class ParameterSweepBase(ABC):
             labels=label_list,
         )
 
+    @overload
+    def transitions_nd(
+        self,
+        as_specdata: Literal[True] = True,
+        initial_dressed: Optional[int] = None,
+        photon_number: int = 1,
+        make_positive: bool = False,
+        param_indices: Optional[NpIndices] = None,
+    ) -> SpectrumData:
+        ...
+
+    @overload
+    def transitions_nd(
+        self,
+        as_specdata: Literal[False],
+        initial_dressed: Optional[int] = None,
+        photon_number: int = 1,
+        make_positive: bool = False,
+        param_indices: Optional[NpIndices] = None,
+    ) -> Tuple[List[Tuple[Tuple[int, ...], Tuple[int, ...]]], List[NamedSlotsNdarray]]:
+        ...
+
+    def transitions_nd(
+        self,
+        as_specdata: bool = False,
+        initial_dressed: int = 0,
+        photon_number: int = 1,
+        make_positive: bool = False,
+        param_indices: Optional[NpIndices] = None,
+    ) -> Union[
+        Tuple[List[Tuple[Tuple[int, ...], Tuple[int, ...]]], List[NamedSlotsNdarray]],
+        SpectrumData,
+    ]:
+        """
+        Helper method accessed from `transitions` if the initial state is given
+        as a dressed state rather than an (approximate) bare product state.
+
+        Parameters
+        ----------
+        initial_dressed:
+            specifies the initial state by a dressed state index (default: 0)
+        photon_number:
+            number of photons involved in transition; transition frequencies are divided
+            by this number (default: photon_number=1, i.e., single-photon transitions)
+        make_positive:
+            boolean option relevant if the initial state is an excited state;
+            downwards transition energies would regularly be negative, but are
+            converted to positive if this flag is set to True
+        as_specdata:
+            whether data is handed back in raw array form or wrapped into a SpectrumData
+            object (default: False)
+        param_indices:
+            usually to be omitted, as param_indices will be set via pre-slicing
+
+        Returns
+        -------
+            A tuple consisting of a list of all the transitions and a corresponding
+            list of difference energies, e.g.
+            (0, 1),    <energy array for transition 0 -> 1>.
+            If as_specdata is set to True, a SpectrumData object is returned instead,
+            saving transition label info in an attribute named `labels`.
+        """
+        param_indices = param_indices or self._current_param_indices
+
+        transitions = []
+        transition_energies = []
+
+        initial_energies = self["evals"][param_indices][..., initial_dressed]
+
+        for final_dressed in range(self.dressed_evals_count()):
+            final_energies = self["evals"][param_indices][..., final_dressed]
+            diff_energies = (final_energies - initial_energies).astype(float)
+            diff_energies /= photon_number
+            if make_positive:
+                diff_energies = np.abs(diff_energies)
+            transitions.append((initial_dressed, final_dressed))
+            transition_energies.append(diff_energies)
+
+        self._current_param_indices = slice(None, None, None)
+
+        if not as_specdata:
+            return transitions, transition_energies
+
+        reduced_parameters = self._parameters.create_sliced(param_indices)
+        if len(reduced_parameters) == 1:
+            name = reduced_parameters.names[0]
+            vals = reduced_parameters[name]
+            return SpectrumData(
+                energy_table=np.asarray(transition_energies).T,
+                system_params=self.system_params,
+                param_name=name,
+                param_vals=vals,
+                labels=None,
+                subtract=np.asarray(
+                    [initial_energies] * self._evals_count, dtype=float
+                ).T,
+            )
+
+        return SpectrumData(
+            energy_table=np.asarray(transition_energies),
+            system_params=self.system_params,
+            labels=None,
+        )
+
     def plot_transitions(
         self,
         subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
         initial: Optional[Union[int, Tuple[int, ...]]] = None,
         final: Optional[Union[int, Tuple[int, ...]]] = None,
+        initial_dressed: Optional[int] = None,
         sidebands: bool = False,
         photon_number: int = 1,
         make_positive: bool = True,
@@ -516,11 +651,16 @@ class ParameterSweepBase(ABC):
             are considered as actively participating in the transitions
         initial:
             initial state from which transitions originate, specified as a bare product
-            state of either all subsystems the subset of active subsystems
-            (default: ground state of the system)
+            state of either all subsystems or the subset of active subsystems
+            (default: (0,0,...,0) which is usually closest to the ground state)
         final:
             concrete final state for which the transition energy should be generated; if
             not provided, a list of allowed final states is generated
+        initial_dressed:
+            instead of `initial` specifying a state via bare product state labels,
+            `initial_dressed` may be used to specify the initial state by a dressed
+            state index. When using `initial_dressed`, the arguments `subsystem`,
+            `initial`, `final`, and `sidebands` are ignored. (default: None)
         sidebands:
             if set to true, sideband transitions with multiple subsystems changing
             excitation levels are included (default: False)
@@ -539,13 +679,8 @@ class ParameterSweepBase(ABC):
 
         Returns
         -------
-            A tuple consisting of a list of all the transitions and a corresponding
-            list of difference energies, e.g.
-            ((0,0,0), (0,0,1)),    <energy array for transition 0,0,0 -> 0,0,1>.
-            If as_specdata is set to True, a SpectrumData object is returned instead,
-            saving transition label info in an attribute named `labels`.
+            Plot Figure and Axes objects
         """
-
         param_indices = param_indices or self._current_param_indices
         if len(self._parameters.create_sliced(param_indices)) > 1:
             raise ValueError(
@@ -555,13 +690,11 @@ class ParameterSweepBase(ABC):
                 "0].plot_transitions(...)"
             )
 
-        initial_tuple = (initial,) if isinstance(initial, int) else initial
-        final_tuple = (final,) if isinstance(final, int) else final
-
         specdata = self.transitions(
             subsystems=subsystems,
-            initial=initial_tuple,
-            final=final_tuple,
+            initial=initial,
+            final=final,
+            initial_dressed=initial_dressed,
             sidebands=sidebands,
             photon_number=photon_number,
             make_positive=make_positive,
