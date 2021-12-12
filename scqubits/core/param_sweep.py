@@ -461,7 +461,7 @@ class ParameterSweepBase(ABC):
                 UserWarning,
             )
         elif sum(initial_state) == 0 and not np.all(
-            initial_energies == self["evals"][param_indices + (0,)]
+            initial_energies == self["evals"][param_indices][..., 0]
         ):
             warnings.warn(
                 "The state (0,0, ...,0) may not be dispersively connected "
