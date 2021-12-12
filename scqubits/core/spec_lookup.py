@@ -48,7 +48,7 @@ if TYPE_CHECKING:
         _data: Dict[str, Any]
         _evals_count: int
         _current_param_indices: NpIndices
-        _ignore_hybridization: bool
+        _ignore_low_overlap: bool
 
 
 _OVERLAP_THRESHOLD = 0.5  # used, e.g., in relating bare states to dressed states
@@ -464,7 +464,7 @@ class SpectrumLookupMixin:
         for dressed_index in range(self._evals_count):
             max_position = (np.abs(overlap_matrix[dressed_index, :])).argmax()
             max_overlap = np.abs(overlap_matrix[dressed_index, max_position])
-            if self._ignore_hybridization or (max_overlap ** 2 > _OVERLAP_THRESHOLD):
+            if self._ignore_low_overlap or (max_overlap ** 2 > _OVERLAP_THRESHOLD):
                 overlap_matrix[:, max_position] = 0
                 dressed_indices[int(max_position)] = dressed_index
 
