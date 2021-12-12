@@ -456,7 +456,7 @@ class ParameterSweepBase(ABC):
                 "The initial state undergoes significant hybridization. "
                 "Identification with a bare product state was not (fully) "
                 "successful. Consider running ParameterSweep with "
-                "`ignore_hybridization=True` or specify `initial_dressed` for "
+                "`ignore_low_overlap=True` or specify `initial_dressed` for "
                 "transitions instead of a bare product state.\n",
                 UserWarning,
             )
@@ -877,7 +877,7 @@ class ParameterSweep(  # type:ignore
     bare_only:
         if set to True, only bare eigendata is calculated; useful when performing a
         sweep for a single quantum system, no interaction (default: False)
-    ignore_hybridization:
+    ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
         identified if |<psi_bare|psi_dressed>|^2 > 0.5; if True, then identification
         will always take place based on which bare product state has the maximum overlap
@@ -923,7 +923,7 @@ class ParameterSweep(  # type:ignore
         evals_count: int = 20,
         subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
         bare_only: bool = False,
-        ignore_hybridization: bool = False,
+        ignore_low_overlap: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
         deepcopy: bool = False,
         num_cpus: Optional[int] = None,
@@ -936,7 +936,7 @@ class ParameterSweep(  # type:ignore
         self._subsys_update_info = subsys_update_info
         self._data = {}
         self._bare_only = bare_only
-        self._ignore_hybridization = ignore_hybridization
+        self._ignore_low_overlap = ignore_low_overlap
         self._deepcopy = deepcopy
         self._num_cpus = num_cpus
         self.tqdm_disabled = settings.PROGRESSBAR_DISABLED or (num_cpus > 1)
