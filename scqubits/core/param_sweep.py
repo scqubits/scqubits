@@ -254,10 +254,10 @@ class ParameterSweepBase(ABC):
     def system_params(self) -> Dict[str, Any]:
         return self._hilbertspace.get_initdata()
 
-    def _final_states_subsys(
+    def _final_states_for_subsys_transition(
         self, subsystem: QuantumSys, initial_tuple: Tuple[int, ...]
     ) -> List[Tuple[int, ...]]:
-        """For given initial statet of the composite quantum system, return the final
+        """For given initial state of the composite quantum system, return the final
         states possible to reach by changing the energy level of the given
         `subsystem`"""
         subsys_index = self._hilbertspace.get_subsys_index(subsystem)
@@ -286,7 +286,7 @@ class ParameterSweepBase(ABC):
         if not sidebands:
             final_state_list = []
             for subsys in subsys_list:
-                final_state_list += self._final_states_subsys(subsys, initial_state)
+                final_state_list += self._final_states_for_subsys_transition(subsys, initial_state)
             return final_state_list
 
         range_list = [range(dim) for dim in self._hilbertspace.subsystem_dims]
