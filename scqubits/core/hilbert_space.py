@@ -26,7 +26,6 @@ from typing import (
     List,
     Optional,
     Tuple,
-    Type,
     Union,
     cast,
 )
@@ -66,8 +65,8 @@ if TYPE_CHECKING:
 from scqubits.utils.typedefs import (
     OperatorSpecification,
     OscillatorList,
-    QubitList,
     QuantumSys,
+    QubitList,
 )
 
 
