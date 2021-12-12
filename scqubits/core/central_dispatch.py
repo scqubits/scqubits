@@ -14,9 +14,8 @@
 import logging
 import warnings
 import weakref
-from types import MethodType
 
-from typing import Callable
+from types import MethodType
 from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings
