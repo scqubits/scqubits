@@ -534,6 +534,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     def subsys_list(self) -> List[QuantumSys]:
         return list(self._subsystems)
 
+    def subsys_by_id_str(self, id_str: str) -> QuantumSys:
+        return self._subsys_by_id_str[id_str]
+
     ###################################################################################
     # HilbertSpace: file IO methods
     ###################################################################################
