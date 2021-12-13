@@ -88,7 +88,7 @@ MULTIPROC = "pathos"
 
 # Matplotlib options -------------------------------------------------------------------
 # set custom matplotlib color cycle
-mpl.rcParams["axes.prop_cycle"] = cycler(
+color_cycler = cycler(
     color=[
         "#016E82",
         "#333795",
@@ -104,6 +104,8 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
         "#F9E6BE",
     ]
 )
+linestyle_cycler = cycler(linestyle=["-", "--", "-.", ":"])
+mpl.rcParams["axes.prop_cycle"] = linestyle_cycler * color_cycler
 
 # set matplotlib defaults
 mpl.rcParams["font.family"] = "sans-serif"

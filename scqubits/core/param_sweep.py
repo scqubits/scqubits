@@ -573,7 +573,7 @@ class ParameterSweepBase(ABC):
         else:
             fig_ax = None
         fig_ax = specdata_all.plot_evals_vs_paramvals(
-            color="gainsboro", linewidth=0.75, fig_ax=fig_ax
+            color="gainsboro", linestyle="-", linewidth=0.75, fig_ax=fig_ax
         )
 
         labellines_status = plot._LABELLINES_ENABLED
