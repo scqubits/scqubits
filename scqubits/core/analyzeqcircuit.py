@@ -8,10 +8,7 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-from abc import ABC, ABCMeta, abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
-from numpy.core.fromnumeric import var
-from numpy.core.function_base import linspace
 
 import sympy
 import numpy as np
@@ -22,22 +19,15 @@ from numpy import ndarray
 from sympy import symbols, lambdify, parse_expr
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
-from scipy.sparse.dia import dia_matrix
 from matplotlib import pyplot as plt
 from scqubits.core import oscillator as osc
 from scqubits.core import operators as op
 
-from scqubits.core.customqcircuit import node, branch
 from scqubits.core.customqcircuit import CustomQCircuit
 import scqubits.core.discretization as discretization
-import scqubits.core.constants as constants
-import scqubits.core.descriptors as descriptors
 import scqubits.core.qubit_base as base
-import scqubits.core.storage as storage
-from scqubits.core.storage import DataStore, SpectrumData
+from scqubits.core.storage import DataStore
 import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.utils.plot_defaults as defaults
-import scqubits.utils.plotting as plot
 
 from scqubits.utils.spectrum_utils import (
     get_matrixelement_table,
@@ -47,7 +37,7 @@ from scqubits.utils.spectrum_utils import (
 )
 
 
-class AnalyzeQCircuit(base.QubitBaseClass, base.QuantumSystem, CustomQCircuit, serializers.Serializable):
+class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializable):
     r"""
     Class to numerically analyze an instance of CustomQCircuit.
 
