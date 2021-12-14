@@ -1,4 +1,4 @@
-# transmon.py
+# customqcircuit.py
 #
 # This file is part of scqubits.
 #
@@ -24,6 +24,7 @@ from scipy.sparse.dia import dia_matrix
 from matplotlib import pyplot as plt
 from sympy.core.symbol import Symbol
 from sympy.logic.boolalg import Boolean
+
 
 import scqubits.core.discretization as discretization
 import scqubits.core.constants as constants
@@ -146,7 +147,7 @@ class branch:
 
 
 class CustomQCircuit(serializers.Serializable):
-    """
+    r"""
     Class to describe a circuit using the classes node and branch.
 
     Can be initialized using an input file. For a Transmon qubit for example the following input file can be used.
@@ -162,27 +163,30 @@ class CustomQCircuit(serializers.Serializable):
     A set of nodes with branches connecting them forms a circuit.
     Parameters
     ----------
-    list_nodes:
+    nodes_list:
         List of nodes in the circuit
-    list_branches:
+    branches_list:
         List of branches connecting the above set of nodes.
     mode:
-        String either "num" or "sym" correspondingly to numeric or symbolic representation of input parameters in the input file.
+        "num" or "sym" correspondingly to numeric or symbolic representation of input parameters in the input file.
+    phi_basis:
+        "sparse" or "harmonic": Choose whether to use discretized phi or harmonic oscillator basis for extended variables.
     """
 
     def __init__(
         self,
-        list_nodes: list,
-        list_branches: list,
-        ground_node=None,
+        nodes_list: list,
+        branches_list: list,
         mode: str = "sym",
         basis: str = "simple",
         phi_basis: str = "sparse",
+        ground_node=None,
         initiate_sym_calc: bool = True,
+        id_str: Optional[str] = None,
     ):
 
-        self.branches = list_branches
-        self.nodes = list_nodes
+        self.branches = branches_list
+        self.nodes = nodes_list
         self.mode = mode
         self.input_string = None
 
@@ -195,7 +199,7 @@ class CustomQCircuit(serializers.Serializable):
         self.var_indices = None
 
         self.external_flux_vars = []
-        self.flux_branches = []
+        self.closure_branches = []
 
         self.param_vars = []
 
@@ -216,7 +220,7 @@ class CustomQCircuit(serializers.Serializable):
 
         # paramater for chosing the basis
         self.basis = basis  # default, the other choice is standard
-        self.phi_basis = phi_basis # choising the basis for extended variables
+        self.phi_basis = phi_basis  # choising the basis for extended variables
 
         # Calling the function to initiate the calss variables
         if initiate_sym_calc:
@@ -244,14 +248,19 @@ class CustomQCircuit(serializers.Serializable):
         cls,
         input_string: str,
         mode: str = "sym",
-        basis="simple",
         phi_basis="sparse",
+        basis="simple",
         initiate_sym_calc=True,
     ):
         """
-        Constructor of class CustomQCircuit:
-        - Constructing the instance from an input string
-        - mode parameter to specify the use of symbolic or numerical circuit parameters
+        Constructs the instance of CustomQCircuit from an input string.
+        Parameters
+        ----------
+        input_string:
+            String describing the number of nodes and branches connecting then along with their parameters
+        phi_basis:
+            "sparse" or "harmonic", choosing discretized phi or harmonic oscillator basis for the extended variables
+
         """
         lines = (input_string).split("\n")
         num_nodes = int(lines[0].split(":")[-1])
@@ -265,7 +274,7 @@ class CustomQCircuit(serializers.Serializable):
         )
         ground_node = None
 
-        def isfloat(x):
+        def is_str_float(x):
             try:
                 float(x)
                 return True
@@ -273,66 +282,67 @@ class CustomQCircuit(serializers.Serializable):
                 return False
 
         for l in range(first_branch, len(lines)):
-            if lines[l] != "":
-                line = [i for i in lines[l].replace("\t", " ").split(" ") if i != ""]
-                a, b = [int(i) for i in line[1].split(",")]
 
-                if (
-                    a * b == 0 and is_grounded == False
-                ):  # Making a ground node in case node zero is used for any branch in the input file
-                    num_nodes += 1
-                    ground_node = node(0, 0)
-                    is_grounded = True
-
-                element = line[0]
-
-                if element == "JJ" or element == "JJ2":
-                    if (
-                        len(line) > 3
-                    ):  # check to see if all the required parameters are defined
-                        if mode == "sym":
-                            if isfloat(line[2]):
-                                p1 = float(line[2])
-                            else:
-                                p1 = symbols(line[2])
-                            if isfloat(line[3]):
-                                p2 = float(line[3])
-                            else:
-                                p2 = symbols(line[3])
-
-                            parameters = [p1, p2]
-                        elif mode == "num":
-                            parameters = [float(line[2]), float(line[3])]
-                    else:
-                        parameters = None
-                else:
-                    if (
-                        len(line) > 2
-                    ):  # check to see if all the required parameters are defined
-                        if mode == "sym":
-                            if isfloat(line[2]):
-                                p = float(line[2])
-                            else:
-                                p = symbols(line[2])
-                            parameters = [p]
-                        elif mode == "num":
-                            parameters = [float(line[2])]
-                    else:
-                        parameters = None
-                if a == 0:
-                    branches.append(
-                        branch(ground_node, nodes[b - 1], element, parameters)
-                    )
-                elif b == 0:
-                    branches.append(
-                        branch(nodes[a - 1], ground_node, element, parameters)
-                    )
-                else:
-                    branches.append(
-                        branch(nodes[a - 1], nodes[b - 1], element, parameters)
-                    )
-            else:
+            if lines[l] == "":
                 break
+
+            words = [
+                word for word in lines[l].replace("\t", " ").split(" ") if word != ""
+            ]
+            n1, n2 = [int(num) for num in words[1].split(",")]
+
+            if (
+                n1 * n2 == 0 and is_grounded == False
+            ):  # Making a ground node in case node zero is used for any branch in the input file
+                num_nodes += 1
+                ground_node = node(0, 0)
+                is_grounded = True
+
+            element = words[0]
+
+            if element == "JJ" or element == "JJ2":
+                if (
+                    len(words) > 3
+                ):  # check to see if all the required parameters are defined
+                    parameters = None
+
+                if mode == "sym":
+                    if is_str_float(words[2]):
+                        p1 = float(words[2])
+                    else:
+                        p1 = symbols(words[2])
+                    if is_str_float(words[3]):
+                        p2 = float(words[3])
+                    else:
+                        p2 = symbols(words[3])
+
+                    parameters = [p1, p2]
+                elif mode == "num":
+                    parameters = [float(words[2]), float(words[3])]
+
+            else:
+                if (
+                    len(words) > 2
+                ):  # check to see if all the required parameters are defined
+                    parameters = None
+
+                if mode == "sym":
+                    if is_str_float(words[2]):
+                        p = float(words[2])
+                    else:
+                        p = symbols(words[2])
+                    parameters = [p]
+                elif mode == "num":
+                    parameters = [float(words[2])]
+
+            if n1 == 0:
+                branches.append(branch(ground_node, nodes[n2 - 1], element, parameters))
+            elif n2 == 0:
+                branches.append(branch(nodes[n1 - 1], ground_node, element, parameters))
+            else:
+                branches.append(
+                    branch(nodes[n1 - 1], nodes[n2 - 1], element, parameters)
+                )
 
         circuit = cls(
             nodes,
@@ -349,18 +359,32 @@ class CustomQCircuit(serializers.Serializable):
 
     @classmethod
     def from_input_file(
-        cls, filename: str, mode: str = "sym", basis="simple", phi_basis="sparse", initiate_sym_calc=True
+        cls,
+        filename: str,
+        mode: str = "sym",
+        basis="simple",
+        phi_basis="sparse",
+        initiate_sym_calc=True,
     ):
         """
-        Constructor of class CustomQCircuit:
-        - Constructing the instance from an input file
-        - mode parameter to specify the use of symbolic or numerical circuit parameters
+        Constructs the instance of CustomQCircuit from an input string.
+        Parameters
+        ----------
+        filename:
+            name of the file containing the text describing the number of nodes and branches connecting then along with their parameters
+        phi_basis:
+            "sparse" or "harmonic", choosing discretized phi or harmonic oscillator basis for the extended variables
+
         """
         file = open(filename, "r")
         input_string = file.read()
         file.close()
         return cls.from_input_string(
-            input_string, mode=mode, basis=basis, phi_basis=phi_basis, initiate_sym_calc=initiate_sym_calc
+            input_string,
+            mode=mode,
+            basis=basis,
+            phi_basis=phi_basis,
+            initiate_sym_calc=initiate_sym_calc,
         )
 
     """
@@ -368,8 +392,8 @@ class CustomQCircuit(serializers.Serializable):
     """
 
     def variable_transformation_matrix(self):
-        """
-        Method to construct a new set of flux variables of the circuit, such that all the possible cyclic and periodic variables are included.
+        r"""
+        Method which returns and stores the transformation matrix which expresses the old :math:`\phi_i` in terms of the new variables :math:`\theta_i`.
         """
 
         def independent_modes(branch_subset, single_nodes=True):
@@ -467,9 +491,9 @@ class CustomQCircuit(serializers.Serializable):
         selected_branches = [branch for branch in self.branches if branch.type == "L"]
         periodic_modes = independent_modes(selected_branches)
 
-        ##################### Finding the Zombie modes ##################
+        ##################### Finding the frozen modes ##################
         selected_branches = [branch for branch in self.branches if branch.type != "L"]
-        zombie_modes = independent_modes(selected_branches, single_nodes=False)
+        frozen_modes = independent_modes(selected_branches, single_nodes=False)
 
         ##################### Finding the Cyclic Modes ##################
         selected_branches = [branch for branch in self.branches if branch.type != "C"]
@@ -478,18 +502,18 @@ class CustomQCircuit(serializers.Serializable):
         Σ = [1 for n in self.nodes]
         if not self.is_grounded:  # only append if the circuit is not grounded
             # cyclic_modes.append(Σ)
-            zombie_modes.append(Σ)
+            frozen_modes.append(Σ)
 
         # ##################### Finding the LC Modes ##################
         # selected_branches = [branch for branch in branches if branch.type == "JJ"]
         # LC_modes = independent_modes(selected_branches, single_nodes=False)
 
-        ################ Adding periodic and zombie modes to cyclic ones #############
+        ################ Adding periodic and frozen modes to cyclic ones #############
         # modes = cyclic_modes.copy()  # starting with the cyclic modes
-        modes = zombie_modes.copy()  # starting with the cyclic modes
+        modes = frozen_modes.copy()  # starting with the cyclic modes
 
         for m in (
-            # periodic_modes + zombie_modes
+            # periodic_modes + frozen_modes
             cyclic_modes
             + periodic_modes
         ):  # adding the ones which are periodic such that all vectors in modes are LI
@@ -538,7 +562,7 @@ class CustomQCircuit(serializers.Serializable):
                 new_basis.append(m)
         new_basis = np.array(new_basis)
 
-        # sorting the basis so that the cyclic, periodic and zombie variables occur at the beginning.
+        # sorting the basis so that the cyclic, periodic and frozen variables occur at the beginning.
         if not self.is_grounded:
             pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
         else:
@@ -557,13 +581,13 @@ class CustomQCircuit(serializers.Serializable):
             if i not in pos_cyclic
             if new_basis[i].tolist() in periodic_modes
         ]
-        pos_zombie = [
+        pos_frozen = [
             i
             for i in range(len(new_basis))
             if i not in pos_Σ
             if i not in pos_cyclic
             if i not in pos_periodic
-            if new_basis[i].tolist() in zombie_modes
+            if new_basis[i].tolist() in frozen_modes
         ]
         pos_rest = [
             i
@@ -571,9 +595,9 @@ class CustomQCircuit(serializers.Serializable):
             if i not in pos_Σ
             if i not in pos_cyclic
             if i not in pos_periodic
-            if i not in pos_zombie
+            if i not in pos_frozen
         ]
-        pos_list = pos_periodic + pos_rest + pos_cyclic + pos_zombie + pos_Σ
+        pos_list = pos_periodic + pos_rest + pos_cyclic + pos_frozen + pos_Σ
         # transforming the new_basis matrix
         new_basis = new_basis[pos_list].T
 
@@ -588,8 +612,8 @@ class CustomQCircuit(serializers.Serializable):
             "cyclic": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_cyclic
             ],
-            "zombie": [
-                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_zombie
+            "frozen": [
+                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
             ],
         }
         # creating a class attribute for conserved charges corresponding to cyclic variables
@@ -636,8 +660,8 @@ class CustomQCircuit(serializers.Serializable):
             if len(set(b.nodes)) > 1:  # branch if shorted is not considered
                 # adding external flux
                 phi_ext = 0
-                if b in self.flux_branches:
-                    index = self.flux_branches.index(b)
+                if b in self.closure_branches:
+                    index = self.closure_branches.index(b)
                     phi_ext += self.external_flux_vars[index]
 
                 if (
@@ -664,8 +688,8 @@ class CustomQCircuit(serializers.Serializable):
             if len(set(b.nodes)) > 1:  # branch if shorted is not considered
                 # adding external flux
                 phi_ext = 0
-                if b in self.flux_branches:
-                    index = self.flux_branches.index(b)
+                if b in self.closure_branches:
+                    index = self.closure_branches.index(b)
                     phi_ext += self.external_flux_vars[index]
 
                 if (
@@ -776,8 +800,8 @@ class CustomQCircuit(serializers.Serializable):
             if len(set(b.nodes)) > 1:  # branch if shorted is not considered
                 # adding external flux
                 phi_ext = 0
-                if b in self.flux_branches:
-                    index = self.flux_branches.index(b)
+                if b in self.closure_branches:
+                    index = self.closure_branches.index(b)
                     phi_ext += self.external_flux_vars[index]
 
                 if b.nodes[0].id == 0:
@@ -805,23 +829,23 @@ class CustomQCircuit(serializers.Serializable):
                     )
         return L
 
-    def _flux_loops(self):
+    def _closure_branches(self):
 
         circ_copy = copy.deepcopy(self)
         ################### removing all the capacitive branches and updating the nodes ################
         for b in list(circ_copy.branches):
             if b.type == "C":
                 for n in b.nodes:
-                    n.branches = [i for i in n.branches if i is not b]
+                    n.branches = [branch for branch in n.branches if branch is not b]
                 circ_copy.branches.remove(b)
 
-        i = 2
-        while i > 1:
-            i = 1
+        num_float_nodes = 1
+        while num_float_nodes > 0: # breaks when no floating nodes are detected
+            num_float_nodes = 0 # setting 
             for n in circ_copy.nodes:
                 if len(n.branches) == 0:
                     circ_copy.nodes.remove(n)
-                    i += 1
+                    num_float_nodes += 1
                     continue
                 if len(n.branches) == 1:
                     b = n.branches[0]
@@ -829,14 +853,14 @@ class CustomQCircuit(serializers.Serializable):
                     for n1 in b.nodes:
                         if n1 != n:
                             n1.branches = [i for i in n1.branches if i is not b]
-                            i += 1
+                            num_float_nodes += 1
                             continue
                         else:
                             circ_copy.nodes.remove(n)
 
         if circ_copy.nodes == []:
             return []
-        ##################################################
+        ################################################################################################
 
         ################### Constructing the node_sets ###############
         if circ_copy.is_grounded:
@@ -872,58 +896,70 @@ class CustomQCircuit(serializers.Serializable):
                 ]
             )
             i += 1
-        ###############################################
+        #############################################################
 
-        ############### Identifying the flux branches ######################
-        flux_branches = []  # set of branches where external flux is associated
+        ############### Identifying the closure branches ######################
+        tree = []
+        def connecting_branches(n1,n2):
+            return list(set(n1.branches).intersection(set(n2.branches)))
+        
+        for index, node_set in enumerate(node_sets):
+            if index == 0:
+                continue
+            for node in node_set:
+                for prev_node in node_sets[index-1]:
+                    tree.append(connecting_branches(node, prev_node)[0])
+                    break
 
-        flux_branches = []
-        for i in range(0, len(node_sets)):
-            for n in node_sets[i]:
-                next_branches = []
-                next_nodes = []
-                loop_branches = []
+        closure_branches = list(set(circ_copy.branches) - set(tree))
 
-                for b in n.branches:
-                    if b.type != "C":
-                        if b.nodes[0] != n:
-                            next_nodes.append(b.nodes[0])
-                        else:
-                            next_nodes.append(b.nodes[1])
-                        next_branches.append(b)
-                # Indexing which set the nodes belong to
-                next_nodes_set = []
-                for k in next_nodes:
-                    for p in range(0, len(node_sets)):
-                        if k in node_sets[p]:
-                            next_nodes_set.append(p + 1)
+        # for i in range(0, len(node_sets)):
+        #     for n in node_sets[i]:
+        #         next_branches = []
+        #         next_nodes = []
+        #         loop_branches = []
 
-                # identifying the branches accordingly
-                for j in range(len(next_nodes)):
-                    if next_nodes_set[j] > i + 1:
-                        loop_branches.append(next_branches[j])
+        #         for b in n.branches:
+        #             if b.type != "C":
+        #                 if b.nodes[0] != n:
+        #                     next_nodes.append(b.nodes[0])
+        #                 else:
+        #                     next_nodes.append(b.nodes[1])
+        #                 next_branches.append(b)
+        #         # Indexing which set the nodes belong to
+        #         next_nodes_set = []
+        #         for k in next_nodes:
+        #             for p in range(0, len(node_sets)):
+        #                 if k in node_sets[p]:
+        #                     next_nodes_set.append(p + 1)
 
-                if len(loop_branches) > 1:
-                    flux_branches.append(
-                        loop_branches[:-1]
-                    )  # selecting n-1 elements in the list for external flux @ basis
+        #         # identifying the branches accordingly
+        #         for j in range(len(next_nodes)):
+        #             if next_nodes_set[j] > i + 1:
+        #                 loop_branches.append(next_branches[j])
 
-                # identifying the loops in the same set
-                self_nodes = []
-                self_branches = []
-                for x, s in enumerate(next_nodes_set):
-                    if s == i + 1:
-                        self_nodes.append(next_nodes[x])
-                        self_branches.append(next_branches[x])
+        #         if len(loop_branches) > 1:
+        #             closure_branches.append(
+        #                 loop_branches[:-1]
+        #             )  # selecting n-1 elements in the list for external flux @ basis
 
-                self_nodes = list(set(self_nodes))
-                self_branches = list(set(self_branches))
+        #         # identifying the loops in the same set
+        #         self_nodes = []
+        #         self_branches = []
+        #         for x, s in enumerate(next_nodes_set):
+        #             if s == i + 1:
+        #                 self_nodes.append(next_nodes[x])
+        #                 self_branches.append(next_branches[x])
 
-                if len(self_nodes) == 1 and len(self_branches) > 1:
-                    flux_branches.append(
-                        self_branches[:-1]
-                    )  # selecting n-1 branches for external flux
+        #         self_nodes = list(set(self_nodes))
+        #         self_branches = list(set(self_branches))
 
+        #         if len(self_nodes) == 1 and len(self_branches) > 1:
+        #             closure_branches.append(
+        #                 self_branches[:-1]
+        #             )  # selecting n-1 branches for external flux
+        
+        ############## selecting the appropriate branches from circ as from circ_copy #######
         def is_same_branch(b1, b2):
             d1 = b1.__dict__
             d2 = b2.__dict__
@@ -935,29 +971,33 @@ class CustomQCircuit(serializers.Serializable):
             else:
                 False
 
-        flux_branches = list(set([i for j in flux_branches for i in j]))
-        flux_branches_circ = []
-        for b in flux_branches:
-            flux_branches_circ += [i for i in self.branches if is_same_branch(i, b)]
-        ########################################
+        # closure_branches = list(set([i for j in closure_branches for i in j]))
+        closure_branches_circ = []
+        for b in closure_branches:
+            closure_branches_circ += [i for i in self.branches if is_same_branch(i, b)]
+        #####################################################################################
 
         # setting the class properties
-        if len(flux_branches) > 0:
-            self.flux_branches = flux_branches_circ
+        if len(closure_branches_circ) > 0:
+            self.closure_branches = closure_branches_circ
             self.external_flux_vars = [
-                symbols("Φ" + str(i + 1)) for i in range(len(flux_branches_circ))
+                symbols("Φ" + str(i + 1)) for i in range(len(closure_branches_circ))
             ]
 
-        return self.flux_branches
+        return self.closure_branches
 
     def lagrangian_sym(self, basis=None):
-        """
-        Outputs the Lagrangian of the circuit in terms of the new variables
-        output: (number of cyclic variables, periodic variables, Sympy expression)
+        r"""
+        Outputs and stores the Lagrangian of the circuit in terms of the new variables :math:`\theta_i`.
+
+        Parameters
+        ----------
+        basis:
+            None or an alternative transformation matrix to the one returned by the method variable_transformation_matrix
         """
         if basis is None:  # using the Lagrangian for a different transformation matrix
             basis = self.variable_transformation_matrix().astype(int)
-        flux_branches = self._flux_loops()
+        self._closure_branches()
 
         φ_vars = [
             symbols("φ" + str(i)) for i in range(1, len(self.nodes) + 1)
@@ -1004,8 +1044,8 @@ class CustomQCircuit(serializers.Serializable):
         for i in range(len(self.nodes)):  # converting potential to new variables
             potential_θ = potential_θ.subs(symbols("φ" + str(i + 1)), φ_vars_θ[i])
 
-        # eliminating the zombie variables
-        for i in self.var_indices["zombie"]:
+        # eliminating the frozen variables
+        for i in self.var_indices["frozen"]:
             sub = sympy.solve(
                 potential_θ.diff(symbols("θ" + str(i))), symbols("θ" + str(i))
             )
@@ -1045,17 +1085,21 @@ class CustomQCircuit(serializers.Serializable):
         return self.L
 
     def hamiltonian_sym(self, basis=None):
-        """
-        Outputs the Hamiltonian of the circuit in terms of the new variables
-        output: (number of cyclic variables, periodic variables, Sympy expression)
+        r"""
+        Outputs and stores the Hamiltonian of the circuit in terms of the new variables :math:`\theta_i`.
+
+        Parameters
+        ----------
+        basis:
+            None or an alternative transformation matrix to the one returned by the method variable_transformation_matrix
         """
         self.lagrangian_sym(basis=basis)
 
-        # Excluding the zombie modes
+        # Excluding the frozen modes
         if self.is_grounded:
-            n = len(self.var_indices["zombie"])
+            n = len(self.var_indices["frozen"])
         else:
-            n = len(self.var_indices["zombie"]) + 1
+            n = len(self.var_indices["frozen"]) + 1
 
         N = len(self.nodes)
         if basis is None:
@@ -1065,11 +1109,11 @@ class CustomQCircuit(serializers.Serializable):
         if self.mode == "sym":
             C_mat_θ = (basis.T * self._C_matrix() * basis)[
                 0 : N - n, 0 : N - n
-            ].inv()  # exlcluding the zombie modes
+            ].inv()  # exlcluding the frozen modes
         elif self.mode == "num":
             C_mat_θ = np.linalg.inv(
                 (basis.T @ self._C_matrix() @ basis)[0 : N - n, 0 : N - n]
-            )  # exlcluding the zombie modes
+            )  # exlcluding the frozen modes
 
         # x_vars = (self.trans_mat).dot(y_vars) # writing φ in terms of θ variables
         # x_dot_vars = (self.trans_mat).dot(y_dot_vars)

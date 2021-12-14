@@ -1,3 +1,13 @@
+# analyzeqcircuit.py
+#
+# This file is part of scqubits.
+#
+#    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
+#    All rights reserved.
+#
+#    This source code is licensed under the BSD-style license found in the
+#    LICENSE file in the root directory of this source tree.
+############################################################################
 from abc import ABC, ABCMeta, abstractmethod
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from numpy.core.fromnumeric import var
@@ -37,9 +47,31 @@ from scqubits.utils.spectrum_utils import (
 )
 
 
-class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializable):
-    """
-    Class to make numerical analysis on the CustomQCircuit instance. Subclass of CustomQCircuit and can be initiated using the same input file.
+class AnalyzeQCircuit(base.QubitBaseClass, base.QuantumSystem, CustomQCircuit, serializers.Serializable):
+    r"""
+    Class to numerically analyze an instance of CustomQCircuit.
+
+    Can be initialized using an input file. For a Transmon qubit for example the following input file can be used.
+    # file_name: transmon_num.inp
+        nodes: 2
+        branches:
+        C	1,2	1
+        JJ	1,2	1	10
+
+    Circuit object can be initiated using:
+        CustomQCircuit.from_input_file("transmon_num.inp", mode="num")
+
+    A set of nodes with branches connecting them forms a circuit.
+    Parameters
+    ----------
+    nodes_list:
+        List of nodes in the circuit
+    branches_list:
+        List of branches connecting the above set of nodes.
+    mode:
+        "num" or "sym" correspondingly to numeric or symbolic representation of input parameters in the input file.
+    phi_basis:
+        "sparse" or "harmonic": Choose whether to use discretized phi or harmonic oscillator basis for extended variables.
     """
 
     def __init__(
@@ -50,7 +82,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         mode: str = "sym",
         basis: str = "simple",
         initiate_sym_calc: bool = True,
-        phi_basis: str = 'sparse'
+        phi_basis: str = "sparse",
     ):
         CustomQCircuit.__init__(
             self,
@@ -85,6 +117,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             self.initiate()
 
     def initiate(self):
+        """
+        Function to initiate the instance attributes by calling the appropriate methods. Should be used for debugging purposes.
+        """
         self.hamiltonian_sym()
         # initiating the class properties
         for var_type in self.var_indices.keys():
@@ -131,6 +166,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     def from_CustomQCircuit(cls, circuit: CustomQCircuit):
         """
         Initialize AnalyzeQCircuit using an instance of CustomQCircuit.
+
+        Parameters
+        ----------
+        circuit:
+            An instance of CustomQCircuit
         """
         return cls(
             circuit.nodes,
@@ -168,10 +208,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
     def hamiltonian_function(self):
         """
-        Outputs the function which can be used to calculate the operator form of the Matrix given the ncut.
-        mode:-
-        "num" : The circuit parameters are given as numbers in the input file
-        "sym" : The circuit parameters are given as symbols in the input file
+        Outputs the function using lambdify in Sympy, which returns a Hamiltonian matrix by using the circuit attributes set in either the input file or the instance attributes.
         """
         H = (
             self.H.expand()
@@ -212,49 +249,85 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             # marking the squared momentum operators with a separate symbol
             for i in self.var_indices["discretized_phi"]:
                 H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
-            
+
         elif self.phi_basis == "harmonic":
             osc_freqs = dict.fromkeys(self.var_indices["discretized_phi"])
             osc_lengths = dict.fromkeys(self.var_indices["discretized_phi"])
-            a_symbols = [symbols("a" + str(i)) for i in self.var_indices["discretized_phi"]]
-            ad_symbols = [symbols("ad" + str(i)) for i in self.var_indices["discretized_phi"]]
-            Nh_symbols = [symbols("Nh" + str(i)) for i in self.var_indices["discretized_phi"]]
+            a_symbols = [
+                symbols("a" + str(i)) for i in self.var_indices["discretized_phi"]
+            ]
+            ad_symbols = [
+                symbols("ad" + str(i)) for i in self.var_indices["discretized_phi"]
+            ]
+            Nh_symbols = [
+                symbols("Nh" + str(i)) for i in self.var_indices["discretized_phi"]
+            ]
             for i in self.var_indices["discretized_phi"]:
-                ECi = H.coeff("Q" + str(i)+"**2").cancel()/4
-                ELi = H.coeff("θ" + str(i)+"**2").cancel()*2
-                osc_freqs[i] = (8*ELi*ECi)**0.5
+                ECi = H.coeff("Q" + str(i) + "**2").cancel() / 4
+                ELi = H.coeff("θ" + str(i) + "**2").cancel() * 2
+                osc_freqs[i] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[i] = (8.0 * ECi / ELi) ** 0.25
-                H = (H - ECi*4*symbols("Q" + str(i))**2 - ELi/2*symbols("θ" + str(i))**2 + osc_freqs[i]*(symbols("Nh" + str(i)))).cancel().expand()
+                H = (
+                    (
+                        H
+                        - ECi * 4 * symbols("Q" + str(i)) ** 2
+                        - ELi / 2 * symbols("θ" + str(i)) ** 2
+                        + osc_freqs[i] * (symbols("Nh" + str(i)))
+                    )
+                    .cancel()
+                    .expand()
+                )
             # H = H.rewrite((sympy.cos, sympy.sin),sympy.exp)
             self.osc_freqs = osc_freqs
             self.osc_lengths = osc_lengths
 
             for i in self.var_indices["discretized_phi"]:
-                H = H.replace(symbols("θ" + str(i)), (symbols("ad" + str(i)) + symbols("a" + str(i)))*osc_lengths[i]/np.sqrt(2) )
-                H = H.replace(symbols("Q" + str(i)), 1j*(symbols("ad" + str(i)) - symbols("a" + str(i)))/(osc_lengths[i]*np.sqrt(2)) )
+                H = H.replace(
+                    symbols("θ" + str(i)),
+                    (symbols("ad" + str(i)) + symbols("a" + str(i)))
+                    * osc_lengths[i]
+                    / np.sqrt(2),
+                )
+                H = H.replace(
+                    symbols("Q" + str(i)),
+                    1j
+                    * (symbols("ad" + str(i)) - symbols("a" + str(i)))
+                    / (osc_lengths[i] * np.sqrt(2)),
+                )
 
             H = H.expand()
             expr_dict = H.as_coefficients_dict()
             terms_str = list(expr_dict.keys())
             coeff_str = list(expr_dict.values())
             # # from sympy.utilities.iterables import flatten
-            for i,x in enumerate(terms_str):
-                mat = re.search(r'a\d\*[\w+]*', str(x))
-                mat1 = re.search(r'ad\d\*[\w+]*', str(x))
+            for i, x in enumerate(terms_str):
+                mat = re.search(r"a\d\*[\w+]*", str(x))
+                mat1 = re.search(r"ad\d\*[\w+]*", str(x))
 
                 if mat and "cos" not in str(x) and "sin" not in str(x):
-                    orig = coeff_str[i]*x
-                    x = coeff_str[i]*parse_expr(str(x).replace(mat.group(), "F(" + mat.group().replace("*", ",") + ")") )
+                    orig = coeff_str[i] * x
+                    x = coeff_str[i] * parse_expr(
+                        str(x).replace(
+                            mat.group(), "F(" + mat.group().replace("*", ",") + ")"
+                        )
+                    )
+                    H = H - orig + x
+                elif mat1 and "cos" not in str(x) and "sin" not in str(x):
+                    orig = coeff_str[i] * x
+                    x = coeff_str[i] * parse_expr(
+                        str(x).replace(
+                            mat1.group(), "F(" + mat1.group().replace("*", ",") + ")"
+                        )
+                    )
                     H = H - orig + x
 
-                if mat1 and "cos" not in str(x) and "sin" not in str(x):
-                    orig = coeff_str[i]*x
-                    x = coeff_str[i]*parse_expr(str(x).replace(mat1.group(), "F(" + mat1.group().replace("*", ",") + ")") )
-                    H = H - orig + x
-                    
                 if "a" in str(x) and ("*cos" in str(x) or "*sin" in str(x)):
-                    orig = coeff_str[i]*x
-                    x = coeff_str[i]*parse_expr("F(" + str(x).replace("*cos", ",cos").replace("*sin",",sin") + ")")
+                    orig = coeff_str[i] * x
+                    x = coeff_str[i] * parse_expr(
+                        "F("
+                        + str(x).replace("*cos", ",cos").replace("*sin", ",sin")
+                        + ")"
+                    )
                     H = H - orig + x
 
         # # Defining the list of variables for cyclic operators
@@ -269,7 +342,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         constants = [
             i
             for i in coeff_dict
-            if "Q" not in str(i) and "θ" not in str(i) and "n" not in str(i) and "a" not in str(i) and "Nh" not in str(i)
+            if "Q" not in str(i)
+            and "θ" not in str(i)
+            and "n" not in str(i)
+            and "a" not in str(i)
+            and "Nh" not in str(i)
         ]
         for i in constants:
             H = H - i * coeff_dict[i]  # + i*coeff_dict[i]*symbols("I")).expand()
@@ -284,7 +361,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         # Updating the class properties
         if self.phi_basis == "sparse":
-                    # defining the function from the Hamiltonian
+            # defining the function from the Hamiltonian
             func = lambdify(
                 (
                     periodic_symbols
@@ -305,7 +382,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                 ],
             )
             self.vars = {
-                "periodic": [periodic_symbols_ys, periodic_symbols_yc, periodic_symbols_n],
+                "periodic": [
+                    periodic_symbols_ys,
+                    periodic_symbols_yc,
+                    periodic_symbols_n,
+                ],
                 "discretized_phi": [y_symbols, p_symbols, ps_symbols],
                 "identity": [symbols("I")],
             }
@@ -330,7 +411,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                 ],
             )
             self.vars = {
-                "periodic": [periodic_symbols_ys, periodic_symbols_yc, periodic_symbols_n],
+                "periodic": [
+                    periodic_symbols_ys,
+                    periodic_symbols_yc,
+                    periodic_symbols_n,
+                ],
                 "discretized_phi": [a_symbols, ad_symbols, Nh_symbols],
                 "identity": [symbols("I")],
             }
@@ -372,7 +457,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             self.var_indices["discretized_phi"]
         ) != len(cutoff_dict["cutoff_phi"]):
             raise AttributeError(
-                "Make sure the cutoffs are only defined for the circuit variables in the class property var_indices, except for zombie variables. "
+                "Make sure the cutoffs are only defined for the circuit variables in the class property var_indices, except for frozen variables. "
             )
 
         cutoff_list = []
@@ -397,7 +482,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                     np.prod(cutoff_list[: index - 1]), format=matrix_format
                 )
             if index < var_index_list[-1]:
-                Identity_r = sparse.identity(np.prod(cutoff_list[index:]), format=matrix_format)
+                Identity_r = sparse.identity(
+                    np.prod(cutoff_list[index:]), format=matrix_format
+                )
 
             if index == var_index_list[0]:
                 return sparse.kron(operator, Identity_r, format=matrix_format)
@@ -417,7 +504,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
     def _change_sparsity(self, x):
         if self.phi_basis == "harmonic":
-            return x.toarray()*(1+0j)
+            return x.toarray() * (1 + 0j)
         elif self.phi_basis == "sparse":
             return x
 
@@ -584,15 +671,19 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         elif self.phi_basis == "harmonic":
             for v in normal_vars[0]:  # a or annihilation operators
                 index = int(v.name[1:])
-                x_operator = op.annihilation(cutoffs[index]) * (1+0j)
+                x_operator = op.annihilation(cutoffs[index]) * (1 + 0j)
                 normal_operators[0].append(self._kron_operator(x_operator, index))
             for v in normal_vars[1]:  # ad or creation operators
                 index = int(v.name[2:])
-                p_operator = op.creation(cutoffs[index]) * (1+0j)
+                p_operator = op.creation(cutoffs[index]) * (1 + 0j)
                 normal_operators[1].append(self._kron_operator(p_operator, index))
             for v in normal_vars[2]:  # Nh or number operators
                 index = int(v.name[2:])
-                ps_operator = op.creation(cutoffs[index]) @ op.annihilation(cutoffs[index]) * (1+0j)
+                ps_operator = (
+                    op.creation(cutoffs[index])
+                    @ op.annihilation(cutoffs[index])
+                    * (1 + 0j)
+                )
                 normal_operators[2].append(self._kron_operator(ps_operator, index))
 
         # constructing the operators for periodic variables
@@ -629,12 +720,18 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ################ Functions for parameter queries #################
     ##################################################################
     def get_params(self):
+        """
+        Method to get the circuit parameters set using the instance attributes.
+        """
         params = []
         for param in self.param_vars:
             params.append(getattr(self, param.name))
         return params
 
     def get_cutoffs(self):
+        """
+        Method to get the cutoffs for each of the circuit's degree of freedom.
+        """
         cutoffs_dict = {
             "cutoff_n": [],
             "cutoff_phi": [],
@@ -650,9 +747,15 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         return cutoffs_dict
 
     def get_external_flux(self):
+        """
+        Returns all the time independent external flux set using the circuit attributes for each of the independent loops detected.
+        """
         return [getattr(self, flux.name) for flux in self.external_flux_vars]
 
     def get_offset_charges(self):
+        """
+        Returns all the offset charges set using the circuit attributes for each of the periodic degree of freedom.
+        """
         return [
             getattr(self, offset_charge.name)
             for offset_charge in self.offset_charge_vars
@@ -687,6 +790,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     def set_operators(self):
         """
         Sets the operator attributes of the circuit with new operators calculated using the paramaters set in the circuit attributes. Returns a list of operators similar to the method get_operators.
+        Returns nothing.
         """
 
         ops = self.circuit_operators()
@@ -808,6 +912,14 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         return potential_func(*parameters.values())
 
     def plot_potential(self, **kwargs):
+        r"""
+        Returns the plot of the potential for the circuit instance. Make sure to not set more than two variables in the instance.potential to a Numpy array, as the the code cannot plot with more than 3 dimensions.
+
+        Parameters
+        ----------
+        :math:`\theta_i`:
+            Numpy array or a Float, is the value set to the variable :math:`\theta_i` in the potential.
+        """
 
         periodic_indices = self.var_indices["periodic"]
         discretized_phi_indices = self.var_indices["discretized_phi"]
@@ -857,6 +969,18 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ############# Functions for plotting wavefunction ################
     ##################################################################
     def plot_wavefunction(self, n=0, var_indices=(1,), mode="abs", eigensys=None):
+        """
+        Returns the plot of the wavefunction in the requested variables and for a specific eigen system calculation.
+
+        Parameters
+        ----------
+        var_indices:
+            A tuple containing the indices of the variables chosen to plot the wavefunction in. Should not have more than 2 entries.
+        mode:
+            "abs" or "real" or "imag" for absolute, real or imaginary parts of the wavefunction.
+        eigensys:
+            The object returned by the method instance.eigensys, is used to avoid the re-evaluation of the eigen systems if already evaluated.
+        """
         dims = tuple(
             np.sort(var_indices) - 1
         )  # taking the var indices and identifying the dimensions.
@@ -939,8 +1063,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             )
         elif self.phi_basis == "harmonic":
             evals = sp.linalg.eigvalsh(
-                hamiltonian_mat, subset_by_index=[0,evals_count-1]
-                )
+                hamiltonian_mat, subset_by_index=[0, evals_count - 1]
+            )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
@@ -951,7 +1075,9 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             )
         elif self.phi_basis == "harmonic":
             evals, evecs = sp.linalg.eigh(
-                hamiltonian_mat, return_eigenvectors=True, subset_by_index=[0,evals_count-1]
+                hamiltonian_mat,
+                eigvals_only=False,
+                subset_by_index=[0, evals_count - 1],
             )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
@@ -1012,6 +1138,11 @@ def energy_split(levels):  # gives the energy splits given the energy levels
 def example_circuit(qubit):
     """
     Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of the popular qubits.
+
+    Parameters
+    ----------
+    qubit:
+        "fluxonium" or "transmon" or "zero_pi" or "cos2phi" chosing the respective example input strings.
     """
 
     # example input strings for popular qubits
