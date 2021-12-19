@@ -263,7 +263,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         self.cutoffs_list = []
         self.phi_basis = phi_basis
         self.heirarchical_diagonalization = heirarchical_diagonalization
-        if phi_basis == "sparse" and self.heirarchical_diagonalization:
+        if phi_basis != "sparse" and self.heirarchical_diagonalization:
             raise Exception("Heirarchical Diagonalization only works with discretized phi basis for extended degrees of freedom. Please change `phi_basis` to sparse to use heirarchical diagonalization.")
 
         # Hamiltonian function
