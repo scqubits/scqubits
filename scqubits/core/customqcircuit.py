@@ -169,8 +169,6 @@ class CustomQCircuit(serializers.Serializable):
         List of branches connecting the above set of nodes.
     mode:
         "num" or "sym" correspondingly to numeric or symbolic representation of input parameters in the input file.
-    phi_basis:
-        "sparse" or "harmonic": Choose whether to use discretized phi or harmonic oscillator basis for extended variables.
     """
 
     def __init__(
@@ -179,10 +177,8 @@ class CustomQCircuit(serializers.Serializable):
         branches_list: list,
         mode: str = "sym",
         basis: str = "simple",
-        phi_basis: str = "sparse",
         ground_node=None,
         initiate_sym_calc: bool = True,
-        id_str: Optional[str] = None,
     ):
 
         self.branches = branches_list
@@ -220,7 +216,8 @@ class CustomQCircuit(serializers.Serializable):
 
         # paramater for chosing the basis
         self.basis = basis  # default, the other choice is standard
-        self.phi_basis = phi_basis  # choising the basis for extended variables
+
+        self.initiate_sym_calc = initiate_sym_calc
 
         # Calling the function to initiate the calss variables
         if initiate_sym_calc:
@@ -248,7 +245,6 @@ class CustomQCircuit(serializers.Serializable):
         cls,
         input_string: str,
         mode: str = "sym",
-        phi_basis="sparse",
         basis="simple",
         initiate_sym_calc=True,
     ):
@@ -258,8 +254,6 @@ class CustomQCircuit(serializers.Serializable):
         ----------
         input_string:
             String describing the number of nodes and branches connecting then along with their parameters
-        phi_basis:
-            "sparse" or "harmonic", choosing discretized phi or harmonic oscillator basis for the extended variables
 
         """
         lines = (input_string).split("\n")
@@ -350,7 +344,6 @@ class CustomQCircuit(serializers.Serializable):
             ground_node=ground_node,
             mode=mode,
             basis=basis,
-            phi_basis=phi_basis,
             initiate_sym_calc=initiate_sym_calc,
         )
         circuit.input_string = input_string
@@ -363,7 +356,6 @@ class CustomQCircuit(serializers.Serializable):
         filename: str,
         mode: str = "sym",
         basis="simple",
-        phi_basis="sparse",
         initiate_sym_calc=True,
     ):
         """
@@ -372,8 +364,6 @@ class CustomQCircuit(serializers.Serializable):
         ----------
         filename:
             name of the file containing the text describing the number of nodes and branches connecting then along with their parameters
-        phi_basis:
-            "sparse" or "harmonic", choosing discretized phi or harmonic oscillator basis for the extended variables
 
         """
         file = open(filename, "r")
@@ -383,7 +373,6 @@ class CustomQCircuit(serializers.Serializable):
             input_string,
             mode=mode,
             basis=basis,
-            phi_basis=phi_basis,
             initiate_sym_calc=initiate_sym_calc,
         )
 
@@ -505,8 +494,9 @@ class CustomQCircuit(serializers.Serializable):
             frozen_modes.append(Σ)
 
         # ##################### Finding the LC Modes ##################
-        # selected_branches = [branch for branch in branches if branch.type == "JJ"]
-        # LC_modes = independent_modes(selected_branches, single_nodes=False)
+        selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
+        LC_modes = independent_modes(selected_branches, single_nodes=False)
+        # print(LC_modes)
 
         ################ Adding periodic and frozen modes to cyclic ones #############
         # modes = cyclic_modes.copy()  # starting with the cyclic modes
@@ -521,10 +511,10 @@ class CustomQCircuit(serializers.Serializable):
             if np.linalg.matrix_rank(mat) == len(mat):
                 modes.append(m)
 
-        # for m in (LC_modes): # adding the LC modes to the basis
-        #     mat = np.array(modes+[m])
-        #     if np.linalg.matrix_rank(mat)==len(mat):
-        #         modes.append(m)
+        for m in (LC_modes): # adding the LC modes to the basis
+            mat = np.array(modes+[m])
+            if np.linalg.matrix_rank(mat)==len(mat):
+                modes.append(m)
 
         ####################### Completing the Basis ######################
         # step 4: construct the new set of basis vectors
@@ -589,6 +579,15 @@ class CustomQCircuit(serializers.Serializable):
             if i not in pos_periodic
             if new_basis[i].tolist() in frozen_modes
         ]
+        pos_osc = [
+            i
+            for i in range(len(new_basis))
+            if i not in pos_Σ
+            if i not in pos_cyclic
+            if i not in pos_periodic
+            if i not in pos_frozen
+            if new_basis[i].tolist() in LC_modes
+        ]
         pos_rest = [
             i
             for i in range(len(new_basis))
@@ -615,6 +614,9 @@ class CustomQCircuit(serializers.Serializable):
             "frozen": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
             ],
+            "osc": [
+                i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_osc
+            ]
         }
         # creating a class attribute for conserved charges corresponding to cyclic variables
         for c in self.var_indices["cyclic"]:
