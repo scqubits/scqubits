@@ -286,7 +286,9 @@ class ParameterSweepBase(ABC):
         if not sidebands:
             final_state_list = []
             for subsys in subsys_list:
-                final_state_list += self._final_states_for_subsys_transition(subsys, initial_state)
+                final_state_list += self._final_states_for_subsys_transition(
+                    subsys, initial_state
+                )
             return final_state_list
 
         range_list = [range(dim) for dim in self._hilbertspace.subsystem_dims]
