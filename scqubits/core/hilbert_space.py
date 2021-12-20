@@ -1103,7 +1103,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             if re.match(r"op\d+$", key) is None:
                 raise TypeError("Unexpected keyword argument {}.".format(key))
             subsys_index, op = self._parse_op(kwargs[key])
-            operator_list.append(self._parse_op(kwargs[key]))
+            operator_list.append((subsys_index, op))
 
         return InteractionTerm(g, operator_list, add_hc=add_hc)
 
