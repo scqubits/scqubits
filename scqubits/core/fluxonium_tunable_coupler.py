@@ -163,8 +163,12 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         flux_a, flux_b = fluxonium_a.flux, fluxonium_b.flux
         fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
         fluxonium_minus = self.fluxonium_minus()
-        evals_a, evecs_a, phi_a_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_a)
-        evals_b, evecs_b, phi_b_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_b)
+        evals_a, evecs_a, phi_a_mat = self.signed_evals_evecs_phimat_qubit_instance(
+            fluxonium_a
+        )
+        evals_b, evecs_b, phi_b_mat = self.signed_evals_evecs_phimat_qubit_instance(
+            fluxonium_b
+        )
         evals_m, evecs_m, phi_minus_mat = self.signed_evals_evecs_phimat_qubit_instance(
             fluxonium_minus
         )
@@ -175,9 +179,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         # first-order contribution yields sigmax
         H_1_a = (-0.5 * self.ELa * phi_minus_mat[0, 0] * phi_a_mat)[0:2, 0:2]
         # canceled by flux_offset
-        H_1_a += - self.ELa * 2.0 * np.pi * (flux_a - 0.5) * phi_a_mat[0:2, 0:2]
+        H_1_a += -self.ELa * 2.0 * np.pi * (flux_a - 0.5) * phi_a_mat[0:2, 0:2]
         H_1_b = (0.5 * self.ELb * phi_minus_mat[0, 0] * phi_b_mat)[0:2, 0:2]
-        H_1_b += - self.ELb * 2.0 * np.pi * (flux_b - 0.5) * phi_b_mat[0:2, 0:2]
+        H_1_b += -self.ELb * 2.0 * np.pi * (flux_b - 0.5) * phi_b_mat[0:2, 0:2]
         H_1 = tensor(Qobj(H_1_a), qeye(2)) + tensor(qeye(2), Qobj(H_1_b))
 
         # second order calculation
@@ -218,8 +222,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             * self._g_plus_minus(phi_minus_mat)
             * self._g_plus(ell, ellp, phi_q_mat, EL)
             * (
-                    1.0 / (evals_q[ell] - evals_q[ellp] - self.h_o_plus().E_osc)
-                    + 1.0 / (evals_q[ellp] - evals_q[ell] - self.h_o_plus().E_osc)
+                1.0 / (evals_q[ell] - evals_q[ellp] - self.h_o_plus().E_osc)
+                + 1.0 / (evals_q[ellp] - evals_q[ell] - self.h_o_plus().E_osc)
             )
             * basis(2, ell)
             * basis(2, ellp).dag()
@@ -768,16 +772,52 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             for n in range(1, fmdim)
             for nprime in range(1, fmdim)
         )
-        S1_0_contr = sum(self._eps_1(evals_minus, evals_a, phi_a_mat, phi_minus_mat, self.ELa, i=ell,
-                                     j=ellprime, n=n)
-                         * self._eps_1(evals_minus, evals_b, phi_b_mat, phi_minus_mat, self.ELb, i=mprime,
-                                       j=m, n=n)
-                         + self._eps_1(evals_minus, evals_a, phi_a_mat, phi_minus_mat, self.ELa, i=ellprime,
-                                       j=ell, n=n)
-                         * self._eps_1(evals_minus, evals_b, phi_b_mat, phi_minus_mat, self.ELb, i=m,
-                                       j=mprime, n=n)
-                         for n in range(1, fmdim)
-                         ) * phi_minus_mat[0, 0]
+        S1_0_contr = (
+            sum(
+                self._eps_1(
+                    evals_minus,
+                    evals_a,
+                    phi_a_mat,
+                    phi_minus_mat,
+                    self.ELa,
+                    i=ell,
+                    j=ellprime,
+                    n=n,
+                )
+                * self._eps_1(
+                    evals_minus,
+                    evals_b,
+                    phi_b_mat,
+                    phi_minus_mat,
+                    self.ELb,
+                    i=mprime,
+                    j=m,
+                    n=n,
+                )
+                + self._eps_1(
+                    evals_minus,
+                    evals_a,
+                    phi_a_mat,
+                    phi_minus_mat,
+                    self.ELa,
+                    i=ellprime,
+                    j=ell,
+                    n=n,
+                )
+                * self._eps_1(
+                    evals_minus,
+                    evals_b,
+                    phi_b_mat,
+                    phi_minus_mat,
+                    self.ELb,
+                    i=m,
+                    j=mprime,
+                    n=n,
+                )
+                for n in range(1, fmdim)
+            )
+            * phi_minus_mat[0, 0]
+        )
         S2_contr = sum(
             (
                 self._eps_ab_2(
@@ -821,8 +861,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     def _g_plus_minus(self, phi_minus_mat):
         ELq, dELq = self._avg_and_rel_dev(self.ELa, self.ELb)
         ELc, dELc = self._avg_and_rel_dev(self.EL1, self.EL2)
-        return ((ELq * dELq + ELc * dELc) * self.h_o_plus().l_osc
-                * phi_minus_mat[0, 0]) / (4 * np.sqrt(2))
+        return (
+            (ELq * dELq + ELc * dELc) * self.h_o_plus().l_osc * phi_minus_mat[0, 0]
+        ) / (4 * np.sqrt(2))
 
     def _g_minus(self, ell, ellp, n, phi_q_mat, phi_minus_mat, EL):
         return 0.5 * EL * phi_q_mat[ell, ellp] * phi_minus_mat[0, n]
@@ -1075,11 +1116,19 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         fluxonium_minus = self.fluxonium_minus()
         _, _, phi_a_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_a)
         _, _, phi_b_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_b)
-        _, _, phi_minus_mat = self.signed_evals_evecs_phimat_qubit_instance(fluxonium_minus)
-        flux_a_ind = (self._g_plus_minus(phi_minus_mat)
-                      * self._g_plus(0, 1, phi_a_mat, self.ELa) / self.h_o_plus().E_osc)
-        flux_b_ind = (self._g_plus_minus(phi_minus_mat)
-                      * self._g_plus(0, 1, phi_b_mat, self.ELb) / self.h_o_plus().E_osc)
+        _, _, phi_minus_mat = self.signed_evals_evecs_phimat_qubit_instance(
+            fluxonium_minus
+        )
+        flux_a_ind = (
+            self._g_plus_minus(phi_minus_mat)
+            * self._g_plus(0, 1, phi_a_mat, self.ELa)
+            / self.h_o_plus().E_osc
+        )
+        flux_b_ind = (
+            self._g_plus_minus(phi_minus_mat)
+            * self._g_plus(0, 1, phi_b_mat, self.ELb)
+            / self.h_o_plus().E_osc
+        )
         flux_shift_a = -phi_minus_mat[0, 0] / 2 + flux_a_ind
         flux_shift_b = phi_minus_mat[0, 0] / 2 + flux_b_ind
         return flux_shift_a / (2.0 * np.pi), flux_shift_b / (2.0 * np.pi)
@@ -1160,11 +1209,13 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         flux_shift_a_seed, flux_shift_b_seed = self.find_flux_shift()
 
         result = minimize(
-            self._eigenvals_for_flux, x0=np.array([0.5 + flux_shift_a_seed, 0.5 + flux_shift_b_seed]),
-            bounds=((0.4, 0.6), (0.4, 0.6)), tol=1e-4
+            self._eigenvals_for_flux,
+            x0=np.array([0.5 + flux_shift_a_seed, 0.5 + flux_shift_b_seed]),
+            bounds=((0.4, 0.6), (0.4, 0.6)),
+            tol=1e-4,
         )
         assert result.success
-        return result.x[0]-0.5, result.x[1]-0.5
+        return result.x[0] - 0.5, result.x[1] - 0.5
 
     def off_location_effective_sweet_spot_fluxes(self):
         flux_c = self.off_location_coupler_flux()
@@ -1318,13 +1369,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
 
     def h_o_plus(self):
         E_osc = convert_to_E_osc(
-            8.0 * self.h_o_plus_charging_energy(), self.EL_tilda() / 4.0  # 16 EC_{m}
-        )
+            8.0 * self.h_o_plus_charging_energy(), self.EL_tilda() / 4.0
+        )  # 16 EC_{m}
         l_osc = convert_to_l_osc(
             8.0 * self.h_o_plus_charging_energy(), self.EL_tilda() / 4.0
         )
         return Oscillator(
-            E_osc=E_osc, l_osc=l_osc, truncated_dim=self.h_o_truncated_dim,
+            E_osc=E_osc,
+            l_osc=l_osc,
+            truncated_dim=self.h_o_truncated_dim,
         )
 
 
