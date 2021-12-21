@@ -1,6 +1,7 @@
 from typing import Optional
 
 import numpy as np
+from numpy import ndarray
 from qutip import qeye, sigmax, sigmay, sigmaz, tensor, basis, Qobj
 from scipy.linalg import inv
 from scipy.optimize import root, minimize
@@ -11,7 +12,8 @@ import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.oscillator import Oscillator, convert_to_E_osc, convert_to_l_osc
 from scqubits.core.hilbert_space import HilbertSpace
-from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_sign
+from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_sign, convert_evecs_to_ndarray, \
+    identity_wrap
 
 
 class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializable):
@@ -1162,6 +1164,42 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         J = self.ELa * self.ELb * (0.5 * chi_m - 1.0 / self.EL_tilda())
         return fluxonium_a, fluxonium_b, J
 
+    def hilbert_space_at_sweetspot(self, flux_shift_a=None, flux_shift_b=None):
+        if flux_shift_a is None and flux_shift_b is None:
+            flux_shift_a, flux_shift_b = self.find_flux_shift_exact()
+        self.flux_a = 0.5 + flux_shift_a
+        self.flux_b = 0.5 + flux_shift_b
+        return self.generate_coupled_system()
+
+    def basis_change(self, op, evecs, hilbert_space, subsystem):
+        op_id_wrap = identity_wrap(op, subsystem, hilbert_space.subsys_list)
+        op_new_basis = np.real(evecs.T @ op_id_wrap.data @ evecs)
+        return Qobj(op_new_basis)
+
+    def operators_at_sweetspot(self, num_states=4, flux_shift_a=None, flux_shift_b=None):
+        hilbert_space = self.hilbert_space_at_sweetspot(flux_shift_a, flux_shift_b)
+        dressed_hamiltonian = hilbert_space.hamiltonian()
+        evals_qobj, evecs_qobj = dressed_hamiltonian.eigenstates(eigvals=num_states)
+        evals_zeroed = evals_qobj - evals_qobj[0]
+        H_0 = Qobj(2.0 * np.pi * np.diag(evals_zeroed[0:num_states]))
+        evecs_ = convert_evecs_to_ndarray(evecs_qobj).T
+        evecs = np.zeros_like(evecs_)
+        for i, evec in enumerate(evecs_.T):
+            evecs[:, i] = standardize_sign(evec)
+        fluxonium_a = hilbert_space['fluxonium_a']
+        fluxonium_b = hilbert_space['fluxonium_b']
+        fluxonium_minus = hilbert_space['fluxonium_minus']
+        h_o_plus = hilbert_space['h_o_plus']
+        phi_a = self.basis_change(fluxonium_a.phi_operator(), evecs, hilbert_space, fluxonium_a)
+        phi_b = self.basis_change(fluxonium_b.phi_operator(), evecs, hilbert_space, fluxonium_b)
+        phi_minus = self.basis_change(fluxonium_minus.phi_operator(), evecs, hilbert_space, fluxonium_minus)
+        phi_plus = self.basis_change(h_o_plus.phi_operator(), evecs, hilbert_space, h_o_plus)
+        H_a = -2.0 * np.pi * self.ELa * (phi_a - 0.5 * phi_plus - 0.5 * phi_minus)
+        H_b = -2.0 * np.pi * self.ELb * (phi_b - 0.5 * phi_plus + 0.5 * phi_minus)
+        H_c = -2.0 * np.pi * (0.25 * self.EL_tilda() * phi_minus
+                              - 0.5 * self.ELa * phi_a + 0.5 * self.ELb * phi_b)
+        return H_0, H_a, H_b, H_c
+
     @staticmethod
     def _get_phi_01(fluxonium_instance):
         evals, evecs_uns = fluxonium_instance.eigensys(evals_count=2)
@@ -1329,6 +1367,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             self.flux_a,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
+            id_str='fluxonium_a'
         )
 
     def fluxonium_b(self):
@@ -1339,6 +1378,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             self.flux_b,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
+            id_str='fluxonium_b'
         )
 
     def fluxonium_minus(self):
@@ -1349,6 +1389,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             self.flux_c,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_minus_truncated_dim,
+            id_str='fluxonium_minus'
             #            flux_fraction_with_inductor=0.0,
             #            flux_junction_sign=-1,
         )
@@ -1378,6 +1419,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             E_osc=E_osc,
             l_osc=l_osc,
             truncated_dim=self.h_o_truncated_dim,
+            id_str='h_o_plus'
         )
 
 
