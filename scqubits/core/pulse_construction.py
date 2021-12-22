@@ -24,15 +24,18 @@ II = tensor(qeye(2), qeye(2))
 
 class PulseConstruction(serializers.Serializable):
     def __init__(self, H0, HXI, HIX, HXX, control_dt=0.05):
-        self.H0 = H0
-        self.omega_a = np.real(H0[2, 2] - H0[0, 0])
-        self.omega_b = np.real(H0[1, 1] - H0[0, 0])
+        self.omega_a = np.real(H0[1, 1] - H0[0, 0])
+        self.omega_b = np.real(H0[2, 2] - H0[0, 0])
+        self.H0 = H0 - 0.5 * qeye(4) * (self.omega_a + self.omega_b)
         self.norm_HXI = HXI[0, 2]
         self.norm_HIX = HIX[0, 1]
         self.norm_HXX = HXX[0, 3]
-        self.HXI = HXI / self.norm_HXI
-        self.HIX = HIX / self.norm_HIX
-        self.HXX = HXX / self.norm_HXX
+        diag_HXI = HXI[0, 0]
+        diag_HIX = HIX[0, 0]
+        diag_HXX = HXX[0, 0]
+        self.HXI = (HXI - diag_HXI * qeye(4)) / self.norm_HXI
+        self.HIX = (HIX - diag_HIX * qeye(4)) / self.norm_HIX
+        self.HXX = (HXX - diag_HXX * qeye(4)) / self.norm_HXX
         self.control_dt = control_dt
 
     def RZ(self, theta, Z_):
@@ -44,7 +47,7 @@ class PulseConstruction(serializers.Serializable):
         gamma = cmath.phase(gate_[1, 2])
         return np.array(
             [alpha + beta, alpha - gamma - np.pi / 2, -beta + gamma + np.pi / 2]
-        )
+        ) % (2.0 * np.pi)
 
     def multiply_with_single_q_gates(self, gate):
         (t1, t2, t3) = self.fix_with_single_q_gates(gate)
@@ -53,7 +56,7 @@ class PulseConstruction(serializers.Serializable):
         )
 
     def time_from_angle(self, angle, omega):
-        return (-angle % (4.0 * np.pi)) / omega
+        return ((-angle) % (2.0 * np.pi)) / omega
 
     def calc_fidel_4(self, prop, gate):
         prop = Qobj(prop[0:4, 0:4], dims=[[2, 2], [2, 2]])
@@ -89,6 +92,10 @@ class PulseConstruction(serializers.Serializable):
         controls, times = self.get_controls_only_sine(omega, amp)
         control_spline_c = interp1d(times, controls, fill_value="extrapolate")
         H = [self.H0, [self.HXX, lambda t, a: control_spline_c(t)]]
+#         H0_ = 2.0 * np.pi * (-0.5 * 0.037 * ZA
+#                              - 0.5 * 0.057 * ZB)
+#         H1_ = XX
+#         H = [H0_, [H1_, lambda t, a: control_spline_c(t)]]
         prop = propagator(H, times)
         return prop[-1], controls, times
 
@@ -102,20 +109,28 @@ class PulseConstruction(serializers.Serializable):
 
     def _synchronize(self, ta, tb, max_freq, min_freq):
         """Assume ta <= tb"""
-        tmax = 1.0 / max_freq
-        tmin = 1.0 / min_freq
+        tmax = 1. / max_freq
+        tmin = 1. / min_freq
         if ta == tb == 0.0:
-            return np.array([(None, None)]), (ta, tb)
-        elif (1.0 / max_freq) <= (tb - ta) <= (1.0 / min_freq):
-            return np.array([(1.0 / (tb - ta), None)]), (ta, tb)
-        elif (tb - ta) < (1.0 / max_freq):
+            return (np.array([(None, None)]), (ta, tb))
+        elif (1. / max_freq) <= (tb - ta) <= (1. / min_freq):
+            return (np.array([(1. / (tb - ta), None)]), (ta, tb))
+        elif (tb - ta) < (1. / max_freq):
             new_freq = (tb - ta + tmax) ** (-1)
-            return np.array([(new_freq, max_freq)]), (ta, tb)
+            return (np.array([(new_freq, max_freq)]), (ta, tb))
         else:  # (tb - ta) > 1. / min_freq
-            tavg = (tmin + tmax) / 2.0
-            freq_avg = 1.0 / tavg
-            n, r = divmod(tb - ta, tavg)
-            return np.array(int(n) * ((freq_avg, None),) + ((1.0 / r, None),)), (ta, tb)
+            trial_time, n, r = self._remainder_search(tb - ta, max_freq, min_freq)
+            return (np.array(int(n) * ((1. / trial_time, None),) + ((1. / r, None),)), (ta, tb))
+
+    def _remainder_search(self, tdiff, max_freq, min_freq):
+        max_time = 1. / min_freq
+        min_time = 1. / max_freq
+        time_linspace = np.linspace(min_time, max_time, 101)
+        for trial_time in time_linspace:
+            n, r = divmod(tdiff, trial_time)
+            if min_time <= r <= max_time:
+                return trial_time, n, r
+        return None
 
     def _concatenate_for_qubit(self, freq, total_pulse, total_times):
         amp = self.amp_from_omega_id(2.0 * np.pi * freq)
@@ -163,21 +178,20 @@ class PulseConstruction(serializers.Serializable):
     def concatenate_times_or_controls(self, t_c_tuple, concatenator):
         if len(t_c_tuple) == 1:
             return t_c_tuple[0]
-        concat_first_two = concatenator((t_c_tuple[0], t_c_tuple[1]))
+        concat_first_two = concatenator(t_c_tuple[0], t_c_tuple[1])
         if len(t_c_tuple) == 2:
             return concat_first_two
-        return concatenator((concat_first_two,) + t_c_tuple[2:])
+        return self.concatenate_times_or_controls((concat_first_two,) + t_c_tuple[2:],
+                                                  concatenator)
 
-    def concatenate_two_times(self, times_1_2):
-        times_1, times_2 = times_1_2
+    def concatenate_two_times(self, times_1, times_2):
         if times_1.size == 0:
             return times_2
         if times_2.size == 0:
             return times_1
         return np.concatenate((times_1, times_1[-1] + times_2[1:]))
 
-    def concatenate_two_controls(self, controls_1_2):
-        controls_1, controls_2 = controls_1_2
+    def concatenate_two_controls(self, controls_1, controls_2):
         if controls_1.size == 0:
             return controls_2
         if controls_2.size == 0:
@@ -187,8 +201,9 @@ class PulseConstruction(serializers.Serializable):
 
     def full_pulses(self, freq_sum_divisor=3):
         omega_drive = (self.omega_a + self.omega_b) / freq_sum_divisor
-        omega = self.H0[2, 2] - self.H0[1, 1]
+        omega = np.abs(self.omega_a - self.omega_b)
         amp = self.amp_from_omega_sqrtiswap(omega, omega_drive)
+#        amp = 0.057
         prop, controls_2q, control_eval_times_2q = self.run_sqrt_iswap(omega_drive, amp)
         omega_array = np.array([self.omega_a, self.omega_b, self.omega_b])
         times = self.time_from_angle(self.fix_with_single_q_gates(prop), omega_array)
@@ -203,14 +218,25 @@ class PulseConstruction(serializers.Serializable):
         total_pulse_c = self.concatenate_times_or_controls((np.zeros_like(before_pulse_a), controls_2q,
                                                             np.zeros_like(after_pulse_a)),
                                                            self.concatenate_two_controls)
-        total_times_a = self.concatenate_times_or_controls((before_times_a, np.zeros_like(controls_2q),
+        total_times_a = self.concatenate_times_or_controls((before_times_a, control_eval_times_2q,
                                                             after_times_a), self.concatenate_two_times)
-        total_times_b = self.concatenate_times_or_controls((before_times_b, np.zeros_like(controls_2q),
+        total_times_b = self.concatenate_times_or_controls((before_times_b, control_eval_times_2q,
                                                             after_times_b), self.concatenate_two_times)
-        total_times_c = self.concatenate_times_or_controls((np.zeros_like(before_times_a), control_eval_times_2q,
-                                                            np.zeros_like(after_times_a)),
+        total_times_c = self.concatenate_times_or_controls((before_times_a, control_eval_times_2q,
+                                                            after_times_a),
                                                            self.concatenate_two_times)
-        spline_a = interp1d(total_times_a, total_pulse_a)
-        spline_b = interp1d(total_times_b, total_pulse_b)
-        spline_c = interp1d(total_times_c, total_pulse_c)
+        spline_a = interp1d(total_times_a, total_pulse_a, fill_value='extrapolate')
+        spline_b = interp1d(total_times_b, total_pulse_b, fill_value='extrapolate')
+        spline_c = interp1d(total_times_c, total_pulse_c, fill_value='extrapolate')
+        def control_func_a(t, args=None):
+            return spline_a(t)
+        def control_func_b(t, args=None):
+            return spline_b(t)
+        def control_func_c(t, args=None):
+            return spline_c(t)
+
+        H = [self.H0, [self.HXI, control_func_a], [self.HIX, control_func_b], [self.HXX, control_func_c]]
+        fullprop = propagator(H, total_times_c)
+        fidel = self.calc_fidel_4(fullprop[-1], sqrtiSWAP_Q)
+
         return spline_a, spline_b, spline_c, total_times_a
