@@ -860,8 +860,8 @@ class CustomQCircuit(serializers.Serializable):
                         else:
                             circ_copy.nodes.remove(n)
 
-        if circ_copy.nodes == []:
-            return []
+        # if circ_copy.nodes == []:
+        #     return []
         ################################################################################################
 
         ################### Constructing the node_sets ###############
@@ -889,14 +889,16 @@ class CustomQCircuit(serializers.Serializable):
 
             for n in node_sets[i]:
                 node_set += n.connected_nodes("all")
-
-            node_sets.append(
-                [
+                
+            node_set = [
                     x
                     for x in list(set(node_set))
                     if x not in [q for p in node_sets[: i + 1] for q in p]
                 ]
-            )
+            if node_set != []:
+                node_set.sort(key= lambda x: x.id)
+
+            node_sets.append(node_set)
             i += 1
         #############################################################
 
@@ -904,7 +906,7 @@ class CustomQCircuit(serializers.Serializable):
         tree = []
         def connecting_branches(n1,n2):
             return list(set(n1.branches).intersection(set(n2.branches)))
-        
+
         for index, node_set in enumerate(node_sets):
             if index == 0:
                 continue
@@ -915,52 +917,6 @@ class CustomQCircuit(serializers.Serializable):
 
         closure_branches = list(set(circ_copy.branches) - set(tree))
 
-        # for i in range(0, len(node_sets)):
-        #     for n in node_sets[i]:
-        #         next_branches = []
-        #         next_nodes = []
-        #         loop_branches = []
-
-        #         for b in n.branches:
-        #             if b.type != "C":
-        #                 if b.nodes[0] != n:
-        #                     next_nodes.append(b.nodes[0])
-        #                 else:
-        #                     next_nodes.append(b.nodes[1])
-        #                 next_branches.append(b)
-        #         # Indexing which set the nodes belong to
-        #         next_nodes_set = []
-        #         for k in next_nodes:
-        #             for p in range(0, len(node_sets)):
-        #                 if k in node_sets[p]:
-        #                     next_nodes_set.append(p + 1)
-
-        #         # identifying the branches accordingly
-        #         for j in range(len(next_nodes)):
-        #             if next_nodes_set[j] > i + 1:
-        #                 loop_branches.append(next_branches[j])
-
-        #         if len(loop_branches) > 1:
-        #             closure_branches.append(
-        #                 loop_branches[:-1]
-        #             )  # selecting n-1 elements in the list for external flux @ basis
-
-        #         # identifying the loops in the same set
-        #         self_nodes = []
-        #         self_branches = []
-        #         for x, s in enumerate(next_nodes_set):
-        #             if s == i + 1:
-        #                 self_nodes.append(next_nodes[x])
-        #                 self_branches.append(next_branches[x])
-
-        #         self_nodes = list(set(self_nodes))
-        #         self_branches = list(set(self_branches))
-
-        #         if len(self_nodes) == 1 and len(self_branches) > 1:
-        #             closure_branches.append(
-        #                 self_branches[:-1]
-        #             )  # selecting n-1 branches for external flux
-        
         ############## selecting the appropriate branches from circ as from circ_copy #######
         def is_same_branch(b1, b2):
             d1 = b1.__dict__

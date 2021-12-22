@@ -22,7 +22,7 @@ from scipy.sparse.csc import csc_matrix
 from matplotlib import pyplot as plt
 from scqubits.core import oscillator as osc
 from scqubits.core import operators as op
-from scqubits import HilbertSpace
+from scqubits import HilbertSpace, settings
 
 from scqubits.core.customqcircuit import CustomQCircuit
 import scqubits.core.discretization as discretization
@@ -41,10 +41,10 @@ from scqubits.utils.spectrum_utils import (
 class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
     r"""
     Class to initiate a sub-system for a circuit just from a symbolic Hamiltonian.
-    
+
     Circuit object can be initiated using:
         QCircuit(parent, H_sym)
-        
+
     Parameters
     ----------
     parent:
@@ -52,39 +52,46 @@ class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
     H_sym:
         Symbolic Hamiltonian describing the system.
     """
+
     def __init__(self, parent, H_sym):
         self.parent = parent
         self.H_sym = H_sym
         self.variables = list(H_sym.free_symbols)
-        
-        
+
         self.truncated_dim = 10
         self._sys_type = type(self).__name__  # for object description
         self._id_str = (
             self._autogenerate_id_str()
         )  # generating a class attribute to avoid error by parameter sweeps
-        
+
         self.hilbertdim()
-        
+
         self.hamiltonian_func()
-        
-        
+
     def hamiltonian_func(self):
-        
+
         H = self.H_sym.expand()
 
-        periodic_var_indices = [i for i in self.var_indices if i in self.parent.var_indices["periodic"]]
+        periodic_var_indices = [
+            i for i in self.var_indices if i in self.parent.var_indices["periodic"]
+        ]
 
         periodic_symbols_ys = [
-            symbols("θs" + str(i)) for i in self.parent.var_indices["periodic"] if i in self.var_indices
+            symbols("θs" + str(i))
+            for i in self.parent.var_indices["periodic"]
+            if i in self.var_indices
         ]
         periodic_symbols_yc = [
-            symbols("θc" + str(i)) for i in self.parent.var_indices["periodic"] if i in self.var_indices
+            symbols("θc" + str(i))
+            for i in self.parent.var_indices["periodic"]
+            if i in self.var_indices
         ]
         periodic_symbols_n = [
-            symbols("n" + str(i)) for i in self.parent.var_indices["periodic"] if i in self.var_indices
+            symbols("n" + str(i))
+            for i in self.parent.var_indices["periodic"]
+            if i in self.var_indices
         ]
-        
+
         if len(periodic_var_indices) > 0:
             H = sympy.expand_trig(H).expand()
 
@@ -98,18 +105,23 @@ class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
         # p_symbols = [symbols("Q" + str(i)) for i in self.var_indices["discretized_phi"] if i in self.var_indices]
 
         ps_symbols = [
-            symbols("Qs" + str(i)) for i in self.parent.var_indices["discretized_phi"] if i in self.var_indices
+            symbols("Qs" + str(i))
+            for i in self.parent.var_indices["discretized_phi"]
+            if i in self.var_indices
         ]
 
         # marking the squared momentum operators with a separate symbol
-        for i in [index for index in self.parent.var_indices["discretized_phi"] if index in self.var_indices]:
+        for i in [
+            index
+            for index in self.parent.var_indices["discretized_phi"]
+            if index in self.var_indices
+        ]:
             H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
-
 
         if len(periodic_var_indices) == 0:
             variables = [var for var in self.variables if "I" not in str(var)]
         else:
-            variables = []  + periodic_symbols_ys + periodic_symbols_yc
+            variables = [] + periodic_symbols_ys + periodic_symbols_yc
             for var in self.variables:
                 for i in periodic_var_indices:
                     if "θ" + str(i) not in str(var) and "I" not in str(var):
@@ -118,19 +130,23 @@ class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
         variables = variables + ps_symbols
 
         self.H_func_vars = variables.copy()
-        
+
         if symbols("I") in H.free_symbols:
             variables.append(symbols("I"))
 
-        self.H_func = lambdify(variables, H,
-                              [ {"exp": self.parent._exp_dia},
-                                {"cos": self.parent._cos_dia},
-                                {"sin": self.parent._sin_dia},
-                                "scipy"]
-                              )
+        self.H_func = lambdify(
+            variables,
+            H,
+            [
+                {"exp": self.parent._exp_dia},
+                {"cos": self.parent._cos_dia},
+                {"sin": self.parent._sin_dia},
+                "scipy",
+            ],
+        )
 
         return self.H_func
-    
+
     def _identity(self) -> csc_matrix:
         """
         Returns the Identity operator for the entire Hilber space of the circuit.
@@ -138,20 +154,22 @@ class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
         dim = self.hilbertdim()
         op = sparse.identity(dim)
         return op.tocsc()
-                
+
     def hamiltonian(self):
         self.parent.set_operators()
         variables = [getattr(self.parent, str(var)) for var in self.H_func_vars]
         if symbols("I") in self.variables:
             variables.append(self._identity())
         return self.H_func(*(variables))
-    
+
     def hilbertdim(self):
         var_indices = []
         cutoffs = []
         for v in self.variables:
             if "I" not in str(v):
-                filtered_var = re.findall('[0-9]+', re.sub(r"ng_[0-9]+|Φ[0-9]+","", str(v))) # filtering offset charges and external flux
+                filtered_var = re.findall(
+                    "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(v))
+                )  # filtering offset charges and external flux
                 if filtered_var == []:
                     continue
                 else:
@@ -162,13 +180,13 @@ class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
                         if str(var_index) in cutoff_name:
                             cutoffs.append(getattr(self.parent, cutoff_name))
                     var_indices.append(var_index)
-        #setting some class attributes
+        # setting some class attributes
         self.var_indices = var_indices
         self.cutoffs = cutoffs
         dimensions = []
-        for x,index in enumerate(var_indices):
+        for x, index in enumerate(var_indices):
             if index in self.parent.var_indices["periodic"]:
-                dimensions.append(cutoffs[x]*2 + 1)
+                dimensions.append(cutoffs[x] * 2 + 1)
             elif index in self.parent.var_indices["discretized_phi"]:
                 dimensions.append(cutoffs[x])
         # returning the hilbertdim
@@ -176,20 +194,28 @@ class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
 
     def _evals_calc(self, evals_count: int) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
-        
+
         evals = sparse.linalg.eigsh(
-            hamiltonian_mat, return_eigenvectors=False, k=evals_count, which="SA"
+            hamiltonian_mat,
+            return_eigenvectors=False,
+            k=evals_count,
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
+            which="SA",
         )
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sparse.linalg.eigsh(
-            hamiltonian_mat, return_eigenvectors=True, k=evals_count, which="SA"
+            hamiltonian_mat,
+            return_eigenvectors=True,
+            k=evals_count,
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
+            which="SA",
         )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
-    
+
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -221,7 +247,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         "num" or "sym" correspondingly to numeric or symbolic representation of input parameters in the input file.
     phi_basis:
         "sparse" or "harmonic": Choose whether to use discretized phi or harmonic oscillator basis for extended variables.
-    heirarchical_diagonalization:
+    hierarchical_diagonalization:
         Boolean which indicates if the HilbertSpace from scqubits is used for simplification
     """
 
@@ -234,7 +260,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         basis: str = "simple",
         initiate_sym_calc: bool = True,
         phi_basis: str = "sparse",
-        heirarchical_diagonalization: bool = False
+        hierarchical_diagonalization: bool = False,
     ):
         CustomQCircuit.__init__(
             self,
@@ -262,9 +288,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         self.discretized_phi_range = {}
         self.cutoffs_list = []
         self.phi_basis = phi_basis
-        self.heirarchical_diagonalization = heirarchical_diagonalization
-        if phi_basis != "sparse" and self.heirarchical_diagonalization:
-            raise Exception("Heirarchical Diagonalization only works with discretized phi basis for extended degrees of freedom. Please change `phi_basis` to sparse to use heirarchical diagonalization.")
+        self.hierarchical_diagonalization = hierarchical_diagonalization
+        if phi_basis != "sparse" and self.hierarchical_diagonalization:
+            raise Exception(
+                "Heirarchical Diagonalization only works with discretized phi basis for extended degrees of freedom. Please change `phi_basis` to sparse to use heirarchical diagonalization."
+            )
 
         # Hamiltonian function
         if initiate_sym_calc:
@@ -272,7 +300,12 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
     # constructor to initiate using a CustomQCircuit object
     @classmethod
-    def from_CustomQCircuit(cls, circuit: CustomQCircuit, heirarchical_diagonalization: bool = False, phi_basis: str = "sparse"):
+    def from_CustomQCircuit(
+        cls,
+        circuit: CustomQCircuit,
+        hierarchical_diagonalization: bool = False,
+        phi_basis: str = "sparse",
+    ):
         """
         Initialize AnalyzeQCircuit using an instance of CustomQCircuit.
 
@@ -288,45 +321,55 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             mode=circuit.mode,
             basis=circuit.basis,
             initiate_sym_calc=circuit.initiate_sym_calc,
-            heirarchical_diagonalization = heirarchical_diagonalization,
-            phi_basis = phi_basis
+            hierarchical_diagonalization=hierarchical_diagonalization,
+            phi_basis=phi_basis,
         )
 
     @classmethod
     def from_input_string(
-            cls,
-            input_string: str,
-            mode: str = "sym",
-            phi_basis="sparse",
-            basis="simple",
-            initiate_sym_calc=True,
-            heirarchical_diagonalization: bool = False):
+        cls,
+        input_string: str,
+        mode: str = "sym",
+        phi_basis="sparse",
+        basis="simple",
+        initiate_sym_calc=True,
+        hierarchical_diagonalization: bool = False,
+    ):
 
+        circuit = CustomQCircuit.from_input_string(
+            input_string, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc
+        )
+        circuit.hierarchical_diagonalization = hierarchical_diagonalization
+        circuit.phi_basis = phi_basis
 
-            circuit = CustomQCircuit.from_input_string(input_string, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc)
-            circuit.heirarchical_diagonalization = heirarchical_diagonalization
-            circuit.phi_basis = phi_basis
-
-            return cls.from_CustomQCircuit(circuit, heirarchical_diagonalization = heirarchical_diagonalization,
-            phi_basis = phi_basis)
+        return cls.from_CustomQCircuit(
+            circuit,
+            hierarchical_diagonalization=hierarchical_diagonalization,
+            phi_basis=phi_basis,
+        )
 
     @classmethod
     def from_input_file(
-            cls,
-            filename: str,
-            mode: str = "sym",
-            phi_basis="sparse",
-            basis="simple",
-            initiate_sym_calc=True,
-            heirarchical_diagonalization: bool = False):
+        cls,
+        filename: str,
+        mode: str = "sym",
+        phi_basis="sparse",
+        basis="simple",
+        initiate_sym_calc=True,
+        hierarchical_diagonalization: bool = False,
+    ):
 
+        circuit = CustomQCircuit.from_input_file(
+            filename, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc
+        )
+        circuit.hierarchical_diagonalization = hierarchical_diagonalization
+        circuit.phi_basis = phi_basis
 
-            circuit = CustomQCircuit.from_input_file(filename, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc)
-            circuit.heirarchical_diagonalization = heirarchical_diagonalization
-            circuit.phi_basis = phi_basis
-
-            return cls.from_CustomQCircuit(circuit, heirarchical_diagonalization = heirarchical_diagonalization,
-            phi_basis = phi_basis)
+        return cls.from_CustomQCircuit(
+            circuit,
+            hierarchical_diagonalization=hierarchical_diagonalization,
+            phi_basis=phi_basis,
+        )
 
     def initiate(self):
         """
@@ -369,15 +412,15 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             self._autogenerate_id_str()
         )  # generating a class attribute to avoid error by parameter sweeps
 
-        if not self.heirarchical_diagonalization:
+        if not self.hierarchical_diagonalization:
             self.hamiltonian_function()
         else:
-            self.heirarchical_diagonalization_func()
+            self.hierarchical_diagonalization_func()
 
         # initilizing attributes for operators
         self.set_operators()
 
-        if self.heirarchical_diagonalization:
+        if self.hierarchical_diagonalization:
             self.complete_hilbert_space()
 
     ##################################################################
@@ -404,7 +447,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         """
         return sparse.diags(np.sin((x.todia()).diagonal())).tocsc()
 
-    def heirarchical_diagonalization_func(self):
+    def hierarchical_diagonalization_func(self):
         periodic_symbols_ys = [
             symbols("θs" + str(i)) for i in self.var_indices["periodic"]
         ]
@@ -418,25 +461,23 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         y_symbols = [symbols("θ" + str(i)) for i in self.var_indices["discretized_phi"]]
         p_symbols = [symbols("Q" + str(i)) for i in self.var_indices["discretized_phi"]]
         ps_symbols = [
-                symbols("Qs" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
+            symbols("Qs" + str(i)) for i in self.var_indices["discretized_phi"]
+        ]
 
         self.vars = {
-                "periodic": [
-                    periodic_symbols_ys,
-                    periodic_symbols_yc,
-                    periodic_symbols_n,
-                ],
-                "discretized_phi": [y_symbols, p_symbols, ps_symbols],
-                "identity": [symbols("I")],
-            }
-
+            "periodic": [
+                periodic_symbols_ys,
+                periodic_symbols_yc,
+                periodic_symbols_n,
+            ],
+            "discretized_phi": [y_symbols, p_symbols, ps_symbols],
+            "identity": [symbols("I")],
+        }
 
         H = self.H.expand()
 
         # terms_str = list(expr_dict.keys())
         # coeff_str = list(expr_dict.values())
-
 
         for phi in self.external_flux_vars:
             H = H.subs(phi, phi * symbols("I") * 2 * np.pi)
@@ -447,7 +488,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         expr_dict = H.as_coefficients_dict()
         terms_str = list(expr_dict.keys())
-        coeff_str = list(expr_dict.values())
 
         oscs = []
         interaction = []
@@ -455,38 +495,71 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         Hf = H.copy()
 
         if len(self.var_indices["osc"]) == 0:
-            raise Exception("No oscillator has been detected in this circuit, hierarchcal diagonalization has only been implemented for oscillators.")
+            raise Exception(
+                "No oscillator has been detected in this circuit, hierarchcal diagonalization has only been implemented for oscillators."
+            )
 
         for var_index in self.var_indices["osc"]:
-            H_osc = 0*symbols("x")
-            H_int = 0*symbols("x")
-            for i,term in enumerate(terms_str):    
-                if ("θ" + str(var_index) + "**2") in str(term) or ("Q" + str(var_index) + "**2") in str(term):
-                    H_osc = H_osc +  expr_dict[term]*term
+            H_osc = 0 * symbols("x")
+            H_int = 0 * symbols("x")
+            for i, term in enumerate(terms_str):
+                if ("θ" + str(var_index) + "**2") in str(term) or (
+                    "Q" + str(var_index) + "**2"
+                ) in str(term):
+                    H_osc = H_osc + expr_dict[term] * term
                 # mat = re.search("θ" + str(var_index), str(term))
                 # mat1 = re.search("Q" + str(var_index), str(term))
-                
-                if ("θ" + str(var_index)) in str(term) and ("θ" + str(var_index) + "**2") not in str(term):
-                    H_int = H_int + expr_dict[term]*term
-                    
-                if ("Q" + str(var_index)) in str(term) and ("Q" + str(var_index) + "**2") not in str(term):
-                    if len(re.findall("[0-9]", re.sub(r"ng_[0-9]+|Φ[0-9]+","", str(term)))) > 1:
-                        H_int = H_int + expr_dict[term]*term
+
+                if ("θ" + str(var_index)) in str(term) and (
+                    "θ" + str(var_index) + "**2"
+                ) not in str(term):
+                    H_int = H_int + expr_dict[term] * term
+
+                if ("Q" + str(var_index)) in str(term) and (
+                    "Q" + str(var_index) + "**2"
+                ) not in str(term):
+                    if (
+                        len(
+                            re.findall(
+                                "[0-9]", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(term))
+                            )
+                        )
+                        > 1
+                    ):
+                        H_int = H_int + expr_dict[term] * term
                     else:
-                        H_osc = H_osc +  expr_dict[term]*term
+                        H_osc = H_osc + expr_dict[term] * term
             oscs.append(H_osc)
             interaction.append(H_int)
 
         # storing data in class attributes
-        self.osc_subsystems_sym = dict(zip(self.var_indices["osc"], [[oscs[index], interaction[index]] for index in range(len(self.var_indices["osc"]))]))
+        self.osc_subsystems_sym = dict(
+            zip(
+                self.var_indices["osc"],
+                [
+                    [oscs[index], interaction[index]]
+                    for index in range(len(self.var_indices["osc"]))
+                ],
+            )
+        )
         self.main_subsystem_sym = H - sum(oscs) - sum(interaction)
 
         self.main_subsystem = Q_sub_system(self, self.main_subsystem_sym)
-        self.osc_subsystems = dict(zip(self.var_indices["osc"], [[Q_sub_system(self, oscs[index]), interaction[index]] for index in range(len(self.var_indices["osc"]))]))
-
+        self.osc_subsystems = dict(
+            zip(
+                self.var_indices["osc"],
+                [
+                    [Q_sub_system(self, oscs[index]), interaction[index]]
+                    for index in range(len(self.var_indices["osc"]))
+                ],
+            )
+        )
 
     def complete_hilbert_space(self):
-        hilbert_space = HilbertSpace([self.main_subsystem] + [self.osc_subsystems[i][0] for i in self.var_indices["osc"]]) 
+        hilbert_space = HilbertSpace(
+            [self.main_subsystem]
+            + [self.osc_subsystems[i][0] for i in self.var_indices["osc"]]
+        )
 
         # Adding interactions using the symbolic interaction term
         for osc in self.var_indices["osc"]:
@@ -495,27 +568,39 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             terms_str = list(expr_dict.keys())
             # coeff_str = list(expr_dict.values())
 
-            for i,x in enumerate(terms_str):
+            for i, x in enumerate(terms_str):
                 coefficient = expr_dict[x]
-                
+
+                # adding external flux and offset charge to coefficient
+                for var in x.free_symbols:
+                    if "Φ" in str(var) or "ng" in str(var):
+                        coefficient = coefficient*getattr(self, str(var))
+                        
+                operator_symbols = [var for var in x.free_symbols if (("Φ" not in str(var)) and ("ng" not in str(var)))]
+
                 main_sub_op_list = []
                 osc_sub_op_list = []
-                for var in x.free_symbols:
+                for var in operator_symbols:
                     if var in self.main_subsystem.H_func_vars and "I" not in str(var):
                         main_sub_op_list.append(getattr(self, str(var)))
-                    elif var in self.osc_subsystems[osc][0].H_func_vars and "I" not in str(var):
+                    elif var in self.osc_subsystems[osc][
+                        0
+                    ].H_func_vars and "I" not in str(var):
                         osc_sub_op_list.append(getattr(self, str(var)))
                     elif "I" in str(var):
                         osc_sub_op_list.append(self.osc_subsystems[osc][0]._identity())
-                
-                operator_dict={}
-                for op_index,op in enumerate(main_sub_op_list):
+
+                operator_dict = {}
+                for op_index, op in enumerate(main_sub_op_list):
                     operator_dict["op" + str(op_index + 1)] = (op, self.main_subsystem)
-                
-                for op_index,op in enumerate(osc_sub_op_list):
-                    operator_dict["op" + str(len(main_sub_op_list) + op_index)] = (op, self.osc_subsystems[osc][0])
-                
+
+                for op_index, op in enumerate(osc_sub_op_list):
+                    operator_dict["op" + str(len(main_sub_op_list) + op_index +1)] = (
+                        op,
+                        self.osc_subsystems[osc][0],
+                    )
                 hilbert_space.add_interaction(g=float(coefficient), **operator_dict)
+
         self.hilbert_space = hilbert_space
 
     def hamiltonian_function(self):
@@ -759,17 +844,17 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         """
         Returns the final operator
         """
-        
-        if self.heirarchical_diagonalization:
+
+        if self.hierarchical_diagonalization:
             if index in self.main_subsystem.var_indices:
                 var_index_list = self.main_subsystem.var_indices
             else:
                 var_index_list = [index]
         else:
             var_index_list = (
-                            self.var_indices["periodic"] + self.var_indices["discretized_phi"]
-                            )
-        var_index_list.sort()#important to make sure that right cutoffs are chosen
+                self.var_indices["periodic"] + self.var_indices["discretized_phi"]
+            )
+        var_index_list.sort()  # important to make sure that right cutoffs are chosen
         cutoff_dict = self.get_cutoffs()
 
         if len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_n"]) or len(
@@ -789,8 +874,15 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         cutoffs = [
             j for i in list(cutoff_list) for j in i
         ]  # concatenating the sublists
-        cutoffs_index_dict = dict(zip(self.var_indices["periodic"] + self.var_indices["discretized_phi"], cutoffs))
-        cutoff_list = [cutoffs_index_dict[i] for i in var_index_list] # selecting the cutoffs present in 
+        cutoffs_index_dict = dict(
+            zip(
+                self.var_indices["periodic"] + self.var_indices["discretized_phi"],
+                cutoffs,
+            )
+        )
+        cutoff_list = [
+            cutoffs_index_dict[i] for i in var_index_list
+        ]  # selecting the cutoffs present in
 
         if self.phi_basis == "sparse":
             matrix_format = "csc"
@@ -800,11 +892,13 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         if len(var_index_list) > 1:
             if index > var_index_list[0]:
                 Identity_l = sparse.identity(
-                    np.prod(cutoff_list[: var_index_list.index(index)]), format=matrix_format
+                    np.prod(cutoff_list[: var_index_list.index(index)]),
+                    format=matrix_format,
                 )
             if index < var_index_list[-1]:
                 Identity_r = sparse.identity(
-                    np.prod(cutoff_list[var_index_list.index(index) + 1 :]), format=matrix_format
+                    np.prod(cutoff_list[var_index_list.index(index) + 1 :]),
+                    format=matrix_format,
                 )
 
             if index == var_index_list[0]:
@@ -1159,7 +1253,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                     "Invalid number of parameters given, please check the number of parameters."
                 )
         self.set_operators()  # updating the operators
-        if not self.heirarchical_diagonalization:
+        if not self.hierarchical_diagonalization:
             hamiltonian_matrix = self.H_func(
                 *(
                     self.get_operators()
@@ -1215,10 +1309,6 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
                     parameters[var_name] = getattr(self, var_name)
                 elif var_name in ["θ" + str(index) for index in var_indices]:
                     raise AttributeError(var_name + " is not set.")
-
-        # adding external fluxes
-        for var_name in self.external_flux_vars:
-            parameters
 
         # creating a meshgrid for multiple dimensions
         sweep_vars = {}
@@ -1382,7 +1472,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     ##################################################################
     def _evals_calc(self, evals_count: int) -> ndarray:
 
-        if self.heirarchical_diagonalization:
+        if self.hierarchical_diagonalization:
             self.set_operators()
             self.complete_hilbert_space()
             return self.hilbert_space.eigenvals(evals_count=evals_count)
@@ -1390,7 +1480,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         hamiltonian_mat = self.hamiltonian()
         if self.phi_basis == "sparse":
             evals = sparse.linalg.eigsh(
-                hamiltonian_mat, return_eigenvectors=False, k=evals_count, which="SA"
+                hamiltonian_mat,
+                return_eigenvectors=False,
+                k=evals_count,
+                v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
+                which="SA",
             )
         elif self.phi_basis == "harmonic":
             evals = sp.linalg.eigvalsh(
@@ -1399,8 +1493,8 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-        
-        if self.heirarchical_diagonalization:
+
+        if self.hierarchical_diagonalization:
             self.set_operators()
             self.complete_hilbert_space()
             return self.hilbert_space.eigensys(evals_count=evals_count)
@@ -1408,7 +1502,11 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         hamiltonian_mat = self.hamiltonian()
         if self.phi_basis == "sparse":
             evals, evecs = sparse.linalg.eigsh(
-                hamiltonian_mat, return_eigenvectors=True, k=evals_count, which="SA"
+                hamiltonian_mat,
+                return_eigenvectors=True,
+                k=evals_count,
+                which="SA",
+                v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
             )
         elif self.phi_basis == "harmonic":
             evals, evecs = sp.linalg.eigh(
