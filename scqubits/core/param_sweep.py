@@ -53,10 +53,10 @@ from scqubits.core.namedslots_array import (
     Parameters,
     convert_to_std_npindex,
 )
+from scqubits.core.oscillator import Oscillator
 from scqubits.core.qubit_base import QuantumSystem
 from scqubits.core.spec_lookup import SpectrumLookupMixin
 from scqubits.core.storage import SpectrumData
-from scqubits.core.oscillator import Oscillator
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
@@ -69,13 +69,12 @@ else:
 
 from scqubits.utils.typedefs import GIndexTuple, NpIndices, QuantumSys, QubitList
 
-
 BareLabel = Tuple[int, ...]
 DressedLabel = int
 StateLabel = Union[DressedLabel, BareLabel]
 
 
-class ParameterSweepBase(ABC):
+class ParameterSweepBase(ABC, SpectrumLookupMixin):
     """
     The_ParameterSweepBase class is an abstract base class for ParameterSweep and
     StoredSweep
@@ -90,7 +89,7 @@ class ParameterSweepBase(ABC):
     _current_param_indices: NpIndices
 
     @property
-    def hilbertspace(self):
+    def hilbertspace(self) -> HilbertSpace:
         return self._hilbertspace
 
     def get_subsys(self, index: int) -> QuantumSys:
@@ -284,13 +283,16 @@ class ParameterSweepBase(ABC):
 
     def _get_final_states_list(
         self,
-        initial_state: BareLabel,
+        initial_state: Union[BareLabel, DressedLabel],
         subsys_list: List[QuantumSys],
         sidebands: bool,
     ) -> List[BareLabel]:
         """Construct and return the possible final states as a list, based on the
         provided initial state, a list of active subsystems and flag for whether to
         include sideband transitions."""
+        if isinstance(initial_state, DressedLabel):
+            return self._bare_product_states_labels
+
         if not sidebands:
             final_state_list = []
             for subsys in subsys_list:
@@ -331,7 +333,9 @@ class ParameterSweepBase(ABC):
         raise TypeError("Argument `subsystems` has invalid type.")
 
     def _process_initial_option(
-        self, initial: Union[None, StateLabel], subsys_list: List[QuantumSys]
+        self,
+        initial: Union[None, StateLabel],
+        subsys_list: List[QuantumSys],
     ) -> Tuple[bool, Callable, StateLabel]:
         if isinstance(initial, DressedLabel):
             initial_dressed = True
@@ -386,16 +390,16 @@ class ParameterSweepBase(ABC):
     def _validate_bare_initial(
         self,
         initial: BareLabel,
-        initial_energies: ndarray,
+        initial_energies: NamedSlotsNdarray,
         param_indices: NpIndices,
     ) -> None:
-        if np.isnan(initial_energies.toarray().astype(np.float)).any():
+        if np.isnan(initial_energies.toarray().astype(np.float_)).any():
             warnings.warn(
                 "The initial state undergoes significant hybridization. "
                 "Identification with a bare product state was not (fully) "
                 "successful. Consider running ParameterSweep with "
-                "`ignore_low_overlap=True` or specify `initial_dressed` for "
-                "transitions instead of a bare product state.\n",
+                "`ignore_low_overlap=True` or specify `initial` as a dressed-state "
+                "index (integer) instead of a bare product state.\n",
                 UserWarning,
             )
         elif sum(initial) == 0 and not np.all(
@@ -403,8 +407,8 @@ class ParameterSweepBase(ABC):
         ):
             warnings.warn(
                 "The state (0,0, ...,0) may not be dispersively connected "
-                "to the true ground state. Specifying `initial_dressed=0` may be "
-                "preferable.\n",
+                "to the true ground state. Specifying `initial=0` (dressed-state "
+                "index) may be preferable.\n",
                 UserWarning,
             )
 
@@ -484,12 +488,19 @@ class ParameterSweepBase(ABC):
             transitions to be generated; if omitted as a parameter, all subsystems
             are considered as actively participating in the transitions
         initial:
-            initial state from which transitions originate, specified as a bare product
-            state of either all subsystems the subset of active subsystems
+            initial state from which transitions originate, specified either (1) as a
+            bare product state (tuple of excitation numbers of all subsystems or of the
+            active ones given in `subsystems`); or (2) as a dressed-state index in
+            the form of an integer >= 0.
             (default: (0,0,...,0) which is usually closest to the ground state)
         final:
-            concrete final state for which the transition energy should be generated; if
-            not provided, a list of allowed final states is generated
+            concrete final state for which the transition energy should be generated,
+            given either as a bare product state (tuple of excitation numbers),
+            or as a dressed state (non-negative integer). If `final` is omitted
+            a list of final states is generated for dispersive transitions within each
+            (active) subsystem. Sidebands can be switched on with the subsequent
+            keyword option. `final=-1` can be chosen for a final state list to all
+            other dressed states (helpful when the dispersive limit breaks down).
         sidebands:
             if set to true, sideband transitions with multiple subsystems changing
             excitation levels are included (default: False)
@@ -618,10 +629,13 @@ class ParameterSweepBase(ABC):
             given bare product state is determined by considerations of overlaps.
             Note: for an initial dressed state, the `sidebands` option is ignored.
         final:
-            concrete final state for which the transition energy should be generated.
-            Similar to the `initial` option, `final` can be given as an integer
-            dressed-state index, or as a tuple for a bare product state. If
-            not provided, a list of final states is auto-generated.
+            concrete final state for which the transition energy should be generated,
+            given either as a bare product state (tuple of excitation numbers),
+            or as a dressed state (non-negative integer). If `final` is omitted
+            a list of final states is generated for dispersive transitions within each
+            (active) subsystem. Sidebands can be switched on with the subsequent
+            keyword option. `final=-1` can be chosen for a final state list to all
+            other dressed states (helpful when the dispersive limit breaks down).
         sidebands:
             if set to true, sideband transitions with multiple subsystems changing
             excitation levels are included (default: False). This option is ignored
@@ -635,7 +649,7 @@ class ParameterSweepBase(ABC):
             converted to positive if this flag is set to True (default: True)
         coloring:
             For `"transition"` (default), transitions are colored by their
-            dispersive nature; "`plain`", curves are colored naively
+            dispersive nature; for "`plain`" no selective highlighting is attempted.
         param_indices:
             usually to be omitted, as param_indices will be set via pre-slicing
 
@@ -783,10 +797,7 @@ class ParameterSweepBase(ABC):
 
 
 class ParameterSweep(  # type:ignore
-    ParameterSweepBase,
-    SpectrumLookupMixin,
-    dispatch.DispatchClient,
-    serializers.Serializable,
+    ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
     """
     `ParameterSweep` supports array-like access ("pre-slicing") and dict-like access.
@@ -1250,10 +1261,7 @@ class ParameterSweep(  # type:ignore
 
 
 class StoredSweep(
-    ParameterSweepBase,
-    SpectrumLookupMixin,
-    dispatch.DispatchClient,
-    serializers.Serializable,
+    ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
     _parameters = descriptors.WatchedProperty(Parameters, "PARAMETERSWEEP_UPDATE")
     _evals_count = descriptors.WatchedProperty(int, "PARAMETERSWEEP_UPDATE")
@@ -1294,7 +1302,6 @@ class StoredSweep(
     def serialize(self) -> "IOData":
         pass
 
-    # StoredSweep: other methods
     def get_hilbertspace(self) -> HilbertSpace:
         return self.hilbertspace
 
