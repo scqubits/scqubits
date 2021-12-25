@@ -12,7 +12,7 @@
 
 # Recap on descriptors: see https://realpython.com/python-descriptors/
 
-from typing import Any, Generic, Type, TypeVar, Union
+from typing import Any, Generic, Type, TypeVar
 
 from scqubits.core.central_dispatch import DispatchClient
 

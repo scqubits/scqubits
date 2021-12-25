@@ -20,7 +20,6 @@ import scqubits.core.units as units
 
 if TYPE_CHECKING:
     from scqubits.core.storage import DataStore, SpectrumData, WaveFunction
-    from scqubits.legacy._param_sweep import _ParameterSweep
 
 
 NAME_REPLACEMENTS = {
