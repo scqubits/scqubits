@@ -170,7 +170,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         Returns
         -------
-            Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the
+            Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the
             LC harmonic oscillator basis,
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """

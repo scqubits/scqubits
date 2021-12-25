@@ -487,7 +487,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     def __new__(
         cls, input_array: np.ndarray, values_by_name: Dict[str, ndarray]
     ) -> "NamedSlotsNdarray":
-        implied_shape = tuple(len(values) for name, values in values_by_name.items())
+        implied_shape = tuple(len(values) for values in values_by_name.values())
         if input_array.shape[0 : len(values_by_name)] != implied_shape:
             raise ValueError(
                 "Given input array {} with shape {} not compatible with "

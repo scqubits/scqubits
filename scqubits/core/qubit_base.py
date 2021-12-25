@@ -63,8 +63,8 @@ else:
     from tqdm import tqdm
 
 if TYPE_CHECKING:
-    from scqubits.core.storage import WaveFunction
     from typing_extensions import Literal
+    from scqubits.core.storage import WaveFunction
 
 
 LevelsTuple = Tuple[int, ...]

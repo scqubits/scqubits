@@ -26,7 +26,6 @@ from typing import (
     List,
     Optional,
     Tuple,
-    Type,
     Union,
     cast,
 )
@@ -66,8 +65,8 @@ if TYPE_CHECKING:
 from scqubits.utils.typedefs import (
     OperatorSpecification,
     OscillatorList,
-    QubitList,
     QuantumSys,
+    QubitList,
 )
 
 
@@ -534,6 +533,9 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     @property
     def subsys_list(self) -> List[QuantumSys]:
         return list(self._subsystems)
+
+    def subsys_by_id_str(self, id_str: str) -> QuantumSys:
+        return self._subsys_by_id_str[id_str]
 
     ###################################################################################
     # HilbertSpace: file IO methods
@@ -1101,7 +1103,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
             if re.match(r"op\d+$", key) is None:
                 raise TypeError("Unexpected keyword argument {}.".format(key))
             subsys_index, op = self._parse_op(kwargs[key])
-            operator_list.append(self._parse_op(kwargs[key]))
+            operator_list.append((subsys_index, op))
 
         return InteractionTerm(g, operator_list, add_hc=add_hc)
 

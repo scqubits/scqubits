@@ -14,9 +14,8 @@
 import logging
 import warnings
 import weakref
-from types import MethodType
 
-from typing import Callable
+from types import MethodType
 from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings
@@ -142,11 +141,9 @@ class CentralDispatch:
                     type(client).__name__, event
                 )
             )
-
+            # Using WeakMethod references:
             callback_ref()(event, sender=sender, **kwargs)
-            # When using WeakMethod references, this should rather be:
-            # callback_ref()(event, sender=sender, **kwargs)
-            #
+
             # Workaround if pickling fails, in conjunction with changes eliminating
             # weakrefs:
             # callback_ref(event, sender=sender, **kwargs)
