@@ -16,7 +16,8 @@ from numpy import ndarray
 from scipy.sparse import csc_matrix, dia_matrix
 
 if TYPE_CHECKING:
-    pass
+    from scqubits import GenericQubit, KerrOscillator, Oscillator
+    from scqubits.core.qubit_base import QubitBaseClass
 
 QuantumSys = Union["QubitBaseClass", "Oscillator", "KerrOscillator", "GenericQubit"]
 
