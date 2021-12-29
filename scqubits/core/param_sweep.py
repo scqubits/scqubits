@@ -895,7 +895,7 @@ class ParameterSweep(  # type:ignore
         self._evals_count = evals_count
         self._update_hilbertspace = self.set_update_func(update_hilbertspace)
         self._subsys_update_info = subsys_update_info
-        self._data = {}
+        self._data: Dict[str, Any] = {}
         self._bare_only = bare_only
         self._ignore_low_overlap = ignore_low_overlap
         self._deepcopy = deepcopy
