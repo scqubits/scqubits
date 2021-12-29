@@ -432,6 +432,15 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     qutip. Returned operators are of the `qutip.Qobj` type. The class also provides
     methods for obtaining eigenvalues, absorption and emission spectra as a function
     of an external parameter.
+
+    Parameters
+    ----------
+    subsystem_list:
+        List of all quantum systems comprising the composite Hilbert space
+    interaction_list:
+        (optional) typically, interaction terms are added one by one by means of the
+        `add_interaction` method. Alternatively, a list of interaction term objects
+        can be supplied here upon initialization of a `HilbertSpace` instance.
     """
 
     osc_subsys_list = descriptors.ReadOnlyProperty(OscillatorList)
