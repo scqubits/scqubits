@@ -98,7 +98,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
-        self._evec_dtype = np.float_
         self.truncated_dim: int = truncated_dim  # type:ignore
         self.l_osc: Union[None, float] = l_osc  # type:ignore
         self.E_osc = E_osc

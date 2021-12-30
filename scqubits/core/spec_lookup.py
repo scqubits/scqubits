@@ -14,13 +14,13 @@ import itertools
 import weakref
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
-from typing_extensions import Protocol
 
 import numpy as np
 import qutip as qt
 
 from numpy import ndarray
 from qutip import Qobj
+from typing_extensions import Protocol
 
 import scqubits
 import scqubits.io_utils.fileio_serializers as serializers
@@ -35,11 +35,10 @@ if TYPE_CHECKING:
 
     from scqubits import HilbertSpace, SpectrumData
     from scqubits.core.descriptors import WatchedProperty
-    from scqubits.core.param_sweep import Parameters, ParameterSweep
+    from scqubits.core.param_sweep import Parameters
     from scqubits.core.qubit_base import QuantumSystem
     from scqubits.io_utils.fileio import IOData
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
-    from scqubits.legacy._param_sweep import _ParameterSweep
     from scqubits.utils.typedefs import QuantumSys
 
 
@@ -87,7 +86,7 @@ class SpectrumLookup(serializers.Serializable):
 
     def __init__(
         self,
-        framework: "Union[_ParameterSweep, HilbertSpace, None]",
+        framework: "Union[HilbertSpace, None]",
         dressed_specdata: "SpectrumData",
         bare_specdata_list: List["SpectrumData"],
         auto_run: bool = True,
@@ -107,13 +106,7 @@ class SpectrumLookup(serializers.Serializable):
         # Store ParameterSweep and/or HilbertSpace objects only as weakref.proxy
         # objects to avoid circular references that would prevent objects from
         # expiring appropriately and being garbage collected
-        if hasattr(framework, "new_datastore"):
-            # This recognizes the legacy version of `ParameterSweep`
-            # Phase out and remove in future version.
-            self._sweep = weakref.proxy(framework)
-            self._hilbertspace = weakref.proxy(self._sweep._hilbertspace)
-            cast("HilbertSpace", self._hilbertspace)
-        elif isinstance(framework, scqubits.HilbertSpace):
+        if isinstance(framework, scqubits.HilbertSpace):
             self._sweep = None
             self._hilbertspace = weakref.proxy(framework)
             cast("HilbertSpace", self._hilbertspace)
