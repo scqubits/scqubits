@@ -1238,7 +1238,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         # return np.sqrt(evals[1]**2 + evals[2]**2)
         return evals[3]
 
-    def find_flux_shift_exact(self):
+    def find_flux_shift_exact(self, epsilon=1e-4):
         """near the off position, we want to find the exact qubit fluxes necessary to
         put the qubits at their sweet spots. To do this we acknowledge that the qubits
         are (nearly) uncoupled, therefore each excited state is nearly a product state.
@@ -1250,7 +1250,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             self._eigenvals_for_flux,
             x0=np.array([0.5 + flux_shift_a_seed, 0.5 + flux_shift_b_seed]),
             bounds=((0.4, 0.6), (0.4, 0.6)),
-            tol=1e-4,
+            tol=epsilon,
         )
         assert result.success
         return result.x[0] - 0.5, result.x[1] - 0.5
