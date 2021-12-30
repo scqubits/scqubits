@@ -23,9 +23,10 @@ import scqubits.core.constants as const
 import scqubits.io_utils.fileio_serializers as io_serializers
 
 if TYPE_CHECKING:
+    import h5py
+
     from scqubits.io_utils.fileio_backends import CSVReader, H5Reader, IOWriter
     from scqubits.io_utils.fileio_serializers import Serializable
-    import h5py
 
 
 class IOData:

@@ -14,6 +14,7 @@ import itertools
 import weakref
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
+from typing_extensions import Protocol
 
 import numpy as np
 import qutip as qt
@@ -30,23 +31,34 @@ from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices
 
 if TYPE_CHECKING:
+    from typing_extensions import Protocol
+
     from scqubits import HilbertSpace, SpectrumData
-    from scqubits.core.param_sweep import Parameters
+    from scqubits.core.descriptors import WatchedProperty
+    from scqubits.core.param_sweep import Parameters, ParameterSweep
     from scqubits.core.qubit_base import QuantumSystem
     from scqubits.io_utils.fileio import IOData
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
     from scqubits.legacy._param_sweep import _ParameterSweep
     from scqubits.utils.typedefs import QuantumSys
-    from typing_extensions import Protocol
 
-    class MixinCompatible("SpectrumLookupMixin", Protocol):
-        def __getitem__(self, key: Any) -> Any:
-            ...
 
-        _parameters: Parameters
-        _data: Dict[str, Any]
-        _evals_count: int
-        _current_param_indices: NpIndices
+_OVERLAP_THRESHOLD = 0.5  # used for establishing map between bare and dressed states
+
+
+class MixinCompatible(Protocol):
+    _parameters: "WatchedProperty[Parameters]"
+    _evals_count: "WatchedProperty[int]"
+    _current_param_indices: NpIndices
+    _ignore_low_overlap: bool
+    _data: Dict[str, Any]
+
+    def __getitem__(self, key: Any) -> Any:
+        ...
+
+    @property
+    def hilbertspace(self) -> "HilbertSpace":
+        ...
 
 
 class SpectrumLookup(serializers.Serializable):
@@ -201,7 +213,7 @@ class SpectrumLookup(serializers.Serializable):
         ):  # for given bare basis index, find dressed index
             max_position = (np.abs(overlap_matrix[:, bare_basis_index])).argmax()
             max_overlap = np.abs(overlap_matrix[max_position, bare_basis_index])
-            if max_overlap ** 2 > 0.5:
+            if max_overlap ** 2 > _OVERLAP_THRESHOLD:
                 dressed_indices.append(max_position)
             else:
                 dressed_indices.append(None)  # overlap too low, make no assignment
@@ -380,7 +392,7 @@ class SpectrumLookup(serializers.Serializable):
         return qt.tensor(*product_state_list)
 
 
-class SpectrumLookupMixin:
+class SpectrumLookupMixin(MixinCompatible):
     """
     SpectrumLookupMixin is used as a mix-in class by `ParameterSweep`. It makes various
     spectrum and spectrum lookup related methods directly available at the
@@ -409,7 +421,7 @@ class SpectrumLookupMixin:
             )
         )
 
-    def generate_lookup(self: "MixinCompatible") -> NamedSlotsNdarray:
+    def generate_lookup(self) -> NamedSlotsNdarray:
         """
         For each parameter value of the parameter sweep, generate the map between
         bare states and
@@ -432,7 +444,8 @@ class SpectrumLookupMixin:
         return NamedSlotsNdarray(dressed_indices, parameter_dict)
 
     def _generate_single_mapping(
-        self: "MixinCompatible", param_indices: Tuple[int, ...]
+        self,
+        param_indices: Tuple[int, ...],
     ) -> ndarray:
         """
         For a single set of parameter values, specified by a tuple of indices
@@ -453,19 +466,19 @@ class SpectrumLookupMixin:
             self._data["evecs"][param_indices]
         )
 
-        dim = self._hilbertspace.dimension
+        dim = self.hilbertspace.dimension
         dressed_indices: List[Union[int, None]] = [None] * dim
         for dressed_index in range(self._evals_count):
             max_position = (np.abs(overlap_matrix[dressed_index, :])).argmax()
             max_overlap = np.abs(overlap_matrix[dressed_index, max_position])
-            if max_overlap ** 2 > 0.5:
+            if self._ignore_low_overlap or (max_overlap ** 2 > _OVERLAP_THRESHOLD):
                 overlap_matrix[:, max_position] = 0
                 dressed_indices[int(max_position)] = dressed_index
 
         return np.asarray(dressed_indices)
 
     def set_npindextuple(
-        self: "MixinCompatible", param_indices: Optional[NpIndices] = None
+        self, param_indices: Optional[NpIndices] = None
     ) -> NpIndexTuple:
         param_indices = param_indices or self._current_param_indices
         if not isinstance(param_indices, tuple):
@@ -474,7 +487,7 @@ class SpectrumLookupMixin:
 
     @utils.check_sync_status
     def dressed_index(
-        self: "MixinCompatible",
+        self,
         bare_labels: Tuple[int, ...],
         param_indices: Optional[NpIndices] = None,
     ) -> Union[ndarray, int, None]:
@@ -501,7 +514,7 @@ class SpectrumLookupMixin:
 
     @utils.check_sync_status
     def bare_index(
-        self: "MixinCompatible",
+        self,
         dressed_index: int,
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> Union[Tuple[int, ...], None]:
@@ -534,7 +547,8 @@ class SpectrumLookupMixin:
 
     @utils.check_sync_status
     def eigensys(
-        self: "MixinCompatible", param_indices: Optional[Tuple[int, ...]] = None
+        self,
+        param_indices: Optional[Tuple[int, ...]] = None,
     ) -> ndarray:
         """
         Return the list of dressed eigenvectors
@@ -554,7 +568,8 @@ class SpectrumLookupMixin:
 
     @utils.check_sync_status
     def eigenvals(
-        self: "MixinCompatible", param_indices: Optional[Tuple[int, ...]] = None
+        self,
+        param_indices: Optional[Tuple[int, ...]] = None,
     ) -> ndarray:
         """
         Return the array of dressed eigenenergies - primarily for running the sweep
@@ -573,7 +588,7 @@ class SpectrumLookupMixin:
 
     @utils.check_sync_status
     def energy_by_bare_index(
-        self: "MixinCompatible",
+        self,
         bare_tuple: Tuple[int, ...],
         subtract_ground: bool = False,
         param_indices: Optional[NpIndices] = None,
@@ -624,7 +639,7 @@ class SpectrumLookupMixin:
 
     @utils.check_sync_status
     def energy_by_dressed_index(
-        self: "MixinCompatible",
+        self,
         dressed_index: int,
         subtract_ground: bool = False,
         param_indices: Optional[Tuple[int, ...]] = None,
@@ -655,7 +670,7 @@ class SpectrumLookupMixin:
 
     @utils.check_sync_status
     def bare_eigenstates(
-        self: "MixinCompatible",
+        self,
         subsys: "QuantumSys",
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
@@ -671,7 +686,7 @@ class SpectrumLookupMixin:
 
     @utils.check_sync_status
     def bare_eigenvals(
-        self: "MixinCompatible",
+        self,
         subsys: "QuantumSys",
         param_indices: Optional[Tuple[int, ...]] = None,
     ) -> NamedSlotsNdarray:
@@ -696,7 +711,10 @@ class SpectrumLookupMixin:
         self._current_param_indices = slice(None, None, None)
         return self["bare_evals"][subsys_index][param_indices_tuple]
 
-    def bare_productstate(self: "MixinCompatible", bare_index: Tuple[int, ...]) -> Qobj:
+    def bare_productstate(
+        self,
+        bare_index: Tuple[int, ...],
+    ) -> Qobj:
         """
         Return the bare product state specified by `bare_index`. Note: no parameter
         dependence here, since the Hamiltonian is always represented in the bare
@@ -717,7 +735,7 @@ class SpectrumLookupMixin:
             product_state_list.append(qt.basis(dim, state_index))
         return qt.tensor(*product_state_list)
 
-    def all_params_fixed(self: "MixinCompatible", param_indices) -> bool:
+    def all_params_fixed(self, param_indices) -> bool:
         if isinstance(param_indices, slice):
             param_indices = (param_indices,)
         return len(self._parameters) == len(param_indices)
