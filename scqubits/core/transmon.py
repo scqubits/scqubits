@@ -85,7 +85,6 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(
@@ -428,7 +427,6 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(

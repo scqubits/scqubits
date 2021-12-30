@@ -60,7 +60,6 @@ from scqubits.core.storage import SpectrumData
 
 if TYPE_CHECKING:
     from scqubits.io_utils.fileio import IOData
-    from scqubits.legacy._param_sweep import _ParameterSweep
 
 if settings.IN_IPYTHON:
     from tqdm.notebook import tqdm
@@ -877,22 +876,6 @@ class ParameterSweep(  # type:ignore
 
     """
 
-    def __new__(  # type:ignore
-        cls, *args, **kwargs
-    ) -> "Union[ParameterSweep, _ParameterSweep]":
-        if args and isinstance(args[0], str) or "param_name" in kwargs:
-            # old-style ParameterSweep interface is being used
-            warnings.warn(
-                "The implementation of the `ParameterSweep` class has changed and this "
-                "old-style interface will cease to be supported in the future.",
-                FutureWarning,
-            )
-            from scqubits.legacy._param_sweep import _ParameterSweep
-
-            return _ParameterSweep(*args, **kwargs)
-        else:
-            return super().__new__(cls, *args, **kwargs)  # type:ignore
-
     def __init__(
         self,
         hilbertspace: HilbertSpace,
@@ -912,7 +895,7 @@ class ParameterSweep(  # type:ignore
         self._evals_count = evals_count
         self._update_hilbertspace = self.set_update_func(update_hilbertspace)
         self._subsys_update_info = subsys_update_info
-        self._data = {}
+        self._data: Dict[str, Any] = {}
         self._bare_only = bare_only
         self._ignore_low_overlap = ignore_low_overlap
         self._deepcopy = deepcopy
