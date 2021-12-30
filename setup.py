@@ -78,7 +78,6 @@ PACKAGES = [
     "scqubits/utils",
     "scqubits/ui",
     "scqubits/io_utils",
-    "scqubits/legacy",
     "scqubits/explorer",
 ]
 
