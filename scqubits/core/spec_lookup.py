@@ -86,7 +86,7 @@ class SpectrumLookup(serializers.Serializable):
 
     def __init__(
         self,
-        framework: "Union[_ParameterSweep, HilbertSpace, None]",
+        framework: "Union[HilbertSpace, None]",
         dressed_specdata: "SpectrumData",
         bare_specdata_list: List["SpectrumData"],
         auto_run: bool = True,
