@@ -31,7 +31,7 @@ from typing_extensions import Protocol
 
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
-import settings
+import scqubits.settings as settings
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices
