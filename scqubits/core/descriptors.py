@@ -1,7 +1,7 @@
 # descriptors.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -12,7 +12,7 @@
 
 # Recap on descriptors: see https://realpython.com/python-descriptors/
 
-from typing import Any, Generic, Type, TypeVar, Union
+from typing import Any, Generic, Type, TypeVar
 
 from scqubits.core.central_dispatch import DispatchClient
 

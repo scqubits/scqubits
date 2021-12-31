@@ -1,7 +1,7 @@
 # fileio_serializers.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -14,14 +14,17 @@ Helper classes for writing data to files.
 """
 
 import inspect
-from abc import ABC, ABCMeta
+
+from abc import ABCMeta
 from collections import OrderedDict
 from numbers import Number
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
+
 from numpy import ndarray
 from scipy.sparse import csc_matrix
+from typing_extensions import Protocol
 
 import scqubits.utils.misc as utils
 
@@ -32,7 +35,7 @@ if TYPE_CHECKING:
 SERIALIZABLE_REGISTRY = {}
 
 
-class Serializable(ABC):
+class Serializable(Protocol):
     """Mix-in class that makes descendant classes serializable."""
 
     _subclasses: List[ABCMeta] = []

@@ -1,7 +1,7 @@
 # plotting.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -426,6 +426,12 @@ def data_vs_paramvals(
             frameon=False,
         )
     _process_options(fig, axes, **kwargs)
+
+    # The following ensures that np.nan entries (as present in transition energy plots)
+    # cannot reduce the intended x range
+    axes.update_datalim(np.c_[xdata, [0] * len(xdata)], updatey=False)
+    axes.autoscale()
+
     return fig, axes
 
 

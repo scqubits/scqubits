@@ -1,7 +1,7 @@
 # transmon.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -85,7 +85,6 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(
@@ -428,7 +427,6 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(

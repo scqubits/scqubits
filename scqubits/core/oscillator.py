@@ -1,7 +1,7 @@
 # oscillator.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -98,7 +98,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
-        self._evec_dtype = np.float_
         self.truncated_dim: int = truncated_dim  # type:ignore
         self.l_osc: Union[None, float] = l_osc  # type:ignore
         self.E_osc = E_osc
