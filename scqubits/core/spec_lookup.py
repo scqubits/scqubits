@@ -11,7 +11,6 @@
 ############################################################################
 
 import itertools
-import weakref
 
 from typing import (
     TYPE_CHECKING,
@@ -21,7 +20,6 @@ from typing import (
     Optional,
     Tuple,
     Union,
-    cast,
 )
 
 import numpy as np
@@ -31,10 +29,9 @@ from numpy import ndarray
 from qutip import Qobj
 from typing_extensions import Protocol
 
-import scqubits
-import scqubits.io_utils.fileio_serializers as serializers
 import scqubits.utils.misc as utils
 import scqubits.utils.spectrum_utils as spec_utils
+import settings
 
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 from scqubits.utils.typedefs import NpIndexTuple, NpIndices
@@ -42,16 +39,12 @@ from scqubits.utils.typedefs import NpIndexTuple, NpIndices
 if TYPE_CHECKING:
     from typing_extensions import Protocol
 
-    from scqubits import HilbertSpace, SpectrumData
+    from scqubits import HilbertSpace
     from scqubits.core.descriptors import WatchedProperty
     from scqubits.core.param_sweep import Parameters
     from scqubits.core.qubit_base import QuantumSystem
-    from scqubits.io_utils.fileio import IOData
     from scqubits.io_utils.fileio_qutip import QutipEigenstates
     from scqubits.utils.typedefs import QuantumSys
-
-
-_OVERLAP_THRESHOLD = 0.5  # used for establishing map between bare and dressed states
 
 
 class MixinCompatible(Protocol):
@@ -328,7 +321,9 @@ class SpectrumLookupMixin(MixinCompatible):
         for dressed_index in range(self._evals_count):
             max_position = (np.abs(overlap_matrix[dressed_index, :])).argmax()
             max_overlap = np.abs(overlap_matrix[dressed_index, max_position])
-            if self._ignore_low_overlap or (max_overlap ** 2 > _OVERLAP_THRESHOLD):
+            if self._ignore_low_overlap or (
+                max_overlap ** 2 > settings.OVERLAP_THRESHOLD
+            ):
                 overlap_matrix[:, max_position] = 0
                 dressed_indices[int(max_position)] = dressed_index
 
