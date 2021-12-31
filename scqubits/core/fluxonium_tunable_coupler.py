@@ -1229,14 +1229,29 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         evals, _ = self.generate_coupled_system().hamiltonian().eigenstates(eigvals=4)
         return evals - evals[0]
 
-    def _eigenvals_for_flux(self, fluxes):
+    def _eigenvals_for_flux_shift(self, fluxes):
         """Vary the qubit fluxes to find the exact sweet spot locations"""
         flux_a, flux_b = fluxes
         self.flux_a = flux_a
         self.flux_b = flux_b
         evals = self._evals_zeroed()
-        # return np.sqrt(evals[1]**2 + evals[2]**2)
         return evals[3]
+
+    def _cost_function_off_and_shift_positions(self, fluxes):
+        """For efficiency we make the approximation that the flux shifts are equivalent"""
+        flux_c, flux_a = fluxes
+        flux_shift_a = flux_a - 0.5
+        flux_b = 0.5 - flux_shift_a
+        self.flux_c = flux_c
+        _, H_a, H_b, H_c = self.operators_at_sweetspot(flux_shift_a=flux_shift_a, flux_shift_b=-flux_shift_a)
+        return (np.abs(H_c[0, 1]) + np.abs(H_c[0, 2]) + np.abs(H_c[1, 3]) + np.abs([2, 3]))[0]
+        # self.flux_a = flux_a
+        # self.flux_b = flux_b
+        # evals = self._evals_zeroed()
+        # # want to minimize both the highest energy (flux shift)
+        # # but also the separation between the |10> and |01> states (off position)
+        # return evals[3] + evals[2] - evals[1]
+
 
     def find_flux_shift_exact(self, epsilon=1e-4):
         """near the off position, we want to find the exact qubit fluxes necessary to
@@ -1247,7 +1262,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         flux_shift_a_seed, flux_shift_b_seed = self.find_flux_shift()
 
         result = minimize(
-            self._eigenvals_for_flux,
+            self._eigenvals_for_flux_shift,
             x0=np.array([0.5 + flux_shift_a_seed, 0.5 + flux_shift_b_seed]),
             bounds=((0.4, 0.6), (0.4, 0.6)),
             tol=epsilon,
@@ -1255,11 +1270,24 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         assert result.success
         return result.x[0] - 0.5, result.x[1] - 0.5
 
+    def find_off_position_and_flux_shift_exact(self, epsilon=1e-4):
+        flux_c_seed, flux_shift_a_seed, _ = self.off_location_effective_sweet_spot_fluxes()
+
+        result = minimize(
+            self._cost_function_off_and_shift_positions,
+            x0=np.array([flux_c_seed, 0.5 + flux_shift_a_seed]),
+            bounds=((0.2, 0.4), (0.4, 0.6)),
+            tol=epsilon,
+        )
+        assert result.success
+        return result.x[0], result.x[1] - 0.5, -(result.x[1] - 0.5)
+
+
     def off_location_effective_sweet_spot_fluxes(self):
         flux_c = self.off_location_coupler_flux()
         self.flux_c = flux_c
         flux_shift_a, flux_shift_b = self.find_flux_shift()
-        return flux_c, 0.50 + flux_shift_a, 0.50 + flux_shift_b
+        return flux_c, flux_shift_a, flux_shift_b
 
     @staticmethod
     def decompose_matrix_into_specific_paulis(sigmai, sigmaj, matrix):
