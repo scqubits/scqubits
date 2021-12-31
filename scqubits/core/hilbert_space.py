@@ -24,6 +24,7 @@ import re
 # - check file IO
 # - check CentralDispatch
 # - rewrite pytests
+# - add settings.OVERLAP_THRESHOLD to docs/settings
 
 
 
