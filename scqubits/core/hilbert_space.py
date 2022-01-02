@@ -16,22 +16,6 @@ import importlib
 import re
 
 
-
-
-
-
-# TODO:
-# - check file IO
-# - check CentralDispatch
-# - rewrite pytests
-# - add settings.OVERLAP_THRESHOLD to docs/settings
-
-
-
-
-
-
-
 from typing import (
     TYPE_CHECKING,
     Any,
