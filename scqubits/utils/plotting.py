@@ -426,6 +426,12 @@ def data_vs_paramvals(
             frameon=False,
         )
     _process_options(fig, axes, **kwargs)
+
+    # The following ensures that np.nan entries (as present in transition energy plots)
+    # cannot reduce the intended x range
+    axes.update_datalim(np.c_[xdata, [0] * len(xdata)], updatey=False)
+    axes.autoscale()
+
     return fig, axes
 
 

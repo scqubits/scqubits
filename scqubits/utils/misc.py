@@ -158,6 +158,27 @@ def check_sync_status(func: Callable) -> Callable:
     return wrapper
 
 
+class DeprecationWarning:
+    """Decorator class, producing an adjustable warning and info upon usage of the
+    decorated function.
+
+    Parameters
+    ----------
+    warning_message:
+        Warnings message to be sent upon decorated (deprecated) routing
+    """
+
+    def __init__(self, warning_msg: str) -> None:
+        self.warning_msg = warning_msg
+
+    def __call__(self, func: Callable, *args, **kwargs) -> Callable:
+        @functools.wraps(func)
+        def decorated_func(*args, **kwargs):
+            warnings.warn(self.warning_msg, FutureWarning)
+            return func(*args, **kwargs)
+        return decorated_func
+
+
 def to_expression_or_string(string_expr: str) -> Any:
     try:
         return ast.literal_eval(string_expr)
@@ -276,11 +297,10 @@ def cite(print_info=True):
 
     """
     fs = StringIO()
-
-    fs.write(
-        "Peter Groszkowski and Jens Koch, 'scqubits: a Python package for "
-        "superconducting qubits', arXiv:2107.08552 (2021).\n"
-    )
+    fs.write("Peter Groszkowski and Jens Koch,\n")
+    fs.write("'scqubits: a Python package for superconducting qubits'\n")
+    fs.write("Quantum 5, 583 (2021).\n")
+    fs.write("https://quantum-journal.org/papers/q-2021-11-17-583/\n")
 
     if print_info:
         print(fs.getvalue())

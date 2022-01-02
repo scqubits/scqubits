@@ -148,7 +148,6 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         self.grid = grid
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.complex_
 
         # _default_grid is for *theta*, needed for plotting wavefunction
         self._default_grid = discretization.Grid1d(-np.pi / 2, 3 * np.pi / 2, 200)

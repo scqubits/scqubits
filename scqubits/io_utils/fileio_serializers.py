@@ -15,7 +15,7 @@ Helper classes for writing data to files.
 
 import inspect
 
-from abc import ABC, ABCMeta
+from abc import ABCMeta
 from collections import OrderedDict
 from numbers import Number
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
@@ -24,6 +24,7 @@ import numpy as np
 
 from numpy import ndarray
 from scipy.sparse import csc_matrix
+from typing_extensions import Protocol
 
 import scqubits.utils.misc as utils
 
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
 SERIALIZABLE_REGISTRY = {}
 
 
-class Serializable(ABC):
+class Serializable(Protocol):
     """Mix-in class that makes descendant classes serializable."""
 
     _subclasses: List[ABCMeta] = []
