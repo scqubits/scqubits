@@ -1244,13 +1244,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         flux_b = 0.5 - flux_shift_a
         self.flux_c = flux_c
         _, H_a, H_b, H_c = self.operators_at_sweetspot(flux_shift_a=flux_shift_a, flux_shift_b=-flux_shift_a)
-        return (np.abs(H_c[0, 1]) + np.abs(H_c[0, 2]) + np.abs(H_c[1, 3]) + np.abs([2, 3]))[0]
-        # self.flux_a = flux_a
-        # self.flux_b = flux_b
-        # evals = self._evals_zeroed()
-        # # want to minimize both the highest energy (flux shift)
-        # # but also the separation between the |10> and |01> states (off position)
-        # return evals[3] + evals[2] - evals[1]
+        return np.abs(H_c[0, 1]) + np.abs(H_c[0, 2]) + np.abs(H_c[1, 3]) + np.abs(H_c[2, 3])
 
 
     def find_flux_shift_exact(self, epsilon=1e-4):
