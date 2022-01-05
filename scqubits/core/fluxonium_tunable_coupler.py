@@ -1276,7 +1276,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         result = minimize(
             self._cost_function_off_and_shift_positions,
             x0=np.array([flux_c_seed, 0.5 + flux_shift_a_seed]),
-            bounds=((0.15, 0.45), (0.35, 0.65)),
+            bounds=((0.0, 0.5), (0.5, 1.0)),
             tol=epsilon,
         )
         assert result.success
