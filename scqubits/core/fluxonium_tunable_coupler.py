@@ -1216,12 +1216,12 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         phi_b_01 = self._get_phi_01(fluxonium_b)
         return J * phi_a_01 * phi_b_01
 
-    def off_location_coupler_flux(self):
+    def off_location_coupler_flux(self, epsilon=1e-2):
         def _find_J(flux_c):
             self.flux_c = flux_c
             return self.J_eff_total()
 
-        result = root(_find_J, x0=np.array([0.28]))
+        result = root(_find_J, x0=np.array([0.28]), tol=epsilon)
         assert result.success
         return result.x[0]
 
@@ -1276,7 +1276,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         result = minimize(
             self._cost_function_off_and_shift_positions,
             x0=np.array([flux_c_seed, 0.5 + flux_shift_a_seed]),
-            bounds=((0.2, 0.4), (0.4, 0.6)),
+            bounds=((0.15, 0.45), (0.35, 0.65)),
             tol=epsilon,
         )
         assert result.success
