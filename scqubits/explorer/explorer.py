@@ -284,6 +284,7 @@ class Explorer:
 
 
 class ExplorerMixin:
+    # TODO: integrate class into ParameterSweep
     """
     This class allows interactive exploration of coupled quantum systems. The
     Explorer is currently compatible with systems composed of `Transmon`,
