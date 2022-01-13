@@ -1,6 +1,4 @@
-asteval
 cycler
-cython>=0.28.5
 matplotlib>=3.0.0
 numpy>=1.14.2
 qutip>=4.3.1
