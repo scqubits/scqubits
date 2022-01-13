@@ -76,7 +76,11 @@ class SpectrumLookupAdapter:
     def _out_of_sync(self):
         return self.hilbertspace._out_of_sync
 
-    @utils.DeprecationWarning(
+    @_out_of_sync.setter
+    def _out_of_sync(self, value: bool):
+        self.hilbertspace._out_of_sync = value
+
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.run is deprecated. "
         "Use <HilbertSpace>.generate_lookup instead."
     )
@@ -84,7 +88,7 @@ class SpectrumLookupAdapter:
         self.hilbertspace.generate_lookup()
 
     @utils.check_sync_status
-    @utils.DeprecationWarning(
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.dressed_index is "
         "deprecated. Use <HilbertSpace>.dressed_index instead."
     )
@@ -104,7 +108,7 @@ class SpectrumLookupAdapter:
         return self.hilbertspace.dressed_index(bare_labels)
 
     @utils.check_sync_status
-    @utils.DeprecationWarning(
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.bare_index is "
         "deprecated. Use <HilbertSpace>.bare_index instead."
     )
@@ -121,7 +125,7 @@ class SpectrumLookupAdapter:
         return self.hilbertspace.bare_index(dressed_index)
 
     @utils.check_sync_status
-    @utils.DeprecationWarning(
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.dressed_eigenstates is "
         "deprecated. Use <HilbertSpace>['evecs'] instead."
     )
@@ -137,7 +141,7 @@ class SpectrumLookupAdapter:
         return self.hilbertspace["evecs"]
 
     @utils.check_sync_status
-    @utils.DeprecationWarning(
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.dressed_eigenenergies is "
         "deprecated. Use <HilbertSpace>['evals'] instead."
     )
@@ -154,7 +158,7 @@ class SpectrumLookupAdapter:
         return self.hilbertspace["evals"]
 
     @utils.check_sync_status
-    @utils.DeprecationWarning(
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.energy_bare_index is "
         "deprecated. Use "
         "<HilbertSpace>.energy_by_bare_index instead."
@@ -175,7 +179,7 @@ class SpectrumLookupAdapter:
         return self.hilbertspace.energy_by_bare_index(bare_tuple)
 
     @utils.check_sync_status
-    @utils.DeprecationWarning(
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.energy_dressed_index is "
         "deprecated. Use "
         "<HilbertSpace>.energy_by_dressed_index instead."
@@ -196,7 +200,7 @@ class SpectrumLookupAdapter:
         return self.hilbertspace.energy_by_dressed_index(dressed_index)
 
     @utils.check_sync_status
-    @utils.DeprecationWarning(
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.bare_eigenstates is deprecated. "
         "Use <HilbertSpace>.bare_eigenstates instead."
     )
@@ -208,7 +212,7 @@ class SpectrumLookupAdapter:
         return self.hilbertspace.bare_eigenstates(subsys)
 
     @utils.check_sync_status
-    @utils.DeprecationWarning(
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.bare_eigenenergies is deprecated. "
         "Use <HilbertSpace>.bare_eigenvals instead."
     )
@@ -227,7 +231,7 @@ class SpectrumLookupAdapter:
         """
         return self.hilbertspace.bare_eigenvals(subsys)
 
-    @utils.DeprecationWarning(
+    @utils.DeprecationMessage(
         "<HilbertSpace>.lookup.bare_productstate is deprecated. "
         "Use <HilbertSpace>.bare_productstate instead."
     )
@@ -514,7 +518,6 @@ class SpectrumLookupMixin(MixinCompatible):
             dressed energy
         """
         param_indices_tuple = self.set_npindextuple(param_indices)
-        self._current_param_indices: NpIndices = slice(None, None, None)
         energies = self["evals"][param_indices_tuple + (dressed_index,)]
         if subtract_ground:
             energies -= self["evals"][param_indices_tuple + (0,)]
