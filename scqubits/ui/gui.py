@@ -68,6 +68,7 @@ class GUI:
         self.qubit_change = True
         self.slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
         self.active_defaults: Dict[str, Any] = {}
+        self.active_qubit: QubitBaseClass
         self.fig: Figure
         self.qubit_current_params: Dict[str, Union[int, float, None]] = {}
         self.qubit_base_params: Dict[str, Union[int, float, None]] = {}
