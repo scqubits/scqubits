@@ -38,10 +38,6 @@ else:
     _HAS_H5PY = True
 
 
-# from scqubits.core.discretization import Grid1d
-# from scqubits.io_utils.fileio import IOData
-
-
 class IOWriter(ABC):
     """
     ABC for writing class instance data to file.
