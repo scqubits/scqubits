@@ -17,7 +17,7 @@ import warnings
 
 from collections.abc import Sequence
 from io import StringIO
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -39,7 +39,7 @@ def process_which(which: Union[int, Iterable[int]], max_index: int) -> List[int]
     ----------
     which:
         single index or tuple/list of integers indexing the eigenobjects.
-        If which is -1, all indices up to the max_index limit are included.
+        If 'which' is -1, all indices up to the max_index limit are included.
     max_index:
         maximum index value
 
@@ -95,7 +95,7 @@ class InfoBar:
     def __init__(self, desc: str, num_cpus: int) -> None:
         self.desc = desc
         self.num_cpus = num_cpus
-        self.tqdm_bar: tqdm = None
+        self.tqdm_bar: Optional[tqdm] = None
 
     def __enter__(self) -> None:
         self.tqdm_bar = tqdm(
@@ -158,7 +158,7 @@ def check_sync_status(func: Callable) -> Callable:
     return wrapper
 
 
-class DeprecationWarning:
+class DeprecationMessage:
     """Decorator class, producing an adjustable warning and info upon usage of the
     decorated function.
 
