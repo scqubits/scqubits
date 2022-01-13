@@ -73,6 +73,25 @@ DressedLabel = int
 StateLabel = Union[DressedLabel, BareLabel]
 
 
+class ParameterSlice:
+    def __init__(
+        self,
+        param_name: str,
+        param_val: float,
+        fixed_params: Dict[str, float],
+        params_ordered: List[str],
+    ):
+        self.param_name = param_name
+        self.param_val = param_val
+        self.fixed_dict = fixed_params
+        self.all_dict = {param_name: param_val, **fixed_params}
+        self.fixed = tuple(
+            slice(name, value) for name, value in self.fixed_dict.items()
+        )
+        self.all = tuple(slice(name, value) for name, value in self.all_dict.items())
+        self.all_values = [self.all_dict[name] for name in params_ordered]
+
+
 class ParameterSweepBase(ABC, SpectrumLookupMixin):
     """
     The_ParameterSweepBase class is an abstract base class for ParameterSweep and
@@ -524,7 +543,6 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             If `as_specdata` is set to True, a SpectrumData object is returned instead,
             saving transition label info in an attribute named `labels`.
         """
-
         subsys_list = self._process_subsystems_option(subsystems)
 
         (
