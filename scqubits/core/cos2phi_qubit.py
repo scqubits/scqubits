@@ -126,12 +126,9 @@ class NoisyCos2PhiQubit(NoisySystem, ABC):
                         * np.sinh(1 / 2 * therm_ratio)
                     )
                 )
-
         elif callable(Q_ind):  # Q_ind is a function of omega
             q_ind_fun = Q_ind
-
         else:  # Q_ind is given as a number
-
             def q_ind_fun(omega):
                 return Q_ind
 
