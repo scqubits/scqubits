@@ -77,11 +77,14 @@ def creation_sparse(dimension: int) -> csc_matrix:
 def number_sparse(
     dimension: int, prefactor: Union[float, complex] = None
 ) -> dia_matrix:
-    """Number operator matrix of size dimension x dimension in sparse matrix representation. An additional prefactor
-    can be directly included in the generation of the matrix by supplying 'prefactor'.
+    """Number operator matrix of size dimension x dimension in sparse matrix
+    representation. An additional prefactor can be directly included in the
+    generation of the matrix by supplying `prefactor`.
 
     Parameters
     ----------
+    dimension:
+        dimension of the matrix to be returned
     prefactor:
         prefactor multiplying the number operator matrix
 
