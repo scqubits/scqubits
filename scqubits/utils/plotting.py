@@ -383,7 +383,7 @@ def data_vs_paramvals(
     label_list: Union[List[str], List[int]] = None,
     **kwargs
 ) -> Tuple[Figure, Axes]:
-    """Plot of a set of yadata vs xdata.
+    """Plot of a set of ydata vs xdata.
     The individual points correspond to the a provided array of parameter values.
 
     Parameters
