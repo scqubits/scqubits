@@ -10,9 +10,8 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-import warnings
 
-from typing import Dict, List, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,9 +28,6 @@ from scqubits.core.param_sweep import ParameterSlice
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
-    from scqubits.ui.explorer_widget import Panel
-    from scqubits.core.qubit_base import QuantumSystem
-    from scqubits.legacy._explorer import Explorer_
     from ui.explorer_widget import ExplorerSetup
 
 
@@ -67,25 +63,6 @@ class Explorer:
     figsize:
         custom size of individual panels in plot (optional)
     """
-
-    def __new__(cls, *args, **kwargs) -> "Union[Explorer, Explorer_]":  # type:ignore
-        if "sweep" in kwargs:
-            sweep = kwargs["sweep"]
-        else:
-            sweep = args[0]
-        if not hasattr(sweep, "keys"):
-            # User has provided legacy version of ParameterSweep object
-            warnings.warn(
-                "You are using a deprecated version of `ParameterSweep` that will "
-                "be removed in the future.",
-                FutureWarning,
-            )
-            from scqubits.legacy._explorer import Explorer_
-
-            return Explorer_(*args, **kwargs)
-        else:
-            return super().__new__(cls)
-
     def __init__(
         self,
         sweep: "ParameterSweep",
@@ -284,7 +261,6 @@ class Explorer:
 
 
 class ExplorerMixin:
-    # TODO: integrate class into ParameterSweep
     """
     This class allows interactive exploration of coupled quantum systems. The
     Explorer is currently compatible with systems composed of `Transmon`,
@@ -304,24 +280,7 @@ class ExplorerMixin:
     """
 
     def update_panels(self: "ExplorerSetup") -> None:
-        out = ipywidgets.interactive_output(
-            self.update_explorer,
-            # {
-            #     "param_val": self.param_slider,
-            #     "photonnumber": self.photon_slider,
-            #     "initial_index": self.initial_slider,
-            #     "primary_subsys_index": self.primary_subsys_dropdown,
-            #     "secondary_subsys_index": self.secondary_subsys_dropdown,
-            # },
-        )
-
-        # left_box = ipywidgets.VBox([self.param_slider])
-        # mid_box = ipywidgets.VBox([self.initial_slider, self.photon_slider])
-        # right_box = ipywidgets.VBox(
-        #     [self.primary_subsys_dropdown, self.secondary_subsys_dropdown]
-        # )
-
-        # self.user_interface = ipywidgets.HBox([left_box, mid_box, right_box])
+        out = ipywidgets.interactive_output(self.update_explorer, controls={})
 
     def plot_explorer_panels(
         self: "ExplorerSetup",

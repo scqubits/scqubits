@@ -134,24 +134,23 @@ def display_n_photon_qubit_transitions(
 
 def display_transitions(
     sweep: "ParameterSweep",
-    photonnumber: int,
+    photon_number: int,
     subsys_list: List["QuantumSystem"],
-    initial_bare: Tuple[int, ...],
+    initial: Union[int, Tuple[int, ...]],
     sidebands: bool,
     param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
     if len(subsys_list) == 1:
-        title = r"{}-photon {} transitions".format(photonnumber, subsys_list[0].id_str)
+        title = r"{}-photon {} transitions".format(photon_number, subsys_list[0].id_str)
     else:
-        title = r"{}-photon transitions".format(photonnumber)
+        title = r"{}-photon transitions".format(photon_number)
     fig, axes = sweep[param_slice.fixed].plot_transitions(
         subsystems=subsys_list,
-        initial=initial_bare,
-        photon_number=photonnumber,
+        initial=initial,
+        photon_number=photon_number,
         title=title,
         sidebands=sidebands,
-        coloring=coloring,
         fig_ax=fig_ax,
     )
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
