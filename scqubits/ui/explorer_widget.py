@@ -16,6 +16,7 @@ import itertools
 from typing import Dict, List, Optional, TYPE_CHECKING, Tuple, Union
 
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
@@ -50,6 +51,7 @@ try:
         Label,
         Output,
         SelectMultiple,
+        ToggleButtons,
         interactive_output,
         ToggleButton,
         Layout,
@@ -87,9 +89,9 @@ def width(pixels: int, justify_content: Optional[str] = None) -> Layout:
     return Layout(width=str(pixels) + "px")
 
 
-def boxed(pixels: int) -> Layout:
+def boxed(pixels: int = 900) -> Layout:
     return Layout(
-        width="900px",
+        width=str(pixels) + "px",
         align="top",
         justify_content="space-between",
         border="1px solid lightgrey",
@@ -157,6 +159,7 @@ class ExplorerSetup:
 
         plt.ioff()
         self.fig = plt.figure()
+        self.figsize: Tuple[float, float]
         self.axes_table = self.fig.subplots(1, 2)
         # == GUI elements =========================================================
         self.ui_subsys_dropdown = Dropdown(options=self.subsys_names, layout=width(185))
@@ -266,12 +269,14 @@ class ExplorerSetup:
 
         self.ui_hbox["parameters"] = HBox(
             [
-                VBox([HTML("Active sweep parameter"), self.ui_sweep_param_dropdown],
-                     layout=width(185)),
+                VBox(
+                    [HTML("Active sweep parameter"), self.ui_sweep_param_dropdown],
+                    layout=width(185),
+                ),
                 VBox([HTML("Sample value"), self.ui_sweep_value_slider]),
                 self.ui_vbox["fixed_param_sliders"],
             ],
-            layout=width(800) #, justify_content="space-between"),
+            layout=width(800),  # , justify_content="space-between"),
         )
 
         self.ui_vbox["panels_select"] = VBox(
@@ -315,8 +320,9 @@ class ExplorerSetup:
         # TODO: the following dropdown needs to be adjusted in options whenever panels
         # are added/deleted
 
-        self.ui_panels_choice_dropdown = Dropdown(options=self.get_panels_list(),
-                                                  layout=width(250))
+        self.ui_panels_choice_dropdown = Dropdown(
+            options=self.get_panels_list(), layout=width(250)
+        )
         self.ui_panels_choice_dropdown.observe(self.activate_settings, "value")
         subsys_name, panel_name = self.ui_panels_choice_dropdown.value.split(SEP)
         self.ui_hbox["panel_settings"] = HBox(
@@ -403,20 +409,34 @@ class ExplorerSetup:
         if panel_name == "Matrix elements":
             pass
         if panel_name == "Anharmonicity":
-            panels.display_anharmonicity(subsys=subsys)
+            panels.display_anharmonicity(self.sweep, subsys, param_slice, fig_ax)
         if panel_name == "Dispersion":
             pass
         if panel_name == "Transitions":
-            initial_state = tuple(
-                inttext.value
-                for inttext in self.ui_transitions["initial_state_inttexts"]
-            )
+            if self.ui_transitions["initial_dressed_inttext"].disabled:
+                initial_state = tuple(
+                    inttext.value
+                    for inttext in self.ui_transitions["initial_state_inttexts"]
+                )
+            else:
+                initial_state = self.ui_transitions["initial_dressed_inttext"].value
+
+            # if self.ui_transitions["final_dressed_inttext"].disabled:
+            #     final_state = tuple(
+            #         inttext.value
+            #         for inttext in self.ui_transitions["final_state_inttexts"]
+            #     )
+            # else:
+            #     final_state = self.ui_transitions["final_dressed_inttext"].value
+
             subsys_name_tuple = self.ui_transitions["highlight_selectmultiple"].value
             if subsys_name_tuple == ():
                 subsys_list = None
             else:
-                subsys_list = [self.sweep.subsys_by_id_str(subsys_name) for
-                               subsys_name in subsys_name_tuple]
+                subsys_list = [
+                    self.sweep.subsys_by_id_str(subsys_name)
+                    for subsys_name in subsys_name_tuple
+                ]
 
             sidebands = self.ui_transitions["sidebands_checkbox"].value
             photon_number = self.ui_transitions["photons_inttext"].value
@@ -477,6 +497,7 @@ class ExplorerSetup:
 
     def on_toggle_event(self, change):
         self.ui_panels_list.options = self.selected_as_strings()
+        self.ui_panels_choice_dropdown.options = self.selected_as_strings()
         self.update_explorer(change)
 
     def on_subsys_change(self, change):
@@ -517,6 +538,25 @@ class ExplorerSetup:
         self.ui_sweep_value_slider.options = self.sweep.param_info[
             self.ui_sweep_param_dropdown.value
         ]
+
+    def bare_dressed_toggle(self, change):
+        if self.ui_transitions["initial_bare_dressed_toggle"].value == "bare":
+            self.ui_transitions["initial_dressed_inttext"].disabled = True
+            for inttext in self.ui_transitions["initial_state_inttexts"]:
+                inttext.disabled = False
+        else:
+            self.ui_transitions["initial_dressed_inttext"].disabled = False
+            for inttext in self.ui_transitions["initial_state_inttexts"]:
+                inttext.disabled = True
+        # if self.ui_transitions["final_bare_dressed_toggle"].value == "bare":
+        #     self.ui_transitions["final_dressed_inttext"].disabled = True
+        #     for inttext in self.ui_transitions["final_state_inttexts"]:
+        #         inttext.disabled = False
+        # else:
+        #     self.ui_transitions["final_dressed_inttext"].disabled = False
+        #     for inttext in self.ui_transitions["final_state_inttexts"]:
+        #         inttext.disabled = True
+        self.update_explorer(change)
 
     # def start_explorer(self):
     #     # Trigger first update
@@ -569,6 +609,8 @@ class ExplorerSetup:
             self.figsize = (9, 2.75 * nrows)
             self.fig.set_size_inches(self.figsize)
             self.axes_table = self.fig.subplots(ncols=self.ncols, nrows=nrows)
+            if nrows == 1:
+                self.axes_table = np.array([self.axes_table])
             if len(panels) % self.ncols != 0:
                 for col in range(1, self.ncols):
                     self.axes_table[-1, col].remove()
@@ -686,18 +728,36 @@ class ExplorerSetup:
                 )
                 for subsys in self.sweep.hilbertspace
             ]
-            self.ui_transitions["final_state_inttexts"] = [
-                BoundedIntText(
-                    description="",
-                    min=0,
-                    max=subsys.truncated_dim,
-                    value=0,
-                    continuous_update=False,
-                    layout=width(35),
-                )
-                for subsys in self.sweep.hilbertspace
-            ]
-            self.ui_transitions["final_state_inttexts"][0].value = 1
+            self.ui_transitions["initial_dressed_inttext"] = BoundedIntText(
+                description="",
+                min=0,
+                max=self.sweep.hilbertspace.dimension,
+                value=0,
+                continuous_update=False,
+                layout=width(35),
+                disabled=True,
+            )
+            # self.ui_transitions["final_state_inttexts"] = [
+            #     BoundedIntText(
+            #         description="",
+            #         min=0,
+            #         max=subsys.truncated_dim,
+            #         value=0,
+            #         continuous_update=False,
+            #         layout=width(35),
+            #     )
+            #     for subsys in self.sweep.hilbertspace
+            # ]
+            # self.ui_transitions["final_dressed_inttext"] = BoundedIntText(
+            #     description="",
+            #     min=0,
+            #     max=self.sweep.hilbertspace.dimension,
+            #     value=1,
+            #     continuous_update=False,
+            #     layout=width(35),
+            #     disabled=True,
+            # )
+            # self.ui_transitions["final_state_inttexts"][0].value = 1
 
             self.ui_transitions["photons_inttext"] = BoundedIntText(
                 value=1, min=1, max=5, description="", layout=width(35)
@@ -706,15 +766,36 @@ class ExplorerSetup:
                 description="",
                 options=self.subsys_names,
                 value=[self.subsys_names[0]],
+                rows=4,
                 layout=width(185),
             )
+
+            self.ui_transitions["initial_bare_dressed_toggle"] = ToggleButtons(
+                options=["bare", "dressed"],
+                value="bare",
+                description="",
+                disable=False,
+            )
+            self.ui_transitions[
+                "initial_bare_dressed_toggle"
+            ].style.button_width = "45px"
+
+            # self.ui_transitions["final_bare_dressed_toggle"] = ToggleButtons(
+            #     options=["bare", "dressed"],
+            #     value="bare",
+            #     description="",
+            #     disable=False,
+            # )
+            # self.ui_transitions["final_bare_dressed_toggle"].style.button_width = "45px"
 
             self.ui_transitions["sidebands_checkbox"] = Checkbox(
                 description="show sidebands", value=False, layout=width(250)
             )
-            for inttext in (self.ui_transitions["initial_state_inttexts"] +
-                            self.ui_transitions["final_state_inttexts"]):
+            for inttext in self.ui_transitions["initial_state_inttexts"]:
                 inttext.observe(self.update_explorer, "value")
+            self.ui_transitions["initial_dressed_inttext"].observe(
+                self.update_explorer, "value"
+            )
             self.ui_transitions["photons_inttext"].observe(
                 self.update_explorer, "value"
             )
@@ -724,27 +805,41 @@ class ExplorerSetup:
             self.ui_transitions["sidebands_checkbox"].observe(
                 self.update_explorer, "value"
             )
+            self.ui_transitions["initial_bare_dressed_toggle"].observe(
+                self.bare_dressed_toggle, "value"
+            )
+            # self.ui_transitions["final_bare_dressed_toggle"].observe(
+            #     self.bare_dressed_toggle, "value"
+            # )
 
             return [
                 VBox(
                     [
                         HBox(
                             [
-                                Label("Initial state (bare)"),
+                                Label("Initial state "),
                                 *self.ui_transitions["initial_state_inttexts"],
+                                self.ui_transitions["initial_bare_dressed_toggle"],
+                                self.ui_transitions["initial_dressed_inttext"],
                             ],
-                            layout=Layout(width="265px", justify_content="flex-end"),
+                            layout=Layout(width="400px", justify_content="flex-end"),
                         ),
+                        # HBox(
+                        #     [
+                        #         Label("Final state "),
+                        #         *self.ui_transitions["final_state_inttexts"],
+                        #         self.ui_transitions["final_bare_dressed_toggle"],
+                        #         self.ui_transitions["final_dressed_inttext"],
+                        #     ],
+                        #     layout=Layout(width="400px", justify_content="flex-end"),
+                        # ),
                         HBox(
                             [
-                                Label("Final state (bare)"),
-                                *self.ui_transitions["final_state_inttexts"],
+                                Label("photons"),
+                                self.ui_transitions["photons_inttext"],
+                                self.ui_transitions["sidebands_checkbox"],
                             ],
-                            layout=Layout(width="265px", justify_content="flex-end"),
-                        ),
-                        HBox(
-                            [Label("photons"), self.ui_transitions["photons_inttext"]],
-                            layout=Layout(width="265px", justify_content="flex-end"),
+                            layout=Layout(width="400px", justify_content="flex-end"),
                         ),
                     ]
                 ),
@@ -757,12 +852,12 @@ class ExplorerSetup:
                             ],
                             layout=Layout(width="400px", justify_content="flex-end"),
                         ),
-                        HBox(
-                            [
-                                self.ui_transitions["sidebands_checkbox"],
-                            ],
-                            layout=Layout(width="400px", justify_content="flex-end"),
-                        ),
+                        # HBox(
+                        #     [
+                        #         self.ui_transitions["sidebands_checkbox"],
+                        #     ],
+                        #     layout=Layout(width="400px", justify_content="flex-end"),
+                        # ),
                     ]
                 ),
             ]
