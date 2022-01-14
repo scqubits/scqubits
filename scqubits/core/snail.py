@@ -85,7 +85,9 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self.n = n
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._default_grid = discretization.Grid1d(-n * np.pi, n * np.pi, 151 + (n-1)*151)
+        self._default_grid = discretization.Grid1d(
+            -n * np.pi, n * np.pi, 151 + (n - 1) * 151
+        )
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/snail.jpg"
         )
@@ -129,17 +131,18 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def hamiltonian(self):
         dim = self.hilbertdim()
         hamiltonian_mat = np.diag(
-            [
-                4.0 * self.EC * (ind - self.ncut) ** 2 / self.n ** 2
-                for ind in range(dim)
-            ]
+            [4.0 * self.EC * (ind - self.ncut) ** 2 / self.n ** 2 for ind in range(dim)]
         )
         ind_n = np.arange(dim - self.n)
         hamiltonian_mat[ind_n, ind_n + self.n] = -self.alpha * self.EJ / 2.0
         hamiltonian_mat[ind_n + self.n, ind_n] = -self.alpha * self.EJ / 2.0
         ind_1 = np.arange(dim - 1)
-        hamiltonian_mat[ind_1, ind_1 + 1] = -self.n * self.EJ * np.cos(2.0 * np.pi * self.flux) / 2.0
-        hamiltonian_mat[ind_1 + 1, ind_1] = -self.n * self.EJ * np.cos(2.0 * np.pi * self.flux) / 2.0
+        hamiltonian_mat[ind_1, ind_1 + 1] = (
+            -self.n * self.EJ * np.cos(2.0 * np.pi * self.flux) / 2.0
+        )
+        hamiltonian_mat[ind_1 + 1, ind_1] = (
+            -self.n * self.EJ * np.cos(2.0 * np.pi * self.flux) / 2.0
+        )
         return hamiltonian_mat
 
     def hilbertdim(self) -> int:
@@ -160,8 +163,9 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         -------
         float or ndarray
         """
-        return (- self.alpha * self.EJ * np.cos(phi)
-                - self.n * self.EJ * np.cos((phi - 2.0 * np.pi * self.flux) / self.n))
+        return -self.alpha * self.EJ * np.cos(phi) - self.n * self.EJ * np.cos(
+            (phi - 2.0 * np.pi * self.flux) / self.n
+        )
 
     def numberbasis_wavefunction(
         self, esys: Tuple[ndarray, ndarray] = None, which: int = 0
@@ -187,10 +191,10 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return storage.WaveFunction(n_vals, evecs[:, which], evals[which])
 
     def wavefunction(
-            self,
-            esys: Optional[Tuple[ndarray, ndarray]] = None,
-            which: int = 0,
-            phi_grid: Grid1d = None,
+        self,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
+        which: int = 0,
+        phi_grid: Grid1d = None,
     ) -> WaveFunction:
         """Return the snail wave function in phase basis. The specific index of the
         wavefunction is `which`. `esys` can be provided, but if set to `None` then it is
@@ -218,7 +222,9 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         phi_basis_labels = phi_grid.make_linspace()
         phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
         for k in range(phi_grid.pt_count):
-            phi_wavefunc_amplitudes[k] = (1j ** which / math.sqrt(2 * np.pi * self.n)) * np.sum(
+            phi_wavefunc_amplitudes[k] = (
+                1j ** which / math.sqrt(2 * np.pi * self.n)
+            ) * np.sum(
                 n_wavefunc.amplitudes
                 * np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels / self.n)
             )
