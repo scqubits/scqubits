@@ -53,6 +53,7 @@ from scqubits.core.hilbert_space import HilbertSpace, InteractionTerm
 from scqubits.core.noise import calc_therm_ratio
 from scqubits.core.oscillator import KerrOscillator, Oscillator
 from scqubits.core.param_sweep import ParameterSweep
+from scqubits.core.snail import SNAIL
 from scqubits.core.storage import DataStore, SpectrumData
 from scqubits.core.transmon import Transmon, TunableTransmon
 from scqubits.core.transmon_vtb import TransmonVTB
