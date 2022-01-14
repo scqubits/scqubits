@@ -153,7 +153,7 @@ class FileIOFactory:
 
     @staticmethod
     def get_reader(
-            file_name: str,
+        file_name: str,
         file_handle: "h5py.Group" = None,
         get_external_reader: Callable = None,
     ) -> Union["CSVReader", "H5Reader"]:

@@ -263,7 +263,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         output = super().__str__()
         output = output[: output.rfind("\n")]
         output = output[: output.rfind("\n")]
-        line_indent = output[output.rfind("\n"):]
+        line_indent = output[output.rfind("\n") :]
 
         output += (
             line_indent

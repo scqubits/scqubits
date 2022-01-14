@@ -63,6 +63,7 @@ class Explorer:
     figsize:
         custom size of individual panels in plot (optional)
     """
+
     def __init__(
         self,
         sweep: "ParameterSweep",

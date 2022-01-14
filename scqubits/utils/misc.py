@@ -176,6 +176,7 @@ class DeprecationMessage:
         def decorated_func(*args, **kwargs):
             warnings.warn(self.warning_msg, FutureWarning)
             return func(*args, **kwargs)
+
         return decorated_func
 
 
