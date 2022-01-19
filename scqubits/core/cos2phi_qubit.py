@@ -613,7 +613,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             _, evectors = self.eigensys(evals_count=self.truncated_dim)
         else:
             evectors = evecs[:, :self.truncated_dim]
-        return get_matrixelement_table(self._kron3(
+        return spec_utils.get_matrixelement_table(self._kron3(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         ), evectors)
 
@@ -639,7 +639,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             _, evectors = self.eigensys(evals_count=self.truncated_dim)
         else:
             evectors = evecs[:, :self.truncated_dim]
-        return get_matrixelement_table(self._kron3(
+        return spec_utils.get_matrixelement_table(self._kron3(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
         ), evectors)
 
@@ -665,7 +665,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             _, evectors = self.eigensys(evals_count=self.truncated_dim)
         else:
             evectors = evecs[:, :self.truncated_dim]
-        return get_matrixelement_table(self._kron3(
+        return spec_utils.get_matrixelement_table(self._kron3(
             self._identity_phi(), self._zeta_operator(), self._identity_theta()
         ), evectors)
 
@@ -691,7 +691,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             _, evectors = self.eigensys(evals_count=self.truncated_dim)
         else:
             evectors = evecs[:, :self.truncated_dim]
-        return get_matrixelement_table(self._kron3(
+        return spec_utils.get_matrixelement_table(self._kron3(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
         ), evectors)
 
@@ -741,7 +741,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             _, evectors = self.eigensys(evals_count=self.truncated_dim)
         else:
             evectors = evecs[:, :self.truncated_dim]
-        return get_matrixelement_table(self._kron3(
+        return spec_utils.get_matrixelement_table(self._kron3(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
         ), evectors)
 
@@ -901,7 +901,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             _, evectors = self.eigensys(evals_count=self.truncated_dim)
         else:
             evectors = evecs[:, :self.truncated_dim]
-        return get_matrixelement_table((
+        return spec_utils.get_matrixelement_table((
             phi_osc_mat
             + zeta_osc_mat
             + cross_kinetic_mat
@@ -1187,7 +1187,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             _, evectors = self.eigensys(evals_count=self.truncated_dim)
         else:
             evectors = evecs[:, :self.truncated_dim]
-        return get_matrixelement_table(junction_mat + dis_junction_mat, evectors)
+        return spec_utils.get_matrixelement_table(junction_mat + dis_junction_mat, evectors)
 
     def d_hamiltonian_d_EJ(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         phi_flux_term = self._cos_phi_operator() * np.cos(
@@ -1213,7 +1213,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             _, evectors = self.eigensys(evals_count=self.truncated_dim)
         else:
             evectors = evecs[:, :self.truncated_dim]
-        return get_matrixelement_table(junction_mat + dis_junction_mat, evectors)
+        return spec_utils.get_matrixelement_table(junction_mat + dis_junction_mat, evectors)
 
     def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         return (

@@ -534,7 +534,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             _, evectors = self.eigensys(evals_count=self.truncated_dim)
         else:
             evectors = evecs[:, :self.truncated_dim]
-        return get_matrixelement_table(-0.5 * np.kron(
+        return spec_utils.get_matrixelement_table(-0.5 * np.kron(
             self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T
         ), evectors)
 
