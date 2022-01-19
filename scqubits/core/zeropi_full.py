@@ -289,7 +289,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 
     def hamiltonian(
-        self, return_parts: bool = False
+        self, return_parts: bool = False,  use_energy_basis: bool = False, evecs: ndarray = None
     ) -> Union[csc_matrix, Tuple[csc_matrix, ndarray, ndarray, float]]:
         """Returns Hamiltonian in basis obtained by discretizing phi, employing charge basis for theta, and Fock
         basis for zeta.
@@ -328,13 +328,21 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         hamiltonian_mat += sparse.kron(
             zeropi_coupling, op.annihilation_sparse(zeta_dim)
         ) + sparse.kron(zeropi_coupling.conjugate().T, op.creation_sparse(zeta_dim))
-
+        hmtocsc = hamiltonian_mat.tocsc()
+        if not use_energy_basis:
+            if return_parts:
+                return hmtocsc, zeropi_evals, zeropi_evecs, gmat
+            return hmtocsc
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        tformed = spec_utils.get_matrixelement_table(hmtocsc, evectors)
         if return_parts:
-            return hamiltonian_mat.tocsc(), zeropi_evals, zeropi_evecs, gmat
-
-        return hamiltonian_mat.tocsc()
-
-    def d_hamiltonian_d_flux(self, zeropi_evecs: ndarray = None) -> csc_matrix:
+            return tformed, zeropi_evals, zeropi_evecs, gmat
+        return tformed
+#change this
+    def d_hamiltonian_d_flux(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
         as stored in the object. The returned operator is in the product basis
 
@@ -346,22 +354,39 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         -------
             matrix representing the derivative of the Hamiltonian
         """
-        return self._zeropi_operator_in_product_basis(
+        if not use_energy_basis:
+            return self._zeropi_operator_in_product_basis(
             self._zeropi.d_hamiltonian_d_flux(), zeropi_evecs=zeropi_evecs
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self._zeropi_operator_in_product_basis(
+            self._zeropi.d_hamiltonian_d_flux(), zeropi_evecs=zeropi_evecs
+        ), evectors)
 
-    def d_hamiltonian_d_EJ(self, zeropi_evecs: ndarray = None) -> csc_matrix:
+
+    def d_hamiltonian_d_EJ(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t EJ.
 
         Returns
         -------
             matrix representing the derivative of the Hamiltonian
         """
-        return self._zeropi_operator_in_product_basis(
+        if not use_energy_basis:
+            return self._zeropi_operator_in_product_basis(
             self._zeropi.d_hamiltonian_d_EJ(), zeropi_evecs=zeropi_evecs
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self._zeropi_operator_in_product_basis(
+            self._zeropi.d_hamiltonian_d_EJ(), zeropi_evecs=zeropi_evecs
+        ), evectors)
 
-    def d_hamiltonian_d_ng(self) -> csc_matrix:
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
 
@@ -369,7 +394,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         -------
             matrix representing the derivative of the Hamiltonian
         """
-        return -8 * self.EC * self.n_theta_operator()
+        return -8 * self.EC * self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
 
     def _zeropi_operator_in_product_basis(
         self, zeropi_operator, zeropi_evecs: ndarray = None
@@ -401,23 +426,39 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             format="csc",
         )
 
-    def i_d_dphi_operator(self, zeropi_evecs: ndarray = None) -> csc_matrix:
+    def i_d_dphi_operator(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
         Operator :math:`i d/d\phi`.
         """
-        return self._zeropi_operator_in_product_basis(
+        if not use_energy_basis:
+            return self._zeropi_operator_in_product_basis(
             self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self._zeropi_operator_in_product_basis(
+            self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs
+        ), evectors)
 
-    def n_theta_operator(self, zeropi_evecs: ndarray = None) -> csc_matrix:
+    def n_theta_operator(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
         Operator :math:`n_\theta`.
         """
-        return self._zeropi_operator_in_product_basis(
+        if not use_energy_basis:
+            return self._zeropi_operator_in_product_basis(
             self._zeropi.n_theta_operator(), zeropi_evecs=zeropi_evecs
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self._zeropi_operator_in_product_basis(
+            self._zeropi.n_theta_operator(), zeropi_evecs=zeropi_evecs
+        ), evectors)
 
-    def phi_operator(self, zeropi_evecs: ndarray = None) -> csc_matrix:
+    def phi_operator(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
         Operator :math:`\phi`.
 
@@ -425,9 +466,17 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         -------
             scipy.sparse.csc_matrix
         """
-        return self._zeropi_operator_in_product_basis(
+        if not use_energy_basis:
+            return self._zeropi_operator_in_product_basis(
             self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self._zeropi_operator_in_product_basis(
+            self._zeropi.phi_operator(), zeropi_evecs=zeropi_evecs
+        ), evectors)
 
     def hilbertdim(self) -> int:
         """Returns Hilbert space dimension

@@ -231,7 +231,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         return np.sort(evals)
-
+#this gives list of eiegevals for specficed evals_count, not just 6 by default^^
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sparse.linalg.eigsh(
@@ -370,7 +370,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             )
         return potential_mat
 
-    def hamiltonian(self) -> csc_matrix:
+    def hamiltonian(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """Calculates Hamiltonian in basis obtained by discretizing phi and employing
         charge basis for theta.
 
@@ -378,7 +378,14 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             matrix representing the potential energy operator
         """
-        return self.sparse_kinetic_mat() + self.sparse_potential_mat()
+        if not use_energy_basis:
+            return self.sparse_kinetic_mat() + self.sparse_potential_mat()
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self.sparse_kinetic_mat() + self.sparse_potential_mat(), evectors)
+
 
     def sparse_d_potential_d_flux_mat(self) -> csc_matrix:
         r"""Calculates a of the potential energy w.r.t flux, at the current value of
@@ -431,16 +438,22 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             format="csc",
         )
 
-    def d_hamiltonian_d_EJ(self) -> csc_matrix:
+    def d_hamiltonian_d_EJ(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t EJ.
 
         Returns
         -------
             matrix representing the derivative of the Hamiltonian
         """
-        return self.sparse_d_potential_d_EJ_mat()
+        if not use_energy_basis:
+            return self.sparse_d_potential_d_EJ_mat()
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self.sparse_d_potential_d_EJ_mat(), evectors)
 
-    def d_hamiltonian_d_ng(self) -> csc_matrix:
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
 
@@ -448,7 +461,8 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             matrix representing the derivative of the Hamiltonian
         """
-        return -8 * self.EC * self.n_theta_operator()
+        return -8 * self.EC * self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
+
 
     def _identity_phi(self) -> csc_matrix:
         r"""
@@ -485,13 +499,19 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         phi_matrix.setdiag(diag_elements)
         return phi_matrix
 
-    def phi_operator(self) -> csc_matrix:
+    def phi_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
         Operator :math:`\phi`.
         """
-        return sparse.kron(self._phi_operator(), self._identity_theta(), format="csc")
+        if not use_energy_basis:
+            return sparse.kron(self._phi_operator(), self._identity_theta(), format="csc")
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(sparse.kron(self._phi_operator(), self._identity_theta(), format="csc"), evectors)
 
-    def n_theta_operator(self) -> csc_matrix:
+    def n_theta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
         Operator :math:`n_\theta`.
         """
@@ -500,7 +520,13 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         n_theta_matrix = sparse.dia_matrix(
             (diag_elements, [0]), shape=(dim_theta, dim_theta)
         ).tocsc()
-        return sparse.kron(self._identity_phi(), n_theta_matrix, format="csc")
+        if not use_energy_basis:
+            return sparse.kron(self._identity_phi(), n_theta_matrix, format="csc")
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(sparse.kron(self._identity_phi(), n_theta_matrix, format="csc"), evectors)
 
     def _sin_phi_operator(self, x: float = 0) -> csc_matrix:
         r"""
@@ -544,13 +570,22 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
         return cos_theta_matrix
 
-    def cos_theta_operator(self) -> csc_matrix:
+    def cos_theta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
         Operator :math:`\cos(\theta)`.
         """
-        return sparse.kron(
+        if not use_energy_basis:
+            return sparse.kron(
             self._identity_phi(), self._cos_theta_operator(), format="csc"
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(sparse.kron(
+            self._identity_phi(), self._cos_theta_operator(), format="csc"
+        ), evectors)
+
 
     def _sin_theta_operator(self) -> csc_matrix:
         r"""
@@ -571,13 +606,21 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
         return sin_theta_matrix
 
-    def sin_theta_operator(self) -> csc_matrix:
+    def sin_theta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
         Operator :math:`\sin(\theta)`.
         """
-        return sparse.kron(
+        if not use_energy_basis:
+            return sparse.kron(
             self._identity_phi(), self._sin_theta_operator(), format="csc"
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(sparse.kron(
+            self._identity_phi(), self._sin_theta_operator(), format="csc"
+        ), evectors)
 
     def plot_potential(
         self,

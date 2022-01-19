@@ -33,6 +33,7 @@ import scqubits.utils.plotting as plot
 from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
+from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
@@ -113,31 +114,57 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
 
-    def n_operator(self) -> ndarray:
+    def n_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns charge operator `n` in the charge basis"""
+        #ODO: kwarg in n_operator to return in energy eigenbasis, enegy eigenvector matrix to transform, insert option for user to hand in the eigenvectros instea of recoputing
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
-        return np.diag(diag_elements)
+        if not use_energy_basis:
+            return np.diag(diag_elements)
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(np.diag(diag_elements), evectors)
 
-    def exp_i_phi_operator(self) -> ndarray:
+    def exp_i_phi_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator :math:`e^{i\\varphi}` in the charge basis"""
         dimension = self.hilbertdim()
         entries = np.repeat(1.0, dimension - 1)
         exp_op = np.diag(entries, -1)
-        return exp_op
+        if not use_energy_basis:
+            return exp_op
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(exp_op, evectors)
 
-    def cos_phi_operator(self) -> ndarray:
+    def cos_phi_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator :math:`\\cos \\varphi` in the charge basis"""
         cos_op = 0.5 * self.exp_i_phi_operator()
         cos_op += cos_op.T
-        return cos_op
+        if not use_energy_basis:
+            return cos_op
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(cos_op, evectors)
 
-    def sin_phi_operator(self) -> ndarray:
+    def sin_phi_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator :math:`\\sin \\varphi` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_operator()
         sin_op += sin_op.conjugate().T
-        return sin_op
 
-    def hamiltonian(self) -> ndarray:
+        if not use_energy_basis:
+            return sin_op
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(sin_op, evectors)
+
+    def hamiltonian(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns Hamiltonian in charge basis"""
         dimension = self.hilbertdim()
         hamiltonian_mat = np.diag(
@@ -149,17 +176,23 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         ind = np.arange(dimension - 1)
         hamiltonian_mat[ind, ind + 1] = -self.EJ / 2.0
         hamiltonian_mat[ind + 1, ind] = -self.EJ / 2.0
-        return hamiltonian_mat
+        if not use_energy_basis:
+            return hamiltonian_mat
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(hamiltonian_mat, evectors)
 
-    def d_hamiltonian_d_ng(self) -> ndarray:
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         charge offset `ng`."""
-        return -8 * self.EC * self.n_operator()
+        return -8 * self.EC * self.n_operator(use_energy_basis=use_energy_basis, evecs=evecs)
 
-    def d_hamiltonian_d_EJ(self) -> ndarray:
+    def d_hamiltonian_d_EJ(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
         to EJ."""
-        return -self.cos_phi_operator()
+        return -self.cos_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
 
     def hilbertdim(self) -> int:
         """Returns Hilbert space dimension"""
@@ -466,9 +499,10 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             "t1_charge_impedance",
         ]
 
-    def d_hamiltonian_d_flux(self) -> ndarray:
+    def d_hamiltonian_d_flux(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
         to `flux`."""
+        #is this right?
         return (
             np.pi
             * self.EJmax
@@ -479,7 +513,7 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 np.cos(np.pi * self.flux) ** 2
                 + self.d ** 2 * np.sin(np.pi * self.flux) ** 2
             )
-            * self.cos_phi_operator()
+            * self.cos_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
         )
 
     def _compute_dispersion(

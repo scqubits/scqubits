@@ -30,6 +30,7 @@ import scqubits.core.storage as storage
 import scqubits.io_utils.fileio_serializers as serializers
 
 from scqubits.core.noise import NoisySystem
+from scqubits.utils.spectrum_utils import get_matrixelement_table
 
 if TYPE_CHECKING:
     from scqubits.core.discretization import Grid1d
@@ -138,20 +139,30 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         return math.sqrt(8.0 * self.EL * self.EC)  # LC plasma oscillation energy
 
-    def phi_operator(self) -> ndarray:
+    def phi_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """
         Returns
         -------
             Returns the phi operator in the LC harmonic oscillator basis
         """
         dimension = self.hilbertdim()
-        return (
-            (op.creation(dimension) + op.annihilation(dimension))
-            * self.phi_osc()
-            / math.sqrt(2)
-        )
+        if not use_energy_basis:
+            return (
+                (op.creation(dimension) + op.annihilation(dimension))
+                * self.phi_osc()
+                / math.sqrt(2)
+            )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table((
+                (op.creation(dimension) + op.annihilation(dimension))
+                * self.phi_osc()
+                / math.sqrt(2)
+            ), evectors)
 
-    def n_operator(self) -> ndarray:
+    def n_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """
         Returns
         -------
@@ -159,13 +170,23 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             oscillator basis
         """
         dimension = self.hilbertdim()
-        return (
-            1j
-            * (op.creation(dimension) - op.annihilation(dimension))
-            / (self.phi_osc() * math.sqrt(2))
-        )
+        if not use_energy_basis:
+            return (
+                1j
+                * (op.creation(dimension) - op.annihilation(dimension))
+                / (self.phi_osc() * math.sqrt(2))
+            )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table((
+                1j
+                * (op.creation(dimension) - op.annihilation(dimension))
+                / (self.phi_osc() * math.sqrt(2))
+            ), evectors)
 
-    def exp_i_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
+    def exp_i_phi_operator(self, alpha: float = 1.0, beta: float = 0.0, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """
         Returns
         -------
@@ -174,9 +195,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
         exponent = 1j * (alpha * self.phi_operator())
-        return sp.linalg.expm(exponent) * cmath.exp(1j * beta)
+        if not use_energy_basis:
+            return sp.linalg.expm(exponent) * cmath.exp(1j * beta)
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(sp.linalg.expm(exponent) * cmath.exp(1j * beta), evectors)
 
-    def cos_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
+    def cos_phi_operator(self, alpha: float = 1.0, beta: float = 0.0, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """
         Returns
         -------
@@ -185,9 +212,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
         argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
-        return sp.linalg.cosm(argument)
+        if not use_energy_basis:
+            return sp.linalg.cosm(argument)
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(sp.linalg.cosm(argument), evectors)
 
-    def sin_phi_operator(self, alpha: float = 1.0, beta: float = 0.0) -> ndarray:
+    def sin_phi_operator(self, alpha: float = 1.0, beta: float = 0.0, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """
         Returns
         -------
@@ -196,9 +229,15 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """
         argument = alpha * self.phi_operator() + beta * np.eye(self.hilbertdim())
-        return sp.linalg.sinm(argument)
+        if not use_energy_basis:
+            return sp.linalg.sinm(argument)
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(sp.linalg.sinm(argument), evectors)
 
-    def hamiltonian(self) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
+    def hamiltonian(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:  # follow Zhu et al., PRB 87, 024510 (2013)
         """Construct Hamiltonian matrix in harmonic-oscillator basis, following Zhu
         et al., PRB 87, 024510 (2013)"""
         dimension = self.hilbertdim()
@@ -208,23 +247,41 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         cos_matrix = self.cos_phi_operator(beta=2 * np.pi * self.flux)
 
         hamiltonian_mat = lc_osc_matrix - self.EJ * cos_matrix
-        return hamiltonian_mat
+        if not use_energy_basis:
+            return hamiltonian_mat
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(hamiltonian_mat, evectors)
 
-    def d_hamiltonian_d_EJ(self) -> ndarray:
+    def d_hamiltonian_d_EJ(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
         to `EJ`.
 
         The flux is grouped as in the Hamiltonian.
         """
-        return -self.cos_phi_operator(1, 2 * np.pi * self.flux)
+        if not use_energy_basis:
+            return -self.cos_phi_operator(1, 2 * np.pi * self.flux)
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(-self.cos_phi_operator(1, 2 * np.pi * self.flux), evectors)
 
-    def d_hamiltonian_d_flux(self) -> ndarray:
+    def d_hamiltonian_d_flux(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
         to `flux`.
 
         Flux is grouped as in the Hamiltonian.
         """
-        return -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux)
+        if not use_energy_basis:
+            return -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux)
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(-2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux), evectors)
 
     def hilbertdim(self) -> int:
         """

@@ -46,23 +46,23 @@ from scqubits.core.storage import WaveFunctionOnGrid
 # -Cosine two phi qubit noise class
 class NoisyCos2PhiQubit(NoisySystem, ABC):
     @abstractmethod
-    def phi_1_operator(self) -> csc_matrix:
+    def phi_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         pass
 
     @abstractmethod
-    def phi_2_operator(self) -> csc_matrix:
+    def phi_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         pass
 
     @abstractmethod
-    def n_1_operator(self) -> csc_matrix:
+    def n_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         pass
 
     @abstractmethod
-    def n_2_operator(self) -> csc_matrix:
+    def n_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         pass
 
     @abstractmethod
-    def n_zeta_operator(self) -> csc_matrix:
+    def n_zeta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         pass
 
     def t1_inductive(
@@ -598,16 +598,24 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             `phi` operator in the harmonic oscillator basis"""
         dimension = self._dim_phi()
         return (
-            (op.creation_sparse(dimension) + op.annihilation_sparse(dimension))
-            * self.phi_osc()
-            / math.sqrt(2)
+                (op.creation_sparse(dimension) + op.annihilation_sparse(dimension))
+                * self.phi_osc()
+                / math.sqrt(2)
         )
 
-    def phi_operator(self) -> csc_matrix:
+    def phi_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Returns :math:`\phi` operator"""
-        return self._kron3(
+        if not use_energy_basis:
+            return self._kron3(
             self._phi_operator(), self._identity_zeta(), self._identity_theta()
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(self._kron3(
+            self._phi_operator(), self._identity_zeta(), self._identity_theta()
+        ), evectors)
 
     def _n_phi_operator(self) -> csc_matrix:
         r"""
@@ -616,16 +624,24 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             `n_\phi` operator in the harmonic oscillator basis"""
         dimension = self._dim_phi()
         return (
-            1j
-            * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension))
-            / (self.phi_osc() * math.sqrt(2))
+                1j
+                * (op.creation_sparse(dimension) - op.annihilation_sparse(dimension))
+                / (self.phi_osc() * math.sqrt(2))
         )
 
-    def n_phi_operator(self) -> csc_matrix:
+    def n_phi_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Returns :math:`n_\phi` operator"""
-        return self._kron3(
+        if not use_energy_basis:
+            return self._kron3(
             self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(self._kron3(
+            self._n_phi_operator(), self._identity_zeta(), self._identity_theta()
+        ), evectors)
 
     def _zeta_operator(self) -> csc_matrix:
         """
@@ -639,11 +655,19 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             / math.sqrt(2)
         )
 
-    def zeta_operator(self) -> csc_matrix:
+    def zeta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Returns :math:`\zeta` operator"""
-        return self._kron3(
+        if not use_energy_basis:
+            return self._kron3(
             self._identity_phi(), self._zeta_operator(), self._identity_theta()
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(self._kron3(
+            self._identity_phi(), self._zeta_operator(), self._identity_theta()
+        ), evectors)
 
     def _n_zeta_operator(self) -> csc_matrix:
         r"""
@@ -657,11 +681,19 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             / (self.zeta_osc() * math.sqrt(2))
         )
 
-    def n_zeta_operator(self) -> csc_matrix:
+    def n_zeta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Returns :math:`n_\zeta` operator"""
-        return self._kron3(
+        if not use_energy_basis:
+            return self._kron3(
             self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(self._kron3(
+            self._identity_phi(), self._n_zeta_operator(), self._identity_theta()
+        ), evectors)
 
     def _exp_i_phi_operator(self) -> csc_matrix:
         """
@@ -699,11 +731,20 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             (diag_elements, [0]), shape=(self._dim_theta(), self._dim_theta())
         ).tocsc()
 
-    def n_theta_operator(self) -> csc_matrix:
+    def n_theta_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Returns :math:`n_\theta` operator"""
-        return self._kron3(
+        if not use_energy_basis:
+            return self._kron3(
             self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(self._kron3(
+            self._identity_phi(), self._identity_zeta(), self._n_theta_operator()
+        ), evectors)
+
 
     def _cos_theta_operator(self) -> csc_matrix:
         r"""Returns operator :math:`\cos \theta` in the charge basis"""
@@ -774,7 +815,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             self._identity_phi(), self._identity_zeta(), self._identity_theta()
         )
 
-    def hamiltonian(self) -> csc_matrix:
+    def hamiltonian(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """
         Returns Hamiltonian in basis obtained by employing harmonic basis for
         :math:`\\phi, \\zeta` and charge basis for :math:`\\theta`.
@@ -846,7 +887,8 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         )
         disorder_c = -4 * self._disordered_ecj() * self.dCJ * dis_c_opt
 
-        return (
+        if not use_energy_basis:
+            return (
             phi_osc_mat
             + zeta_osc_mat
             + cross_kinetic_mat
@@ -855,6 +897,19 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             + disorder_j
             + disorder_c
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table((
+            phi_osc_mat
+            + zeta_osc_mat
+            + cross_kinetic_mat
+            + junction_mat
+            + disorder_l
+            + disorder_j
+            + disorder_c
+        ), evectors)
 
     def _evals_calc(self, evals_count) -> ndarray:
         hamiltonian_mat = self.hamiltonian()
@@ -1081,54 +1136,60 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             **kwargs
         )
 
-    def phi_1_operator(self) -> csc_matrix:
+    def phi_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """Returns operator representing the phase across inductor 1"""
-        return self.zeta_operator() - self.phi_operator()
+        return self.zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
 
-    def phi_2_operator(self) -> csc_matrix:
+    def phi_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """Returns operator representing the phase across inductor 2"""
-        return -self.zeta_operator() - self.phi_operator()
+        return -self.zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
 
-    def n_1_operator(self) -> csc_matrix:
+    def n_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """Returns operator representing the charge difference across junction 1"""
-        return 0.5 * self.n_phi_operator() + 0.5 * (
-            self.n_theta_operator() - self.n_zeta_operator()
+        return 0.5 * self.n_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs) + 0.5 * (
+            self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.n_zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
         )
 
-    def n_2_operator(self) -> csc_matrix:
+    def n_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """Returns operator representing the charge difference across junction 2"""
-        return 0.5 * self.n_phi_operator() - 0.5 * (
-            self.n_theta_operator() - self.n_zeta_operator()
+        return 0.5 * self.n_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs) - 0.5 * (
+            self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.n_zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
         )
 
-    def d_hamiltonian_d_flux(self) -> csc_matrix:
+    def d_hamiltonian_d_flux(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         phi_flux_term = self._sin_phi_operator() * np.cos(
             self.flux * np.pi
         ) + self._cos_phi_operator() * np.sin(self.flux * np.pi)
         junction_mat = (
-            2
-            * self.EJ
-            * self._kron3(
-                phi_flux_term, self._identity_zeta(), self._cos_theta_operator()
-            )
-            * np.pi
+                2
+                * self.EJ
+                * self._kron3(
+            phi_flux_term, self._identity_zeta(), self._cos_theta_operator()
+        )
+                * np.pi
         )
 
         dis_phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
         ) - self._sin_phi_operator() * np.sin(self.flux * np.pi)
         dis_junction_mat = (
-            2
-            * self.dEJ
-            * self.EJ
-            * self._kron3(
-                dis_phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
-            )
-            * np.pi
+                2
+                * self.dEJ
+                * self.EJ
+                * self._kron3(
+            dis_phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
         )
-        return junction_mat + dis_junction_mat
+                * np.pi
+        )
+        if not use_energy_basis:
+            return junction_mat + dis_junction_mat
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(junction_mat + dis_junction_mat, evectors)
 
-    def d_hamiltonian_d_EJ(self) -> csc_matrix:
+    def d_hamiltonian_d_EJ(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         phi_flux_term = self._cos_phi_operator() * np.cos(
             self.flux * np.pi
         ) - self._sin_phi_operator() * np.sin(self.flux * np.pi)
@@ -1140,18 +1201,24 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             self.flux * np.pi
         ) + self._cos_phi_operator() * np.sin(self.flux * np.pi)
         dis_junction_mat = (
-            2
-            * self.dEJ
-            * self._kron3(
-                dis_phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
-            )
+                2
+                * self.dEJ
+                * self._kron3(
+            dis_phi_flux_term, self._identity_zeta(), self._sin_theta_operator()
         )
-        return junction_mat + dis_junction_mat
+        )
+        if not use_energy_basis:
+            return junction_mat + dis_junction_mat
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(junction_mat + dis_junction_mat, evectors)
 
-    def d_hamiltonian_d_ng(self) -> csc_matrix:
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         return (
-            4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
-            - 4
-            * self._disordered_ecj()
-            * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
+                4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
+                - 4
+                * self._disordered_ecj()
+                * (self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.ng - self.n_zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs))
         )

@@ -37,15 +37,15 @@ from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 # -Flux qubit noise class
 class NoisyFluxQubit(NoisySystem, ABC):
     @abstractmethod
-    def d_hamiltonian_d_EJ1(self) -> ndarray:
+    def d_hamiltonian_d_EJ1(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         pass
 
     @abstractmethod
-    def d_hamiltonian_d_EJ2(self) -> ndarray:
+    def d_hamiltonian_d_EJ2(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         pass
 
     @abstractmethod
-    def d_hamiltonian_d_EJ3(self) -> ndarray:
+    def d_hamiltonian_d_EJ3(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         pass
 
     @classmethod
@@ -430,34 +430,34 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         ECmat = self.EC_matrix()
 
         kinetic_mat = (
-            4.0
-            * ECmat[0, 0]
-            * np.kron(
-                np.matmul(
-                    self._n_operator() - self.ng1 * self._identity(),
-                    self._n_operator() - self.ng1 * self._identity(),
-                ),
-                self._identity(),
-            )
-        )
-        kinetic_mat += (
-            4.0
-            * ECmat[1, 1]
-            * np.kron(
-                self._identity(),
-                np.matmul(
-                    self._n_operator() - self.ng2 * self._identity(),
-                    self._n_operator() - self.ng2 * self._identity(),
-                ),
-            )
-        )
-        kinetic_mat += (
-            4.0
-            * (ECmat[0, 1] + ECmat[1, 0])
-            * np.kron(
+                4.0
+                * ECmat[0, 0]
+                * np.kron(
+            np.matmul(
                 self._n_operator() - self.ng1 * self._identity(),
+                self._n_operator() - self.ng1 * self._identity(),
+            ),
+            self._identity(),
+        )
+        )
+        kinetic_mat += (
+                4.0
+                * ECmat[1, 1]
+                * np.kron(
+            self._identity(),
+            np.matmul(
                 self._n_operator() - self.ng2 * self._identity(),
-            )
+                self._n_operator() - self.ng2 * self._identity(),
+            ),
+        )
+        )
+        kinetic_mat += (
+                4.0
+                * (ECmat[0, 1] + ECmat[1, 0])
+                * np.kron(
+            self._n_operator() - self.ng1 * self._identity(),
+            self._n_operator() - self.ng2 * self._identity(),
+        )
         )
         return kinetic_mat
 
@@ -497,29 +497,52 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         )
         return potential_mat
 
-    def hamiltonian(self) -> ndarray:
+    def hamiltonian(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Return Hamiltonian in basis obtained by employing charge basis for both
         degrees of freedom"""
-        return self.kineticmat() + self.potentialmat()
+        if not use_energy_basis:
+            return self.kineticmat() + self.potentialmat()
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self.kineticmat() + self.potentialmat(), evectors)
 
-    def d_hamiltonian_d_EJ1(self) -> ndarray:
+    def d_hamiltonian_d_EJ1(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with
         respect to EJ1."""
-        return -0.5 * np.kron(
+        if not use_energy_basis:
+            return -0.5 * np.kron(
             self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity()
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(-0.5 * np.kron(
+            self._exp_i_phi_operator() + self._exp_i_phi_operator().T, self._identity()
+        ), evectors)
 
-    def d_hamiltonian_d_EJ2(self) -> ndarray:
+    def d_hamiltonian_d_EJ2(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with
         respect to EJ2."""
-        return -0.5 * np.kron(
+        if not use_energy_basis:
+            return -0.5 * np.kron(
             self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return get_matrixelement_table(-0.5 * np.kron(
+            self._identity(), self._exp_i_phi_operator() + self._exp_i_phi_operator().T
+        ), evectors)
 
-    def d_hamiltonian_d_EJ3(self) -> ndarray:
+    def d_hamiltonian_d_EJ3(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with
         respect to EJ3."""
-        return (
+        if not use_energy_basis:
+            return (
             -0.5
             * (
                 np.exp(1j * 2 * np.pi * self.flux)
@@ -532,6 +555,23 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
                 * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
             )
         )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table((
+            -0.5
+            * (
+                np.exp(1j * 2 * np.pi * self.flux)
+                * np.kron(self._exp_i_phi_operator(), self._exp_i_phi_operator().T)
+            )
+        ) + (
+            -0.5
+            * (
+                np.exp(-1j * 2 * np.pi * self.flux)
+                * np.kron(self._exp_i_phi_operator().T, self._exp_i_phi_operator())
+            )
+        ), evectors)
 
     def _n_operator(self) -> ndarray:
         diag_elements = np.arange(-self.ncut, self.ncut + 1, dtype=np.complex_)
@@ -547,45 +587,93 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         dim = 2 * self.ncut + 1
         return np.eye(dim)
 
-    def n_1_operator(self) -> ndarray:
+    def n_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         r"""Return charge number operator conjugate to :math:`\phi_1`"""
-        return np.kron(self._n_operator(), self._identity())
+        if not use_energy_basis:
+            return np.kron(self._n_operator(), self._identity())
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(np.kron(self._n_operator(), self._identity()), evectors)
 
-    def n_2_operator(self) -> ndarray:
+    def n_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         r"""Return charge number operator conjugate to :math:`\phi_2`"""
-        return np.kron(self._identity(), self._n_operator())
+        if not use_energy_basis:
+            return np.kron(self._identity(), self._n_operator())
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(np.kron(self._identity(), self._n_operator()), evectors)
 
-    def exp_i_phi_1_operator(self) -> ndarray:
+    def exp_i_phi_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         r"""Return operator :math:`e^{i\phi_1}` in the charge basis."""
-        return np.kron(self._exp_i_phi_operator(), self._identity())
+        if not use_energy_basis:
+            return np.kron(self._exp_i_phi_operator(), self._identity())
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(np.kron(self._exp_i_phi_operator(), self._identity()), evectors)
 
-    def exp_i_phi_2_operator(self) -> ndarray:
+    def exp_i_phi_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         r"""Return operator :math:`e^{i\phi_2}` in the charge basis."""
-        return np.kron(self._identity(), self._exp_i_phi_operator())
+        if not use_energy_basis:
+            return np.kron(self._identity(), self._exp_i_phi_operator())
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(np.kron(self._identity(), self._exp_i_phi_operator()), evectors)
 
-    def cos_phi_1_operator(self) -> ndarray:
+    def cos_phi_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Return operator :math:`\\cos \\phi_1` in the charge basis"""
         cos_op = 0.5 * self.exp_i_phi_1_operator()
         cos_op += cos_op.T
-        return cos_op
+        if not use_energy_basis:
+            return cos_op
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(cos_op, evectors)
 
-    def cos_phi_2_operator(self) -> ndarray:
+    def cos_phi_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Return operator :math:`\\cos \\phi_2` in the charge basis"""
         cos_op = 0.5 * self.exp_i_phi_2_operator()
         cos_op += cos_op.T
-        return cos_op
+        if not use_energy_basis:
+            return cos_op
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(cos_op, evectors)
 
-    def sin_phi_1_operator(self) -> ndarray:
+    def sin_phi_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Return operator :math:`\\sin \\phi_1` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_1_operator()
         sin_op += sin_op.conj().T
-        return sin_op
+        if not use_energy_basis:
+            return sin_op
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(sin_op, evectors)
 
-    def sin_phi_2_operator(self) -> ndarray:
+    def sin_phi_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Return operator :math:`\\sin \\phi_2` in the charge basis"""
         sin_op = -1j * 0.5 * self.exp_i_phi_2_operator()
         sin_op += sin_op.conj().T
-        return sin_op
+        if not use_energy_basis:
+            return sin_op
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(sin_op, evectors)
 
     def plot_potential(
         self,
