@@ -1136,25 +1136,78 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             **kwargs
         )
 
-    def phi_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def phi_1_operator_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """Returns operator representing the phase across inductor 1"""
         return self.zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
 
-    def phi_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    # get rid of
+    def phi_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+        """Returns operator representing the phase across inductor 1"""
+        if not use_energy_basis:
+            return self.zeta_operator() - self.phi_operator()
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self.zeta_operator() - self.phi_operator(), evectors)
+
+    def phi_2_operator_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """Returns operator representing the phase across inductor 2"""
         return -self.zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
 
-    def n_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    # get rid of
+    def phi_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+        """Returns operator representing the phase across inductor 2"""
+        if not use_energy_basis:
+            return -self.zeta_operator() - self.phi_operator()
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(-self.zeta_operator() - self.phi_operator(), evectors)
+
+    def n_1_operator_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """Returns operator representing the charge difference across junction 1"""
         return 0.5 * self.n_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs) + 0.5 * (
             self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.n_zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
         )
+    # get rid of
 
-    def n_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def n_1_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+        """Returns operator representing the charge difference across junction 1"""
+        if not use_energy_basis:
+            return 0.5 * self.n_phi_operator() + 0.5 * (
+                self.n_theta_operator() - self.n_zeta_operator()
+        )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(0.5 * self.n_phi_operator() + 0.5 * (
+                self.n_theta_operator() - self.n_zeta_operator()
+        ), evectors)
+
+    def n_2_operator_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         """Returns operator representing the charge difference across junction 2"""
         return 0.5 * self.n_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs) - 0.5 * (
             self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.n_zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
         )
+
+    # get rid of
+
+    def n_2_operator(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+        """Returns operator representing the charge difference across junction 2"""
+        if not use_energy_basis:
+            return 0.5 * self.n_phi_operator() - 0.5 * (
+            self.n_theta_operator() - self.n_zeta_operator()
+        )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(0.5 * self.n_phi_operator() - 0.5 * (
+            self.n_theta_operator() - self.n_zeta_operator()
+        ), evectors)
 
     def d_hamiltonian_d_flux(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         phi_flux_term = self._sin_phi_operator() * np.cos(
@@ -1215,10 +1268,30 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
             evectors = evecs[:, :self.truncated_dim]
         return spec_utils.get_matrixelement_table(junction_mat + dis_junction_mat, evectors)
 
-    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         return (
                 4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
                 - 4
                 * self._disordered_ecj()
                 * (self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs) - self.ng - self.n_zeta_operator(use_energy_basis=use_energy_basis, evecs=evecs))
         )
+    # get rid of
+
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+        if not use_energy_basis:
+            return (
+                4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
+                - 4
+                * self._disordered_ecj()
+                * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
+        )
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table((
+                4 * self.dCJ * self._disordered_ecj() * self.n_phi_operator()
+                - 4
+                * self._disordered_ecj()
+                * (self.n_theta_operator() - self.ng - self.n_zeta_operator())
+        ), evectors)

@@ -255,6 +255,14 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             evectors = evecs[:, :self.truncated_dim]
         return get_matrixelement_table(hamiltonian_mat, evectors)
 
+    def d_hamiltonian_d_EJ_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `EJ`.
+
+        The flux is grouped as in the Hamiltonian.
+        """
+        return -self.cos_phi_operator(1, 2 * np.pi * self.flux, use_energy_basis=use_energy_basis, evecs=evecs)
+
     def d_hamiltonian_d_EJ(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
         to `EJ`.
@@ -268,6 +276,14 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         else:
             evectors = evecs[:, :self.truncated_dim]
         return get_matrixelement_table(-self.cos_phi_operator(1, 2 * np.pi * self.flux), evectors)
+
+    def d_hamiltonian_d_flux_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to `EJ`.
+
+        The flux is grouped as in the Hamiltonian.
+        """
+        return -2 * np.pi * self.EJ * self.sin_phi_operator(1, 2 * np.pi * self.flux, use_energy_basis=use_energy_basis, evecs=evecs)
 
     def d_hamiltonian_d_flux(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect

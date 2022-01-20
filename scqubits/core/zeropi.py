@@ -453,7 +453,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             evectors = evecs[:, :self.truncated_dim]
         return spec_utils.get_matrixelement_table(self.sparse_d_potential_d_EJ_mat(), evectors)
 
-    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
 
@@ -463,6 +463,23 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         """
         return -8 * self.EC * self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
 
+    # get rid of
+
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+        r"""Calculates a derivative of the Hamiltonian w.r.t ng.
+        as stored in the object.
+
+        Returns
+        -------
+            matrix representing the derivative of the Hamiltonian
+        """
+        if not use_energy_basis:
+            return -8 * self.EC * self.n_theta_operator()
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(-8 * self.EC * self.n_theta_operator(), evectors)
 
     def _identity_phi(self) -> csc_matrix:
         r"""

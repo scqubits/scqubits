@@ -342,6 +342,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             return tformed, zeropi_evals, zeropi_evecs, gmat
         return tformed
 #change this
+
     def d_hamiltonian_d_flux(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
         as stored in the object. The returned operator is in the product basis
@@ -386,7 +387,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             self._zeropi.d_hamiltonian_d_EJ(), zeropi_evecs=zeropi_evecs
         ), evectors)
 
-    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
 
@@ -395,6 +396,24 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             matrix representing the derivative of the Hamiltonian
         """
         return -8 * self.EC * self.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs)
+
+# delete this
+
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+        r"""Calculates a derivative of the Hamiltonian w.r.t ng.
+        as stored in the object.
+
+        Returns
+        -------
+            matrix representing the derivative of the Hamiltonian
+        """
+        if not use_energy_basis:
+            return -8 * self.EC * self.n_theta_operator()
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(-8 * self.EC * self.n_theta_operator(), evectors)
 
     def _zeropi_operator_in_product_basis(
         self, zeropi_operator, zeropi_evecs: ndarray = None
@@ -441,6 +460,15 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return spec_utils.get_matrixelement_table(self._zeropi_operator_in_product_basis(
             self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs
         ), evectors)
+
+    def n_theta_operator_other(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+        r"""
+        Operator :math:`n_\theta`.
+        """
+        return self._zeropi_operator_in_product_basis(
+            self._zeropi.n_theta_operator(use_energy_basis=use_energy_basis, evecs=evecs), zeropi_evecs=zeropi_evecs
+        )
+# delete this
 
     def n_theta_operator(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
