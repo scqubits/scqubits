@@ -411,7 +411,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         )
         return -2.0 * np.pi * self.EJ * op_1 - np.pi * self.EJ * self.dEJ * op_2
 
-    def d_hamiltonian_d_flux(self) -> csc_matrix:
+    def d_hamiltonian_d_flux(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value
         of flux, as stored in the object.
 
@@ -423,7 +423,13 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
         -------
             matrix representing the derivative of the Hamiltonian
         """
-        return self.sparse_d_potential_d_flux_mat()
+        if not use_energy_basis:
+            return self.sparse_d_potential_d_flux_mat()
+        if evecs is None:
+            _, evectors = self.eigensys(evals_count=self.truncated_dim)
+        else:
+            evectors = evecs[:, :self.truncated_dim]
+        return spec_utils.get_matrixelement_table(self.sparse_d_potential_d_flux_mat(), evectors)
 
     def sparse_d_potential_d_EJ_mat(self) -> csc_matrix:
         r"""Calculates a of the potential energy w.r.t EJ.
