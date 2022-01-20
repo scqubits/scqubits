@@ -269,11 +269,7 @@ class SpectrumLookupMixin(MixinCompatible):
          ...
          (max_1,0), (max_1,1), (max_1,2), ..., (max_1,max_2)]
         """
-        return list(
-            itertools.product(
-                *map(range, self.hilbertspace.subsystem_dims)  # type:ignore
-            )
-        )
+        return list(np.ndindex(*self.hilbertspace.subsystem_dims))
 
     def generate_lookup(self) -> NamedSlotsNdarray:
         """

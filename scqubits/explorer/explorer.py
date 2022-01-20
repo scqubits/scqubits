@@ -281,7 +281,7 @@ class ExplorerMixin:
     """
 
     def update_panels(self: "ExplorerSetup") -> None:
-        out = ipywidgets.interactive_output(self.update_explorer, controls={})
+        out = ipywidgets.interactive_output(self.update_plots, controls={})
 
     def plot_explorer_panels(
         self: "ExplorerSetup",

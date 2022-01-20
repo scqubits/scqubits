@@ -11,14 +11,14 @@
 ############################################################################
 
 
-import functools
 import itertools
-from typing import Dict, List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import Dict, List, Optional, TYPE_CHECKING, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib import get_backend as get_matplotlib_backend
 
 import scqubits as scq
 from scqubits.core.param_sweep import ParameterSlice
@@ -32,16 +32,16 @@ from scqubits.utils import misc as utils
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
-    from scqubits.core.qubit_base import QuantumSystem
 
 try:
-    from IPython.display import display, clear_output
+    from IPython.display import display
 except ImportError:
     _HAS_IPYTHON = False
 else:
     _HAS_IPYTHON = True
 
 try:
+    import ipywidgets
     from ipywidgets import (
         BoundedIntText,
         Button,
@@ -51,6 +51,7 @@ try:
         Label,
         Output,
         SelectMultiple,
+        Tab,
         ToggleButtons,
         interactive_output,
         ToggleButton,
@@ -70,6 +71,7 @@ else:
 
 
 SEP = " | "
+MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
 
 
 # l400px = Layout(width="400px", justify_content="space-between")
@@ -141,12 +143,19 @@ def boxed(pixels: int = 900) -> Layout:
 #             return None
 
 
-class ExplorerSetup:
+@utils.Required(ipywidgets=_HAS_IPYWIDGETS)
+class ExplorerSetup(ipywidgets.VBox):
     """Class for setup of Explorer."""
 
-    @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
     def __init__(self, sweep: scq.ParameterSweep):
         """Set up all widget GUI elements and class attributes."""
+        super().__init__()
+        self._has_widget_backend = get_matplotlib_backend() == MATPLOTLIB_WIDGET_BACKEND
+        if not self._has_widget_backend:
+            plt.ioff()
+
+        self.out = ipywidgets.Output()
+
         self.sweep = sweep
         self.subsys_names = [subsys.id_str for subsys in self.sweep.hilbertspace]
         self.subsys_types = {
@@ -156,12 +165,17 @@ class ExplorerSetup:
 
         self.panel_count = 0
         self.ncols = 2
+        self.nrows = 1
 
-        plt.ioff()
-        self.fig = plt.figure()
+        self.fig: Figure
+        self.axes_table: List[List[Axes]]
         self.figsize: Tuple[float, float]
-        self.axes_table = self.fig.subplots(1, 2)
+
         # == GUI elements =========================================================
+        self.ui_hbox: Dict[str, HBox] = {}
+        self.ui_vbox: Dict[str, VBox] = {}
+
+        # == Choose panels tab ====================================================
         self.ui_subsys_dropdown = Dropdown(options=self.subsys_names, layout=width(185))
         self.ui_subsys_dropdown.observe(self.on_subsys_change, "value")
 
@@ -183,9 +197,6 @@ class ExplorerSetup:
             )
             for btn_name in composite_panel_names
         }
-
-        self.ui_hbox: Dict[str, HBox] = {}
-        self.ui_vbox: Dict[str, VBox] = {}
 
         for subsys_name in self.subsys_names:
             self.ui_vbox[subsys_name] = VBox(
@@ -230,7 +241,6 @@ class ExplorerSetup:
             options=self.selected_as_strings(),
             rows=8,
         )
-        # self.ui_panels_list.observe(self.activate_settings, "value")
         self.ui_delete_btn = Button(icon="trash", layout=width(35))
         self.ui_delete_btn.on_click(self.delete_panel)
 
@@ -240,6 +250,13 @@ class ExplorerSetup:
                 HBox([self.ui_panels_list, self.ui_delete_btn]),
             ]
         )
+
+        self.ui_hbox["panels"] = HBox(
+            [self.ui_vbox["choose_panels"], self.ui_vbox["panels_list"]],
+            layout=width(800, justify_content="space-between"),
+        )
+
+        # == Parameters tab ======================================================
 
         self.ui_sweep_param_dropdown = Dropdown(
             options=self.sweep.param_info.keys(), layout=width(150)
@@ -253,19 +270,15 @@ class ExplorerSetup:
             layout=width(215),
             style={"description_width": "initial"},
         )
-        self.ui_sweep_value_slider.observe(self.update_explorer, "value")
+        self.ui_sweep_value_slider.observe(self.update_plots, "value")
 
         self.ui_fixed_param_sliders = None
         self.ui_vbox["fixed_param_sliders"] = VBox([])
         self.update_fixed_sliders(None)
 
-        ui_panels_btn = Button(icon="toggle-on", layout=width(35))
-        ui_panels_btn.style.button_color = "white"
-        ui_panels_btn.on_click(self.toggle_panels_ui)
-        self.ui_hbox["panels"] = HBox(
-            [self.ui_vbox["choose_panels"], self.ui_vbox["panels_list"]],
-            layout=width(800, justify_content="space-between"),
-        )
+        # ui_panels_btn = Button(icon="toggle-on", layout=width(35))
+        # ui_panels_btn.style.button_color = "white"
+        # ui_panels_btn.on_click(self.toggle_panels_ui)
 
         self.ui_hbox["parameters"] = HBox(
             [
@@ -281,17 +294,22 @@ class ExplorerSetup:
 
         self.ui_vbox["panels_select"] = VBox(
             [
-                HBox([ui_panels_btn, HTML(value="<b>Select plot " "panels</b>")]),
+                # HBox([ui_panels_btn, HTML(value="<b>Select plot " "panels</b>")]),
+                # HBox([HTML(value="<b>Select plot panels</b>")]),
                 self.ui_hbox["panels"],
             ],
-            layout=boxed(900),
+            layout=width(900),
         )
 
         self.ui_vbox["parameters"] = VBox(
-            [HTML(value="<b>Parameters</b>"), self.ui_hbox["parameters"]],
-            layout=boxed(900),
+            [
+                # HTML(value="<b>Parameters</b>"),
+                self.ui_hbox["parameters"]
+            ],
+            layout=width(900),
         )
 
+        # == Panel settings ========================================================
         self.ui_subsys_panel_settings = {
             subsys_name: {
                 panel_name: self.create_ui_settings_subsys(subsys_index, panel_name)
@@ -313,9 +331,9 @@ class ExplorerSetup:
             **self.ui_composite_panel_settings,
         }
 
-        ui_settings_btn = Button(icon="toggle-on", layout=width(35))
-        ui_settings_btn.style.button_color = "white"
-        ui_settings_btn.on_click(self.toggle_settings_ui)
+        # ui_settings_btn = Button(icon="toggle-on", layout=width(35))
+        # ui_settings_btn.style.button_color = "white"
+        # ui_settings_btn.on_click(self.toggle_settings_ui)
 
         # TODO: the following dropdown needs to be adjusted in options whenever panels
         # are added/deleted
@@ -335,48 +353,54 @@ class ExplorerSetup:
             [
                 HBox(
                     [
-                        ui_settings_btn,
-                        HTML("<b>Settings &nbsp; </b>"),
+                        # ui_settings_btn,
+                        # HTML("<b>Settings &nbsp; </b>"),
                         self.ui_hbox["panel_choice"],
                     ]
                 ),
                 self.ui_hbox["panel_settings"],
             ],
-            layout=boxed(900),
+            layout=width(900),
         )
 
-        self.out = Output()
-        self.ui_vbox["explorer"] = VBox(children=[self.out])
-        self.gui_box = VBox(
-            [
-                HTML(value="<h3>Explorer</h3>"),
+        # == Main Tab widget =======================================================
+        self.ui_main_tab = Tab(
+            children=[
                 self.ui_vbox["panels_select"],
                 self.ui_vbox["settings"],
                 self.ui_vbox["parameters"],
-                HTML(value="<br>"),
-                self.ui_vbox["explorer"],
             ]
         )
-        display(self.gui_box)
-        self.update_explorer(None)
+        self.ui_main_tab.set_title(0, "Choose panels")
+        self.ui_main_tab.set_title(1, "Panel settings")
+        self.ui_main_tab.set_title(2, "Sweep parameters")
 
-    def toggle_settings_ui(self, btn):
-        if btn.icon == "toggle-off":
-            btn.icon = "toggle-on"
-            self.ui_hbox["panel_settings"].layout.display = "inherit"
-            self.ui_hbox["panel_choice"].layout.display = "inherit"
-        else:
-            btn.icon = "toggle-off"
-            self.ui_hbox["panel_settings"].layout.display = "none"
-            self.ui_hbox["panel_choice"].layout.display = "none"
+        # self.gui_box = VBox(
+        #     [
+        #         self.ui_main_tab,
+        #         # HTML(value="<br>"),
+        #     ]
+        # )
+        self.children = [self.ui_main_tab, self.out]
+        self.update_layout_and_plots(None)
 
-    def toggle_panels_ui(self, btn):
-        if btn.icon == "toggle-off":
-            btn.icon = "toggle-on"
-            self.ui_hbox["panels"].layout.display = "inherit"
-        else:
-            btn.icon = "toggle-off"
-            self.ui_hbox["panels"].layout.display = "none"
+    # def toggle_settings_ui(self, btn):
+    #     if btn.icon == "toggle-off":
+    #         btn.icon = "toggle-on"
+    #         self.ui_hbox["panel_settings"].layout.display = "inherit"
+    #         self.ui_hbox["panel_choice"].layout.display = "inherit"
+    #     else:
+    #         btn.icon = "toggle-off"
+    #         self.ui_hbox["panel_settings"].layout.display = "none"
+    #         self.ui_hbox["panel_choice"].layout.display = "none"
+
+    # def toggle_panels_ui(self, btn):
+    #     if btn.icon == "toggle-off":
+    #         btn.icon = "toggle-on"
+    #         self.ui_hbox["panels"].layout.display = "inherit"
+    #     else:
+    #         btn.icon = "toggle-off"
+    #         self.ui_hbox["panels"].layout.display = "none"
 
     def display_panel(
         self,
@@ -487,7 +511,7 @@ class ExplorerSetup:
             if param_name != self.ui_sweep_param_dropdown.value
         ]
         for slider in sliders:
-            slider.observe(self.update_explorer, "value")
+            slider.observe(self.update_plots, "value")
         return sliders
 
     @property
@@ -498,7 +522,7 @@ class ExplorerSetup:
     def on_toggle_event(self, change):
         self.ui_panels_list.options = self.selected_as_strings()
         self.ui_panels_choice_dropdown.options = self.selected_as_strings()
-        self.update_explorer(change)
+        self.update_layout_and_plots(change)
 
     def on_subsys_change(self, change):
         self.ui_vbox["current_subsys"].children = self.ui_vbox[
@@ -556,13 +580,13 @@ class ExplorerSetup:
         #     self.ui_transitions["final_dressed_inttext"].disabled = False
         #     for inttext in self.ui_transitions["final_state_inttexts"]:
         #         inttext.disabled = True
-        self.update_explorer(change)
+        self.update_plots(change)
 
     # def start_explorer(self):
     #     # Trigger first update
-    #     self.update_explorer(None)
+    #     self.update_plots(None)
     #     # explorer_display = interactive_output(
-    #     #     self.update_explorer,
+    #     #     self.update_plots,
     #     #     controls={"param_val": self.ui_sweep_value_slider}
     #     # {
     #     #     "param_val": self.param_slider,
@@ -583,9 +607,6 @@ class ExplorerSetup:
         col_index = index % self.ncols
         return self.fig, self.axes_table[row_index, col_index]
 
-    # def clear_lines(self, axes: Axes):
-    #     for line in axes.lines:
-    #         line.remove()
     @property
     def parameter_slice(self):
         return ParameterSlice(
@@ -595,31 +616,112 @@ class ExplorerSetup:
             list(self.sweep.param_info.keys()),
         )
 
-    def update_explorer(self: "ExplorerSetup", change):
-        param_val = self.ui_sweep_value_slider.value
+    def update_layout_and_plots(self: "ExplorerSetup", change):
         panels = self.get_panels_list()
 
         nrows = len(panels) // self.ncols
         if len(panels) % self.ncols != 0:
             nrows += 1
 
-        if True:  # len(panels) != self.panel_count:
-            self.fig.clear()
-            self.panel_count = len(panels)
-            self.figsize = (9, 2.75 * nrows)
+        with self.out:
+            if not hasattr(self, "fig"):
+                self.fig, self.axes_table = plt.subplots(
+                    ncols=self.ncols,
+                    nrows=nrows,
+                    figsize=(10, 3 * nrows),
+                    squeeze=False,
+                )
+                self.fig.canvas.toolbar_position = "left"
+                self.fig.canvas.header_visible = False
+                self.fig.canvas.footer_visible = False
+            else:
+                self.fig.clear()
+                # self.axes_table = self.fig.subplots(
+                #     ncols=self.ncols,
+                #     nrows=nrows,
+                #     squeeze=False,
+                # )
+            # self.fig.canvas.layout.width = "12in"
+            # self.fig.canvas.layout.height = str(3 * nrows) + "in"
+            # self.figsize = (13, 2.75 * nrows)
             self.fig.set_size_inches(self.figsize)
-            self.axes_table = self.fig.subplots(ncols=self.ncols, nrows=nrows)
-            if nrows == 1:
-                self.axes_table = np.array([self.axes_table])
-            if len(panels) % self.ncols != 0:
-                for col in range(1, self.ncols):
-                    self.axes_table[-1, col].remove()
         # else:
-        #     for axes in itertools.chain(*self.axes_table):
-        #         axes.lines = []
-        #         axes.collections = []
-        #         axes.set_prop_cycle(None)
-        #         axes.autoscale()
+        #     self.fig.clear()
+            # self.fig.canvas.layout.width = "12in"
+            # self.fig.canvas.layout.height = str(3 * nrows) + "in"
+        # self.axes_table = np.array(
+        #     self.fig.subplots(ncols=self.ncols, nrows=nrows, squeeze=False)
+        # )
+            # self.fig.set_figwidth(12)
+            self.fig.set_figheight(3 * nrows)
+
+        # if self.axes_table.ndim == 1:
+        #     self.axes_table = self.axes_table.reshape(1, self.ncols)
+
+        if len(panels) % self.ncols != 0:
+            for col in range(1, self.ncols):
+                self.axes_table[-1, col].remove()
+        self.panel_count = len(panels)
+
+        self.update_plots(None)
+
+        #
+        # with self.out:
+        #     display(self.fig)
+
+    # def update_layout_and_plots(self: "ExplorerSetup", change):
+    #     panels = self.get_panels_list()
+    #
+    #     nrows = len(panels) // self.ncols
+    #     if len(panels) % self.ncols != 0:
+    #         nrows += 1
+    #
+    #     if not hasattr(self, "fig"):
+    #         with self.out:
+    #             self.fig, self.axes_table = plt.subplots(
+    #                 ncols=self.ncols,
+    #                 nrows=nrows,
+    #                 figsize=(10, 3 * nrows),
+    #                 squeeze=False,
+    #             )
+    #         self.fig.canvas.toolbar_position = "left"
+    #         self.fig.canvas.header_visible = False
+    #         self.fig.canvas.footer_visible = False
+    #         # self.fig.canvas.layout.width = "12in"
+    #         # self.fig.canvas.layout.height = str(3 * nrows) + "in"
+    #         # self.figsize = (13, 2.75 * nrows)
+    #         # self.fig.set_size_inches(self.figsize)
+    #     else:
+    #         self.fig.clear()
+    #         # self.fig.canvas.layout.width = "12in"
+    #         # self.fig.canvas.layout.height = str(3 * nrows) + "in"
+    #         self.axes_table = np.array(
+    #             self.fig.subplots(ncols=self.ncols, nrows=nrows, squeeze=False)
+    #         )
+    #         # self.fig.set_figwidth(12)
+    #         # self.fig.set_figheight(3 * nrows)
+    #
+    #     # if self.axes_table.ndim == 1:
+    #     #     self.axes_table = self.axes_table.reshape(1, self.ncols)
+    #
+    #     if len(panels) % self.ncols != 0:
+    #         for col in range(1, self.ncols):
+    #             self.axes_table[-1, col].remove()
+    #     self.panel_count = len(panels)
+    #
+    #     self.update_plots(None)
+    #
+    #     #
+    #     # with self.out:
+    #     #     display(self.fig)
+
+    def update_plots(self: "ExplorerSetup", change):
+        param_val = self.ui_sweep_value_slider.value
+        panels = self.get_panels_list()
+
+        # nrows = len(panels) // self.ncols
+        # if len(panels) % self.ncols != 0:
+        #     nrows += 1
 
         param_slice = ParameterSlice(
             self.ui_sweep_param_dropdown.value,
@@ -628,6 +730,27 @@ class ExplorerSetup:
             list(self.sweep.param_info.keys()),
         )
 
+        # with self.out:  # len(panels) != self.panel_count:
+        # clear_output(wait=True)
+        # self.fig.clear()
+        # self.panel_count = len(panels)
+        # self.figsize = (9, 2.75 * nrows)
+        # self.fig.set_size_inches(self.figsize)
+        # self.axes_table = self.fig.subplots(ncols=self.ncols, nrows=nrows)
+        # if nrows == 1:
+        #     self.axes_table = np.array([self.axes_table])
+        # if len(panels) % self.ncols != 0:
+        #     for col in range(1, self.ncols):
+        #         self.axes_table[-1, col].remove()
+
+        for axes in self.axes_table.flatten():
+            for item in axes.lines + axes.collections:
+                item.remove()
+            axes.set_prop_cycle(None)
+            axes.relim()
+            # axes.clear()
+            axes.autoscale_view()
+
         for index, full_panel_name in enumerate(panels):
             self.display_panel(
                 full_panel_name,
@@ -635,10 +758,14 @@ class ExplorerSetup:
                 fig_ax=self.fig_ax_by_index(index),
             )
 
-        with self.out:
-            clear_output(wait=True)
+        if not self._has_widget_backend:
+            with self.out:
+                self.out.clear_output(wait=True)
+                self.fig.tight_layout()
+                display(self.fig)
+        else:
+            self.fig.canvas.draw_idle()
             self.fig.tight_layout()
-            display(self.fig)
 
         # initial_bare_list = [0] * len(self.sweep.hilbertspace)
         # initial_bare_list[primary_subsys_index] = initial_index
@@ -709,8 +836,8 @@ class ExplorerSetup:
             ui_subtract_ground_checkbox = Checkbox(
                 description="subtract lowest energy", value=True, layout=width(300)
             )
-            ui_level_slider.observe(self.update_explorer, None)
-            ui_subtract_ground_checkbox.observe(self.update_explorer, None)
+            ui_level_slider.observe(self.update_plots, None)
+            ui_subtract_ground_checkbox.observe(self.update_plots, None)
             return [ui_level_slider, ui_subtract_ground_checkbox]
         else:
             return [HBox()]
@@ -792,18 +919,16 @@ class ExplorerSetup:
                 description="show sidebands", value=False, layout=width(250)
             )
             for inttext in self.ui_transitions["initial_state_inttexts"]:
-                inttext.observe(self.update_explorer, "value")
+                inttext.observe(self.update_plots, "value")
             self.ui_transitions["initial_dressed_inttext"].observe(
-                self.update_explorer, "value"
+                self.update_plots, "value"
             )
-            self.ui_transitions["photons_inttext"].observe(
-                self.update_explorer, "value"
-            )
+            self.ui_transitions["photons_inttext"].observe(self.update_plots, "value")
             self.ui_transitions["highlight_selectmultiple"].observe(
-                self.update_explorer, "value"
+                self.update_plots, "value"
             )
             self.ui_transitions["sidebands_checkbox"].observe(
-                self.update_explorer, "value"
+                self.update_plots, "value"
             )
             self.ui_transitions["initial_bare_dressed_toggle"].observe(
                 self.bare_dressed_toggle, "value"
