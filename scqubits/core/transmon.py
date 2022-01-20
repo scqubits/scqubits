@@ -44,7 +44,8 @@ TransitionsTuple = Tuple[Transition, ...]
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is
     represented in dense form in the number basis,
-    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
+    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2-\frac{E_\text{J}}{2}(
+    |n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
 
         Transmon(EJ=1.0, EC=2.0, ng=0.2, ncut=30)
