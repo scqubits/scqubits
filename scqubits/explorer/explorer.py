@@ -9,9 +9,8 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-import warnings
 
-from typing import TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,7 +25,6 @@ from scqubits.core.qubit_base import QubitBaseClass1d
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
-    from scqubits.legacy._explorer import Explorer_
 
 
 try:
@@ -61,24 +59,6 @@ class Explorer:
     figsize:
         custom size of individual panels in plot (optional)
     """
-
-    def __new__(cls, *args, **kwargs) -> "Union[Explorer, Explorer_]":  # type:ignore
-        if "sweep" in kwargs:
-            sweep = kwargs["sweep"]
-        else:
-            sweep = args[0]
-        if not hasattr(sweep, "keys"):
-            # User has provided legacy version of ParameterSweep object
-            warnings.warn(
-                "You are using a deprecated version of `ParameterSweep` that will "
-                "be removed in the future.",
-                FutureWarning,
-            )
-            from scqubits.legacy._explorer import Explorer_
-
-            return Explorer_(*args, **kwargs)
-        else:
-            return super().__new__(cls)
 
     def __init__(
         self,

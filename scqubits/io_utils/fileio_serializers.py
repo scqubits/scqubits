@@ -19,12 +19,12 @@ from abc import ABCMeta
 from collections import OrderedDict
 from numbers import Number
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
-from typing_extensions import Protocol
 
 import numpy as np
 
 from numpy import ndarray
 from scipy.sparse import csc_matrix
+from typing_extensions import Protocol
 
 import scqubits.utils.misc as utils
 
