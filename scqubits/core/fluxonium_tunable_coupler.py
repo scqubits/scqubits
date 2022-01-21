@@ -159,6 +159,30 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         phi_mat = get_matrixelement_table(qubit_instance.phi_operator(), evecs.T)
         return evals, evecs.T, phi_mat
 
+    def schrieffer_wolff_approx(self):
+        fluxonium_a = self.fluxonium_a()
+        fluxonium_b = self.fluxonium_b()
+        fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
+        fluxonium_minus = self.fluxonium_minus()
+        evals_a, evecs_a, phi_a_mat = self.signed_evals_evecs_phimat_qubit_instance(
+            fluxonium_a
+        )
+        evals_b, evecs_b, phi_b_mat = self.signed_evals_evecs_phimat_qubit_instance(
+            fluxonium_b
+        )
+        evals_m, evecs_m, phi_minus_mat = self.signed_evals_evecs_phimat_qubit_instance(
+            fluxonium_minus
+        )
+        chi_m = sum(
+            abs(phi_minus_mat[0, m]) ** 2 / (evals_m[m] - evals_m[0])
+            for m in range(1, fluxonium_minus.truncated_dim)
+        )
+        J = self.ELa * self.ELb * phi_a_mat[0, 1] * phi_b_mat[0, 1] * (0.5 * chi_m - 1.0 / self.EL_tilda())
+        return (-0.5 * (evals_a[1] - evals_a[0]) * tensor(sigmaz(), qeye(2))
+                - 0.5 * (evals_b[1] - evals_b[0]) * tensor(qeye(2), sigmaz())
+                + J * tensor(sigmax(), sigmax()))
+
+
     def schrieffer_wolff_real_flux(self):
         fluxonium_a = self.fluxonium_a()
         fluxonium_b = self.fluxonium_b()
@@ -1229,11 +1253,10 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         evals, _ = self.generate_coupled_system().hamiltonian().eigenstates(eigvals=4)
         return evals - evals[0]
 
-    def _eigenvals_for_flux_shift(self, fluxes):
+    def _eigenvals_for_flux_shift(self, flux_a):
         """Vary the qubit fluxes to find the exact sweet spot locations"""
-        flux_a, flux_b = fluxes
         self.flux_a = flux_a
-        self.flux_b = flux_b
+        self.flux_b = 1.0 - flux_a
         evals = self._evals_zeroed()
         return evals[3]
 
@@ -1253,16 +1276,16 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         are (nearly) uncoupled, therefore each excited state is nearly a product state.
         Thus if we vary the qubit fluxes and minimize the excitation energies, we
         should be able to place both qubits at their sweet spots independently"""
-        flux_shift_a_seed, flux_shift_b_seed = self.find_flux_shift()
+        flux_shift_a_seed, _ = self.find_flux_shift()
 
         result = minimize(
             self._eigenvals_for_flux_shift,
-            x0=np.array([0.5 + flux_shift_a_seed, 0.5 + flux_shift_b_seed]),
-            bounds=((0.4, 0.6), (0.4, 0.6)),
+            x0=np.array([0.5 + flux_shift_a_seed]),
+            bounds=((0.5, 0.6),),
             tol=epsilon,
         )
         assert result.success
-        return result.x[0] - 0.5, result.x[1] - 0.5
+        return result.x[0] - 0.5
 
     def find_off_position_and_flux_shift_exact(self, epsilon=1e-4):
         flux_c_seed, flux_shift_a_seed, _ = self.off_location_effective_sweet_spot_fluxes()

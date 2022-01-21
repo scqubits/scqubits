@@ -130,7 +130,8 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def hamiltonian(self):
         dim = self.hilbertdim()
-        hamiltonian_mat = np.diag(
+        hamiltonian_mat = np.zeros((dim, dim), dtype=complex)
+        hamiltonian_mat += np.diag(
             [4.0 * self.EC * (ind - self.ncut) ** 2 / self.n ** 2 for ind in range(dim)]
         )
         ind_n = np.arange(dim - self.n)
@@ -138,10 +139,10 @@ class SNAIL(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         hamiltonian_mat[ind_n + self.n, ind_n] = -self.alpha * self.EJ / 2.0
         ind_1 = np.arange(dim - 1)
         hamiltonian_mat[ind_1, ind_1 + 1] = (
-            -self.n * self.EJ * np.cos(2.0 * np.pi * self.flux) / 2.0
+            -self.n * self.EJ * np.exp(1j * 2.0 * np.pi * self.flux / self.n) / 2.0
         )
         hamiltonian_mat[ind_1 + 1, ind_1] = (
-            -self.n * self.EJ * np.cos(2.0 * np.pi * self.flux) / 2.0
+            -self.n * self.EJ * np.exp(-1j * 2.0 * np.pi * self.flux / self.n) / 2.0
         )
         return hamiltonian_mat
 
