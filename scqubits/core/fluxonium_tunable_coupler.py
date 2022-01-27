@@ -278,9 +278,11 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         delta_b = delta_b_0 - delta_b_1
         J = self._J(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat)
-        H = (-0.5 * (omega_a - delta_a) * tensor(sigmaz(), qeye(2))
-             - 0.5 * (omega_b - delta_b) * tensor(qeye(2), sigmaz())
-             + J * tensor(sigmax(), sigmax()))
+        H = (
+            -0.5 * (omega_a - delta_a) * tensor(sigmaz(), qeye(2))
+            - 0.5 * (omega_b - delta_b) * tensor(qeye(2), sigmaz())
+            + J * tensor(sigmax(), sigmax())
+        )
         return H
 
     def schrieffer_wolff_real_flux(self):
@@ -977,6 +979,141 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             for n in range(1, fmdim)
         )
         return 0.25 * self.EL_tilda() * (S1_m_contr - S2_contr - S1_0_contr)
+
+    def H_a_diag(self, ell):
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = self._generate_fluxonia_evals_phi_for_SW()
+        zeroth_order = 0.5 * self.ELa * phi_minus_mat[0, 0]
+        first_order = (
+            -self.ELa
+            * 2.0
+            * sum(
+                phi_a_mat[ell, ellprime]
+                * self._eps_1(
+                    evals_minus,
+                    evals_a,
+                    phi_a_mat,
+                    phi_minus_mat,
+                    self.ELa,
+                    i=ell,
+                    j=ellprime,
+                    n=0,
+                )
+                for ellprime in range(2, self.fluxonium_truncated_dim)
+            )
+        )
+        return zeroth_order + first_order
+
+    def H_a_XI(self, ell):
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = self._generate_fluxonia_evals_phi_for_SW()
+        ellp1 = (ell + 1) % 2
+        ell_osc = self.h_o_plus().l_osc
+        zeroth_order = -self.ELa * phi_a_mat[0, 1]
+        first_order_minus = (
+            0.5
+            * self.ELa
+            * sum(
+                phi_minus_mat[0, n]
+                * (
+                    self._eps_1(
+                        evals_minus,
+                        evals_a,
+                        phi_a_mat,
+                        phi_minus_mat,
+                        self.ELa,
+                        i=ell,
+                        j=ellp1,
+                        n=n,
+                    )
+                    + self._eps_1(
+                        evals_minus,
+                        evals_a,
+                        phi_a_mat,
+                        phi_minus_mat,
+                        self.ELa,
+                        i=ellp1,
+                        j=ell,
+                        n=n,
+                    )
+                )
+                for n in range(1, self.fluxonium_minus_truncated_dim)
+            )
+        )
+        first_order_plus = (
+            0.5
+            * self.ELa
+            * (ell_osc / np.sqrt(2))
+            * (
+                self._eps_1_plus(evals_a, phi_a_mat, self.ELa, i=ell, j=ellp1)
+                + self._eps_1_plus(evals_a, phi_a_mat, self.ELa, i=ellp1, j=ell)
+            )
+        )
+        return zeroth_order + first_order_plus + first_order_minus
+
+    def H_a_IX(self, m):
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = self._generate_fluxonia_evals_phi_for_SW()
+        mp1 = (m + 1) % 2
+        ell_osc = self.h_o_plus().l_osc
+        first_order_minus = (
+            -0.5
+            * self.ELa
+            * sum(
+                phi_minus_mat[0, n]
+                * (
+                    self._eps_1(
+                        evals_minus,
+                        evals_b,
+                        phi_b_mat,
+                        phi_minus_mat,
+                        self.ELb,
+                        i=m,
+                        j=mp1,
+                        n=n,
+                    )
+                    + self._eps_1(
+                        evals_minus,
+                        evals_b,
+                        phi_b_mat,
+                        phi_minus_mat,
+                        self.ELb,
+                        i=mp1,
+                        j=m,
+                        n=n,
+                    )
+                )
+                for n in range(1, self.fluxonium_minus_truncated_dim)
+            )
+        )
+        first_order_plus = (
+            0.5
+            * self.ELa
+            * (ell_osc / np.sqrt(2))
+            * (
+                self._eps_1_plus(evals_b, phi_b_mat, self.ELb, i=m, j=mp1)
+                + self._eps_1_plus(evals_a, phi_a_mat, self.ELa, i=mp1, j=m)
+            )
+        )
+        return first_order_plus + first_order_minus
 
     @staticmethod
     def _avg_and_rel_dev(A, B):
