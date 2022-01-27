@@ -12,8 +12,12 @@ import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.oscillator import Oscillator, convert_to_E_osc, convert_to_l_osc
 from scqubits.core.hilbert_space import HilbertSpace
-from scqubits.utils.spectrum_utils import get_matrixelement_table, standardize_sign, convert_evecs_to_ndarray, \
-    identity_wrap
+from scqubits.utils.spectrum_utils import (
+    get_matrixelement_table,
+    standardize_sign,
+    convert_evecs_to_ndarray,
+    identity_wrap,
+)
 
 
 class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializable):
@@ -177,11 +181,107 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             abs(phi_minus_mat[0, m]) ** 2 / (evals_m[m] - evals_m[0])
             for m in range(1, fluxonium_minus.truncated_dim)
         )
-        J = self.ELa * self.ELb * phi_a_mat[0, 1] * phi_b_mat[0, 1] * (0.5 * chi_m - 1.0 / self.EL_tilda())
-        return (-0.5 * (evals_a[1] - evals_a[0]) * tensor(sigmaz(), qeye(2))
-                - 0.5 * (evals_b[1] - evals_b[0]) * tensor(qeye(2), sigmaz())
-                + J * tensor(sigmax(), sigmax()))
+        J = (
+            self.ELa
+            * self.ELb
+            * phi_a_mat[0, 1]
+            * phi_b_mat[0, 1]
+            * (0.5 * chi_m - 1.0 / self.EL_tilda())
+        )
+        return (
+            -0.5 * (evals_a[1] - evals_a[0]) * tensor(sigmaz(), qeye(2))
+            - 0.5 * (evals_b[1] - evals_b[0]) * tensor(qeye(2), sigmaz())
+            + J * tensor(sigmax(), sigmax())
+        )
 
+    def _delta_mu_j(self, j, evals_mu, phi_mu_mat, evals_minus, phi_minus_mat, ELmu):
+        ECp = self.h_o_plus_charging_energy()
+        ELc = self.EL_tilda() / 4
+        omega_p = self.h_o_plus().E_osc
+        coupler_minus_sum = -sum(
+            (ELmu / 2) ** 2
+            * phi_mu_mat[j, jprime] ** 2
+            * (
+                phi_minus_mat[0, n] ** 2
+                / (evals_mu[jprime] + evals_minus[n] - evals_mu[j] - evals_minus[0])
+            )
+            for n in range(1, self.fluxonium_minus_truncated_dim)
+            for jprime in range(0, self.fluxonium_truncated_dim)
+        )
+        coupler_plus_sum = -sum(
+            (ELmu / 2) ** 2
+            * phi_mu_mat[j, jprime] ** 2
+            * np.sqrt(2 * ECp / ELc)
+            / (evals_mu[jprime] + omega_p - evals_mu[j])
+            for jprime in range(0, self.fluxonium_truncated_dim)
+        )
+        high_fluxonium_sum = -sum(
+            (ELmu / 2) ** 2
+            * phi_mu_mat[j, jprime] ** 2
+            * (phi_minus_mat[0, 0] ** 2 / (evals_mu[jprime] - evals_mu[j]))
+            for jprime in range(2, self.fluxonium_truncated_dim)
+        )
+        return coupler_minus_sum + coupler_plus_sum + high_fluxonium_sum
+
+    def _J(self, evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat):
+        coupler_minus_sum = sum(
+            phi_minus_mat[0, n] ** 2
+            * (
+                1.0 / (evals_a[0] + evals_minus[n] - evals_a[1] - evals_minus[0])
+                + 1.0 / (evals_b[0] + evals_minus[n] - evals_b[1] - evals_minus[0])
+                + 1.0 / (evals_a[1] + evals_minus[n] - evals_a[0] - evals_minus[0])
+                + 1.0 / (evals_b[1] + evals_minus[n] - evals_b[0] - evals_minus[0])
+            )
+            for n in range(1, self.fluxonium_minus_truncated_dim)
+        )
+        omega_p = self.h_o_plus().E_osc
+        ECp = self.h_o_plus_charging_energy()
+        ELc = self.EL_tilda() / 4
+        coupler_plus = -np.sqrt(2.0 * ECp / ELc) * (
+            1.0 / (evals_a[0] + omega_p - evals_a[1])
+            + 1.0 / (evals_b[0] + omega_p - evals_b[1])
+            + 1.0 / (evals_a[1] + omega_p - evals_a[0])
+            + 1.0 / (evals_b[1] + omega_p - evals_b[0])
+        )
+        return (
+            0.5
+            * (self.ELa / 2)
+            * (self.ELb / 2)
+            * phi_a_mat[0, 1]
+            * phi_b_mat[0, 1]
+            * (coupler_plus + coupler_minus_sum)
+        )
+
+    def schrieffer_wolff(self):
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = self._generate_fluxonia_evals_phi_for_SW()
+        omega_a = evals_a[1] - evals_a[0]
+        omega_b = evals_b[1] - evals_b[0]
+        delta_a_1 = self._delta_mu_j(
+            1, evals_a, phi_a_mat, evals_minus, phi_minus_mat, self.ELa
+        )
+        delta_a_0 = self._delta_mu_j(
+            0, evals_a, phi_a_mat, evals_minus, phi_minus_mat, self.ELa
+        )
+        delta_a = delta_a_0 - delta_a_1
+        delta_b_1 = self._delta_mu_j(
+            1, evals_b, phi_b_mat, evals_minus, phi_minus_mat, self.ELb
+        )
+        delta_b_0 = self._delta_mu_j(
+            0, evals_b, phi_b_mat, evals_minus, phi_minus_mat, self.ELb
+        )
+        delta_b = delta_b_0 - delta_b_1
+        J = self._J(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat)
+        H = (-0.5 * (omega_a - delta_a) * tensor(sigmaz(), qeye(2))
+             - 0.5 * (omega_b - delta_b) * tensor(qeye(2), sigmaz())
+             + J * tensor(sigmax(), sigmax()))
+        return H
 
     def schrieffer_wolff_real_flux(self):
         fluxonium_a = self.fluxonium_a()
@@ -1200,7 +1300,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         op_new_basis = np.real(evecs.T @ op_id_wrap.data @ evecs)
         return Qobj(op_new_basis)
 
-    def operators_at_sweetspot(self, num_states=4, flux_shift_a=None, flux_shift_b=None):
+    def operators_at_sweetspot(
+        self, num_states=4, flux_shift_a=None, flux_shift_b=None
+    ):
         hilbert_space = self.hilbert_space_at_sweetspot(flux_shift_a, flux_shift_b)
         dressed_hamiltonian = hilbert_space.hamiltonian()
         evals_qobj, evecs_qobj = dressed_hamiltonian.eigenstates(eigvals=num_states)
@@ -1210,18 +1312,33 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         evecs = np.zeros_like(evecs_)
         for i, evec in enumerate(evecs_.T):
             evecs[:, i] = standardize_sign(evec)
-        fluxonium_a = hilbert_space['fluxonium_a']
-        fluxonium_b = hilbert_space['fluxonium_b']
-        fluxonium_minus = hilbert_space['fluxonium_minus']
-        h_o_plus = hilbert_space['h_o_plus']
-        phi_a = self.basis_change(fluxonium_a.phi_operator(), evecs, hilbert_space, fluxonium_a)
-        phi_b = self.basis_change(fluxonium_b.phi_operator(), evecs, hilbert_space, fluxonium_b)
-        phi_minus = self.basis_change(fluxonium_minus.phi_operator(), evecs, hilbert_space, fluxonium_minus)
-        phi_plus = self.basis_change(h_o_plus.phi_operator(), evecs, hilbert_space, h_o_plus)
+        fluxonium_a = hilbert_space["fluxonium_a"]
+        fluxonium_b = hilbert_space["fluxonium_b"]
+        fluxonium_minus = hilbert_space["fluxonium_minus"]
+        h_o_plus = hilbert_space["h_o_plus"]
+        phi_a = self.basis_change(
+            fluxonium_a.phi_operator(), evecs, hilbert_space, fluxonium_a
+        )
+        phi_b = self.basis_change(
+            fluxonium_b.phi_operator(), evecs, hilbert_space, fluxonium_b
+        )
+        phi_minus = self.basis_change(
+            fluxonium_minus.phi_operator(), evecs, hilbert_space, fluxonium_minus
+        )
+        phi_plus = self.basis_change(
+            h_o_plus.phi_operator(), evecs, hilbert_space, h_o_plus
+        )
         H_a = -2.0 * np.pi * self.ELa * (phi_a - 0.5 * phi_plus - 0.5 * phi_minus)
         H_b = -2.0 * np.pi * self.ELb * (phi_b - 0.5 * phi_plus + 0.5 * phi_minus)
-        H_c = -2.0 * np.pi * (0.25 * self.EL_tilda() * phi_minus
-                              - 0.5 * self.ELa * phi_a + 0.5 * self.ELb * phi_b)
+        H_c = (
+            -2.0
+            * np.pi
+            * (
+                0.25 * self.EL_tilda() * phi_minus
+                - 0.5 * self.ELa * phi_a
+                + 0.5 * self.ELb * phi_b
+            )
+        )
         return H_0, H_a, H_b, H_c
 
     @staticmethod
@@ -1235,10 +1352,16 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         return phi_mat[0, 1]
 
     def J_eff_total(self):
-        fluxonium_a, fluxonium_b, J = self._setup_effective_calculation()
-        phi_a_01 = self._get_phi_01(fluxonium_a)
-        phi_b_01 = self._get_phi_01(fluxonium_b)
-        return J * phi_a_01 * phi_b_01
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = self._generate_fluxonia_evals_phi_for_SW()
+        J = self._J(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat)
+        return J * phi_a_mat[0, 1] * phi_b_mat[0, 1]
 
     def off_location_coupler_flux(self, epsilon=1e-2):
         def _find_J(flux_c):
@@ -1266,9 +1389,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         flux_shift_a = flux_a - 0.5
         flux_b = 0.5 - flux_shift_a
         self.flux_c = flux_c
-        _, H_a, H_b, H_c = self.operators_at_sweetspot(flux_shift_a=flux_shift_a, flux_shift_b=-flux_shift_a)
-        return np.abs(H_c[0, 1]) + np.abs(H_c[0, 2]) + np.abs(H_c[1, 3]) + np.abs(H_c[2, 3])
-
+        _, H_a, H_b, H_c = self.operators_at_sweetspot(
+            flux_shift_a=flux_shift_a, flux_shift_b=-flux_shift_a
+        )
+        return (
+            np.abs(H_c[0, 1])
+            + np.abs(H_c[0, 2])
+            + np.abs(H_c[1, 3])
+            + np.abs(H_c[2, 3])
+        )
 
     def find_flux_shift_exact(self, epsilon=1e-4):
         """near the off position, we want to find the exact qubit fluxes necessary to
@@ -1288,7 +1417,11 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         return result.x[0] - 0.5
 
     def find_off_position_and_flux_shift_exact(self, epsilon=1e-4):
-        flux_c_seed, flux_shift_a_seed, _ = self.off_location_effective_sweet_spot_fluxes()
+        (
+            flux_c_seed,
+            flux_shift_a_seed,
+            _,
+        ) = self.off_location_effective_sweet_spot_fluxes()
 
         result = minimize(
             self._cost_function_off_and_shift_positions,
@@ -1298,7 +1431,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         assert result.success
         return result.x[0], result.x[1] - 0.5, -(result.x[1] - 0.5)
-
 
     def off_location_effective_sweet_spot_fluxes(self):
         flux_c = self.off_location_coupler_flux()
@@ -1412,7 +1544,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             self.flux_a,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
-            id_str='fluxonium_a'
+            id_str="fluxonium_a",
         )
 
     def fluxonium_b(self):
@@ -1423,7 +1555,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             self.flux_b,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_truncated_dim,
-            id_str='fluxonium_b'
+            id_str="fluxonium_b",
         )
 
     def fluxonium_minus(self):
@@ -1434,7 +1566,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             self.flux_c,
             cutoff=self.fluxonium_cutoff,
             truncated_dim=self.fluxonium_minus_truncated_dim,
-            id_str='fluxonium_minus'
+            id_str="fluxonium_minus"
             #            flux_fraction_with_inductor=0.0,
             #            flux_junction_sign=-1,
         )
@@ -1464,7 +1596,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             E_osc=E_osc,
             l_osc=l_osc,
             truncated_dim=self.h_o_truncated_dim,
-            id_str='h_o_plus'
+            id_str="h_o_plus",
         )
 
 
