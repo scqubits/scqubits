@@ -1055,7 +1055,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                 for ellprime in range(2, self.fluxonium_truncated_dim)
             )
         )
-        return zeroth_order + first_order
+        return pref * (zeroth_order - first_order)
 
     def H_q_correct_X(self, ell, which="a"):
         (
@@ -1067,9 +1067,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
         if which is "a":
-            evals_q, phi_q_mat, ELq, pref = evals_a, phi_a_mat, self.ELa, 1.0
+            evals_q, phi_q_mat, ELq = evals_a, phi_a_mat, self.ELa
         else:
-            evals_q, phi_q_mat, ELq, pref = evals_b, phi_b_mat, self.ELb, -1.0
+            evals_q, phi_q_mat, ELq = evals_b, phi_b_mat, self.ELb
         ellp1 = (ell + 1) % 2
         ell_osc = self.h_o_plus().l_osc
         zeroth_order = -ELq * phi_q_mat[0, 1]
@@ -1077,7 +1077,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             0.5
             * ELq
             * sum(
-                pref
                 * phi_minus_mat[0, n]
                 * (
                     self._eps_1(
@@ -1126,10 +1125,10 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         ) = self._generate_fluxonia_evals_phi_for_SW()
         # note the switch below
         if which is "a":
-            evals_q, phi_q_mat, ELq, pref = evals_b, phi_b_mat, self.ELb, 1.0
+            evals_q, phi_q_mat, ELq = evals_b, phi_b_mat, self.ELb
             EL_outside = self.ELa
         else:
-            evals_q, phi_q_mat, ELq, pref = evals_a, phi_a_mat, self.ELa, -1.0
+            evals_q, phi_q_mat, ELq = evals_a, phi_a_mat, self.ELa
             EL_outside = self.ELb
         mp1 = (m + 1) % 2
         ell_osc = self.h_o_plus().l_osc
@@ -1137,7 +1136,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             -0.5
             * EL_outside
             * sum(
-                pref
                 * phi_minus_mat[0, n]
                 * (
                     self._eps_1(
