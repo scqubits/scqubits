@@ -63,8 +63,9 @@ else:
     from tqdm import tqdm
 
 if TYPE_CHECKING:
-    from scqubits.core.storage import WaveFunction
     from typing_extensions import Literal
+
+    from scqubits.core.storage import WaveFunction
 
 
 LevelsTuple = Tuple[int, ...]
@@ -80,7 +81,6 @@ class QuantumSystem(DispatchClient, ABC):
     truncated_dim = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
     _init_params: List[str]
     _image_filename: str
-    _evec_dtype: type
     _sys_type: str
 
     # To facilitate warnings in set_units, introduce a counter keeping track of the
@@ -220,7 +220,6 @@ class QubitBaseClass(QuantumSystem, ABC):
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     truncated_dim: int  # type:ignore
     _default_grid: Grid1d
-    _evec_dtype: type
     _sys_type: str
     _init_params: list
 
@@ -991,7 +990,6 @@ class QubitBaseClass1d(QubitBaseClass):
 
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     _default_grid: Grid1d
-    _evec_dtype = np.float_
 
     @abstractmethod
     def potential(self, phi: Union[float, ndarray]) -> Union[float, ndarray]:

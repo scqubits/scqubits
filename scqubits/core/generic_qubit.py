@@ -43,7 +43,6 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     """
 
     truncated_dim = 2  # type:ignore
-    _evec_dtype: type
     _sys_type: str
     _init_params: list
 
@@ -52,7 +51,6 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     def __init__(self, E: float, id_str: Optional[str] = None) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.E = E
-        self._evec_dtype = np.float_
 
     @staticmethod
     def default_params() -> Dict[str, Any]:

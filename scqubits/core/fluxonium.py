@@ -85,7 +85,6 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self.flux = flux
         self.cutoff = cutoff
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-4.5 * np.pi, 4.5 * np.pi, 151)
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/fluxonium.jpg"
@@ -170,7 +169,7 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         Returns
         -------
-            Returns the :math:`e^{i (\\alpha \\phi + \beta) }` operator in the
+            Returns the :math:`e^{i (\\alpha \\phi + \\beta) }` operator in the
             LC harmonic oscillator basis,
             with :math:`\\alpha` and :math:`\\beta` being numbers
         """

@@ -15,11 +15,10 @@ import inspect
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from matplotlib.figure import Axes, Figure
-
-import matplotlib.pyplot as plt
 
 try:
     from ipywidgets import (

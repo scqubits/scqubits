@@ -44,7 +44,8 @@ TransitionsTuple = Tuple[Transition, ...]
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is
     represented in dense form in the number basis,
-    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
+    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2-\frac{E_\text{J}}{2}(
+    |n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
 
         Transmon(EJ=1.0, EC=2.0, ng=0.2, ncut=30)
@@ -85,7 +86,6 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(
@@ -374,7 +374,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in
     dense form in the number basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{
-    n}-n_g)^2+\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{
+    n}-n_g)^2-\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{
     h.c.})`, Here, the effective Josephson energy is flux-tunable: :math:`\mathcal{
     E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(
     \pi\Phi/\Phi_0)}` and :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes the
@@ -428,7 +428,6 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(
