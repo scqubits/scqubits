@@ -1,3 +1,4 @@
+from itertools import product
 from typing import Optional
 
 import numpy as np
@@ -800,6 +801,46 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             for n in range(1, fmdim)
         )
 
+    def H_c_diag(self, ell, m):
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = self._generate_fluxonia_evals_phi_for_SW()
+        zeroth_order = -0.25 * self.EL_tilda() * phi_minus_mat[0, 0]
+        first_order_a = self.ELa * sum(
+            phi_a_mat[ell, ellprime]
+            * self._eps_1(
+                evals_minus,
+                evals_a,
+                phi_a_mat,
+                phi_minus_mat,
+                self.ELa,
+                i=ell,
+                j=ellprime,
+                n=0,
+            )
+            for ellprime in range(2, self.fluxonium_truncated_dim)
+        )
+        first_order_b = self.ELb * sum(
+            phi_b_mat[m, mprime]
+            * self._eps_1(
+                evals_minus,
+                evals_b,
+                phi_b_mat,
+                phi_minus_mat,
+                self.ELb,
+                i=m,
+                j=mprime,
+                n=0,
+            )
+            for mprime in range(2, self.fluxonium_truncated_dim)
+        )
+        return zeroth_order + first_order_a + first_order_b
+
     def H_c_XI(self, ell):
         (
             evals_a,
@@ -982,7 +1023,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return -S1_m_contr + S2_contr + S1_0_contr
 
-    def H_q_diag(self, ell, which='a'):
+    def H_q_diag(self, ell, which="a"):
         (
             evals_a,
             phi_a_mat,
@@ -991,7 +1032,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
-        if which is 'a':
+        if which is "a":
             evals_q, phi_q_mat, ELq, pref = evals_a, phi_a_mat, self.ELa, 1.0
         else:
             evals_q, phi_q_mat, ELq, pref = evals_b, phi_b_mat, self.ELb, -1.0
@@ -1016,7 +1057,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return zeroth_order + first_order
 
-    def H_q_correct_X(self, ell, which='a'):
+    def H_q_correct_X(self, ell, which="a"):
         (
             evals_a,
             phi_a_mat,
@@ -1025,7 +1066,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
-        if which is 'a':
+        if which is "a":
             evals_q, phi_q_mat, ELq, pref = evals_a, phi_a_mat, self.ELa, 1.0
         else:
             evals_q, phi_q_mat, ELq, pref = evals_b, phi_b_mat, self.ELb, -1.0
@@ -1036,7 +1077,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             0.5
             * ELq
             * sum(
-                pref * phi_minus_mat[0, n]
+                pref
+                * phi_minus_mat[0, n]
                 * (
                     self._eps_1(
                         evals_minus,
@@ -1073,7 +1115,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return zeroth_order + first_order_plus + first_order_minus
 
-    def H_q_wrong_X(self, m, which='a'):
+    def H_q_wrong_X(self, m, which="a"):
         (
             evals_a,
             phi_a_mat,
@@ -1083,7 +1125,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
         # note the switch below
-        if which is 'a':
+        if which is "a":
             evals_q, phi_q_mat, ELq, pref = evals_b, phi_b_mat, self.ELb, 1.0
             EL_outside = self.ELa
         else:
@@ -1095,7 +1137,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             -0.5
             * EL_outside
             * sum(
-                pref * phi_minus_mat[0, n]
+                pref
+                * phi_minus_mat[0, n]
                 * (
                     self._eps_1(
                         evals_minus,
@@ -1132,12 +1175,57 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return first_order_plus + first_order_minus
 
-    def H_q_XX(self, ell, m, which='a'):
-        if which is 'a':
+    def H_q_XX(self, ell, m, which="a"):
+        if which is "a":
             ELq, pref = self.ELa, 1.0
         else:
             ELq, pref = self.ELb, -1.0
         return 0.5 * ELq * pref * self.theta_minus_XX(ell, m)
+
+    def construct_H_q_eff(self, which="a"):
+        qubit_idx_range = [0, 1]
+        two_qubit_idxs = list(product(qubit_idx_range, qubit_idx_range))
+        H_q = np.zeros((4, 4))
+        for ell, m in two_qubit_idxs:
+            for ellprime, mprime in two_qubit_idxs:
+                if which == "a":
+                    idx_comp_row = ell
+                    idx_comp_col = ellprime
+                else:
+                    idx_comp_row = m
+                    idx_comp_col = mprime
+                row_idx = 2 * ell + m
+                col_idx = 2 * ellprime + mprime
+                if ell == ellprime and m == mprime:
+                    H_q[row_idx, col_idx] = self.H_q_diag(ell, which=which)
+                elif ell == (ellprime + 1) % 2 and m == (mprime + 1) % 2:
+                    H_q[row_idx, col_idx] = self.H_q_XX(ell, m)
+                elif idx_comp_row == (idx_comp_col + 1) % 2:
+                    H_q[row_idx, col_idx] = self.H_q_correct_X(
+                        idx_comp_row, which=which
+                    )
+                else:
+                    # m entry below doesn't matter
+                    H_q[row_idx, col_idx] = self.H_q_wrong_X(0, which=which)
+        return H_q
+
+    def construct_H_c_eff(self):
+        qubit_idx_range = [0, 1]
+        two_qubit_idxs = list(product(qubit_idx_range, qubit_idx_range))
+        H_c = np.zeros((4, 4))
+        for ell, m in two_qubit_idxs:
+            for ellprime, mprime in two_qubit_idxs:
+                row_idx = 2 * ell + m
+                col_idx = 2 * ellprime + mprime
+                if ell == ellprime and m == mprime:
+                    H_c[row_idx, col_idx] = self.H_c_diag(ell, m)
+                elif ell == (ellprime + 1) % 2 and m == (mprime + 1) % 2:
+                    H_c[row_idx, col_idx] = self.H_c_XX(ell, m)
+                elif ell == (ellprime + 1) % 2:
+                    H_c[row_idx, col_idx] = self.H_c_XI(ell)
+                else:
+                    H_c[row_idx, col_idx] = self.H_c_IX(m)
+        return H_c
 
     @staticmethod
     def _avg_and_rel_dev(A, B):
