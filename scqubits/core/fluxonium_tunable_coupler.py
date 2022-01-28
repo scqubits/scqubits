@@ -1077,7 +1077,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             0.5
             * ELq
             * sum(
-                * phi_minus_mat[0, n]
+                phi_minus_mat[0, n]
                 * (
                     self._eps_1(
                         evals_minus,
@@ -1136,7 +1136,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             -0.5
             * EL_outside
             * sum(
-                * phi_minus_mat[0, n]
+                phi_minus_mat[0, n]
                 * (
                     self._eps_1(
                         evals_minus,
