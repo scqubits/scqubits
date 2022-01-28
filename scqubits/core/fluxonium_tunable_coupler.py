@@ -800,7 +800,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             for n in range(1, fmdim)
         )
 
-    def XI_matrix_element(self, ell):
+    def H_c_XI(self, ell):
         (
             evals_a,
             phi_a_mat,
@@ -820,7 +820,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return zeroth_order + first_order
 
-    def IX_matrix_element(self, m):
+    def H_c_IX(self, m):
         (
             _,
             _,
@@ -840,7 +840,10 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return zeroth_order + first_order
 
-    def XX_matrix_element(self, ell, m):
+    def H_c_XX(self, ell, m):
+        return -0.25 * self.EL_tilda() * self.theta_minus_XX(ell, m)
+
+    def theta_minus_XX(self, ell, m):
         (
             evals_a,
             phi_a_mat,
@@ -977,7 +980,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             * phi_minus_mat[0, n]
             for n in range(1, fmdim)
         )
-        return 0.25 * self.EL_tilda() * (S1_m_contr - S2_contr - S1_0_contr)
+        return -S1_m_contr + S2_contr + S1_0_contr
 
     def H_q_diag(self, ell, which='a'):
         (
@@ -1128,6 +1131,13 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             )
         )
         return first_order_plus + first_order_minus
+
+    def H_q_XX(self, ell, m, which='a'):
+        if which is 'a':
+            ELq, pref = self.ELa, 1.0
+        else:
+            ELq, pref = self.ELb, -1.0
+        return 0.5 * ELq * pref * self.theta_minus_XX(ell, m)
 
     @staticmethod
     def _avg_and_rel_dev(A, B):
