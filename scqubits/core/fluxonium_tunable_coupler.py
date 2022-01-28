@@ -1,7 +1,6 @@
 from typing import Optional
 
 import numpy as np
-from numpy import ndarray
 from qutip import qeye, sigmax, sigmay, sigmaz, tensor, basis, Qobj
 from scipy.linalg import inv
 from scipy.optimize import root, minimize
@@ -980,7 +979,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return 0.25 * self.EL_tilda() * (S1_m_contr - S2_contr - S1_0_contr)
 
-    def H_a_diag(self, ell):
+    def H_q_diag(self, ell, which='a'):
         (
             evals_a,
             phi_a_mat,
@@ -989,18 +988,22 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
-        zeroth_order = 0.5 * self.ELa * phi_minus_mat[0, 0]
+        if which is 'a':
+            evals_q, phi_q_mat, ELq, pref = evals_a, phi_a_mat, self.ELa, 1.0
+        else:
+            evals_q, phi_q_mat, ELq, pref = evals_b, phi_b_mat, self.ELb, -1.0
+        zeroth_order = 0.5 * ELq * pref * phi_minus_mat[0, 0]
         first_order = (
-            -self.ELa
+            -ELq
             * 2.0
             * sum(
-                phi_a_mat[ell, ellprime]
+                phi_q_mat[ell, ellprime]
                 * self._eps_1(
                     evals_minus,
-                    evals_a,
-                    phi_a_mat,
+                    evals_q,
+                    phi_q_mat,
                     phi_minus_mat,
-                    self.ELa,
+                    ELq,
                     i=ell,
                     j=ellprime,
                     n=0,
@@ -1010,7 +1013,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return zeroth_order + first_order
 
-    def H_a_XI(self, ell):
+    def H_q_correct_X(self, ell, which='a'):
         (
             evals_a,
             phi_a_mat,
@@ -1019,31 +1022,35 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
+        if which is 'a':
+            evals_q, phi_q_mat, ELq, pref = evals_a, phi_a_mat, self.ELa, 1.0
+        else:
+            evals_q, phi_q_mat, ELq, pref = evals_b, phi_b_mat, self.ELb, -1.0
         ellp1 = (ell + 1) % 2
         ell_osc = self.h_o_plus().l_osc
-        zeroth_order = -self.ELa * phi_a_mat[0, 1]
+        zeroth_order = -ELq * phi_q_mat[0, 1]
         first_order_minus = (
             0.5
-            * self.ELa
+            * ELq
             * sum(
-                phi_minus_mat[0, n]
+                pref * phi_minus_mat[0, n]
                 * (
                     self._eps_1(
                         evals_minus,
-                        evals_a,
-                        phi_a_mat,
+                        evals_q,
+                        phi_q_mat,
                         phi_minus_mat,
-                        self.ELa,
+                        ELq,
                         i=ell,
                         j=ellp1,
                         n=n,
                     )
                     + self._eps_1(
                         evals_minus,
-                        evals_a,
-                        phi_a_mat,
+                        evals_q,
+                        phi_q_mat,
                         phi_minus_mat,
-                        self.ELa,
+                        ELq,
                         i=ellp1,
                         j=ell,
                         n=n,
@@ -1054,16 +1061,16 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         first_order_plus = (
             0.5
-            * self.ELa
+            * ELq
             * (ell_osc / np.sqrt(2))
             * (
-                self._eps_1_plus(evals_a, phi_a_mat, self.ELa, i=ell, j=ellp1)
-                + self._eps_1_plus(evals_a, phi_a_mat, self.ELa, i=ellp1, j=ell)
+                self._eps_1_plus(evals_q, phi_q_mat, ELq, i=ell, j=ellp1)
+                + self._eps_1_plus(evals_q, phi_q_mat, ELq, i=ellp1, j=ell)
             )
         )
         return zeroth_order + first_order_plus + first_order_minus
 
-    def H_a_IX(self, m):
+    def H_q_wrong_X(self, m, which='a'):
         (
             evals_a,
             phi_a_mat,
@@ -1072,30 +1079,37 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
+        # note the switch below
+        if which is 'a':
+            evals_q, phi_q_mat, ELq, pref = evals_b, phi_b_mat, self.ELb, 1.0
+            EL_outside = self.ELa
+        else:
+            evals_q, phi_q_mat, ELq, pref = evals_a, phi_a_mat, self.ELa, -1.0
+            EL_outside = self.ELb
         mp1 = (m + 1) % 2
         ell_osc = self.h_o_plus().l_osc
         first_order_minus = (
             -0.5
-            * self.ELa
+            * EL_outside
             * sum(
-                phi_minus_mat[0, n]
+                pref * phi_minus_mat[0, n]
                 * (
                     self._eps_1(
                         evals_minus,
-                        evals_b,
-                        phi_b_mat,
+                        evals_q,
+                        phi_q_mat,
                         phi_minus_mat,
-                        self.ELb,
+                        ELq,
                         i=m,
                         j=mp1,
                         n=n,
                     )
                     + self._eps_1(
                         evals_minus,
-                        evals_b,
-                        phi_b_mat,
+                        evals_q,
+                        phi_q_mat,
                         phi_minus_mat,
-                        self.ELb,
+                        ELq,
                         i=mp1,
                         j=m,
                         n=n,
@@ -1106,11 +1120,11 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         first_order_plus = (
             0.5
-            * self.ELa
+            * EL_outside
             * (ell_osc / np.sqrt(2))
             * (
-                self._eps_1_plus(evals_b, phi_b_mat, self.ELb, i=m, j=mp1)
-                + self._eps_1_plus(evals_a, phi_a_mat, self.ELa, i=mp1, j=m)
+                self._eps_1_plus(evals_q, phi_q_mat, ELq, i=m, j=mp1)
+                + self._eps_1_plus(evals_q, phi_q_mat, ELq, i=mp1, j=m)
             )
         )
         return first_order_plus + first_order_minus
