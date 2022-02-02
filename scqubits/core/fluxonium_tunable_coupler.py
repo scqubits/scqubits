@@ -285,6 +285,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return H
 
+    def op_reduced(self, op, inds_to_remove):
+        """this function takes an operator and eliminates states that are
+        not relevant as specified by inds_to_remove"""
+        if isinstance(op, Qobj):
+            op = op.data.toarray()
+        new_op = np.delete(op, inds_to_remove, axis=0)
+        new_op = np.delete(new_op, inds_to_remove, axis=1)
+        return Qobj(new_op)
+
     def schrieffer_wolff_real_flux(self):
         fluxonium_a = self.fluxonium_a()
         fluxonium_b = self.fluxonium_b()
@@ -1548,11 +1557,12 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         return Qobj(op_new_basis)
 
     def operators_at_sweetspot(
-        self, num_states=4, flux_shift_a=None, flux_shift_b=None
+        self, num_states=4, flux_shift_a=None, flux_shift_b=None, remove_unnecessary_states=False
     ):
         hilbert_space = self.hilbert_space_at_sweetspot(flux_shift_a, flux_shift_b)
-        dressed_hamiltonian = hilbert_space.hamiltonian()
-        evals_qobj, evecs_qobj = dressed_hamiltonian.eigenstates(eigvals=num_states)
+        hilbert_space.generate_lookup()
+        evals_qobj = hilbert_space.lookup.dressed_eigenenergies()[0:num_states]
+        evecs_qobj = hilbert_space.lookup.dressed_eigenstates()[0:num_states]
         evals_zeroed = evals_qobj - evals_qobj[0]
         H_0 = Qobj(2.0 * np.pi * np.diag(evals_zeroed[0:num_states]))
         evecs_ = convert_evecs_to_ndarray(evecs_qobj).T
@@ -1586,6 +1596,19 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                 + 0.5 * self.ELb * phi_b
             )
         )
+        if remove_unnecessary_states:
+            bad_bare_labels = [(i, j, 1, 0) for i in range(2) for j in range(2)]
+            bad_dressed_indices = []
+            for bare_label in bad_bare_labels:
+                bad_dressed_index = hilbert_space.lookup.dressed_index(bare_label)
+                bad_dressed_indices.append(bad_dressed_index)
+            states_to_keep = np.concatenate((np.arange(4), np.array(bad_dressed_indices)))
+            all_dressed_indices = np.arange(num_states)
+            states_to_remove = np.delete(all_dressed_indices, states_to_keep)
+            H_0 = self.op_reduced(H_0, states_to_remove)
+            H_a = self.op_reduced(H_a, states_to_remove)
+            H_b = self.op_reduced(H_b, states_to_remove)
+            H_c = self.op_reduced(H_c, states_to_remove)
         return H_0, H_a, H_b, H_c
 
     @staticmethod
