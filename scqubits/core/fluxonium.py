@@ -385,9 +385,10 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
 
         first_order = 3e-6 * first_derivative
         second_order = 9e-12 * second_derivative
-        # print(first_order)
-        # print(second_order)
-        # print(first_derivative)
+        print(first_order)
+        print(second_order)
+        print(first_derivative)
+        print(second_derivative)
         return np.abs(1 / (first_order + second_order) * 1e-6) / (2 * np.pi)  # unit in ms
 
     def get_t2_current_noise(self, para_name, para_vals):
