@@ -1,8 +1,9 @@
 import cmath
 from itertools import product
-from typing import Optional, Callable
+from typing import Optional, Callable, Tuple
 
 import numpy as np
+from numpy import ndarray
 from qutip import (
     qeye,
     sigmax,
@@ -26,6 +27,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.core.fluxonium import Fluxonium
 from scqubits.core.oscillator import Oscillator, convert_to_E_osc, convert_to_l_osc
 from scqubits.core.hilbert_space import HilbertSpace
+from scqubits.utils import cpu_switch
 from scqubits.utils.spectrum_utils import (
     get_matrixelement_table,
     standardize_sign,
@@ -188,9 +190,11 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         evals_b, evecs_b, phi_b_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
             fluxonium_b
         )
-        evals_m, evecs_m, phi_minus_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
-            fluxonium_minus
-        )
+        (
+            evals_m,
+            evecs_m,
+            phi_minus_mat,
+        ) = self.signed_evals_evecs_phi_mat_qubit_instance(fluxonium_minus)
         chi_m = sum(
             abs(phi_minus_mat[0, m]) ** 2 / (evals_m[m] - evals_m[0])
             for m in range(1, fluxonium_minus.truncated_dim)
@@ -320,9 +324,11 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         evals_b, evecs_b, phi_b_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
             fluxonium_b
         )
-        evals_m, evecs_m, phi_minus_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
-            fluxonium_minus
-        )
+        (
+            evals_m,
+            evecs_m,
+            phi_minus_mat,
+        ) = self.signed_evals_evecs_phi_mat_qubit_instance(fluxonium_minus)
         H_0_a = np.diag(evals_a - evals_a[0])[0:2, 0:2]
         H_0_b = np.diag(evals_b - evals_b[0])[0:2, 0:2]
         H_0 = tensor(Qobj(H_0_a), qeye(2)) + tensor(qeye(2), Qobj(H_0_b))
@@ -389,7 +395,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         H_2_ = sum(
             0.5
             * self._g_minus(ell, ell_double_prime, 0, phi_q_mat, phi_minus_mat, EL)
-            * self._g_minus(ell_double_prime, ell_prime, 0, phi_q_mat, phi_minus_mat, EL)
+            * self._g_minus(
+                ell_double_prime, ell_prime, 0, phi_q_mat, phi_minus_mat, EL
+            )
             * (
                 1.0 / (evals_q[ell] - evals_q[ell_double_prime])
                 + 1.0 / (evals_q[ell_prime] - evals_q[ell_double_prime])
@@ -408,10 +416,19 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         H_2_ = sum(
             0.5
             * self._g_minus(ell, ell_double_prime, n, phi_q_mat, phi_minus_mat, EL)
-            * self._g_minus(ell_double_prime, ell_prime, n, phi_q_mat, phi_minus_mat, EL)
+            * self._g_minus(
+                ell_double_prime, ell_prime, n, phi_q_mat, phi_minus_mat, EL
+            )
             * (
-                1.0 / (evals_q[ell] + evals_m[0] - evals_q[ell_double_prime] - evals_m[n])
-                + 1.0 / (evals_q[ell_prime] + evals_m[0] - evals_q[ell_double_prime] - evals_m[n])
+                1.0
+                / (evals_q[ell] + evals_m[0] - evals_q[ell_double_prime] - evals_m[n])
+                + 1.0
+                / (
+                    evals_q[ell_prime]
+                    + evals_m[0]
+                    - evals_q[ell_double_prime]
+                    - evals_m[n]
+                )
             )
             * basis(2, ell)
             * basis(2, ell_prime).dag()
@@ -426,7 +443,12 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             * self._g_plus(ell_double_prime, ell_prime, phi_q_mat, EL)
             * (
                 1.0 / (evals_q[ell] - evals_q[ell_double_prime] - self.h_o_plus().E_osc)
-                + 1.0 / (evals_q[ell_prime] - evals_q[ell_double_prime] - self.h_o_plus().E_osc)
+                + 1.0
+                / (
+                    evals_q[ell_prime]
+                    - evals_q[ell_double_prime]
+                    - self.h_o_plus().E_osc
+                )
             )
             * basis(2, ell)
             * basis(2, ell_prime).dag()
@@ -475,14 +497,30 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         return H_2_
 
     def _high_high_self_mat_elem(
-        self, evals_minus, evals_q, phi_q_mat, phi_minus_mat, ELq, ell, ell_prime, n_prime
+        self,
+        evals_minus,
+        evals_q,
+        phi_q_mat,
+        phi_minus_mat,
+        ELq,
+        ell,
+        ell_prime,
+        n_prime,
     ):
         f_a_dim = self.fluxonium_truncated_dim
         f_m_dim = self.fluxonium_minus_truncated_dim
         mat_elem = sum(
-            self._g_minus_2(ell, ell_double_prime, 0, n_double_prime, phi_q_mat, phi_minus_mat, ELq)
+            self._g_minus_2(
+                ell, ell_double_prime, 0, n_double_prime, phi_q_mat, phi_minus_mat, ELq
+            )
             * self._g_minus_2(
-                ell_double_prime, ell_prime, n_double_prime, n_prime, phi_q_mat, phi_minus_mat, ELq
+                ell_double_prime,
+                ell_prime,
+                n_double_prime,
+                n_prime,
+                phi_q_mat,
+                phi_minus_mat,
+                ELq,
             )
             / (
                 (
@@ -491,7 +529,12 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                     - evals_q[ell_double_prime]
                     - evals_minus[n_double_prime]
                 )
-                * (evals_q[ell] + evals_minus[0] - evals_q[ell_prime] - evals_minus[n_prime])
+                * (
+                    evals_q[ell]
+                    + evals_minus[0]
+                    - evals_q[ell_prime]
+                    - evals_minus[n_prime]
+                )
             )
             for ell_double_prime in range(f_a_dim)
             for n_double_prime in range(1, f_m_dim)
@@ -516,8 +559,12 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     ):
         f_m_dim = self.fluxonium_minus_truncated_dim
         mat_elem = sum(
-            self._g_minus_2(ell, ell_prime, 0, n_double_prime, phi_a_mat, phi_minus_mat, ELa)
-            * self._g_minus_2(m, m_prime, n_double_prime, n_prime, phi_b_mat, phi_minus_mat, ELb)
+            self._g_minus_2(
+                ell, ell_prime, 0, n_double_prime, phi_a_mat, phi_minus_mat, ELa
+            )
+            * self._g_minus_2(
+                m, m_prime, n_double_prime, n_prime, phi_b_mat, phi_minus_mat, ELb
+            )
             / (
                 (
                     evals_a[ell]
@@ -592,10 +639,17 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         f_a_dim = self.fluxonium_truncated_dim
         mat_elem = sum(
             self._g_minus(ell, ell_double_prime, 0, phi_q_mat, phi_minus_mat, ELq)
-            * self._g_minus(ell_double_prime, ell_prime, n, phi_q_mat, phi_minus_mat, ELq)
+            * self._g_minus(
+                ell_double_prime, ell_prime, n, phi_q_mat, phi_minus_mat, ELq
+            )
             / (
                 (evals_q[ell] + evals_minus[0] - evals_q[ell_prime] - evals_minus[n])
-                * (evals_q[ell_double_prime] + evals_minus[0] - evals_q[ell_prime] - evals_minus[n])
+                * (
+                    evals_q[ell_double_prime]
+                    + evals_minus[0]
+                    - evals_q[ell_prime]
+                    - evals_minus[n]
+                )
             )
             for ell_double_prime in range(f_a_dim)
         )
@@ -1321,12 +1375,18 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             + 0.5
             * ELa
             * tensor(
-                Qobj(phi_a_mat), qeye(f_b_dim), qeye(f_m_dim), qeye(self.h_o_truncated_dim)
+                Qobj(phi_a_mat),
+                qeye(f_b_dim),
+                qeye(f_m_dim),
+                qeye(self.h_o_truncated_dim),
             )
             - 0.5
             * ELb
             * tensor(
-                qeye(f_a_dim), Qobj(phi_b_mat), qeye(f_m_dim), qeye(self.h_o_truncated_dim)
+                qeye(f_a_dim),
+                Qobj(phi_b_mat),
+                qeye(f_m_dim),
+                qeye(self.h_o_truncated_dim),
             )
         )
 
@@ -1387,7 +1447,14 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         minus_b = -sum(
             self._eps_1(
-                evals_minus, evals_b, phi_b_mat, phi_minus_mat, self.ELb, i=m, j=m_prime, n=n
+                evals_minus,
+                evals_b,
+                phi_b_mat,
+                phi_minus_mat,
+                self.ELb,
+                i=m,
+                j=m_prime,
+                n=n,
             )
             * self._bare_product_state_all(ell, m, 0, 0)
             * self._bare_product_state_all(ell, m_prime, n, 0).dag()
@@ -1398,7 +1465,14 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         minus_b += -sum(
             self._eps_1(
-                evals_minus, evals_b, phi_b_mat, phi_minus_mat, self.ELb, i=m, j=m_prime, n=0
+                evals_minus,
+                evals_b,
+                phi_b_mat,
+                phi_minus_mat,
+                self.ELb,
+                i=m,
+                j=m_prime,
+                n=0,
             )
             * self._bare_product_state_all(ell, m, 0, 0)
             * self._bare_product_state_all(ell, m_prime, 0, 0).dag()
@@ -1560,9 +1634,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
 
     def hilbert_space_at_sweetspot(self, flux_shift_a=None, flux_shift_b=None):
         if flux_shift_a is None and flux_shift_b is None:
-            flux_shift_a, flux_shift_b = self.find_flux_shift_exact()
+            flux_shift_a = self.find_flux_shift_exact()
         self.flux_a = 0.5 + flux_shift_a
-        self.flux_b = 0.5 + flux_shift_b
+        self.flux_b = 0.5 - flux_shift_a
         return self.generate_coupled_system()
 
     def basis_change(self, op, evecs, hilbert_space, subsystem):
@@ -1666,28 +1740,23 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         evals, _ = self.generate_coupled_system().hamiltonian().eigenstates(eigvals=4)
         return evals - evals[0]
 
-    def _eigenvals_for_flux_shift(self, flux_a):
-        """Vary the qubit fluxes to find the exact sweet spot locations"""
-        self.flux_a = flux_a
-        self.flux_b = 1.0 - flux_a
-        evals = self._evals_zeroed()
-        return evals[3]
-
     def _cost_function_off_and_shift_positions(self, fluxes):
         """For efficiency we make the approximation that the flux shifts are equivalent"""
         flux_c, flux_a = fluxes
         flux_shift_a = flux_a - 0.5
         flux_b = 0.5 - flux_shift_a
+        self.flux_a = flux_a
+        self.flux_b = flux_b
         self.flux_c = flux_c
-        _, H_a, H_b, H_c = self.operators_at_sweetspot(
-            flux_shift_a=flux_shift_a, flux_shift_b=-flux_shift_a
-        )
-        return (
-            np.abs(H_c[0, 1])
-            + np.abs(H_c[0, 2])
-            + np.abs(H_c[1, 3])
-            + np.abs(H_c[2, 3])
-        )
+        return self._evals_zeroed()[3]
+
+    def _cost_function_just_shift_positions(self, flux_a):
+        """For efficiency we make the approximation that the flux shifts are equivalent"""
+        flux_shift_a = flux_a - 0.5
+        flux_b = 0.5 - flux_shift_a
+        self.flux_a = flux_a
+        self.flux_b = flux_b
+        return self._evals_zeroed()[3]
 
     def find_flux_shift_exact(self, epsilon=1e-4):
         """near the off position, we want to find the exact qubit fluxes necessary to
@@ -1698,7 +1767,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         flux_shift_a_seed, _ = self.find_flux_shift()
 
         result = minimize(
-            self._eigenvals_for_flux_shift,
+            self._cost_function_just_shift_positions,
             x0=np.array([0.5 + flux_shift_a_seed]),
             bounds=((0.5, 0.6),),
             tol=epsilon,
@@ -1716,11 +1785,11 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         result = minimize(
             self._cost_function_off_and_shift_positions,
             x0=np.array([flux_c_seed, 0.5 + flux_shift_a_seed]),
-            bounds=((0.0, 0.5), (0.5, 1.0)),
+            bounds=((0.0, 0.5), (0.5, 0.6)),
             tol=epsilon,
         )
         assert result.success
-        return result.x[0], result.x[1] - 0.5, -(result.x[1] - 0.5)
+        return result.x[0], result.x[1] - 0.5
 
     def off_location_effective_sweet_spot_fluxes(self):
         flux_c = self.off_location_coupler_flux()
@@ -1988,7 +2057,7 @@ class ConstructFullPulse(serializers.Serializable):
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1 / sqrt2, -1j / sqrt2, 0.0],
                 [0.0, -1j / sqrt2, 1 / sqrt2, 0.0],
-                [0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
             ]
         )
 
@@ -2009,13 +2078,18 @@ class ConstructFullPulse(serializers.Serializable):
         return Qobj((-1j * theta * Z / 2.0).expm().data, dims=[[4], [4]])
 
     @staticmethod
-    def fix_w_single_q_gates(gate_):
+    def fix_w_single_q_gates(gate_, which_Z_exclude=2):
+        Z_matrix = 0.5 * np.array(
+            [[-1, -1, -1, -1], [-1, 1, -1, 1], [1, -1, -1, 1]]
+        )
+        new_Z_matrix = np.delete(Z_matrix, np.array(which_Z_exclude), axis=1)
+        inv_Z_matrix = inv(new_Z_matrix)
         alpha = cmath.phase(gate_[0, 0])
         beta = cmath.phase(gate_[1, 1])
         gamma = cmath.phase(gate_[1, 2])
-        return np.array(
-            [alpha + beta, alpha - gamma - np.pi / 2, -beta + gamma + np.pi / 2]
-        )
+        Z_rotation_angles = inv_Z_matrix @ np.array([-alpha, -beta, gamma + np.pi / 2])
+        Z_rotation_angles = np.insert(Z_rotation_angles, which_Z_exclude, 0)
+        return Z_rotation_angles
 
     def multiply_with_single_q_gates(self, gate):
         (t1, t2, t3) = self.fix_w_single_q_gates(gate)
@@ -2139,7 +2213,9 @@ class ConstructFullPulse(serializers.Serializable):
         )
         return total_pulse, total_times
 
-    def parse_synchronize(self, synchronize_output):
+    def parse_synchronize(
+        self, synchronize_output
+    ) -> Tuple[ndarray, ndarray, ndarray, ndarray]:
         """This function takes the output of synchronize and yields
         the pulses along with the times that synchronize specified"""
         total_pulse_a = np.array([])
@@ -2185,7 +2261,7 @@ class ConstructFullPulse(serializers.Serializable):
         )
 
     @staticmethod
-    def concatenate_two_times(times_1, times_2):
+    def concatenate_two_times(times_1: ndarray, times_2: ndarray) -> ndarray:
         if times_1.size == 0:
             return times_2
         if times_2.size == 0:
@@ -2193,7 +2269,7 @@ class ConstructFullPulse(serializers.Serializable):
         return np.concatenate((times_1, times_1[-1] + times_2[1:]))
 
     @staticmethod
-    def concatenate_two_controls(controls_1, controls_2):
+    def concatenate_two_controls(controls_1: ndarray, controls_2: ndarray) -> ndarray:
         if controls_1.size == 0:
             return controls_2
         if controls_2.size == 0:
@@ -2202,8 +2278,13 @@ class ConstructFullPulse(serializers.Serializable):
         return np.concatenate((controls_1, controls_2[1:]))
 
     def propagator_for_coupler_segment(
-        self, amp: float, omega_d: float, num_periods=2, red_dim=4
-    ):
+        self,
+        amp: float,
+        omega_d: float,
+        num_periods: int = 2,
+        red_dim: int = 4,
+        num_cpus: int = 1,
+    ) -> Qobj:
         """
         Parameters
         ----------
@@ -2218,6 +2299,8 @@ class ConstructFullPulse(serializers.Serializable):
             be carried out includingthe full Hilbert space, but only
             for initial states up to that specified by red_dim. default
             is only for the qubit states
+        num_cpus
+            number cpus
 
         Returns
         -------
@@ -2228,6 +2311,7 @@ class ConstructFullPulse(serializers.Serializable):
         def control_func_c(t, args=None):
             return amp * np.sin(omega_d * t)
 
+        target_map = cpu_switch.get_map_method(num_cpus)
         control_dt = self.control_dt_slow
         total_time = num_periods * 2.0 * np.pi / omega_d
         _, (_, _, XX) = self.normalized_operators()
@@ -2236,14 +2320,19 @@ class ConstructFullPulse(serializers.Serializable):
             0.0, total_time, int(total_time / control_dt) + 1
         )
         my_prop = np.zeros((red_dim, red_dim), dtype=complex)
-        for i in range(red_dim):
-            result = sesolve(
+
+        def _run_sesolve(initial_state):
+            return sesolve(
                 H,
-                basis(self.dim, i),
+                basis(self.dim, initial_state),
                 twoqcontrol_eval_times,
                 options=Options(store_final_state=True),
-            )
-            my_prop[:, i] = result.final_state.data.toarray()[0:red_dim, 0]
+            ).final_state.data.toarray()[0:red_dim, 0]
+
+        initial_states = range(red_dim)
+        result = list(target_map(_run_sesolve, initial_states))
+        for i in range(red_dim):
+            my_prop[:, i] = result[i]
         return Qobj(my_prop)
 
     def propagator_for_qubit_flux_segment(self, parse_synchronize_output, red_dim=4):
@@ -2265,21 +2354,193 @@ class ConstructFullPulse(serializers.Serializable):
         ]
         return propagator(H, times_a)[-1]
 
-    def propagator_for_full_pulse(self, amp, omega_d, num_periods, red_dim=4):
-        twoqprop = self.propagator_for_coupler_segment(amp, omega_d, num_periods)
-        global_phase = cmath.phase(twoqprop[0, 0])
-        zeroed_prop = twoqprop * np.exp(-1j * global_phase)
-        angles = self.fix_w_single_q_gates(zeroed_prop)
+    def times_to_correct_prop(self, prop, which_Z_exclude=2):
+        angles = self.fix_w_single_q_gates(prop, which_Z_exclude)
         neg_angles = -angles % (2.0 * np.pi)
         omega_a = np.real(self.H_0[2, 2])
         omega_b = np.real(self.H_0[1, 1])
-        times = neg_angles / np.array([omega_a, omega_b, omega_b])
+        return neg_angles / np.array([omega_a, omega_b, omega_a, omega_b])
+
+    def propagator_for_full_pulse(
+        self,
+        amp: float,
+        omega_d: float,
+        num_periods: int = 2,
+        red_dim: int = 4,
+        num_cpus: int = 1,
+        which_Z_exclude=2,
+    ):
+        """
+
+        Parameters
+        ----------
+        amp
+            amplitude of the coupler pulse
+        omega_d
+            frequency of the coupler pulse
+        num_periods
+            number of periods of the coupler pulse
+        red_dim
+            how many states to calculate propagators for
+        num_cpus
+            number cpus
+
+        Returns
+        -------
+        propagator of the full pulse, along with quantities of interest: the
+        time necessary to idle for each qubit to achieve the required dynamical
+        phase factors, along with the associated outputs from calling parse_synchronize
+
+        """
+        twoqprop = self.propagator_for_coupler_segment(
+            amp, omega_d, num_periods, red_dim, num_cpus
+        )
+        global_phase = cmath.phase(twoqprop[0, 0])
+        zeroed_prop = twoqprop * np.exp(-1j * global_phase)
+        times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=which_Z_exclude)
+        before_prop, after_prop = self.construct_qubit_propagators(
+            times, red_dim=red_dim
+        )
+        return (
+            after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop,
+            times,
+        )
+
+    def construct_qubit_propagators(self, times, red_dim=4):
         parse_output_after = self.parse_synchronize(
             self.synchronize(times[0], times[1])
         )
-        parse_output_before = self.parse_synchronize(self.synchronize(0.0, times[2]))
+        parse_output_before = self.parse_synchronize(
+            self.synchronize(times[2], times[3])
+        )
         before_prop = self.propagator_for_qubit_flux_segment(
             parse_output_before, red_dim
         )
         after_prop = self.propagator_for_qubit_flux_segment(parse_output_after, red_dim)
-        return after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop
+        return before_prop, after_prop
+
+    def propagator_full_pulse_optimize_qubit_fluxes(self, twoq_prop, red_dim=4):
+        global_phase = cmath.phase(twoq_prop[0, 0])
+        zeroed_prop = twoq_prop * np.exp(-1j * global_phase)
+        max_fidel = 0.0
+        for i in range(4):
+            times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=i)
+            before_prop, after_prop = self.construct_qubit_propagators(times, red_dim=4)
+            full_prop = (
+                after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop
+            )
+            fidel = self.calc_fidel_4(full_prop, self.sqrtiSWAP())
+            if fidel > max_fidel:
+                max_index = i
+                max_prop = full_prop
+                max_fidel = fidel
+                max_times = times
+        return max_index, max_prop, max_fidel, max_times
+
+    def all_control_functions(
+        self,
+        amp: float,
+        omega_d: float,
+        num_periods: int = 2,
+        red_dim: int = 4,
+        num_cpus: int = 1,
+        which_Z_exclude = 2,
+        parsed_outputs=None,
+    ):
+        """
+
+        Parameters
+        ----------
+        amp
+            amplitude of the coupler pulse
+        omega_d
+            frequency of the coupler pulse
+        num_periods
+            number of periods of the coupler pulse
+        red_dim
+            how many states to calculate propagators for
+        num_cpus
+            number cpus
+        which_Z_exclude
+            index of which Z rotation to exclude.
+        parsed_outputs
+            outputs of calling parse_synchronize for before and after the
+            coupler pulse. If this is not given, it is calculated on the fly.
+            The option to pass it in here reflects that it is costly to calculate,
+            as it requires calculating the propagator for the coupler segment.
+
+        Returns
+        -------
+        functions representing the flux modulation required to effect the pulse
+        for all three fluxes
+
+        """
+        if parsed_outputs is None:
+            twoqprop = self.propagator_for_coupler_segment(
+                amp, omega_d, num_periods, red_dim, num_cpus
+            )
+            global_phase = cmath.phase(twoqprop[0, 0])
+            zeroed_prop = twoqprop * np.exp(-1j * global_phase)
+            times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=which_Z_exclude)
+            parse_output_before = self.parse_synchronize(
+                self.synchronize(0.0, times[2])
+            )
+            parse_output_after = self.parse_synchronize(
+                self.synchronize(times[0], times[1])
+            )
+        else:
+            parse_output_before, parse_output_after = parsed_outputs
+        twoq_time = num_periods * 2.0 * np.pi / omega_d
+        twoqcontrol_eval_times = np.linspace(
+            0.0, twoq_time, int(twoq_time / self.control_dt_fast) + 1
+        )
+        controls_2q = amp * np.sin(omega_d * twoqcontrol_eval_times)
+
+        after_pulse_a, after_times_a, after_pulse_b, after_times_b = parse_output_after
+        (
+            before_pulse_a,
+            before_times_a,
+            before_pulse_b,
+            before_times_b,
+        ) = parse_output_before
+        total_pulse_a = self.concatenate_times_or_controls(
+            (before_pulse_a, np.zeros_like(controls_2q), after_pulse_a),
+            self.concatenate_two_controls,
+        )
+        total_pulse_b = self.concatenate_times_or_controls(
+            (before_pulse_b, np.zeros_like(controls_2q), after_pulse_b),
+            self.concatenate_two_controls,
+        )
+        total_pulse_c = self.concatenate_times_or_controls(
+            (np.zeros_like(before_pulse_a), controls_2q, np.zeros_like(after_pulse_a)),
+            self.concatenate_two_controls,
+        )
+        total_times_a = self.concatenate_times_or_controls(
+            (before_times_a, twoqcontrol_eval_times, after_times_a),
+            self.concatenate_two_times,
+        )
+        total_times_b = self.concatenate_times_or_controls(
+            (before_times_b, twoqcontrol_eval_times, after_times_b),
+            self.concatenate_two_times,
+        )
+        total_times_c = self.concatenate_times_or_controls(
+            (before_times_a, twoqcontrol_eval_times, after_times_a),
+            self.concatenate_two_times,
+        )
+        (norm_a, norm_b, norm_c), _ = self.normalized_operators()
+        spline_a = interp1d(
+            total_times_a,
+            total_pulse_a / norm_a / 2.0 / np.pi,
+            fill_value="extrapolate",
+        )
+        spline_b = interp1d(
+            total_times_b,
+            total_pulse_b / norm_b / 2.0 / np.pi,
+            fill_value="extrapolate",
+        )
+        spline_c = interp1d(
+            total_times_c,
+            total_pulse_c / norm_c / 2.0 / np.pi,
+            fill_value="extrapolate",
+        )
+        return spline_a, spline_b, spline_c, total_times_a
