@@ -1,8 +1,11 @@
+import cmath
 from itertools import product
-from typing import Optional
+from typing import Optional, Callable
 
 import numpy as np
-from qutip import qeye, sigmax, sigmay, sigmaz, tensor, basis, Qobj
+from qutip import qeye, sigmax, sigmay, sigmaz, tensor, basis, Qobj, propagator, sesolve, Options
+from scipy.interpolate import interp1d
+from scipy.special import jn_zeros
 from scipy.linalg import inv
 from scipy.optimize import root, minimize
 from sympy import Matrix, S, diff, hessian, simplify, solve, symbols
@@ -1928,3 +1931,272 @@ class FluxoniumTunableCouplerGrounded(FluxoniumTunableCouplerFloating):
         C_matrix[2, 2] = 1.0 / (2.0 * self.ECm) / 2.0
         C_matrix[3, 3] = 1.0 / (2.0 * self.ECm) / 2.0 + 1.0 / (2.0 * self.ECc)
         return C_matrix
+
+
+class ConstructFullPulse(serializers.Serializable):
+    def __init__(self, H_0, H_a, H_b, H_c, control_dt_slow=2.0, control_dt_fast=0.01,
+                 max_freq=0.255, min_freq=0.125):
+        self.H_0 = H_0
+        self.H_a = H_a
+        self.H_b = H_b
+        self.H_c = H_c
+        self.dim = H_0.shape[0]
+        self.control_dt_slow = control_dt_slow
+        self.control_dt_fast = control_dt_fast
+        self.max_freq = max_freq
+        self.min_freq = min_freq
+
+    @staticmethod
+    def ZA():
+        return tensor(sigmaz(), qeye(2))
+
+    @staticmethod
+    def ZB():
+        return tensor(qeye(2), sigmaz())
+
+    @staticmethod
+    def sqrtiSWAP():
+        sqrt2 = np.sqrt(2.0)
+        return np.array([[1.0, 0.0, 0.0, 0.0],
+                         [0.0, 1/sqrt2, -1j/sqrt2, 0.0],
+                         [0.0, -1j/sqrt2, 1/sqrt2, 0.0],
+                         [0.0, 0.0, 0.0, 0.0]])
+
+    def normalized_operators(self):
+        norm_a = self.H_a[0, 2]
+        norm_b = self.H_b[0, 1]
+        norm_c = self.H_c[0, 3]
+        XI = self.H_a / norm_a
+        IX = self.H_b / norm_b
+        XX = self.H_c / norm_c
+        return (norm_a, norm_b, norm_c), (XI, IX, XX)
+
+    def RZ(self, theta, which='a'):
+        if which is 'a':
+            Z = self.ZA()
+        else:
+            Z = self.ZB()
+        return Qobj((-1j * theta * Z / 2.0).expm().data, dims=[[4], [4]])
+
+    @staticmethod
+    def fix_w_single_q_gates(gate_):
+        alpha = cmath.phase(gate_[0, 0])
+        beta = cmath.phase(gate_[1, 1])
+        gamma = cmath.phase(gate_[1, 2])
+        return np.array([alpha + beta, alpha - gamma - np.pi / 2, -beta + gamma + np.pi / 2])
+
+    def multiply_with_single_q_gates(self, gate):
+        (t1, t2, t3) = self.fix_w_single_q_gates(gate)
+        gate_ = Qobj(gate[0:4, 0:4])
+        return self.RZ(t1, which='a') * self.RZ(t2, which='b') * gate_ * self.RZ(0, which='a') * self.RZ(t3, which='b')
+
+    @staticmethod
+    def calc_fidel_4(prop, gate):
+        prop = Qobj(prop[0:4, 0:4])
+        return (np.trace(prop.dag() * prop) + np.abs(np.trace(prop.dag() * gate)) ** 2) / 20
+
+    @staticmethod
+    def calc_fidel_2(prop, gate):
+        prop = Qobj(prop[0:2, 0:2])
+        return (np.trace(prop.dag() * prop) + np.abs(np.trace(prop.dag() * gate)) ** 2) / 6
+
+    @staticmethod
+    def get_controls_only_sine(freq, amp, control_dt=0.01):
+        sintime = 1.0 / freq
+        sin_eval_times = np.linspace(0.0, sintime, int(sintime / control_dt) + 1)
+        sin_pulse = amp * np.sin(2.0 * np.pi * freq * sin_eval_times)
+        return sin_pulse, sin_eval_times
+
+    @staticmethod
+    def amp_from_freq_id(freq):
+        bessel_val = jn_zeros(0, 1)
+        return 2.0 * np.pi * freq * bessel_val / 2.0
+
+    @staticmethod
+    def amp_from_freq_sqrtiswap(omega, omega_d, n=1):
+        return 0.125 * np.pi * (omega_d ** 2 - omega ** 2) / (omega_d * np.sin(n * np.pi * omega / omega_d))
+
+    def optimize_amp_id_fidel(self, amp, freq, which_qubit='a'):
+        times = np.linspace(0.0, 1. / freq, int(1. / freq / 0.02) + 1)
+        omega_a = np.real(self.H_0[2, 2])
+        omega_b = np.real(self.H_0[1, 1])
+        _, (XI, IX, XX) = self.normalized_operators()
+        red_dim = 4
+
+        def control_func(t, args=None):
+            return amp * np.sin(2.0 * np.pi * freq * t)
+        if which_qubit == 'a':  # driving qubit a
+            drive_H = Qobj(XI[0:red_dim, 0:red_dim])
+            ideal_prop = self.RZ(-times[-1] * omega_b, which='b')
+        else:
+            drive_H = Qobj(IX[0:red_dim, 0:red_dim])
+            ideal_prop = self.RZ(-times[-1] * omega_a, which='a')
+        H = [Qobj(self.H_0[0:red_dim, 0:red_dim]), [drive_H, control_func]]
+        prop = propagator(H, times)
+        return 1 - self.calc_fidel_4(prop[-1], ideal_prop)
+
+    def synchronize(self, ta, tb):
+        if ta <= tb:
+            return self._synchronize(ta, tb)
+        else:
+            output, _ = self._synchronize(tb, ta)
+            flipped_output = np.flip(output, axis=1)
+            return flipped_output, (ta, tb)
+
+    def _synchronize(self, ta, tb):
+        """Assume ta <= tb"""
+        tmax = 1. / self.max_freq
+        tmin = 1. / self.min_freq
+        if ta == tb == 0.0:
+            return np.array([(None, None)]), (ta, tb)
+        elif tmax <= (tb - ta) <= tmin:
+            return np.array([(1. / (tb - ta), None)]), (ta, tb)
+        elif (tb - ta) < tmax:
+            new_freq = (tb - ta + tmax) ** (-1)
+            return np.array([(new_freq, self.max_freq)]), (ta, tb)
+        else:  # (tb - ta) > 1. / min_freq
+            trial_time, n, r = self._remainder_search(tb - ta)
+            return np.array(int(n) * ((1. / trial_time, None),) + ((1. / r, None),)), (ta, tb)
+
+    def _remainder_search(self, tdiff):
+        max_time = 1. / self.min_freq
+        min_time = 1. / self.max_freq
+        time_linspace = np.linspace(max_time, min_time, 101)
+        for trial_time in time_linspace:
+            n, r = divmod(tdiff, trial_time)
+            if min_time <= r <= max_time:
+                return trial_time, n, r
+        raise(RuntimeError('no sequence of identity pulses found to synchronize the two qubits'))
+
+    def _concatenate_for_qubit(self, freq, total_pulse, total_times, which_qubit='a'):
+        amp_0 = self.amp_from_freq_id(freq)
+        optimized_amp = minimize(self.optimize_amp_id_fidel, x0=np.array([amp_0]),
+                                 args=(freq, which_qubit))
+        assert optimized_amp.success
+        amp = optimized_amp.x[0]
+        controls, times = self.get_controls_only_sine(freq, amp, self.control_dt_fast)
+        total_pulse = self.concatenate_times_or_controls((total_pulse, controls),
+                                                         self.concatenate_two_controls)
+        total_times = self.concatenate_times_or_controls((total_times, times),
+                                                         self.concatenate_two_times)
+        return total_pulse, total_times
+
+    def parse_synchronize(self, synchronize_output):
+        """This function takes the output of synchronize and yields
+        the pulses along with the times that synchronize specified"""
+        total_pulse_a = np.array([])
+        total_pulse_b = np.array([])
+        total_times_a = np.array([])
+        total_times_b = np.array([])
+        output, (t_a, t_b) = synchronize_output
+        control_dt = self.control_dt_fast
+        for (freq_a_, freq_b_) in output:
+            if freq_a_ is not None:
+                total_pulse_a, total_times_a = self._concatenate_for_qubit(freq_a_, total_pulse_a,
+                                                                           total_times_a, which_qubit='a')
+            if freq_b_ is not None:
+                total_pulse_b, total_times_b = self._concatenate_for_qubit(freq_b_, total_pulse_b,
+                                                                           total_times_b, which_qubit='b')
+        # here we add the delay part that actually gives us Z rotations
+        delay_time_a = np.linspace(0.0, t_a, int(t_a / control_dt) + 1)
+        delay_time_b = np.linspace(0.0, t_b, int(t_b / control_dt) + 1)
+        total_times_a = self.concatenate_times_or_controls((total_times_a, delay_time_a),
+                                                           self.concatenate_two_times)
+        total_times_b = self.concatenate_times_or_controls((total_times_b, delay_time_b),
+                                                           self.concatenate_two_times)
+        total_pulse_a = self.concatenate_times_or_controls((total_pulse_a, np.zeros_like(delay_time_a)),
+                                                           self.concatenate_two_controls)
+        total_pulse_b = self.concatenate_times_or_controls((total_pulse_b, np.zeros_like(delay_time_b)),
+                                                           self.concatenate_two_controls)
+        return total_pulse_a, total_times_a, total_pulse_b, total_times_b
+
+    def concatenate_times_or_controls(self, t_c_tuple: tuple, concatenator: Callable):
+        if len(t_c_tuple) == 1:
+            return t_c_tuple[0]
+        concat_first_two = concatenator(t_c_tuple[0], t_c_tuple[1])
+        if len(t_c_tuple) == 2:
+            return concat_first_two
+        return self.concatenate_times_or_controls((concat_first_two,) + t_c_tuple[2:], concatenator)
+
+    @staticmethod
+    def concatenate_two_times(times_1, times_2):
+        if times_1.size == 0:
+            return times_2
+        if times_2.size == 0:
+            return times_1
+        return np.concatenate((times_1, times_1[-1] + times_2[1:]))
+
+    @staticmethod
+    def concatenate_two_controls(controls_1, controls_2):
+        if controls_1.size == 0:
+            return controls_2
+        if controls_2.size == 0:
+            return controls_1
+        assert np.allclose(controls_1[-1], 0.0) and np.allclose(controls_2[-1], 0.0)
+        return np.concatenate((controls_1, controls_2[1:]))
+
+    def propagator_for_coupler_segment(self, amp: float, omega_d: float, num_periods=2, red_dim=4):
+        """
+        Parameters
+        ----------
+        amp
+            amplitude of the pulse in angular frequency units
+        omega_d
+            frequency of the pulse in angular frequency units
+        num_periods
+            number of periods of driving
+        red_dim
+            dimension of the propagator. the time evolution will
+            be carried out includingthe full Hilbert space, but only
+            for initial states up to that specified by red_dim. default
+            is only for the qubit states
+
+        Returns
+        -------
+            propagator in the qubit subspace
+
+        """
+        def control_func_c(t, args=None):
+            return amp * np.sin(omega_d * t)
+        control_dt = self.control_dt_slow
+        total_time = num_periods * 2.0 * np.pi / omega_d
+        _, (_, _, XX) = self.normalized_operators()
+        H = [self.H_0, [XX, control_func_c]]
+        twoqcontrol_eval_times = np.linspace(0.0, total_time, int(total_time / control_dt) + 1)
+        my_prop = np.zeros((red_dim, red_dim), dtype=complex)
+        for i in range(red_dim):
+            result = sesolve(H, basis(self.dim, i), twoqcontrol_eval_times, options=Options(store_final_state=True))
+            my_prop[:, i] = result.final_state.data.toarray()[0:red_dim, 0]
+        return Qobj(my_prop)
+
+    def propagator_for_qubit_flux_segment(self, parse_synchronize_output, red_dim=4):
+        pulse_a, times_a, pulse_b, times_b = parse_synchronize_output
+        _, (XI, IX, _) = self.normalized_operators()
+        spline_a = interp1d(times_a, pulse_a, fill_value='extrapolate')
+        spline_b = interp1d(times_b, pulse_b, fill_value='extrapolate')
+
+        def control_func_a(t, args=None):
+            return spline_a(t)
+
+        def control_func_b(t, args=None):
+            return spline_b(t)
+
+        H = [Qobj(self.H_0[0:red_dim, 0:red_dim]),
+             [Qobj(XI[0:red_dim, 0:red_dim]), control_func_a],
+             [Qobj(IX[0:red_dim, 0:red_dim]), control_func_b]]
+        return propagator(H, times_a)[-1]
+
+    def propagator_for_full_pulse(self, amp, omega_d, num_periods, red_dim=4):
+        twoqprop = self.propagator_for_coupler_segment(amp, omega_d, num_periods)
+        global_phase = cmath.phase(twoqprop[0, 0])
+        zeroed_prop = twoqprop * np.exp(-1j * global_phase)
+        angles = self.fix_w_single_q_gates(zeroed_prop)
+        neg_angles = -angles % (2.0 * np.pi)
+        omega_a = np.real(self.H_0[2, 2])
+        omega_b = np.real(self.H_0[1, 1])
+        times = neg_angles / np.array([omega_a, omega_b, omega_b])
+        parse_output_after = self.parse_synchronize(self.synchronize(times[0], times[1]))
+        parse_output_before = self.parse_synchronize(self.synchronize(0.0, times[2]))
+        before_prop = self.propagator_for_qubit_flux_segment(parse_output_before, red_dim)
+        after_prop = self.propagator_for_qubit_flux_segment(parse_output_after, red_dim)
+        return after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop
