@@ -367,7 +367,6 @@ class QubitBaseClass(QuantumSystem, ABC):
     def matrixelement_table(
         self,
         operator: str,
-        operator_args: dict = None,
         evecs: ndarray = None,
         evals_count: int = 6,
         filename: str = None,
@@ -384,8 +383,6 @@ class QubitBaseClass(QuantumSystem, ABC):
         ----------
         operator:
             name of class method in string form, returning operator matrix in qubit-internal basis.
-        operator_args:
-            arguments, if any, of operator
         evecs:
             if not provided, then the necessary eigenstates are calculated on the fly
         evals_count:
@@ -399,10 +396,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         """
         if evecs is None:
             _, evecs = self.eigensys(evals_count=evals_count)
-        if operator_args:
-            operator_matrix = getattr(self, operator)(**operator_args)
-        else:
-            operator_matrix = getattr(self, operator)()
+        operator_matrix = getattr(self, operator)()
         table = get_matrixelement_table(operator_matrix, evecs)
         if filename or return_datastore:
             data_store = DataStore(
@@ -692,7 +686,6 @@ class QubitBaseClass(QuantumSystem, ABC):
         operator: str,
         param_name: str,
         param_vals: ndarray,
-        operator_args: dict = None,
         evals_count: int = 6,
         num_cpus: Optional[int] = None,
     ) -> SpectrumData:
@@ -708,8 +701,6 @@ class QubitBaseClass(QuantumSystem, ABC):
             name of parameter to be varied
         param_vals:
             parameter values to be plugged in
-        operator_args:
-            arguments, if any, of operator
         evals_count:
             number of desired eigenvalues (sorted from smallest to largest)
             (default value = 6)
@@ -739,7 +730,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         ):
             evecs = spectrumdata.state_table[index]
             matelem_table[index] = self.matrixelement_table(
-                operator, operator_args, evecs=evecs, evals_count=evals_count
+                operator, evecs=evecs, evals_count=evals_count
             )
 
         spectrumdata.matrixelem_table = matelem_table
@@ -918,7 +909,6 @@ class QubitBaseClass(QuantumSystem, ABC):
         operator: str,
         param_name: str,
         param_vals: ndarray,
-        operator_args: dict = None,
         select_elems: Union[int, List[Tuple[int, int]]] = 4,
         mode: str = "abs",
         num_cpus: Optional[int] = None,
@@ -962,7 +952,6 @@ class QubitBaseClass(QuantumSystem, ABC):
             operator,
             param_name,
             param_vals,
-            operator_args,
             evals_count=evals_count,
             num_cpus=num_cpus,
         )

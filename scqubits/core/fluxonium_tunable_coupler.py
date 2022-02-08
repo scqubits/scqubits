@@ -1,4 +1,5 @@
 import cmath
+import warnings
 from itertools import product
 from typing import Optional, Callable, Tuple
 
@@ -1579,7 +1580,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
 
     def find_flux_shift(self):
-        # TODO sign problem? seems backwards?
         fluxonium_a = self.fluxonium_a()
         fluxonium_b = self.fluxonium_b()
         fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
@@ -1724,8 +1724,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
-        J = self._J(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat)
-        return J * phi_a_mat[0, 1] * phi_b_mat[0, 1]
+        return self._J(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat)
 
     def off_location_coupler_flux(self, epsilon=1e-2):
         def _find_J(flux_c):
@@ -2202,8 +2201,12 @@ class ConstructFullPulse(serializers.Serializable):
         optimized_amp = minimize(
             self.optimize_amp_id_fidel, x0=np.array([amp_0]), args=(freq, which_qubit)
         )
-        assert optimized_amp.success
-        amp = optimized_amp.x[0]
+        if not optimized_amp.success:
+            print(optimized_amp)
+            print(warnings.warn('optimization of the qubit pulses did not succeed', Warning))
+            amp = amp_0
+        else:
+            amp = optimized_amp.x[0]
         controls, times = self.get_controls_only_sine(freq, amp, self.control_dt_fast)
         total_pulse = self.concatenate_times_or_controls(
             (total_pulse, controls), self.concatenate_two_controls
@@ -2359,7 +2362,30 @@ class ConstructFullPulse(serializers.Serializable):
         neg_angles = -angles % (2.0 * np.pi)
         omega_a = np.real(self.H_0[2, 2])
         omega_b = np.real(self.H_0[1, 1])
-        return neg_angles / np.array([omega_a, omega_b, omega_a, omega_b])
+        times = neg_angles / np.array([omega_a, omega_b, omega_a, omega_b])
+        print(times)
+        return times
+
+    def time_evolution_initial_state_full_pulse(
+        self,
+        initial_state: int,
+        amp: float,
+        omega_d: float,
+        num_periods: int = 2,
+        red_dim: int = 4,
+        num_cpus: int = 1,
+        which_Z_exclude=2,
+    ):
+        (spline_a,
+         spline_b,
+         spline_c,
+         total_times_a,
+         total_times_b,
+         total_times_c) = self.all_control_functions(amp, omega_d, num_periods, red_dim, num_cpus, which_Z_exclude)
+        _, (XI, IX, XX) = self.normalized_operators()
+        H = [self.H_0, [XI, lambda t, a: spline_a(t)],
+             [IX, lambda t, a: spline_b(t)],
+             [XX, lambda t, a: spline_c(t)]]
 
     def propagator_for_full_pulse(
         self,
@@ -2407,11 +2433,11 @@ class ConstructFullPulse(serializers.Serializable):
         )
 
     def construct_qubit_propagators(self, times, red_dim=4):
-        parse_output_after = self.parse_synchronize(
-            self.synchronize(times[0], times[1])
-        )
         parse_output_before = self.parse_synchronize(
             self.synchronize(times[2], times[3])
+        )
+        parse_output_after = self.parse_synchronize(
+            self.synchronize(times[0], times[1])
         )
         before_prop = self.propagator_for_qubit_flux_segment(
             parse_output_before, red_dim
@@ -2483,7 +2509,7 @@ class ConstructFullPulse(serializers.Serializable):
             zeroed_prop = twoqprop * np.exp(-1j * global_phase)
             times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=which_Z_exclude)
             parse_output_before = self.parse_synchronize(
-                self.synchronize(0.0, times[2])
+                self.synchronize(times[2], times[3])
             )
             parse_output_after = self.parse_synchronize(
                 self.synchronize(times[0], times[1])
@@ -2492,7 +2518,7 @@ class ConstructFullPulse(serializers.Serializable):
             parse_output_before, parse_output_after = parsed_outputs
         twoq_time = num_periods * 2.0 * np.pi / omega_d
         twoqcontrol_eval_times = np.linspace(
-            0.0, twoq_time, int(twoq_time / self.control_dt_fast) + 1
+            0.0, twoq_time, int(twoq_time / self.control_dt_slow) + 1
         )
         controls_2q = amp * np.sin(omega_d * twoqcontrol_eval_times)
 
@@ -2543,4 +2569,4 @@ class ConstructFullPulse(serializers.Serializable):
             total_pulse_c / norm_c / 2.0 / np.pi,
             fill_value="extrapolate",
         )
-        return spline_a, spline_b, spline_c, total_times_a
+        return spline_a, spline_b, spline_c, total_times_a, total_times_b, total_times_c
