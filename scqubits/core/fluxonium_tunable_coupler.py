@@ -1724,7 +1724,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
-        return self._J(evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat)
+        return self._J(
+            evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat
+        )
 
     def off_location_coupler_flux(self, epsilon=1e-2):
         def _find_J(flux_c):
@@ -2078,9 +2080,7 @@ class ConstructFullPulse(serializers.Serializable):
 
     @staticmethod
     def fix_w_single_q_gates(gate_, which_Z_exclude=2):
-        Z_matrix = 0.5 * np.array(
-            [[-1, -1, -1, -1], [-1, 1, -1, 1], [1, -1, -1, 1]]
-        )
+        Z_matrix = 0.5 * np.array([[-1, -1, -1, -1], [-1, 1, -1, 1], [1, -1, -1, 1]])
         new_Z_matrix = np.delete(Z_matrix, np.array(which_Z_exclude), axis=1)
         inv_Z_matrix = inv(new_Z_matrix)
         alpha = cmath.phase(gate_[0, 0])
@@ -2203,7 +2203,11 @@ class ConstructFullPulse(serializers.Serializable):
         )
         if not optimized_amp.success:
             print(optimized_amp)
-            print(warnings.warn('optimization of the qubit pulses did not succeed', Warning))
+            print(
+                warnings.warn(
+                    "optimization of the qubit pulses did not succeed", Warning
+                )
+            )
             amp = amp_0
         else:
             amp = optimized_amp.x[0]
@@ -2281,11 +2285,7 @@ class ConstructFullPulse(serializers.Serializable):
         return np.concatenate((controls_1, controls_2[1:]))
 
     def propagator_for_coupler_segment(
-        self,
-        amp: float,
-        omega_d: float,
-        num_periods: int = 2,
-        num_cpus: int = 1,
+        self, amp: float, omega_d: float, num_periods: int = 2, num_cpus: int = 1,
     ) -> Qobj:
         """
         Parameters
@@ -2330,7 +2330,9 @@ class ConstructFullPulse(serializers.Serializable):
             my_prop[:, i] = result[i]
         return Qobj(my_prop)
 
-    def propagator_for_qubit_flux_segment(self, parse_synchronize_output, red_dim=4, num_cpus=1):
+    def propagator_for_qubit_flux_segment(
+        self, parse_synchronize_output, red_dim=4, num_cpus=1
+    ):
         pulse_a, times_a, pulse_b, times_b = parse_synchronize_output
         _, (XI, IX, _) = self.normalized_operators()
         spline_a = interp1d(times_a, pulse_a, fill_value="extrapolate")
@@ -2360,21 +2362,34 @@ class ConstructFullPulse(serializers.Serializable):
         num_cpus: int = 1,
         which_Z_exclude=2,
     ):
-        (spline_a,
-         spline_b,
-         spline_c,
-         total_times_a,
-         total_times_b,
-         total_times_c) = self.all_control_functions(
-            amp, omega_d, num_periods, num_cpus=num_cpus, which_Z_exclude=which_Z_exclude
+        (
+            spline_a,
+            spline_b,
+            spline_c,
+            total_times_a,
+            total_times_b,
+            total_times_c,
+        ) = self.all_control_functions(
+            amp,
+            omega_d,
+            num_periods,
+            num_cpus=num_cpus,
+            which_Z_exclude=which_Z_exclude,
         )
         (norm_a, norm_b, norm_c), (XI, IX, XX) = self.normalized_operators()
-        H = [self.H_0, [XI, lambda t, a: 2.0 * np.pi * norm_a * spline_a(t)],
-             [IX, lambda t, a: 2.0 * np.pi * norm_b * spline_b(t)],
-             [XX, lambda t, a: 2.0 * np.pi * norm_c * spline_c(t)]]
-        result = sesolve(H, basis(self.dim, initial_state), total_times_a,
-                         [basis(self.dim, i) * basis(self.dim, i).dag() for i in range(4)],
-                         options=Options(store_final_state=True))
+        H = [
+            self.H_0,
+            [XI, lambda t, a: 2.0 * np.pi * norm_a * spline_a(t)],
+            [IX, lambda t, a: 2.0 * np.pi * norm_b * spline_b(t)],
+            [XX, lambda t, a: 2.0 * np.pi * norm_c * spline_c(t)],
+        ]
+        result = sesolve(
+            H,
+            basis(self.dim, initial_state),
+            total_times_a,
+            [basis(self.dim, i) * basis(self.dim, i).dag() for i in range(4)],
+            options=Options(store_final_state=True),
+        )
         return result
 
     def propagator_for_full_pulse(
@@ -2438,13 +2453,19 @@ class ConstructFullPulse(serializers.Serializable):
         )
         return before_prop, after_prop
 
-    def propagator_full_pulse_optimize_qubit_fluxes(self, twoq_prop, red_dim=4, num_cpus=1):
+    def propagator_full_pulse_optimize_qubit_fluxes(
+        self, twoq_prop, red_dim=4, num_cpus=1
+    ):
         global_phase = cmath.phase(twoq_prop[0, 0])
         zeroed_prop = twoq_prop * np.exp(-1j * global_phase)
         max_fidel = 0.0
         for which_Z_exclude in range(4):
-            times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=which_Z_exclude)
-            before_prop, after_prop = self.construct_qubit_propagators(times, red_dim=red_dim, num_cpus=num_cpus)
+            times = self.times_to_correct_prop(
+                zeroed_prop, which_Z_exclude=which_Z_exclude
+            )
+            before_prop, after_prop = self.construct_qubit_propagators(
+                times, red_dim=red_dim, num_cpus=num_cpus
+            )
             full_prop = (
                 after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop
             )
@@ -2497,7 +2518,9 @@ class ConstructFullPulse(serializers.Serializable):
             )
             global_phase = cmath.phase(twoqprop[0, 0])
             zeroed_prop = twoqprop * np.exp(-1j * global_phase)
-            times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=which_Z_exclude)
+            times = self.times_to_correct_prop(
+                zeroed_prop, which_Z_exclude=which_Z_exclude
+            )
             parse_output_before = self.parse_synchronize(
                 self.synchronize(times[2], times[3])
             )
