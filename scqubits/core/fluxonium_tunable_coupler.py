@@ -2285,7 +2285,6 @@ class ConstructFullPulse(serializers.Serializable):
         amp: float,
         omega_d: float,
         num_periods: int = 2,
-        red_dim: int = 4,
         num_cpus: int = 1,
     ) -> Qobj:
         """
@@ -2297,11 +2296,6 @@ class ConstructFullPulse(serializers.Serializable):
             frequency of the pulse in angular frequency units
         num_periods
             number of periods of driving
-        red_dim
-            dimension of the propagator. the time evolution will
-            be carried out includingthe full Hilbert space, but only
-            for initial states up to that specified by red_dim. default
-            is only for the qubit states
         num_cpus
             number cpus
 
@@ -2310,52 +2304,43 @@ class ConstructFullPulse(serializers.Serializable):
             propagator in the qubit subspace
 
         """
-
-        def control_func_c(t, args=None):
-            return amp * np.sin(omega_d * t)
-
-        target_map = cpu_switch.get_map_method(num_cpus)
-        control_dt = self.control_dt_slow
         total_time = num_periods * 2.0 * np.pi / omega_d
         _, (_, _, XX) = self.normalized_operators()
-        H = [self.H_0, [XX, control_func_c]]
+        H = [self.H_0, [XX, lambda t, a: amp * np.sin(omega_d * t)]]
         twoqcontrol_eval_times = np.linspace(
-            0.0, total_time, int(total_time / control_dt) + 1
+            0.0, total_time, int(total_time / self.control_dt_slow) + 1
         )
-        my_prop = np.zeros((red_dim, red_dim), dtype=complex)
+        return self.my_propagator(H, self.dim, twoqcontrol_eval_times, num_cpus)
+
+    def my_propagator(self, H, dim, times, num_cpus=1):
+        target_map = cpu_switch.get_map_method(num_cpus)
+        my_prop = np.zeros((4, 4), dtype=complex)
 
         def _run_sesolve(initial_state):
             return sesolve(
                 H,
-                basis(self.dim, initial_state),
-                twoqcontrol_eval_times,
+                basis(dim, initial_state),
+                times,
                 options=Options(store_final_state=True),
-            ).final_state.data.toarray()[0:red_dim, 0]
+            ).final_state.data.toarray()[0:4, 0]
 
-        initial_states = range(red_dim)
+        initial_states = range(4)
         result = list(target_map(_run_sesolve, initial_states))
-        for i in range(red_dim):
+        for i in range(4):
             my_prop[:, i] = result[i]
         return Qobj(my_prop)
 
-    def propagator_for_qubit_flux_segment(self, parse_synchronize_output, red_dim=4):
+    def propagator_for_qubit_flux_segment(self, parse_synchronize_output, red_dim=4, num_cpus=1):
         pulse_a, times_a, pulse_b, times_b = parse_synchronize_output
         _, (XI, IX, _) = self.normalized_operators()
         spline_a = interp1d(times_a, pulse_a, fill_value="extrapolate")
         spline_b = interp1d(times_b, pulse_b, fill_value="extrapolate")
-
-        def control_func_a(t, args=None):
-            return spline_a(t)
-
-        def control_func_b(t, args=None):
-            return spline_b(t)
-
         H = [
             Qobj(self.H_0[0:red_dim, 0:red_dim]),
-            [Qobj(XI[0:red_dim, 0:red_dim]), control_func_a],
-            [Qobj(IX[0:red_dim, 0:red_dim]), control_func_b],
+            [Qobj(XI[0:red_dim, 0:red_dim]), lambda t, a: spline_a(t)],
+            [Qobj(IX[0:red_dim, 0:red_dim]), lambda t, a: spline_b(t)],
         ]
-        return propagator(H, times_a)[-1]
+        return self.my_propagator(H, red_dim, times_a, num_cpus)
 
     def times_to_correct_prop(self, prop, which_Z_exclude=2):
         angles = self.fix_w_single_q_gates(prop, which_Z_exclude)
@@ -2372,7 +2357,6 @@ class ConstructFullPulse(serializers.Serializable):
         amp: float,
         omega_d: float,
         num_periods: int = 2,
-        red_dim: int = 4,
         num_cpus: int = 1,
         which_Z_exclude=2,
     ):
@@ -2381,11 +2365,17 @@ class ConstructFullPulse(serializers.Serializable):
          spline_c,
          total_times_a,
          total_times_b,
-         total_times_c) = self.all_control_functions(amp, omega_d, num_periods, red_dim, num_cpus, which_Z_exclude)
-        _, (XI, IX, XX) = self.normalized_operators()
-        H = [self.H_0, [XI, lambda t, a: spline_a(t)],
-             [IX, lambda t, a: spline_b(t)],
-             [XX, lambda t, a: spline_c(t)]]
+         total_times_c) = self.all_control_functions(
+            amp, omega_d, num_periods, num_cpus=num_cpus, which_Z_exclude=which_Z_exclude
+        )
+        (norm_a, norm_b, norm_c), (XI, IX, XX) = self.normalized_operators()
+        H = [self.H_0, [XI, lambda t, a: 2.0 * np.pi * norm_a * spline_a(t)],
+             [IX, lambda t, a: 2.0 * np.pi * norm_b * spline_b(t)],
+             [XX, lambda t, a: 2.0 * np.pi * norm_c * spline_c(t)]]
+        result = sesolve(H, basis(self.dim, initial_state), total_times_a,
+                         [basis(self.dim, i) * basis(self.dim, i).dag() for i in range(4)],
+                         options=Options(store_final_state=True))
+        return result
 
     def propagator_for_full_pulse(
         self,
@@ -2407,7 +2397,8 @@ class ConstructFullPulse(serializers.Serializable):
         num_periods
             number of periods of the coupler pulse
         red_dim
-            how many states to calculate propagators for
+            how many states to restrict time evolution to for
+            qubit flux segment
         num_cpus
             number cpus
 
@@ -2419,20 +2410,20 @@ class ConstructFullPulse(serializers.Serializable):
 
         """
         twoqprop = self.propagator_for_coupler_segment(
-            amp, omega_d, num_periods, red_dim, num_cpus
+            amp, omega_d, num_periods=num_periods, num_cpus=num_cpus
         )
         global_phase = cmath.phase(twoqprop[0, 0])
         zeroed_prop = twoqprop * np.exp(-1j * global_phase)
         times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=which_Z_exclude)
         before_prop, after_prop = self.construct_qubit_propagators(
-            times, red_dim=red_dim
+            times, red_dim=red_dim, num_cpus=num_cpus
         )
         return (
             after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop,
             times,
         )
 
-    def construct_qubit_propagators(self, times, red_dim=4):
+    def construct_qubit_propagators(self, times, red_dim=4, num_cpus=1):
         parse_output_before = self.parse_synchronize(
             self.synchronize(times[2], times[3])
         )
@@ -2440,24 +2431,26 @@ class ConstructFullPulse(serializers.Serializable):
             self.synchronize(times[0], times[1])
         )
         before_prop = self.propagator_for_qubit_flux_segment(
-            parse_output_before, red_dim
+            parse_output_before, red_dim=red_dim, num_cpus=num_cpus
         )
-        after_prop = self.propagator_for_qubit_flux_segment(parse_output_after, red_dim)
+        after_prop = self.propagator_for_qubit_flux_segment(
+            parse_output_after, red_dim=red_dim, num_cpus=num_cpus
+        )
         return before_prop, after_prop
 
-    def propagator_full_pulse_optimize_qubit_fluxes(self, twoq_prop, red_dim=4):
+    def propagator_full_pulse_optimize_qubit_fluxes(self, twoq_prop, red_dim=4, num_cpus=1):
         global_phase = cmath.phase(twoq_prop[0, 0])
         zeroed_prop = twoq_prop * np.exp(-1j * global_phase)
         max_fidel = 0.0
-        for i in range(4):
-            times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=i)
-            before_prop, after_prop = self.construct_qubit_propagators(times, red_dim=4)
+        for which_Z_exclude in range(4):
+            times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=which_Z_exclude)
+            before_prop, after_prop = self.construct_qubit_propagators(times, red_dim=red_dim, num_cpus=num_cpus)
             full_prop = (
                 after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop
             )
             fidel = self.calc_fidel_4(full_prop, self.sqrtiSWAP())
             if fidel > max_fidel:
-                max_index = i
+                max_index = which_Z_exclude
                 max_prop = full_prop
                 max_fidel = fidel
                 max_times = times
@@ -2468,9 +2461,8 @@ class ConstructFullPulse(serializers.Serializable):
         amp: float,
         omega_d: float,
         num_periods: int = 2,
-        red_dim: int = 4,
         num_cpus: int = 1,
-        which_Z_exclude = 2,
+        which_Z_exclude: int = 2,
         parsed_outputs=None,
     ):
         """
@@ -2483,8 +2475,6 @@ class ConstructFullPulse(serializers.Serializable):
             frequency of the coupler pulse
         num_periods
             number of periods of the coupler pulse
-        red_dim
-            how many states to calculate propagators for
         num_cpus
             number cpus
         which_Z_exclude
@@ -2503,7 +2493,7 @@ class ConstructFullPulse(serializers.Serializable):
         """
         if parsed_outputs is None:
             twoqprop = self.propagator_for_coupler_segment(
-                amp, omega_d, num_periods, red_dim, num_cpus
+                amp, omega_d, num_periods=num_periods, num_cpus=num_cpus
             )
             global_phase = cmath.phase(twoqprop[0, 0])
             zeroed_prop = twoqprop * np.exp(-1j * global_phase)
