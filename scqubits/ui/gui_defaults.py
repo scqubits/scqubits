@@ -166,6 +166,12 @@ composite_panel_names = ["Transitions", "Dispersive", "Custom data"]
 
 common_panels = ["Energy spectrum", "Wavefunctions"]
 
+mode_dropdown_list = [
+    ("Re(·)", "real"),
+    ("Im(·)", "imag"),
+    ("|·|", "abs"),
+    (u"|\u00B7|\u00B2", "abs_sqr"),
+]
 
 default_panels = {qubit_name: common_panels for qubit_name in supported_qubits}
 default_panels["Oscillator"] = []

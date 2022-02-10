@@ -17,7 +17,7 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from scqubits import settings
+from scqubits import SpectrumData, settings
 from scqubits.core.namedslots_array import NamedSlotsNdarray
 
 if TYPE_CHECKING:
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from scqubits.core.oscillator import Oscillator
 
 import scqubits.core.units as units
+import scqubits.utils.plotting as plot
 
 
 def display_bare_spectrum(
@@ -44,6 +45,7 @@ def display_bare_spectrum(
     bare_evals = sweep["bare_evals"]["subsys":subsys_index][param_slice.fixed]
     if subtract_ground:
         bare_evals = bare_evals - bare_evals[:, 0, np.newaxis]
+
     fig, axes = bare_evals[:, 0:evals_count].plot(  # type:ignore
         title=title,
         ylabel="energy [{}]".format(units.get_units()),
@@ -68,6 +70,80 @@ def display_anharmonicity(
         title=title,
         ylabel="anharmonicity [{}]".format(units.get_units()),
         fig_ax=fig_ax,
+    )
+    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
+
+
+def display_matrixelements(
+    sweep: "ParameterSweep",
+    operator_name: str,
+    subsys: "QubitBaseClass1d",
+    param_slice: "ParameterSlice",
+    mode_str: str,
+    fig_ax: Tuple[Figure, Axes],
+) -> None:
+    subsys_index = sweep.get_subsys_index(subsys)
+    evecs = sweep["bare_evecs"][subsys_index][param_slice.all]
+
+    fig, axes = fig_ax
+    axes.cla()
+
+    title = "{}: {}".format(subsys.id_str, operator_name)
+    fig, axes = subsys.plot_matrixelements(
+        operator_name,
+        evecs,
+        evals_count=subsys.truncated_dim,
+        mode=mode_str,
+        show3d=False,
+        show_numbers=True,
+        show_colorbar=False,
+        fig_ax=fig_ax,
+        title=title,
+    )
+
+
+def display_matrixelement_sweep(
+    sweep: "ParameterSweep",
+    operator_name: str,
+    subsys: "QubitBaseClass1d",
+    param_slice: "ParameterSlice",
+    mode_str: str,
+    fig_ax: Tuple[Figure, Axes],
+) -> None:
+    subsys_index = sweep.get_subsys_index(subsys)
+    evals = sweep["bare_evals"][subsys_index][param_slice.fixed]
+    evecs = sweep["bare_evecs"][subsys_index][param_slice.fixed]
+
+    fig, axes = fig_ax
+    axes.cla()
+
+    param_name = param_slice.param_name
+    param_vals = sweep.param_info[param_name]
+    paramvals_count = len(param_vals)
+
+    specdata = SpectrumData(
+        evals,
+        {},
+        param_slice.param_name,
+        param_vals,
+        state_table=evecs,
+    )
+
+    matelem_table = np.empty(
+        shape=(paramvals_count, subsys.truncated_dim, subsys.truncated_dim),
+        dtype=np.complex_,
+    )
+    for index, paramval in enumerate(param_vals):
+        evecs = specdata.state_table[index]
+        matelem_table[index] = subsys.matrixelement_table(
+            operator_name, evecs=evecs, evals_count=subsys.truncated_dim
+        )
+
+    specdata.matrixelem_table = matelem_table
+
+    title = "{}: {}".format(subsys.id_str, operator_name)
+    fig, axes = plot.matelem_vs_paramvals(
+        specdata, mode=mode_str, fig_ax=fig_ax, title=title
     )
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 

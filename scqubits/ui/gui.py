@@ -11,8 +11,6 @@
 ############################################################################
 
 
-import inspect
-
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -122,20 +120,6 @@ class GUI:
         self.create_plot_settings_widgets()
         self.create_qubit_params_widgets()
 
-    def get_operators(self) -> List[str]:
-        """Returns a list of operators for the active_qubit.
-        Note that this list omits any operators that start with "_".
-
-        Returns
-        -------
-        List[ str ]
-        """
-        operator_list = []
-        for name, val in inspect.getmembers(self.active_qubit):
-            if "operator" in name and name[0] != "_":
-                operator_list.append(name)
-        return operator_list
-
     # Widget EventHandler Methods ------------------------------------------------------
     def scan_dropdown_eventhandler(self, change):
         self.gui_active = False
@@ -225,9 +209,6 @@ class GUI:
             evals_count=eigenvalue_state_value,
             subtract_ground=subtract_ground_tf,
         )
-        # self.fig.canvas.toolbar_visible = False
-        # self.fig.canvas.header_visible = False
-        # self.fig.canvas.footer_visible = False
         GUI.fig_ax = self.fig, ax
         plt.show()
 
@@ -810,14 +791,8 @@ class GUI:
         self.qubit_plot_options_widgets = {}
         std_layout = Layout(width="300px")
 
-        operator_dropdown_list = self.get_operators()
+        operator_dropdown_list = self.active_qubit.get_operator_names()
         scan_dropdown_list = self.qubit_scan_params.keys()
-        mode_dropdown_list = [
-            ("Re(·)", "real"),
-            ("Im(·)", "imag"),
-            ("|·|", "abs"),
-            (u"|\u00B7|\u00B2", "abs_sqr"),
-        ]
         file = open(self.active_qubit._image_filename, "rb")
         image = file.read()
 
@@ -842,7 +817,7 @@ class GUI:
                 layout=std_layout,
             ),
             "mode_dropdown": widgets.Dropdown(
-                options=mode_dropdown_list,
+                options=defaults.mode_dropdown_list,
                 description="Plot as:",
                 disabled=False,
                 layout=std_layout,
