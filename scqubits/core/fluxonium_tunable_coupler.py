@@ -180,39 +180,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         phi_mat = get_matrixelement_table(qubit_instance.phi_operator(), evecs.T)
         return evals, evecs.T, phi_mat
 
-    def schrieffer_wolff_approx(self):
-        fluxonium_a = self.fluxonium_a()
-        fluxonium_b = self.fluxonium_b()
-        fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
-        fluxonium_minus = self.fluxonium_minus()
-        evals_a, evecs_a, phi_a_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
-            fluxonium_a
-        )
-        evals_b, evecs_b, phi_b_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
-            fluxonium_b
-        )
-        (
-            evals_m,
-            evecs_m,
-            phi_minus_mat,
-        ) = self.signed_evals_evecs_phi_mat_qubit_instance(fluxonium_minus)
-        chi_m = sum(
-            abs(phi_minus_mat[0, m]) ** 2 / (evals_m[m] - evals_m[0])
-            for m in range(1, fluxonium_minus.truncated_dim)
-        )
-        J = (
-            self.ELa
-            * self.ELb
-            * phi_a_mat[0, 1]
-            * phi_b_mat[0, 1]
-            * (0.5 * chi_m - 1.0 / self.EL_tilda())
-        )
-        return (
-            -0.5 * (evals_a[1] - evals_a[0]) * tensor(sigmaz(), qeye(2))
-            - 0.5 * (evals_b[1] - evals_b[0]) * tensor(qeye(2), sigmaz())
-            + J * tensor(sigmax(), sigmax())
-        )
-
     def _delta_mu_j(self, j, evals_mu, phi_mu_mat, evals_minus, phi_minus_mat, ELmu):
         ECp = self.h_o_plus_charging_energy()
         ELc = self.EL_tilda() / 4
@@ -317,19 +284,14 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         fluxonium_a = self.fluxonium_a()
         fluxonium_b = self.fluxonium_b()
         flux_a, flux_b = fluxonium_a.flux, fluxonium_b.flux
-        fluxonium_a.flux, fluxonium_b.flux = 0.5, 0.5
-        fluxonium_minus = self.fluxonium_minus()
-        evals_a, evecs_a, phi_a_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
-            fluxonium_a
-        )
-        evals_b, evecs_b, phi_b_mat = self.signed_evals_evecs_phi_mat_qubit_instance(
-            fluxonium_b
-        )
         (
-            evals_m,
-            evecs_m,
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
             phi_minus_mat,
-        ) = self.signed_evals_evecs_phi_mat_qubit_instance(fluxonium_minus)
+        ) = self._generate_fluxonia_evals_phi_for_SW()
         H_0_a = np.diag(evals_a - evals_a[0])[0:2, 0:2]
         H_0_b = np.diag(evals_b - evals_b[0])[0:2, 0:2]
         H_0 = tensor(Qobj(H_0_a), qeye(2)) + tensor(qeye(2), Qobj(H_0_b))
@@ -344,13 +306,13 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
 
         # second order calculation
         H_2_a = self._H2_self_correction_real_flux_coupler(
-            evals_a, evals_m, phi_a_mat, phi_minus_mat, fluxonium_a.EL
+            evals_a, evals_minus, phi_a_mat, phi_minus_mat, fluxonium_a.EL
         )
         H_2_a += self._H2_self_correction_real_flux_high_fluxonium(
             evals_a, phi_a_mat, phi_minus_mat, fluxonium_a.EL
         )
         H_2_b = self._H2_self_correction_real_flux_coupler(
-            evals_b, evals_m, phi_b_mat, phi_minus_mat, fluxonium_b.EL
+            evals_b, evals_minus, phi_b_mat, phi_minus_mat, fluxonium_b.EL
         )
         H_2_b += self._H2_self_correction_real_flux_high_fluxonium(
             evals_b, phi_b_mat, phi_minus_mat, fluxonium_b.EL
@@ -361,7 +323,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         H_2_ab = self._H2_qubit_coupling_real_flux(
             evals_a,
             evals_b,
-            evals_m,
+            evals_minus,
             phi_a_mat,
             phi_b_mat,
             phi_minus_mat,
@@ -784,7 +746,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     def _generate_fluxonia_evals_phi_for_SW(self):
         fluxonium_a = self.fluxonium_a()
         fluxonium_b = self.fluxonium_b()
-        # TODO this is a hack!
         fluxonium_a.flux = 0.5
         fluxonium_b.flux = 0.5
         fluxonium_minus = self.fluxonium_minus()
@@ -919,6 +880,20 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return zeroth_order + first_order_a + first_order_b
 
+    def _single_qubit_H_c(
+        self, ell, evals_q, phi_q_mat, evals_minus, phi_minus_mat, ELq, which=0
+    ):
+        ell_prime = (ell + 1) % 2
+        zeroth_order = 0.5 * ELq * phi_q_mat[0, 1]
+        first_order = (
+            -0.25
+            * self.EL_tilda()
+            * self._single_qubit_first_order(
+                evals_minus, evals_q, phi_q_mat, phi_minus_mat, ELq, ell, ell_prime
+            )
+        )
+        return (-1) ** which * (zeroth_order + first_order)
+
     def H_c_XI(self, ell):
         (
             evals_a,
@@ -928,16 +903,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
-        ell_prime = (ell + 1) % 2
-        zeroth_order = 0.5 * self.ELa * phi_a_mat[0, 1]
-        first_order = (
-            -0.25
-            * self.EL_tilda()
-            * self._single_qubit_first_order(
-                evals_minus, evals_a, phi_a_mat, phi_minus_mat, self.ELa, ell, ell_prime
-            )
+        return self._single_qubit_H_c(
+            ell, evals_a, phi_a_mat, evals_minus, phi_minus_mat, self.ELa, which=0
         )
-        return zeroth_order + first_order
 
     def H_c_IX(self, m):
         (
@@ -948,19 +916,65 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_minus,
             phi_minus_mat,
         ) = self._generate_fluxonia_evals_phi_for_SW()
-        m_prime = (m + 1) % 2
-        zeroth_order = -0.5 * self.ELa * phi_b_mat[0, 1]
-        first_order = (
-            0.25
-            * self.EL_tilda()
-            * self._single_qubit_first_order(
-                evals_minus, evals_b, phi_b_mat, phi_minus_mat, self.ELa, m, m_prime
-            )
+        return self._single_qubit_H_c(
+            m, evals_b, phi_b_mat, evals_minus, phi_minus_mat, self.ELb, which=1
         )
-        return zeroth_order + first_order
 
     def H_c_XX(self, ell, m):
         return -0.25 * self.EL_tilda() * self.theta_minus_XX(ell, m)
+
+    def _second_order_generator_cross(
+        self,
+        evals_a,
+        phi_a_mat,
+        evals_b,
+        phi_b_mat,
+        evals_minus,
+        phi_minus_mat,
+        ell,
+        ell_prime,
+        m,
+        m_prime,
+        n,
+        n_prime,
+    ):
+        return self._eps_1(
+            evals_minus,
+            evals_a,
+            phi_a_mat,
+            phi_minus_mat,
+            self.ELa,
+            i=ell,
+            j=ell_prime,
+            n=n,
+        ) * self._eps_1(
+            evals_minus,
+            evals_b,
+            phi_b_mat,
+            phi_minus_mat,
+            self.ELb,
+            i=m_prime,
+            j=m,
+            n=n_prime,
+        ) + self._eps_1(
+            evals_minus,
+            evals_a,
+            phi_a_mat,
+            phi_minus_mat,
+            self.ELa,
+            i=ell_prime,
+            j=ell,
+            n=n,
+        ) * self._eps_1(
+            evals_minus,
+            evals_b,
+            phi_b_mat,
+            phi_minus_mat,
+            self.ELb,
+            i=m,
+            j=m_prime,
+            n=n_prime,
+        )
 
     def theta_minus_XX(self, ell, m):
         (
@@ -975,47 +989,19 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         ell_prime = (ell + 1) % 2
         m_prime = (m + 1) % 2
         S1_m_contr = sum(
-            (
-                self._eps_1(
-                    evals_minus,
-                    evals_a,
-                    phi_a_mat,
-                    phi_minus_mat,
-                    self.ELa,
-                    i=ell,
-                    j=ell_prime,
-                    n=n,
-                )
-                * self._eps_1(
-                    evals_minus,
-                    evals_b,
-                    phi_b_mat,
-                    phi_minus_mat,
-                    self.ELb,
-                    i=m_prime,
-                    j=m,
-                    n=n_prime,
-                )
-                + self._eps_1(
-                    evals_minus,
-                    evals_a,
-                    phi_a_mat,
-                    phi_minus_mat,
-                    self.ELa,
-                    i=ell_prime,
-                    j=ell,
-                    n=n,
-                )
-                * self._eps_1(
-                    evals_minus,
-                    evals_b,
-                    phi_b_mat,
-                    phi_minus_mat,
-                    self.ELb,
-                    i=m,
-                    j=m_prime,
-                    n=n_prime,
-                )
+            self._second_order_generator_cross(
+                evals_a,
+                phi_a_mat,
+                evals_b,
+                phi_b_mat,
+                evals_minus,
+                phi_minus_mat,
+                ell,
+                ell_prime,
+                m,
+                m_prime,
+                n,
+                n_prime,
             )
             * phi_minus_mat[n, n_prime]
             for n in range(1, f_m_dim)
@@ -1023,45 +1009,19 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         S1_0_contr = (
             sum(
-                self._eps_1(
-                    evals_minus,
+                self._second_order_generator_cross(
                     evals_a,
                     phi_a_mat,
-                    phi_minus_mat,
-                    self.ELa,
-                    i=ell,
-                    j=ell_prime,
-                    n=n,
-                )
-                * self._eps_1(
-                    evals_minus,
                     evals_b,
                     phi_b_mat,
-                    phi_minus_mat,
-                    self.ELb,
-                    i=m_prime,
-                    j=m,
-                    n=n,
-                )
-                + self._eps_1(
                     evals_minus,
-                    evals_a,
-                    phi_a_mat,
                     phi_minus_mat,
-                    self.ELa,
-                    i=ell_prime,
-                    j=ell,
-                    n=n,
-                )
-                * self._eps_1(
-                    evals_minus,
-                    evals_b,
-                    phi_b_mat,
-                    phi_minus_mat,
-                    self.ELb,
-                    i=m,
-                    j=m_prime,
-                    n=n,
+                    ell,
+                    ell_prime,
+                    m,
+                    m_prime,
+                    n,
+                    n,
                 )
                 for n in range(1, f_m_dim)
             )
@@ -1135,6 +1095,29 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
         return pref * (zeroth_order - first_order)
 
+    def _H_q_eps_prod(
+        self, evals_q, phi_q_mat, evals_minus, phi_minus_mat, ELq, ell, ell_prime, n
+    ):
+        return self._eps_1(
+            evals_minus,
+            evals_q,
+            phi_q_mat,
+            phi_minus_mat,
+            ELq,
+            i=ell,
+            j=ell_prime,
+            n=n,
+        ) + self._eps_1(
+            evals_minus,
+            evals_q,
+            phi_q_mat,
+            phi_minus_mat,
+            ELq,
+            i=ell_prime,
+            j=ell,
+            n=n,
+        )
+
     def H_q_correct_X(self, ell, which="a"):
         (
             evals_a,
@@ -1156,27 +1139,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             * ELq
             * sum(
                 phi_minus_mat[0, n]
-                * (
-                    self._eps_1(
-                        evals_minus,
-                        evals_q,
-                        phi_q_mat,
-                        phi_minus_mat,
-                        ELq,
-                        i=ell,
-                        j=ell_prime,
-                        n=n,
-                    )
-                    + self._eps_1(
-                        evals_minus,
-                        evals_q,
-                        phi_q_mat,
-                        phi_minus_mat,
-                        ELq,
-                        i=ell_prime,
-                        j=ell,
-                        n=n,
-                    )
+                * self._H_q_eps_prod(
+                    evals_q,
+                    phi_q_mat,
+                    evals_minus,
+                    phi_minus_mat,
+                    ELq,
+                    ell,
+                    ell_prime,
+                    n,
                 )
                 for n in range(1, self.fluxonium_minus_truncated_dim)
             )
@@ -1216,25 +1187,15 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             * sum(
                 phi_minus_mat[0, n]
                 * (
-                    self._eps_1(
-                        evals_minus,
+                    self._H_q_eps_prod(
                         evals_q,
                         phi_q_mat,
-                        phi_minus_mat,
-                        ELq,
-                        i=m,
-                        j=m_prime,
-                        n=n,
-                    )
-                    + self._eps_1(
                         evals_minus,
-                        evals_q,
-                        phi_q_mat,
                         phi_minus_mat,
                         ELq,
-                        i=m_prime,
-                        j=m,
-                        n=n,
+                        m,
+                        m_prime,
+                        n,
                     )
                 )
                 for n in range(1, self.fluxonium_minus_truncated_dim)
@@ -1399,108 +1360,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             basis(self.h_o_truncated_dim, p),
         )
 
-    def first_order_generator(self):
-        f_a_dim = f_b_dim = self.fluxonium_truncated_dim
-        f_m_dim = self.fluxonium_minus_truncated_dim
-        (
-            evals_a,
-            phi_a_mat,
-            evals_b,
-            phi_b_mat,
-            evals_minus,
-            phi_minus_mat,
-        ) = self._generate_fluxonia_evals_phi_for_SW()
-        minus_a = sum(
-            self._eps_1(
-                evals_minus,
-                evals_a,
-                phi_a_mat,
-                phi_minus_mat,
-                self.ELa,
-                i=ell,
-                j=ell_prime,
-                n=n,
-            )
-            * self._bare_product_state_all(ell, m, 0, 0)
-            * self._bare_product_state_all(ell_prime, m, n, 0).dag()
-            for ell in range(2)
-            for m in range(2)
-            for n in range(1, f_m_dim)
-            for ell_prime in range(f_a_dim)
-        )
-        # excite higher fluxonium levels
-        minus_a += sum(
-            self._eps_1(
-                evals_minus,
-                evals_a,
-                phi_a_mat,
-                phi_minus_mat,
-                self.ELa,
-                i=ell,
-                j=ell_prime,
-                n=0,
-            )
-            * self._bare_product_state_all(ell, m, 0, 0)
-            * self._bare_product_state_all(ell_prime, m, 0, 0).dag()
-            for ell in range(2)
-            for m in range(2)
-            for ell_prime in range(2, f_a_dim)
-        )
-        minus_b = -sum(
-            self._eps_1(
-                evals_minus,
-                evals_b,
-                phi_b_mat,
-                phi_minus_mat,
-                self.ELb,
-                i=m,
-                j=m_prime,
-                n=n,
-            )
-            * self._bare_product_state_all(ell, m, 0, 0)
-            * self._bare_product_state_all(ell, m_prime, n, 0).dag()
-            for ell in range(2)
-            for m in range(2)
-            for n in range(1, f_m_dim)
-            for m_prime in range(f_b_dim)
-        )
-        minus_b += -sum(
-            self._eps_1(
-                evals_minus,
-                evals_b,
-                phi_b_mat,
-                phi_minus_mat,
-                self.ELb,
-                i=m,
-                j=m_prime,
-                n=0,
-            )
-            * self._bare_product_state_all(ell, m, 0, 0)
-            * self._bare_product_state_all(ell, m_prime, 0, 0).dag()
-            for ell in range(2)
-            for m in range(2)
-            for m_prime in range(2, f_b_dim)
-        )
-        minus = minus_a + minus_b - (minus_a + minus_b).dag()
-        plus_a = sum(
-            self._eps_1_plus(evals_a, phi_a_mat, self.ELa, i=ell, j=ell_prime)
-            * self._bare_product_state_all(ell, m, 0, 0)
-            * self._bare_product_state_all(ell_prime, m, 0, 1).dag()
-            for ell in range(2)
-            for m in range(2)
-            for ell_prime in range(f_a_dim)
-        )
-        plus_b = sum(
-            self._eps_1_plus(evals_b, phi_b_mat, self.ELb, i=m, j=m_prime)
-            * self._bare_product_state_all(ell, m, 0, 0)
-            * self._bare_product_state_all(ell, m_prime, 0, 1).dag()
-            for ell in range(2)
-            for m in range(2)
-            for m_prime in range(f_b_dim)
-        )
-        plus = plus_a + plus_b - (plus_a + plus_b).dag()
-        return plus + minus
-
     def generate_coupled_system(self):
         """Returns a HilbertSpace object of the full system of two fluxonium qubits interacting via
         a tunable coupler, which takes the form of a harmonic oscillator degree of freedom and
@@ -1639,7 +1498,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         self.flux_b = 0.5 - flux_shift_a
         return self.generate_coupled_system()
 
-    def basis_change(self, op, evecs, hilbert_space, subsystem):
+    @staticmethod
+    def basis_change(op, evecs, hilbert_space, subsystem):
         op_id_wrap = identity_wrap(op, subsystem, hilbert_space.subsys_list)
         op_new_basis = np.real(evecs.T @ op_id_wrap.data @ evecs)
         return Qobj(op_new_basis)
