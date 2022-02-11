@@ -1939,41 +1939,54 @@ class ConstructFullPulse(serializers.Serializable):
         return Qobj((-1j * theta * Z / 2.0).expm().data, dims=[[4], [4]])
 
     @staticmethod
-    def fix_w_single_q_gates(gate_, which_Z_exclude=2):
+    def fix_w_single_q_gates(gate_, which_Z_exclude=2, const_angle_val=0.0):
         Z_matrix = 0.5 * np.array([[-1, -1, -1, -1], [-1, 1, -1, 1], [1, -1, -1, 1]])
+        const_angle_col = Z_matrix[:, which_Z_exclude]
         new_Z_matrix = np.delete(Z_matrix, np.array(which_Z_exclude), axis=1)
         inv_Z_matrix = inv(new_Z_matrix)
         alpha = cmath.phase(gate_[0, 0])
         beta = cmath.phase(gate_[1, 1])
         gamma = cmath.phase(gate_[1, 2])
-        Z_rotation_angles = inv_Z_matrix @ np.array([-alpha, -beta, gamma + np.pi / 2])
-        Z_rotation_angles = np.insert(Z_rotation_angles, which_Z_exclude, 0)
+        angles_to_correct = (
+            np.array([-alpha, -beta, gamma + np.pi / 2])
+            - const_angle_val * const_angle_col
+        )
+        Z_rotation_angles = inv_Z_matrix @ angles_to_correct
+        Z_rotation_angles = np.insert(
+            Z_rotation_angles, which_Z_exclude, const_angle_val
+        )
         return Z_rotation_angles
 
     def multiply_with_single_q_gates(self, gate):
-        (t1, t2, t3) = self.fix_w_single_q_gates(gate)
+        (t1, t2, t3, t4) = self.fix_w_single_q_gates(gate)
         gate_ = Qobj(gate[0:4, 0:4])
         return (
             self.RZ(t1, which="a")
             * self.RZ(t2, which="b")
             * gate_
-            * self.RZ(0, which="a")
-            * self.RZ(t3, which="b")
+            * self.RZ(t3, which="a")
+            * self.RZ(t4, which="b")
         )
 
     @staticmethod
     def calc_fidel_4(prop, gate):
         prop = Qobj(prop[0:4, 0:4])
         return (
-            np.trace(prop.dag() * prop) + np.abs(np.trace(prop.dag() * gate)) ** 2
-        ) / 20
+            np.abs(
+                np.trace(prop.dag() * prop) + np.abs(np.trace(prop.dag() * gate)) ** 2
+            )
+            / 20
+        )
 
     @staticmethod
     def calc_fidel_2(prop, gate):
         prop = Qobj(prop[0:2, 0:2])
         return (
-            np.trace(prop.dag() * prop) + np.abs(np.trace(prop.dag() * gate)) ** 2
-        ) / 6
+            np.abs(
+                np.trace(prop.dag() * prop) + np.abs(np.trace(prop.dag() * gate)) ** 2
+            )
+            / 6
+        )
 
     @staticmethod
     def get_controls_only_sine(freq, amp, control_dt=0.01):
@@ -2172,7 +2185,8 @@ class ConstructFullPulse(serializers.Serializable):
         )
         return self.my_propagator(H, self.dim, twoqcontrol_eval_times, num_cpus)
 
-    def my_propagator(self, H, dim, times, num_cpus=1):
+    @staticmethod
+    def my_propagator(H, dim, times, num_cpus=1):
         target_map = cpu_switch.get_map_method(num_cpus)
         my_prop = np.zeros((4, 4), dtype=complex)
 
@@ -2204,13 +2218,16 @@ class ConstructFullPulse(serializers.Serializable):
         ]
         return self.my_propagator(H, red_dim, times_a, num_cpus)
 
-    def times_to_correct_prop(self, prop, which_Z_exclude=2):
-        angles = self.fix_w_single_q_gates(prop, which_Z_exclude)
+    def times_to_correct_prop(
+        self, prop, which_Z_exclude: int = 2, const_angle_val: float = 0.0
+    ):
+        angles = self.fix_w_single_q_gates(
+            prop, which_Z_exclude=which_Z_exclude, const_angle_val=const_angle_val
+        )
         neg_angles = -angles % (2.0 * np.pi)
         omega_a = np.real(self.H_0[2, 2])
         omega_b = np.real(self.H_0[1, 1])
         times = neg_angles / np.array([omega_a, omega_b, omega_a, omega_b])
-        print(times)
         return times
 
     def time_evolution_initial_state_full_pulse(
@@ -2259,7 +2276,8 @@ class ConstructFullPulse(serializers.Serializable):
         num_periods: int = 2,
         red_dim: int = 4,
         num_cpus: int = 1,
-        which_Z_exclude=2,
+        which_Z_exclude: int = 2,
+        const_angle_val: float = 0.0,
     ):
         """
 
@@ -2289,7 +2307,11 @@ class ConstructFullPulse(serializers.Serializable):
         )
         global_phase = cmath.phase(twoqprop[0, 0])
         zeroed_prop = twoqprop * np.exp(-1j * global_phase)
-        times = self.times_to_correct_prop(zeroed_prop, which_Z_exclude=which_Z_exclude)
+        times = self.times_to_correct_prop(
+            zeroed_prop,
+            which_Z_exclude=which_Z_exclude,
+            const_angle_val=const_angle_val,
+        )
         before_prop, after_prop = self.construct_qubit_propagators(
             times, red_dim=red_dim, num_cpus=num_cpus
         )
@@ -2314,28 +2336,35 @@ class ConstructFullPulse(serializers.Serializable):
         return before_prop, after_prop
 
     def propagator_full_pulse_optimize_qubit_fluxes(
-        self, twoq_prop, red_dim=4, num_cpus=1
+        self,
+        twoq_prop,
+        const_angle_array: ndarray = np.linspace(
+            0.0, 2.0 * np.pi, num=10, endpoint=False
+        ),
+        red_dim: int = 4,
+        num_cpus: int = 1,
     ):
         global_phase = cmath.phase(twoq_prop[0, 0])
         zeroed_prop = twoq_prop * np.exp(-1j * global_phase)
+        # find that minimize doesn't work well here to optimize over the initial angle
+        # since we aren't necessarily close to a minimum and changes in infidelity are
+        # so small. Cheaper just to brute-force scan
         max_fidel = 0.0
-        for which_Z_exclude in range(4):
+        for const_angle_val in const_angle_array:
             times = self.times_to_correct_prop(
-                zeroed_prop, which_Z_exclude=which_Z_exclude
+                zeroed_prop, which_Z_exclude=0, const_angle_val=const_angle_val
             )
             before_prop, after_prop = self.construct_qubit_propagators(
                 times, red_dim=red_dim, num_cpus=num_cpus
             )
-            full_prop = (
-                after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop
-            )
+            full_prop = after_prop * zeroed_prop * before_prop
             fidel = self.calc_fidel_4(full_prop, self.sqrtiSWAP())
             if fidel > max_fidel:
-                max_index = which_Z_exclude
+                max_const_angle = const_angle_val
                 max_prop = full_prop
                 max_fidel = fidel
                 max_times = times
-        return max_index, max_prop, max_fidel, max_times
+        return max_const_angle, max_prop, max_fidel, max_times
 
     def all_control_functions(
         self,
@@ -2344,6 +2373,7 @@ class ConstructFullPulse(serializers.Serializable):
         num_periods: int = 2,
         num_cpus: int = 1,
         which_Z_exclude: int = 2,
+        const_angle_val: float = 0.0,
         parsed_outputs=None,
     ):
         """
@@ -2379,7 +2409,9 @@ class ConstructFullPulse(serializers.Serializable):
             global_phase = cmath.phase(twoqprop[0, 0])
             zeroed_prop = twoqprop * np.exp(-1j * global_phase)
             times = self.times_to_correct_prop(
-                zeroed_prop, which_Z_exclude=which_Z_exclude
+                zeroed_prop,
+                which_Z_exclude=which_Z_exclude,
+                const_angle_val=const_angle_val,
             )
             parse_output_before = self.parse_synchronize(
                 self.synchronize(times[2], times[3])
