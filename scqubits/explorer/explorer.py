@@ -28,7 +28,7 @@ from scqubits.core.param_sweep import ParameterSlice
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
-    from ui.explorer_widget import ExplorerSetup
+    from ui.explorer_widget import Explorer2
 
 
 try:
@@ -280,11 +280,11 @@ class ExplorerMixin:
         - figsize: tuple(float, float)
     """
 
-    def update_panels(self: "ExplorerSetup") -> None:
+    def update_panels(self: "Explorer2") -> None:
         out = ipywidgets.interactive_output(self.update_plots, controls={})
 
     def plot_explorer_panels(
-        self: "ExplorerSetup",
+        self: "Explorer2",
     ) -> Tuple[Figure, Axes]:
         """
         Returns

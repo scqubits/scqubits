@@ -78,17 +78,6 @@ SEP = " | "
 MATPLOTLIB_WIDGET_BACKEND = "module://ipympl.backend_nbagg"
 
 
-# l400px = Layout(width="400px", justify_content="space-between")
-# l800px = Layout(width="800px", justify_content="space-between")
-# l900px = Layout(
-#     width="900px",
-#     align="top",
-#     justify_content="space-between",
-#     border="1px solid lightgrey",
-#     padding="15px 15px 15px 15px",
-# )
-
-
 def width(pixels: int, justify_content: Optional[str] = None) -> Layout:
     if justify_content:
         return Layout(width=str(pixels) + "px", justify_content=justify_content)
@@ -99,14 +88,13 @@ def boxed(pixels: int = 900) -> Layout:
     return Layout(
         width=str(pixels) + "px",
         align="top",
-        justify_content="space-between",
         border="1px solid lightgrey",
-        padding="15px 15px 15px 15px",
+        padding="10px 10px 10px 10px",
     )
 
 
 @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
-class ExplorerSetup(ipywidgets.VBox):
+class Explorer2(ipywidgets.VBox):
     """Class for setup of Explorer."""
 
     def __init__(self, sweep: scq.ParameterSweep):
@@ -140,7 +128,7 @@ class ExplorerSetup(ipywidgets.VBox):
         self.fig: Figure
         self.axes_table: List[List[Axes]]
 
-        px = 1 / plt.rcParams['figure.dpi']
+        px = 1 / plt.rcParams["figure.dpi"]
         if self._has_widget_backend:
             self.figwidth = 750 * px
             self.figheight = 260 * px
@@ -153,7 +141,7 @@ class ExplorerSetup(ipywidgets.VBox):
         self.ui_vbox: Dict[str, VBox] = {}
 
         # == Choose panels tab ====================================================
-        self.ui_subsys_dropdown = Dropdown(options=self.subsys_names, layout=width(185))
+        self.ui_subsys_dropdown = Dropdown(options=self.subsys_names, layout=width(165))
         self.ui_subsys_dropdown.observe(self.on_subsys_change, "value")
 
         self.ui_panels_checkboxes: Dict[str, Dict[str, Checkbox]] = {}
@@ -163,7 +151,7 @@ class ExplorerSetup(ipywidgets.VBox):
                     value=self.get_toggle_value_default(subsys_name, panel_name),
                     description=panel_name,
                     layout=width(185),
-                    style={'description_width': 'initial'}
+                    style={"description_width": "initial"},
                 )
                 for panel_name in subsys_panel_names
             }
@@ -172,7 +160,7 @@ class ExplorerSetup(ipywidgets.VBox):
                 value=self.get_toggle_value_default("Composite", panel_name),
                 description=panel_name,
                 layout=width(185),
-                style={'description_width': 'initial'}
+                style={"description_width": "initial"},
             )
             for panel_name in composite_panel_names
         }
@@ -192,7 +180,7 @@ class ExplorerSetup(ipywidgets.VBox):
             [
                 self.ui_panels_checkboxes["Composite"][panel_name]
                 for panel_name in composite_panel_names
-            ]
+            ],
         )
 
         for _, checkbox_dict in self.ui_panels_checkboxes.items():
@@ -206,14 +194,21 @@ class ExplorerSetup(ipywidgets.VBox):
                 checkbox = self.ui_panels_checkboxes[name][panel_name]
                 self.strings_to_panel_checkboxes[string_id] = checkbox
 
-        self.ui_vbox["choose_panels"] = VBox(
+        self.ui_hbox["choose_panels"] = HBox(
             [
-                self.ui_subsys_dropdown,
-                HBox(
-                    [self.ui_vbox["current_subsys"], self.ui_vbox["Composite"]],
-                    layout=width(400, justify_content="space-between"),
+                VBox([self.ui_subsys_dropdown, self.ui_vbox["current_subsys"]]),
+                VBox(
+                    [
+                        HTML(
+                            """<p style="border:1px; border-style:solid; 
+                               border-color:lightgrey; padding-left: 1em;"> 
+                               &nbsp;Multi-system </p>"""
+                        ),
+                        self.ui_vbox["Composite"],
+                    ]
                 ),
             ],
+            layout=width(400, justify_content="space-between"),
         )
 
         self.ui_panels_list = Select(
@@ -231,7 +226,7 @@ class ExplorerSetup(ipywidgets.VBox):
         )
 
         self.ui_hbox["panels"] = HBox(
-            [self.ui_vbox["choose_panels"], self.ui_vbox["panels_list"]],
+            [self.ui_hbox["choose_panels"], self.ui_vbox["panels_list"]],
             layout=width(800, justify_content="space-between"),
         )
 
@@ -264,7 +259,7 @@ class ExplorerSetup(ipywidgets.VBox):
                 HTML("<br>"),
                 self.ui_vbox["fixed_param_sliders"],
             ],
-            layout=width(240),
+            layout=boxed(250),
         )
 
         self.ui_vbox["panels_select"] = VBox(
@@ -335,9 +330,7 @@ class ExplorerSetup(ipywidgets.VBox):
                 self.out.clear_output(wait=True)
                 self.fig.tight_layout()
                 display(self.fig)
-        self.ui_hbox["main_display"] = HBox(
-            [self.ui_vbox["parameters"], self.out]
-        )
+        self.ui_hbox["main_display"] = HBox([self.ui_vbox["parameters"], self.out])
 
         # == Main Tab widget =======================================================
         self.ui_main_tab = Tab(
@@ -349,10 +342,8 @@ class ExplorerSetup(ipywidgets.VBox):
         )
         self.ui_main_tab.set_title(0, "Choose panels")
         self.ui_main_tab.set_title(1, "Panel settings")
-        # self.ui_main_tab.set_title(2, "Sweep parameters")
 
         self.children = [self.ui_main_tab, self.ui_hbox["main_display"]]  # self.out]
-
 
     # def toggle_settings_ui(self, btn):
     #     if btn.icon == "toggle-off":
@@ -437,14 +428,6 @@ class ExplorerSetup(ipywidgets.VBox):
             else:
                 initial_state = self.ui_transitions["initial_dressed_inttext"].value
 
-            # if self.ui_transitions["final_dressed_inttext"].disabled:
-            #     final_state = tuple(
-            #         inttext.value
-            #         for inttext in self.ui_transitions["final_state_inttexts"]
-            #     )
-            # else:
-            #     final_state = self.ui_transitions["final_dressed_inttext"].value
-
             subsys_name_tuple = self.ui_transitions["highlight_selectmultiple"].value
             if subsys_name_tuple == ():
                 subsys_list = None
@@ -466,7 +449,7 @@ class ExplorerSetup(ipywidgets.VBox):
                 fig_ax,
             )
             # return panels.display_n_photon_qubit_transitions
-        if panel_name == "Dispersive":
+        if panel_name == "Cross-Kerr, ac-Stark":
             pass
         if panel_name == "Custom data":
             pass
@@ -588,7 +571,7 @@ class ExplorerSetup(ipywidgets.VBox):
             list(self.sweep.param_info.keys()),
         )
 
-    def update_layout_and_plots(self: "ExplorerSetup", change):
+    def update_layout_and_plots(self: "Explorer2", change):
         panels = self.get_panels_list()
 
         nrows = len(panels) // self.ncols
@@ -623,7 +606,7 @@ class ExplorerSetup(ipywidgets.VBox):
         plt.ion()
         self.update_plots(None)
 
-    def update_plots(self: "ExplorerSetup", change):
+    def update_plots(self: "Explorer2", change):
         param_val = self.ui_sweep_value_slider.value
         panels = self.get_panels_list()
 

@@ -160,9 +160,10 @@ subsys_panel_names = [
     "Matrix elements",
     "Anharmonicity",
     "Dispersion",
+    "Self-Kerr"
 ]
 
-composite_panel_names = ["Transitions", "Dispersive", "Custom data"]
+composite_panel_names = ["Transitions", "Cross-Kerr, ac-Stark", "Custom data"]
 
 common_panels = ["Energy spectrum", "Wavefunctions"]
 
