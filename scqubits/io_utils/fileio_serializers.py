@@ -14,7 +14,6 @@ Helper classes for writing data to files.
 """
 
 import inspect
-Sweriimport typing
 
 from abc import ABCMeta
 from collections import OrderedDict
