@@ -14,6 +14,7 @@ Helper classes for writing data to files.
 """
 
 import inspect
+Sweriimport typing
 
 from abc import ABCMeta
 from collections import OrderedDict
@@ -24,7 +25,7 @@ import numpy as np
 
 from numpy import ndarray
 from scipy.sparse import csc_matrix
-from typing_extensions import Protocol
+from typing_extensions import Protocol, runtime_checkable
 
 import scqubits.utils.misc as utils
 
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 SERIALIZABLE_REGISTRY = {}
 
 
+@runtime_checkable
 class Serializable(Protocol):
     """Mix-in class that makes descendant classes serializable."""
 
