@@ -71,6 +71,7 @@ class IOWriter(ABC):
     def write_objects(self, *args, **kwargs):
         pass
 
+
 @utils.Required(h5py=_HAS_H5PY)
 class H5Writer(IOWriter):
     """Writes IOData to a custom-format h5 file"""
@@ -152,6 +153,7 @@ class H5Writer(IOWriter):
         if close_when_done:
             h5file_group.close()
 
+
 @utils.Required(h5py=_HAS_H5PY)
 class H5Reader:
     """
@@ -218,7 +220,9 @@ class H5Reader:
         }
         return ndarrays
 
-    def read_objects(self, h5file_group: Union["Group", "File"]) -> Dict[str, io.IOData]:
+    def read_objects(
+        self, h5file_group: Union["Group", "File"]
+    ) -> Dict[str, io.IOData]:
         """
         Read data from the given h5 file group that represents a Python object other
         than an ndarray, list, or dict.
