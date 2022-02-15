@@ -287,3 +287,15 @@ def cite(print_info=True):
         return None
     else:
         return fs.getvalue()
+
+
+def is_float_string(the_string: str) -> bool:
+    try:
+        float(the_string)
+        return True
+    except ValueError:
+        return False
+
+
+def list_intersection(list1: list, list2: list) -> list:
+    return list(set(list1) & set(list2))

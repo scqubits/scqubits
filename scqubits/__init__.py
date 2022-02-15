@@ -47,8 +47,8 @@ from scqubits.core.units import (
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
 
-from scqubits.core.customqcircuit import CustomQCircuit
-from scqubits.core.analyzeqcircuit import AnalyzeQCircuit
+from scqubits.core.symboliccircuit import SymbolicCircuit
+from scqubits.core.circuit import Circuit
 
 from scqubits.explorer.explorer import Explorer
 # file IO

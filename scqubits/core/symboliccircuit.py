@@ -1,4 +1,4 @@
-# customqcircuit.py
+# circuit.py
 #
 # This file is part of scqubits.
 #
@@ -9,8 +9,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from abc import ABC, ABCMeta, abstractmethod
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import itertools
 import copy
 
@@ -18,111 +17,109 @@ import sympy
 import numpy as np
 from numpy import ndarray
 from sympy import symbols
-from scipy import sparse
-from scipy.sparse.csc import csc_matrix
-from scipy.sparse.dia import dia_matrix
-from matplotlib import pyplot as plt
-from sympy.core.symbol import Symbol
-from sympy.logic.boolalg import Boolean
+
+from scqubits.utils.misc import is_float_string
 
 
-import scqubits.core.discretization as discretization
-import scqubits.core.constants as constants
-import scqubits.core.descriptors as descriptors
-import scqubits.core.discretization as discretization
-import scqubits.core.qubit_base as base
-import scqubits.core.storage as storage
-import scqubits.io_utils.fileio_serializers as serializers
-import scqubits.utils.plot_defaults as defaults
-import scqubits.utils.plotting as plot
+def process_word(word: str) -> Union[float, symbols]:
+    if is_float_string(word):
+        return float(word)
+    return symbols(word)
 
 
-class node:
+def are_disconnected(branch_list1: List[Branch], branch_list2: List[Branch]) -> bool:
     """
-    Class to represent a node in a circuit handled by CustomQCircuit.
+    Determines whether two sets of branches are disconnected
+    """
+    node_array1 = np.array([branch.node_ids() for branch in branch_list1]).flatten()
+    node_array2 = np.array([branch.node_ids() for branch in branch_list2]).flatten()
+    return np.intersect1d(node_array1, node_array2).size == 0
 
-    id: identifier of the node represented by a number,
-    marker: marker used to identify the node with respect to other nodes in any situation, can be set as 0 if not used.
 
-    Properties:
-    branches: list of branches connected to this node
+class Node:
+    """
+    Class to represent a Node in a circuit handled by Circuit. The attribute
+    `<Node>.branches` is a list of Branch objects containing all branches connected
+    to the node.
+    Parameters
+    ----------
+    id:
+        integer identifier of the node
+    marker:
+        TODO: this description is not useful
+        marker used to identify the Node with respect to other nodes in any situation,
+        can be set as 0 if not used.
     """
 
-    def __init__(self, id: int, marker: any):
+    # TODO: fix type of marker
+    def __init__(self, id: int, marker: Any):
         self.id = id
         self.marker = marker
-        self.branches = []
+        self.branches: List[Branch] = []
 
-    def __str__(self):
-        return "Node " + str(self.id)
+    def __str__(self) -> str:
+        return "Node {}".format(self.id)
 
-    def __repr__(self):
-        return "node({})".format(self.id)
+    def __repr__(self) -> str:
+        return "Node({})".format(self.id)
 
-    def connected_nodes(self, branch_type: str):
+    def connected_nodes(self, branch_type: str) -> List["Node"]:
         """
-        Returns the list of all the nodes where the branches connected to this node end
-
-        branch_type: "C", "L" and "JJ"; type: str
+        Returns a list of all nodes directly connected by branches to the current
+        node, either considering all branches or a specified branch type
+        branch_type:
+            "C", "L", "JJ", "all" for capacitive, inductive, Josephson junction,
+            or all types of branches.
         """
         result = []
-        if branch_type != "all":
-            for b in [x for x in self.branches if x.type == branch_type]:
-                if b.nodes[0].id == self.id:
-                    result.append(b.nodes[1])
-                else:
-                    result.append(b.nodes[0])
+        if branch_type == "all":
+            branch_list = self.branches
         else:
-            for b in self.branches:
-                if b.nodes[0].id == self.id:
-                    result.append(b.nodes[1])
-                else:
-                    result.append(b.nodes[0])
-
+            branch_list = [
+                branch for branch in self.branches if branch.type == branch_type
+            ]
+        for branch in branch_list:
+            if branch.nodes[0].id == self.id:
+                result.append(branch.nodes[1])
+            else:
+                result.append(branch.nodes[0])
         return result
 
-    def is_ground(self):
-        """
-        Returns a bool if the node is a ground node. It is ground if the id is set to 0.
-        """
-        return True if self.id == 0 else False
 
-
-class branch:
+class Branch:
     """
-    Class to describe a branch in a circuit, used by CustomQCircuit.
-
-    n_i and n_f represent the initial and final node this branch connects;
-    element is the type of this branch, example "C","JJ" or "L"
-    parameters is the list of parameters for the branch element, which are the following
-    capacitance: parameter "E_C"
-    inductance: parameter "E_L"
-    Josephson Junction: parameter "E_J", parameter "E_CJ"
-
-    Example: branch("C", node(1, 0), node(2, 0))
-    gives the branch connecting nodes with index 0 and 1.
+    Class describing a circuit branch, used in the Circuit class.
+    Parameters
+    ----------
+    n_i, n_f:
+        initial and final nodes connected by this branch;
+    branch_type:
+        is the type of this Branch, example "C","JJ" or "L"
+    parameters:
+        dictionary of parameters for the branch, namely for
+        capacitance: {"EC":  <value>};
+        for inductance: {"EL": <value>};
+        for Josephson Junction: {"EJ": <value>, "ECJ": <value>}
+    Example: `Branch("C", Node(1, 0), Node(2, 0))`
+    is a capacitive branch connecting the nodes with indices 0 and 1.
     """
 
-    def __init__(self, n_i: node, n_f: node, element: str, parameters=None):
+    def __init__(
+        self,
+        n_i: Node,
+        n_f: Node,
+        branch_type: str,
+        parameters: Optional[Dict[str, float]] = None,
+    ):
         self.nodes = (n_i, n_f)
-        self.type = element
-        # setting the parameters if it is provided
-        if parameters != None:
-            if element == "C" or element == "L":
-                self.parameters = {"E_" + element: parameters[0]}
-            elif element == "JJ" or element == "JJ2":
-                self.parameters = {"E_J": parameters[0], "E_CJ": parameters[1]}
-        # updating the nodes
+        self.type = branch_type
+        self.parameters = parameters
+        # store info of current branch inside the provided nodes
+        # TODO: discuss - this is an unexpected side effect
         self.nodes[0].branches.append(self)
         self.nodes[1].branches.append(self)
 
-    def set_parameters(self, parameters: ndarray):
-        if self.type == "C" or self.type == "L":
-            self.parameters = {self.type: parameters[0]}
-        elif self.type == "JJ" or self.type == "JJ2":
-            self.parameters = {"E_J": parameters[0], "E_CJ": parameters[1]}
-
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             "Branch "
             + self.type
@@ -134,39 +131,45 @@ class branch:
             + str(self.parameters)
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "Branch({}, {}, {})".format(
             self.type, self.nodes[0].id, self.nodes[1].id
         )
 
-    def is_connected(self, branch):
-        """Returns a boolean if self is connected to another branch given as input"""
-        distinct_nodes = len(set(self.nodes + branch.nodes))
-        if distinct_nodes < 4:
-            return True
-        else:
-            return False
+    def set_parameters(self, parameters: ndarray) -> None:
+        if self.type in ["C", "L"]:
+            self.parameters = {self.type: parameters[0]}
+        elif self.type in ["JJ", "JJ2"]:
+            self.parameters = {"EJ": parameters[0], "ECJ": parameters[1]}
 
-    def common_node(self, branch):
-        """Returns the common nodes between self and the branch given as input"""
+    def node_ids(self) -> Tuple[int, int]:
+        return (self.nodes[0].id, self.nodes[1].id)
+
+    def is_connected(self, branch) -> bool:
+        """Returns a boolean indicating whether the current branch is
+        connected to the given `branch`"""
+        distinct_node_count = len(set(self.nodes + branch.nodes))
+        if distinct_node_count < 4:
+            return True
+        return False
+
+    def common_node(self, branch) -> Set[Node]:
+        """Returns the common nodes between self and the `branch` given as input"""
         return set(self.nodes) & set(branch.nodes)
 
-
-class CustomQCircuit(serializers.Serializable):
+class SymbolicCircuit(serializers.Serializable):
     r"""
-    Class to describe a circuit using the classes node and branch.
-
-    Can be initialized using an input file. For a Transmon qubit for example the following input file can be used.
+    Describes a circuit consisting of nodes and branches.
+    Can be initialized using an input file. Examples: for a Transmon qubit the
+    input file would read:
     # file_name: transmon_num.inp
         nodes: 2
         branches:
         C	1,2	1
         JJ	1,2	1	10
-
     Circuit object can be initiated using:
-        CustomQCircuit.from_input_file("transmon_num.inp", mode="num")
-
-    A set of nodes with branches connecting them forms a circuit.
+        Circuit.from_input_file("transmon_num.inp", mode="num")
+    # TODO entries incomplete
     Parameters
     ----------
     nodes_list:
@@ -174,56 +177,50 @@ class CustomQCircuit(serializers.Serializable):
     branches_list:
         List of branches connecting the above set of nodes.
     mode:
-        "num" or "sym" correspondingly to numeric or symbolic representation of input parameters in the input file.
+        "num" or "sym" switches between numeric and symbolic representation of
+        parameters in the input file.
     """
 
     def __init__(
         self,
-        nodes_list: list,
-        branches_list: list,
-        mode: str = "num",
+        nodes_list: List[Node],
+        branches_list: List[Branch],
+        mode: str = "sym",
         basis: str = "simple",
         ground_node=None,
         initiate_sym_calc: bool = True,
     ):
-
         self.branches = branches_list
         self.nodes = nodes_list
         self.mode = mode
-        self.input_string: Optional[str] = None
+        self.input_string = None
 
+        # TODO the following line is unexpected, needs explanation if correct
         self._init_params = ["input_string"]  # for saving the init data
         self._sys_type = type(self).__name__  # for object description
 
-        # properties set by methods
+        # TODO all the following attributes require type annotations
+        # attributes set by methods
         self.trans_mat = None
 
         self.var_indices = None
-
         self.external_flux_vars = []
         self.closure_branches = []
 
         self.param_vars = []
 
-        self.H = None
-        self._L = (
-            None  # to store the internally used Lagrangian passed over to Hamiltonian
-        )
-        self.L = (
-            None  # to store the Human readable Lagrangian in terms of the new variables
-        )
-        self.L_old = None  # symbolic Lagrangian in terms of untransformed generalized flux variables
-        self.potential = (
-            None  # symbolic expression for the potential energy of the circuit
-        )
-        # parameters for grounding the circuit
-        if ground_node != None:
-            self.is_grounded = True
-            self.ground_node = ground_node
-        else:
-            self.is_grounded = False
-            self.ground_node = None
+        self.hamiltonian = None
+        self._lagrangian = None  # to store the internally used lagrangian
+        self.lagrangian = None
+        # TODO: naming -- "old" is not informative
+        self.lagrangian_old = None  # symbolic lagrangian in terms of untransformed generalized flux variables
+        self.potential = None  # symbolic expression for potential energy
 
+        # parameters for grounding the circuit
+        self.ground_node = ground_node
+        self.is_grounded = bool(self.ground_node)
+
+        # TODO comments in the following two lines are not helpful
         # paramater for chosing the basis
         self.basis = basis  # default, the other choice is standard
 
@@ -231,9 +228,9 @@ class CustomQCircuit(serializers.Serializable):
 
         # Calling the function to initiate the calss variables
         if initiate_sym_calc:
-            self.initiate_customqcircuit()
+            self.initiate_symboliccircuit()
 
-    def initiate_customqcircuit(self, transformation_matrix=None):
+    def initiate_symboliccircuit(self, transformation_matrix=None):
         """
         Method to initialize the CustomQCircuit instance and initialize all the attributes needed before it can be passed on to AnalyzeQCircuit.
 
@@ -253,27 +250,27 @@ class CustomQCircuit(serializers.Serializable):
         # setting the branch parameter variables
         self._set_param_vars()
         # Calculate the Lagrangian
-        self._L, self.potential, self.L_old = self.lagrangian_sym(
+        self._lagrangian, self.potential, self.lagrangian_old = self.lagrangian_sym(
             transformation_matrix=transformation_matrix
         )
 
         # replacing energies with capacitances in the kinetic energy of the Lagrangian
-        self.L, self.L_old = self.replace_energies_with_capacitances_L()
+        self.lagrangian, self.lagrangian_old = self.replace_energies_with_capacitances_L()
 
         # calculating the Hamiltonian
-        self.H = self.hamiltonian_sym(transformation_matrix=transformation_matrix)
+        self.hamiltonian = self.hamiltonian_sym(transformation_matrix=transformation_matrix)
 
     def replace_energies_with_capacitances_L(self):
         """
         Method replaces the energies in the Lagrangian with capacitances which are arbitrarily generated to make sure that the Lagrangian looks dimensionally correct.
         """
         # Replacing energies with capacitances if the circuit mode is symbolic
-        L = self._L.expand()
-        L_old = self.L_old
+        L = self._lagrangian.expand()
+        L_old = self.lagrangian_old
         if self.mode == "sym":
             # finding the unique capacitances
             uniq_capacitances = []
-            element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
+            element_param = {"C": "EC", "JJ": "ECJ", "JJ2": "ECJ"}
             for c, b in enumerate(
                 [
                     t
@@ -290,6 +287,7 @@ class CustomQCircuit(serializers.Serializable):
                 L_old = L_old.subs(var, 1 / (8 * symbols("C" + str(index + 1))))
         return L, L_old
 
+    # TODO: what's going on here?
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -307,103 +305,92 @@ class CustomQCircuit(serializers.Serializable):
                     return False
         return True
 
-    @classmethod
+        @staticmethod
+    def parse_nodes(code_lines: List[str]) -> List[Node]:
+        node_count = int(code_lines[0].split(":")[-1])
+        return [Node(id, 0) for id in range(1, node_count + 1)]
+
+    @staticmethod
+    def parse_branches(
+        code_lines: List[str], nodes: List[Node]
+    ) -> Tuple[List[Branch], Node]:
+        start_index = code_lines.index("branches:") + 1
+        end_index = len(code_lines)
+
+        node_count = len(nodes)
+        is_grounded = False
+        ground_node = None
+
+        branches = []
+        for line_index in range(start_index, end_index):
+            if code_lines[line_index] == "":
+                break
+
+            current_code_line = code_lines[line_index].replace("\t", " ")
+            words = [word for word in current_code_line.split(" ") if word != ""]
+            # TODO: naming -- completely unclear what n1,n2 represent
+            node_id1, node_id2 = [int(num) for num in words[1].split(",")]
+
+            if node_id1 * node_id2 == 0 and not is_grounded:
+                # TODO: following explanation is unhelpful
+                # make a ground node in case Node zero is used for any Branch in the
+                # input file
+                node_count += 1  # TODO: explain why?
+                ground_node = Node(0, 0)
+                is_grounded = True
+
+            branch_type = words[0]
+
+            if branch_type in ["JJ", "JJ2"]:
+                if len(words) <= 3:
+                    raise Exception("Cannot parse input: too few parameters for JJ.")
+                parameter1 = process_word(words[2])
+                parameter2 = process_word(words[3])
+                parameters = {branch_type: [parameter1, parameter2]}
+            else:
+                if len(words) <= 2:
+                    raise Exception("Cannot parse input: too few parameters for C/L.")
+                parameters = {branch_type: self.process_word(words[2])}
+
+            if node_id1 == 0:
+                branches.append(
+                    Branch(ground_node, nodes[node_id2 - 1], branch_type, parameters)
+                )
+            elif node_id2 == 0:
+                branches.append(
+                    Branch(nodes[node_id1 - 1], ground_node, branch_type, parameters)
+                )
+            else:
+                branches.append(
+                    Branch(
+                        nodes[node_id1 - 1],
+                        nodes[node_id2 - 1],
+                        branch_type,
+                        parameters,
+                    )
+                )
+        return branches, ground_node
+
+        @classmethod
     def from_input_string(
         cls,
         input_string: str,
-        mode: str = "num",
-        basis="simple",
-        initiate_sym_calc=True,
-    ):
+        mode: str = "sym",
+        basis: str = "simple",
+        initiate_sym_calc: bool = True,
+    ) -> None:
         """
-        Constructs the instance of CustomQCircuit from an input string.
+        Constructs the instance of Circuit from an input string.
+        TODO: info incomplete
         Parameters
         ----------
         input_string:
             String describing the number of nodes and branches connecting then along with their parameters
-
         """
-        lines = (input_string).split("\n")
-        num_nodes = int(lines[0].split(":")[-1])
-        nodes = [node(i, 0) for i in range(1, num_nodes + 1)]
-        branches = []
+        code_lines = input_string.split("\n")
 
-        first_branch = lines.index("branches:") + 1
-
-        is_grounded = (
-            False  # paramater to identify the presence of ground node in the circuit.
-        )
-        ground_node = None
-
-        def is_str_float(x):
-            try:
-                float(x)
-                return True
-            except ValueError:
-                return False
-
-        for l in range(first_branch, len(lines)):
-
-            if lines[l] == "":
-                break
-
-            words = [
-                word for word in lines[l].replace("\t", " ").split(" ") if word != ""
-            ]
-            n1, n2 = [int(num) for num in words[1].split(",")]
-
-            if (
-                n1 * n2 == 0 and is_grounded == False
-            ):  # Making a ground node in case node zero is used for any branch in the input file
-                num_nodes += 1
-                ground_node = node(0, 0)
-                is_grounded = True
-
-            element = words[0]
-
-            if element == "JJ" or element == "JJ2":
-                if (
-                    len(words) > 3
-                ):  # check to see if all the required parameters are defined
-                    parameters = None
-
-                if mode == "sym":
-                    if is_str_float(words[2]):
-                        p1 = float(words[2])
-                    else:
-                        p1 = symbols(words[2])
-                    if is_str_float(words[3]):
-                        p2 = float(words[3])
-                    else:
-                        p2 = symbols(words[3])
-
-                    parameters = [p1, p2]
-                elif mode == "num":
-                    parameters = [float(words[2]), float(words[3])]
-
-            else:
-                if (
-                    len(words) > 2
-                ):  # check to see if all the required parameters are defined
-                    parameters = None
-
-                if mode == "sym":
-                    if is_str_float(words[2]):
-                        p = float(words[2])
-                    else:
-                        p = symbols(words[2])
-                    parameters = [p]
-                elif mode == "num":
-                    parameters = [float(words[2])]
-
-            if n1 == 0:
-                branches.append(branch(ground_node, nodes[n2 - 1], element, parameters))
-            elif n2 == 0:
-                branches.append(branch(nodes[n1 - 1], ground_node, element, parameters))
-            else:
-                branches.append(
-                    branch(nodes[n1 - 1], nodes[n2 - 1], element, parameters)
-                )
+        nodes = cls.parse_nodes(code_lines)
+        branches, ground_node = cls.parse_branches(code_lines, nodes)
 
         circuit = cls(
             nodes,
@@ -414,24 +401,21 @@ class CustomQCircuit(serializers.Serializable):
             initiate_sym_calc=initiate_sym_calc,
         )
         circuit.input_string = input_string
-
         return circuit
-
     @classmethod
     def from_input_file(
         cls,
         filename: str,
-        mode: str = "num",
+        mode: str = "sym",
         basis="simple",
         initiate_sym_calc=True,
     ):
         """
-        Constructs the instance of CustomQCircuit from an input string.
+        Constructs the instance of Circuit from an input string.
         Parameters
         ----------
         filename:
             name of the file containing the text describing the number of nodes and branches connecting then along with their parameters
-
         """
         file = open(filename, "r")
         input_string = file.read()
@@ -502,7 +486,7 @@ class CustomQCircuit(serializers.Serializable):
 
         # step 3: Finding the linearly independent vectors spanning the vector space represented by branch_set_index
         basis = []
-        basis_numbers = [1, 0]  # numbers used to make basis vectors
+        basisvec_entries = [1, 0]  # numbers used to make basis vectors
 
         num_branch_sets = max(node_branch_set_indices)
 
@@ -512,14 +496,14 @@ class CustomQCircuit(serializers.Serializable):
         ]
 
         for index in range(*range_branch_sets):
-            basis.append([basis_numbers[0] if i == index else basis_numbers[1] for i in node_branch_set_indices])
+            basis.append([basisvec_entries[0] if i == index else basisvec_entries[1] for i in node_branch_set_indices])
 
         if single_nodes == True:  # taking the case where the node_branch_set_index is 0
             if node_branch_set_indices.count(0) > 0:
-                ref_vector = [basis_numbers[0] if i==0 else basis_numbers[1] for i in node_branch_set_indices]
-                positions = [index for index,num in enumerate(ref_vector) if num==basis_numbers[0]]
+                ref_vector = [basisvec_entries[0] if i==0 else basisvec_entries[1] for i in node_branch_set_indices]
+                positions = [index for index,num in enumerate(ref_vector) if num==basisvec_entries[0]]
                 for pos in positions:
-                    basis.append([basis_numbers[0] if x==pos else basis_numbers[1] for x,num in enumerate(node_branch_set_indices)])
+                    basis.append([basisvec_entries[0] if x==pos else basisvec_entries[1] for x,num in enumerate(node_branch_set_indices)])
 
         if self.is_grounded:  # if grounded remove the first row and column
             basis = [i[:-1] for i in basis]
@@ -686,12 +670,12 @@ class CustomQCircuit(serializers.Serializable):
             parameters = []  # showing three sublists, Ec's, El's ,Ej's and Ecj's
             for b in self.branches:
                 if b.type == "JJ" or b.type == "JJ2":
-                    parameters.append(b.parameters["E_J"])
-                    parameters.append(b.parameters["E_CJ"])
+                    parameters.append(b.parameters["EJ"])
+                    parameters.append(b.parameters["ECJ"])
                 elif b.type == "L":
-                    parameters.append(b.parameters["E_L"])
+                    parameters.append(b.parameters["EL"])
                 elif b.type == "C":
-                    parameters.append(b.parameters["E_C"])
+                    parameters.append(b.parameters["EC"])
             parameters = [
                 param
                 for param in list(set(parameters))
@@ -712,25 +696,26 @@ class CustomQCircuit(serializers.Serializable):
     def _junction_terms(self):
         terms = 0
         # looping over all the junction terms
-        for b in [t for t in self.branches if t.type == "JJ"]:
+        junction_branches = [branch for branch in self.branches if branch.type == "JJ"]
+        for jj_branch in junction_branches:
             # adding external flux
             phi_ext = 0
-            if b in self.closure_branches:
-                index = self.closure_branches.index(b)
+            if jj_branch in self.closure_branches:
+                index = self.closure_branches.index(jj_branch)
                 phi_ext += self.external_flux_vars[index]
 
-            if b.nodes[1].id == 0:  # if loop to check for the presence of ground node
-                terms += -b.parameters["E_J"] * sympy.cos(
-                    -symbols("φ" + str(b.nodes[0].id)) + phi_ext
+            if jj_branch.nodes[1].id == 0:  # if loop to check for the presence of ground node
+                terms += -jj_branch.parameters["EJ"] * sympy.cos(
+                    -symbols("φ" + str(jj_branch.nodes[0].id)) + phi_ext
                 )
-            elif b.nodes[0].id == 0:
-                terms += -b.parameters["E_J"] * sympy.cos(
-                    symbols("φ" + str(b.nodes[1].id)) + phi_ext
+            elif jj_branch.nodes[0].id == 0:
+                terms += -jj_branch.parameters["EJ"] * sympy.cos(
+                    symbols("φ" + str(jj_branch.nodes[1].id)) + phi_ext
                 )
             else:
-                terms += -b.parameters["E_J"] * sympy.cos(
-                    symbols("φ" + str(b.nodes[1].id))
-                    - symbols("φ" + str(b.nodes[0].id))
+                terms += -jj_branch.parameters["EJ"] * sympy.cos(
+                    symbols("φ" + str(jj_branch.nodes[1].id))
+                    - symbols("φ" + str(jj_branch.nodes[0].id))
                     + phi_ext
                 )
         return terms
@@ -738,27 +723,27 @@ class CustomQCircuit(serializers.Serializable):
     def _JJ2_terms(self):
         terms = 0
         # looping over all the JJ2 branches
-        for b in [t for t in self.branches if t.type == "JJ2"]:
+        for jj2_branch in [t for t in self.branches if t.type == "JJ2"]:
             # adding external flux
             phi_ext = 0
-            if b in self.closure_branches:
-                index = self.closure_branches.index(b)
+            if jj2_branch in self.closure_branches:
+                index = self.closure_branches.index(jj2_branch)
                 phi_ext += self.external_flux_vars[index]
 
-            if b.nodes[1].id == 0:  # if loop to check for the presence of ground node
-                terms += -b.parameters["E_J"] * sympy.cos(
-                    2 * (-symbols("φ" + str(b.nodes[0].id)) + phi_ext)
+            if jj2_branch.nodes[1].id == 0:  # if loop to check for the presence of ground node
+                terms += -jj2_branch.parameters["EJ"] * sympy.cos(
+                    2 * (-symbols("φ" + str(jj2_branch.nodes[0].id)) + phi_ext)
                 )
-            elif b.nodes[0].id == 0:
-                terms += -b.parameters["E_J"] * sympy.cos(
-                    2 * (symbols("φ" + str(b.nodes[1].id)) + phi_ext)
+            elif jj2_branch.nodes[0].id == 0:
+                terms += -jj2_branch.parameters["EJ"] * sympy.cos(
+                    2 * (symbols("φ" + str(jj2_branch.nodes[1].id)) + phi_ext)
                 )
             else:
-                terms += -b.parameters["E_J"] * sympy.cos(
+                terms += -jj2_branch.parameters["EJ"] * sympy.cos(
                     2
                     * (
-                        symbols("φ" + str(b.nodes[1].id))
-                        - symbols("φ" + str(b.nodes[0].id))
+                        symbols("φ" + str(jj2_branch.nodes[1].id))
+                        - symbols("φ" + str(jj2_branch.nodes[0].id))
                         + phi_ext
                     )
                 )
@@ -766,11 +751,11 @@ class CustomQCircuit(serializers.Serializable):
 
     def _capacitance_matrix(self):
         branches_with_capacitance = [
-            t
-            for t in self.branches
-            if t.type == "C" or t.type == "JJ" or t.type == "JJ2"
+            branch
+            for branch in self.branches
+            if branch.type == "C" or branch.type == "JJ" or branch.type == "JJ2"
         ]
-        capacitance_param_for_branch_type = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
+        capacitance_param_for_branch_type = {"C": "EC", "JJ": "ECJ", "JJ2": "ECJ"}
 
         # filling the non-diagonal entries
         if not self.is_grounded:
@@ -817,32 +802,32 @@ class CustomQCircuit(serializers.Serializable):
     def _capacitor_terms(self):
         terms = 0
         branches_with_capacitance = [
-            t
-            for t in self.branches
-            if t.type == "C" or t.type == "JJ" or t.type == "JJ2"
+            branch
+            for branch in self.branches
+            if branch.type == "C" or branch.type == "JJ" or branch.type == "JJ2"
         ]
-        for b in branches_with_capacitance:
-            element_param = {"C": "E_C", "JJ": "E_CJ", "JJ2": "E_CJ"}
+        for c_branch in branches_with_capacitance:
+            element_param = {"C": "EC", "JJ": "ECJ", "JJ2": "ECJ"}
 
-            if b.nodes[1].id == 0:
+            if c_branch.nodes[1].id == 0:
                 terms += (
                     1
-                    / (16 * b.parameters[element_param[b.type]])
-                    * (symbols("vφ" + str(b.nodes[0].id))) ** 2
+                    / (16 * c_branch.parameters[element_param[c_branch.type]])
+                    * (symbols("vφ" + str(c_branch.nodes[0].id))) ** 2
                 )
-            elif b.nodes[0].id == 0:
+            elif c_branch.nodes[0].id == 0:
                 terms += (
                     1
-                    / (16 * b.parameters[element_param[b.type]])
-                    * (-symbols("vφ" + str(b.nodes[1].id))) ** 2
+                    / (16 * c_branch.parameters[element_param[c_branch.type]])
+                    * (-symbols("vφ" + str(c_branch.nodes[1].id))) ** 2
                 )
             else:
                 terms += (
                     1
-                    / (16 * b.parameters[element_param[b.type]])
+                    / (16 * c_branch.parameters[element_param[c_branch.type]])
                     * (
-                        symbols("vφ" + str(b.nodes[1].id))
-                        - symbols("vφ" + str(b.nodes[0].id))
+                        symbols("vφ" + str(c_branch.nodes[1].id))
+                        - symbols("vφ" + str(c_branch.nodes[0].id))
                     )
                     ** 2
                 )
@@ -850,32 +835,32 @@ class CustomQCircuit(serializers.Serializable):
 
     def _inductor_terms(self):
         terms = 0
-        for b in [t for t in self.branches if t.type == "L"]:
+        for l_branch in [branch for branch in self.branches if branch.type == "L"]:
             # adding external flux
             phi_ext = 0
-            if b in self.closure_branches:
-                index = self.closure_branches.index(b)
+            if l_branch in self.closure_branches:
+                index = self.closure_branches.index(l_branch)
                 phi_ext += self.external_flux_vars[index]
 
-            if b.nodes[0].id == 0:
+            if l_branch.nodes[0].id == 0:
                 terms += (
                     0.5
-                    * b.parameters["E_L"]
-                    * (symbols("φ" + str(b.nodes[1].id)) + phi_ext) ** 2
+                    * l_branch.parameters["EL"]
+                    * (symbols("φ" + str(l_branch.nodes[1].id)) + phi_ext) ** 2
                 )
-            elif b.nodes[1].id == 0:
+            elif l_branch.nodes[1].id == 0:
                 terms += (
                     0.5
-                    * b.parameters["E_L"]
-                    * (-symbols("φ" + str(b.nodes[0].id)) + phi_ext) ** 2
+                    * l_branch.parameters["EL"]
+                    * (-symbols("φ" + str(l_branch.nodes[0].id)) + phi_ext) ** 2
                 )
             else:
                 terms += (
                     0.5
-                    * b.parameters["E_L"]
+                    * l_branch.parameters["EL"]
                     * (
-                        symbols("φ" + str(b.nodes[1].id))
-                        - symbols("φ" + str(b.nodes[0].id))
+                        symbols("φ" + str(l_branch.nodes[1].id))
+                        - symbols("φ" + str(l_branch.nodes[0].id))
                         + phi_ext
                     )
                     ** 2
@@ -1034,7 +1019,7 @@ class CustomQCircuit(serializers.Serializable):
     def lagrangian_sym(self, transformation_matrix: ndarray = None):
         r"""
         Returns three symbolic expressions: L_θ, potential_θ, L_φ
-        where θ represents the set of new variables and φ representst the set of old variables
+        where θ represents the set of new variables and φ represents the set of old variables
 
         Parameters
         ----------

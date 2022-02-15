@@ -1,4 +1,4 @@
-# analyzeqcircuit.py
+# analyze_circuit.py
 #
 # This file is part of scqubits.
 #
@@ -8,7 +8,19 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+
+
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    TYPE_CHECKING,
+    Union,
+)
 
 import sympy
 import numpy as np
@@ -20,123 +32,124 @@ from sympy import symbols, lambdify, parse_expr
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from matplotlib import pyplot as plt
-from scqubits.core import oscillator as osc
 from scqubits.core import operators as op
 from scqubits import HilbertSpace, settings
 
-from scqubits.core.customqcircuit import CustomQCircuit
+from scqubits.core.symboliccircuit import SymbolicCircuit
 import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 from scqubits.core.storage import DataStore
 import scqubits.io_utils.fileio_serializers as serializers
+from scqubits.utils.misc import list_intersection
 
 from scqubits.utils.spectrum_utils import (
     get_matrixelement_table,
     order_eigensystem,
-    recast_esys_mapdata,
-    standardize_sign,
 )
 
+if TYPE_CHECKING:
+    from scqubits.core.symboliccircuit import Circuit
 
-class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
+
+class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
     r"""
     Class to initiate a sub-system for a circuit just from a symbolic Hamiltonian.
-
     Circuit object can be initiated using:
-        QCircuit(parent, H_sym)
-
+        CircuitSubsystem(parent, H_sym)
     Parameters
     ----------
     parent:
-        the CustomQcircuit of which this sub-system is a part.
+        the Circuit object containing this subsystem.
     H_sym:
         Symbolic Hamiltonian describing the system.
     """
 
-    def __init__(self, parent, H_sym):
+    def __init__(self, parent: Circuit, H_sym):
         self.parent = parent
         self.H_sym = H_sym
         self.variables = list(H_sym.free_symbols)
 
+        # TODO what is this / why is it hardcoded to 10?
         self.truncated_dim = 10
         self._sys_type = type(self).__name__  # for object description
+        # TODO we talked about this... did you not fix this meanwhile?
         self._id_str = (
             self._autogenerate_id_str()
         )  # generating a class attribute to avoid error by parameter sweeps
 
+        # TODO what on earth is this doing here?
         self.hilbertdim()
-
+        # TODO what on earth is this doing here?
         self.hamiltonian_func()
 
-    def hamiltonian_func(self):
-
-        H = self.H_sym.expand()
-
-        periodic_var_indices = [
-            i for i in self.var_indices if i in self.parent.var_indices["periodic"]
+    def generate_symbols(self, prefix: str, index_type: str) -> List[symbols]:
+        return [
+            symbols(prefix + str(index))
+            for index in list_intersection(
+                self.parent.var_indices[index_type], self.var_indices
+            )
         ]
 
-        periodic_symbols_ys = [
-            symbols("θs" + str(i))
-            for i in self.parent.var_indices["periodic"]
-            if i in self.var_indices
-        ]
-        periodic_symbols_yc = [
-            symbols("θc" + str(i))
-            for i in self.parent.var_indices["periodic"]
-            if i in self.var_indices
-        ]
-        periodic_symbols_n = [
-            symbols("n" + str(i))
-            for i in self.parent.var_indices["periodic"]
-            if i in self.var_indices
-        ]
+    # TODO docstring
+    def hamiltonian_func(self) -> Callable:
+        hamiltonian = self.H_sym.expand()
 
+        periodic_var_indices = list_intersection(
+            self.parent.var_indices["periodic"], self.var_indices
+        )
         if len(periodic_var_indices) > 0:
-            H = sympy.expand_trig(H).expand()
+            hamiltonian = sympy.expand_trig(hamiltonian).expand()
 
-        for i in periodic_var_indices:
-            H = H.replace(
-                sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
-            ).replace(sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i)))
+        periodic_symbols_ys = self.generate_symbols("θs", "periodic")
+        periodic_symbols_yc = self.generate_symbols("θc", "periodic")
+        # TODO what's up with this? generated then never used?
+        periodic_symbols_n = self.generate_symbols("n", "periodic")
 
-        # discretized phi variables
-        # y_symbols = [symbols("θ" + str(i)) for i in self.var_indices["discretized_phi"] if i in self.var_indices]
-        # p_symbols = [symbols("Q" + str(i)) for i in self.var_indices["discretized_phi"] if i in self.var_indices]
+        for index in periodic_var_indices:
+            hamiltonian = hamiltonian.replace(
+                sympy.cos(1.0 * symbols("θ" + str(index))), symbols("θc" + str(index))
+            )
+            hamiltonian = hamiltonian.replace(
+                sympy.sin(1.0 * symbols("θ" + str(index))), symbols("θs" + str(index))
+            )
 
+        # TODO naming obscure - what is ps??
         ps_symbols = [
-            symbols("Qs" + str(i))
-            for i in self.parent.var_indices["discretized_phi"]
-            if i in self.var_indices
+            symbols("Qs" + str(index))
+            for index in list_intersection(
+                self.parent.var_indices["discretized_phi"], self.var_indices
+            )
         ]
 
         # marking the squared momentum operators with a separate symbol
-        for i in [
-            index
-            for index in self.parent.var_indices["discretized_phi"]
-            if index in self.var_indices
-        ]:
-            H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
+        for index in list_intersection(
+            self.parent.var_indices["discretized_phi"], self.var_indices
+        ):
+            hamiltonian = hamiltonian.replace(
+                symbols("Q" + str(index)) ** 2, symbols("Qs" + str(index))
+            )
 
         if len(periodic_var_indices) == 0:
+            # TODO meaning of "I" is completely obscure at this point in the code
             variables = [var for var in self.variables if "I" not in str(var)]
         else:
+            # TODO what's up with the "[] +"?
             variables = [] + periodic_symbols_ys + periodic_symbols_yc
             for var in self.variables:
-                for i in periodic_var_indices:
-                    if "θ" + str(i) not in str(var) and "I" not in str(var):
+                for index in periodic_var_indices:
+                    if "θ" + str(index) not in str(var) and "I" not in str(var):
                         variables.append(var)
 
         variables = variables + ps_symbols
 
         self.H_func_vars = variables.copy()
 
-        if symbols("I") in H.free_symbols:
+        if symbols("I") in hamiltonian.free_symbols:
             variables.append(symbols("I"))
 
         self.H_func = lambdify(
             variables,
-            H,
+            hamiltonian,
             [
                 {"exp": self.parent._exp_dia},
                 {"cos": self.parent._cos_dia},
@@ -144,23 +157,22 @@ class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
                 "scipy",
             ],
         )
-
+        # TODO this looks peculiar: the result is stored and returned???
         return self.H_func
 
     def _identity(self) -> csc_matrix:
         """
-        Returns the Identity operator for the entire Hilber space of the circuit.
+        Returns the Identity operator for the entire Hilbert space of the circuit.
         """
         dim = self.hilbertdim()
-        op = sparse.identity(dim)
-        return op.tocsc()
+        return sparse.identity(dim, format="csc")
 
     def hamiltonian(self):
         self.parent.set_operators()
         variables = [getattr(self.parent, str(var)) for var in self.H_func_vars]
         if symbols("I") in self.variables:
             variables.append(self._identity())
-        return self.H_func(*(variables))
+        return self.H_func(*variables)
 
     def hilbertdim(self):
         var_indices = []
@@ -181,6 +193,8 @@ class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
                             cutoffs.append(getattr(self.parent, cutoff_name))
                     var_indices.append(var_index)
         # setting some class attributes
+        # TODO do not declare attributes outside of _init_
+        # TODO and why would this need to be set if hilbertdim was called repeatedly?
         self.var_indices = var_indices
         self.cutoffs = cutoffs
         dimensions = []
@@ -216,13 +230,14 @@ class Q_sub_system(base.QubitBaseClass, serializers.Serializable):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
+    # TODO need to discuss
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
         return {}
 
 
-class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializable):
+class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
     r"""
     Class to numerically analyze an instance of CustomQCircuit.
 
@@ -262,7 +277,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         phi_basis: str = "sparse",
         hierarchical_diagonalization: bool = False,
     ):
-        CustomQCircuit.__init__(
+        SymbolicCircuit.__init__(
             self,
             list_nodes,
             list_branches,
@@ -296,13 +311,13 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         # Hamiltonian function
         if initiate_sym_calc:
-            self.initiate_analyzeqcircuit()
+            self.initiate_circuit()
 
     # constructor to initiate using a CustomQCircuit object
     @classmethod
     def from_CustomQCircuit(
         cls,
-        circuit: CustomQCircuit,
+        circuit: SymbolicCircuit,
         hierarchical_diagonalization: bool = False,
         phi_basis: str = "sparse",
     ):
@@ -336,7 +351,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         hierarchical_diagonalization: bool = False,
     ):
 
-        circuit = CustomQCircuit.from_input_string(
+        circuit = SymbolicCircuit.from_input_string(
             input_string, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc
         )
         circuit.hierarchical_diagonalization = hierarchical_diagonalization
@@ -359,7 +374,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         hierarchical_diagonalization: bool = False,
     ):
 
-        circuit = CustomQCircuit.from_input_file(
+        circuit = SymbolicCircuit.from_input_file(
             filename, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc
         )
         circuit.hierarchical_diagonalization = hierarchical_diagonalization
@@ -371,7 +386,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             phi_basis=phi_basis,
         )
 
-    def initiate_analyzeqcircuit(self):
+    def initiate_circuit(self):
         """
         Function to initiate the instance attributes by calling the appropriate methods. Should be used for debugging purposes.
         """
@@ -544,12 +559,12 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         )
         self.main_subsystem_sym = H - sum(oscs) - sum(interaction)
 
-        self.main_subsystem = Q_sub_system(self, self.main_subsystem_sym)
+        self.main_subsystem = CircuitSubsystem(self, self.main_subsystem_sym)
         self.osc_subsystems = dict(
             zip(
                 self.var_indices["osc"],
                 [
-                    [Q_sub_system(self, oscs[index]), interaction[index]]
+                    [CircuitSubsystem(self, oscs[index]), interaction[index]]
                     for index in range(len(self.var_indices["osc"]))
                 ],
             )
