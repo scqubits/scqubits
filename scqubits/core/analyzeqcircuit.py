@@ -256,7 +256,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
         list_nodes: list,
         list_branches: list = None,
         ground_node=None,
-        mode: str = "sym",
+        mode: str = "num",
         basis: str = "simple",
         initiate_sym_calc: bool = True,
         phi_basis: str = "sparse",
@@ -296,7 +296,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
 
         # Hamiltonian function
         if initiate_sym_calc:
-            self.initiate()
+            self.initiate_analyzeqcircuit()
 
     # constructor to initiate using a CustomQCircuit object
     @classmethod
@@ -329,7 +329,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     def from_input_string(
         cls,
         input_string: str,
-        mode: str = "sym",
+        mode: str = "num",
         phi_basis="sparse",
         basis="simple",
         initiate_sym_calc=True,
@@ -352,7 +352,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
     def from_input_file(
         cls,
         filename: str,
-        mode: str = "sym",
+        mode: str = "num",
         phi_basis="sparse",
         basis="simple",
         initiate_sym_calc=True,
@@ -371,7 +371,7 @@ class AnalyzeQCircuit(base.QubitBaseClass, CustomQCircuit, serializers.Serializa
             phi_basis=phi_basis,
         )
 
-    def initiate(self):
+    def initiate_analyzeqcircuit(self):
         """
         Function to initiate the instance attributes by calling the appropriate methods. Should be used for debugging purposes.
         """
