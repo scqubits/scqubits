@@ -57,9 +57,15 @@ try:
 except NameError:
     warnings.warn(
         "scqubits: could not import GUI - consider installing ipywidgets "
-        "(optional dependency)?",
-        ImportWarning,
+        "(optional dependency)?"
     )
+
+    def GUI():
+        warnings.warn(
+            "scqubits: could not import GUI - consider installing ipywidgets "
+            "(optional dependency)?",
+        )
+
 
 # for showing scqubits info
 from scqubits.utils.misc import about, cite
