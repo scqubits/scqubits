@@ -47,8 +47,9 @@ from scqubits.utils.spectrum_utils import (
     order_eigensystem,
 )
 
-if TYPE_CHECKING:
-    from scqubits.core.symboliccircuit import Circuit
+# Causing a circular import
+# if TYPE_CHECKING:
+#     from scqubits.core.symboliccircuit import Circuit
 
 
 class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
@@ -64,7 +65,7 @@ class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
         Symbolic Hamiltonian describing the system.
     """
 
-    def __init__(self, parent: Circuit, H_sym):
+    def __init__(self, parent, H_sym):
         self.parent = parent
         self.H_sym = H_sym
         self.variables = list(H_sym.free_symbols)
@@ -177,10 +178,10 @@ class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
     def hilbertdim(self):
         var_indices = []
         cutoffs = []
-        for v in self.variables:
-            if "I" not in str(v):
+        for var in self.variables:
+            if "I" not in str(var):
                 filtered_var = re.findall(
-                    "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(v))
+                    "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(var))
                 )  # filtering offset charges and external flux
                 if filtered_var == []:
                     continue
@@ -249,7 +250,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         JJ	1,2	1	10
 
     Circuit object can be initiated using:
-        CustomQCircuit.from_input_file("transmon_num.inp", mode="num")
+        CustomQCircuit.from_input_file("transmon_num.inp")
 
     A set of nodes with branches connecting them forms a circuit.
     Parameters
@@ -258,8 +259,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         List of nodes in the circuit
     branches_list:
         List of branches connecting the above set of nodes.
-    mode:
-        "num" or "sym" correspondingly to numeric or symbolic representation of input parameters in the input file.
     phi_basis:
         "sparse" or "harmonic": Choose whether to use discretized phi or harmonic oscillator basis for extended variables.
     hierarchical_diagonalization:
@@ -271,7 +270,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         list_nodes: list,
         list_branches: list = None,
         ground_node=None,
-        mode: str = "num",
         basis: str = "simple",
         initiate_sym_calc: bool = True,
         phi_basis: str = "sparse",
@@ -282,7 +280,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             list_nodes,
             list_branches,
             ground_node=ground_node,
-            mode=mode,
             basis=basis,
             initiate_sym_calc=initiate_sym_calc,
         )
@@ -333,7 +330,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             circuit.nodes,
             circuit.branches,
             ground_node=circuit.ground_node,
-            mode=circuit.mode,
             basis=circuit.basis,
             initiate_sym_calc=circuit.initiate_sym_calc,
             hierarchical_diagonalization=hierarchical_diagonalization,
@@ -344,7 +340,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
     def from_input_string(
         cls,
         input_string: str,
-        mode: str = "num",
         phi_basis="sparse",
         basis="simple",
         initiate_sym_calc=True,
@@ -352,7 +347,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
     ):
 
         circuit = SymbolicCircuit.from_input_string(
-            input_string, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc
+            input_string, basis=basis, initiate_sym_calc=initiate_sym_calc
         )
         circuit.hierarchical_diagonalization = hierarchical_diagonalization
         circuit.phi_basis = phi_basis
@@ -367,7 +362,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
     def from_input_file(
         cls,
         filename: str,
-        mode: str = "num",
         phi_basis="sparse",
         basis="simple",
         initiate_sym_calc=True,
@@ -375,7 +369,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
     ):
 
         circuit = SymbolicCircuit.from_input_file(
-            filename, mode=mode, basis=basis, initiate_sym_calc=initiate_sym_calc
+            filename, basis=basis, initiate_sym_calc=initiate_sym_calc
         )
         circuit.hierarchical_diagonalization = hierarchical_diagonalization
         circuit.phi_basis = phi_basis
@@ -388,7 +382,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
 
     def initiate_circuit(self):
         """
-        Function to initiate the instance attributes by calling the appropriate methods. Should be used for debugging purposes.
+        Function to initiate the instance attributes by calling the appropriate methods.
         """
         self.hamiltonian_sym()
         # initiating the class properties
@@ -489,7 +483,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             "identity": [symbols("I")],
         }
 
-        H = self.H.expand()
+        H = self.hamiltonian.expand()
 
         # terms_str = list(expr_dict.keys())
         # coeff_str = list(expr_dict.values())
@@ -623,7 +617,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         Outputs the function using lambdify in Sympy, which returns a Hamiltonian matrix by using the circuit attributes set in either the input file or the instance attributes.
         """
         H = (
-            self.H.expand()
+            self.hamiltonian.expand()
         )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
 
         # Defining the list of variables for periodic operators
@@ -741,11 +735,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                         + ")"
                     )
                     H = H - orig + x
-
-        # # Defining the list of variables for cyclic operators
-        cyclic_symbols = [symbols("Qc" + str(i)) for i in self.var_indices["cyclic"]]
-        for c in cyclic_symbols:
-            H = H.subs(c, c * symbols("I"))
 
         # To include the circuit parameters as parameters for the function if the method is called in "sym" or symbolic mode
 
@@ -1131,15 +1120,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             n_operator = self._change_sparsity(self._n_theta_operator(cutoffs[index]))
             periodic_operators[2].append(self._kron_operator(n_operator, index))
 
-        # # constructing the operators for cyclic variables
-        # cyclic_operators = []
-        # for v in cyclic_vars:  # momentum; there's no position for cyclic variables
-        #     index = int(v.name[1:])
-        #     n_operator = self._n_theta_operator(
-        #         cutoffs[index]
-        #     )  # using the same operator as the periodic variables
-        #     cyclic_operators.append(self._kron_operator(n_operator, index))
-
         return {
             "periodic": periodic_operators,
             "discretized_phi": normal_operators,
@@ -1258,11 +1238,11 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         Returns the Hamiltonian of the Circuit bu using the parameters set in the class properties.
         """
         # check on params class property
-        if self.get_params() == None and self.mode == "sym":
+        if self.get_params() == None and self.is_any_branch_parameter_symbolic():
             raise AttributeError(
                 "Set the params property of the circuit before calling this method."
             )
-        if self.mode == "sym":
+        if self.is_any_branch_parameter_symbolic():
             if len(self.param_vars) != len(self.get_params()):
                 raise ValueError(
                     "Invalid number of parameters given, please check the number of parameters."
@@ -1458,7 +1438,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
 
         if len(dims) > 2:
             raise AttributeError(
-                "Cannot plot wavefunction in more than 2 dimensions. The number of dimensions in dims should be less than 2."
+                "Cannot plot wavefunction in more than 2 dimensions. The number of dimensions should be less than 2."
             )
 
         wf_plot = (
