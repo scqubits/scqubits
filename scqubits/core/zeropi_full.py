@@ -225,9 +225,10 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
-            "tphi_1_over_f_fluxt1_bias_flux_line"
+            "tphi_1_over_f_flux",
+            "t1_bias_flux_line",
             # 't1_capacitive',
-            "t1_inductive",
+            "t1_inductive"
         ]
 
     def widget(self, params: Dict[str, Any] = None) -> None:
