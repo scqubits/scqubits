@@ -2009,6 +2009,21 @@ class ConstructFullPulse(serializers.Serializable):
             / (omega_d * np.sin(n * np.pi * omega / omega_d))
         )
 
+    def omega_plus(self):
+        omega_a = np.real(self.H_0[2, 2])
+        omega_b = np.real(self.H_0[1, 1])
+        return np.abs(omega_b + omega_a)
+
+    def omega_minus(self):
+        omega_a = np.real(self.H_0[2, 2])
+        omega_b = np.real(self.H_0[1, 1])
+        return np.abs(omega_b - omega_a)
+
+    def drive_freq_sqrtiswap(self, m=4):
+        omega_a = np.real(self.H_0[2, 2])
+        omega_b = np.real(self.H_0[1, 1])
+        return (omega_a + omega_b) / m
+
     def optimize_amp_id_fidel(self, amp, freq, which_qubit="a"):
         times = np.linspace(0.0, 1.0 / freq, int(1.0 / freq / 0.02) + 1)
         omega_a = np.real(self.H_0[2, 2])
