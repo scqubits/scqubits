@@ -204,12 +204,12 @@ class SymbolicCircuit(serializers.Serializable):
 
         self.param_vars = []
 
-        self.hamiltonian = None
-        self._lagrangian = None  # to store the internally used lagrangian
-        self.lagrangian = None
+        self.hamiltonian_symbolic= None
+        self._lagrangian_symbolic = None  # to store the internally used lagrangian
+        self.lagrangian_symbolic = None
         # TODO: naming -- "old" is not informative
         self.lagrangian_old = None  # symbolic lagrangian in terms of untransformed generalized flux variables
-        self.potential = None  # symbolic expression for potential energy
+        self.potential_symbolic = None  # symbolic expression for potential energy
 
         # parameters for grounding the circuit
         self.ground_node = ground_node
@@ -225,11 +225,9 @@ class SymbolicCircuit(serializers.Serializable):
         if initiate_sym_calc:
             self.initiate_symboliccircuit()
 
-
     def is_any_branch_parameter_symbolic(self):
         return True if len(self.param_vars) else False
-
-
+        
     def initiate_symboliccircuit(self, transformation_matrix=None):
         """
         Method to initialize the CustomQCircuit instance and initialize all the attributes needed before it can be passed on to AnalyzeQCircuit.
@@ -250,22 +248,22 @@ class SymbolicCircuit(serializers.Serializable):
         # setting the branch parameter variables
         self._set_param_vars()
         # Calculate the Lagrangian
-        self._lagrangian, self.potential, self.lagrangian_old = self.lagrangian_sym(
+        self._lagrangian_symbolic, self.potential_symbolic, self.lagrangian_old = self.generate_symbolic_lagrangian(
             transformation_matrix=transformation_matrix
         )
 
         # replacing energies with capacitances in the kinetic energy of the Lagrangian
-        self.lagrangian, self.lagrangian_old = self.replace_energies_with_capacitances_L()
+        self.lagrangian_symbolic, self.lagrangian_old = self.replace_energies_with_capacitances_L()
 
         # calculating the Hamiltonian
-        self.hamiltonian = self.hamiltonian_sym(transformation_matrix=transformation_matrix)
+        self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian(transformation_matrix=transformation_matrix)
 
     def replace_energies_with_capacitances_L(self):
         """
         Method replaces the energies in the Lagrangian with capacitances which are arbitrarily generated to make sure that the Lagrangian looks dimensionally correct.
         """
         # Replacing energies with capacitances if any branch parameters are symbolic
-        L = self._lagrangian.expand()
+        L = self._lagrangian_symbolic.expand()
         L_old = self.lagrangian_old
         if self.is_any_branch_parameter_symbolic():
             # finding the unique capacitances
@@ -419,9 +417,6 @@ class SymbolicCircuit(serializers.Serializable):
             initiate_sym_calc=initiate_sym_calc,
         )
 
-    """
-    Methods to find the cyclic variables of the circuit
-    """
 
     def independent_modes(self, branch_subset: List[Branch], single_nodes: bool = True):
         """
@@ -480,14 +475,10 @@ class SymbolicCircuit(serializers.Serializable):
         basis = []
         basisvec_entries = [1, 0]  # numbers used to make basis vectors
 
-        num_branch_sets = max(node_branch_set_indices)
+        unique_branch_set_markers = list(set(node_branch_set_indices))
+        branch_set_matkers_ungrounded = [marker for marker in unique_branch_set_markers if marker != -1] # removing the marker -1 as it is grounded.
 
-        range_branch_sets = [
-            1 if min(node_branch_set_indices) <= 0 else 2,
-            num_branch_sets + 1,
-        ]
-
-        for index in range(*range_branch_sets):
+        for index in branch_set_matkers_ungrounded:
             basis.append([basisvec_entries[0] if i == index else basisvec_entries[1] for i in node_branch_set_indices])
 
         if single_nodes == True:  # taking the case where the node_branch_set_index is 0
@@ -497,14 +488,17 @@ class SymbolicCircuit(serializers.Serializable):
                 for pos in positions:
                     basis.append([basisvec_entries[0] if x==pos else basisvec_entries[1] for x,num in enumerate(node_branch_set_indices)])
 
-        if self.is_grounded:  # if grounded remove the first row and column
+        if self.is_grounded:  # if grounded remove the last column and first row corresponding to the 
             basis = [i[:-1] for i in basis]
 
         return basis
 
+
+
+
     def variable_transformation_matrix(self) -> ndarray:
         r"""
-        Generates a transformation matrix which transforms the old to the new variables. Returns the variable identification along with the transformation matrix in the format: transformation_matrix, var_indices
+        Generates a transformation matrix which transforms the node variables to the new variables. Returns the variable identification along with the transformation matrix in the format: transformation_matrix, var_indices
         """
 
         ##################### Finding the Periodic Modes ##################
@@ -672,9 +666,6 @@ class SymbolicCircuit(serializers.Serializable):
 
         self.param_vars = parameters
 
-    """
-    Methods used to construct the Lagrangian of the circuit
-    """
 
     def _junction_terms(self):
         terms = 0
@@ -1000,7 +991,7 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols("ng_" + str(p))
             ]
 
-    def lagrangian_sym(self, transformation_matrix: ndarray = None):
+    def generate_symbolic_lagrangian(self, transformation_matrix: ndarray = None):
         r"""
         Returns three symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ
         where θ represents the set of new variables and φ represents the set of node variables
@@ -1070,7 +1061,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         return lagrangian_θ, potential_θ, lagrangian_φ
 
-    def hamiltonian_sym(self, transformation_matrix: ndarray = None):
+    def generate_symbolic_hamiltonian(self, transformation_matrix: ndarray = None):
         r"""
         Returns the Hamiltonian of the circuit in terms of the new variables :math:`\theta_i`.
 
@@ -1129,12 +1120,12 @@ class SymbolicCircuit(serializers.Serializable):
                 0
             ] * 0.5  # interms of new variables
 
-        hamiltonian = C_terms_new + self.potential
+        hamiltonian_symbolic = C_terms_new + self.potential_symbolic
 
         # adding the offset charge variables
         for p in self.var_indices["periodic"]:
-            hamiltonian = hamiltonian.subs(
+            hamiltonian_symbolic = hamiltonian_symbolic.subs(
                 symbols("Q" + str(p)), symbols("n" + str(p)) + symbols("ng_" + str(p))
             )
 
-        return hamiltonian
+        return hamiltonian_symbolic

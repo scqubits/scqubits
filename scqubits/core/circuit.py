@@ -384,7 +384,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         """
         Function to initiate the instance attributes by calling the appropriate methods.
         """
-        self.hamiltonian_sym()
+        self.generate_symbolic_hamiltonian()
         # initiating the class properties
         for var_type in self.var_indices.keys():
             if var_type == "periodic":
@@ -483,7 +483,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             "identity": [symbols("I")],
         }
 
-        H = self.hamiltonian.expand()
+        H = self.hamiltonian_symbolic.expand()
 
         # terms_str = list(expr_dict.keys())
         # coeff_str = list(expr_dict.values())
@@ -584,7 +584,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                 for var in x.free_symbols:
                     if "Φ" in str(var) or "ng" in str(var):
                         coefficient = coefficient*getattr(self, str(var))
-                        
                 operator_symbols = [var for var in x.free_symbols if (("Φ" not in str(var)) and ("ng" not in str(var)))]
 
                 main_sub_op_list = []
@@ -604,7 +603,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                     operator_dict["op" + str(op_index + 1)] = (op, self.main_subsystem)
 
                 for op_index, op in enumerate(osc_sub_op_list):
-                    operator_dict["op" + str(len(main_sub_op_list) + op_index +1)] = (
+                    operator_dict["op" + str(len(main_sub_op_list) + op_index + 1)] = (
                         op,
                         self.osc_subsystems[osc][0],
                     )
@@ -617,7 +616,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         Outputs the function using lambdify in Sympy, which returns a Hamiltonian matrix by using the circuit attributes set in either the input file or the instance attributes.
         """
         H = (
-            self.hamiltonian.expand()
+            self.hamiltonian_symbolic.expand()
         )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
 
         # Defining the list of variables for periodic operators
@@ -901,7 +900,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                 )
             if index < var_index_list[-1]:
                 Identity_r = sparse.identity(
-                    np.prod(cutoff_list[var_index_list.index(index) + 1 :]),
+                    np.prod(cutoff_list[var_index_list.index(index) + 1:]),
                     format=matrix_format,
                 )
 
@@ -1010,7 +1009,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         return n_theta_matrix
 
     def _exp_i_theta_operator(self, ncut) -> csc_matrix:
-        """
+        r"""
         Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
         """
         dim_theta = 2 * ncut + 1
@@ -1020,7 +1019,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         return matrix
 
     def _exp_i_theta_operator_conjugate(self, ncut) -> csc_matrix:
-        """
+        r"""
         Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
         """
         dim_theta = 2 * ncut + 1
@@ -1238,7 +1237,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         Returns the Hamiltonian of the Circuit bu using the parameters set in the class properties.
         """
         # check on params class property
-        if self.get_params() == None and self.is_any_branch_parameter_symbolic():
+        if self.get_params() is None and self.is_any_branch_parameter_symbolic():
             raise AttributeError(
                 "Set the params property of the circuit before calling this method."
             )
