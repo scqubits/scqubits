@@ -70,16 +70,35 @@ class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
         self.H_sym = H_sym
         self.variables = list(H_sym.free_symbols)
 
-        # TODO what is this / why is it hardcoded to 10?
+        # TODO what is this / why is it hardcoded to 10? - I followied this from the transmon.py file, as a starting parameter. 
         self.truncated_dim = 10
         self._sys_type = type(self).__name__  # for object description
-        # TODO we talked about this... did you not fix this meanwhile?
+        # TODO we talked about this... did you not fix this meanwhile? -  I think this is somehow needed for some method call. I will need to test it further
         self._id_str = (
             self._autogenerate_id_str()
         )  # generating a class attribute to avoid error by parameter sweeps
 
-        # TODO what on earth is this doing here?
-        self.hilbertdim()
+        var_indices = []
+        cutoffs = []
+        for var in self.variables:
+            if "I" not in str(var):
+                filtered_var = re.findall(
+                    "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(var))
+                )  # filtering offset charges and external flux
+                if filtered_var == []:
+                    continue
+                else:
+                    var_index = int(filtered_var[0])
+                # var_index = (int(re.findall('[0-9]+', str(v))[0]))
+                if var_index not in var_indices:
+                    for cutoff_name in self.parent.cutoffs_list:
+                        if str(var_index) in cutoff_name:
+                            cutoffs.append(getattr(self.parent, cutoff_name))
+                    var_indices.append(var_index)
+        # setting some class attributes
+        self.var_indices = var_indices
+        self.cutoffs = cutoffs
+
         # TODO what on earth is this doing here?
         self.hamiltonian_func()
 
@@ -103,8 +122,6 @@ class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
 
         periodic_symbols_ys = self.generate_symbols("θs", "periodic")
         periodic_symbols_yc = self.generate_symbols("θc", "periodic")
-        # TODO what's up with this? generated then never used?
-        periodic_symbols_n = self.generate_symbols("n", "periodic")
 
         for index in periodic_var_indices:
             hamiltonian = hamiltonian.replace(
@@ -114,8 +131,7 @@ class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
                 sympy.sin(1.0 * symbols("θ" + str(index))), symbols("θs" + str(index))
             )
 
-        # TODO naming obscure - what is ps??
-        ps_symbols = [
+        Q_squared_symbols = [
             symbols("Qs" + str(index))
             for index in list_intersection(
                 self.parent.var_indices["discretized_phi"], self.var_indices
@@ -131,17 +147,16 @@ class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
             )
 
         if len(periodic_var_indices) == 0:
-            # TODO meaning of "I" is completely obscure at this point in the code
+            # TODO meaning of "I" is completely obscure at this point in the code - In my code everywhere I is just identity, had to use it as the symbolic variable with a word makes the equations messy.
             variables = [var for var in self.variables if "I" not in str(var)]
         else:
-            # TODO what's up with the "[] +"?
-            variables = [] + periodic_symbols_ys + periodic_symbols_yc
+            variables = periodic_symbols_ys + periodic_symbols_yc
             for var in self.variables:
                 for index in periodic_var_indices:
                     if "θ" + str(index) not in str(var) and "I" not in str(var):
                         variables.append(var)
 
-        variables = variables + ps_symbols
+        variables = variables + Q_squared_symbols
 
         self.H_func_vars = variables.copy()
 
@@ -176,30 +191,10 @@ class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
         return self.H_func(*variables)
 
     def hilbertdim(self):
-        var_indices = []
-        cutoffs = []
-        for var in self.variables:
-            if "I" not in str(var):
-                filtered_var = re.findall(
-                    "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(var))
-                )  # filtering offset charges and external flux
-                if filtered_var == []:
-                    continue
-                else:
-                    var_index = int(filtered_var[0])
-                # var_index = (int(re.findall('[0-9]+', str(v))[0]))
-                if var_index not in var_indices:
-                    for cutoff_name in self.parent.cutoffs_list:
-                        if str(var_index) in cutoff_name:
-                            cutoffs.append(getattr(self.parent, cutoff_name))
-                    var_indices.append(var_index)
-        # setting some class attributes
-        # TODO do not declare attributes outside of _init_
-        # TODO and why would this need to be set if hilbertdim was called repeatedly?
-        self.var_indices = var_indices
-        self.cutoffs = cutoffs
+        
+        cutoffs = self.cutoffs
         dimensions = []
-        for x, index in enumerate(var_indices):
+        for x, index in enumerate(self.var_indices):
             if index in self.parent.var_indices["periodic"]:
                 dimensions.append(cutoffs[x] * 2 + 1)
             elif index in self.parent.var_indices["discretized_phi"]:
@@ -231,7 +226,7 @@ class CircuitSubsystem(base.QubitBaseClass, serializers.Serializable):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
-    # TODO need to discuss
+    # TODO need to discuss - Yes, I think I included this to make this object compatible with serialize, but did not complete this.
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -380,11 +375,16 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             phi_basis=phi_basis,
         )
 
-    def initiate_circuit(self):
+    def initiate_circuit(self, transformation_matrix=None):
         """
-        Function to initiate the instance attributes by calling the appropriate methods.
+        Method to initialize the Circuit instance and initialize all the attributes needed before it can be passed on to AnalyzeQCircuit.
+
+        Parameters
+        ----------
+        transformation_matrix:
+            Takes an ndarray and is used to set an alternative transformation matrix than the one generated by the method variable_transformation_matrix.
         """
-        self.generate_symbolic_hamiltonian()
+        self.initiate_symboliccircuit(transformation_matrix=transformation_matrix)
         # initiating the class properties
         for var_type in self.var_indices.keys():
             if var_type == "periodic":
@@ -584,6 +584,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                 for var in x.free_symbols:
                     if "Φ" in str(var) or "ng" in str(var):
                         coefficient = coefficient*getattr(self, str(var))
+                        
                 operator_symbols = [var for var in x.free_symbols if (("Φ" not in str(var)) and ("ng" not in str(var)))]
 
                 main_sub_op_list = []
@@ -603,7 +604,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                     operator_dict["op" + str(op_index + 1)] = (op, self.main_subsystem)
 
                 for op_index, op in enumerate(osc_sub_op_list):
-                    operator_dict["op" + str(len(main_sub_op_list) + op_index + 1)] = (
+                    operator_dict["op" + str(len(main_sub_op_list) + op_index +1)] = (
                         op,
                         self.osc_subsystems[osc][0],
                     )
@@ -900,7 +901,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                 )
             if index < var_index_list[-1]:
                 Identity_r = sparse.identity(
-                    np.prod(cutoff_list[var_index_list.index(index) + 1:]),
+                    np.prod(cutoff_list[var_index_list.index(index) + 1 :]),
                     format=matrix_format,
                 )
 
@@ -1009,7 +1010,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         return n_theta_matrix
 
     def _exp_i_theta_operator(self, ncut) -> csc_matrix:
-        r"""
+        """
         Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
         """
         dim_theta = 2 * ncut + 1
@@ -1019,7 +1020,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         return matrix
 
     def _exp_i_theta_operator_conjugate(self, ncut) -> csc_matrix:
-        r"""
+        """
         Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
         """
         dim_theta = 2 * ncut + 1
@@ -1237,7 +1238,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         Returns the Hamiltonian of the Circuit bu using the parameters set in the class properties.
         """
         # check on params class property
-        if self.get_params() is None and self.is_any_branch_parameter_symbolic():
+        if self.get_params() == None and self.is_any_branch_parameter_symbolic():
             raise AttributeError(
                 "Set the params property of the circuit before calling this method."
             )

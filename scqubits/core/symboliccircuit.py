@@ -37,13 +37,10 @@ class Node:
     id:
         integer identifier of the node
     marker:
-        TODO: this description is not useful
-        marker used to identify the Node with respect to other nodes in any situation,
-        can be set as 0 if not used.
+        An internal attribute used to group nodes and identify sub-circuits in the method independent_modes.
     """
 
-    # TODO: fix type of marker
-    def __init__(self, id: int, marker: Any):
+    def __init__(self, id: int, marker: int):
         self.id = id
         self.marker = marker
         self.branches: List[Branch] = []
@@ -115,7 +112,7 @@ class Branch:
         # setting the parameters if it is provided
         if parameters != None:
             self.set_parameters(parameters)
-        # TODO: discuss - this is an unexpected side effect
+        # TODO: discuss - this is an unexpected side effect - Each node is also updated when a new branch is created. This helps for example when we want to get the list of all branches connected to a single node. Makes it easier to write code, but definitely makes it more complicated to deal with.
         self.nodes[0].branches.append(self)
         self.nodes[1].branches.append(self)
 
@@ -169,13 +166,18 @@ class SymbolicCircuit(serializers.Serializable):
         JJ	1,2	1	10
     Circuit object can be initiated using:
         Circuit.from_input_file("transmon_num.inp")
-    # TODO entries incomplete
     Parameters
     ----------
     nodes_list:
         List of nodes in the circuit
     branches_list:
         List of branches connecting the above set of nodes.
+    basis: 
+        string; should be "simple" or "stadard" used to choose a type of basis for completing the transformation matrix. Set to "simple" by default. Name needs to be updated.
+    ground_node:
+        If the circuit is grounded, the ground node is treated separately and should be provided to this parameter.
+    initiate_sym_calc:
+        Boolean, set to True by default. Initiates the object attributes by calling the function initiate_symboliccircuit method when set to True. Set to False for debugging.
     """
 
     def __init__(
@@ -190,33 +192,29 @@ class SymbolicCircuit(serializers.Serializable):
         self.nodes = nodes_list
         self.input_string = None
 
-        # TODO the following line is unexpected, needs explanation if correct
-        self._init_params = ["input_string"]  # for saving the init data
         self._sys_type = type(self).__name__  # for object description
 
-        # TODO all the following attributes require type annotations
         # attributes set by methods
-        self.trans_mat = None
+        self.trans_mat: ndarray = None
 
-        self.var_indices = None
-        self.external_flux_vars = []
-        self.closure_branches = []
+        self.var_indices: List[int] = None
+        self.external_flux_vars: List[Symbol] = []
+        self.closure_branches: List[Branch] = []
 
-        self.param_vars = []
+        self.param_vars: List[Symbol] = []
 
-        self.hamiltonian_symbolic= None
-        self._lagrangian_symbolic = None  # to store the internally used lagrangian
-        self.lagrangian_symbolic = None
-        # TODO: naming -- "old" is not informative
-        self.lagrangian_old = None  # symbolic lagrangian in terms of untransformed generalized flux variables
-        self.potential_symbolic = None  # symbolic expression for potential energy
+        self.hamiltonian_symbolic: Union[sympy.Add, sympy.Mul] = None
+        self._lagrangian_symbolic: Union[sympy.Add, sympy.Mul] = None  # to store the internally used lagrangian
+        self.lagrangian_symbolic: Union[sympy.Add, sympy.Mul] = None
+        self.lagrangian_node_vars: Union[sympy.Add, sympy.Mul] = None  # symbolic lagrangian in terms of untransformed generalized flux variables
+        self.potential_symbolic: Union[sympy.Add, sympy.Mul] = None  # symbolic expression for potential energy
 
         # parameters for grounding the circuit
         self.ground_node = ground_node
         self.is_grounded = bool(self.ground_node)
 
-        # TODO comments in the following two lines are not helpful
-        # paramater for chosing the basis
+        # TODO comments in the following two lines are not helpful - Needs renaming and some refactoring in the method variable_transformation_matrix
+        # paramater for chosing the basis - needs to be rewritten
         self.basis = basis  # default, the other choice is standard
 
         self.initiate_sym_calc = initiate_sym_calc
@@ -248,12 +246,12 @@ class SymbolicCircuit(serializers.Serializable):
         # setting the branch parameter variables
         self._set_param_vars()
         # Calculate the Lagrangian
-        self._lagrangian_symbolic, self.potential_symbolic, self.lagrangian_old = self.generate_symbolic_lagrangian(
+        self._lagrangian_symbolic, self.potential_symbolic, self.lagrangian_node_vars = self.generate_symbolic_lagrangian(
             transformation_matrix=transformation_matrix
         )
 
         # replacing energies with capacitances in the kinetic energy of the Lagrangian
-        self.lagrangian_symbolic, self.lagrangian_old = self.replace_energies_with_capacitances_L()
+        self.lagrangian_symbolic, self.lagrangian_node_vars = self.replace_energies_with_capacitances_L()
 
         # calculating the Hamiltonian
         self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian(transformation_matrix=transformation_matrix)
@@ -264,7 +262,7 @@ class SymbolicCircuit(serializers.Serializable):
         """
         # Replacing energies with capacitances if any branch parameters are symbolic
         L = self._lagrangian_symbolic.expand()
-        L_old = self.lagrangian_old
+        L_old = self.lagrangian_node_vars
         if self.is_any_branch_parameter_symbolic():
             # finding the unique capacitances
             uniq_capacitances = []
@@ -285,7 +283,7 @@ class SymbolicCircuit(serializers.Serializable):
                 L_old = L_old.subs(var, 1 / (8 * symbols("C" + str(index + 1))))
         return L, L_old
 
-    # TODO: what's going on here?
+    # TODO: what's going on here? - I thought something like this was necessary for serialize to make sure we can store this object onto a file in the HDD.
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -324,14 +322,12 @@ class SymbolicCircuit(serializers.Serializable):
 
             current_code_line = code_lines[line_index].replace("\t", " ")
             words = [word for word in current_code_line.split(" ") if word != ""]
-            # TODO: naming -- completely unclear what n1,n2 represent
             node_id1, node_id2 = [int(num) for num in words[1].split(",")]
 
             if node_id1 * node_id2 == 0 and not is_grounded:
-                # TODO: following explanation is unhelpful
-                # make a ground node in case Node zero is used for any Branch in the
+                # Make a ground node when any of the branches in the input file has 0 as one of the nodes. This implies that ground node is included in the circuiit.
                 # input file
-                node_count += 1  # TODO: explain why?
+                node_count += 1  # TODO: explain why? - The node count includes the set of all nodes including ground node. But, the numer of nodes in the input file should not include the ground node. I will change this unnecessary complication by refactoring that method slightly.
                 ground_node = Node(0, 0)
                 is_grounded = True
 
@@ -373,13 +369,31 @@ class SymbolicCircuit(serializers.Serializable):
         initiate_sym_calc: bool = True,
     ) -> None:
         """
-        Constructs the instance of Circuit from an input string.
-        TODO: info incomplete
+        Constructs the instance of Circuit from an input string. Here is an example of an input string that is used to initiate an object of the class SymbolicCircuit:
+        ```
+        nodes: 7
+        branches:
+        JJ 0,1 5 1
+        JJ 1,2 5 1
+        JJ 3,4 EJ ECJ
+        JJ 5,6 4 1
+        L 2,3 1
+        L 4,0 2
+        L 3,5 3
+        L 6,7 4
+        C 3,4 5
+        C 5,6 1
+        C 7,0 1
+        ```
         Parameters
         ----------
         input_string:
             String describing the number of nodes and branches connecting then along with their parameters
-        """
+        basis: 
+            string; should be "simple" or "stadard" used to choose a type of basis for completing the transformation matrix. Set to "simple" by default. Name needs to be updated.
+        initiate_sym_calc:
+            Boolean, set to True by default. Initiates the object attributes by calling the function initiate_symboliccircuit method when set to True. Set to False for debugging.
+            """
         code_lines = input_string.split("\n")
 
         nodes = cls.parse_nodes(code_lines)
