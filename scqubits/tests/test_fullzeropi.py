@@ -51,5 +51,4 @@ class TestFullZeroPi(BaseTest):
         _, evecs_tst = self.qbt.eigensys(
             evals_count=evals_count, filename=self.tmpdir + "test." + io_type
         )
-
         assert np.allclose(np.abs(evecs_reference), np.abs(evecs_tst))
