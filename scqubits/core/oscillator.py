@@ -1,6 +1,7 @@
 # oscillator.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -10,9 +11,8 @@
 ############################################################################
 
 import os
-import warnings
 
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
 import scipy as sp
@@ -79,46 +79,28 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     ----------
     E_osc:
         energy of the oscillator
-    omega:
-        (deprecated) alternative way of specifying the energy of the oscillator
     l_osc:
         oscillator length (required to define phi_operator and n_operator)
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    E_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    l_osc = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    E_osc = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    l_osc = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
-        E_osc: Union[float, None] = None,
-        omega: Union[float, None] = None,
+        E_osc: float,
         l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
+        id_str: Optional[str] = None,
     ) -> None:
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.float_
-        self.truncated_dim: int = truncated_dim
-        self.l_osc: Union[None, float] = l_osc
-
-        # Support for omega will be rolled back eventually. For now allow with
-        # deprecation warnings.
-        if omega:
-            warnings.warn(
-                "Przestarza\u0142e! To avoid confusion about 2pi factors, use of omega "
-                "is deprecated. Use E_osc instead.",
-                FutureWarning,
-            )
-            self.E_osc = omega
-        # end of code supporting deprecated omega
-        elif E_osc:
-            self.E_osc = E_osc
-        else:
-            raise ValueError("E_osc is a mandatory argument.")
-
-        if "omega" in self._init_params:
-            self._init_params.remove("omega")
-
+        base.QuantumSystem.__init__(self, id_str=id_str)
+        self.truncated_dim: int = truncated_dim  # type:ignore
+        self.l_osc: Union[None, float] = l_osc  # type:ignore
+        self.E_osc = E_osc
         self._image_filename = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "qubit_img/oscillator.jpg"
         )
@@ -126,27 +108,6 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
     @staticmethod
     def default_params() -> Dict[str, Any]:
         return {"E_osc": 5.0, "l_osc": 1, "truncated_dim": _default_evals_count}
-
-    def get_omega(self) -> float:
-        # Support for omega will be rolled back eventually. For now allow with
-        # deprecation warnings.
-        warnings.warn(
-            "To avoid confusion about 2pi factors, use of omega is deprecated. Use"
-            " E_osc instead.",
-            FutureWarning,
-        )
-        return self.E_osc
-
-    def set_omega(self, value: float):
-        warnings.warn(
-            "To avoid confusion about 2pi factors, use of omega is deprecated. Use"
-            " E_osc instead.",
-            FutureWarning,
-        )
-        self.E_osc = value
-
-    omega = property(get_omega, set_omega)
-    # end of code for deprecated omega
 
     def eigenvals(self, evals_count: int = _default_evals_count) -> ndarray:
         """Returns array of eigenvalues.
@@ -200,7 +161,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         if self.l_osc is None:
             raise ValueError(
                 "Variable l_osc has to be set to something other than None\n"
-                + "in order to use the phi() method. This can be done by either\n"
+                + "in order to use the phi_operator() method. This can be done by either\n"
                 + "passing it to the class constructor, or by setting it afterwords."
             )
         a = op.annihilation(self.truncated_dim)
@@ -215,7 +176,7 @@ class Oscillator(base.QuantumSystem, serializers.Serializable):
         if self.l_osc is None:
             raise ValueError(
                 "Variable l_osc has to be set to something other than None\n"
-                + "in order to use the n() method. This can be done by either\n"
+                + "in order to use the n_operator() method. This can be done by either\n"
                 + "passing it to the class constructor, or by setting it afterwords."
             )
         a = op.annihilation(self.truncated_dim)
@@ -240,8 +201,11 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         oscillator length (used to define phi_operator and n_operator)
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    K = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    K = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -249,12 +213,16 @@ class KerrOscillator(Oscillator, serializers.Serializable):
         K: float,
         l_osc: Union[float, None] = None,
         truncated_dim: int = _default_evals_count,
+        id_str: Optional[str] = None,
     ) -> None:
 
-        self.K: float = K
+        self.K: float = K  # type:ignore
 
-        Oscillator.__init__(
-            self, E_osc=E_osc, omega=None, l_osc=l_osc, truncated_dim=truncated_dim
+        super().__init__(
+            E_osc=E_osc,
+            l_osc=l_osc,
+            truncated_dim=truncated_dim,
+            id_str=id_str,
         )
 
         self._image_filename = os.path.join(

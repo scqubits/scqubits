@@ -1,6 +1,7 @@
 # transmon.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -33,13 +34,18 @@ from scqubits.core.discretization import Grid1d
 from scqubits.core.noise import NoisySystem
 from scqubits.core.storage import WaveFunction
 
+LevelsTuple = Tuple[int, ...]
+Transition = Tuple[int, int]
+TransitionsTuple = Tuple[Transition, ...]
+
 # —Cooper pair box / transmon——————————————————————————————————————————————
 
 
 class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is
     represented in dense form in the number basis,
-    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2+\frac{E_\text{J}}{2}(|n\rangle\langle n+1|+\text{h.c.})`.
+    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2-\frac{E_\text{J}}{2}(
+    |n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
 
         Transmon(EJ=1.0, EC=2.0, ng=0.2, ncut=30)
@@ -56,22 +62,30 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         charge basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    EJ = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EC = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
-        self, EJ: float, EC: float, ng: float, ncut: int, truncated_dim: int = 6
+        self,
+        EJ: float,
+        EC: float,
+        ng: float,
+        ncut: int,
+        truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ = EJ
         self.EC = EC
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(
@@ -82,7 +96,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def default_params() -> Dict[str, Any]:
         return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
@@ -91,9 +106,11 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             "t1_charge_impedance",
         ]
 
-    def effective_noise_channels(self) -> List[str]:
-        """Return a default list of channels used when calculating effective t1 and t2 nosie."""
-        noise_channels = self.supported_noise_channels()
+    @classmethod
+    def effective_noise_channels(cls) -> List[str]:
+        """Return a default list of channels used when calculating effective t1 and
+        t2 noise."""
+        noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels
 
@@ -136,11 +153,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return hamiltonian_mat
 
     def d_hamiltonian_d_ng(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to charge offset `ng`."""
+        """Returns operator representing a derivative of the Hamiltonian with respect to
+        charge offset `ng`."""
         return -8 * self.EC * self.n_operator()
 
     def d_hamiltonian_d_EJ(self) -> ndarray:
-        """Returns operator representing a derivative of the Hamiltonian with respect to EJ."""
+        """Returns operator representing a derivative of the Hamiltonian with respect
+        to EJ."""
         return -self.cos_phi_operator()
 
     def hilbertdim(self) -> int:
@@ -213,20 +232,21 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def numberbasis_wavefunction(
         self, esys: Tuple[ndarray, ndarray] = None, which: int = 0
     ) -> WaveFunction:
-        """Return the transmon wave function in number basis. The specific index of the wave function to be returned is
-        `which`.
+        """Return the transmon wave function in number basis. The specific index of the
+        wave function to be returned is `which`.
 
         Parameters
         ----------
         esys:
-            if `None`, the eigensystem is calculated on the fly; otherwise, the provided eigenvalue, eigenvector arrays
-            as obtained from `.eigensystem()`, are used (default value = None)
+            if `None`, the eigensystem is calculated on the fly; otherwise, the provided
+            eigenvalue, eigenvector arrays as obtained from `.eigensystem()`,
+            are used (default value = None)
         which:
             eigenfunction index (default value = 0)
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            esys = self.eigensys(evals_count)
+            esys = self.eigensys(evals_count=evals_count)
         evals, evecs = esys
 
         n_vals = np.arange(-self.ncut, self.ncut + 1)
@@ -234,18 +254,19 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     def wavefunction(
         self,
-        esys: Tuple[ndarray, ndarray] = None,
+        esys: Optional[Tuple[ndarray, ndarray]] = None,
         which: int = 0,
         phi_grid: Grid1d = None,
     ) -> WaveFunction:
-        """Return the transmon wave function in phase basis. The specific index of the wavefunction is `which`.
-        `esys` can be provided, but if set to `None` then it is calculated on the fly.
+        """Return the transmon wave function in phase basis. The specific index of the
+        wavefunction is `which`. `esys` can be provided, but if set to `None` then it is
+        calculated on the fly.
 
         Parameters
         ----------
         esys:
-            if None, the eigensystem is calculated on the fly; otherwise, the provided eigenvalue, eigenvector arrays
-            as obtained from `.eigensystem()` are used
+            if None, the eigensystem is calculated on the fly; otherwise, the provided
+            eigenvalue, eigenvector arrays as obtained from `.eigensystem()` are used
         which:
             eigenfunction index (default value = 0)
         phi_grid:
@@ -253,7 +274,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         if esys is None:
             evals_count = max(which + 1, 3)
-            evals, evecs = self.eigensys(evals_count)
+            evals, evecs = self.eigensys(evals_count=evals_count)
         else:
             evals, evecs = esys
 
@@ -278,8 +299,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         dispersion_name: str,
         param_name: str,
         param_vals: ndarray,
-        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
-        levels: Optional[Union[int, Tuple[int]]] = None,
+        transitions_tuple: TransitionsTuple = ((0, 1),),
+        levels_tuple: Optional[LevelsTuple] = None,
         point_count: int = 50,
         num_cpus: Optional[int] = None,
     ) -> Tuple[ndarray, ndarray]:
@@ -288,13 +309,15 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                 dispersion_name,
                 param_name,
                 param_vals,
-                transitions=transitions,
-                levels=levels,
+                transitions_tuple=transitions_tuple,
+                levels_tuple=levels_tuple,
                 point_count=point_count,
                 num_cpus=num_cpus,
             )
 
-        max_level = np.max(transitions) if levels is None else np.max(levels)
+        max_level = (
+            np.max(transitions_tuple) if levels_tuple is None else np.max(levels_tuple)
+        )
         previous_ng = self.ng
         self.ng = 0.0
         specdata_ng_0 = self.get_spectrum_vs_paramvals(
@@ -314,7 +337,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         )
         self.ng = previous_ng
 
-        if levels is not None:
+        if levels_tuple is not None:
             dispersion = np.asarray(
                 [
                     [
@@ -324,13 +347,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                         )
                         for param_index, _ in enumerate(param_vals)
                     ]
-                    for j in levels
+                    for j in levels_tuple
                 ]
             )
             return specdata_ng_0.energy_table, dispersion
 
-        dispersion = []
-        for i, j in transitions:
+        dispersion_list = []
+        for i, j in transitions_tuple:
             list_ij = []
             for param_index, _ in enumerate(param_vals):
                 ei_0 = specdata_ng_0.energy_table[param_index, i]
@@ -341,8 +364,8 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
                     np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                     - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                 )
-            dispersion.append(list_ij)
-        return specdata_ng_0.energy_table, np.asarray(dispersion)
+            dispersion_list.append(list_ij)
+        return specdata_ng_0.energy_table, np.asarray(dispersion_list)
 
 
 # — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
@@ -351,7 +374,7 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in
     dense form in the number basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{
-    n}-n_g)^2+\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{
+    n}-n_g)^2-\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{
     h.c.})`, Here, the effective Josephson energy is flux-tunable: :math:`\mathcal{
     E}_J(\Phi) = E_{J,\text{max}} \sqrt{\cos^2(\pi\Phi/\Phi_0) + d^2 \sin^2(
     \pi\Phi/\Phi_0)}` and :math:`d=(E_{J2}-E_{J1})(E_{J1}+E_{J2})` parametrizes the
@@ -364,7 +387,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
     Parameters
     ----------
     EJmax:
-       maximum effective Josephson energy (sum of the Josephson energies of the two junctions)
+       maximum effective Josephson energy (sum of the Josephson energies of the two
+       junctions)
     d:
         junction asymmetry parameter
     EC:
@@ -377,10 +401,13 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         charge basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    EJmax = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    d = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJmax = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    d = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -391,7 +418,9 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         ng: float,
         ncut: int,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJmax = EJmax
         self.EC = EC
         self.d = d
@@ -399,8 +428,6 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         self.ng = ng
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.float_
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(
@@ -428,7 +455,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
             "truncated_dim": 10,
         }
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_flux",
@@ -460,8 +488,8 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         dispersion_name: str,
         param_name: str,
         param_vals: ndarray,
-        transitions: Union[Tuple[int], Tuple[Tuple[int], ...]] = (0, 1),
-        levels: Optional[Union[int, Tuple[int]]] = None,
+        transitions_tuple: TransitionsTuple = ((0, 1),),
+        levels_tuple: Optional[LevelsTuple] = None,
         point_count: int = 50,
         num_cpus: Optional[int] = None,
     ) -> Tuple[ndarray, ndarray]:
@@ -470,13 +498,15 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
                 dispersion_name,
                 param_name,
                 param_vals,
-                transitions=transitions,
-                levels=levels,
+                transitions_tuple=transitions_tuple,
+                levels_tuple=levels_tuple,
                 point_count=point_count,
                 num_cpus=num_cpus,
             )
 
-        max_level = np.max(transitions) if levels is None else np.max(levels)
+        max_level = (
+            np.max(transitions_tuple) if levels_tuple is None else np.max(levels_tuple)
+        )
         previous_flux = self.flux
         self.flux = 0.0
         specdata_flux_0 = self.get_spectrum_vs_paramvals(
@@ -496,32 +526,34 @@ class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
         )
         self.flux = previous_flux
 
-        if levels is not None:
+        if levels_tuple is not None:
             dispersion = np.asarray(
                 [
                     [
                         np.abs(
-                            specdata_flux_0.energy_table[param_index, j]
-                            - specdata_flux_05.energy_table[param_index, j]
+                            specdata_flux_0.energy_table[param_index, j]  # type:ignore
+                            - specdata_flux_05.energy_table[
+                                param_index, j
+                            ]  # type:ignore
                         )
                         for param_index, _ in enumerate(param_vals)
                     ]
-                    for j in levels
+                    for j in levels_tuple
                 ]
             )
-            return specdata_flux_0.energy_table, dispersion
+            return specdata_flux_0.energy_table, dispersion  # type:ignore
 
-        dispersion = []
-        for i, j in transitions:
+        dispersion_list = []
+        for i, j in transitions_tuple:
             list_ij = []
             for param_index, _ in enumerate(param_vals):
-                ei_0 = specdata_flux_0.energy_table[param_index, i]
-                ei_05 = specdata_flux_05.energy_table[param_index, i]
-                ej_0 = specdata_flux_0.energy_table[param_index, j]
-                ej_05 = specdata_flux_05.energy_table[param_index, j]
+                ei_0 = specdata_flux_0.energy_table[param_index, i]  # type:ignore
+                ei_05 = specdata_flux_05.energy_table[param_index, i]  # type:ignore
+                ej_0 = specdata_flux_0.energy_table[param_index, j]  # type:ignore
+                ej_05 = specdata_flux_05.energy_table[param_index, j]  # type:ignore
                 list_ij.append(
                     np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                     - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                 )
-            dispersion.append(list_ij)
-        return specdata_flux_0.energy_table, np.asarray(dispersion)
+            dispersion_list.append(list_ij)
+        return specdata_flux_0.energy_table, np.asarray(dispersion_list)  # type:ignore

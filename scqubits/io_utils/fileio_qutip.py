@@ -1,6 +1,7 @@
 # fileio_qutip.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -18,14 +19,14 @@ from scqubits.utils import misc as utils
 
 
 class QutipEigenstates(np.ndarray, Serializable):
-    """Wrapper class that adds serialization functionality to the numpy ndarray class."""
+    """Wrapper class that adds serialization functionality to the numpy
+    ndarray class."""
 
-    # https://docs.scipy.org/doc/numpy/user/basics.subclassing.html#extra-gotchas-custom-del-methods-and-ndarray-base
     @classmethod
-    def deserialize(cls, io_data: IOData) -> "QutipEigenstates":
+    def deserialize(cls, io_data: IOData) -> np.ndarray:  # type:ignore
         """
-        Take the given IOData and return an instance of the described class, initialized with the data stored in
-        io_data.
+        Take the given IOData and return an instance of the described class, initialized
+        with the data stored in io_data.
         """
         qobj_dims = io_data.ndarrays["qobj_dims"]
         qobj_shape = io_data.ndarrays["qobj_shape"]
@@ -60,7 +61,8 @@ class QutipEigenstates(np.ndarray, Serializable):
         return io.IOData(typename, io_attributes, io_ndarrays, objects=None)
 
     def filewrite(self, filename: str):
-        """Convenience method bound to the class. Simply accesses the `write` function."""
+        """Convenience method bound to the class. Simply accesses the
+        `write` function."""
         import scqubits.io_utils.fileio as io
 
         io.write(self, filename)

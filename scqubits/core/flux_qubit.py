@@ -1,6 +1,7 @@
 # flux_qubit.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -12,7 +13,7 @@
 import os
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import scipy as sp
@@ -32,9 +33,8 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
+
 # -Flux qubit noise class
-
-
 class NoisyFluxQubit(NoisySystem, ABC):
     @abstractmethod
     def d_hamiltonian_d_EJ1(self) -> ndarray:
@@ -48,6 +48,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
     def d_hamiltonian_d_EJ3(self) -> ndarray:
         pass
 
+    @classmethod
     @abstractmethod
     def supported_noise_channels(self) -> List[str]:
         pass
@@ -293,20 +294,23 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         charge number cutoff for the charge on both islands `n`,  `n = -ncut, ..., ncut`
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
-    EJ1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EJ2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    EJ3 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECJ3 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECg1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ECg2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng1 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ng2 = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    flux = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
-    ncut = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    EJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECJ3 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ECg2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng1 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ng2 = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    flux = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
@@ -323,7 +327,9 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         flux: float,
         ncut: int,
         truncated_dim: int = 6,
+        id_str: Optional[str] = None,
     ) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.EJ1 = EJ1
         self.EJ2 = EJ2
         self.EJ3 = EJ3
@@ -337,8 +343,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.complex_
         self._default_grid = discretization.Grid1d(
             -np.pi / 2, 3 * np.pi / 2, 100
         )  # for plotting in phi_j basis
@@ -364,7 +368,8 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
             "truncated_dim": 10,
         }
 
-    def supported_noise_channels(self) -> List[str]:
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc1",
@@ -628,7 +633,7 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         """
         evals_count = max(which + 1, 3)
         if esys is None:
-            _, evecs = self.eigensys(evals_count)
+            _, evecs = self.eigensys(evals_count=evals_count)
         else:
             _, evecs = esys
         phi_grid = phi_grid or self._default_grid

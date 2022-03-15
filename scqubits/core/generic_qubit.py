@@ -1,6 +1,7 @@
 # generic_qubit.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -9,7 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import scipy as sp
@@ -36,19 +37,20 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     ----------
     E:
        qubit energy splitting
+    id_str:
+        optional string by which this instance can be referred to in `HilbertSpace`
+        and `ParameterSweep`. If not provided, an id is auto-generated.
     """
 
-    truncated_dim = 2
-    _evec_dtype: type
+    truncated_dim = 2  # type:ignore
     _sys_type: str
     _init_params: list
 
-    E = descriptors.WatchedProperty("QUANTUMSYSTEM_UPDATE")
+    E = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
 
-    def __init__(self, E: float) -> None:
+    def __init__(self, E: float, id_str: Optional[str] = None) -> None:
+        base.QuantumSystem.__init__(self, id_str=id_str)
         self.E = E
-        self._sys_type = type(self).__name__
-        self._evec_dtype = np.float_
 
     @staticmethod
     def default_params() -> Dict[str, Any]:

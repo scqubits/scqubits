@@ -1,6 +1,7 @@
 # qubit_widget.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -39,8 +40,8 @@ def create_widget(
     Parameters
     ----------
     callback_func:
-        callback_function depends on all the parameters provided as keys (str) in the parameter_dict, and is called upon
-        changes of values inside the widgets
+        callback_function depends on all the parameters provided as keys (str) in the
+        parameter_dict, and is called upon changes of values inside the widgets
     init_params:
         names and values of initialization parameters
     image_filename:

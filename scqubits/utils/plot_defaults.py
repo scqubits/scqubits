@@ -1,6 +1,7 @@
 # plot_defaults.py
 #
-# This file is part of scqubits.
+# This file is part of scqubits: a Python package for superconducting qubits,
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -18,7 +19,6 @@ import scqubits.core.constants as constants
 import scqubits.core.units as units
 
 if TYPE_CHECKING:
-    from scqubits import ParameterSweep
     from scqubits.core.storage import DataStore, SpectrumData, WaveFunction
 
 
@@ -140,7 +140,9 @@ def wavefunction2d() -> Dict[str, Any]:
     return {"figsize": (8, 3)}
 
 
-def contours(x_vals: np.ndarray, y_vals: np.ndarray) -> Dict[str, Any]:
+def contours(
+    x_vals: Union[List[float], np.ndarray], y_vals: Union[List[float], np.ndarray]
+) -> Dict[str, Any]:
     """Plot defaults for plotting.contours"""
     aspect_ratio = (y_vals[-1] - y_vals[0]) / (x_vals[-1] - x_vals[0])
     figsize = (8, 8 * aspect_ratio)
@@ -164,21 +166,6 @@ def matelem_vs_paramvals(
 ) -> Dict[str, Any]:
     """Plot defaults for plotting.matelem_vs_paramvals"""
     return {"xlabel": recast_name(specdata.param_name), "ylabel": "matrix element"}
-
-
-def dressed_spectrum(sweep: "ParameterSweep", **kwargs) -> Dict[str, Any]:
-    """Plot defaults for sweep_plotting.dressed_spectrum"""
-    if "ylim" not in kwargs:
-        kwargs["ymax"] = kwargs.get("ymax") or min(
-            15,
-            (
-                np.max(sweep.dressed_specdata.energy_table)
-                - np.min(sweep.dressed_specdata.energy_table)
-            ),
-        )
-    kwargs["xlabel"] = kwargs.get("xlabel") or recast_name(sweep.param_name)
-    kwargs["ylabel"] = kwargs.get("ylabel") or r"energy [{}]".format(units.get_units())
-    return kwargs
 
 
 def chi(param_name: Union[str, None], **kwargs) -> Dict[str, Any]:
