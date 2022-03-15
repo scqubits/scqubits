@@ -36,17 +36,23 @@ import scipy as sp
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
+from scipy import sparse
+from scipy.sparse.csc import csc_matrix
+from scipy.sparse.dia import dia_matrix
 
 import scqubits.core.constants as constants
 import scqubits.core.descriptors as descriptors
+import scqubits.core.discretization as discretization
+import scqubits.core.storage as storage
 import scqubits.core.units as units
 import scqubits.settings as settings
 import scqubits.ui.qubit_widget as ui
 import scqubits.utils.plotting as plot
+import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.central_dispatch import DispatchClient
 from scqubits.core.discretization import Grid1d
-from scqubits.core.storage import DataStore, SpectrumData
+from scqubits.core.storage import DataStore, SpectrumData, WaveFunctionOnGrid
 from scqubits.settings import IN_IPYTHON
 from scqubits.utils.cpu_switch import get_map_method
 from scqubits.utils.misc import InfoBar, process_which
@@ -72,8 +78,8 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
-# —Generic quantum system container and Qubit base class——————————————————————————————
 
+# —Generic quantum system container and Qubit base class——————————————————————————————
 
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
@@ -1096,3 +1102,417 @@ class QubitBaseClass1d(QubitBaseClass):
             **kwargs,
         )
         return fig_ax
+
+
+class QubitBaseClass2dExtPer(QubitBaseClass, ABC):
+    """Base class for superconducting qubit objects with two degrees of freedom,
+    one of them extended, the other one periodic.
+    """
+    grid: Grid1d
+    ncut: int
+
+    @classmethod
+    def create(cls) -> "QubitBaseClass2dExtPer":
+        phi_grid = discretization.Grid1d(-19.0, 19.0, 200)
+        init_params = cls.default_params()
+        init_params["grid"] = phi_grid
+        new_qubit = cls(**init_params)
+        new_qubit.widget()
+        return new_qubit
+
+    @classmethod
+    def supported_noise_channels(cls) -> List[str]:
+        """Return a list of supported noise channels"""
+        return [
+            "tphi_1_over_f_cc",
+            "tphi_1_over_f_flux",
+            "t1_flux_bias_line",
+            # 't1_capacitive',
+            "t1_inductive",
+        ]
+
+    def widget(self, params: Dict[str, Any] = None) -> None:
+        init_params = params or self.get_initdata()
+        del init_params["grid"]
+        init_params.pop("id_str", None)
+        init_params["grid_max_val"] = self.grid.max_val
+        init_params["grid_min_val"] = self.grid.min_val
+        init_params["grid_pt_count"] = self.grid.pt_count
+        ui.create_widget(
+            self.set_params, init_params, image_filename=self._image_filename
+        )
+
+    def set_params(self, **kwargs) -> None:
+        phi_grid = discretization.Grid1d(
+            kwargs.pop("grid_min_val"),
+            kwargs.pop("grid_max_val"),
+            kwargs.pop("grid_pt_count"),
+        )
+        self.grid = phi_grid
+        for param_name, param_val in kwargs.items():
+            setattr(self, param_name, param_val)
+
+    def receive(self, event: str, sender: object, **kwargs):
+        if sender is self.grid:
+            self.broadcast("QUANTUMSYSTEM_UPDATE")
+
+    def _evals_calc(self, evals_count: int) -> ndarray:
+        hamiltonian_mat = self.hamiltonian()
+        evals = sparse.linalg.eigsh(
+            hamiltonian_mat,
+            k=evals_count,
+            sigma=0.0,
+            which="LM",
+            return_eigenvectors=False,
+        )
+        return np.sort(evals)
+
+    def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
+        hamiltonian_mat = self.hamiltonian()
+        evals, evecs = sparse.linalg.eigsh(
+            hamiltonian_mat,
+            k=evals_count,
+            sigma=0.0,
+            which="LM",
+            return_eigenvectors=True,
+        )
+        evals, evecs = spec_utils.order_eigensystem(evals, evecs)
+        return evals, evecs
+
+    def hilbertdim(self) -> int:
+        """Returns Hilbert space dimension"""
+        return self.grid.pt_count * (2 * self.ncut + 1)
+
+    def potential(self, phi: ndarray, theta: ndarray) -> ndarray:
+        pass
+
+    def _identity_phi(self) -> csc_matrix:
+        r"""
+        Identity operator acting only on the `\phi` Hilbert subspace.
+        """
+        pt_count = self.grid.pt_count
+        return sparse.identity(pt_count, format="csc")
+
+    def _identity_theta(self) -> csc_matrix:
+        r"""
+        Identity operator acting only on the `\theta` Hilbert subspace.
+        """
+        dim_theta = 2 * self.ncut + 1
+        return sparse.identity(dim_theta, format="csc")
+
+    def i_d_dphi_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`i d/d\phi`.
+        """
+        return sparse.kron(
+            self.grid.first_derivative_matrix(prefactor=1j),
+            self._identity_theta(),
+            format="csc",
+        )
+
+    def _phi_operator(self) -> dia_matrix:
+        r"""
+        Operator :math:`\phi`, acting only on the `\phi` Hilbert subspace.
+        """
+        pt_count = self.grid.pt_count
+
+        phi_matrix = sparse.dia_matrix((pt_count, pt_count))
+        diag_elements = self.grid.make_linspace()
+        phi_matrix.setdiag(diag_elements)
+        return phi_matrix
+
+    def phi_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\phi`.
+        """
+        return sparse.kron(self._phi_operator(), self._identity_theta(), format="csc")
+
+    def n_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`n_\theta`.
+        """
+        dim_theta = 2 * self.ncut + 1
+        diag_elements = np.arange(-self.ncut, self.ncut + 1)
+        n_theta_matrix = sparse.dia_matrix(
+            (diag_elements, [0]), shape=(dim_theta, dim_theta)
+        ).tocsc()
+        return sparse.kron(self._identity_phi(), n_theta_matrix, format="csc")
+
+    def _sin_phi_operator(self, x: float = 0) -> csc_matrix:
+        r"""
+        Operator :math:`\sin(\phi + x)`, acting only on the `\phi` Hilbert subspace.x
+        """
+        pt_count = self.grid.pt_count
+
+        vals = np.sin(self.grid.make_linspace() + x)
+        sin_phi_matrix = sparse.dia_matrix(
+            (vals, [0]), shape=(pt_count, pt_count)
+        ).tocsc()
+        return sin_phi_matrix
+
+    def _cos_phi_operator(self, x: float = 0) -> csc_matrix:
+        r"""
+        Operator :math:`\cos(\phi + x)`, acting only on the `\phi` Hilbert subspace.
+        """
+        pt_count = self.grid.pt_count
+
+        vals = np.cos(self.grid.make_linspace() + x)
+        cos_phi_matrix = sparse.dia_matrix(
+            (vals, [0]), shape=(pt_count, pt_count)
+        ).tocsc()
+        return cos_phi_matrix
+
+    def _cos_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\cos(\theta)`, acting only on the `\theta` Hilbert subspace.
+        """
+        dim_theta = 2 * self.ncut + 1
+        cos_theta_matrix = (
+            0.5
+            * (
+                sparse.dia_matrix(
+                    ([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)
+                )
+                + sparse.dia_matrix(
+                    ([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)
+                )
+            ).tocsc()
+        )
+        return cos_theta_matrix
+
+    def cos_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\cos(\theta)`.
+        """
+        return sparse.kron(
+            self._identity_phi(), self._cos_theta_operator(), format="csc"
+        )
+
+    def _sin_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\sin(\theta)`, acting only on the `\theta` Hilbert space.
+        """
+        dim_theta = 2 * self.ncut + 1
+        sin_theta_matrix = (
+            -0.5
+            * 1j
+            * (
+                sparse.dia_matrix(
+                    ([1.0] * dim_theta, [1]), shape=(dim_theta, dim_theta)
+                )
+                - sparse.dia_matrix(
+                    ([1.0] * dim_theta, [-1]), shape=(dim_theta, dim_theta)
+                )
+            ).tocsc()
+        )
+        return sin_theta_matrix
+
+    def sin_theta_operator(self) -> csc_matrix:
+        r"""
+        Operator :math:`\sin(\theta)`.
+        """
+        return sparse.kron(
+            self._identity_phi(), self._sin_theta_operator(), format="csc"
+        )
+
+    def plot_potential(
+        self,
+        theta_grid: Grid1d = None,
+        contour_vals: Union[List[float], ndarray] = None,
+        **kwargs
+    ) -> Tuple[Figure, Axes]:
+        """Draw contour plot of the potential energy.
+
+        Parameters
+        ----------
+        theta_grid:
+            used for setting a custom grid for theta; if None use self._default_grid
+        contour_vals:
+        **kwargs:
+            plotting parameters
+        """
+        theta_grid = theta_grid or self._default_grid
+
+        x_vals = self.grid.make_linspace()
+        y_vals = theta_grid.make_linspace()
+        return plot.contours(
+            x_vals,
+            y_vals,
+            self.potential,
+            contour_vals=contour_vals,
+            xlabel=r"$\phi$",
+            ylabel=r"$\theta$",
+            **kwargs
+        )
+
+    def wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        theta_grid: Grid1d = None,
+    ) -> WaveFunctionOnGrid:
+        """Returns a zero-pi wave function in `phi`, `theta` basis
+
+        Parameters
+        ----------
+        esys:
+            eigenvalues, eigenvectors
+        which:
+             index of desired wave function (default value = 0)
+        theta_grid:
+            used for setting a custom grid for theta; if None use self._default_grid
+        """
+        evals_count = max(which + 1, 3)
+        if esys is None:
+            _, evecs = self.eigensys(evals_count=evals_count)
+        else:
+            _, evecs = esys
+
+        theta_grid = theta_grid or self._default_grid
+        dim_theta = 2 * self.ncut + 1
+        state_amplitudes = evecs[:, which].reshape(self.grid.pt_count, dim_theta)
+
+        # Calculate psi_{phi, theta} = sum_n state_amplitudes_{phi, n} A_{n, theta}
+        # where a_{n, theta} = 1/sqrt(2 pi) e^{i n theta}
+        n_vec = np.arange(-self.ncut, self.ncut + 1)
+        theta_vec = theta_grid.make_linspace()
+        a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi) ** 0.5
+        wavefunc_amplitudes = np.matmul(state_amplitudes, a_n_theta).T
+        wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
+
+        grid2d = discretization.GridSpec(
+            np.asarray(
+                [
+                    [self.grid.min_val, self.grid.max_val, self.grid.pt_count],
+                    [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
+                ]
+            )
+        )
+        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
+
+    def plot_wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        theta_grid: Grid1d = None,
+        mode: str = "abs",
+        zero_calibrate: bool = True,
+        **kwargs
+    ) -> Tuple[Figure, Axes]:
+        """Plots 2d phase-basis wave function.
+
+        Parameters
+        ----------
+        esys:
+            eigenvalues, eigenvectors as obtained from `.eigensystem()`
+        which:
+            index of wave function to be plotted (default value = (0)
+        theta_grid:
+            used for setting a custom grid for theta; if None use self._default_grid
+        mode:
+            choices as specified in `constants.MODE_FUNC_DICT`
+            (default value = 'abs_sqr')
+        zero_calibrate:
+            if True, colors are adjusted to use zero wavefunction amplitude as the
+            neutral color in the palette
+        **kwargs:
+            plot options
+        """
+        theta_grid = theta_grid or self._default_grid
+
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+        return plot.wavefunction2d(
+            wavefunc,
+            zero_calibrate=zero_calibrate,
+            xlabel=r"$\phi$",
+            ylabel=r"$\theta$",
+            **kwargs
+        )
+
+    def wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        theta_grid: Grid1d = None,
+    ) -> WaveFunctionOnGrid:
+        """Returns a zero-pi wave function in `phi`, `theta` basis
+
+        Parameters
+        ----------
+        esys:
+            eigenvalues, eigenvectors
+        which:
+             index of desired wave function (default value = 0)
+        theta_grid:
+            used for setting a custom grid for theta; if None use self._default_grid
+        """
+        evals_count = max(which + 1, 3)
+        if esys is None:
+            _, evecs = self.eigensys(evals_count=evals_count)
+        else:
+            _, evecs = esys
+
+        theta_grid = theta_grid or self._default_grid
+        dim_theta = 2 * self.ncut + 1
+        state_amplitudes = evecs[:, which].reshape(self.grid.pt_count, dim_theta)
+
+        # Calculate psi_{phi, theta} = sum_n state_amplitudes_{phi, n} A_{n, theta}
+        # where a_{n, theta} = 1/sqrt(2 pi) e^{i n theta}
+        n_vec = np.arange(-self.ncut, self.ncut + 1)
+        theta_vec = theta_grid.make_linspace()
+        a_n_theta = np.exp(1j * np.outer(n_vec, theta_vec)) / (2 * np.pi) ** 0.5
+        wavefunc_amplitudes = np.matmul(state_amplitudes, a_n_theta).T
+        wavefunc_amplitudes = spec_utils.standardize_phases(wavefunc_amplitudes)
+
+        grid2d = discretization.GridSpec(
+            np.asarray(
+                [
+                    [self.grid.min_val, self.grid.max_val, self.grid.pt_count],
+                    [theta_grid.min_val, theta_grid.max_val, theta_grid.pt_count],
+                ]
+            )
+        )
+        return storage.WaveFunctionOnGrid(grid2d, wavefunc_amplitudes)
+
+    def plot_wavefunction(
+        self,
+        esys: Tuple[ndarray, ndarray] = None,
+        which: int = 0,
+        theta_grid: Grid1d = None,
+        mode: str = "abs",
+        zero_calibrate: bool = True,
+        **kwargs
+    ) -> Tuple[Figure, Axes]:
+        """Plots 2d phase-basis wave function.
+
+        Parameters
+        ----------
+        esys:
+            eigenvalues, eigenvectors as obtained from `.eigensystem()`
+        which:
+            index of wave function to be plotted (default value = (0)
+        theta_grid:
+            used for setting a custom grid for theta; if None use self._default_grid
+        mode:
+            choices as specified in `constants.MODE_FUNC_DICT`
+            (default value = 'abs_sqr')
+        zero_calibrate:
+            if True, colors are adjusted to use zero wavefunction amplitude as the
+            neutral color in the palette
+        **kwargs:
+            plot options
+        """
+        theta_grid = theta_grid or self._default_grid
+
+        amplitude_modifier = constants.MODE_FUNC_DICT[mode]
+        wavefunc = self.wavefunction(esys, theta_grid=theta_grid, which=which)
+        wavefunc.amplitudes = amplitude_modifier(wavefunc.amplitudes)
+        return plot.wavefunction2d(
+            wavefunc,
+            zero_calibrate=zero_calibrate,
+            xlabel=r"$\phi$",
+            ylabel=r"$\theta$",
+            **kwargs
+        )
