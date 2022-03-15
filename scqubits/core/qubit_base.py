@@ -1175,6 +1175,7 @@ class QubitBaseClass2dExtPer(QubitBaseClass, ABC):
             sigma=0.0,
             which="LM",
             return_eigenvectors=True,
+            v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         evals, evecs = spec_utils.order_eigensystem(evals, evecs)
         return evals, evecs
