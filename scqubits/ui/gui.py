@@ -168,7 +168,8 @@ class GUI:
             "operator": "n_theta_operator",
             "ncut": {"min": 5, "max": 50},
             "EL": {"min": 1e-10, "max": 3},
-            "ECJ": {"min": 1e-10, "max": 30},
+            "EC": {"min": 1e-10, "max": 15.0},
+            "ECL": {"min": 1e-10, "max": 15.0},
             "scale": None,
             "num_sample": 50,
         }
