@@ -81,6 +81,7 @@ TransitionsTuple = Tuple[Transition, ...]
 
 # —Generic quantum system container and Qubit base class——————————————————————————————
 
+
 class QuantumSystem(DispatchClient, ABC):
     """Generic quantum system class"""
 
@@ -1108,6 +1109,7 @@ class QubitBaseClass2dExtPer(QubitBaseClass, ABC):
     """Base class for superconducting qubit objects with two degrees of freedom,
     one of them extended, the other one periodic.
     """
+
     grid: Grid1d
     ncut: int
 
@@ -1320,7 +1322,7 @@ class QubitBaseClass2dExtPer(QubitBaseClass, ABC):
         self,
         theta_grid: Grid1d = None,
         contour_vals: Union[List[float], ndarray] = None,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Draw contour plot of the potential energy.
 
@@ -1343,7 +1345,7 @@ class QubitBaseClass2dExtPer(QubitBaseClass, ABC):
             contour_vals=contour_vals,
             xlabel=r"$\phi$",
             ylabel=r"$\theta$",
-            **kwargs
+            **kwargs,
         )
 
     def wavefunction(
@@ -1398,7 +1400,7 @@ class QubitBaseClass2dExtPer(QubitBaseClass, ABC):
         theta_grid: Grid1d = None,
         mode: str = "abs",
         zero_calibrate: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Figure, Axes]:
         """Plots 2d phase-basis wave function.
 
@@ -1429,5 +1431,5 @@ class QubitBaseClass2dExtPer(QubitBaseClass, ABC):
             zero_calibrate=zero_calibrate,
             xlabel=r"$\phi$",
             ylabel=r"$\theta$",
-            **kwargs
+            **kwargs,
         )

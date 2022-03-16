@@ -41,7 +41,7 @@ class NoisyBifluxon(NoisySystem):
 # junctions solved in the charge basis--------------------------------------------------
 
 
-class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
+class Bifluxon(base.QubitBaseClass2dExtPer, serializers.Serializable, NoisyBifluxon):
     r"""Bifluxon Qubit
 
     | [1] Kalashnikov et al., PRX Quantum 1, 010307 (2020). https://doi.org/10.1103/PRXQuantum.1.010307
@@ -304,7 +304,7 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         """
         return -8 * self.EC * self.n_theta_operator()
 
-# TODO: should be able to lift the following two into QubitBaseClass2dExtPer?
+    # TODO: should be able to lift the following two into QubitBaseClass2dExtPer?
     def _sin_phiby2_operator(self, x: float = 0) -> csc_matrix:
         r"""
         Operator :math:`\sin(\phi/2 + x)`, acting only on the `\phi` Hilbert subspace.x

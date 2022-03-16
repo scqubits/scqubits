@@ -162,6 +162,16 @@ class GUI:
             "scale": None,
             "num_sample": 50,
         }
+        bifluxon_defaults = {
+            **global_defaults,
+            "scan_param": "flux",
+            "operator": "n_theta_operator",
+            "ncut": {"min": 5, "max": 50},
+            "EL": {"min": 1e-10, "max": 3},
+            "ECJ": {"min": 1e-10, "max": 30},
+            "scale": None,
+            "num_sample": 50,
+        }
         self.qubit_defaults = {
             "Transmon": transmon_defaults,
             "TunableTransmon": tunabletransmon_defaults,
@@ -170,6 +180,7 @@ class GUI:
             "ZeroPi": zeropi_defaults,
             "FullZeroPi": fullzeropi_defaults,
             "Cos2PhiQubit": cos2phiqubit_defaults,
+            "Bifluxon": bifluxon_defaults,
         }
         self.grid_defaults = {
             "grid_min_val": -6 * np.pi,
@@ -190,10 +201,17 @@ class GUI:
             "ZeroPi",
             "FullZeroPi",
             "Cos2PhiQubit",
+            "Bifluxon",
         ]
         self.gui_active = True
         self.qubit_change = True
-        self.slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
+        self.slow_qubits = [
+            "FluxQubit",
+            "ZeroPi",
+            "FullZeroPi",
+            "Cos2PhiQubit",
+            "Bifluxon",
+        ]
         self.active_defaults: Dict[str, Any] = {}
         self.fig: Figure
         self.qubit_current_params: Dict[str, Union[int, float, None]] = {}
@@ -223,7 +241,7 @@ class GUI:
         if self.qubit_change:
             init_params = QubitClass.default_params()
 
-            if qubit_name == "ZeroPi" or qubit_name == "FullZeroPi":
+            if qubit_name in ["ZeroPi", "FullZeroPi", "Bifluxon"]:
                 init_params["grid"] = scq.Grid1d(
                     min_val=self.grid_defaults["grid_min_val"],
                     max_val=self.grid_defaults["grid_max_val"],
@@ -710,7 +728,7 @@ class GUI:
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
 
-        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
+        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi, scq.Bifluxon)):
             interactive_choice = self.grid_evals_vs_paramvals_plot
         else:
             interactive_choice = self.evals_vs_paramvals_plot
@@ -744,7 +762,7 @@ class GUI:
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
 
-        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
+        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi, scq.Bifluxon)):
             interactive_choice = self.grid_matelem_vs_paramvals_plot
         else:
             interactive_choice = self.matelem_vs_paramvals_plot
@@ -781,7 +799,8 @@ class GUI:
             ].disabled = False
 
             if isinstance(
-                self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
+                self.active_qubit,
+                (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit, scq.Bifluxon),
             ):
                 which_widget = self.qubit_plot_options_widgets[
                     "wavefunction_single_state_selector"
@@ -791,7 +810,7 @@ class GUI:
                     "wavefunction_multi_state_selector"
                 ]
 
-            if isinstance(self.active_qubit, scq.ZeroPi):
+            if isinstance(self.active_qubit, (scq.ZeroPi, scq.Bifluxon)):
                 interactive_choice = self.grid_wavefunction_plot
             elif isinstance(self.active_qubit, (scq.FluxQubit, scq.Cos2PhiQubit)):
                 interactive_choice = self.wavefunction_plot
@@ -835,7 +854,7 @@ class GUI:
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = False
 
-        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
+        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi, scq.Bifluxon)):
             interactive_choice = self.grid_matrixelements_plot
         else:
             interactive_choice = self.matrixelements_plot
@@ -917,7 +936,7 @@ class GUI:
         self.qubit_base_params.clear()
         self.qubit_scan_params.clear()
         self.qubit_base_params = dict(self.qubit_current_params)
-        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
+        if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi, scq.Bifluxon)):
             self.qubit_base_params["grid"] = None
         if "truncated_dim" in self.qubit_base_params.keys():
             del self.qubit_base_params["truncated_dim"]
