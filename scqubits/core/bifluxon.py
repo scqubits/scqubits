@@ -210,9 +210,14 @@ class Bifluxon(base.QubitBaseClass2dExtPer, serializers.Serializable, NoisyBiflu
                 )
             )
         ).tocsc()
-        potential_mat = sparse.kron(
-            phi_cosby2_potential, theta_cos_potential, format="csc"
-        ) + sparse.kron(phi_inductive_potential, self._identity_theta(), format="csc")
+        potential_mat = (
+            sparse.kron(phi_cosby2_potential, theta_cos_potential, format="csc")
+            + sparse.kron(phi_inductive_potential, self._identity_theta(), format="csc")
+            + 2
+            * self.EJ
+            * sparse.kron(self._identity_phi(), self._identity_theta(), format="csc")
+        )
+
         # TODO - remove or enable
         # if self.dEJ != 0:
         #     potential_mat += (
