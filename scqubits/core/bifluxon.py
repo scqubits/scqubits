@@ -218,14 +218,13 @@ class Bifluxon(base.QubitBaseClass2dExtPer, serializers.Serializable, NoisyBiflu
             * sparse.kron(self._identity_phi(), self._identity_theta(), format="csc")
         )
 
-        # TODO - remove or enable
-        # if self.dEJ != 0:
-        #     potential_mat += (
-        #         self.EJ
-        #         * self.dEJ
-        #         * sparse.kron(phi_sin_potential, self._identity_theta(), format="csc")
-        #         * self.sin_theta_operator()
-        #     )
+        if self.dEJ != 0:
+            potential_mat += (
+                -2.0 * self.EJ
+                * self.dEJ
+                * sparse.kron(phi_sin_potential, self._identity_theta(), format="csc")
+                * self.sin_theta_operator()
+            )
         return potential_mat
 
     def hamiltonian(self) -> csc_matrix:
