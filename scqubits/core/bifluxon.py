@@ -156,11 +156,12 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
     def supported_noise_channels(self) -> List[str]:
         """Return a list of supported noise channels"""
         return [
-            "tphi_1_over_f_cc",
             "tphi_1_over_f_flux",
-            "t1_flux_bias_line",
-            # 't1_capacitive',
-            "t1_inductive",
+            "tphi_1_over_f_ng",
+            't1_capacitive',
+            "t1_inductive"
+            #"t1_flux_bias_line",
+
         ]
 
     def widget(self, params: Dict[str, Any] = None) -> None:
@@ -329,16 +330,18 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
             NEED TO UPDATE FOR BIFLUXON with phi/2 operators
         """
         op_1 = sparse.kron(
-            self._sin_phi_operator(x=-2.0 * np.pi * self.flux / 2.0),
+            self._sin_phiby2_operator(x = 2 * np.pi * self.flux),
             self._cos_theta_operator(),
             format="csc",
         )
         op_2 = sparse.kron(
-            self._cos_phi_operator(x=-2.0 * np.pi * self.flux / 2.0),
+            self._cos_phi_operator(x = 2 * np.pi * self.flux),
             self._sin_theta_operator(),
             format="csc",
         )
-        return -2.0 * np.pi * self.EJ * op_1 - np.pi * self.EJ * self.dEJ * op_2
+        return 2.0 * np.pi * self.EJ * op_1 - 2.0 * np.pi * self.EJ * self.dEJ * op_2
+
+
 
     def d_hamiltonian_d_flux(self) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t flux, at the current value of flux,
@@ -438,6 +441,9 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         ).tocsc()
         return sparse.kron(self._identity_phi(), n_theta_matrix, format="csc")
 
+    def n_operator(self) -> csc_matrix:
+        return self.n_theta_operator()
+
     def _sin_phi_operator(self, x: float = 0) -> csc_matrix:
         r"""
         Operator :math:`\sin(\phi + x)`, acting only on the `\phi` Hilbert subspace.x
@@ -468,7 +474,7 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         """
         pt_count = self.grid.pt_count
 
-        vals = np.sin(self.grid.make_linspace()/2.0 + x)
+        vals = np.sin(self.grid.make_linspace()/2.0 + x/2.0)
         sin_phiby2_matrix = sparse.dia_matrix(
             (vals, [0]), shape=(pt_count, pt_count)
         ).tocsc()
@@ -480,7 +486,7 @@ class Bifluxon(base.QubitBaseClass, serializers.Serializable, NoisyBifluxon):
         """
         pt_count = self.grid.pt_count
 
-        vals = np.cos(self.grid.make_linspace()/2.0 + x)
+        vals = np.cos(self.grid.make_linspace()/2.0 + x/2.0)
         cos_phiby2_matrix = sparse.dia_matrix(
             (vals, [0]), shape=(pt_count, pt_count)
         ).tocsc()
