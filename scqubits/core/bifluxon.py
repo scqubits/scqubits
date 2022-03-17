@@ -221,7 +221,7 @@ class Bifluxon(base.QubitBaseClass2dExtPer, serializers.Serializable, NoisyBiflu
         )
         if self.dEJ != 0:
             potential_mat += (
-                -2.0* self.EJ
+                -2.0 * self.EJ
                 * self.dEJ
                 * sparse.kron(phi_sinby2_potential, self._identity_theta(), format="csc")
                 * self.sin_theta_operator()
