@@ -27,6 +27,7 @@ from scqubits import settings
 from scqubits.core.bifluxon import Bifluxon
 from scqubits.core.central_dispatch import CentralDispatch
 from scqubits.core.cos2phi_qubit import Cos2PhiQubit
+from scqubits.core.bifluxon import Bifluxon
 from scqubits.core.discretization import Grid1d
 from scqubits.core.flux_qubit import FluxQubit
 from scqubits.core.fluxonium import Fluxonium
