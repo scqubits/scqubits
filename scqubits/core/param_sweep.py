@@ -1042,7 +1042,9 @@ class ParameterSweep(  # type:ignore
         target_map = cpu_switch.get_map_method(self._num_cpus)
 
         with utils.InfoBar(
-            "Parallel compute bare eigensys [num_cpus={}]".format(self._num_cpus),
+            "Parallel compute bare eigensys for subsystem {} [num_cpus={}]".format(
+                subsystem.id_str,
+                self._num_cpus),
             self._num_cpus,
         ) as p:
             bare_eigendata = tqdm(
