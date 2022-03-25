@@ -24,6 +24,7 @@ from matplotlib.figure import Figure
 from matplotlib import get_backend as get_matplotlib_backend
 
 import scqubits as scq
+from scqubits.core.qubit_base import QubitBaseClass
 from scqubits.core.param_sweep import ParameterSlice
 from scqubits.explorer import explorer_panels as panels
 from scqubits.ui.gui_defaults import (
@@ -109,10 +110,6 @@ class Explorer2(ipywidgets.VBox):
                 "functioning",
                 UserWarning,
             )
-        # else:
-        #     plt.ioff()
-
-        # self.out = ipywidgets.Output()
 
         self.sweep = sweep
         self.subsys_names = [subsys.id_str for subsys in self.sweep.hilbertspace]
@@ -123,10 +120,15 @@ class Explorer2(ipywidgets.VBox):
 
         self.panel_count = 0
         self.ncols = 2
-        self.nrows = 1
 
-        self.fig: Figure
-        self.axes_table: List[List[Axes]]
+        plt.ioff()
+        self.fig = plt.figure()
+        self.fig.canvas.toolbar_position = "right"
+        self.fig.canvas.header_visible = False
+        self.fig.canvas.footer_visible = False
+        plt.ion()
+
+        self.axes_table = np.array([])
 
         px = 1 / plt.rcParams["figure.dpi"]
         if self._has_widget_backend:
@@ -220,7 +222,6 @@ class Explorer2(ipywidgets.VBox):
 
         self.ui_vbox["panels_list"] = VBox(
             [
-                # HTML(value="<b>Selected panels</b>"),
                 HBox([self.ui_panels_list, self.ui_delete_btn]),
             ]
         )
@@ -267,11 +268,6 @@ class Explorer2(ipywidgets.VBox):
             layout=width(900),
         )
 
-        # self.ui_vbox["parameters"] = VBox(
-        #     [self.ui_vbox["parameters"]],
-        #     layout=width(900),
-        # )
-
         # == Panel settings ========================================================
         self.ui_subsys_panel_settings = {
             subsys_name: {
@@ -294,10 +290,6 @@ class Explorer2(ipywidgets.VBox):
             **self.ui_composite_panel_settings,
         }
 
-        # ui_settings_btn = Button(icon="toggle-on", layout=width(35))
-        # ui_settings_btn.style.button_color = "white"
-        # ui_settings_btn.on_click(self.toggle_settings_ui)
-
         # TODO: the following dropdown needs to be adjusted in options whenever panels
         # are added/deleted
 
@@ -305,10 +297,13 @@ class Explorer2(ipywidgets.VBox):
             options=self.get_panels_list(), layout=width(250)
         )
         self.ui_panels_choice_dropdown.observe(self.activate_settings, "value")
-        subsys_name, panel_name = self.ui_panels_choice_dropdown.value.split(SEP)
-        self.ui_hbox["panel_settings"] = HBox(
-            children=self.ui_settings[subsys_name][panel_name]
-        )
+        if self.ui_panels_choice_dropdown.value:
+            subsys_name, panel_name = self.ui_panels_choice_dropdown.value.split(SEP)
+            self.ui_hbox["panel_settings"] = HBox(
+                children=self.ui_settings[subsys_name][panel_name]
+            )
+        else:
+            self.ui_hbox["panel_settings"] = HBox([])
 
         self.ui_hbox["panel_choice"] = HBox([self.ui_panels_choice_dropdown])
 
@@ -321,8 +316,9 @@ class Explorer2(ipywidgets.VBox):
         )
 
         if self._has_widget_backend:
-            self.update_layout_and_plots(None)
             self.out = self.fig.canvas
+            self.fig.tight_layout()
+            self.update_layout_and_plots(None)
         else:
             self.out = Output(layout=width(750))
             self.update_layout_and_plots(None)
@@ -343,25 +339,7 @@ class Explorer2(ipywidgets.VBox):
         self.ui_main_tab.set_title(0, "Choose panels")
         self.ui_main_tab.set_title(1, "Panel settings")
 
-        self.children = [self.ui_main_tab, self.ui_hbox["main_display"]]  # self.out]
-
-    # def toggle_settings_ui(self, btn):
-    #     if btn.icon == "toggle-off":
-    #         btn.icon = "toggle-on"
-    #         self.ui_hbox["panel_settings"].layout.display = "inherit"
-    #         self.ui_hbox["panel_choice"].layout.display = "inherit"
-    #     else:
-    #         btn.icon = "toggle-off"
-    #         self.ui_hbox["panel_settings"].layout.display = "none"
-    #         self.ui_hbox["panel_choice"].layout.display = "none"
-
-    # def toggle_panels_ui(self, btn):
-    #     if btn.icon == "toggle-off":
-    #         btn.icon = "toggle-on"
-    #         self.ui_hbox["panels"].layout.display = "inherit"
-    #     else:
-    #         btn.icon = "toggle-off"
-    #         self.ui_hbox["panels"].layout.display = "none"
+        self.children = [self.ui_main_tab, self.ui_hbox["main_display"]]
 
     def display_panel(
         self,
@@ -389,9 +367,9 @@ class Explorer2(ipywidgets.VBox):
                     0
                 ].value,
             )
-        if panel_name == "Wavefunctions":
+        elif panel_name == "Wavefunctions" and isinstance(subsys, QubitBaseClass):
             panels.display_bare_wavefunctions(self.sweep, subsys, param_slice, fig_ax)
-        if panel_name == "Matrix elements":
+        elif panel_name == "Matrix elements" and isinstance(subsys, QubitBaseClass):
             (
                 opname_dropdown,
                 matrixscan_toggle,
@@ -415,11 +393,9 @@ class Explorer2(ipywidgets.VBox):
                     param_slice=param_slice,
                     fig_ax=fig_ax,
                 )
-        if panel_name == "Anharmonicity":
+        elif panel_name == "Anharmonicity":
             panels.display_anharmonicity(self.sweep, subsys, param_slice, fig_ax)
-        if panel_name == "Dispersion":
-            pass
-        if panel_name == "Transitions":
+        elif panel_name == "Transitions":
             if self.ui_transitions["initial_dressed_inttext"].disabled:
                 initial_state = tuple(
                     inttext.value
@@ -448,10 +424,22 @@ class Explorer2(ipywidgets.VBox):
                 param_slice,
                 fig_ax,
             )
-            # return panels.display_n_photon_qubit_transitions
-        if panel_name == "Cross-Kerr, ac-Stark":
-            pass
-        if panel_name == "Custom data":
+        elif panel_name == "Self-Kerr":
+            panels.display_self_kerr(
+                sweep=self.sweep,
+                subsys=subsys,
+                param_slice=param_slice,
+                fig_ax=fig_ax,
+            )
+        elif panel_name == "Cross-Kerr, ac-Stark":
+            panels.display_cross_kerr(
+                sweep=self.sweep,
+                subsys1=self.sweep.get_subsys(0),
+                subsys2=self.sweep.get_subsys(1),
+                param_slice=param_slice,
+                fig_ax=fig_ax,
+            )
+        elif panel_name == "Custom data":
             pass
 
     @property
@@ -505,10 +493,11 @@ class Explorer2(ipywidgets.VBox):
         ].children
 
     def activate_settings(self, change):
-        subsys_name, panel_name = self.ui_panels_choice_dropdown.value.split(SEP)
-        self.ui_hbox["panel_settings"].children = [
-            *self.ui_settings[subsys_name][panel_name]
-        ]
+        if self.ui_panels_choice_dropdown.value:
+            subsys_name, panel_name = self.ui_panels_choice_dropdown.value.split(SEP)
+            self.ui_hbox["panel_settings"].children = [
+                *self.ui_settings[subsys_name][panel_name]
+            ]
 
     def delete_panel(self, change):
         btn_string = self.ui_panels_list.value
@@ -578,35 +567,34 @@ class Explorer2(ipywidgets.VBox):
         if len(panels) % self.ncols != 0:
             nrows += 1
 
-        # with self.out:
+        for axes in self.fig.axes:
+            self.fig.delaxes(axes)
+
         plt.ioff()
-        if not hasattr(self, "fig"):
-            self.fig, self.axes_table = plt.subplots(
-                ncols=self.ncols,
-                nrows=nrows,
-                figsize=(self.figwidth, self.figheight * nrows),
-                squeeze=False,
-            )
-            self.fig.canvas.toolbar_position = "right"
-            self.fig.canvas.header_visible = False
-            self.fig.canvas.footer_visible = False
-        else:
-            self.fig.clear()
+        if len(panels) > 0:
             self.fig.set_size_inches(self.figwidth, self.figheight * nrows)
             self.axes_table = self.fig.subplots(
                 ncols=self.ncols,
                 nrows=nrows,
                 squeeze=False,
             )
-
         if len(panels) % self.ncols != 0:
             for col in range(1, self.ncols):
                 self.axes_table[-1, col].remove()
         self.panel_count = len(panels)
-        plt.ion()
         self.update_plots(None)
+        plt.ion()
+
+        if not self._has_widget_backend:
+            with self.out:
+                self.out.clear_output(wait=True)
+                self.fig.tight_layout()
+                display(self.fig)
 
     def update_plots(self: "Explorer2", change):
+        if not hasattr(self, "fig"):
+            return
+
         param_val = self.ui_sweep_value_slider.value
         panels = self.get_panels_list()
 
@@ -616,6 +604,7 @@ class Explorer2(ipywidgets.VBox):
             self.fixed_params,
             list(self.sweep.param_info.keys()),
         )
+
         for axes in self.axes_table.flatten():
             for item in axes.lines + axes.collections:
                 item.remove()

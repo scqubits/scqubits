@@ -10,23 +10,24 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from typing import Dict, List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 import numpy as np
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+import scqubits.core.units as units
+import scqubits.utils.plotting as plot
+
 from scqubits import SpectrumData, settings
 from scqubits.core.namedslots_array import NamedSlotsNdarray
+from scqubits.core.oscillator import Oscillator
+from scqubits.utils.misc import tuple_to_short_str
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSlice, ParameterSweep
-    from scqubits.core.qubit_base import QubitBaseClass, QubitBaseClass1d, QuantumSystem
-    from scqubits.core.oscillator import Oscillator
-
-import scqubits.core.units as units
-import scqubits.utils.plotting as plot
+    from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass, QubitBaseClass1d
 
 
 def display_bare_spectrum(
@@ -169,43 +170,43 @@ def display_bare_wavefunctions(
     )
 
 
-def display_dressed_spectrum(
-    sweep: "ParameterSweep",
-    initial_bare: Tuple[int, ...],
-    final_bare: Tuple[int, ...],
-    energy_initial: float,
-    energy_final: float,
-    param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes],
-) -> None:
-    energy_difference = energy_final - energy_initial
-    title = r"{} $\rightarrow$ {}: {:.4f} {}".format(
-        initial_bare, final_bare, energy_difference, units.get_units()
-    )
-    fig, axes = sweep[param_slice.fixed].plot_transitions(title=title, fig_ax=fig_ax)
-    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
-    axes.scatter(
-        [param_slice.param_val] * 2, [energy_initial, energy_final], s=40, c="gray"
-    )
+# def display_dressed_spectrum(
+#     sweep: "ParameterSweep",
+#     initial_bare: Tuple[int, ...],
+#     final_bare: Tuple[int, ...],
+#     energy_initial: float,
+#     energy_final: float,
+#     param_slice: "ParameterSlice",
+#     fig_ax: Tuple[Figure, Axes],
+# ) -> None:
+#     energy_difference = energy_final - energy_initial
+#     title = r"{} $\rightarrow$ {}: {:.4f} {}".format(
+#         initial_bare, final_bare, energy_difference, units.get_units()
+#     )
+#     fig, axes = sweep[param_slice.fixed].plot_transitions(title=title, fig_ax=fig_ax)
+#     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
+#     axes.scatter(
+#         [param_slice.param_val] * 2, [energy_initial, energy_final], s=40, c="gray"
+#     )
 
 
-def display_n_photon_qubit_transitions(
-    sweep: "ParameterSweep",
-    photonnumber: int,
-    subsys: "QubitBaseClass",
-    initial_bare: Tuple[int, ...],
-    param_slice: "ParameterSlice",
-    fig_ax: Tuple[Figure, Axes],
-) -> None:
-    title = r"{}-photon {} transitions".format(photonnumber, subsys.id_str)
-    fig, axes = sweep[param_slice.fixed].plot_transitions(
-        subsystems=[subsys],
-        initial=initial_bare,
-        photon_number=photonnumber,
-        title=title,
-        fig_ax=fig_ax,
-    )
-    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
+# def display_n_photon_qubit_transitions(
+#     sweep: "ParameterSweep",
+#     photonnumber: int,
+#     subsys: "QubitBaseClass",
+#     initial_bare: Tuple[int, ...],
+#     param_slice: "ParameterSlice",
+#     fig_ax: Tuple[Figure, Axes],
+# ) -> None:
+#     title = r"{}-photon {} transitions".format(photonnumber, subsys.id_str)
+#     fig, axes = sweep[param_slice.fixed].plot_transitions(
+#         subsystems=[subsys],
+#         initial=initial_bare,
+#         photon_number=photonnumber,
+#         title=title,
+#         fig_ax=fig_ax,
+#     )
+#     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
 
 def display_transitions(
@@ -232,80 +233,140 @@ def display_transitions(
     axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
 
-def display_chi_01(
+# def display_chi_01(
+#     sweep: "ParameterSweep",
+#     subsys1_index: int,
+#     subsys2_index: int,
+#     param_val: float,
+#     fig_ax: Tuple[Figure, Axes],
+# ) -> None:
+#     chi_data = sweep["chi"][subsys1_index, subsys2_index]
+#     title = r"$\chi_{01}$" + " = {:.4f}{}".format(
+#         chi_data[float(param_val), 1], units.get_units()
+#     )
+#     fig, axes = chi_data[:, 1].plot(title=title, fig_ax=fig_ax)
+#     axes.axvline(param_val, color="gray", linestyle=":")
+
+
+def display_cross_kerr(
     sweep: "ParameterSweep",
-    subsys1_index: int,
-    subsys2_index: int,
-    param_val: float,
+    subsys1: "QuantumSystem",
+    subsys2: "QuantumSystem",
+    param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
-    chi_data = sweep["chi"][subsys1_index, subsys2_index]
-    title = r"$\chi_{01}$" + " = {:.4f}{}".format(
-        chi_data[float(param_val), 1], units.get_units()
-    )
-    fig, axes = chi_data[:, 1].plot(title=title, fig_ax=fig_ax)
-    axes.axvline(param_val, color="gray", linestyle=":")
+    subsys1_index = sweep.get_subsys_index(subsys1)
+    subsys2_index = sweep.get_subsys_index(subsys2)
+    type_list = [type(sys) for sys in [subsys1, subsys2]]
+    if type_list.count(Oscillator) == 1:
+        title = r"ac Stark: {} <-> {}".format(subsys1.id_str, subsys2.id_str)
+        ylabel = r"ac Stark shift $\chi^{{{},{}}}_l$".format(
+            subsys1_index, subsys2_index
+        )
+        level_pairs = [(1, 1), (2, 2)]
+        kerr_data = sweep["chi"][subsys1_index, subsys2_index][param_slice.fixed]
+        label_list = [tuple_to_short_str(pair) for pair in level_pairs]
+    elif type_list.count(Oscillator) == 2:
+        title = r"cross-Kerr: {} <-> {}".format(subsys1.id_str, subsys2.id_str)
+        ylabel = r"Kerr coefficient $K_{{},{}}$".format(
+            subsys1_index, subsys2_index
+        )
+        level_pairs = [(1, 1)]
+        kerr_data = sweep["kerr"][subsys1_index, subsys2_index][param_slice.fixed]
+        label_list = []
+    else:
+        title = u"cross-Kerr: {} \u2194 {}".format(subsys1.id_str, subsys2.id_str)
+        ylabel = r"Kerr coefficient $\Lambda^{{{},{}}}_{{ll'}}$".format(
+            subsys1_index, subsys2_index
+        )
+        level_pairs = [(0, 1), (1, 0), (1, 1), (1, 2), (2, 1), (2, 2)]
+        kerr_data = sweep["kerr"][subsys1_index, subsys2_index][param_slice.fixed]
+        label_list = [tuple_to_short_str(pair) for pair in level_pairs]
 
+    kerr_datasets = []
+    for level1, level2 in level_pairs:
+        kerr_datasets.append(kerr_data[..., level1, level2])
 
-def display_kerrs(
-    sweep: "ParameterSweep",
-    subsys1_index: int,
-    subsys2_index: int,
-    param_val: float,
-    fig_ax: Tuple[Figure, Axes],
-) -> None:
-    if subsys1_index == subsys2_index:
-        return None
-    kerr_data = sweep["kerr"][subsys1_index, subsys2_index]
-    title = r"Kerr $ij=01,10,11$"
-
-    kerr_datasets = np.asarray(
-        [kerr_data[:, 0, 1], kerr_data[:, 1, 0], kerr_data[:, 1, 1]]
-    ).T
+    kerr_datasets = np.asarray(kerr_datasets).T
     kerr_namedarray = NamedSlotsNdarray(kerr_datasets, kerr_data.param_info)
     fig, axes = kerr_namedarray.plot(
         title=title,
-        label_list=["01", "10", "11"],
-        ylabel=r"Kerr coefficient $\Lambda^{qq'}_{ll'}$"
-        + "[{}]".format(units.get_units()),
+        label_list=label_list if label_list else None,
+        ylabel=ylabel + "[{}]".format(units.get_units()),
         fig_ax=fig_ax,
     )
-    axes.axvline(param_val, color="gray", linestyle=":")
+    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
 
 
-def display_kerrlike(
+def display_self_kerr(
     sweep: "ParameterSweep",
-    subsys1_index: int,
-    subsys2_index: int,
-    param_val: float,
+    subsys: "QuantumSystem",
+    param_slice: "ParameterSlice",
     fig_ax: Tuple[Figure, Axes],
 ) -> None:
-    subsys2 = sweep.get_subsys(subsys2_index)
-
-    if subsys2 in sweep.osc_subsys_list:
-        display_chi_01(sweep, subsys1_index, subsys2_index, param_val, fig_ax)
+    subsys_index = sweep.get_subsys_index(subsys)
+    title = r"self-Kerr: {}".format(subsys.id_str)
+    if isinstance(subsys, Oscillator):
+        ylabel = "Kerr coefficient $K_{{{}}}$".format(subsys_index)
     else:
-        display_kerrs(sweep, subsys1_index, subsys2_index, param_val, fig_ax)
+        ylabel = r"Kerr coefficient $\Lambda^{{{},{}}}_{{ll'}}$".format(subsys_index,
+                                                                        subsys_index)
 
+    kerr_data = sweep["kerr"][subsys_index, subsys_index][param_slice.fixed]
 
-def display_charge_matrixelems(
-    sweep: "ParameterSweep",
-    initial_bare: Tuple[int, ...],
-    subsys_index: int,
-    param_val: float,
-    fig_ax: Tuple[Figure, Axes],
-) -> None:
-    subsys = sweep.get_subsys(subsys_index)
-    bare_qbt_initial = initial_bare[subsys_index]
-    title = r"charge matrix elements for {}".format(subsys.id_str)
-    charge_matrixelems = np.abs(
-        sweep["n_operator qubit " + str(subsys_index)][:, bare_qbt_initial, :]
-    )
-    indices = range(charge_matrixelems.shape[1])
-    fig, axes = charge_matrixelems.plot(
+    level_pairs = [(1, 1), (2, 2)]
+
+    kerr_datasets = []
+    for level1, level2 in level_pairs:
+        kerr_datasets.append(kerr_data[..., level1, level2])
+    kerr_datasets = np.asarray(kerr_datasets).T
+    kerr_namedarray = NamedSlotsNdarray(kerr_datasets, kerr_data.param_info)
+
+    fig, axes = kerr_namedarray.plot(
         title=title,
-        ylabel=r"$|\langle i |n| j \rangle|$",
-        label_list=["{},{}".format(bare_qbt_initial, fin) for fin in indices],
+        label_list=["11", "22"],
+        ylabel=ylabel + "[{}]".format(units.get_units()),
         fig_ax=fig_ax,
     )
-    axes.axvline(param_val, color="gray", linestyle=":")
+    axes.axvline(param_slice.param_val, color="gray", linestyle=":")
+
+
+
+#
+#
+# def display_kerrlike(
+#     sweep: "ParameterSweep",
+#     subsys1_index: int,
+#     subsys2_index: int,
+#     param_val: float,
+#     fig_ax: Tuple[Figure, Axes],
+# ) -> None:
+#     subsys2 = sweep.get_subsys(subsys2_index)
+#
+#     if subsys2 in sweep.osc_subsys_list:
+#         display_chi_01(sweep, subsys1_index, subsys2_index, param_val, fig_ax)
+#     else:
+#         display_kerrs(sweep, subsys1_index, subsys2_index, param_val, fig_ax)
+
+
+# def display_charge_matrixelems(
+#     sweep: "ParameterSweep",
+#     initial_bare: Tuple[int, ...],
+#     subsys_index: int,
+#     param_val: float,
+#     fig_ax: Tuple[Figure, Axes],
+# ) -> None:
+#     subsys = sweep.get_subsys(subsys_index)
+#     bare_qbt_initial = initial_bare[subsys_index]
+#     title = r"charge matrix elements for {}".format(subsys.id_str)
+#     charge_matrixelems = np.abs(
+#         sweep["n_operator qubit " + str(subsys_index)][:, bare_qbt_initial, :]
+#     )
+#     indices = range(charge_matrixelems.shape[1])
+#     fig, axes = charge_matrixelems.plot(
+#         title=title,
+#         ylabel=r"$|\langle i |n| j \rangle|$",
+#         label_list=["{},{}".format(bare_qbt_initial, fin) for fin in indices],
+#         fig_ax=fig_ax,
+#     )
+#     axes.axvline(param_val, color="gray", linestyle=":")

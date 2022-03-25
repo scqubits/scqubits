@@ -159,7 +159,6 @@ subsys_panel_names = [
     "Wavefunctions",
     "Matrix elements",
     "Anharmonicity",
-    "Dispersion",
     "Self-Kerr"
 ]
 
