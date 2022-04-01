@@ -116,10 +116,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         self.cutoffs_list = []
         self.phi_basis = phi_basis
         self.hierarchical_diagonalization = hierarchical_diagonalization
-        # if phi_basis != "sparse" and self.hierarchical_diagonalization:
-        #     raise Exception(
-        #         "Heirarchical Diagonalization only works with discretized phi basis for extended degrees of freedom. Please change `phi_basis` to sparse to use heirarchical diagonalization."
-        #     )
 
         # Hamiltonian function
         if initiate_sym_calc:
@@ -235,14 +231,17 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             + ["input_string"]
         )
 
+        self.set_vars()  # setting the attribute vars to store operator symbols
+
         if not self.hierarchical_diagonalization:
             self.hamiltonian_function()
         else:
+            # self.HD_indices = []
             self.subsystem_truncated_dims = {}
             self.subsystem_truncated_dims["main"] = 10  # default value
-            for osc_index in self.var_indices["osc"]:
+            for sys_index in self.HD_indices:
                 # default value
-                self.subsystem_truncated_dims["osc_" + str(osc_index)] = 10
+                self.subsystem_truncated_dims["sys_" + str(sys_index)] = 10
             self.hamiltonian_function()
             self.hierarchical_diagonalization_func()
 
@@ -250,6 +249,9 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         self.set_operators()
 
         if self.hierarchical_diagonalization:
+            self.main_subsystem.set_operators()
+            for var_index in self.HD_indices:
+                self.subsystems[var_index][0].set_operators()
             self.complete_hilbert_space()
 
     ##################################################################
@@ -277,96 +279,106 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         return sparse.diags(np.sin((x.todia()).diagonal())).tocsc()
 
     def hierarchical_diagonalization_func(self):
-        H = self.hamiltonian_symbolic.expand()
+        # H = self.hamiltonian_symbolic.expand()
+        H = self.H_f
 
-        expr_dict = H.as_coefficients_dict()
-        terms_list = list(expr_dict.keys())
-
-        oscs = []
+        systems = []
         interaction = []
 
-        if len(self.var_indices["osc"]) == 0:
+        if len(self.HD_indices) == 0:
             raise Exception(
                 "No oscillator has been detected in this circuit, hierarchcal diagonalization has only been implemented for oscillators."
             )
 
-        for var_index in self.var_indices["osc"]:
-            H_osc = 0 * symbols("x")
+        for var_index in self.HD_indices:
+            expr_dict = H.as_coefficients_dict()
+            terms_list = list(expr_dict.keys())
+
+            H_sys = 0 * symbols("x")
             H_int = 0 * symbols("x")
-            for i, term in enumerate(terms_list):
-                if (
-                    ("θ" + str(var_index) + "**2") in str(term)
-                    or ("Q" + str(var_index) + "**2") in str(term)
-                    or ("Qs" + str(var_index)) in str(term)
-                ):
-                    H_osc = H_osc + expr_dict[term] * term
-                # mat = re.search("θ" + str(var_index), str(term))
-                # mat1 = re.search("Q" + str(var_index), str(term))
-
-                if ("θ" + str(var_index)) in str(term) and (
-                    "θ" + str(var_index) + "**2"
-                ) not in str(term):
-                    H_int = H_int + expr_dict[term] * term
-
-                if ("Q" + str(var_index)) in str(term) and (
-                    "Q" + str(var_index) + "**2"
-                ) not in str(term):
+            for term in terms_list:
+                var_indices = []
+                for var in term.free_symbols:
+                    # remove any branch parameters or flux and offset charge symbols
                     if (
-                        len(
-                            re.findall(
-                                "[0-9]",
-                                re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(term)),
-                            )
-                        )
-                        > 1
+                        "Φ" not in str(var)
+                        and "ng" not in str(var)
+                        and len(list_intersection(self.param_vars, [var])) == 0
                     ):
-                        H_int = H_int + expr_dict[term] * term
-                    else:
-                        H_osc = H_osc + expr_dict[term] * term
-            oscs.append(H_osc)
+                        index = get_trailing_number(str(var))
+                        if index not in var_indices:
+                            var_indices.append(index)
+
+                if len(var_indices) == 1:
+                    if var_indices[0] == var_index:
+                        H_sys = H_sys + expr_dict[term] * term
+
+                if len(var_indices) > 1 and var_index in var_indices:
+                    H_int = H_int + expr_dict[term] * term
+            systems.append(H_sys)
             interaction.append(H_int)
+            H = H - H_sys - H_int  # removing the terms added to a subsystem
 
         # storing data in class attributes
-        self.osc_subsystems_sym = dict(
+        self.subsystems_sym = dict(
             zip(
-                self.var_indices["osc"],
+                self.HD_indices,
                 [
-                    [oscs[index], interaction[index]]
-                    for index in range(len(self.var_indices["osc"]))
+                    [systems[index], interaction[index]]
+                    for index in range(len(self.HD_indices))
                 ],
             )
         )
-        self.main_subsystem_sym = H - sum(oscs) - sum(interaction)
+        self.main_subsystem_sym = H  # just what is left of H
 
         self.main_subsystem = CircuitSubsystem(self, self.main_subsystem_sym)
-        self.osc_subsystems = dict(
+        self.subsystems = dict(
             zip(
-                self.var_indices["osc"],
+                self.HD_indices,
                 [
-                    [CircuitSubsystem(self, oscs[index]), interaction[index]]
-                    for index in range(len(self.var_indices["osc"]))
+                    [CircuitSubsystem(self, systems[index]), interaction[index]]
+                    for index in range(len(self.HD_indices))
                 ],
             )
         )
 
         # updating truncated dims
         self.main_subsystem.truncated_dim = self.subsystem_truncated_dims["main"]
-        for osc_index in self.var_indices["osc"]:
-            self.osc_subsystems[osc_index][
-                0
-            ].truncated_dim = self.subsystem_truncated_dims["osc_" + str(osc_index)]
+        for sys_index in self.HD_indices:
+            self.subsystems[sys_index][0].truncated_dim = self.subsystem_truncated_dims[
+                "sys_" + str(sys_index)
+            ]
 
     def complete_hilbert_space(self):
         hilbert_space = HilbertSpace(
-            [self.main_subsystem]
-            + [self.osc_subsystems[i][0] for i in self.var_indices["osc"]]
+            [self.main_subsystem] + [self.subsystems[i][0] for i in self.HD_indices]
         )
 
         # Adding interactions using the symbolic interaction term
-        for osc in self.var_indices["osc"]:
-            interaction = self.osc_subsystems[osc][1].expand()
+        for sys_index in self.HD_indices:
+            interaction = self.subsystems[sys_index][1].expand()
             if interaction == 0:  # if the interaction term is zero
                 continue
+            # modifying interaction terms
+            #   - substituting all the external flux, offset charge and branch parameters.
+            interaction = interaction.subs(
+                [
+                    (param, getattr(self, str(param)))
+                    for param in self.param_vars
+                    + self.external_flux_vars
+                    + self.offset_charge_vars
+                ]
+            )
+            #   - substituting Identity with 1
+            interaction = interaction.subs("I", 1)
+            #   - substituting cos and sin operators with their own symbols
+            for i in self.var_indices["discretized_phi"]:
+                interaction = interaction.replace(
+                    sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
+                ).replace(
+                    sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i))
+                )
+
             expr_dict = interaction.as_coefficients_dict()
             terms_str = list(expr_dict.keys())
             # coeff_str = list(expr_dict.values())
@@ -374,7 +386,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             for i, x in enumerate(terms_str):
                 coefficient = expr_dict[x]
 
-                # adding external flux and offset charge to coefficient
+                # adding external flux, offset charge and branch parameters to coefficient
                 for var in x.free_symbols:
                     if "Φ" in str(var) or "ng" in str(var) or var in self.param_vars:
                         coefficient = coefficient * getattr(self, str(var))
@@ -386,42 +398,40 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                     and (var not in self.param_vars)
                 ]
 
-                main_sub_op_list = []
-                osc_sub_op_list = []
+                main_op_list = []
+                sys_op_dict = {index: [] for index in self.HD_indices}
                 for var in operator_symbols:
-                    if var in self.main_subsystem.H_func_vars and "I" not in str(var):
-                        main_sub_op_list.append(getattr(self, str(var)))
-                    elif var in self.osc_subsystems[osc][
-                        0
-                    ].H_func_vars and "I" not in str(var):
-                        osc_sub_op_list.append(getattr(self, str(var)))
+                    var_index = get_trailing_number(str(var))
+                    if var_index not in self.HD_indices and "I" not in str(var):
+                        main_op_list.append(getattr(self.main_subsystem, str(var)))
+                    elif var_index in self.HD_indices and "I" not in str(var):
+                        sys_op_dict[var_index].append(
+                            getattr(self.subsystems[var_index][0], str(var))
+                        )
                     elif "I" in str(var):
-                        osc_sub_op_list.append(self.osc_subsystems[osc][0]._identity())
+                        main_op_list.append(self.main_subsystem._identity())
 
                 operator_dict = {}
-                for op_index, op in enumerate(main_sub_op_list):
+                for op_index, op in enumerate(main_op_list):
                     operator_dict["op" + str(op_index + 1)] = (
                         op,
                         self.main_subsystem,
                     )
 
-                for op_index, op in enumerate(osc_sub_op_list):
-                    operator_dict["op" + str(len(main_sub_op_list) + op_index + 1)] = (
-                        op,
-                        self.osc_subsystems[osc][0],
-                    )
+                for index in self.HD_indices:
+                    for op_index, op in enumerate(sys_op_dict[index]):
+                        operator_dict["op" + str(len(main_op_list) + op_index + 1)] = (
+                            op,
+                            self.subsystems[sys_index][0],
+                        )
                 hilbert_space.add_interaction(g=float(coefficient), **operator_dict)
 
         self.hilbert_space = hilbert_space
 
-    def hamiltonian_function(self):
+    def set_vars(self):
         """
-        Outputs the function using lambdify in Sympy, which returns a Hamiltonian matrix by using the circuit attributes set in either the input file or the instance attributes.
+        Sets the attribute vars which is a dictionary containing all the Sympy symbol objects for all the operators present in the circuit
         """
-        H = (
-            self.hamiltonian_symbolic.expand()
-        )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
-
         # Defining the list of variables for periodic operators
         periodic_symbols_sin = [
             symbols("θs" + str(i)) for i in self.var_indices["periodic"]
@@ -432,17 +442,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         periodic_symbols_n = [
             symbols("n" + str(i)) for i in self.var_indices["periodic"]
         ]
-        periodic_symbols = (
-            periodic_symbols_sin + periodic_symbols_cos + periodic_symbols_n
-        )
-        # marking the sin and cos terms of the periodic variables differently
-        if len(self.var_indices["periodic"]) > 0:
-            H = sympy.expand_trig(H).expand()
-
-        for i in self.var_indices["periodic"]:
-            H = H.replace(
-                sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
-            ).replace(sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i)))
 
         # Defining the list of discretized_phi variables
         y_symbols = [symbols("θ" + str(i)) for i in self.var_indices["discretized_phi"]]
@@ -454,15 +453,8 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                 symbols("Qs" + str(i)) for i in self.var_indices["discretized_phi"]
             ]
 
-            # marking the squared momentum operators with a separate symbol
-            for i in self.var_indices["discretized_phi"]:
-                H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
-
-            extended_symbols = y_symbols + p_symbols + ps_symbols
-
         elif self.phi_basis == "harmonic":
-            osc_freqs = dict.fromkeys(self.var_indices["discretized_phi"])
-            osc_lengths = dict.fromkeys(self.var_indices["discretized_phi"])
+
             a_symbols = [
                 symbols("a" + str(i)) for i in self.var_indices["discretized_phi"]
             ]
@@ -475,6 +467,54 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
 
             extended_symbols = a_symbols + ad_symbols + Nh_symbols
 
+        # setting the attribute self.vars
+        self.vars = {
+            "periodic": {
+                "sin": periodic_symbols_sin,
+                "cos": periodic_symbols_cos,
+                "number": periodic_symbols_n,
+            },
+            "identity": [symbols("I")],
+        }
+
+        if self.phi_basis == "sparse":
+            self.vars["discretized_phi"] = {
+                "position": y_symbols,
+                "momentum": p_symbols,
+                "momentum_squared": ps_symbols,
+            }
+        elif self.phi_basis == "harmonic":
+            self.vars["discretized_phi"] = {
+                "annihilation": a_symbols,
+                "creation": ad_symbols,
+                "number": Nh_symbols,
+            }
+
+    def hamiltonian_function(self):
+        """
+        Outputs the function using lambdify in Sympy, which returns a Hamiltonian matrix by using the circuit attributes set in either the input file or the instance attributes.
+        """
+        H = (
+            self.hamiltonian_symbolic.expand()
+        )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
+
+        # marking the sin and cos terms of the periodic variables with different symbols
+        if len(self.var_indices["periodic"]) > 0:
+            H = sympy.expand_trig(H).expand()
+
+        for i in self.var_indices["periodic"]:
+            H = H.replace(
+                sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
+            ).replace(sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i)))
+
+        if self.phi_basis == "sparse":
+
+            # marking the squared momentum operators with a separate symbol
+            for i in self.var_indices["discretized_phi"]:
+                H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
+
+        elif self.phi_basis == "harmonic":
+
             for i in self.var_indices["discretized_phi"]:
                 H = H.replace(
                     sympy.cos(1.0 * symbols("θ" + str(i))),
@@ -483,9 +523,6 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                     sympy.sin(1.0 * symbols("θ" + str(i))),
                     symbols("θs" + str(i)),
                 )
-
-            self.osc_freqs = osc_freqs
-            self.osc_lengths = osc_lengths
 
         # removing the constants from the Hamiltonian
         coeff_dict = H.as_coefficients_dict()
@@ -509,74 +546,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         # associate a identity matrix with offset charge vars
         for offset_charge in self.offset_charge_vars:
             H = H.subs(offset_charge, offset_charge * symbols("I"))
-
-        # Updating the class properties
-        if self.phi_basis == "sparse":
-            # defining the function from the Hamiltonian
-            func = lambdify(
-                (
-                    periodic_symbols
-                    + extended_symbols
-                    + [symbols("I")]
-                    + self.param_vars
-                    + self.external_flux_vars
-                    + self.offset_charge_vars
-                ),
-                H,
-                [
-                    {"exp": self._exp_dia},
-                    {"cos": self._cos_dia},
-                    {"sin": self._sin_dia},
-                    "scipy",
-                ],
-            )
-            self.vars = {
-                "periodic": {
-                    "sin": periodic_symbols_sin,
-                    "cos": periodic_symbols_cos,
-                    "number": periodic_symbols_n,
-                },
-                "discretized_phi": {
-                    "position": y_symbols,
-                    "momentum": p_symbols,
-                    "momentum_squared": ps_symbols,
-                },
-                "identity": [symbols("I")],
-            }
-        elif self.phi_basis == "harmonic":
-            func = lambdify(
-                (
-                    periodic_symbols
-                    + extended_symbols
-                    + [symbols("I")]
-                    + self.param_vars
-                    + self.external_flux_vars
-                    + self.offset_charge_vars
-                ),
-                H,
-                [
-                    {"F": lambda *args: np.linalg.multi_dot(args)},
-                    {"cos": sp.linalg.cosm},
-                    {"sin": sp.linalg.sinm},
-                    "scipy",
-                ],
-            )
-            self.vars = {
-                "periodic": {
-                    "sin": periodic_symbols_sin,
-                    "cos": periodic_symbols_cos,
-                    "number": periodic_symbols_n,
-                },
-                "discretized_phi": {
-                    "annihilation": a_symbols,
-                    "creation": ad_symbols,
-                    "number": Nh_symbols,
-                },
-                "identity": [symbols("I")],
-            }
-        self.H_func = func
         setattr(self, "H_f", H)
-        return func
 
     ##################################################################
     ############### Functions to construct the operators #############
@@ -602,16 +572,11 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         """
         Returns the final operator
         """
-        if type(self) == Circuit:
-            if self.hierarchical_diagonalization:
-                if index in self.main_subsystem.var_indices_list:
-                    var_index_list = self.main_subsystem.var_indices_list
-                else:
-                    var_index_list = [index]
+        if type(self) == Circuit and self.hierarchical_diagonalization:
+            if index in self.main_subsystem.var_indices_list:
+                var_index_list = self.main_subsystem.var_indices_list
             else:
-                var_index_list = (
-                    self.var_indices["periodic"] + self.var_indices["discretized_phi"]
-                )
+                var_index_list = [index]
         else:
             var_index_list = (
                 self.var_indices["periodic"] + self.var_indices["discretized_phi"]
@@ -973,7 +938,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
 
         return {}
 
-    def set_operators(self):
+    def set_operators(self, return_dict=False):
         """
         Sets the operator attributes of the circuit with new operators calculated using the paramaters set in the circuit attributes. Returns a list of operators similar to the method get_operators.
         Returns nothing.
@@ -987,41 +952,48 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
 
         if type(self) == Circuit:
             ops = self.circuit_operators()
-            operator_list = (
-                flatten_list(ops["periodic"].values())
-                + flatten_list(ops["discretized_phi"].values())
-                + ops["identity"]
+            operator_list = flatten_list(ops["periodic"].values()) + flatten_list(
+                ops["discretized_phi"].values()
             )
         else:
             operator_list = [
                 getattr(self.parent, str(var))
                 for var in variable_symbols_list
                 if "I" not in str(var)
-            ] + [self._identity()]
+            ]
+        operator_list = operator_list + [self._identity()]
 
         for x, operator in enumerate(variable_symbols_list):
             setattr(self, operator.name, operator_list[x])
 
-        return dict(
-            zip(
-                [operator.name for operator in variable_symbols_list],
-                operator_list,
+        if return_dict:
+            return dict(
+                zip(
+                    [operator.name for operator in variable_symbols_list],
+                    operator_list,
+                )
             )
-        )
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
     ##################################################################
-    def select_terms(self, t):
+    def is_mat_mul_replacement_necessary(self, term):
         return (
             set(self.var_indices["discretized_phi"])
-            & set([get_trailing_number(str(i)) for i in t.free_symbols])
-        ) and "*" in str(t)
+            & set([get_trailing_number(str(i)) for i in term.free_symbols])
+        ) and "*" in str(term)
 
     def replace_mat_mul_operator(self, term):
 
-        if not self.select_terms(term):
+        if not self.is_mat_mul_replacement_necessary(term):
             return str(term)
+
+        if self.phi_basis == "sparse":
+            var_indices = [get_trailing_number(str(i)) for i in term.free_symbols]
+            if len(set(var_indices) & set(self.var_indices["discretized_phi"])) > 1:
+                return str(term).replace("*", "@")
+            else:
+                return str(term)
 
         term_string = ""
         # replace ** with np.matrix_power
@@ -1058,15 +1030,10 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             term_string = term_string.replace(match, match.replace("@", "*"))
         return term_string
 
-    def get_harmonic_hamiltonian_string(self, H):
+    def get_eval_hamiltonian_string(self, H):
         """
         Returns the string which defines the expression for Hamiltonian in harmonic oscillator basis
         """
-
-        for i in self.var_indices["discretized_phi"]:
-            H = H.replace(sm.cos(sm.symbols("θ" + str(i))), sm.symbols("θc" + str(i)))
-            H = H.replace(sm.sin(sm.symbols("θ" + str(i))), sm.symbols("θs" + str(i)))
-
         expr_dict = H.as_coefficients_dict()
         terms_list = list(expr_dict.keys())
         coeff_list = list(expr_dict.values())
@@ -1101,7 +1068,14 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         cutoff_list = [j for i in list(self.get_cutoffs().values()) for j in i]
         cutoffs_dict = dict(zip(index_list, cutoff_list))
         # substitute all the parameter values
-        H = H.subs([(param, getattr(self, str(param))) for param in self.param_vars])
+        H = H.subs(
+            [
+                (param, getattr(self, str(param)))
+                for param in self.param_vars
+                + self.external_flux_vars
+                + self.offset_charge_vars
+            ]
+        )
 
         # set the operators to circuit attributes
         self.set_operators()
@@ -1147,7 +1121,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             "cos": cos_operators,
         }
 
-        H_str = self.get_harmonic_hamiltonian_string(H)
+        H_str = self.get_eval_hamiltonian_string(H)
         self.H_str_harmonic = H_str
 
         variable_symbols_list = (
@@ -1193,6 +1167,28 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
 
         return eval(H_str, variable_dict)
 
+    def hamiltonian_sparse(self):
+
+        H = self.H_f
+        H = H.subs(
+            [
+                (param, getattr(self, str(param)))
+                for param in self.param_vars
+                + self.external_flux_vars
+                + self.offset_charge_vars
+            ]
+        )
+
+        H_str = self.get_eval_hamiltonian_string(H)
+
+        variable_dict = self.set_operators(return_dict=True)
+        variable_dict["cos"] = self._cos_dia
+        variable_dict["sin"] = self._sin_dia
+
+        return eval(H_str, variable_dict)
+
+        # replace * with @ for non-diagonal operators
+
     def hamiltonian(self):
         """
         Returns the Hamiltonian of the Circuit bu using the parameters set in the class properties.
@@ -1215,23 +1211,16 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                     "Invalid number of parameters given, please check the number of parameters."
                 )
 
-        if type(self) == Circuit:
-            if self.hierarchical_diagonalization:
-                self.set_operators()
-                self.hierarchical_diagonalization_func()
-                self.complete_hilbert_space()
-                hamiltonian_matrix = self.hilbert_space.hamiltonian()
-            else:
-                self.set_operators()  # updating the operators
-                hamiltonian_matrix = self.H_func(
-                    *(
-                        self.get_operators()
-                        + self.get_params()
-                        + self.get_external_flux()
-                        + self.get_offset_charges()
-                    )
-                )
-        return hamiltonian_matrix
+        if type(self) == Circuit and self.hierarchical_diagonalization:
+            self.set_operators()
+            self.hierarchical_diagonalization_func()
+            self.main_subsystem.set_operators()
+            for var_index in self.HD_indices:
+                self.subsystems[var_index][0].set_operators()
+            self.complete_hilbert_space()
+            return self.hilbert_space.hamiltonian()
+        else:
+            return self.hamiltonian_sparse()
 
     ##################################################################
     ############### Functions for plotting potential #################
@@ -1441,13 +1430,14 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
     ##################################################################
     def _evals_calc(self, evals_count: int) -> ndarray:
 
-        if type(self) == Circuit:
-            if self.hierarchical_diagonalization:
-                hamiltonian_mat = np.array(self.hamiltonian())
-                evals = sp.linalg.eigvalsh(
-                    hamiltonian_mat, subset_by_index=[0, evals_count - 1]
-                )
-                return np.sort(evals)
+        if type(self) == Circuit and self.hierarchical_diagonalization:
+            self.set_operators()
+            self.hierarchical_diagonalization_func()
+            self.main_subsystem.set_operators()
+            for var_index in self.HD_indices:
+                self.subsystems[var_index][0].set_operators()
+            self.complete_hilbert_space()
+            return self.hilbert_space.eigenvals(evals_count=evals_count)
 
         hamiltonian_mat = self.hamiltonian()
         if self.phi_basis == "sparse":
@@ -1466,10 +1456,15 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
 
-        if self.hierarchical_diagonalization:
-            self.set_operators()
-            self.complete_hilbert_space()
-            return self.hilbert_space.eigensys(evals_count=evals_count)
+        if type(self) == Circuit:
+            if self.hierarchical_diagonalization:
+                self.set_operators()
+                self.hierarchical_diagonalization_func()
+                self.main_subsystem.set_operators()
+                for var_index in self.HD_indices:
+                    self.subsystems[var_index][0].set_operators()
+                self.complete_hilbert_space()
+                return self.hilbert_space.eigensys(evals_count=evals_count)
 
         hamiltonian_mat = self.hamiltonian()
         if self.phi_basis == "sparse":
@@ -1627,7 +1622,7 @@ class CircuitSubsystem(Circuit, base.QubitBaseClass, serializers.Serializable):
     def __init__(self, parent, hamiltonian_symbolic):
         self.parent = parent
         self.hamiltonian_symbolic = hamiltonian_symbolic
-        self.variables = list(hamiltonian_symbolic.free_symbols)
+        self.H_f = hamiltonian_symbolic
 
         # TODO what is this / why is it hardcoded to 10? - I followied this from the transmon.py file, as a starting parameter.
         self.truncated_dim = 10
@@ -1655,7 +1650,7 @@ class CircuitSubsystem(Circuit, base.QubitBaseClass, serializers.Serializable):
 
         var_indices_list = []
         cutoffs = []
-        for var in self.variables:
+        for var in list(hamiltonian_symbolic.free_symbols):
             if "I" not in str(var):
                 filtered_var = re.findall(
                     "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(var))
@@ -1713,10 +1708,59 @@ class CircuitSubsystem(Circuit, base.QubitBaseClass, serializers.Serializable):
 
         self._id_str = (
             self._autogenerate_id_str()
-        )  # generating a class attribute to avoid error by parameter sweeps
+        )  # Hilbert Space raises an error saying an instance of this class does not have an attribute _id_str
 
-        # TODO what on earth is this doing here?
-        self.hamiltonian_function()
+        self.set_vars()
+        # self.set_operators()
+
+        # def set_operators(self):
+        #     Circuit.set_operators(self)
+        # generate operators for harmonic oscillator basis
+        if self.phi_basis == "harmonic":
+            for var_index in self.var_indices["discretized_phi"]:
+                H = self.hamiltonian_symbolic
+                ECi = float(H.coeff("Q" + str(var_index) + "**2").cancel()) / 4
+                ELi = float(H.coeff("θ" + str(var_index) + "**2").cancel()) * 2
+                osc_freq = (8 * ELi * ECi) ** 0.5
+                osc_length = (8.0 * ECi / ELi) ** 0.25
+                ad_operator = op.creation(self.cutoffs_dict[var_index])
+                a_operator = op.annihilation(self.cutoffs_dict[var_index])
+                x_operator = (ad_operator + a_operator) * osc_length / (2 ** 0.5)
+                position_operator = self._kron_operator(x_operator, var_index)
+                momentum_operator = self._kron_operator(
+                    1j * (ad_operator - a_operator) / (osc_length * 2 ** 0.5), var_index
+                )
+                sin_operator = self._kron_operator(
+                    sp.linalg.sinm(x_operator), var_index
+                )
+                cos_operator = self._kron_operator(
+                    sp.linalg.cosm(x_operator), var_index
+                )
+
+                setattr(self, "θ" + str(var_index), position_operator)
+                setattr(self, "θc" + str(var_index), cos_operator)
+                setattr(self, "θs" + str(var_index), sin_operator)
+                setattr(self, "Q" + str(var_index), momentum_operator)
+
+        if self.phi_basis == "sparse":
+            grids = {}
+            for var_index in self.var_indices["discretized_phi"]:
+                grids[var_index] = discretization.Grid1d(
+                    self.discretized_phi_range[var_index][0],
+                    self.discretized_phi_range[var_index][1],
+                    self.cutoffs_dict[var_index],
+                )
+            for var_index in self.var_indices["discretized_phi"]:
+                setattr(
+                    self,
+                    "θc" + str(var_index),
+                    self._cos_phi(grids[var_index]),
+                )
+                setattr(
+                    self,
+                    "θs" + str(var_index),
+                    self._cos_phi(grids[var_index]),
+                )
 
     def generate_symbols(self, prefix: str, index_type: str) -> List[symbols]:
         return [
@@ -1725,122 +1769,6 @@ class CircuitSubsystem(Circuit, base.QubitBaseClass, serializers.Serializable):
                 self.parent.var_indices[index_type], self.var_indices_list
             )
         ]
-
-    # # TODO docstring
-    # def hamiltonian_func(self) -> Callable:
-    #     hamiltonian = self.hamiltonian_symbolic.expand()
-
-    #     periodic_var_indices = self.var_indices["periodic"]
-
-    #     if len(periodic_var_indices) > 0:
-    #         hamiltonian = sympy.expand_trig(hamiltonian).expand()
-
-    #     periodic_symbols_ys = self.generate_symbols("θs", "periodic")
-    #     periodic_symbols_yc = self.generate_symbols("θc", "periodic")
-
-    #     for index in periodic_var_indices:
-    #         hamiltonian = hamiltonian.replace(
-    #             sympy.cos(1.0 * symbols("θ" + str(index))),
-    #             symbols("θc" + str(index)),
-    #         )
-    #         hamiltonian = hamiltonian.replace(
-    #             sympy.sin(1.0 * symbols("θ" + str(index))),
-    #             symbols("θs" + str(index)),
-    #         )
-
-    #     Q_squared_symbols = [
-    #         symbols("Qs" + str(index)) for index in self.var_indices["discretized_phi"]
-    #     ]
-
-    #     # marking the squared momentum operators with a separate symbol
-    #     for index in self.var_indices["discretized_phi"]:
-    #         hamiltonian = hamiltonian.replace(
-    #             symbols("Q" + str(index)) ** 2, symbols("Qs" + str(index))
-    #         )
-
-    #     if len(periodic_var_indices) == 0:
-    #         # TODO meaning of "I" is completely obscure at this point in the code - In my code everywhere I is just identity, had to use it as the symbolic variable with a word makes the equations messy.
-    #         variables = [var for var in self.variables if "I" not in str(var)]
-    #     else:
-    #         variables = periodic_symbols_ys + periodic_symbols_yc
-    #         for var in self.variables:
-    #             for index in periodic_var_indices:
-    #                 if "θ" + str(index) not in str(var) and "I" not in str(var):
-    #                     variables.append(var)
-
-    #     variables = variables + Q_squared_symbols
-
-    #     self.H_func_vars = variables.copy()
-
-    #     if symbols("I") in hamiltonian.free_symbols:
-    #         variables.append(symbols("I"))
-
-    #     self.H_func = lambdify(
-    #         variables,
-    #         hamiltonian,
-    #         [
-    #             {"exp": self.parent._exp_dia},
-    #             {"cos": self.parent._cos_dia},
-    #             {"sin": self.parent._sin_dia},
-    #             "scipy",
-    #         ],
-    #     )
-    #     # TODO this looks peculiar: the result is stored and returned???
-    #     return self.H_func
-
-    # def _identity(self) -> csc_matrix:
-    #     """
-    #     Returns the Identity operator for the entire Hilbert space of the circuit.
-    #     """
-    #     dim = self.hilbertdim()
-    #     return sparse.identity(dim, format="csc")
-
-    # def hamiltonian(self):
-    #     self.parent.set_operators()
-    #     variables = [getattr(self.parent, str(var)) for var in self.H_func_vars]
-    #     if symbols("I") in self.variables:
-    #         variables.append(self._identity())
-    #     return self.H_func(*variables)
-
-    # def hilbertdim(self):
-    #     dimensions = []
-    #     for x, index in enumerate(self.var_indices_list):
-    #         if index in self.parent.var_indices["periodic"]:
-    #             dimensions.append(self.cutoffs_dict[index] * 2 + 1)
-    #         elif index in self.parent.var_indices["discretized_phi"]:
-    #             dimensions.append(self.cutoffs_dict[index])
-    #     # returning the hilbertdim
-    #     return np.prod(dimensions)
-
-    # def _evals_calc(self, evals_count: int) -> ndarray:
-    #     hamiltonian_mat = self.hamiltonian()
-
-    #     evals = sparse.linalg.eigsh(
-    #         hamiltonian_mat,
-    #         return_eigenvectors=False,
-    #         k=evals_count,
-    #         v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
-    #         which="SA",
-    #     )
-    #     return np.sort(evals)
-
-    # def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-    #     hamiltonian_mat = self.hamiltonian()
-    #     evals, evecs = sparse.linalg.eigsh(
-    #         hamiltonian_mat,
-    #         return_eigenvectors=True,
-    #         k=evals_count,
-    #         v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
-    #         which="SA",
-    #     )
-    #     evals, evecs = order_eigensystem(evals, evecs)
-    #     return evals, evecs
-
-    # # TODO need to discuss - Yes, I think I included this to make this object compatible with serialize, but did not complete this.
-    # @staticmethod
-    # def default_params() -> Dict[str, Any]:
-    #     # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
-    #     return {}
 
 
 # function to find the differences in the energy levels
