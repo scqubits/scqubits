@@ -207,6 +207,7 @@ class Explorer(ipywidgets.VBox):
     def build_ui_main_display(self) -> HBox:
         self.ui_vbox["parameters_panel_left"] = self.build_ui_parameters_panel_left()
         self.ui["figure_display"] = self.build_ui_figure_display()
+        self.update_layout_and_plots(None)
         return HBox([self.ui_vbox["parameters_panel_left"], self.ui["figure_display"]])
 
     # +--------+
@@ -416,14 +417,12 @@ class Explorer(ipywidgets.VBox):
         if _HAS_WIDGET_BACKEND:
             out = self.fig.canvas
             self.fig.tight_layout()
-            self.update_layout_and_plots(None)
         else:
             out = Output(layout=width(750))
             out.layout.object_fit = "contain"
             out.layout.width = "100%"
-            self.update_layout_and_plots(None)
-            with self.ui["figure_display"]:
-                self.ui["figure_display"].clear_output(wait=True)
+            with out:
+                out.clear_output(wait=True)
                 self.fig.tight_layout()
                 display(self.fig)
         return out
