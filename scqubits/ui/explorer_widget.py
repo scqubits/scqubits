@@ -12,7 +12,7 @@
 
 
 import warnings
-from typing import Dict, List, Optional, TYPE_CHECKING, Tuple
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Tuple
 from distutils.version import StrictVersion
 
 import matplotlib
