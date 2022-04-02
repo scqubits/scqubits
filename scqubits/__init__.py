@@ -46,7 +46,7 @@ from scqubits.core.units import (
 )
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-from scqubits.explorer.explorer import Explorer
+from scqubits.ui.explorer_widget import Explorer
 
 # file IO
 from scqubits.io_utils.fileio import read, write
