@@ -94,7 +94,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         symbolic_circuit: SymbolicCircuit,
         initiate_sym_calc: bool = True,
         phi_basis: str = "sparse",
-        hierarchical_diagonalization: bool = False,
+        hierarchical_diagonalization: bool = True,
     ):
         # inheriting all the attributes from SymbolicCircuit instance
         self.__dict__.update(symbolic_circuit.__dict__)
@@ -116,6 +116,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         self.cutoffs_list = []
         self.phi_basis = phi_basis
         self.hierarchical_diagonalization = hierarchical_diagonalization
+        self.HD_indices = None
 
         # Hamiltonian function
         if initiate_sym_calc:
@@ -185,7 +186,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             phi_basis=phi_basis,
         )
 
-    def initiate_circuit(self, transformation_matrix=None):
+    def initiate_circuit(self, transformation_matrix=None, HD_indices=None):
         """
         Method to initialize the Circuit instance and initialize all the attributes needed before it can be passed on to AnalyzeQCircuit.
 
@@ -236,10 +237,14 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         if not self.hierarchical_diagonalization:
             self.hamiltonian_function()
         else:
-            # self.HD_indices = []
+            if HD_indices == None:
+                self.HD_indices = [
+                    self.var_indices["periodic"] + self.var_indices["discretized_phi"]
+                ]
+            else:
+                self.HD_indices = HD_indices
             self.subsystem_truncated_dims = {}
-            self.subsystem_truncated_dims["main"] = 10  # default value
-            for sys_index in self.HD_indices:
+            for sys_index in range(len(self.HD_indices)):
                 # default value
                 self.subsystem_truncated_dims["sys_" + str(sys_index)] = 10
             self.hamiltonian_function()
@@ -249,9 +254,8 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         self.set_operators()
 
         if self.hierarchical_diagonalization:
-            self.main_subsystem.set_operators()
-            for var_index in self.HD_indices:
-                self.subsystems[var_index][0].set_operators()
+            for subsystem_index in range(len(self.HD_indices)):
+                self.subsystems[subsystem_index][0].set_operators()
             self.complete_hilbert_space()
 
     ##################################################################
@@ -285,19 +289,14 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         systems = []
         interaction = []
 
-        if len(self.HD_indices) == 0:
-            raise Exception(
-                "No oscillator has been detected in this circuit, hierarchcal diagonalization has only been implemented for oscillators."
-            )
-
-        for var_index in self.HD_indices:
+        for subsys_index_list in self.HD_indices:
             expr_dict = H.as_coefficients_dict()
             terms_list = list(expr_dict.keys())
 
             H_sys = 0 * symbols("x")
             H_int = 0 * symbols("x")
             for term in terms_list:
-                var_indices = []
+                term_var_indices = []
                 for var in term.free_symbols:
                     # remove any branch parameters or flux and offset charge symbols
                     if (
@@ -306,14 +305,16 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                         and len(list_intersection(self.param_vars, [var])) == 0
                     ):
                         index = get_trailing_number(str(var))
-                        if index not in var_indices:
-                            var_indices.append(index)
+                        if index not in term_var_indices and index is not None:
+                            term_var_indices.append(index)
 
-                if len(var_indices) == 1:
-                    if var_indices[0] == var_index:
-                        H_sys = H_sys + expr_dict[term] * term
+                if len(set(term_var_indices) - set(subsys_index_list)) == 0:
+                    H_sys = H_sys + expr_dict[term] * term
 
-                if len(var_indices) > 1 and var_index in var_indices:
+                if (
+                    len(set(term_var_indices) - set(subsys_index_list)) > 0
+                    and len(set(term_var_indices) & set(subsys_index_list)) > 0
+                ):
                     H_int = H_int + expr_dict[term] * term
             systems.append(H_sys)
             interaction.append(H_int)
@@ -322,19 +323,17 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         # storing data in class attributes
         self.subsystems_sym = dict(
             zip(
-                self.HD_indices,
+                range(len(self.HD_indices)),
                 [
                     [systems[index], interaction[index]]
                     for index in range(len(self.HD_indices))
                 ],
             )
         )
-        self.main_subsystem_sym = H  # just what is left of H
 
-        self.main_subsystem = CircuitSubsystem(self, self.main_subsystem_sym)
         self.subsystems = dict(
             zip(
-                self.HD_indices,
+                range(len(self.HD_indices)),
                 [
                     [CircuitSubsystem(self, systems[index]), interaction[index]]
                     for index in range(len(self.HD_indices))
@@ -343,19 +342,31 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         )
 
         # updating truncated dims
-        self.main_subsystem.truncated_dim = self.subsystem_truncated_dims["main"]
-        for sys_index in self.HD_indices:
+        for sys_index in range(len(self.HD_indices)):
             self.subsystems[sys_index][0].truncated_dim = self.subsystem_truncated_dims[
                 "sys_" + str(sys_index)
             ]
 
+    def get_subsystem_index(self, var_index):
+        """
+        Returns the index of the subsystem to which the var_index belongs to
+
+        :param var_index: _description_
+        :type var_index: _type_
+        :return: int showing the subsystem
+        :rtype: _type_
+        """
+        for index, subsystem_indices in enumerate(self.HD_indices):
+            if var_index in subsystem_indices:
+                return index
+
     def complete_hilbert_space(self):
         hilbert_space = HilbertSpace(
-            [self.main_subsystem] + [self.subsystems[i][0] for i in self.HD_indices]
+            [self.subsystems[i][0] for i in range(len(self.HD_indices))]
         )
 
         # Adding interactions using the symbolic interaction term
-        for sys_index in self.HD_indices:
+        for sys_index in range(len(self.HD_indices)):
             interaction = self.subsystems[sys_index][1].expand()
             if interaction == 0:  # if the interaction term is zero
                 continue
@@ -383,46 +394,39 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             terms_str = list(expr_dict.keys())
             # coeff_str = list(expr_dict.values())
 
-            for i, x in enumerate(terms_str):
-                coefficient = expr_dict[x]
+            for i, term in enumerate(terms_str):
+                coefficient = expr_dict[term]
 
                 # adding external flux, offset charge and branch parameters to coefficient
-                for var in x.free_symbols:
+                for var in term.free_symbols:
                     if "Φ" in str(var) or "ng" in str(var) or var in self.param_vars:
                         coefficient = coefficient * getattr(self, str(var))
 
                 operator_symbols = [
                     var
-                    for var in x.free_symbols
+                    for var in term.free_symbols
                     if (("Φ" not in str(var)) and ("ng" not in str(var)))
                     and (var not in self.param_vars)
                 ]
 
-                main_op_list = []
-                sys_op_dict = {index: [] for index in self.HD_indices}
+                sys_op_dict = {index: [] for index in range(len(self.HD_indices))}
                 for var in operator_symbols:
                     var_index = get_trailing_number(str(var))
-                    if var_index not in self.HD_indices and "I" not in str(var):
-                        main_op_list.append(getattr(self.main_subsystem, str(var)))
-                    elif var_index in self.HD_indices and "I" not in str(var):
-                        sys_op_dict[var_index].append(
-                            getattr(self.subsystems[var_index][0], str(var))
+                    subsystem_index = self.get_subsystem_index(var_index)
+                    if "I" not in str(var):
+                        sys_op_dict[subsystem_index].append(
+                            getattr(self.subsystems[subsystem_index][0], str(var))
                         )
-                    elif "I" in str(var):
-                        main_op_list.append(self.main_subsystem._identity())
+                    else:
+                        sys_op_dict[0].append(self.subsystems[0][0]._identity())
 
                 operator_dict = {}
-                for op_index, op in enumerate(main_op_list):
-                    operator_dict["op" + str(op_index + 1)] = (
-                        op,
-                        self.main_subsystem,
-                    )
 
-                for index in self.HD_indices:
-                    for op_index, op in enumerate(sys_op_dict[index]):
-                        operator_dict["op" + str(len(main_op_list) + op_index + 1)] = (
-                            op,
-                            self.subsystems[sys_index][0],
+                for index in range(len(self.HD_indices)):
+                    for op_index, operator in enumerate(sys_op_dict[index]):
+                        operator_dict["op" + str(len(operator_dict) + 1)] = (
+                            operator,
+                            self.subsystems[index][0],
                         )
                 hilbert_space.add_interaction(g=float(coefficient), **operator_dict)
 
@@ -573,10 +577,8 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         Returns the final operator
         """
         if type(self) == Circuit and self.hierarchical_diagonalization:
-            if index in self.main_subsystem.var_indices_list:
-                var_index_list = self.main_subsystem.var_indices_list
-            else:
-                var_index_list = [index]
+            subsystem_index = self.get_subsystem_index(index)
+            var_index_list = self.HD_indices[subsystem_index]
         else:
             var_index_list = (
                 self.var_indices["periodic"] + self.var_indices["discretized_phi"]
@@ -1214,9 +1216,8 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         if type(self) == Circuit and self.hierarchical_diagonalization:
             self.set_operators()
             self.hierarchical_diagonalization_func()
-            self.main_subsystem.set_operators()
-            for var_index in self.HD_indices:
-                self.subsystems[var_index][0].set_operators()
+            for subsystem_index in range(len(self.HD_indices)):
+                self.subsystems[subsystem_index][0].set_operators()
             self.complete_hilbert_space()
             return self.hilbert_space.hamiltonian()
         else:
@@ -1433,10 +1434,19 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         if type(self) == Circuit and self.hierarchical_diagonalization:
             self.set_operators()
             self.hierarchical_diagonalization_func()
-            self.main_subsystem.set_operators()
-            for var_index in self.HD_indices:
-                self.subsystems[var_index][0].set_operators()
+            for subsystem_index in range(len(self.HD_indices)):
+                self.subsystems[subsystem_index][0].set_operators()
             self.complete_hilbert_space()
+            if self.phi_basis == "sparse":
+                hamiltonian_mat = self.hamiltonian().data
+                evals = sparse.linalg.eigsh(
+                    hamiltonian_mat,
+                    return_eigenvectors=False,
+                    k=evals_count,
+                    v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
+                    which="SA",
+                )
+                return np.sort(evals)
             return self.hilbert_space.eigenvals(evals_count=evals_count)
 
         hamiltonian_mat = self.hamiltonian()
@@ -1460,9 +1470,8 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
             if self.hierarchical_diagonalization:
                 self.set_operators()
                 self.hierarchical_diagonalization_func()
-                self.main_subsystem.set_operators()
-                for var_index in self.HD_indices:
-                    self.subsystems[var_index][0].set_operators()
+                for subsystem_index in range(len(self.HD_indices)):
+                    self.subsystems[subsystem_index][0].set_operators()
                 self.complete_hilbert_space()
                 return self.hilbert_space.eigensys(evals_count=evals_count)
 
