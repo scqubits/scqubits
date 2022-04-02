@@ -853,6 +853,16 @@ class GUI:
         )
 
         return qubit_plot_interactive
+    
+    # def coherence_scan_interactive(self) -> widgets.interactive:
+    #     """
+        
+    #     Returns
+    #     -------
+    #     widgets.interactive
+    #     """
+
+    #     pass
 
     def qubit_plot(self, qubit_value: str, qubit_info: bool, plot_value: str) -> None:
         """Sets up and displays qubit_plot_interactive.
