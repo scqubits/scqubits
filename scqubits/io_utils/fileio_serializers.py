@@ -129,7 +129,7 @@ def _add_attribute(
     return attributes, ndarrays, objects
 
 
-TO_ATTRIBUTE = (str, Number, dict, list, tuple, bool, np.bool_)
+TO_ATTRIBUTE = (str, Number, dict, OrderedDict, list, tuple, bool, np.bool_)
 TO_NDARRAY = (np.ndarray,)
 TO_OBJECT = (Serializable,)
 
@@ -178,15 +178,17 @@ def OrderedDict_serialize(dict_instance: Dict[str, Any]) -> "IOData":
     import scqubits.io_utils.fileio as io
 
     dict_instance = utils.remove_nones(dict_instance)
+
     attributes: Dict[str, Any] = {}
     ndarrays: Dict[str, ndarray] = {}
     objects: Dict[str, object] = {}
     typename = "OrderedDict"
 
-    for name, content in dict_instance.items():
-        update_func = type_dispatch(content)
+    list_representation = list(dict_instance.items())
+    for index, item in enumerate(list_representation):
+        update_func = type_dispatch(item)
         attributes, ndarrays, objects = update_func(
-            name, content, attributes, ndarrays, objects
+            str(index), item, attributes, ndarrays, objects
         )
     return io.IOData(typename, attributes, ndarrays, objects)
 
@@ -282,7 +284,8 @@ def dict_deserialize(iodata: "IOData") -> Dict[str, Any]:
 
 def OrderedDict_deserialize(iodata: "IOData") -> Dict[str, Any]:
     """Turn IOData instance back into a dict"""
-    return OrderedDict([(name, values) for name, values in iodata.as_kwargs().items()])
+    dict_data = iodata.as_kwargs()
+    return OrderedDict([dict_data[key] for key in sorted(dict_data, key=int)])
 
 
 def csc_matrix_deserialize(iodata: "IOData") -> csc_matrix:
@@ -330,6 +333,4 @@ def get_init_params(obj: Serializable) -> List[str]:
         init_params.remove("self")
     if "kwargs" in init_params:
         init_params.remove("kwargs")
-    # if "id_str" in init_params:
-    #     init_params.remove("id_str")
     return init_params
