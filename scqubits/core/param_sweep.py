@@ -1061,8 +1061,8 @@ class ParameterSweep(  # type:ignore
 
         with utils.InfoBar(
             "Parallel compute bare eigensys for subsystem {} [num_cpus={}]".format(
-                subsystem.id_str,
-                self._num_cpus),
+                subsystem.id_str, self._num_cpus
+            ),
             self._num_cpus,
         ) as p:
             bare_eigendata = tqdm(
