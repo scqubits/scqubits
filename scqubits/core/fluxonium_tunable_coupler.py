@@ -920,10 +920,13 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             m, evals_b, phi_b_mat, evals_minus, phi_minus_mat, self.ELb, which=1
         )
 
+    def H_c_XX_onlyS1(self, ell, m):
+        return -0.25 * self.EL_tilda() * self.theta_minus_XX_onlyS1(ell, m)
+
     def H_c_XX(self, ell, m):
         return -0.25 * self.EL_tilda() * self.theta_minus_XX(ell, m)
 
-    def _second_order_generator_cross(
+    def _first_order_generator_squared(
         self,
         evals_a,
         phi_a_mat,
@@ -977,6 +980,9 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         )
 
     def theta_minus_XX(self, ell, m):
+        return self.theta_minus_XX_onlyS1(ell, m) + self.theta_minus_XX_onlyS2(ell, m)
+
+    def theta_minus_XX_onlyS2(self, ell, m):
         (
             evals_a,
             phi_a_mat,
@@ -988,45 +994,6 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         f_m_dim = self.fluxonium_minus_truncated_dim
         ell_prime = (ell + 1) % 2
         m_prime = (m + 1) % 2
-        S1_m_contr = sum(
-            self._second_order_generator_cross(
-                evals_a,
-                phi_a_mat,
-                evals_b,
-                phi_b_mat,
-                evals_minus,
-                phi_minus_mat,
-                ell,
-                ell_prime,
-                m,
-                m_prime,
-                n,
-                n_prime,
-            )
-            * phi_minus_mat[n, n_prime]
-            for n in range(1, f_m_dim)
-            for n_prime in range(1, f_m_dim)
-        )
-        S1_0_contr = (
-            sum(
-                self._second_order_generator_cross(
-                    evals_a,
-                    phi_a_mat,
-                    evals_b,
-                    phi_b_mat,
-                    evals_minus,
-                    phi_minus_mat,
-                    ell,
-                    ell_prime,
-                    m,
-                    m_prime,
-                    n,
-                    n,
-                )
-                for n in range(1, f_m_dim)
-            )
-            * phi_minus_mat[0, 0]
-        )
         S2_contr = sum(
             (
                 self._eps_ab_2(
@@ -1059,7 +1026,60 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             * phi_minus_mat[0, n]
             for n in range(1, f_m_dim)
         )
-        return -S1_m_contr + S2_contr + S1_0_contr
+        return S2_contr
+
+    def theta_minus_XX_onlyS1(self, ell, m):
+        (
+            evals_a,
+            phi_a_mat,
+            evals_b,
+            phi_b_mat,
+            evals_minus,
+            phi_minus_mat,
+        ) = self._generate_fluxonia_evals_phi_for_SW()
+        f_m_dim = self.fluxonium_minus_truncated_dim
+        ell_prime = (ell + 1) % 2
+        m_prime = (m + 1) % 2
+        S1_m_contr = sum(
+            self._first_order_generator_squared(
+                evals_a,
+                phi_a_mat,
+                evals_b,
+                phi_b_mat,
+                evals_minus,
+                phi_minus_mat,
+                ell,
+                ell_prime,
+                m,
+                m_prime,
+                n,
+                n_prime,
+            )
+            * phi_minus_mat[n, n_prime]
+            for n in range(1, f_m_dim)
+            for n_prime in range(1, f_m_dim)
+        )
+        S1_0_contr = (
+            sum(
+                self._first_order_generator_squared(
+                    evals_a,
+                    phi_a_mat,
+                    evals_b,
+                    phi_b_mat,
+                    evals_minus,
+                    phi_minus_mat,
+                    ell,
+                    ell_prime,
+                    m,
+                    m_prime,
+                    n,
+                    n,
+                )
+                for n in range(1, f_m_dim)
+            )
+            * phi_minus_mat[0, 0]
+        )
+        return -S1_m_contr + S1_0_contr
 
     def H_q_diag(self, ell, which="a"):
         (
@@ -1588,7 +1608,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
             evals_a, phi_a_mat, evals_b, phi_b_mat, evals_minus, phi_minus_mat
         )
 
-    def off_location_coupler_flux(self, epsilon=1e-2):
+    def off_location_coupler_flux(self, epsilon=1e-3):
         def _find_J(flux_c):
             self.flux_c = flux_c
             return self.J_eff_total()
@@ -1896,6 +1916,8 @@ class ConstructFullPulse(serializers.Serializable):
         self.H_a = H_a
         self.H_b = H_b
         self.H_c = H_c
+        self.omega_a = np.real(self.H_0[2, 2])
+        self.omega_b = np.real(self.H_0[1, 1])
         self.dim = H_0.shape[0]
         self.control_dt_slow = control_dt_slow
         self.control_dt_fast = control_dt_fast
@@ -2010,14 +2032,10 @@ class ConstructFullPulse(serializers.Serializable):
         )
 
     def omega_plus(self):
-        omega_a = np.real(self.H_0[2, 2])
-        omega_b = np.real(self.H_0[1, 1])
-        return np.abs(omega_b + omega_a)
+        return np.abs(self.omega_b + self.omega_a)
 
     def omega_minus(self):
-        omega_a = np.real(self.H_0[2, 2])
-        omega_b = np.real(self.H_0[1, 1])
-        return np.abs(omega_b - omega_a)
+        return np.abs(self.omega_b - self.omega_a)
 
     def drive_freq_sqrtiswap(self, m=4):
         omega_a = np.real(self.H_0[2, 2])
@@ -2025,7 +2043,7 @@ class ConstructFullPulse(serializers.Serializable):
         return (omega_a + omega_b) / m
 
     def optimize_amp_id_fidel(self, amp, freq, which_qubit="a"):
-        times = np.linspace(0.0, 1.0 / freq, int(1.0 / freq / 0.02) + 1)
+        times = np.linspace(0.0, 1.0 / freq, int(1.0 / freq / self.control_dt_fast) + 1)
         omega_a = np.real(self.H_0[2, 2])
         omega_b = np.real(self.H_0[1, 1])
         _, (XI, IX, XX) = self.normalized_operators()
@@ -2098,6 +2116,9 @@ class ConstructFullPulse(serializers.Serializable):
             )
             amp = amp_0
         else:
+            print(
+                f"optimized qubit {which_qubit} id pulse with fidelity F={optimized_amp.fun}"
+            )
             amp = optimized_amp.x[0]
         controls, times = self.get_controls_only_sine(freq, amp, self.control_dt_fast)
         total_pulse = self.concatenate_times_or_controls(
@@ -2252,7 +2273,8 @@ class ConstructFullPulse(serializers.Serializable):
         omega_d: float,
         num_periods: int = 2,
         num_cpus: int = 1,
-        which_Z_exclude=2,
+        which_Z_exclude: int = 2,
+        const_angle_val: float = 0.0,
     ):
         (
             spline_a,
@@ -2267,6 +2289,7 @@ class ConstructFullPulse(serializers.Serializable):
             num_periods,
             num_cpus=num_cpus,
             which_Z_exclude=which_Z_exclude,
+            const_angle_val=const_angle_val,
         )
         (norm_a, norm_b, norm_c), (XI, IX, XX) = self.normalized_operators()
         H = [
