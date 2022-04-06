@@ -1,4 +1,4 @@
-# circuit.py
+# symboliccircuit.py
 #
 # This file is part of scqubits.
 #
@@ -31,6 +31,44 @@ def process_word(word: str) -> Union[float, symbols]:
     if is_float_string(word):
         return float(word)
     return symbols(word)
+
+
+def parse_branch_parameter(word: str) -> Union[float, Tuple[Symbol, float]]:
+    """
+    If the string word only has a number, its float value is returned. Else, if the word has the form
+    "EJ=10", no spaces before or after =, it will return the Symbol object EJ and the float 10.
+
+    Parameters
+    ----------
+    word : str
+        Should be a number "0.123" or a variable assignment of the form "EJ=10"
+
+    Returns
+    -------
+    Union[float, Tuple[Symbol, float]]
+        Returns a float if the string only has a number, else returns a tuple having (Symbol, float).
+
+    Raises
+    ------
+    Exception
+        If the variable is not initialized.
+    Exception
+        if space was used before or after "="
+    Exception
+        Error if init value for a variable is not float.
+    """
+    if not is_float_string(word):
+        if len(word.split("=")) > 2:
+            raise Exception(
+                "Proper syntax is not followed please follow the documentation."
+            )
+        elif len(word.split("=")) == 2:
+            var_str, init_val = word.split("=")
+            return [process_word(var_str), process_word(init_val)]
+        elif len(word.split("=")) == 1:
+            return [process_word(word)]
+    else:
+        return [float(word)]
 
 
 class Node:
@@ -253,7 +291,9 @@ class SymbolicCircuit(serializers.Serializable):
     def is_any_branch_parameter_symbolic(self):
         return True if len(self.param_vars) else False
 
-    def initiate_symboliccircuit(self, transformation_matrix=None):
+    def initiate_symboliccircuit(
+        self, transformation_matrix=None, closure_branches=None
+    ):
         """
         Method to initialize the CustomQCircuit instance and initialize all the attributes needed before it can be passed on to AnalyzeQCircuit.
 
@@ -274,9 +314,9 @@ class SymbolicCircuit(serializers.Serializable):
             ) = self.variable_transformation_matrix()
 
         # find the closure branches in the circuit
-        self.closure_branches = self._closure_branches()
+        self.closure_branches = closure_branches or self._closure_branches()
         # setting external flux and offset charge variables
-        self._set_external_flux_vars()
+        self._set_external_flux_vars(closure_branches=closure_branches)
         self._set_offset_charge_vars()
         # setting the branch parameter variables
         self._set_param_vars()
@@ -358,6 +398,9 @@ class SymbolicCircuit(serializers.Serializable):
         ground_node = None
 
         branches = []
+        branch_var_dict = (
+            {}
+        )  # dictionary which stores the init values of all the variables defined in input string
         for line_index in range(start_index, end_index):
             if code_lines[line_index] == "":
                 break
@@ -379,11 +422,43 @@ class SymbolicCircuit(serializers.Serializable):
             if branch_type in ["JJ", "JJ2"]:
                 if len(words) <= 3:
                     raise Exception("Cannot parse input: too few parameters for JJ.")
-                parameters = [process_word(words[2]), process_word(words[3])]
+                branch_params = []
+                for word in words[2:4]:
+                    params = parse_branch_parameter(word)
+                    if len(params) == 1:
+                        if (
+                            type(params[0]) is not float
+                            and params[0] not in branch_var_dict
+                        ):
+                            raise Exception(
+                                "The paramater "
+                                + str(str(params[0]) + " has not been initialized.")
+                            )
+                        branch_params.append(params[0])
+                    else:
+                        branch_var_dict[params[0]] = params[1]
+                        branch_params.append(params[0])
+
+                parameters = branch_params.copy()
             else:
                 if len(words) <= 2:
                     raise Exception("Cannot parse input: too few parameters for C/L.")
-                parameters = [process_word(words[2])]
+                params = parse_branch_parameter(words[2])
+                branch_params = []
+                if len(params) == 1:
+                    if (
+                        type(params[0]) is not float
+                        and params[0] not in branch_var_dict
+                    ):
+                        raise Exception(
+                            "The paramater "
+                            + str(params[0] + " has not been initialized.")
+                        )
+                    branch_params.append(params[0])
+                else:
+                    branch_var_dict[params[0]] = params[1]
+                    branch_params.append(params[0])
+                parameters = branch_params
 
             if node_id1 == 0:
                 branches.append(
@@ -412,7 +487,7 @@ class SymbolicCircuit(serializers.Serializable):
                         parameters,
                     )
                 )
-        return branches, ground_node
+        return branches, ground_node, branch_var_dict
 
     @classmethod
     def from_input_string(
@@ -420,7 +495,7 @@ class SymbolicCircuit(serializers.Serializable):
         input_string: str,
         basis: str = "simple",
         initiate_sym_calc: bool = True,
-    ) -> None:
+    ):
         """
         Constructs the instance of Circuit from an input string. Here is an example of an input string that is used to initiate an object of the class SymbolicCircuit:
         ```
@@ -450,7 +525,7 @@ class SymbolicCircuit(serializers.Serializable):
         code_lines = input_string.split("\n")
 
         nodes = cls.parse_nodes(code_lines)
-        branches, ground_node = cls.parse_branches(code_lines, nodes)
+        branches, ground_node, branch_var_dict = cls.parse_branches(code_lines, nodes)
 
         circuit = cls(
             nodes,
@@ -460,6 +535,8 @@ class SymbolicCircuit(serializers.Serializable):
             initiate_sym_calc=initiate_sym_calc,
             input_string=input_string,
         )
+        circuit.param_vars = list(branch_var_dict.keys())
+        circuit.params_init_vals = list(branch_var_dict.values())
 
         return circuit
 
@@ -1169,7 +1246,7 @@ class SymbolicCircuit(serializers.Serializable):
                             circ_copy.nodes.remove(node)
 
         if circ_copy.nodes == []:
-            return []
+            return [], []
         #######################################################################################
 
         ################### Constructing the node_sets ###############
@@ -1271,11 +1348,12 @@ class SymbolicCircuit(serializers.Serializable):
             closure_branches = list(set(superconducting_loop_branches) - set(tree))
         return closure_branches
 
-    def _set_external_flux_vars(self):
+    def _set_external_flux_vars(self, closure_branches=None):
         # setting the class properties
-        closure_branches = [
-            branch for branch in self._closure_branches() if branch.type != "C"
-        ]
+
+        closure_branches = closure_branches or self._closure_branches()
+        closure_branches = [branch for branch in closure_branches if branch.type != "C"]
+
         if len(closure_branches) > 0:
             self.closure_branches = closure_branches
             self.external_flux_vars = [
