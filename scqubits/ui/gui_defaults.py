@@ -129,3 +129,12 @@ supported_qubits = [
     "Cos2PhiQubit",
 ]
 slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
+
+PLOT_HEIGHT = '500px'
+WIDTH = '975px'
+TAB_HEIGHT = '325px'
+WRAP_HEIGHT = '260px'
+SLIDER_WIDTH = '300px'
+IMAGE_WIDTH = '800px'
+FIG_SIZE_INCHES = [6, 3]
+TEXT_WIDTH = '500px'
