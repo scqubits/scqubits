@@ -116,7 +116,8 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
     @classmethod
     def effective_noise_channels(cls) -> List[str]:
-        """Return a default list of channels used when calculating effective t1 and t2 nosie."""
+        """Return a default list of channels used when calculating effective t1 and t2
+        noise."""
         noise_channels = cls.supported_noise_channels()
         noise_channels.remove("t1_charge_impedance")
         return noise_channels

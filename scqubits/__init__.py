@@ -46,7 +46,6 @@ from scqubits.core.units import (
 )
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-from scqubits.explorer.explorer import Explorer
 
 # file IO
 from scqubits.io_utils.fileio import read, write
@@ -54,9 +53,10 @@ from scqubits.io_utils.fileio import read, write
 # GUI
 try:
     from scqubits.ui.gui import GUI
+    from scqubits.ui.explorer_widget import Explorer
 except NameError:
     warnings.warn(
-        "scqubits: could not import GUI - consider installing ipywidgets "
+        "scqubits: could not import GUI/Explorer - consider installing ipywidgets "
         "(optional dependency)?",
         ImportWarning,
     )

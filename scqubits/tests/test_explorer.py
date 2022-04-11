@@ -17,30 +17,76 @@ import scqubits as scq
 
 
 def test_explorer():
-    qbt = scq.Fluxonium(
-        EJ=2.55, EC=0.72, EL=0.12, flux=0.0, cutoff=110, truncated_dim=9
+    tmon1 = scq.TunableTransmon(
+        EJmax=40.0,
+        EC=0.2,
+        d=0.1,
+        flux=0.0,
+        ng=0.3,
+        ncut=40,
+        truncated_dim=4,  # after diagonalization, we will keep 3 levels
     )
 
-    osc = scq.Oscillator(E_osc=4.0, truncated_dim=5)
+    tmon2 = scq.TunableTransmon(
+        EJmax=15.0,
+        EC=0.15,
+        d=0.02,
+        flux=0.0,
+        ng=0.0,
+        ncut=30,
+        truncated_dim=5
+    )
 
-    hilbertspace = scq.HilbertSpace([qbt, osc])
+    resonator = scq.Oscillator(E_osc=4.5, truncated_dim=4)  # up to 3 photons (0,1,2,3)
+
+    hilbertspace = scq.HilbertSpace([tmon1, tmon2, resonator])
+
+    g1 = 0.1  # coupling resonator-CPB1 (without charge matrix elements)
+    g2 = 0.2  # coupling resonator-CPB2 (without charge matrix }elements)
+
     hilbertspace.add_interaction(
-        g_strength=0.2, op1=qbt.n_operator, op2=osc.creation_operator, add_hc=True
+        g_strength=g1,
+        op1=tmon1.n_operator,
+        op2=resonator.creation_operator,
+        add_hc=True,
     )
-    param_name = r"$\Phi_{ext}/\Phi_0$"
-    param_vals = np.linspace(-0.5, 0.5, 101)
 
-    subsys_update_list = [qbt]
+    hilbertspace.add_interaction(
+        g_strength=g2,
+        op1=tmon2.n_operator,
+        op2=resonator.creation_operator,
+        add_hc=True,
+    )
 
-    def update_hilbertspace(param_val):
-        qbt.flux = param_val
+    # Set up parameter name and values
+    pname1 = "flux"
+    flux_vals = np.linspace(0.0, 2.0, 3)
+    pname2 = "ng"
+    ng_vals = np.linspace(-0.5, 0.5, 3)
 
+    # combine into a dictionary
+    paramvals_by_name = {pname1: flux_vals, pname2: ng_vals}
+
+    area_ratio = 1.2
+
+    def update_hilbertspace(
+            flux, ng
+    ):  # function that defines how Hilbert space components are updated
+        tmon1.flux = flux
+        tmon2.flux = area_ratio * flux
+        tmon2.ng = ng
+
+    # dictionary with information on which subsystems are affected by changing parameters
+    subsys_update_info = {pname1: [tmon1, tmon2], pname2: [tmon2]}
+
+    # create the ParameterSweep
     sweep = scq.ParameterSweep(
-        paramvals_by_name={param_name: param_vals},
-        evals_count=10,
         hilbertspace=hilbertspace,
-        subsys_update_info={param_name: [qbt]},
+        paramvals_by_name=paramvals_by_name,
         update_hilbertspace=update_hilbertspace,
+        evals_count=28,
+        subsys_update_info=subsys_update_info,
+        num_cpus=4,
     )
-    explorer = scq.Explorer(sweep=sweep, evals_count=10)
-    explorer.interact()
+
+    expl = scq.Explorer(sweep)

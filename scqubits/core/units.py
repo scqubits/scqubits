@@ -15,8 +15,9 @@ import warnings
 
 from typing import List
 
-# Currently set units, referred to elsewhere as "system units" (must be one of the units in `_supported_units`)
-# Often, system units need to be converted to "standard units", which are considered to be `[Hz]` or `2pi/[s]`
+# Currently set units, referred to elsewhere as "system units" (must be one of the units
+# in `_supported_units`) Often, system units need to be converted to "standard
+# units", which are considered to be `[Hz]` or `2pi/[s]`
 _current_units = "GHz"
 
 # Units that we currently support
@@ -100,13 +101,14 @@ def to_standard_units(value: float) -> float:
 
 def from_standard_units(value: float) -> float:
     r"""
-    Converts `value` (a frequency or angular frequency) from standard units (`[Hz]` or  `2\pi / [s]`)
-    to currently set system units.
+    Converts `value` (a frequency or angular frequency) from standard units
+    (`[Hz]` or  `2\pi / [s]`) to currently set system units.
 
     Parameters
     ----------
     value: float
-        a frequency or angular frequency assumed to be in standard units (`[Hz]` or  `2\pi / [s]`)
+        a frequency or angular frequency assumed to be in standard units
+        (`[Hz]` or  `2\pi / [s]`)
     Returns
     -------
     float:

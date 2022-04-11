@@ -42,8 +42,9 @@ class NoisyFullZeroPi(NoisySystem):
 
 
 class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi):
-    r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode. The circuit is described by the
-    Hamiltonian :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
+    r"""Zero-Pi qubit [Brooks2013]_ [Dempster2014]_ including coupling to the zeta mode.
+    The circuit is described by the Hamiltonian
+    :math:`H = H_{0-\pi} + H_\text{int} + H_\zeta`, where
 
     .. math::
 
@@ -54,12 +55,14 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         &H_\text{int} = 2E_{C\Sigma}dC\,\partial_\theta\partial_\zeta + E_L dE_L \phi\,\zeta\\
         &H_\zeta = E_{\zeta} a^\dagger a
 
-    expressed in phase basis. The definition of the relevant charging energies :math:`E_\text{CJ}`,
-    :math:`E_{\text{C}\Sigma}`,     Josephson energies :math:`E_\text{J}`, inductive energies :math:`E_\text{L}`,
-    and relative amounts of disorder :math:`dC_\text{J}`, :math:`dE_\text{J}`, :math:`dC`, :math:`dE_\text{L}`
-    follows [Groszkowski2018]_. Internally, the ``FullZeroPi`` class formulates the Hamiltonian matrix via the
-    product basis of the decoupled Zero-Pi qubit (see ``ZeroPi``)  on one hand, and the zeta LC oscillator on the other
-    hand.
+    expressed in phase basis. The definition of the relevant charging energies
+    :math:`E_\text{CJ}`, :math:`E_{\text{C}\Sigma}`,
+    Josephson energies :math:`E_\text{J}`, inductive energies :math:`E_\text{L}`,
+    and relative amounts of disorder :math:`dC_\text{J}`, :math:`dE_\text{J}`,
+    :math:`dC`, :math:`dE_\text{L}` follows [Groszkowski2018]_. Internally,
+    the ``FullZeroPi`` class formulates the Hamiltonian matrix via the
+    product basis of the decoupled Zero-Pi qubit (see ``ZeroPi``)  on one hand, and the
+    zeta LC oscillator on the other hand.
 
     Parameters
     ----------
@@ -70,7 +73,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     ECJ:
         charging energy associated with the two junctions
     EC:
-        charging energy of the large shunting capacitances; set to `None` if `ECS` is provided instead
+        charging energy of the large shunting capacitances; set to `None` if `ECS` is
+        provided instead
     dEJ:
         relative disorder in EJ, i.e., (EJ1-EJ2)/EJavg
     dEL:
@@ -92,8 +96,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
     ncut:
         charge number cutoff for `n_theta`,  `n_theta = -ncut, ..., ncut`
     ECS:
-        total charging energy including large shunting capacitances and junction capacitances; may be provided instead
-        of EC
+        total charging energy including large shunting capacitances and junction
+        capacitances; may be provided instead of EC
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
@@ -225,7 +229,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
-            "tphi_1_over_f_fluxt1_bias_flux_line"
+            "tphi_1_over_f_flux",
+            "t1_bias_flux_line",
             # 't1_capacitive',
             "t1_inductive",
         ]
@@ -470,8 +475,9 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         return evals, evecs
 
     def g_phi_coupling_matrix(self, zeropi_states: ndarray) -> ndarray:
-        """Returns a matrix of coupling strengths g^\\phi_{ll'} [cmp. Dempster et al., Eq. (18)], using the states
-        from the list `zeropi_states`. Most commonly, `zeropi_states` will contain eigenvectors of the
+        """Returns a matrix of coupling strengths g^\\phi_{ll'}
+        [cmp. Dempster et al., Eq. (18)], using the states from the list
+        `zeropi_states`. Most commonly, `zeropi_states` will contain eigenvectors of the
         `DisorderedZeroPi` type.
         """
         prefactor = self.EL * (self.dEL / 2.0) * (8.0 * self.EC / self.EL) ** 0.25

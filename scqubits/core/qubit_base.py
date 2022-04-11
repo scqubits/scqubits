@@ -173,6 +173,26 @@ class QuantumSystem(DispatchClient, ABC):
         """Returns dimension of Hilbert space"""
 
     @classmethod
+    def get_operator_names(cls) -> List[str]:
+        """Returns a list of all operator names for the quantum system.
+        Note that this list omits any operators that start with "_".
+
+        Parameters
+        ----------
+        subsys:
+            Class instance of quantum system
+
+        Returns
+        -------
+            list of operator names
+        """
+        operator_list = []
+        for name, val in inspect.getmembers(cls):
+            if "operator" in name and name[0] != "_" and name != "get_operator_names":
+                operator_list.append(name)
+        return operator_list
+
+    @classmethod
     def create(cls) -> "QuantumSystem":
         """Use ipywidgets to create a new class instance"""
         init_params = cls.default_params()
@@ -524,14 +544,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         )
         if filename:
             specdata.filewrite(filename)
-
-        return SpectrumData(
-            eigenvalue_table,
-            self.get_initdata(),
-            param_name,
-            param_vals,
-            state_table=eigenstate_table,
-        )
+        return specdata
 
     def _compute_dispersion(
         self,
@@ -726,12 +739,7 @@ class QubitBaseClass(QuantumSystem, ABC):
         )
 
         assert spectrumdata.state_table is not None
-        for index, paramval in tqdm(
-            enumerate(param_vals),
-            total=len(param_vals),
-            disable=settings.PROGRESSBAR_DISABLED,
-            leave=False,
-        ):
+        for index, paramval in enumerate(param_vals):
             evecs = spectrumdata.state_table[index]
             matelem_table[index] = self.matrixelement_table(
                 operator, evecs=evecs, evals_count=evals_count
@@ -897,10 +905,16 @@ class QubitBaseClass(QuantumSystem, ABC):
         assert isinstance(matrixelem_array, np.ndarray)
         if not show3d:
             return plot.matrix2d(
-                matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs
+                matrixelem_array,
+                mode=mode,
+                show_numbers=show_numbers,
+                **kwargs,
             )
         return plot.matrix(
-            matrixelem_array, mode=mode, show_numbers=show_numbers, **kwargs
+            matrixelem_array,
+            mode=mode,
+            show_numbers=show_numbers,
+            **kwargs,
         )
 
     def plot_matelem_vs_paramvals(

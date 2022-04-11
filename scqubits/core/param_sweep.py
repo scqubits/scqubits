@@ -73,6 +73,25 @@ DressedLabel = int
 StateLabel = Union[DressedLabel, BareLabel]
 
 
+class ParameterSlice:
+    def __init__(
+        self,
+        param_name: str,
+        param_val: float,
+        fixed_params: Dict[str, float],
+        params_ordered: List[str],
+    ):
+        self.param_name = param_name
+        self.param_val = param_val
+        self.fixed_dict = fixed_params
+        self.all_dict = {param_name: param_val, **fixed_params}
+        self.fixed = tuple(
+            slice(name, value) for name, value in self.fixed_dict.items()
+        )
+        self.all = tuple(slice(name, value) for name, value in self.all_dict.items())
+        self.all_values = [self.all_dict[name] for name in params_ordered]
+
+
 class ParameterSweepBase(ABC, SpectrumLookupMixin):
     """
     The_ParameterSweepBase class is an abstract base class for ParameterSweep and
@@ -524,7 +543,6 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
             If `as_specdata` is set to True, a SpectrumData object is returned instead,
             saving transition label info in an attribute named `labels`.
         """
-
         subsys_list = self._process_subsystems_option(subsystems)
 
         (
@@ -1042,7 +1060,9 @@ class ParameterSweep(  # type:ignore
         target_map = cpu_switch.get_map_method(self._num_cpus)
 
         with utils.InfoBar(
-            "Parallel compute bare eigensys [num_cpus={}]".format(self._num_cpus),
+            "Parallel compute bare eigensys for subsystem {} [num_cpus={}]".format(
+                subsystem.id_str, self._num_cpus
+            ),
             self._num_cpus,
         ) as p:
             bare_eigendata = tqdm(
@@ -1184,7 +1204,9 @@ class ParameterSweep(  # type:ignore
 
         lamb_data = np.empty(self.subsystem_count, dtype=object)
         kerr_data = np.empty((self.subsystem_count, self.subsystem_count), dtype=object)
+        chi_data = np.empty((self.subsystem_count, self.subsystem_count), dtype=object)
 
+        # Lamb shifts
         for subsys_index1, subsys1 in enumerate(self.hilbertspace):
             energy_subsys1_all_l1 = self._energies_1(subsys1)
             bare_energy_subsys1_all_l1 = self["bare_evals"][subsys_index1].toarray()
@@ -1198,6 +1220,9 @@ class ParameterSweep(  # type:ignore
                 lamb_subsys1_all_l1, self._parameters.paramvals_by_name
             )
 
+        # Kerr and ac Stark
+        for subsys_index1, subsys1 in enumerate(self.hilbertspace):
+            energy_subsys1_all_l1 = self._energies_1(subsys1)
             for subsys_index2, subsys2 in enumerate(self.hilbertspace):
                 energy_subsys2_all_l2 = self._energies_1(subsys2)
                 energy_subsys1_subsys2_all_l1_l2 = self._energies_2(subsys1, subsys2)
@@ -1207,38 +1232,48 @@ class ParameterSweep(  # type:ignore
                     - energy_subsys1_all_l1[..., :, None]
                     - energy_subsys2_all_l2[..., None, :]
                 )
-                if subsys1 is subsys2:
-                    kerr_subsys1_subsys2_all_l1_l2 /= 2.0  # self-Kerr needs factor 1/2
 
-                kerr_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
-                    kerr_subsys1_subsys2_all_l1_l2, self._parameters.paramvals_by_name
-                )
+                # self-Kerr and cross-Kerr: oscillator modes
+                if subsys1 in self.osc_subsys_list and subsys2 in self.osc_subsys_list:
+                    if subsys1 is subsys2:
+                        # oscillator self-Kerr
+                        kerr_subsys1_subsys2_all_l1_l2 /= 2.0  # osc self-Kerr: 1/2
+                    kerr_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
+                        kerr_subsys1_subsys2_all_l1_l2[..., 1, 1],
+                        self._parameters.paramvals_by_name,
+                    )
+                    chi_data[subsys_index1, subsys_index2] = np.asarray([])
+                # self-Kerr and cross-Kerr: qubit modes
+                elif (
+                    subsys1 in self.qbt_subsys_list and subsys2 in self.qbt_subsys_list
+                ):
+                    kerr_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
+                        kerr_subsys1_subsys2_all_l1_l2,
+                        self._parameters.paramvals_by_name,
+                    )
+                    chi_data[subsys_index1, subsys_index2] = np.asarray([])
+                # ac Stark shifts
+                else:
+                    if subsys1 in self.qbt_subsys_list:
+                        chi_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
+                            kerr_subsys1_subsys2_all_l1_l2[..., 1, :],
+                            self._parameters.paramvals_by_name,
+                        )
+                    else:
+                        chi_data[subsys_index1, subsys_index2] = NamedSlotsNdarray(
+                            kerr_subsys1_subsys2_all_l1_l2[..., :, 1],
+                            self._parameters.paramvals_by_name,
+                        )
+                    kerr_data[subsys_index1, subsys_index2] = np.asarray([])
 
         sys_indices = np.arange(self.subsystem_count)
         lamb_data = NamedSlotsNdarray(lamb_data, {"subsys": sys_indices})
         kerr_data = NamedSlotsNdarray(
             kerr_data, {"subsys1": sys_indices, "subsys2": sys_indices}
         )
-        chi_data = kerr_data.copy()
-
-        for subsys_index1, subsys1 in enumerate(self.hilbertspace):
-            for subsys_index2, subsys2 in enumerate(self.hilbertspace):
-                if subsys1 in self.osc_subsys_list:
-                    if subsys2 in self.qbt_subsys_list:
-                        chi_data[subsys_index1, subsys_index2] = chi_data[
-                            subsys_index1, subsys_index2
-                        ][..., 1, :]
-                        kerr_data[subsys_index1, subsys_index2] = np.asarray([])
-                    else:
-                        chi_data[subsys_index1, subsys_index2] = np.asarray([])
-                elif subsys1 in self.qbt_subsys_list:
-                    if subsys2 in self.osc_subsys_list:
-                        chi_data[subsys_index1, subsys_index2] = chi_data[
-                            subsys_index1, subsys_index2
-                        ][..., :, 1]
-                        kerr_data[subsys_index1, subsys_index2] = np.asarray([])
-                    else:
-                        chi_data[subsys_index1, subsys_index2] = np.asarray([])
+        chi_data = NamedSlotsNdarray(
+            chi_data, {"subsys1": sys_indices, "subsys2": sys_indices}
+        )
 
         return lamb_data, chi_data, kerr_data
 

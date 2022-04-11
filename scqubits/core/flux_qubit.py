@@ -50,7 +50,7 @@ class NoisyFluxQubit(NoisySystem, ABC):
 
     @classmethod
     @abstractmethod
-    def supported_noise_channels(self) -> List[str]:
+    def supported_noise_channels(cls) -> List[str]:
         pass
 
     def tphi_1_over_f_cc1(

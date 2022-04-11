@@ -326,7 +326,8 @@ class Parameters:
 
     @property
     def ranges(self) -> List[Iterable]:
-        """Return a list of range objects suitable for looping over each parametr set"""
+        """Return a list of range objects suitable for looping over each parameter
+        set"""
         return [range(count) for count in self.counts]
 
     @property

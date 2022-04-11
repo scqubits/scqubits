@@ -47,7 +47,7 @@ class WatchedProperty(Generic[TargetType]):
 
     Parameters
     ----------
-    type:
+    target_type:
         type of watched property
     event:
         name of event to be triggered when property is changed

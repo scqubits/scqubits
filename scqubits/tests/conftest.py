@@ -35,12 +35,17 @@ warnings.filterwarnings(
 )
 
 TESTDIR, _ = os.path.split(scqubits.__file__)
-TESTDIR = os.path.join(TESTDIR, "tests", "")
-DATADIR = os.path.join(TESTDIR, "data", "")
+TESTDIR = os.path.join(TESTDIR, "tests", "")  # local scqubits directory holding tests
+DATADIR = os.path.join(TESTDIR, "data", "")  # local data collection within scqubits
 
 
 def pytest_addoption(parser):
-    # This is to allow multi-processing tests by adding --num_cpus 2 to pytest calls
+    """
+    This is to implement custom pytest command line options
+    1. multi-processing tests
+       When invoking pytest, simply add ` --num_cpus 2` to pytest calls
+    2. option for input-output file format
+    """
     parser.addoption(
         "--num_cpus", action="store", default=1, help="number of cores to be used"
     )
@@ -64,9 +69,9 @@ def io_type(pytestconfig):
 
 @pytest.mark.usefixtures("num_cpus", "io_type")
 class BaseTest:
-    """Used as base class for pytests of qubit classes"""
+    """Used as base class for the pytests of qubit classes"""
 
-    qbt = None
+    qbt = None  # class instance of qubit to be tested
 
     @pytest.fixture(autouse=True)
     def set_tmpdir(self, request):
