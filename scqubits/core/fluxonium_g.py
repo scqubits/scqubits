@@ -1,4 +1,4 @@
-# fluxonium.py
+# fluxonium_g.py
 #
 # This file is part of scqubits.
 #
@@ -33,7 +33,7 @@ import scqubits.utils.plotting as plot
 
 # —Fluxonium qubit ————————————————————————
 
-class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
+class FluxoniumG(base.QubitBaseClass1d, serializers.Serializable):
     r"""Class for the fluxonium qubit. Hamiltonian
     :math:`H_\text{fl}=-4E_\text{C}\partial_\phi^2-E_\text{J}\cos(\phi-\varphi_\text{ext}) +\frac{1}{2}E_L\phi^2`
     is represented in dense form. The employed basis is the EC-EL harmonic oscillator basis. The cosine term in the
@@ -56,18 +56,22 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
     truncated_dim: int, optional
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     """
-    EJ = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ1 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    EJ2 = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EC = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     EL = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
-    flux = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux_c = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
+    flux_d = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
     cutoff = descriptors.WatchedProperty('QUANTUMSYSTEM_UPDATE')
 
-    def __init__(self, EJ, EC, EL, dC, flux, cutoff, kbt, truncated_dim=None):
-        self.EJ = EJ
+    def __init__(self, EJ1, EJ2, EC, EL, flux_c, flux_d, cutoff, kbt,
+                 truncated_dim=None):
+        self.EJ1 = EJ1
+        self.EJ2 = EJ2
         self.EC = EC
         self.EL = EL
-        self.dC = dC
-        self.flux = flux
+        self.flux_c = flux_c
+        self.flux_d = flux_d
         self.cutoff = cutoff
         self.kbt = kbt * 1e-3 * 1.38e-23 / 6.63e-34 / 1e9  # temperature unit mK
         self.truncated_dim = truncated_dim
@@ -80,10 +84,12 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable):
     @staticmethod
     def default_params():
         return {
-            'EJ': 8.9,
+            'EJ1': 8.9,
+            'EJ2': 8.9,
             'EC': 2.5,
             'EL': 0.5,
-            'flux': 0.0,
+            'flux_c': 0.0,
+            'flux_d': 0.0,
             'cutoff': 110,
             'truncated_dim': 10
         }

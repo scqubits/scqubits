@@ -82,6 +82,16 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable):
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
         return np.diag(diag_elements)
 
+    def n_ng_sq_operator(self):
+        """Returns charge operator `n` in the charge basis"""
+        diag_elements = np.arange(-self.ncut - self.ng, self.ncut + 1 - self.ng, 1)
+        return np.diag(diag_elements ** 2)
+
+    def n_sq_operator(self):
+        """Returns charge operator `n` in the charge basis"""
+        diag_elements = np.arange(-self.ncut , self.ncut + 1 , 1)
+        return np.diag(diag_elements ** 2)
+
     def exp_i_phi_operator(self):
         """Returns operator :math:`e^{i\\varphi}` in the charge basis"""
         dimension = self.hilbertdim()
