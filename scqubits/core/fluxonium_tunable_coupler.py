@@ -1520,7 +1520,8 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
 
     @staticmethod
     def basis_change(op, evecs, hilbert_space, subsystem):
-        op_id_wrap = identity_wrap(op, subsystem, hilbert_space.subsys_list)
+        evecs_bare = hilbert_space.lookup.bare_eigenstates(subsystem)
+        op_id_wrap = identity_wrap(op, subsystem, hilbert_space.subsys_list, evecs=evecs_bare)
         op_new_basis = np.real(evecs.T @ op_id_wrap.data @ evecs)
         return Qobj(op_new_basis)
 
@@ -1944,6 +1945,18 @@ class ConstructFullPulse(serializers.Serializable):
             ]
         )
 
+    @staticmethod
+    def sqrtdSWAP():
+        sqrt2 = np.sqrt(2.0)
+        return np.array(
+            [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1 / sqrt2, 1 / sqrt2, 0.0],
+                [0.0, -1 / sqrt2, 1 / sqrt2, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
+
     def normalized_operators(self):
         norm_a = self.H_a[0, 2]
         norm_b = self.H_b[0, 1]
@@ -1961,7 +1974,7 @@ class ConstructFullPulse(serializers.Serializable):
         return Qobj((-1j * theta * Z / 2.0).expm().data, dims=[[4], [4]])
 
     @staticmethod
-    def fix_w_single_q_gates(gate_, which_Z_exclude=2, const_angle_val=0.0):
+    def fix_w_single_q_gates(gate_, which_Z_exclude=2, const_angle_val=0.0, which_gate='sqrtiswap'):
         Z_matrix = 0.5 * np.array([[-1, -1, -1, -1], [-1, 1, -1, 1], [1, -1, -1, 1]])
         const_angle_col = Z_matrix[:, which_Z_exclude]
         new_Z_matrix = np.delete(Z_matrix, np.array(which_Z_exclude), axis=1)
@@ -1969,18 +1982,26 @@ class ConstructFullPulse(serializers.Serializable):
         alpha = cmath.phase(gate_[0, 0])
         beta = cmath.phase(gate_[1, 1])
         gamma = cmath.phase(gate_[1, 2])
-        angles_to_correct = (
-            np.array([-alpha, -beta, gamma + np.pi / 2])
-            - const_angle_val * const_angle_col
-        )
+        if which_gate == 'sqrtiswap':
+            angles_to_correct = (
+                np.array([-alpha, -beta, gamma + np.pi / 2])
+                - const_angle_val * const_angle_col
+            )
+        elif which_gate == 'sqrtdswap':
+            angles_to_correct = (
+                np.array([-alpha, -beta, gamma])
+                - const_angle_val * const_angle_col
+            )
+        else:
+            raise RuntimeError('not a recognized gate')
         Z_rotation_angles = inv_Z_matrix @ angles_to_correct
         Z_rotation_angles = np.insert(
             Z_rotation_angles, which_Z_exclude, const_angle_val
         )
         return Z_rotation_angles
 
-    def multiply_with_single_q_gates(self, gate):
-        (t1, t2, t3, t4) = self.fix_w_single_q_gates(gate)
+    def multiply_with_single_q_gates(self, gate, which_gate='sqrtiswap'):
+        (t1, t2, t3, t4) = self.fix_w_single_q_gates(gate, which_gate=which_gate)
         gate_ = Qobj(gate[0:4, 0:4])
         return (
             self.RZ(t1, which="a")
@@ -2117,7 +2138,8 @@ class ConstructFullPulse(serializers.Serializable):
             amp = amp_0
         else:
             print(
-                f"optimized qubit {which_qubit} id pulse with fidelity F={optimized_amp.fun}"
+                f"optimized qubit {which_qubit} id pulse with time {1./freq} and"
+                f" with infidelity 1-F={optimized_amp.fun}"
             )
             amp = optimized_amp.x[0]
         controls, times = self.get_controls_only_sine(freq, amp, self.control_dt_fast)
@@ -2255,10 +2277,10 @@ class ConstructFullPulse(serializers.Serializable):
         return self.my_propagator(H, red_dim, times_a, num_cpus)
 
     def times_to_correct_prop(
-        self, prop, which_Z_exclude: int = 2, const_angle_val: float = 0.0
+        self, prop, which_Z_exclude: int = 2, const_angle_val: float = 0.0, which_gate: str = 'sqrtiswap'
     ):
         angles = self.fix_w_single_q_gates(
-            prop, which_Z_exclude=which_Z_exclude, const_angle_val=const_angle_val
+            prop, which_Z_exclude=which_Z_exclude, const_angle_val=const_angle_val, which_gate=which_gate
         )
         neg_angles = -angles % (2.0 * np.pi)
         omega_a = np.real(self.H_0[2, 2])
@@ -2307,6 +2329,11 @@ class ConstructFullPulse(serializers.Serializable):
         )
         return result
 
+    @staticmethod
+    def global_phase(prop):
+        """most useful when accounting for phases due to higher levels"""
+        return (cmath.phase(prop[0, 0]) + cmath.phase(prop[3, 3])) / 2
+
     def propagator_for_full_pulse(
         self,
         amp: float,
@@ -2316,6 +2343,7 @@ class ConstructFullPulse(serializers.Serializable):
         num_cpus: int = 1,
         which_Z_exclude: int = 2,
         const_angle_val: float = 0.0,
+        which_gate: str = 'sqrtiswap'
     ):
         """
 
@@ -2343,12 +2371,12 @@ class ConstructFullPulse(serializers.Serializable):
         twoqprop = self.propagator_for_coupler_segment(
             amp, omega_d, num_periods=num_periods, num_cpus=num_cpus
         )
-        global_phase = cmath.phase(twoqprop[0, 0])
-        zeroed_prop = twoqprop * np.exp(-1j * global_phase)
+        zeroed_prop = twoqprop * np.exp(-1j * self.global_phase(twoqprop))
         times = self.times_to_correct_prop(
             zeroed_prop,
             which_Z_exclude=which_Z_exclude,
             const_angle_val=const_angle_val,
+            which_gate=which_gate
         )
         before_prop, after_prop = self.construct_qubit_propagators(
             times, red_dim=red_dim, num_cpus=num_cpus
@@ -2379,24 +2407,30 @@ class ConstructFullPulse(serializers.Serializable):
         const_angle_array: ndarray = np.linspace(
             0.0, 2.0 * np.pi, num=10, endpoint=False
         ),
+        which_gate: str = 'sqrtiswap',
         red_dim: int = 4,
         num_cpus: int = 1,
     ):
-        global_phase = cmath.phase(twoq_prop[0, 0])
-        zeroed_prop = twoq_prop * np.exp(-1j * global_phase)
+        zeroed_prop = twoq_prop * np.exp(-1j * self.global_phase(twoq_prop))
         # find that minimize doesn't work well here to optimize over the initial angle
         # since we aren't necessarily close to a minimum and changes in infidelity are
         # so small. Cheaper just to brute-force scan
         max_fidel = 0.0
+        if which_gate == 'sqrtiswap':
+            ideal_gate = self.sqrtiSWAP()
+        elif which_gate == 'sqrtdswap':
+            ideal_gate = self.sqrtdSWAP()
+        else:
+            raise RuntimeError('target gate must be sqrtiswap or sqrtdswap')
         for const_angle_val in const_angle_array:
             times = self.times_to_correct_prop(
-                zeroed_prop, which_Z_exclude=0, const_angle_val=const_angle_val
+                zeroed_prop, which_Z_exclude=0, const_angle_val=const_angle_val, which_gate=which_gate
             )
             before_prop, after_prop = self.construct_qubit_propagators(
                 times, red_dim=red_dim, num_cpus=num_cpus
             )
             full_prop = after_prop * zeroed_prop * before_prop
-            fidel = self.calc_fidel_4(full_prop, self.sqrtiSWAP())
+            fidel = self.calc_fidel_4(full_prop, ideal_gate)
             if fidel > max_fidel:
                 max_const_angle = const_angle_val
                 max_prop = full_prop
@@ -2412,6 +2446,7 @@ class ConstructFullPulse(serializers.Serializable):
         num_cpus: int = 1,
         which_Z_exclude: int = 2,
         const_angle_val: float = 0.0,
+        which_gate: str = 'sqrtiswap',
         parsed_outputs=None,
     ):
         """
@@ -2444,12 +2479,12 @@ class ConstructFullPulse(serializers.Serializable):
             twoqprop = self.propagator_for_coupler_segment(
                 amp, omega_d, num_periods=num_periods, num_cpus=num_cpus
             )
-            global_phase = cmath.phase(twoqprop[0, 0])
-            zeroed_prop = twoqprop * np.exp(-1j * global_phase)
+            zeroed_prop = twoqprop * np.exp(-1j * self.global_phase(twoqprop))
             times = self.times_to_correct_prop(
                 zeroed_prop,
                 which_Z_exclude=which_Z_exclude,
                 const_angle_val=const_angle_val,
+                which_gate=which_gate
             )
             parse_output_before = self.parse_synchronize(
                 self.synchronize(times[2], times[3])
