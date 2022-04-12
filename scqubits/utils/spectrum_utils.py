@@ -294,11 +294,11 @@ def convert_matrix_to_qobj(
 
     if op_in_eigenbasis is False:
         if evecs is None:
-            _, evecs = subsystem.eigensys(evals_count=dim)
-        evecs_signed = np.zeros_like(evecs)
-        for i, evec in enumerate(evecs.T):
-            evecs_signed[:, i] = standardize_sign(evec)
-        operator_matrixelements = get_matrixelement_table(operator, evecs_signed)
+            _, evecs_unsigned = subsystem.eigensys(evals_count=dim)
+            evecs = np.zeros_like(evecs_unsigned)
+            for i, evec in enumerate(evecs_unsigned.T):
+                evecs[:, i] = standardize_sign(evec)
+        operator_matrixelements = get_matrixelement_table(operator, evecs)
         return qt.Qobj(inpt=operator_matrixelements)
     return qt.Qobj(inpt=operator[:dim, :dim])
 

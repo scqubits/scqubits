@@ -526,6 +526,10 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
         bare_specdata_list = []
         for index, subsys in enumerate(self):
             evals, evecs = subsys.eigensys(evals_count=subsys.truncated_dim)
+            if np.isreal(evecs).all():
+                evecs = np.array([spec_utils.standardize_sign(evec) for evec in evecs.T]).T
+            else:
+                evecs = np.array([spec_utils.standardize_phases(evec) for evec in evecs.T]).T
             bare_specdata_list.append(
                 storage.SpectrumData(
                     energy_table=np.asarray([evals]),
