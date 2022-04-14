@@ -22,6 +22,7 @@ from typing import (
     TYPE_CHECKING,
     Union,
 )
+from matplotlib.text import OffsetFrom
 import sympy
 import sympy as sm
 import numpy as np
@@ -79,7 +80,7 @@ def get_trailing_number(input_str: str) -> int:
     return int(match.group()) if match else None
 
 
-class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
+class Circuit(base.QubitBaseClass, serializers.Serializable):
     r"""
     Class to numerically analyze an instance of CustomQCircuit.
 
@@ -108,24 +109,25 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
 
     def __init__(
         self,
-        symbolic_circuit: SymbolicCircuit,
+        circuit_data: dict,
         initiate_sym_calc: bool = True,
         phi_basis: str = "sparse",
         hierarchical_diagonalization: bool = True,
+        HD_indices=[],
+        HD_trunc_dims=[],
+        truncated_dim: int = None,
     ):
         # attribute to check if this is a child circuit instance
         self.is_child = False
         # inheriting all the attributes from SymbolicCircuit instance
-        self.__dict__.update(symbolic_circuit.__dict__)
-        self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
-
+        self._sys_type = type(self).__name__
         # defining additional class properties
 
         self.vars = None
         self.external_flux = []
 
         # setting truncated_dim for calculating energy dispersion
-        self.truncated_dim: int = 6
+        self.truncated_dim = truncated_dim
 
         # setting default grids for plotting
         self._default_grid_phi: discretization.Grid1d = discretization.Grid1d(
@@ -136,20 +138,152 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         self.cutoffs_list: List[int] = []
         self.phi_basis = phi_basis
         self.hierarchical_diagonalization = hierarchical_diagonalization
-        self.HD_indices = None
-        self.HD_trunc_dims = None
+        self.HD_indices = HD_indices
+        self.HD_trunc_dims = HD_trunc_dims
+
+        self.__dict__.update(circuit_data)
+
+        self._id_str = (
+            self._autogenerate_id_str()
+        )  # Hilbert Space raises an error saying an instance of this class does not have an attribute _id_str
 
         # Hamiltonian function
         if initiate_sym_calc:
-            self.initiate_circuit()
+            if hasattr(self, "parent"):
+                self.initiate_child()
+            else:
+                self.initiate_circuit()
+
+    def __repr__(self) -> str:
+        return self._id_str
 
     # constructor to initiate using a CustomQCircuit object
+    @classmethod
+    def from_symbolic_hamiltonian(
+        cls,
+        parent,
+        hamiltonian_symbolic,
+        HD_indices,
+        truncated_dim=None,
+        HD_trunc_dims=[],
+    ):
+        HD_indices = HD_indices
+        truncated_dim = truncated_dim
+        HD_trunc_dims = HD_trunc_dims
+
+        is_child = True
+        parent = parent
+        hamiltonian_symbolic = hamiltonian_symbolic
+        H_f = hamiltonian_symbolic
+
+        # _sys_type = type(self).__name__  # for object description
+        # TODO we talked about this... did you not fix this meanwhile? -  I think this is somehow needed for some method call. I will need to test it further
+        phi_basis = parent.phi_basis
+        external_flux_vars = [
+            var
+            for var in parent.external_flux_vars
+            if var in hamiltonian_symbolic.free_symbols
+        ]
+        offset_charge_vars = [
+            var
+            for var in parent.offset_charge_vars
+            if var in hamiltonian_symbolic.free_symbols
+        ]
+        param_vars = [
+            var for var in parent.param_vars if var in hamiltonian_symbolic.free_symbols
+        ]
+
+        # for var in param_vars + offset_charge_vars + external_flux_vars:
+        #     setattr(self, str(var), getattr(parent, str(var)))
+
+        var_indices_list = []
+        cutoffs = []
+        for var in list(hamiltonian_symbolic.free_symbols):
+            if "I" not in str(var):
+                filtered_var = re.findall(
+                    "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(var))
+                )  # filtering offset charges and external flux
+                if filtered_var == []:
+                    continue
+                else:
+                    var_index = int(filtered_var[0])
+                # var_index = (int(re.findall('[0-9]+', str(v))[0]))
+                if var_index not in var_indices_list:
+                    for cutoff_name in parent.cutoffs_list:
+                        if str(var_index) in cutoff_name:
+                            cutoffs.append(getattr(parent, cutoff_name))
+                    var_indices_list.append(var_index)
+        # setting some class attributes
+        var_indices_list = var_indices_list
+        var_indices = {}
+        for var_type in parent.var_indices:
+            var_indices[var_type] = [
+                var_index
+                for var_index in parent.var_indices[var_type]
+                if var_index in var_indices_list
+            ]
+
+        cutoffs_list = []
+        for var_type in var_indices.keys():
+            if var_type == "periodic":
+                for x, var_index in enumerate(var_indices["periodic"]):
+                    cutoffs_list.append("cutoff_n_" + str(var_index))
+            if var_type == "discretized_phi":
+                for x, var_index in enumerate(var_indices["discretized_phi"]):
+                    cutoffs_list.append("cutoff_phi_" + str(var_index))
+
+        cutoffs_dict = {}
+        for var_index in var_indices_list:
+            for cutoff_name in parent.cutoffs_list:
+                if str(var_index) in cutoff_name:
+                    cutoffs_dict[var_index] = getattr(parent, cutoff_name)
+        cutoffs_dict = cutoffs_dict
+        discretized_phi_range = {
+            i: parent.discretized_phi_range[i]
+            for i in parent.discretized_phi_range
+            if i in var_indices_list
+        }
+
+        # self.set_vars()
+        hierarchical_diagonalization = (
+            HD_indices != [] and HD_indices != flatten_list_recursive(HD_indices)
+        )
+
+        circuit_data = {
+            "var_indices": var_indices,
+            "var_indices_list": var_indices_list,
+            "external_flux_vars": external_flux_vars,
+            "offset_charge_vars": offset_charge_vars,
+            "hamiltonian_symbolic": hamiltonian_symbolic,
+            "H_f": H_f,
+            "param_vars": param_vars,
+            "cutoffs_dict": cutoffs_dict,
+            "cutoffs_list": cutoffs_list,
+            "parent": parent,
+            "discretized_phi_range": discretized_phi_range,
+            "is_child": is_child
+        }
+
+        return cls(
+            circuit_data,
+            initiate_sym_calc=True,
+            hierarchical_diagonalization=hierarchical_diagonalization,
+            phi_basis=phi_basis,
+            HD_indices=HD_indices,
+            HD_trunc_dims=HD_trunc_dims,
+            truncated_dim=truncated_dim,
+        )
+
     @classmethod
     def from_CustomQCircuit(
         cls,
         symbolic_circuit: SymbolicCircuit,
+        initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
         phi_basis: str = "sparse",
+        HD_indices=None,
+        HD_trunc_dims=None,
+        truncated_dim: int = None,
     ):
         """
         Initialize AnalyzeQCircuit using an instance of CustomQCircuit.
@@ -159,11 +293,28 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         circuit:
             An instance of CustomQCircuit
         """
+        circuit_data = {
+            "var_indices": symbolic_circuit.var_indices,
+            "external_flux_vars": symbolic_circuit.external_flux_vars,
+            "offset_charge_vars": symbolic_circuit.offset_charge_vars,
+            "hamiltonian_symbolic": symbolic_circuit.hamiltonian_symbolic,
+            "param_vars": symbolic_circuit.param_vars,
+            "branches": symbolic_circuit.branches,
+            "nodes": symbolic_circuit.nodes,
+            "lagrangian_symbolic": symbolic_circuit.lagrangian_symbolic,
+            "hamiltonian_symbolic": symbolic_circuit.hamiltonian_symbolic,
+            "lagrangian_node_vars": symbolic_circuit.lagrangian_node_vars,
+        }
+        circuit_data["symbolic_circuit"] = symbolic_circuit
+
         return cls(
-            symbolic_circuit,
-            initiate_sym_calc=symbolic_circuit.initiate_sym_calc,
+            circuit_data,
+            initiate_sym_calc=initiate_sym_calc,
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
+            HD_indices=HD_indices,
+            HD_trunc_dims=HD_trunc_dims,
+            truncated_dim=truncated_dim,
         )
 
     @classmethod
@@ -174,6 +325,9 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         basis="simple",
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
+        HD_indices=None,
+        HD_trunc_dims=None,
+        truncated_dim: int = None,
     ):
         """
         Creates an instance of Circuit from a circuit described using an input string.
@@ -198,13 +352,17 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         """
 
         circuit = SymbolicCircuit.from_input_string(
-            input_string, basis=basis, initiate_sym_calc=initiate_sym_calc
+            input_string, basis=basis, initiate_sym_calc=True
         )
 
         return cls.from_CustomQCircuit(
             circuit,
+            initiate_sym_calc=initiate_sym_calc,
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
+            HD_indices=HD_indices,
+            HD_trunc_dims=HD_trunc_dims,
+            truncated_dim=truncated_dim,
         )
 
     @classmethod
@@ -215,16 +373,23 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         basis="simple",
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
+        HD_indices=None,
+        HD_trunc_dims=None,
+        truncated_dim: int = None,
     ):
 
         circuit = SymbolicCircuit.from_input_file(
-            filename, basis=basis, initiate_sym_calc=initiate_sym_calc
+            filename, basis=basis, initiate_sym_calc=True
         )
 
         return cls.from_CustomQCircuit(
             circuit,
+            initiate_sym_calc=initiate_sym_calc,
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
+            HD_indices=HD_indices,
+            HD_trunc_dims=HD_trunc_dims,
+            truncated_dim=truncated_dim,
         )
 
     # def set_param(self, param_name, value):
@@ -233,6 +398,23 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
     #         self.hierarchical_diagonalization_func()
     #         self.set_operators()
     #         self.complete_hilbert_space()
+
+    def initiate_child(self):
+        for var in self.param_vars + self.offset_charge_vars + self.external_flux_vars:
+            setattr(self, str(var), getattr(self.parent, str(var)))
+
+        for cutoff_str in self.cutoffs_list:
+            setattr(self, cutoff_str, getattr(self.parent, cutoff_str))
+
+        self.set_vars()
+        if self.hierarchical_diagonalization:
+            self.hierarchical_diagonalization_func()
+            self.set_operators()
+            self.complete_hilbert_space()
+        else:
+            self.set_operators()
+
+
 
     def initiate_circuit(
         self,
@@ -249,6 +431,9 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         transformation_matrix:
             Takes an ndarray and is used to set an alternative transformation matrix than the one generated by the method variable_transformation_matrix.
         """
+        HD_indices = HD_indices or self.HD_indices
+        HD_trunc_dims = HD_trunc_dims or self.HD_trunc_dims
+
         self.symbolic_circuit.initiate_symboliccircuit(
             transformation_matrix=transformation_matrix,
             closure_branches=closure_branches,
@@ -260,11 +445,21 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         for var_type in self.var_indices.keys():
             if var_type == "periodic":
                 for x, var_index in enumerate(self.var_indices["periodic"]):
-                    setattr(self, "cutoff_n_" + str(var_index), 5)
+                    cutoff = (
+                        5
+                        if not hasattr(self, "parent")
+                        else getattr(self.parent, "cutoff_n_" + str(var_index))
+                    )
+                    setattr(self, "cutoff_n_" + str(var_index), cutoff)
                     self.cutoffs_list.append("cutoff_n_" + str(var_index))
             if var_type == "discretized_phi":
                 for x, var_index in enumerate(self.var_indices["discretized_phi"]):
-                    setattr(self, "cutoff_phi_" + str(var_index), 30)
+                    cutoff = (
+                        30
+                        if not hasattr(self, "parent")
+                        else getattr(self.parent, "cutoff_phi_" + str(var_index))
+                    )
+                    setattr(self, "cutoff_phi_" + str(var_index), cutoff)
                     self.cutoffs_list.append("cutoff_phi_" + str(var_index))
 
         # default values for the parameters
@@ -416,7 +611,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                 range(len(self.HD_indices)),
                 [
                     [
-                        CircuitSubsystem(
+                        Circuit.from_symbolic_hamiltonian(
                             self,
                             systems_sym[index],
                             HD_indices=self.HD_indices[index],
@@ -537,6 +732,7 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                             operator,
                             self.subsystems[index][0],
                         )
+                print("add_interaction called:", term)
                 hilbert_space.add_interaction(g=float(coefficient), **operator_dict)
 
         self.hilbert_space = hilbert_space
@@ -564,6 +760,12 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
 
             ps_symbols = [
                 symbols("Qs" + str(i)) for i in self.var_indices["discretized_phi"]
+            ]
+            sin_symbols = [
+                symbols("θs" + str(i)) for i in self.var_indices["discretized_phi"]
+            ]
+            cos_symbols = [
+                symbols("θc" + str(i)) for i in self.var_indices["discretized_phi"]
             ]
 
         elif self.phi_basis == "harmonic":
@@ -615,6 +817,8 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                 "position": y_symbols,
                 "momentum": p_symbols,
                 "momentum_squared": ps_symbols,
+                "sin": sin_symbols,
+                "cos": cos_symbols,
             }
         elif self.phi_basis == "harmonic":
             self.vars["discretized_phi"] = {
@@ -1002,6 +1206,8 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                 "position": [],
                 "momentum": [],
                 "momentum_squared": [],
+                "cos": [],
+                "sin": [],
             }
             for v in normal_vars["position"]:  # position operators
                 index = int(get_trailing_number(v.name))
@@ -1009,6 +1215,8 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
                 extended_operators["position"].append(
                     self._kron_operator(a_operator, index)
                 )
+                extended_operators["sin"].append(self._sin_phi(grids[index]))
+                extended_operators["cos"].append(self._cos_phi(grids[index]))
             for v in normal_vars["momentum"]:  # momentum operators
                 index = int(get_trailing_number(v.name))
                 a_operator = self._i_d_dphi_operator(grids[index])
@@ -1217,12 +1425,12 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         for x, operator in enumerate(variable_symbols_list):
             setattr(self, operator.name, operator_list[x])
 
-        if (
-            hasattr(self, "hierarchical_diagonalization")
-            and self.hierarchical_diagonalization
-        ):
-            for index in range(len(self.HD_indices)):
-                self.subsystems[index][0].set_operators()
+        # if (
+        #     hasattr(self, "hierarchical_diagonalization")
+        #     and self.hierarchical_diagonalization
+        # ):
+        #     for index in range(len(self.HD_indices)):
+        #         self.subsystems[index][0].set_operators()
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
@@ -1409,11 +1617,12 @@ class Circuit(base.QubitBaseClass, SymbolicCircuit, serializers.Serializable):
         """
         Returns the Hamiltonian of the Circuit.
         """
-        if self.hierarchical_diagonalization:
+        print("hamiltonian_called: ", self.var_indices["discretized_phi"], self.is_child )
+        if self.hierarchical_diagonalization and not self.is_child:
             self.hierarchical_diagonalization_func()
             self.set_operators()
             self.complete_hilbert_space()
-        else:
+        elif not self.is_child:
             self.set_operators()
 
         if not self.hierarchical_diagonalization:
@@ -1815,161 +2024,6 @@ class DataBuffer(Circuit):
         else:
             self.update_buffer()
             return self.store_operators()
-
-
-class CircuitSubsystem(Circuit, base.QubitBaseClass, serializers.Serializable):
-    r"""
-    Class to initiate a sub-system for a circuit just from a symbolic Hamiltonian.
-    Circuit object can be initiated using:
-        CircuitSubsystem(parent, H_sym)
-    Parameters
-    ----------
-    parent:
-        the Circuit object containing this subsystem.
-    hamiltonian_symbolic:
-        Symbolic Hamiltonian describing the system.
-    """
-
-    def __init__(
-        self,
-        parent,
-        hamiltonian_symbolic,
-        HD_indices=[],
-        truncated_dim=None,
-        HD_trunc_dims=[],
-    ):
-        self.HD_indices = HD_indices
-        self.truncated_dim = truncated_dim
-        self.HD_trunc_dims = HD_trunc_dims
-
-        self.is_child = True
-        self.parent = parent
-        self.hamiltonian_symbolic = hamiltonian_symbolic
-        self.H_f = hamiltonian_symbolic
-
-        self._sys_type = type(self).__name__  # for object description
-        # TODO we talked about this... did you not fix this meanwhile? -  I think this is somehow needed for some method call. I will need to test it further
-        self.phi_basis = self.parent.phi_basis
-        self.external_flux_vars = [
-            var
-            for var in self.parent.external_flux_vars
-            if var in self.hamiltonian_symbolic.free_symbols
-        ]
-        self.offset_charge_vars = [
-            var
-            for var in self.parent.offset_charge_vars
-            if var in self.hamiltonian_symbolic.free_symbols
-        ]
-        self.param_vars = [
-            var
-            for var in self.parent.param_vars
-            if var in self.hamiltonian_symbolic.free_symbols
-        ]
-
-        for var in self.param_vars + self.offset_charge_vars + self.external_flux_vars:
-            setattr(self, str(var), getattr(self.parent, str(var)))
-
-        var_indices_list = []
-        cutoffs = []
-        for var in list(hamiltonian_symbolic.free_symbols):
-            if "I" not in str(var):
-                filtered_var = re.findall(
-                    "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(var))
-                )  # filtering offset charges and external flux
-                if filtered_var == []:
-                    continue
-                else:
-                    var_index = int(filtered_var[0])
-                # var_index = (int(re.findall('[0-9]+', str(v))[0]))
-                if var_index not in var_indices_list:
-                    for cutoff_name in self.parent.cutoffs_list:
-                        if str(var_index) in cutoff_name:
-                            cutoffs.append(getattr(self.parent, cutoff_name))
-                    var_indices_list.append(var_index)
-        # setting some class attributes
-        self.var_indices_list = var_indices_list
-        self.var_indices = {}
-        for var_type in self.parent.var_indices:
-            self.var_indices[var_type] = [
-                var_index
-                for var_index in self.parent.var_indices[var_type]
-                if var_index in var_indices_list
-            ]
-
-        self.cutoffs_list = []
-        for var_type in self.var_indices.keys():
-            if var_type == "periodic":
-                for x, var_index in enumerate(self.var_indices["periodic"]):
-                    setattr(
-                        self,
-                        "cutoff_n_" + str(var_index),
-                        getattr(self.parent, "cutoff_n_" + str(var_index)),
-                    )
-                    self.cutoffs_list.append("cutoff_n_" + str(var_index))
-            if var_type == "discretized_phi":
-                for x, var_index in enumerate(self.var_indices["discretized_phi"]):
-                    setattr(
-                        self,
-                        "cutoff_phi_" + str(var_index),
-                        getattr(self.parent, "cutoff_phi_" + str(var_index)),
-                    )
-                    self.cutoffs_list.append("cutoff_phi_" + str(var_index))
-
-        cutoffs_dict = {}
-        for var_index in self.var_indices_list:
-            for cutoff_name in self.parent.cutoffs_list:
-                if str(var_index) in cutoff_name:
-                    cutoffs_dict[var_index] = getattr(self.parent, cutoff_name)
-        self.cutoffs_dict = cutoffs_dict
-        self.discretized_phi_range = {
-            i: self.parent.discretized_phi_range[i]
-            for i in self.parent.discretized_phi_range
-            if i in self.var_indices_list
-        }
-
-        self._id_str = (
-            self._autogenerate_id_str()
-        )  # Hilbert Space raises an error saying an instance of this class does not have an attribute _id_str
-
-        self.set_vars()
-        if HD_indices != [] and HD_indices != flatten_list_recursive(HD_indices):
-            self.hierarchical_diagonalization = True
-            self.hierarchical_diagonalization_func()
-            self.set_operators()
-            self.complete_hilbert_space()
-        else:
-            self.hierarchical_diagonalization = False
-
-        # generate operators for harmonic oscillator basis
-
-        if self.phi_basis == "sparse":
-            grids = {}
-            for var_index in self.var_indices["discretized_phi"]:
-                grids[var_index] = discretization.Grid1d(
-                    self.discretized_phi_range[var_index][0],
-                    self.discretized_phi_range[var_index][1],
-                    self.cutoffs_dict[var_index],
-                )
-            for var_index in self.var_indices["discretized_phi"]:
-                setattr(
-                    self,
-                    "θc" + str(var_index),
-                    self._cos_phi(grids[var_index]),
-                )
-                setattr(
-                    self,
-                    "θs" + str(var_index),
-                    self._cos_phi(grids[var_index]),
-                )
-
-    def generate_symbols(self, prefix: str, index_type: str) -> List[symbols]:
-        return [
-            symbols(prefix + str(index))
-            for index in list_intersection(
-                self.parent.var_indices[index_type], self.var_indices_list
-            )
-        ]
-
 
 # function to find the differences in the energy levels
 def energy_split(levels):  # gives the energy splits given the energy levels
