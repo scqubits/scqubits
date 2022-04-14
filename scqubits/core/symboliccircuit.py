@@ -245,7 +245,7 @@ class SymbolicCircuit(serializers.Serializable):
         self,
         nodes_list: List[Node],
         branches_list: List[Branch],
-        basis: str = "simple",
+        basis_completion: str = "simple",
         ground_node=None,
         initiate_sym_calc: bool = True,
         input_string: str = "",
@@ -280,7 +280,9 @@ class SymbolicCircuit(serializers.Serializable):
 
         # TODO comments in the following two lines are not helpful - Needs renaming and some refactoring in the method variable_transformation_matrix
         # paramater for chosing the basis - needs to be rewritten
-        self.basis = basis  # default, the other choice is standard
+        self.basis_completion = (
+            basis_completion  # default, the other choice is standard
+        )
 
         self.initiate_sym_calc = initiate_sym_calc
 
@@ -493,7 +495,7 @@ class SymbolicCircuit(serializers.Serializable):
     def from_input_string(
         cls,
         input_string: str,
-        basis: str = "simple",
+        basis_completion: str = "simple",
         initiate_sym_calc: bool = True,
     ):
         """
@@ -524,6 +526,9 @@ class SymbolicCircuit(serializers.Serializable):
         """
         code_lines = input_string.split("\n")
 
+        # removing the commented lines - lines starting with #
+        code_lines = [line for line in code_lines if line != "" and line[0] != "#"]
+
         nodes = cls.parse_nodes(code_lines)
         branches, ground_node, branch_var_dict = cls.parse_branches(code_lines, nodes)
 
@@ -531,7 +536,7 @@ class SymbolicCircuit(serializers.Serializable):
             nodes,
             branches,
             ground_node=ground_node,
-            basis=basis,
+            basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
             input_string=input_string,
         )
@@ -544,7 +549,7 @@ class SymbolicCircuit(serializers.Serializable):
     def from_input_file(
         cls,
         filename: str,
-        basis="simple",
+        basis_completion="simple",
         initiate_sym_calc=True,
     ):
         """
@@ -559,7 +564,7 @@ class SymbolicCircuit(serializers.Serializable):
         file.close()
         return cls.from_input_string(
             input_string,
-            basis=basis,
+            basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
         )
 
@@ -746,7 +751,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         var_indices_circuit = {
             "periodic": [],
-            "discretized_phi": [],
+            "extended": [],
             "cyclic": [],
             "frozen": [],
             "osc": [],
@@ -772,7 +777,7 @@ class SymbolicCircuit(serializers.Serializable):
             if self.mode_in_subspace(mode, LC_modes):
                 var_indices_circuit["osc"].append(x + 1)
             # Any mode which survived the above conditionals is an extended mode
-            var_indices_circuit["discretized_phi"].append(x + 1)
+            var_indices_circuit["extended"].append(x + 1)
 
         # Classifying the modes given in the transformation by the user
 
@@ -780,7 +785,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         var_indices_user = {
             "periodic": [],
-            "discretized_phi": [],
+            "extended": [],
             "cyclic": [],
             "frozen": [],
             "osc": [],
@@ -807,11 +812,11 @@ class SymbolicCircuit(serializers.Serializable):
                 var_indices_user["osc"].append(x + 1)
 
             # Any mode which survived the above conditionals is an extended mode
-            var_indices_user["discretized_phi"].append(x + 1)
+            var_indices_user["extended"].append(x + 1)
 
         # comparing the modes in the user defined and the code generated transformation
 
-        mode_types = ["periodic", "discretized_phi", "cyclic", "frozen", "osc"]
+        mode_types = ["periodic", "extended", "cyclic", "frozen", "osc"]
 
         for mode_type in mode_types:
             num_extra_modes = len(var_indices_circuit[mode_type]) - len(
@@ -917,7 +922,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         standard_basis = np.array(standard_basis)
 
-        if self.basis == "standard":
+        if self.basis_completion == "standard":
             standard_basis = np.identity(len(self.nodes))
 
         new_basis = modes.copy()
@@ -983,7 +988,7 @@ class SymbolicCircuit(serializers.Serializable):
             "periodic": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_periodic
             ],
-            "discretized_phi": [
+            "extended": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_rest
             ],
             "cyclic": [

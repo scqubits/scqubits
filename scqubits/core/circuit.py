@@ -60,6 +60,19 @@ from scqubits.utils.spectrum_utils import (
 #     from scqubits.core.symboliccircuit import Circuit
 
 
+def generate_default_trunc_dims(index_list):
+    trunc_dims = {}
+    for x, subsystem_indices in enumerate(index_list):
+        if subsystem_indices == flatten_list_recursive(subsystem_indices):
+            trunc_dims[x] = [10, {}]
+        else:
+            trunc_dims[x] = [
+                50,
+                generate_default_trunc_dims(subsystem_indices),
+            ]
+    return trunc_dims
+
+
 def get_trailing_number(input_str: str) -> int:
     """
     Retuns the number trailing a string given as input. Example:
@@ -102,7 +115,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     branches_list:
         List of branches connecting the above set of nodes.
     phi_basis:
-        "sparse" or "harmonic": Choose whether to use discretized phi or harmonic oscillator basis for extended variables.
+        "discretized" or "harmonic": Choose whether to use discretized phi or harmonic oscillator basis for extended variables.
     hierarchical_diagonalization:
         Boolean which indicates if the HilbertSpace from scqubits is used for simplification
     """
@@ -111,7 +124,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         self,
         circuit_data: dict,
         initiate_sym_calc: bool = True,
-        phi_basis: str = "sparse",
+        phi_basis: str = "discretized",
         hierarchical_diagonalization: bool = True,
         HD_indices=[],
         HD_trunc_dims=[],
@@ -228,8 +241,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             if var_type == "periodic":
                 for x, var_index in enumerate(var_indices["periodic"]):
                     cutoffs_list.append("cutoff_n_" + str(var_index))
-            if var_type == "discretized_phi":
-                for x, var_index in enumerate(var_indices["discretized_phi"]):
+            if var_type == "extended":
+                for x, var_index in enumerate(var_indices["extended"]):
                     cutoffs_list.append("cutoff_phi_" + str(var_index))
 
         cutoffs_dict = {}
@@ -261,7 +274,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             "cutoffs_list": cutoffs_list,
             "parent": parent,
             "discretized_phi_range": discretized_phi_range,
-            "is_child": is_child
+            "is_child": is_child,
         }
 
         return cls(
@@ -280,7 +293,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         symbolic_circuit: SymbolicCircuit,
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
-        phi_basis: str = "sparse",
+        phi_basis: str = "discretized",
         HD_indices=None,
         HD_trunc_dims=None,
         truncated_dim: int = None,
@@ -321,8 +334,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def from_input_string(
         cls,
         input_string: str,
-        phi_basis="sparse",
-        basis="simple",
+        phi_basis="discretized",
+        basis_completion="simple",
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
         HD_indices=None,
@@ -337,7 +350,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         input_string : str
             string describing the graph of a circuit
         phi_basis : str, optional
-            Choses the kind of basis used to construct the operators for extended variables. Can be "sparse" or "harmonic".
+            Choses the kind of basis used to construct the operators for extended variables. Can be "discretized" or "harmonic".
         basis : str, optional
             _description_, by default "simple"
         initiate_sym_calc : bool, optional
@@ -352,7 +365,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
 
         circuit = SymbolicCircuit.from_input_string(
-            input_string, basis=basis, initiate_sym_calc=True
+            input_string, basis_completion=basis_completion, initiate_sym_calc=True
         )
 
         return cls.from_CustomQCircuit(
@@ -369,8 +382,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def from_input_file(
         cls,
         filename: str,
-        phi_basis="sparse",
-        basis="simple",
+        phi_basis="discretized",
+        basis_completion="simple",
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
         HD_indices=None,
@@ -379,7 +392,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ):
 
         circuit = SymbolicCircuit.from_input_file(
-            filename, basis=basis, initiate_sym_calc=True
+            filename, basis_completion=basis_completion, initiate_sym_calc=True
         )
 
         return cls.from_CustomQCircuit(
@@ -406,6 +419,13 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         for cutoff_str in self.cutoffs_list:
             setattr(self, cutoff_str, getattr(self.parent, cutoff_str))
 
+        self._init_params = (
+            [param.name for param in self.param_vars]
+            + [flux.name for flux in self.external_flux_vars]
+            + [offset_charge.name for offset_charge in self.offset_charge_vars]
+            + self.cutoffs_list
+        )
+
         self.set_vars()
         if self.hierarchical_diagonalization:
             self.hierarchical_diagonalization_func()
@@ -413,8 +433,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             self.complete_hilbert_space()
         else:
             self.set_operators()
-
-
 
     def initiate_circuit(
         self,
@@ -452,8 +470,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     )
                     setattr(self, "cutoff_n_" + str(var_index), cutoff)
                     self.cutoffs_list.append("cutoff_n_" + str(var_index))
-            if var_type == "discretized_phi":
-                for x, var_index in enumerate(self.var_indices["discretized_phi"]):
+            if var_type == "extended":
+                for x, var_index in enumerate(self.var_indices["extended"]):
                     cutoff = (
                         30
                         if not hasattr(self, "parent")
@@ -473,7 +491,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             # setattr(self.__class__, param.name, property(fget=param_gettr, fset=param_settr))
 
         # setting the ranges for floux ranges used for discrete phi vars
-        for v in self.var_indices["discretized_phi"]:
+        for v in self.var_indices["extended"]:
             self.discretized_phi_range[v] = (-6 * np.pi, 6 * np.pi)
         # default values for the external flux vars
         for flux in self.external_flux_vars:
@@ -500,7 +518,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         else:
             if HD_indices == None:
                 self.HD_indices = [
-                    self.var_indices["periodic"] + self.var_indices["discretized_phi"]
+                    self.var_indices["periodic"] + self.var_indices["extended"]
                 ]
             else:
                 self.HD_indices = HD_indices
@@ -519,18 +537,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         # initilizing attributes for operators
         self.set_operators()
-
-    def generate_default_trunc_dims(self, index_list):
-        trunc_dims = {}
-        for x, subsystem_indices in enumerate(index_list):
-            if subsystem_indices == flatten_list_recursive(subsystem_indices):
-                trunc_dims[x] = [10, {}]
-            else:
-                trunc_dims[x] = [
-                    50,
-                    self.generate_default_trunc_dims(subsystem_indices),
-                ]
-        return trunc_dims
 
     ##################################################################
     ##### Functions to construct the function for the Hamiltonian ####
@@ -680,7 +686,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             #   - substituting Identity with 1
             interaction = interaction.subs("I", 1)
             #   - substituting cos and sin operators with their own symbols
-            for i in self.var_indices["discretized_phi"]:
+            for i in self.var_indices["extended"]:
                 interaction = interaction.replace(
                     sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
                 ).replace(
@@ -732,8 +738,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                             operator,
                             self.subsystems[index][0],
                         )
-                print("add_interaction called:", term)
-                hilbert_space.add_interaction(g=float(coefficient), **operator_dict)
+                hilbert_space.add_interaction(
+                    g=float(coefficient), **operator_dict, check_validity=False
+                )
 
         self.hilbert_space = hilbert_space
 
@@ -753,43 +760,25 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         ]
 
         # Defining the list of discretized_phi variables
-        y_symbols = [symbols("θ" + str(i)) for i in self.var_indices["discretized_phi"]]
-        p_symbols = [symbols("Q" + str(i)) for i in self.var_indices["discretized_phi"]]
+        y_symbols = [symbols("θ" + str(i)) for i in self.var_indices["extended"]]
+        p_symbols = [symbols("Q" + str(i)) for i in self.var_indices["extended"]]
 
-        if self.phi_basis == "sparse":
+        if self.phi_basis == "discretized":
 
-            ps_symbols = [
-                symbols("Qs" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
-            sin_symbols = [
-                symbols("θs" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
-            cos_symbols = [
-                symbols("θc" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
+            ps_symbols = [symbols("Qs" + str(i)) for i in self.var_indices["extended"]]
+            sin_symbols = [symbols("θs" + str(i)) for i in self.var_indices["extended"]]
+            cos_symbols = [symbols("θc" + str(i)) for i in self.var_indices["extended"]]
 
         elif self.phi_basis == "harmonic":
 
-            a_symbols = [
-                symbols("a" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
-            ad_symbols = [
-                symbols("ad" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
-            Nh_symbols = [
-                symbols("Nh" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
-            pos_symbols = [
-                symbols("θ" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
-            sin_symbols = [
-                symbols("θs" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
-            cos_symbols = [
-                symbols("θc" + str(i)) for i in self.var_indices["discretized_phi"]
-            ]
+            a_symbols = [symbols("a" + str(i)) for i in self.var_indices["extended"]]
+            ad_symbols = [symbols("ad" + str(i)) for i in self.var_indices["extended"]]
+            Nh_symbols = [symbols("Nh" + str(i)) for i in self.var_indices["extended"]]
+            pos_symbols = [symbols("θ" + str(i)) for i in self.var_indices["extended"]]
+            sin_symbols = [symbols("θs" + str(i)) for i in self.var_indices["extended"]]
+            cos_symbols = [symbols("θc" + str(i)) for i in self.var_indices["extended"]]
             momentum_symbols = [
-                symbols("Q" + str(i)) for i in self.var_indices["discretized_phi"]
+                symbols("Q" + str(i)) for i in self.var_indices["extended"]
             ]
 
             extended_symbols = (
@@ -812,8 +801,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             "identity": [symbols("I")],
         }
 
-        if self.phi_basis == "sparse":
-            self.vars["discretized_phi"] = {
+        if self.phi_basis == "discretized":
+            self.vars["extended"] = {
                 "position": y_symbols,
                 "momentum": p_symbols,
                 "momentum_squared": ps_symbols,
@@ -821,7 +810,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 "cos": cos_symbols,
             }
         elif self.phi_basis == "harmonic":
-            self.vars["discretized_phi"] = {
+            self.vars["extended"] = {
                 "annihilation": a_symbols,
                 "creation": ad_symbols,
                 "number": Nh_symbols,
@@ -841,7 +830,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         ######## shifting the harmonic oscillator potential to the point of external fluxes #############
         flux_shift_vars = {}
-        for var_index in self.var_indices["discretized_phi"]:
+        for var_index in self.var_indices["extended"]:
             if H.coeff("θ" + str(var_index)) != 0:
                 flux_shift_vars[var_index] = symbols("Δθ" + str(var_index))
                 H = H.replace(
@@ -852,7 +841,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         flux_shift_equations = [
             H.coeff("θ" + str(var_index)).subs(
-                [("θ" + str(i), 0) for i in self.var_indices["discretized_phi"]]
+                [("θ" + str(i), 0) for i in self.var_indices["extended"]]
             )
             for var_index in flux_shift_vars.keys()
         ]  # finding the coefficients of the linear terms
@@ -866,9 +855,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         else:
             flux_shifts = []
 
-        flux_shifts_dict = dict(
-            zip(self.var_indices["discretized_phi"], list(flux_shifts))
-        )
+        flux_shifts_dict = dict(zip(self.var_indices["extended"], list(flux_shifts)))
 
         H = H.subs(
             [
@@ -883,7 +870,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         flux_shifts_dict.update(
             {
                 var_index: 0
-                for var_index in self.var_indices["discretized_phi"]
+                for var_index in self.var_indices["extended"]
                 if var_index not in flux_shifts_dict
             }
         )
@@ -901,16 +888,16 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
             ).replace(sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i)))
 
-        if self.phi_basis == "sparse":
+        if self.phi_basis == "discretized":
 
             # marking the squared momentum operators with a separate symbol
-            for i in self.var_indices["discretized_phi"]:
+            for i in self.var_indices["extended"]:
                 H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
 
         elif self.phi_basis == "harmonic":
             H = sympy.expand_trig(H).expand()
 
-            for i in self.var_indices["discretized_phi"]:
+            for i in self.var_indices["extended"]:
                 H = H.replace(
                     sympy.cos(1.0 * symbols("θ" + str(i))),
                     symbols("θc" + str(i)),
@@ -974,15 +961,13 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             subsystem_index = self.get_subsystem_index(index)
             var_index_list = flatten_list_recursive(self.HD_indices[subsystem_index])
         else:
-            var_index_list = (
-                self.var_indices["periodic"] + self.var_indices["discretized_phi"]
-            )
+            var_index_list = self.var_indices["periodic"] + self.var_indices["extended"]
 
         var_index_list.sort()  # important to make sure that right cutoffs are chosen
         cutoff_dict = self.get_cutoffs()
 
         # if len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_n"]) or len(
-        #     self.var_indices["discretized_phi"]
+        #     self.var_indices["extended"]
         # ) != len(cutoff_dict["cutoff_phi"]):
         #     raise AttributeError(
         #         "Make sure the cutoffs are only defined for the circuit variables in the class property var_indices, except for frozen variables. "
@@ -1000,7 +985,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         ]  # concatenating the sublists
         cutoffs_index_dict = dict(
             zip(
-                self.var_indices["periodic"] + self.var_indices["discretized_phi"],
+                self.var_indices["periodic"] + self.var_indices["extended"],
                 cutoffs,
             )
         )
@@ -1008,7 +993,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             cutoffs_index_dict[i] for i in var_index_list
         ]  # selecting the cutoffs present in
 
-        if self.phi_basis == "sparse":
+        if self.phi_basis == "discretized":
             matrix_format = "csc"
         elif self.phi_basis == "harmonic":
             matrix_format = "array"
@@ -1036,7 +1021,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     format=matrix_format,
                 )
         else:
-            if self.phi_basis == "sparse":
+            if self.phi_basis == "discretized":
                 return sparse.csc_matrix(operator)
             elif self.phi_basis == "harmonic":
                 return operator
@@ -1044,7 +1029,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def _change_sparsity(self, x):
         if self.phi_basis == "harmonic":
             return x.toarray()
-        elif self.phi_basis == "sparse":
+        elif self.phi_basis == "discretized":
             return x
 
     # Identity Operator
@@ -1058,7 +1043,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         ):
             return None
         dim = self.hilbertdim()
-        if self.phi_basis == "sparse":
+        if self.phi_basis == "discretized":
             op = sparse.identity(dim)
             return op.tocsc()
         elif self.phi_basis == "harmonic":
@@ -1185,14 +1170,14 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         from scipy import sparse
 
         periodic_vars = self.vars["periodic"]
-        normal_vars = self.vars["discretized_phi"]
+        normal_vars = self.vars["extended"]
 
         index_list = [j for i in list(self.var_indices.values()) for j in i]
         cutoff_list = [j for i in list(self.get_cutoffs().values()) for j in i]
         cutoffs = dict(zip(index_list, cutoff_list))
 
         grids = {}
-        for i in self.var_indices["discretized_phi"]:
+        for i in self.var_indices["extended"]:
             grids[i] = discretization.Grid1d(
                 self.discretized_phi_range[i][0],
                 self.discretized_phi_range[i][1],
@@ -1201,7 +1186,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         # constructing the operators for extended variables
 
-        if self.phi_basis == "sparse":
+        if self.phi_basis == "discretized":
             extended_operators = {
                 "position": [],
                 "momentum": [],
@@ -1211,12 +1196,16 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             }
             for v in normal_vars["position"]:  # position operators
                 index = int(get_trailing_number(v.name))
-                a_operator = self._phi_operator(grids[index])
+                phi_operator = self._phi_operator(grids[index])
                 extended_operators["position"].append(
-                    self._kron_operator(a_operator, index)
+                    self._kron_operator(phi_operator, index)
                 )
-                extended_operators["sin"].append(self._sin_phi(grids[index]))
-                extended_operators["cos"].append(self._cos_phi(grids[index]))
+                extended_operators["sin"].append(
+                    self._kron_operator(self._sin_phi(grids[index]), index)
+                )
+                extended_operators["cos"].append(
+                    self._kron_operator(self._cos_phi(grids[index]), index)
+                )
             for v in normal_vars["momentum"]:  # momentum operators
                 index = int(get_trailing_number(v.name))
                 a_operator = self._i_d_dphi_operator(grids[index])
@@ -1256,7 +1245,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 "sin": [],
                 "cos": [],
             }
-            for var_index in self.var_indices["discretized_phi"]:
+            for var_index in self.var_indices["extended"]:
                 ECi = float(H.coeff("Q" + str(var_index) + "**2").cancel()) / 4
                 ELi = float(H.coeff("θ" + str(var_index) + "**2").cancel()) * 2
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
@@ -1321,7 +1310,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         return {
             "periodic": periodic_operators,
-            "discretized_phi": extended_operators,
+            "extended": extended_operators,
             "identity": [self._identity()],
         }
 
@@ -1376,7 +1365,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         variable_symbols_list = flatten_list(
             self.vars["periodic"].values()
-        ) + flatten_list(self.vars["discretized_phi"].values())
+        ) + flatten_list(self.vars["extended"].values())
         operator_list = []
         for operator in variable_symbols_list:
             operator_list.append(getattr(self, operator.name))
@@ -1405,14 +1394,14 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         variable_symbols_list = (
             flatten_list(self.vars["periodic"].values())
-            + flatten_list(self.vars["discretized_phi"].values())
+            + flatten_list(self.vars["extended"].values())
             + self.vars["identity"]
         )
 
         # if not self.is_child:
         ops = self.circuit_operators()
         operator_list = flatten_list(ops["periodic"].values()) + flatten_list(
-            ops["discretized_phi"].values()
+            ops["extended"].values()
         )
         # else:
         #     operator_list = [
@@ -1437,7 +1426,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     def is_mat_mul_replacement_necessary(self, term):
         return (
-            set(self.var_indices["discretized_phi"])
+            set(self.var_indices["extended"])
             & set([get_trailing_number(str(i)) for i in term.free_symbols])
         ) and "*" in str(term)
 
@@ -1446,9 +1435,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         if not self.is_mat_mul_replacement_necessary(term):
             return str(term)
 
-        if self.phi_basis == "sparse":
+        if self.phi_basis == "discretized":
             var_indices = [get_trailing_number(str(i)) for i in term.free_symbols]
-            if len(set(var_indices) & set(self.var_indices["discretized_phi"])) > 1:
+            if len(set(var_indices) & set(self.var_indices["extended"])) > 1:
                 term_string = str(term)  # .replace("*", "@")
             else:
                 return str(term)
@@ -1464,10 +1453,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
                 new_string_list = []
                 for x, operator in enumerate(operators):
-                    if (
-                        get_trailing_number(operator)
-                        in self.var_indices["discretized_phi"]
-                    ):
+                    if get_trailing_number(operator) in self.var_indices["extended"]:
                         new_string_list.append(
                             "matrix_power(" + operator + "," + exponents[x] + ")"
                         )
@@ -1544,7 +1530,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         H = H.subs("I", 1)
 
         # replace the extended degrees of freedom with harmonic oscillators
-        for var_index in self.var_indices["discretized_phi"]:
+        for var_index in self.var_indices["extended"]:
             ECi = float(H.coeff("Q" + str(var_index) + "**2").cancel()) / 4
             ELi = float(H.coeff("θ" + str(var_index) + "**2").cancel()) * 2
             osc_freq = (8 * ELi * ECi) ** 0.5
@@ -1565,7 +1551,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         variable_symbols_list = (
             flatten_list(self.vars["periodic"].values())
-            + flatten_list(self.vars["discretized_phi"].values())
+            + flatten_list(self.vars["extended"].values())
             + self.vars["identity"]
         )
 
@@ -1617,7 +1603,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         Returns the Hamiltonian of the Circuit.
         """
-        print("hamiltonian_called: ", self.var_indices["discretized_phi"], self.is_child )
         if self.hierarchical_diagonalization and not self.is_child:
             self.hierarchical_diagonalization_func()
             self.set_operators()
@@ -1628,14 +1613,14 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         if not self.hierarchical_diagonalization:
             if self.phi_basis == "harmonic":
                 return self.hamiltonian_harmonic()
-            elif self.phi_basis == "sparse":
+            elif self.phi_basis == "discretized":
                 return self.hamiltonian_sparse()
 
         else:
             hamiltonian = self.hilbert_space.hamiltonian()
             if self.phi_basis == "harmonic":
                 return hamiltonian.full()
-            elif self.phi_basis == "sparse":
+            elif self.phi_basis == "discretized":
                 return sp.sparse.csc_matrix(hamiltonian)
 
     ##################################################################
@@ -1650,7 +1635,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             hilbertdim = self.hilbertdim()
 
         hamiltonian_mat = self.hamiltonian()
-        if self.phi_basis == "sparse" or self.hierarchical_diagonalization:
+        if self.phi_basis == "discretized" or self.hierarchical_diagonalization:
             evals = sparse.linalg.eigsh(
                 hamiltonian_mat,
                 return_eigenvectors=False,
@@ -1673,7 +1658,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             hilbertdim = self.hilbertdim()
 
         hamiltonian_mat = self.hamiltonian()
-        if self.phi_basis == "sparse":
+        if self.phi_basis == "discretized":
             evals, evecs = sparse.linalg.eigsh(
                 hamiltonian_mat,
                 return_eigenvectors=True,
@@ -1741,7 +1726,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         Returns the full potential of the circuit evaluated in a grid of points as chosen by the user or using default variable ranges.
         """
         periodic_indices = self.var_indices["periodic"]
-        discretized_phi_indices = self.var_indices["discretized_phi"]
+        discretized_phi_indices = self.var_indices["extended"]
         var_indices = discretized_phi_indices + periodic_indices
 
         # method to concatenate sublists
@@ -1807,7 +1792,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
 
         periodic_indices = self.var_indices["periodic"]
-        discretized_phi_indices = self.var_indices["discretized_phi"]
+        discretized_phi_indices = self.var_indices["extended"]
         var_indices = discretized_phi_indices + periodic_indices
 
         # constructing the grids
@@ -1891,7 +1876,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                             self.discretized_phi_range[k][1],
                             cutoffs_dict[cutoff_type][i],
                         )
-                        for i, k in enumerate(self.var_indices["discretized_phi"])
+                        for i, k in enumerate(self.var_indices["extended"])
                     ]
                 )
         # concatenating the sublists
@@ -1982,7 +1967,7 @@ class DataBuffer(Circuit):
             momentum_operators = []
             sin_operators = []
             cos_operators = []
-            for index in self.parent.var_indices["discretized_phi"]:
+            for index in self.parent.var_indices["extended"]:
                 θ = (
                     (
                         getattr(self.parent, "ad" + str(index))
@@ -2024,6 +2009,7 @@ class DataBuffer(Circuit):
         else:
             self.update_buffer()
             return self.store_operators()
+
 
 # function to find the differences in the energy levels
 def energy_split(levels):  # gives the energy splits given the energy levels
