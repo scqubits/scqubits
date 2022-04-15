@@ -10,6 +10,7 @@
 ############################################################################
 
 
+from multiprocessing.spawn import old_main_modules
 from sys import settrace
 from typing import (
     Any,
@@ -22,6 +23,7 @@ from typing import (
     TYPE_CHECKING,
     Union,
 )
+from attr import attrib
 from matplotlib.text import OffsetFrom
 import sympy
 import sympy as sm
@@ -452,11 +454,21 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         HD_indices = HD_indices or self.HD_indices
         HD_trunc_dims = HD_trunc_dims or self.HD_trunc_dims
 
+        self.hierarchical_diagonalization = True if HD_indices is not None else False
+
         self.symbolic_circuit.initiate_symboliccircuit(
             transformation_matrix=transformation_matrix,
             closure_branches=closure_branches,
         )
         self.__dict__.update(self.symbolic_circuit.__dict__)
+
+        # removing any of the old cutoffs
+        old_cutoffs = []
+        for attr in self.__dict__:
+            if "cutoff_" in attr:
+                old_cutoffs.append(attr)
+        for attr in old_cutoffs:
+            delattr(self, attr)
 
         # initiating the class properties
         self.cutoffs_list = []
@@ -529,9 +541,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 )
             else:
                 self.HD_trunc_dims = HD_trunc_dims
-            # for sys_index in range(len(self.HD_indices)):
-            #     # default value
-            #     setattr(self, "sys_" + str(sys_index) + "_trunc_dim", 10)
             self.hamiltonian_function()
             self.hierarchical_diagonalization_func()
 
@@ -616,26 +625,17 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             zip(
                 range(len(self.HD_indices)),
                 [
-                    [
-                        Circuit.from_symbolic_hamiltonian(
-                            self,
-                            systems_sym[index],
-                            HD_indices=self.HD_indices[index],
-                            truncated_dim=self.HD_trunc_dims[index][0],
-                            HD_trunc_dims=self.HD_trunc_dims[index][1],
-                        ),
-                        interaction_sym[index],
-                    ]
+                    Circuit.from_symbolic_hamiltonian(
+                        self,
+                        systems_sym[index],
+                        HD_indices=self.HD_indices[index],
+                        truncated_dim=self.HD_trunc_dims[index][0],
+                        HD_trunc_dims=self.HD_trunc_dims[index][1],
+                    )
                     for index in range(len(self.HD_indices))
                 ],
             )
         )
-
-        # updating truncated dims
-        # for sys_index in range(len(self.HD_indices)):
-        #     self.subsystems[sys_index][0].truncated_dim = getattr(
-        #         self, "sys_" + str(sys_index) + "_trunc_dim"
-        #     )
 
     def get_subsystem_index(self, var_index):
         """
@@ -656,7 +656,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         subsystem_index = system.get_subsystem_index(
             get_trailing_number(operator_symbol.name)
         )
-        subsystem = system.subsystems[subsystem_index][0]
+        subsystem = system.subsystems[subsystem_index]
 
         operator_identity_wrapped = identity_wrap(
             operator, subsystem, system.hilbert_space.subsys_list  # , evecs=evecs_bare
@@ -665,12 +665,12 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def complete_hilbert_space(self):
         hilbert_space = HilbertSpace(
-            [self.subsystems[i][0] for i in range(len(self.HD_indices))]
+            [self.subsystems[i] for i in range(len(self.HD_indices))]
         )
 
         # Adding interactions using the symbolic interaction term
         for sys_index in range(len(self.HD_indices)):
-            interaction = self.subsystems[sys_index][1].expand()
+            interaction = self.subsystems_sym[sys_index][1].expand()
             if interaction == 0:  # if the interaction term is zero
                 continue
             # modifying interaction terms
@@ -717,10 +717,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     var_index = get_trailing_number(str(var))
                     subsystem_index = self.get_subsystem_index(var_index)
                     if "I" not in str(var):
-                        operator = getattr(
-                            self.subsystems[subsystem_index][0], str(var)
-                        )
-                        subsystem = self.subsystems[subsystem_index][0]
+                        operator = getattr(self.subsystems[subsystem_index], str(var))
+                        subsystem = self.subsystems[subsystem_index]
                         if subsystem.hierarchical_diagonalization and hasattr(
                             subsystem, "parent"
                         ):
@@ -728,7 +726,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
                         sys_op_dict[subsystem_index].append(operator)
                     else:
-                        sys_op_dict[0].append(self.subsystems[0][0]._identity())
+                        sys_op_dict[0].append(self.subsystems[0]._identity())
 
                 operator_dict = {}
 
@@ -736,7 +734,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     for op_index, operator in enumerate(sys_op_dict[index]):
                         operator_dict["op" + str(len(operator_dict) + 1)] = (
                             operator,
-                            self.subsystems[index][0],
+                            self.subsystems[index],
                         )
                 hilbert_space.add_interaction(
                     g=float(coefficient), **operator_dict, check_validity=False
@@ -1403,12 +1401,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         operator_list = flatten_list(ops["periodic"].values()) + flatten_list(
             ops["extended"].values()
         )
-        # else:
-        #     operator_list = [
-        #         getattr(self.parent, str(var))
-        #         for var in variable_symbols_list
-        #         if "I" not in str(var)
-        #     ]
+
         operator_list = operator_list + [self._identity()]
 
         for x, operator in enumerate(variable_symbols_list):
