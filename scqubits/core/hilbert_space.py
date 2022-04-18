@@ -558,11 +558,13 @@ class HilbertSpace(
     def generate_lookup(self) -> None:
         bare_evals = np.empty((self.subsystem_count,), dtype=object)
         bare_evecs = np.empty((self.subsystem_count,), dtype=object)
+        bare_esys_dict = {}
 
         dummy_params = self._parameters.paramvals_by_name
 
         for subsys_index, subsys in enumerate(self):
             bare_esys = subsys.eigensys(evals_count=subsys.truncated_dim)
+            bare_esys_dict[subsys_index] = bare_esys
             bare_evals[subsys_index] = NamedSlotsNdarray(
                 np.asarray([bare_esys[0].tolist()]),
                 self._parameters.paramvals_by_name,
@@ -578,7 +580,7 @@ class HilbertSpace(
             bare_evecs, {"subsys": np.arange(self.subsystem_count)}
         )
 
-        evals, evecs = self.eigensys(evals_count=self.dimension)
+        evals, evecs = self.eigensys(evals_count=self.dimension, bare_esys=bare_esys_dict)
         # The following workaround ensures that eigenvectors maintain QutipEigenstates
         # view when getting placed inside an outer array
         evecs_wrapped = np.empty(shape=1, dtype=object)
