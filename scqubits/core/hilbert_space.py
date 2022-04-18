@@ -524,12 +524,14 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
     ###################################################################################
     def generate_lookup(self) -> None:
         bare_specdata_list = []
+        bare_esys_dict = {}
         for index, subsys in enumerate(self):
             evals, evecs = subsys.eigensys(evals_count=subsys.truncated_dim)
             if np.isreal(evecs).all():
                 evecs = np.array([spec_utils.standardize_sign(evec) for evec in evecs.T]).T
             else:
                 evecs = np.array([spec_utils.standardize_phases(evec) for evec in evecs.T]).T
+            bare_esys_dict[index] = [evals, evecs]
             bare_specdata_list.append(
                 storage.SpectrumData(
                     energy_table=np.asarray([evals]),
@@ -538,7 +540,7 @@ class HilbertSpace(dispatch.DispatchClient, serializers.Serializable):
                 )
             )
 
-        evals, evecs = self.eigensys(evals_count=self.dimension)
+        evals, evecs = self.eigensys(evals_count=self.dimension, bare_esys=bare_esys_dict)
         dressed_specdata = storage.SpectrumData(
             energy_table=np.asarray([evals]),
             state_table=[evecs],
