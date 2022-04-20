@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import itertools
 import copy
 from attr import frozen
+from py import code
 
 import sympy
 import numpy as np
@@ -392,7 +393,9 @@ class SymbolicCircuit(serializers.Serializable):
     def parse_branches(
         code_lines: List[str], nodes: List[Node]
     ) -> Tuple[List[Branch], Node]:
-        start_index = code_lines.index("branches:") + 1
+        start_index = [
+            code_lines.index(line) for line in code_lines if "branches:" in line
+        ][0] + 1
         end_index = len(code_lines)
 
         node_count = len(nodes)

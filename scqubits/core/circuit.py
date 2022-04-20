@@ -39,6 +39,7 @@ from scipy.sparse.csc import csc_matrix
 from matplotlib import pyplot as plt
 from scqubits.core import operators as op
 from scqubits import HilbertSpace, settings
+import scqubits.core.oscillator as osc
 
 from scqubits.core.symboliccircuit import SymbolicCircuit
 import scqubits.core.discretization as discretization
@@ -229,7 +230,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                             cutoffs.append(getattr(parent, cutoff_name))
                     var_indices_list.append(var_index)
         # setting some class attributes
-        var_indices_list = var_indices_list
+        var_indices_list.sort()
         var_indices = {}
         for var_type in parent.var_indices:
             var_indices[var_type] = [
@@ -562,14 +563,14 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         This is a special function to calculate the expm of sparse diagonal matrices
         """
-        return sparse.diags(np.cos((x.todia()).diagonal())).tocsc()
+        return sparse.diags(np.cos(x.diagonal())).tocsc()
 
     @staticmethod
     def _sin_dia(x):
         """
         This is a special function to calculate the expm of sparse diagonal matrices
         """
-        return sparse.diags(np.sin((x.todia()).diagonal())).tocsc()
+        return sparse.diags(np.sin(x.diagonal())).tocsc()
 
     def hierarchical_diagonalization_func(self):
         # H = self.hamiltonian_symbolic.expand()
@@ -651,7 +652,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 return index
 
     def identity_wrap_operator(self, system, operator_symbol):
-
         operator = getattr(system, operator_symbol.name)
         subsystem_index = system.get_subsystem_index(
             get_trailing_number(operator_symbol.name)
@@ -698,12 +698,12 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             # coeff_str = list(expr_dict.values())
 
             for i, term in enumerate(terms_str):
-                coefficient = expr_dict[term]
+                coefficient_sympy = expr_dict[term]
 
                 # adding external flux, offset charge and branch parameters to coefficient
                 for var in term.free_symbols:
                     if "Φ" in str(var) or "ng" in str(var) or var in self.param_vars:
-                        coefficient = coefficient * getattr(self, str(var))
+                        coefficient_sympy = coefficient_sympy * getattr(self, str(var))
 
                 operator_symbols = [
                     var
@@ -737,7 +737,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                             self.subsystems[index],
                         )
                 hilbert_space.add_interaction(
-                    g=float(coefficient), **operator_dict, check_validity=False
+                    g=float(coefficient_sympy), **operator_dict, check_validity=False
                 )
 
         self.hilbert_space = hilbert_space
@@ -1429,11 +1429,14 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             return str(term)
 
         if self.phi_basis == "discretized":
-            var_indices = [get_trailing_number(str(i)) for i in term.free_symbols]
-            if len(set(var_indices) & set(self.var_indices["extended"])) > 1:
-                term_string = str(term)  # .replace("*", "@")
-            else:
-                return str(term)
+            term_string = str(term)
+            term_var_indices = [get_trailing_number(str(i)) for i in term.free_symbols]
+            if len(set(term_var_indices) & set(self.var_indices["extended"])) > 1:
+                if all(["Q" in var.name for var in term.free_symbols]):
+                    term_string = str(term).replace(
+                        "*", "@"
+                    )  # replacing all the * with @
+
         elif self.phi_basis == "harmonic":
             term_string = ""
             # replace ** with np.matrix_power
@@ -1520,7 +1523,12 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 + self.offset_charge_vars
             ]
         )
-        H = H.subs("I", 1)
+        H = H.subs(
+            "I", 1
+        )  # does not make a difference as all the trignometric expressions are expanded out.
+        # remove constants from the Hamiltonian
+        H = H - H.as_coefficients_dict()[1]
+        H = H.expand()
 
         # replace the extended degrees of freedom with harmonic oscillators
         for var_index in self.var_indices["extended"]:
@@ -1540,7 +1548,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             )
 
         H_str = self.get_eval_hamiltonian_string(H)
-        self.H_str_harmonic = H_str
+        self._H_str_harmonic = H_str
 
         variable_symbols_list = (
             flatten_list(self.vars["periodic"].values())
@@ -1577,8 +1585,12 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 + self.offset_charge_vars
             ]
         )
+        # remove constants from the Hamiltonian
+        H = H - H.as_coefficients_dict()[1]
+        H = H.expand()
 
         H_str = self.get_eval_hamiltonian_string(H)
+        self._H_str_sparse = H_str
 
         variable_dict = self.get_operators(return_dict=True)
         # changing variables to strings
@@ -1610,7 +1622,11 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 return self.hamiltonian_sparse()
 
         else:
-            hamiltonian = self.hilbert_space.hamiltonian()
+            bare_esys = {
+                sys_index: sys.eigensys(evals_count=sys.truncated_dim)
+                for sys_index, sys in enumerate(self.hilbert_space.subsys_list)
+            }
+            hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
             if self.phi_basis == "harmonic":
                 return hamiltonian.full()
             elif self.phi_basis == "discretized":
@@ -1620,7 +1636,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ########### Functions from scqubits.core.qubit_base ##############
     ##################################################################
     def _evals_calc(self, evals_count: int) -> ndarray:
-
         # dimension of the hamiltonian
         if self.hierarchical_diagonalization:
             hilbertdim = np.prod([self.HD_trunc_dims[i][0] for i in self.HD_trunc_dims])
@@ -1643,7 +1658,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         return np.sort(evals)
 
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
-
         # dimension of the hamiltonian
         if self.hierarchical_diagonalization:
             hilbertdim = np.prod([self.HD_trunc_dims[i][0] for i in self.HD_trunc_dims])
@@ -1828,7 +1842,14 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############# Functions for plotting wavefunction ################
     ##################################################################
-    def plot_wavefunction(self, n=0, var_indices=(1,), mode="abs", eigensys=None):
+    def plot_wavefunction(
+        self,
+        n=0,
+        var_indices=(1,),
+        eigensys=None,
+        mode="abs",
+        section=False,
+    ):
         """
         Returns the plot of the wavefunction in the requested variables and for a specific eigen system calculation.
 
@@ -1841,40 +1862,170 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         eigensys:
             The object returned by the method instance.eigensys, is used to avoid the re-evaluation of the eigen systems if already evaluated.
         """
-        dims = tuple(
-            np.sort(var_indices) - 1
-        )  # taking the var indices and identifying the dimensions.
+        if len(var_indices) > 2:
+            raise AttributeError(
+                "Cannot plot wavefunction in more than 2 dimensions. The number of dimensions should be less than 2."
+            )
+        var_indices = np.sort(var_indices)
+        cutoffs_dict = {}  # dictionary for cutoffs for each variable index
+        grids_dict = {}
+        var_index_dims_dict = {}
+        for cutoff_attrib in self.cutoffs_list:
+            var_index = get_trailing_number(cutoff_attrib)
+            cutoffs_dict[var_index] = getattr(self, cutoff_attrib)
+            if "cutoff_n" in cutoff_attrib:
+                grids_dict[var_index] = self._default_grid_phi.make_linspace()
+                var_index_dims_dict[var_index] = 2 * cutoffs_dict[var_index] + 1
+            else:
+                var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
+                if self.phi_basis == "harmonic":
+                    grid = self._default_grid_phi.make_linspace()
+                elif self.phi_basis == "discretized":
+                    grid = np.linspace(
+                        self.discretized_phi_range[var_index][0],
+                        self.discretized_phi_range[var_index][1],
+                        cutoffs_dict[var_index],
+                    )
+                grids_dict[var_index] = grid
 
+        # checking to see if eigensys needs to be generated
         if eigensys is None:
             eigs, wf = self.eigensys()
         else:
             eigs, wf = eigensys
 
-        cutoffs_dict = self.get_cutoffs()
+        if not self.hierarchical_diagonalization:
+            wavefunction = wf[:, n]
+            wf_reshaped = wavefunction.reshape(*var_index_dims_dict.values())
 
-        cutoff_list = []
-        grids = []
-        for cutoff_type in cutoffs_dict.keys():
-            if "cutoff_n" in cutoff_type:
-                cutoff_list.append([2 * k + 1 for k in cutoffs_dict[cutoff_type]])
-                grids.append(
-                    [list(range(-k, k + 1)) for k in cutoffs_dict[cutoff_type]]
+            wf_plot = np.sum(
+                np.abs(wf_reshaped),
+                axis=tuple(
+                    [i - 1 for i in cutoffs_dict.keys() if i not in var_indices]
+                ),
+            )
+        else:
+            wf_hd = wf[:, n]
+            subsystem_indices_for_vars_chosen = np.sort(
+                list(
+                    set(
+                        [
+                            self.get_subsystem_index(index)
+                            for index in np.sort(var_indices)
+                        ]
+                    )
                 )
-            elif "cutoff_phi" in cutoff_type:
-                cutoff_list.append([k for k in cutoffs_dict[cutoff_type]])
-                grids.append(
+            )  # getting the subsystem index for each of the index dimension
+            subsystems_for_vars_chosen = [
+                self.subsystems[sys_index]
+                for sys_index in subsystem_indices_for_vars_chosen
+            ]
+            subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
+            # reshaping the wavefunctions to truncated dims of subsystems
+            wf_hd_reshaped = wf_hd.reshape(*subsys_trunc_dims)
+
+            # summing over the absolute values for the subsystems which are not relevant
+            wf_relevant_dims = np.sum(
+                np.abs(wf_hd_reshaped),
+                axis=tuple(
                     [
-                        np.linspace(
-                            self.discretized_phi_range[k][0],
-                            self.discretized_phi_range[k][1],
-                            cutoffs_dict[cutoff_type][i],
+                        index
+                        for index in range(len(self.subsystems))
+                        if index not in subsystem_indices_for_vars_chosen
+                    ]
+                ),
+            )
+            # finding the wavefunctions(as many as the truncated dimension) for each of the relevant subsystems
+            subsys_wfs = [
+                sys.eigensys(evals_count=sys.truncated_dim)[1]
+                for sys in subsystems_for_vars_chosen
+            ]
+
+            wavefunction = wf_relevant_dims  # starting with the reshaped wavefunction
+            # performing the linear combination of the coefficients with the corresponding wavefunctions for each relevant subsystem
+            for x, subsys_index in enumerate(subsystem_indices_for_vars_chosen):
+                U = subsys_wfs[x]
+                # generating sublists for einsum
+                sublist_wf = list(
+                    range(1, len(subsystem_indices_for_vars_chosen) + 1)
+                )  # starting with a list of numbers starting with 1
+                sublist_wf = (
+                    sublist_wf[1 : x + 1] + [sublist_wf[0]] + sublist_wf[x + 1 :]
+                )  # arranging it such that chosen subsystem index is marked as 1, and rest are marked in order starting from 2
+                sublist_target = [
+                    x if x != 1 else 0 for x in sublist_wf
+                ]  # generating the target sublist
+                wavefunction = np.einsum(
+                    U, [0, 1], wavefunction, sublist_wf, sublist_target
+                )
+
+            wf_var_indices = flatten_list(
+                [sys.var_indices_list for sys in subsystems_for_vars_chosen]
+            )  # summation of all sublists in the above list
+            wf_var_indices.sort()
+            wf_reshaped = wavefunction.reshape(
+                *[var_index_dims_dict[var_index] for var_index in wf_var_indices]
+            )  # final reshape
+            # final step: summing over the var indices which are not relevant for plotting.
+            wf_plot = np.sum(
+                np.abs(wf_reshaped),
+                axis=tuple([i - 1 for i in wf_var_indices if i not in var_indices]),
+            )
+
+        for var_index in var_indices:
+            if (
+                var_index in self.var_indices["extended"]
+                and self.phi_basis == "harmonic"
+            ):
+                harm_osc_wfs = np.array(
+                    [
+                        osc.harm_osc_wavefunction(
+                            n, grids_dict[var_index], self.osc_lengths[var_index]
                         )
-                        for i, k in enumerate(self.var_indices["extended"])
+                        for n in range(cutoffs_dict[var_index])
                     ]
                 )
-        # concatenating the sublists
-        cutoff_list = [i for j in cutoff_list for i in j]
-        grids = [i for j in grids for i in j]  # concatenating the sublists
+                wf_sublist = list(range(len(var_indices)))
+                harm_osc_sublist = [
+                    list(var_indices).index(var_index),
+                    len(var_indices),
+                ]
+                target_sublist = wf_sublist.copy()
+                target_sublist[list(var_indices).index(var_index)] = len(var_indices)
+                wf_plot = np.einsum(
+                    wf_plot, wf_sublist, harm_osc_wfs, harm_osc_sublist, target_sublist
+                )
+        if (
+            len(set(var_indices) & set(self.var_indices["periodic"])) > 0
+            and len(set(var_indices) & set(self.var_indices["extended"])) > 0
+        ):
+
+            for var_index in var_indices:
+                if (
+                    var_index in self.var_indices["periodic"]
+                    and self.phi_basis == "harmonic"
+                ):
+                    U = np.array(
+                        [
+                            np.exp(self._default_grid_phi.make_linspace() * 1j * n)
+                            for n in np.arange(
+                                -cutoffs_dict[var_index], cutoffs_dict[var_index] + 1
+                            )
+                        ]
+                    )
+
+                    wf_sublist = list(range(len(var_indices)))
+                    U_sublist = [
+                        list(var_indices).index(var_index),
+                        len(var_indices),
+                    ]
+                    target_sublist = wf_sublist.copy()
+                    target_sublist[list(var_indices).index(var_index)] = len(
+                        var_indices
+                    )
+                    wf_plot = np.einsum(
+                        wf_plot, wf_sublist, U, U_sublist, target_sublist
+                    )
 
         var_types = []
 
@@ -1884,44 +2035,27 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             else:
                 var_types.append("Dimensionless Flux, Variable:")
 
-        # selecting the n wave funciton according to the input
-        if not self.hierarchical_diagonalization:
-            wf_reshaped = wf[:, n].reshape(*cutoff_list)
-        else:
-            wf_reshaped = wf[n].full().reshape(*cutoff_list)
-
-        if len(dims) > 2:
-            raise AttributeError(
-                "Cannot plot wavefunction in more than 2 dimensions. The number of dimensions should be less than 2."
-            )
-
-        wf_plot = (
-            np.sum(
-                eval("np." + mode + "(wf_reshaped)"),
-                axis=tuple([i for i in range(len(cutoff_list)) if i not in dims]),
-            )
-        ).T
-
-        if len(dims) == 1:
+        if len(var_indices) == 1:
             if "Charge" in var_types[0]:
                 plt.bar(
-                    np.array(grids[dims[0]]) / (2 * np.pi),
-                    eval("np." + mode + "(wf_plot)"),
+                    np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1)
+                    / (2 * np.pi),
+                    eval("np." + mode + "(wf_plot.T)"),
                 )
             else:
                 plt.plot(
-                    np.array(grids[dims[0]]) / (2 * np.pi),
-                    eval("np." + mode + "(wf_plot)"),
+                    np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
+                    eval("np." + mode + "(wf_plot.T)"),
                 )
             plt.xlabel(var_types[0] + str(var_indices[0]))
-        elif len(dims) == 2:
+        elif len(var_indices) == 2:
             x, y = np.meshgrid(
-                np.array(grids[dims[0]]) / (2 * np.pi),
-                np.array(grids[dims[1]]) / (2 * np.pi),
+                np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
+                np.array(grids_dict[var_indices[1]]) / (2 * np.pi),
             )
-            plt.contourf(x, y, wf_plot)
-            plt.xlabel(var_types[0] + str(np.sort(var_indices)[0]))
-            plt.ylabel(var_types[1] + str(np.sort(var_indices)[1]))
+            plt.contourf(x, y, np.abs(wf_plot.T))
+            plt.xlabel(var_types[0] + str(var_indices[0]))
+            plt.ylabel(var_types[1] + str(var_indices[1]))
             plt.colorbar()
         plt.title("Distribution of Wavefuntion along variables " + str(var_indices))
 
