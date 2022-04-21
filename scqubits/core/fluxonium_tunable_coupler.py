@@ -15,7 +15,7 @@ from qutip import (
     Qobj,
     propagator,
     sesolve,
-    Options,
+    Options, mesolve, spre, spost,
 )
 from scipy.interpolate import interp1d
 from scipy.special import jn_zeros
@@ -1266,7 +1266,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                     H_q[row_idx, col_idx] = self.H_q_wrong_X(0, which=which)
         return H_q
 
-    def construct_H_c_eff(self):
+    def construct_H_c_eff(self, only_S1=False):
         qubit_idx_range = [0, 1]
         two_qubit_idxs = list(product(qubit_idx_range, qubit_idx_range))
         H_c = np.zeros((4, 4))
@@ -1277,7 +1277,10 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
                 if ell == ell_prime and m == m_prime:
                     H_c[row_idx, col_idx] = self.H_c_diag(ell, m)
                 elif ell == (ell_prime + 1) % 2 and m == (m_prime + 1) % 2:
-                    H_c[row_idx, col_idx] = self.H_c_XX(ell, m)
+                    if not only_S1:
+                        H_c[row_idx, col_idx] = self.H_c_XX(ell, m)
+                    else:
+                        H_c[row_idx, col_idx] = self.H_c_XX_onlyS1(ell, m)
                 elif ell == (ell_prime + 1) % 2:
                     H_c[row_idx, col_idx] = self.H_c_XI(ell)
                 else:
@@ -1682,19 +1685,19 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     @staticmethod
     def decompose_matrix_into_specific_paulis(sigmai, sigmaj, matrix):
         sigmaij = tensor(sigmai, sigmaj)
-        return 0.5 * np.trace((sigmaij * matrix).data.toarray())
+        return 0.25 * np.trace((sigmaij * matrix).data.toarray())
 
     @staticmethod
     def decompose_matrix_into_paulis(matrix):
         pauli_mats = [qeye(2), sigmax(), sigmay(), sigmaz()]
         pauli_name = ["I", "X", "Y", "Z"]
-        pauli_list = []
+        pauli_dict = {}
         for j, pauli_a in enumerate(pauli_mats):
             for k, pauli_b in enumerate(pauli_mats):
                 paulia_a_b = tensor(pauli_a, pauli_b)
-                coeff = 0.5 * np.trace((paulia_a_b * matrix).data.toarray())
-                pauli_list.append((pauli_name[j] + pauli_name[k], coeff))
-        return pauli_list
+                coeff = 0.25 * np.trace((paulia_a_b * matrix).data.toarray())
+                pauli_dict[pauli_name[j] + pauli_name[k]] = coeff
+        return pauli_dict
 
     @staticmethod
     def decompose_matrix_into_paulis_single_qubit(matrix):
@@ -1989,7 +1992,7 @@ class ConstructFullPulse(serializers.Serializable):
             )
         elif which_gate == 'sqrtdswap':
             angles_to_correct = (
-                np.array([-alpha, -beta, gamma])
+                np.array([-alpha, -beta, -gamma])
                 - const_angle_val * const_angle_col
             )
         else:
@@ -1999,6 +2002,21 @@ class ConstructFullPulse(serializers.Serializable):
             Z_rotation_angles, which_Z_exclude, const_angle_val
         )
         return Z_rotation_angles
+
+    def return_single_q_gate_unitaries(self, gate, which_gate='sqrtiswap'):
+        (t1, t2, t3, t4) = self.fix_w_single_q_gates(gate, which_gate=which_gate)
+        return self.RZ(t1, which='a'), self.RZ(t2, which='b'), self.RZ(t3, which='a'), self.RZ(t4, which='b')
+
+    def return_single_q_gate_superops(self, gate, which_gate='sqrtiswap'):
+        superops_list = []
+        gates = self.return_single_q_gate_unitaries(gate, which_gate=which_gate)
+        for gate in gates:
+            superops_list.append(spre(gate) * spost(gate.dag()))
+        return superops_list
+
+    def multiply_with_single_q_superops(self, superop_gate, coherent_gate, which_gate='sqrtiswap'):
+        (RZa1, RZb1, RZa2, RZb2) = self.return_single_q_gate_superops(coherent_gate, which_gate=which_gate)
+        return RZa1 * RZb1 * superop_gate * RZa2 * RZb2
 
     def multiply_with_single_q_gates(self, gate, which_gate='sqrtiswap'):
         (t1, t2, t3, t4) = self.fix_w_single_q_gates(gate, which_gate=which_gate)
@@ -2216,7 +2234,7 @@ class ConstructFullPulse(serializers.Serializable):
         return np.concatenate((controls_1, controls_2[1:]))
 
     def propagator_for_coupler_segment(
-        self, amp: float, omega_d: float, num_periods: int = 2, num_cpus: int = 1,
+        self, amp: float, omega_d: float, num_periods: int = 2, num_cpus: int = 1, c_ops=None
     ) -> Qobj:
         """
         Parameters
@@ -2229,6 +2247,9 @@ class ConstructFullPulse(serializers.Serializable):
             number of periods of driving
         num_cpus
             number cpus
+        c_ops
+            collapse operators. If specified, the resulting propagator
+            is a superoperator of dimension dim**2 x dim**2
 
         Returns
         -------
@@ -2241,7 +2262,10 @@ class ConstructFullPulse(serializers.Serializable):
         twoqcontrol_eval_times = np.linspace(
             0.0, total_time, int(total_time / self.control_dt_slow) + 1
         )
-        return self.my_propagator(H, self.dim, twoqcontrol_eval_times, num_cpus)
+        if c_ops is None:
+            return self.my_propagator(H, self.dim, twoqcontrol_eval_times, num_cpus)
+        else:
+            return propagator(H, twoqcontrol_eval_times, c_ops)[-1]
 
     @staticmethod
     def my_propagator(H, dim, times, num_cpus=1):
@@ -2263,7 +2287,7 @@ class ConstructFullPulse(serializers.Serializable):
         return Qobj(my_prop)
 
     def propagator_for_qubit_flux_segment(
-        self, parse_synchronize_output, red_dim=4, num_cpus=1
+        self, parse_synchronize_output, red_dim=4, num_cpus=1, c_ops=None
     ):
         pulse_a, times_a, pulse_b, times_b = parse_synchronize_output
         _, (XI, IX, _) = self.normalized_operators()
@@ -2274,7 +2298,10 @@ class ConstructFullPulse(serializers.Serializable):
             [Qobj(XI[0:red_dim, 0:red_dim]), lambda t, a: spline_a(t)],
             [Qobj(IX[0:red_dim, 0:red_dim]), lambda t, a: spline_b(t)],
         ]
-        return self.my_propagator(H, red_dim, times_a, num_cpus)
+        if c_ops is None:
+            return self.my_propagator(H, red_dim, times_a, num_cpus)
+        else:
+            return propagator(H, times_a, c_ops, parallel=True)[-1]
 
     def times_to_correct_prop(
         self, prop, which_Z_exclude: int = 2, const_angle_val: float = 0.0, which_gate: str = 'sqrtiswap'
@@ -2295,6 +2322,7 @@ class ConstructFullPulse(serializers.Serializable):
         omega_d: float,
         num_periods: int = 2,
         num_cpus: int = 1,
+        c_ops = None,
         which_Z_exclude: int = 2,
         const_angle_val: float = 0.0,
     ):
@@ -2320,14 +2348,20 @@ class ConstructFullPulse(serializers.Serializable):
             [IX, lambda t, a: 2.0 * np.pi * norm_b * spline_b(t)],
             [XX, lambda t, a: 2.0 * np.pi * norm_c * spline_c(t)],
         ]
-        result = sesolve(
-            H,
-            basis(self.dim, initial_state),
-            total_times_a,
-            [basis(self.dim, i) * basis(self.dim, i).dag() for i in range(4)],
-            options=Options(store_final_state=True),
-        )
-        return result
+        e_ops = [basis(self.dim, i) * basis(self.dim, i).dag() for i in range(4)]
+        if c_ops is None:
+            result = sesolve(
+                H,
+                basis(self.dim, initial_state),
+                total_times_a,
+                e_ops,
+                options=Options(store_final_state=True),
+            )
+            return result
+        else:
+            rho0 = basis(self.dim, initial_state) * basis(self.dim, initial_state).dag()
+            return mesolve(H, rho0, total_times_a, c_ops, e_ops,
+                           options=Options(store_final_state=True))
 
     @staticmethod
     def global_phase(prop):
@@ -2341,6 +2375,7 @@ class ConstructFullPulse(serializers.Serializable):
         num_periods: int = 2,
         red_dim: int = 4,
         num_cpus: int = 1,
+        c_ops = None,
         which_Z_exclude: int = 2,
         const_angle_val: float = 0.0,
         which_gate: str = 'sqrtiswap'
@@ -2369,7 +2404,7 @@ class ConstructFullPulse(serializers.Serializable):
 
         """
         twoqprop = self.propagator_for_coupler_segment(
-            amp, omega_d, num_periods=num_periods, num_cpus=num_cpus
+            amp, omega_d, num_periods=num_periods, num_cpus=num_cpus, c_ops=c_ops
         )
         zeroed_prop = twoqprop * np.exp(-1j * self.global_phase(twoqprop))
         times = self.times_to_correct_prop(
@@ -2379,14 +2414,14 @@ class ConstructFullPulse(serializers.Serializable):
             which_gate=which_gate
         )
         before_prop, after_prop = self.construct_qubit_propagators(
-            times, red_dim=red_dim, num_cpus=num_cpus
+            times, red_dim=red_dim, num_cpus=num_cpus, c_ops=c_ops
         )
         return (
             after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop,
             times,
         )
 
-    def construct_qubit_propagators(self, times, red_dim=4, num_cpus=1):
+    def construct_qubit_propagators(self, times, red_dim=4, num_cpus=1, c_ops=None):
         parse_output_before = self.parse_synchronize(
             self.synchronize(times[2], times[3])
         )
@@ -2394,10 +2429,10 @@ class ConstructFullPulse(serializers.Serializable):
             self.synchronize(times[0], times[1])
         )
         before_prop = self.propagator_for_qubit_flux_segment(
-            parse_output_before, red_dim=red_dim, num_cpus=num_cpus
+            parse_output_before, red_dim=red_dim, num_cpus=num_cpus, c_ops=c_ops
         )
         after_prop = self.propagator_for_qubit_flux_segment(
-            parse_output_after, red_dim=red_dim, num_cpus=num_cpus
+            parse_output_after, red_dim=red_dim, num_cpus=num_cpus, c_ops=c_ops
         )
         return before_prop, after_prop
 
@@ -2410,6 +2445,7 @@ class ConstructFullPulse(serializers.Serializable):
         which_gate: str = 'sqrtiswap',
         red_dim: int = 4,
         num_cpus: int = 1,
+        c_ops = None,
     ):
         zeroed_prop = twoq_prop * np.exp(-1j * self.global_phase(twoq_prop))
         # find that minimize doesn't work well here to optimize over the initial angle
@@ -2427,7 +2463,7 @@ class ConstructFullPulse(serializers.Serializable):
                 zeroed_prop, which_Z_exclude=0, const_angle_val=const_angle_val, which_gate=which_gate
             )
             before_prop, after_prop = self.construct_qubit_propagators(
-                times, red_dim=red_dim, num_cpus=num_cpus
+                times, red_dim=red_dim, num_cpus=num_cpus, c_ops=c_ops
             )
             full_prop = after_prop * zeroed_prop * before_prop
             fidel = self.calc_fidel_4(full_prop, ideal_gate)
@@ -2438,12 +2474,43 @@ class ConstructFullPulse(serializers.Serializable):
                 max_times = times
         return max_const_angle, max_prop, max_fidel, max_times
 
+    @staticmethod
+    def truncate_superoperator(superop, keep_dim, trunc_dim):
+        """
+        Parameters
+        ----------
+        superop
+            superoperator to truncate. We consider the situation where high-lying
+            states are relevant for predicting time evolution, however the gate under consideration
+            does not care about the time evolution of those high-lying states themselves. We
+            assume that the states are ordered such that all of the relevant states come first,
+            and all of the states we'd like to truncate away come afterwards
+        keep_dim
+            dimension of the relevant subspace
+        trunc_dim
+            dimension of the subspace to truncate away
+        Returns
+        -------
+
+        """
+        truncated_mat = np.zeros((keep_dim ** 2, keep_dim ** 2), dtype=complex)
+        total_dim = keep_dim + trunc_dim
+        for i in range(keep_dim):  # sum over groups of columns
+            for j in range(keep_dim):  # sum over individual columns
+                full_column = superop.data.toarray()[:, total_dim * i + j]
+                reduced_column = np.array([full_column[total_dim * k: total_dim * k + keep_dim]
+                                           for k in range(keep_dim)]).flatten()
+                truncated_mat[:, keep_dim*i+j] = reduced_column
+        return Qobj(truncated_mat, type='super', dims=[[[keep_dim], [keep_dim]],
+                                                       [[keep_dim], [keep_dim]]])
+
     def all_control_functions(
         self,
         amp: float,
         omega_d: float,
         num_periods: int = 2,
         num_cpus: int = 1,
+        c_ops = None,
         which_Z_exclude: int = 2,
         const_angle_val: float = 0.0,
         which_gate: str = 'sqrtiswap',
@@ -2477,7 +2544,7 @@ class ConstructFullPulse(serializers.Serializable):
         """
         if parsed_outputs is None:
             twoqprop = self.propagator_for_coupler_segment(
-                amp, omega_d, num_periods=num_periods, num_cpus=num_cpus
+                amp, omega_d, num_periods=num_periods, num_cpus=num_cpus, c_ops=c_ops
             )
             zeroed_prop = twoqprop * np.exp(-1j * self.global_phase(twoqprop))
             times = self.times_to_correct_prop(
