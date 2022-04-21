@@ -2102,6 +2102,8 @@ class ConstructFullPulse(serializers.Serializable):
         return 1 - self.calc_fidel_4(prop[-1], ideal_prop)
 
     def synchronize(self, ta, tb):
+        if ta == tb == 0.0:
+            return None
         if ta <= tb:
             return self._synchronize(ta, tb)
         else:
@@ -2171,13 +2173,15 @@ class ConstructFullPulse(serializers.Serializable):
 
     def parse_synchronize(
         self, synchronize_output
-    ) -> Tuple[ndarray, ndarray, ndarray, ndarray]:
+    ) -> Optional[Tuple[ndarray, ndarray, ndarray, ndarray]]:
         """This function takes the output of synchronize and yields
         the pulses along with the times that synchronize specified"""
         total_pulse_a = np.array([])
         total_pulse_b = np.array([])
         total_times_a = np.array([])
         total_times_b = np.array([])
+        if synchronize_output is None:
+            return None
         output, (t_a, t_b) = synchronize_output
         control_dt = self.control_dt_fast
         for (freq_a_, freq_b_) in output:
@@ -2289,6 +2293,8 @@ class ConstructFullPulse(serializers.Serializable):
     def propagator_for_qubit_flux_segment(
         self, parse_synchronize_output, red_dim=4, num_cpus=1, c_ops=None
     ):
+        if parse_synchronize_output is None:
+            return qeye(red_dim)
         pulse_a, times_a, pulse_b, times_b = parse_synchronize_output
         _, (XI, IX, _) = self.normalized_operators()
         spline_a = interp1d(times_a, pulse_a, fill_value="extrapolate")
@@ -2299,9 +2305,9 @@ class ConstructFullPulse(serializers.Serializable):
             [Qobj(IX[0:red_dim, 0:red_dim]), lambda t, a: spline_b(t)],
         ]
         if c_ops is None:
-            return self.my_propagator(H, red_dim, times_a, num_cpus)
+            return self.my_propagator(H, red_dim, times_a, num_cpus), times_a[-1]
         else:
-            return propagator(H, times_a, c_ops, parallel=True)[-1]
+            return propagator(H, times_a, c_ops, parallel=True)[-1], times_a[-1]
 
     def times_to_correct_prop(
         self, prop, which_Z_exclude: int = 2, const_angle_val: float = 0.0, which_gate: str = 'sqrtiswap'
@@ -2322,9 +2328,10 @@ class ConstructFullPulse(serializers.Serializable):
         omega_d: float,
         num_periods: int = 2,
         num_cpus: int = 1,
-        c_ops = None,
+        c_ops=None,
         which_Z_exclude: int = 2,
         const_angle_val: float = 0.0,
+        which_gate='sqrtiswap'
     ):
         (
             spline_a,
@@ -2340,6 +2347,7 @@ class ConstructFullPulse(serializers.Serializable):
             num_cpus=num_cpus,
             which_Z_exclude=which_Z_exclude,
             const_angle_val=const_angle_val,
+            which_gate=which_gate
         )
         (norm_a, norm_b, norm_c), (XI, IX, XX) = self.normalized_operators()
         H = [
@@ -2375,7 +2383,7 @@ class ConstructFullPulse(serializers.Serializable):
         num_periods: int = 2,
         red_dim: int = 4,
         num_cpus: int = 1,
-        c_ops = None,
+        c_ops=None,
         which_Z_exclude: int = 2,
         const_angle_val: float = 0.0,
         which_gate: str = 'sqrtiswap'
@@ -2413,12 +2421,13 @@ class ConstructFullPulse(serializers.Serializable):
             const_angle_val=const_angle_val,
             which_gate=which_gate
         )
-        before_prop, after_prop = self.construct_qubit_propagators(
+        before_prop, after_prop, single_q_time = self.construct_qubit_propagators(
             times, red_dim=red_dim, num_cpus=num_cpus, c_ops=c_ops
         )
         return (
             after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop,
             times,
+            num_periods * 2.0 * np.pi / omega_d + single_q_time
         )
 
     def construct_qubit_propagators(self, times, red_dim=4, num_cpus=1, c_ops=None):
@@ -2428,13 +2437,13 @@ class ConstructFullPulse(serializers.Serializable):
         parse_output_after = self.parse_synchronize(
             self.synchronize(times[0], times[1])
         )
-        before_prop = self.propagator_for_qubit_flux_segment(
+        before_prop, before_time = self.propagator_for_qubit_flux_segment(
             parse_output_before, red_dim=red_dim, num_cpus=num_cpus, c_ops=c_ops
         )
-        after_prop = self.propagator_for_qubit_flux_segment(
+        after_prop, after_time = self.propagator_for_qubit_flux_segment(
             parse_output_after, red_dim=red_dim, num_cpus=num_cpus, c_ops=c_ops
         )
-        return before_prop, after_prop
+        return before_prop, after_prop, before_time + after_time
 
     def propagator_full_pulse_optimize_qubit_fluxes(
         self,
@@ -2445,7 +2454,7 @@ class ConstructFullPulse(serializers.Serializable):
         which_gate: str = 'sqrtiswap',
         red_dim: int = 4,
         num_cpus: int = 1,
-        c_ops = None,
+        c_ops=None,
     ):
         zeroed_prop = twoq_prop * np.exp(-1j * self.global_phase(twoq_prop))
         # find that minimize doesn't work well here to optimize over the initial angle
@@ -2462,7 +2471,7 @@ class ConstructFullPulse(serializers.Serializable):
             times = self.times_to_correct_prop(
                 zeroed_prop, which_Z_exclude=0, const_angle_val=const_angle_val, which_gate=which_gate
             )
-            before_prop, after_prop = self.construct_qubit_propagators(
+            before_prop, after_prop, single_q_time = self.construct_qubit_propagators(
                 times, red_dim=red_dim, num_cpus=num_cpus, c_ops=c_ops
             )
             full_prop = after_prop * zeroed_prop * before_prop
@@ -2510,7 +2519,7 @@ class ConstructFullPulse(serializers.Serializable):
         omega_d: float,
         num_periods: int = 2,
         num_cpus: int = 1,
-        c_ops = None,
+        c_ops=None,
         which_Z_exclude: int = 2,
         const_angle_val: float = 0.0,
         which_gate: str = 'sqrtiswap',
