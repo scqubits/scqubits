@@ -226,7 +226,7 @@ class HilbertSpaceUi:
         candidates_dict = {
             name: subsys
             for name, subsys in main.__dict__.items()
-            if isinstance(subsys, scqubits.core.qubit_base.QuantumSystem)
+            if isinstance(subsys, base.QuantumSystem)
         }
         return candidates_dict
 

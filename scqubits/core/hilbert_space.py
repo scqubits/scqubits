@@ -10,6 +10,7 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+from __future__ import annotations
 
 import functools
 import importlib
@@ -27,6 +28,7 @@ from typing import (
     Tuple,
     Union,
     cast,
+    overload,
 )
 
 import numpy as np
@@ -35,7 +37,6 @@ import qutip as qt
 from numpy import ndarray
 from qutip.qobj import Qobj
 from scipy.sparse import csc_matrix, dia_matrix
-from typing_extensions import overload
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors

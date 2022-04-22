@@ -98,7 +98,7 @@ class Explorer(ipywidgets.VBox):
     def __init__(self, sweep: scq.ParameterSweep):
         """Set up all widget GUI elements and class attributes."""
         super().__init__()
-
+        self.layout.width = "100%"
         if _HAS_WIDGET_BACKEND and StrictVersion(
             matplotlib.__version__
         ) < StrictVersion("3.5.1"):
@@ -361,7 +361,7 @@ class Explorer(ipywidgets.VBox):
                 HTML("<br>"),
                 self.ui_hbox["panel_settings"],
             ],
-            layout=width(900),
+            layout=Layout(width="100%"), #width(900),
         )
 
     # +--parameters_panel_left-----+
