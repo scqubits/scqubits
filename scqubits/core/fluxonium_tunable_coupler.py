@@ -2257,7 +2257,9 @@ class ConstructFullPulse(serializers.Serializable):
 
         Returns
         -------
-            propagator in the qubit subspace
+            when c_ops is none, returns the propagator in the qubit subspace.
+            If c_ops is not None, the propagator is a superoperator
+            that has not yet been truncated to the qubit subspace
 
         """
         total_time = num_periods * 2.0 * np.pi / omega_d
@@ -2307,7 +2309,7 @@ class ConstructFullPulse(serializers.Serializable):
         if c_ops is None:
             return self.my_propagator(H, red_dim, times_a, num_cpus), times_a[-1]
         else:
-            return propagator(H, times_a, c_ops, parallel=True)[-1], times_a[-1]
+            return propagator(H, times_a, c_ops)[-1], times_a[-1]
 
     def times_to_correct_prop(
         self, prop, which_Z_exclude: int = 2, const_angle_val: float = 0.0, which_gate: str = 'sqrtiswap'
