@@ -9,14 +9,12 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-from hashlib import new
 from symtable import Symbol
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import itertools
 import copy
-from attr import frozen
-from py import code
 
+import yaml
 import sympy
 import numpy as np
 from numpy import ndarray
@@ -385,18 +383,11 @@ class SymbolicCircuit(serializers.Serializable):
         return np.intersect1d(node_array1, node_array2).size == 0
 
     @staticmethod
-    def parse_nodes(code_lines: List[str]) -> List[Node]:
-        node_count = int(code_lines[0].split(":")[-1])
-        return [Node(id, 0) for id in range(1, node_count + 1)]
+    def parse_nodes(num_nodes) -> List[Node]:
+        return [Node(id, 0) for id in range(1, num_nodes + 1)]
 
     @staticmethod
-    def parse_branches(
-        code_lines: List[str], nodes: List[Node]
-    ) -> Tuple[List[Branch], Node]:
-        start_index = [
-            code_lines.index(line) for line in code_lines if "branches:" in line
-        ][0] + 1
-        end_index = len(code_lines)
+    def parse_branches(branches_list, nodes: List[Node]) -> Tuple[List[Branch], Node]:
 
         node_count = len(nodes)
         is_grounded = False
@@ -406,13 +397,25 @@ class SymbolicCircuit(serializers.Serializable):
         branch_var_dict = (
             {}
         )  # dictionary which stores the init values of all the variables defined in input string
-        for line_index in range(start_index, end_index):
-            if code_lines[line_index] == "":
-                break
+        for branch_list_input in branches_list:
 
-            current_code_line = code_lines[line_index].replace("\t", " ")
-            words = [word for word in current_code_line.split(" ") if word != ""]
-            node_id1, node_id2 = [int(num) for num in words[1].split(",")]
+            branch_type = branch_list_input[0]
+            node_id1, node_id2 = branch_list_input[1], branch_list_input[2]
+
+            if (branch_type == "JJ" or branch_type == "JJ2") and len(
+                branch_list_input
+            ) != 5:
+                raise Exception(
+                    "Incorrect number of parameters specified for the JJ input in the line: "
+                    + str(branch_list_input)
+                )
+            elif (branch_type == "L" or branch_type == "C") and len(
+                branch_list_input
+            ) != 4:
+                raise Exception(
+                    "Incorrect number of parameters specified for the C or L input in the line: "
+                    + str(branch_list_input)
+                )
 
             if node_id1 * node_id2 == 0 and not is_grounded:
                 # Make a ground node when any of the branches in the input file has 0 as one of the nodes. This implies that ground node is included in the circuiit.
@@ -422,13 +425,9 @@ class SymbolicCircuit(serializers.Serializable):
                 ground_node = Node(0, 0)
                 is_grounded = True
 
-            branch_type = words[0]
-
             if branch_type in ["JJ", "JJ2"]:
-                if len(words) <= 3:
-                    raise Exception("Cannot parse input: too few parameters for JJ.")
                 branch_params = []
-                for word in words[2:4]:
+                for word in branch_list_input[3:5]:
                     params = parse_branch_parameter(word)
                     if len(params) == 1:
                         if (
@@ -446,9 +445,7 @@ class SymbolicCircuit(serializers.Serializable):
 
                 parameters = branch_params.copy()
             else:
-                if len(words) <= 2:
-                    raise Exception("Cannot parse input: too few parameters for C/L.")
-                params = parse_branch_parameter(words[2])
+                params = parse_branch_parameter(branch_list_input[3])
                 branch_params = []
                 if len(params) == 1:
                     if (
@@ -529,11 +526,12 @@ class SymbolicCircuit(serializers.Serializable):
         """
         code_lines = input_string.split("\n")
 
-        # removing the commented lines - lines starting with #
-        code_lines = [line for line in code_lines if line != "" and line[0] != "#"]
+        input_dictionary = yaml.load(input_string, Loader=yaml.FullLoader)
 
-        nodes = cls.parse_nodes(code_lines)
-        branches, ground_node, branch_var_dict = cls.parse_branches(code_lines, nodes)
+        nodes = cls.parse_nodes(input_dictionary["nodes"])
+        branches, ground_node, branch_var_dict = cls.parse_branches(
+            input_dictionary["branches"], nodes
+        )
 
         circuit = cls(
             nodes,
