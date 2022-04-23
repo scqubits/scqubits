@@ -23,7 +23,7 @@ from typing import (
     TYPE_CHECKING,
     Union,
 )
-from attr import attrib
+from matplotlib.cbook import flatten
 from matplotlib.text import OffsetFrom
 import sympy
 import sympy as sm
@@ -31,7 +31,7 @@ import numpy as np
 import scipy as sp
 import regex as re
 
-from numpy import ndarray
+from numpy import ndarray, reshape
 from numpy.linalg import matrix_power
 from sympy import symbols, lambdify, parse_expr
 from scipy import sparse
@@ -157,6 +157,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         self.HD_indices = HD_indices
         self.HD_trunc_dims = HD_trunc_dims
 
+        self.type_of_matrices = "sparse"  # type of matrices involved
+
         self.__dict__.update(circuit_data)
 
         self._id_str = (
@@ -265,7 +267,13 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             HD_indices != [] and HD_indices != flatten_list_recursive(HD_indices)
         )
 
+        if len(var_indices_list) == 1 and phi_basis == "harmonic":
+            type_of_matrices = "dense"
+        else:
+            type_of_matrices = "sparse"
+
         circuit_data = {
+            "type_of_matrices": type_of_matrices,
             "var_indices": var_indices,
             "var_indices_list": var_indices_list,
             "external_flux_vars": external_flux_vars,
@@ -514,6 +522,13 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         for offset_charge in self.offset_charge_vars:
             # default to zero offset charge
             setattr(self, offset_charge.name, 0.0)
+
+        # changing the matrix type if necessary
+        if (
+            len(flatten_list(self.var_indices.values())) == 1
+            and self.phi_basis == "harmonic"
+        ):
+            self.type_of_matrices = "dense"
 
         # setting the __init__params attribute
         self._init_params = (
@@ -964,13 +979,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         var_index_list.sort()  # important to make sure that right cutoffs are chosen
         cutoff_dict = self.get_cutoffs()
 
-        # if len(self.var_indices["periodic"]) != len(cutoff_dict["cutoff_n"]) or len(
-        #     self.var_indices["extended"]
-        # ) != len(cutoff_dict["cutoff_phi"]):
-        #     raise AttributeError(
-        #         "Make sure the cutoffs are only defined for the circuit variables in the class property var_indices, except for frozen variables. "
-        #     )
-
         cutoff_list = []
         for cutoff_type in cutoff_dict.keys():
             if "cutoff_n" in cutoff_type:
@@ -991,10 +999,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             cutoffs_index_dict[i] for i in var_index_list
         ]  # selecting the cutoffs present in
 
-        if self.phi_basis == "discretized":
-            matrix_format = "csc"
-        elif self.phi_basis == "harmonic":
+        if self.type_of_matrices == "dense":
             matrix_format = "array"
+        elif self.type_of_matrices == "sparse":
+            matrix_format = "csc"
 
         if len(var_index_list) > 1:
             if index > var_index_list[0]:
@@ -1019,16 +1027,33 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     format=matrix_format,
                 )
         else:
-            if self.phi_basis == "discretized":
-                return sparse.csc_matrix(operator)
-            elif self.phi_basis == "harmonic":
-                return operator
+            return self._change_sparsity(operator)
 
-    def _change_sparsity(self, x):
-        if self.phi_basis == "harmonic":
-            return x.toarray()
-        elif self.phi_basis == "discretized":
-            return x
+    def _change_sparsity(
+        self, x: Union[csc_matrix, ndarray]
+    ) -> Union[csc_matrix, ndarray]:
+        """
+        Changes the sparsity of sparce csc matrix depending on the attribute type_of_matrices
+
+        Parameters
+        ----------
+        x : Union[csc_matrix, ndarray]
+
+        Returns
+        -------
+        Union[csc_matrix, ndarray]
+            returns the same or the dense matrix version if type_of_matrices is set to "dense"
+        """
+        if sparse.issparse(x):
+            if self.type_of_matrices == "sparse":
+                return x
+            elif self.type_of_matrices == "dense":
+                return x.toarray()
+        else:
+            if self.type_of_matrices == "sparse":
+                return sparse.csc_matrix(x)
+            elif self.type_of_matrices == "dense":
+                return x
 
     # Identity Operator
     def _identity(self):
@@ -1041,10 +1066,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         ):
             return None
         dim = self.hilbertdim()
-        if self.phi_basis == "discretized":
+        if self.type_of_matrices == "sparse":
             op = sparse.identity(dim)
             return op.tocsc()
-        elif self.phi_basis == "harmonic":
+        elif self.type_of_matrices == "dense":
             return np.identity(dim)
 
     # Phi basis
@@ -1248,8 +1273,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 ELi = float(H.coeff("θ" + str(var_index) + "**2").cancel()) * 2
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
-                ad_operator = op.creation(cutoffs_dict[var_index])
-                a_operator = op.annihilation(cutoffs_dict[var_index])
+                ad_operator = op.creation_sparse(cutoffs_dict[var_index])
+                a_operator = op.annihilation_sparse(cutoffs_dict[var_index])
                 extended_operators["creation"].append(
                     self._kron_operator(a_operator, var_index)
                 )
@@ -1257,7 +1282,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     self._kron_operator(ad_operator, var_index)
                 )
                 extended_operators["number"].append(
-                    self._kron_operator(op.number(cutoffs_dict[var_index]), var_index)
+                    self._kron_operator(
+                        op.number_sparse(cutoffs_dict[var_index]), var_index
+                    )
                 )
                 x_operator = (
                     (ad_operator + a_operator) * osc_lengths[var_index] / (2 ** 0.5)
@@ -1276,14 +1303,14 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
                 extended_operators["sin"].append(
                     self._kron_operator(
-                        sp.linalg.sinm(x_operator),
+                        sp.linalg.sinm(x_operator.toarray()),
                         var_index,
                     )
                 )
 
                 extended_operators["cos"].append(
                     self._kron_operator(
-                        sp.linalg.cosm(x_operator),
+                        sp.linalg.cosm(x_operator.toarray()),
                         var_index,
                     )
                 )
@@ -1508,7 +1535,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         return np.diag(np.sin(x.diagonal()))
 
-    def hamiltonian_harmonic(self):
+    def _hamiltonian_for_harmonic_extended_vars(self):
 
         H = self.H_f
         index_list = [j for i in list(self.var_indices.values()) for j in i]
@@ -1574,7 +1601,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         return eval(H_str, variable_dict)
 
-    def hamiltonian_sparse(self):
+    def _hamiltonian_for_discretized_extended_vars(self):
 
         H = self.H_f
         H = H.subs(
@@ -1617,9 +1644,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         if not self.hierarchical_diagonalization:
             if self.phi_basis == "harmonic":
-                return self.hamiltonian_harmonic()
+                return self._hamiltonian_for_harmonic_extended_vars()
             elif self.phi_basis == "discretized":
-                return self.hamiltonian_sparse()
+                return self._hamiltonian_for_discretized_extended_vars()
 
         else:
             bare_esys = {
@@ -1627,9 +1654,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 for sys_index, sys in enumerate(self.hilbert_space.subsys_list)
             }
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
-            if self.phi_basis == "harmonic":
+            if self.type_of_matrices == "dense":
                 return hamiltonian.full()
-            elif self.phi_basis == "discretized":
+            elif self.type_of_matrices == "sparse":
                 return sp.sparse.csc_matrix(hamiltonian)
 
     ##################################################################
@@ -1643,7 +1670,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             hilbertdim = self.hilbertdim()
 
         hamiltonian_mat = self.hamiltonian()
-        if self.phi_basis == "discretized" or self.hierarchical_diagonalization:
+        if self.type_of_matrices == "sparse":
             evals = sparse.linalg.eigsh(
                 hamiltonian_mat,
                 return_eigenvectors=False,
@@ -1651,7 +1678,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 v0=settings.RANDOM_ARRAY[:hilbertdim],
                 which="SA",
             )
-        elif self.phi_basis == "harmonic":
+        elif self.type_of_matrices == "dense":
             evals = sp.linalg.eigvalsh(
                 hamiltonian_mat, subset_by_index=[0, evals_count - 1]
             )
@@ -1665,7 +1692,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             hilbertdim = self.hilbertdim()
 
         hamiltonian_mat = self.hamiltonian()
-        if self.phi_basis == "discretized":
+        if self.type_of_matrices == "sparse":
             evals, evecs = sparse.linalg.eigsh(
                 hamiltonian_mat,
                 return_eigenvectors=True,
@@ -1673,7 +1700,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 which="SA",
                 v0=settings.RANDOM_ARRAY[:hilbertdim],
             )
-        elif self.phi_basis == "harmonic":
+        elif self.type_of_matrices == "dense":
             evals, evecs = sp.linalg.eigh(
                 hamiltonian_mat,
                 eigvals_only=False,
@@ -1842,6 +1869,181 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############# Functions for plotting wavefunction ################
     ##################################################################
+    def recursice_basis_change(
+        self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
+    ):
+        """
+        Method to change the basis recursively, to reverse hierarchical diagonalization and
+        get to the basis in which the variables were initially defined.
+
+        Parameters
+        ----------
+        wf_dim: int
+            The dimension of the wavefunction which needs to be rewritten in terms of the inital basis
+
+        """
+        _, U_subsys = subsystem.eigensys(evals_count=subsystem.truncated_dim)
+        wf_sublist = list(range(len(wf_reshaped.shape)))
+        U_sublist = [wf_dim, len(wf_sublist)]
+        target_sublist = wf_sublist.copy()
+        target_sublist[wf_dim] = len(wf_sublist)
+        wf_new_basis = np.einsum(
+            wf_reshaped, wf_sublist, U_subsys.T, U_sublist, target_sublist
+        )
+        if subsystem.hierarchical_diagonalization:
+            wf_shape = list(wf_new_basis.shape)
+            wf_shape[wf_dim] = [
+                sub_subsys.truncated_dim for sub_subsys in subsystem.subsystems.values()
+            ]
+            wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
+            for sub_subsys_index, sub_subsys in enumerate(
+                subsystem.subsystems.values()
+            ):
+                if len(set(relevant_indices) & set(sub_subsys.var_indices_list)) > 0:
+                    wf_new_basis = self.recursice_basis_change(
+                        wf_new_basis,
+                        wf_dim + sub_subsys_index,
+                        sub_subsys,
+                        relevant_indices=relevant_indices,
+                    )
+        return wf_new_basis
+
+    def basis_change_harm_osc_to_phi(self, wf_original_basis, var_index):
+        """
+        Method to change the basis from harmonic oscillator to phi basis
+        """
+        U_ho_phi = np.array(
+            [
+                osc.harm_osc_wavefunction(
+                    n,
+                    self._default_grid_phi.make_linspace(),
+                    self.osc_lengths[var_index],
+                )
+                for n in range(getattr(self, "cutoff_phi_" + str(var_index)))
+            ]
+        )
+        wf_sublist = list(range(len(wf_original_basis.shape)))
+        U_sublist = [var_index - 1, len(wf_sublist)]
+        target_sublist = wf_sublist.copy()
+        target_sublist[var_index - 1] = len(wf_sublist)
+        wf_phi_basis = np.einsum(
+            wf_original_basis, wf_sublist, U_ho_phi, U_sublist, target_sublist
+        )
+        return wf_phi_basis
+
+    def basis_change_n_to_phi(self, wf_original_basis, var_index):
+        """
+        Method to change the basis from harmonic oscillator to phi basis
+        """
+        U_n_phi = np.array(
+            [
+                np.exp(n * self._default_grid_phi.make_linspace() * 1j)
+                for n in range(getattr(self, "cutoff_phi_" + str(var_index)))
+            ]
+        )
+        wf_sublist = list(range(len(wf_original_basis.shape)))
+        U_sublist = [var_index - 1, len(wf_sublist)]
+        target_sublist = wf_sublist.copy()
+        target_sublist[var_index - 1] = len(wf_sublist)
+        wf_phi_basis = np.einsum(
+            wf_original_basis, wf_sublist, U_n_phi, U_sublist, target_sublist
+        )
+        return wf_phi_basis
+
+    def generate_wf_plot_data(
+        self, n=0, var_indices=(1,), eigensys=None, mode="abs", section=None
+    ):
+        # if section is not none all var_indices need to be considered
+        if section is not None:
+            var_indices = self.var_indices["periodic"] + self.var_indices["extended"]
+
+        # checking to see if eigensys needs to be generated
+        if eigensys is None:
+            _, wfs = self.eigensys()
+        else:
+            _, wfs = eigensys
+
+        wf = wfs[:, n]
+        if self.hierarchical_diagonalization:
+            subsystem_indices_for_vars_chosen = list(
+                set([self.get_subsystem_index(index) for index in np.sort(var_indices)])
+            )  # getting the subsystem index for each of the index dimension
+            subsystems_for_vars_chosen = [
+                self.subsystems[sys_index]
+                for sys_index in subsystem_indices_for_vars_chosen
+            ]
+            subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
+            # reshaping the wavefunctions to truncated dims of subsystems
+            wf_hd_reshaped = wf.reshape(*subsys_trunc_dims)
+
+            ##### Converting to the basis in which the variables are defined ####
+            wf_original_basis = wf_hd_reshaped
+            for subsys_index in subsystem_indices_for_vars_chosen:
+                wf_original_basis = self.recursice_basis_change(
+                    wf_original_basis,
+                    subsys_index,
+                    self.subsystems[subsys_index],
+                    relevant_indices=var_indices,
+                )
+        else:
+            wf_original_basis = wf.reshape(
+                *[getattr(self, cutoff_attrib) for cutoff_attrib in self.cutoffs_list]
+            )
+
+        # making a basis change to phi for every var_index
+        wf_phi_basis = wf_original_basis
+        for var_index in var_indices:
+            if var_index in self.var_indices["extended"]:
+                wf_phi_basis = self.basis_change_harm_osc_to_phi(
+                    wf_phi_basis, var_index
+                )
+            if var_index in self.var_indices["periodic"]:
+                wf_phi_basis = self.basis_change_n_to_phi(wf_phi_basis, var_index)
+
+        # if a probability plot is requested, sum over the dimesnsions not relevant to the ones in var_indices
+        if section is None:
+            if self.hierarchical_diagonalization:
+                num_wf_dims = 0
+                dims_to_be_summed = []
+                for x, subsys_index in enumerate(self.subsystems):
+                    if subsys_index in subsystem_indices_for_vars_chosen:
+                        for index, var_index in enumerate(
+                            self.subsystems[subsys_index].var_indices_list
+                        ):
+                            if var_index not in var_indices:
+                                dims_to_be_summed += [num_wf_dims + index]
+                        num_wf_dims += len(
+                            self.subsystems[subsys_index].var_indices_list
+                        )
+                    else:
+                        dims_to_be_summed += [num_wf_dims]
+                        num_wf_dims += 1
+                wf_plot = np.sum(
+                    np.abs(wf_phi_basis),
+                    axis=tuple(dims_to_be_summed),
+                )
+            else:
+                wf_plot = np.sum(
+                    np.abs(wf_phi_basis),
+                    axis=tuple(
+                        [
+                            var_index - 1
+                            for var_index in self.var_indices["periodic"]
+                            + self.var_indices["extended"]
+                            if var_index not in var_indices
+                        ]
+                    ),
+                )
+
+        elif section is not None:
+            wf_plot = np.eval("wf_phi_basis" + section)
+            if len(wf_plot.shape) > 2:
+                raise Exception(
+                    "Please make sure that only two variable indices are chosen for a plot, as we are limited for 3D for any plot."
+                )
+
+        return wf_plot
+
     def plot_wavefunction(
         self,
         n=0,
@@ -1924,6 +2126,56 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             # reshaping the wavefunctions to truncated dims of subsystems
             wf_hd_reshaped = wf_hd.reshape(*subsys_trunc_dims)
 
+            ##### Converting to the basis in which the variables are defined ####
+            wf_original_basis = wf_hd_reshaped
+            for subsys_index in subsystem_indices_for_vars_chosen:
+                sys = self.subsystems[subsys_index]
+                _, U_subsys = sys.eigenvals(evals_count=sys.truncated_dim)
+                wf_sublist = list(range(len(subsys_trunc_dims)))
+                U_sublist = [subsys_index, len(wf_sublist)]
+                target_sublist = wf_sublist.copy()
+                target_sublist[subsys_index] = len(wf_sublist)
+                wf_original_basis = np.einsum(
+                    wf_original_basis, wf_sublist, U_subsys.T, U_sublist, target_sublist
+                )
+
+            # reshaping such that each variable index has its own dimension
+            for subsys_index in subsystem_indices_for_vars_chosen:
+                sys = self.subsystems[subsys_index]
+                cutoffs_list = [
+                    sys.cutoffs_dict[var_index] for var_index in sys.var_indices_list
+                ]
+                reshape_dims = list(wf_original_basis.shape)
+                reshape_dims[subsys_index] = cutoffs_list
+                wf_original_basis = wf_original_basis.reshape(
+                    *flatten_list(reshape_dims)
+                )
+
+            # making a basis change to phi for discretized variable
+            wf_phi_basis = wf_original_basis
+            for var_index in var_indices:
+                if var_index in self.var_indices["extended"]:
+                    U_ho_phi = np.array(
+                        [
+                            osc.harm_osc_wavefunction(
+                                n,
+                                self._default_grid_phi.make_linspace,
+                                self.osc_lengths[var_index],
+                            )
+                            for n in range(
+                                getattr(self, "cutoff_phi_" + str(var_index))
+                            )
+                        ]
+                    )
+
+                wf_sublist = list(range(len(wf_original_basis.shape)))
+                U_sublist = [var_index - 1, len(wf_sublist)]
+                target_sublist = wf_sublist.copy()
+                target_sublist[var_index - 1] = len(wf_sublist)
+                wf_phi_basis = np.einsum(
+                    wf_phi_basis, wf_sublist, U_ho_phi, U_sublist, target_sublist
+                )
+
             # summing over the absolute values for the subsystems which are not relevant
             wf_relevant_dims = np.sum(
                 np.abs(wf_hd_reshaped),
@@ -2001,10 +2253,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         ):
 
             for var_index in var_indices:
-                if (
-                    var_index in self.var_indices["periodic"]
-                    and self.phi_basis == "harmonic"
-                ):
+                if var_index in self.var_indices["periodic"]:
                     U = np.array(
                         [
                             np.exp(self._default_grid_phi.make_linspace() * 1j * n)
