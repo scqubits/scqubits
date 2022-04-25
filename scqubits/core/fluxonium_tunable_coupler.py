@@ -1949,13 +1949,13 @@ class ConstructFullPulse(serializers.Serializable):
         )
 
     @staticmethod
-    def sqrtdSWAP():
+    def sqrtdSWAP(down=0):
         sqrt2 = np.sqrt(2.0)
         return np.array(
             [
                 [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1 / sqrt2, 1 / sqrt2, 0.0],
-                [0.0, -1 / sqrt2, 1 / sqrt2, 0.0],
+                [0.0, 1 / sqrt2, (-1)**(down+1) / sqrt2, 0.0],
+                [0.0, (-1)**down / sqrt2, 1 / sqrt2, 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ]
         )
@@ -1993,6 +1993,11 @@ class ConstructFullPulse(serializers.Serializable):
         elif which_gate == 'sqrtdswap':
             angles_to_correct = (
                 np.array([-alpha, -beta, -gamma])
+                - const_angle_val * const_angle_col
+            )
+        elif which_gate == 'sqrtdswap_down':
+            angles_to_correct = (
+                np.array([-alpha, -beta, gamma])
                 - const_angle_val * const_angle_col
             )
         else:
@@ -2427,7 +2432,7 @@ class ConstructFullPulse(serializers.Serializable):
             times, red_dim=red_dim, num_cpus=num_cpus, c_ops=c_ops
         )
         return (
-            after_prop * Qobj(zeroed_prop[0:red_dim, 0:red_dim]) * before_prop,
+            after_prop * zeroed_prop * before_prop,
             times,
             num_periods * 2.0 * np.pi / omega_d + single_q_time
         )
