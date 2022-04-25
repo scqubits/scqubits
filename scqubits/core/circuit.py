@@ -31,7 +31,7 @@ import numpy as np
 import scipy as sp
 import regex as re
 
-from numpy import ndarray, reshape
+from numpy import ndarray, reshape, var
 from numpy.linalg import matrix_power
 from sympy import symbols, lambdify, parse_expr
 from scipy import sparse
@@ -1906,9 +1906,19 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                         sub_subsys,
                         relevant_indices=relevant_indices,
                     )
+        else:
+            if len(set(relevant_indices) & set(subsystem.var_indices_list)) > 0:
+                wf_shape = list(wf_new_basis.shape)
+                wf_shape[wf_dim] = [
+                    getattr(subsystem, cutoff_attrib)
+                    if "phi" in cutoff_attrib
+                    else (2 * getattr(subsystem, cutoff_attrib) + 1)
+                    for cutoff_attrib in subsystem.cutoffs_list
+                ]
+                wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
         return wf_new_basis
 
-    def basis_change_harm_osc_to_phi(self, wf_original_basis, var_index):
+    def basis_change_harm_osc_to_phi(self, wf_original_basis, wf_dim, var_index):
         """
         Method to change the basis from harmonic oscillator to phi basis
         """
@@ -1923,40 +1933,68 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             ]
         )
         wf_sublist = list(range(len(wf_original_basis.shape)))
-        U_sublist = [var_index - 1, len(wf_sublist)]
+        U_sublist = [wf_dim, len(wf_sublist)]
         target_sublist = wf_sublist.copy()
-        target_sublist[var_index - 1] = len(wf_sublist)
+        target_sublist[wf_dim] = len(wf_sublist)
         wf_phi_basis = np.einsum(
             wf_original_basis, wf_sublist, U_ho_phi, U_sublist, target_sublist
         )
         return wf_phi_basis
 
-    def basis_change_n_to_phi(self, wf_original_basis, var_index):
+    def basis_change_n_to_phi(self, wf_original_basis, wf_dim, var_index):
         """
         Method to change the basis from harmonic oscillator to phi basis
         """
         U_n_phi = np.array(
             [
                 np.exp(n * self._default_grid_phi.make_linspace() * 1j)
-                for n in range(getattr(self, "cutoff_phi_" + str(var_index)))
+                for n in range(2 * getattr(self, "cutoff_n_" + str(var_index)) + 1)
             ]
         )
         wf_sublist = list(range(len(wf_original_basis.shape)))
-        U_sublist = [var_index - 1, len(wf_sublist)]
+        U_sublist = [wf_dim, len(wf_sublist)]
         target_sublist = wf_sublist.copy()
-        target_sublist[var_index - 1] = len(wf_sublist)
+        target_sublist[wf_dim] = len(wf_sublist)
         wf_phi_basis = np.einsum(
             wf_original_basis, wf_sublist, U_n_phi, U_sublist, target_sublist
         )
         return wf_phi_basis
 
-    def generate_wf_plot_data(
-        self, n=0, var_indices=(1,), eigensys=None, mode="abs", section=None
-    ):
-        # if section is not none all var_indices need to be considered
-        if section is not None:
-            var_indices = self.var_indices["periodic"] + self.var_indices["extended"]
+    def get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
+        wf_dim = 0
+        subsystem_indices_for_vars_chosen = list(
+            set([self.get_subsystem_index(index) for index in np.sort(wf_var_indices)])
+        )
+        for subsys_index in self.subsystems:
+            if subsys_index not in subsystem_indices_for_vars_chosen:
+                wf_dim += 1
+            if subsys_index in subsystem_indices_for_vars_chosen:
+                subsys_var_index_list = self.subsystems[subsys_index].var_indices_list
+                if var_index not in subsys_var_index_list:
+                    wf_dim += len(subsys_var_index_list)
+                else:
+                    wf_dim += subsys_var_index_list.index(var_index)
+                    break
+        return wf_dim
 
+    def get_dim_for_reshaped_wf(self, wf_var_indices, var_index):
+        wf_dim = 0
+        subsystem_indices_for_vars_chosen = list(
+            set([self.get_subsystem_index(index) for index in np.sort(wf_var_indices)])
+        )
+        for subsys_index in self.subsystems:
+            if subsys_index not in subsystem_indices_for_vars_chosen:
+                wf_dim += 1
+            if subsys_index in subsystem_indices_for_vars_chosen:
+                subsys_var_index_list = self.subsystems[subsys_index].var_indices_list
+                if var_index not in subsys_var_index_list:
+                    wf_dim += len(subsys_var_index_list)
+                else:
+                    wf_dim += subsys_var_index_list.index(var_index)
+                    break
+        return wf_dim
+
+    def generate_wf_plot_data(self, n=0, var_indices=(1,), eigensys=None, mode="abs"):
         # checking to see if eigensys needs to be generated
         if eigensys is None:
             _, wfs = self.eigensys()
@@ -1978,69 +2016,79 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
             ##### Converting to the basis in which the variables are defined ####
             wf_original_basis = wf_hd_reshaped
+            wf_dim = subsystem_indices_for_vars_chosen[0]
             for subsys_index in subsystem_indices_for_vars_chosen:
+                wf_dim = 0
+                for sys_index in range(subsys_index):
+                    if sys_index in subsystem_indices_for_vars_chosen:
+                        wf_dim += len(self.subsystems[sys_index].var_indices_list)
+                    else:
+                        wf_dim += 1
                 wf_original_basis = self.recursice_basis_change(
                     wf_original_basis,
-                    subsys_index,
+                    wf_dim,
                     self.subsystems[subsys_index],
                     relevant_indices=var_indices,
                 )
         else:
             wf_original_basis = wf.reshape(
-                *[getattr(self, cutoff_attrib) for cutoff_attrib in self.cutoffs_list]
+                *[
+                    getattr(self, cutoff_attrib)
+                    if "phi" in cutoff_attrib
+                    else (2 * getattr(self, cutoff_attrib) + 1)
+                    for cutoff_attrib in self.cutoffs_list
+                ]
             )
 
         # making a basis change to phi for every var_index
         wf_phi_basis = wf_original_basis
-        for var_index in var_indices:
+        for x, var_index in enumerate(var_indices):
+            # finding the dimension corresponding to the var_index
+            if not self.hierarchical_diagonalization:
+                wf_dim = var_index - 1
+            else:
+                wf_dim = self.get_var_dim_for_reshaped_wf(var_indices, var_index)
+
             if var_index in self.var_indices["extended"]:
                 wf_phi_basis = self.basis_change_harm_osc_to_phi(
-                    wf_phi_basis, var_index
+                    wf_phi_basis, wf_dim, var_index
                 )
             if var_index in self.var_indices["periodic"]:
-                wf_phi_basis = self.basis_change_n_to_phi(wf_phi_basis, var_index)
+                wf_phi_basis = self.basis_change_n_to_phi(
+                    wf_phi_basis, wf_dim, var_index
+                )
 
         # if a probability plot is requested, sum over the dimesnsions not relevant to the ones in var_indices
-        if section is None:
-            if self.hierarchical_diagonalization:
-                num_wf_dims = 0
-                dims_to_be_summed = []
-                for x, subsys_index in enumerate(self.subsystems):
-                    if subsys_index in subsystem_indices_for_vars_chosen:
-                        for index, var_index in enumerate(
-                            self.subsystems[subsys_index].var_indices_list
-                        ):
-                            if var_index not in var_indices:
-                                dims_to_be_summed += [num_wf_dims + index]
-                        num_wf_dims += len(
-                            self.subsystems[subsys_index].var_indices_list
-                        )
-                    else:
-                        dims_to_be_summed += [num_wf_dims]
-                        num_wf_dims += 1
-                wf_plot = np.sum(
-                    np.abs(wf_phi_basis),
-                    axis=tuple(dims_to_be_summed),
-                )
-            else:
-                wf_plot = np.sum(
-                    np.abs(wf_phi_basis),
-                    axis=tuple(
-                        [
-                            var_index - 1
-                            for var_index in self.var_indices["periodic"]
-                            + self.var_indices["extended"]
-                            if var_index not in var_indices
-                        ]
-                    ),
-                )
-
-        elif section is not None:
-            wf_plot = np.eval("wf_phi_basis" + section)
-            if len(wf_plot.shape) > 2:
-                raise Exception(
-                    "Please make sure that only two variable indices are chosen for a plot, as we are limited for 3D for any plot."
-                )
+        if self.hierarchical_diagonalization:
+            num_wf_dims = 0
+            dims_to_be_summed = []
+            for x, subsys_index in enumerate(self.subsystems):
+                if subsys_index in subsystem_indices_for_vars_chosen:
+                    for index, var_index in enumerate(
+                        self.subsystems[subsys_index].var_indices_list
+                    ):
+                        if var_index not in var_indices:
+                            dims_to_be_summed += [num_wf_dims + index]
+                    num_wf_dims += len(self.subsystems[subsys_index].var_indices_list)
+                else:
+                    dims_to_be_summed += [num_wf_dims]
+                    num_wf_dims += 1
+            wf_plot = np.sum(
+                np.abs(wf_phi_basis),
+                axis=tuple(dims_to_be_summed),
+            )
+        else:
+            wf_plot = np.sum(
+                np.abs(wf_phi_basis),
+                axis=tuple(
+                    [
+                        var_index - 1
+                        for var_index in self.var_indices["periodic"]
+                        + self.var_indices["extended"]
+                        if var_index not in var_indices
+                    ]
+                ),
+            )
 
         return wf_plot
 
@@ -2050,7 +2098,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         var_indices=(1,),
         eigensys=None,
         mode="abs",
-        section=False,
     ):
         """
         Returns the plot of the wavefunction in the requested variables and for a specific eigen system calculation.
@@ -2077,7 +2124,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             cutoffs_dict[var_index] = getattr(self, cutoff_attrib)
             if "cutoff_n" in cutoff_attrib:
                 grids_dict[var_index] = self._default_grid_phi.make_linspace()
-                var_index_dims_dict[var_index] = 2 * cutoffs_dict[var_index] + 1
             else:
                 var_index_dims_dict[var_index] = getattr(self, cutoff_attrib)
                 if self.phi_basis == "harmonic":
@@ -2090,191 +2136,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     )
                 grids_dict[var_index] = grid
 
-        # checking to see if eigensys needs to be generated
-        if eigensys is None:
-            eigs, wf = self.eigensys()
-        else:
-            eigs, wf = eigensys
-
-        if not self.hierarchical_diagonalization:
-            wavefunction = wf[:, n]
-            wf_reshaped = wavefunction.reshape(*var_index_dims_dict.values())
-
-            wf_plot = np.sum(
-                np.abs(wf_reshaped),
-                axis=tuple(
-                    [i - 1 for i in cutoffs_dict.keys() if i not in var_indices]
-                ),
-            )
-        else:
-            wf_hd = wf[:, n]
-            subsystem_indices_for_vars_chosen = np.sort(
-                list(
-                    set(
-                        [
-                            self.get_subsystem_index(index)
-                            for index in np.sort(var_indices)
-                        ]
-                    )
-                )
-            )  # getting the subsystem index for each of the index dimension
-            subsystems_for_vars_chosen = [
-                self.subsystems[sys_index]
-                for sys_index in subsystem_indices_for_vars_chosen
-            ]
-            subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
-            # reshaping the wavefunctions to truncated dims of subsystems
-            wf_hd_reshaped = wf_hd.reshape(*subsys_trunc_dims)
-
-            ##### Converting to the basis in which the variables are defined ####
-            wf_original_basis = wf_hd_reshaped
-            for subsys_index in subsystem_indices_for_vars_chosen:
-                sys = self.subsystems[subsys_index]
-                _, U_subsys = sys.eigenvals(evals_count=sys.truncated_dim)
-                wf_sublist = list(range(len(subsys_trunc_dims)))
-                U_sublist = [subsys_index, len(wf_sublist)]
-                target_sublist = wf_sublist.copy()
-                target_sublist[subsys_index] = len(wf_sublist)
-                wf_original_basis = np.einsum(
-                    wf_original_basis, wf_sublist, U_subsys.T, U_sublist, target_sublist
-                )
-
-            # reshaping such that each variable index has its own dimension
-            for subsys_index in subsystem_indices_for_vars_chosen:
-                sys = self.subsystems[subsys_index]
-                cutoffs_list = [
-                    sys.cutoffs_dict[var_index] for var_index in sys.var_indices_list
-                ]
-                reshape_dims = list(wf_original_basis.shape)
-                reshape_dims[subsys_index] = cutoffs_list
-                wf_original_basis = wf_original_basis.reshape(
-                    *flatten_list(reshape_dims)
-                )
-
-            # making a basis change to phi for discretized variable
-            wf_phi_basis = wf_original_basis
-            for var_index in var_indices:
-                if var_index in self.var_indices["extended"]:
-                    U_ho_phi = np.array(
-                        [
-                            osc.harm_osc_wavefunction(
-                                n,
-                                self._default_grid_phi.make_linspace,
-                                self.osc_lengths[var_index],
-                            )
-                            for n in range(
-                                getattr(self, "cutoff_phi_" + str(var_index))
-                            )
-                        ]
-                    )
-
-                wf_sublist = list(range(len(wf_original_basis.shape)))
-                U_sublist = [var_index - 1, len(wf_sublist)]
-                target_sublist = wf_sublist.copy()
-                target_sublist[var_index - 1] = len(wf_sublist)
-                wf_phi_basis = np.einsum(
-                    wf_phi_basis, wf_sublist, U_ho_phi, U_sublist, target_sublist
-                )
-
-            # summing over the absolute values for the subsystems which are not relevant
-            wf_relevant_dims = np.sum(
-                np.abs(wf_hd_reshaped),
-                axis=tuple(
-                    [
-                        index
-                        for index in range(len(self.subsystems))
-                        if index not in subsystem_indices_for_vars_chosen
-                    ]
-                ),
-            )
-            # finding the wavefunctions(as many as the truncated dimension) for each of the relevant subsystems
-            subsys_wfs = [
-                sys.eigensys(evals_count=sys.truncated_dim)[1]
-                for sys in subsystems_for_vars_chosen
-            ]
-
-            wavefunction = wf_relevant_dims  # starting with the reshaped wavefunction
-            # performing the linear combination of the coefficients with the corresponding wavefunctions for each relevant subsystem
-            for x, subsys_index in enumerate(subsystem_indices_for_vars_chosen):
-                U = subsys_wfs[x]
-                # generating sublists for einsum
-                sublist_wf = list(
-                    range(1, len(subsystem_indices_for_vars_chosen) + 1)
-                )  # starting with a list of numbers starting with 1
-                sublist_wf = (
-                    sublist_wf[1 : x + 1] + [sublist_wf[0]] + sublist_wf[x + 1 :]
-                )  # arranging it such that chosen subsystem index is marked as 1, and rest are marked in order starting from 2
-                sublist_target = [
-                    x if x != 1 else 0 for x in sublist_wf
-                ]  # generating the target sublist
-                wavefunction = np.einsum(
-                    U, [0, 1], wavefunction, sublist_wf, sublist_target
-                )
-
-            wf_var_indices = flatten_list(
-                [sys.var_indices_list for sys in subsystems_for_vars_chosen]
-            )  # summation of all sublists in the above list
-            wf_var_indices.sort()
-            wf_reshaped = wavefunction.reshape(
-                *[var_index_dims_dict[var_index] for var_index in wf_var_indices]
-            )  # final reshape
-            # final step: summing over the var indices which are not relevant for plotting.
-            wf_plot = np.sum(
-                np.abs(wf_reshaped),
-                axis=tuple([i - 1 for i in wf_var_indices if i not in var_indices]),
-            )
-
-        for var_index in var_indices:
-            if (
-                var_index in self.var_indices["extended"]
-                and self.phi_basis == "harmonic"
-            ):
-                harm_osc_wfs = np.array(
-                    [
-                        osc.harm_osc_wavefunction(
-                            n, grids_dict[var_index], self.osc_lengths[var_index]
-                        )
-                        for n in range(cutoffs_dict[var_index])
-                    ]
-                )
-                wf_sublist = list(range(len(var_indices)))
-                harm_osc_sublist = [
-                    list(var_indices).index(var_index),
-                    len(var_indices),
-                ]
-                target_sublist = wf_sublist.copy()
-                target_sublist[list(var_indices).index(var_index)] = len(var_indices)
-                wf_plot = np.einsum(
-                    wf_plot, wf_sublist, harm_osc_wfs, harm_osc_sublist, target_sublist
-                )
-        if (
-            len(set(var_indices) & set(self.var_indices["periodic"])) > 0
-            and len(set(var_indices) & set(self.var_indices["extended"])) > 0
-        ):
-
-            for var_index in var_indices:
-                if var_index in self.var_indices["periodic"]:
-                    U = np.array(
-                        [
-                            np.exp(self._default_grid_phi.make_linspace() * 1j * n)
-                            for n in np.arange(
-                                -cutoffs_dict[var_index], cutoffs_dict[var_index] + 1
-                            )
-                        ]
-                    )
-
-                    wf_sublist = list(range(len(var_indices)))
-                    U_sublist = [
-                        list(var_indices).index(var_index),
-                        len(var_indices),
-                    ]
-                    target_sublist = wf_sublist.copy()
-                    target_sublist[list(var_indices).index(var_index)] = len(
-                        var_indices
-                    )
-                    wf_plot = np.einsum(
-                        wf_plot, wf_sublist, U, U_sublist, target_sublist
-                    )
+        wf_plot = self.generate_wf_plot_data(
+            n=n, var_indices=var_indices, eigensys=eigensys
+        )
 
         var_types = []
 
