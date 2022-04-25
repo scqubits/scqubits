@@ -2,7 +2,7 @@
 # meant to be run with 'pytest'
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -41,3 +41,14 @@ class TestFullZeroPi(BaseTest):
         self.qbt = self.qbt_type(**specdata.system_params)
         evals_reference = specdata.energy_table
         return self.eigenvals(io_type, evals_reference)
+
+    def test_eigenvecs(self, io_type):
+        testname = self.file_str + "_2." + io_type
+        specdata = SpectrumData.create_from_file(DATADIR + testname)
+        evecs_reference = specdata.state_table
+        self.qbt = self.qbt_type(**specdata.system_params)
+        evals_count = evecs_reference.shape[1]
+        _, evecs_tst = self.qbt.eigensys(
+            evals_count=evals_count, filename=self.tmpdir + "test." + io_type
+        )
+        assert np.allclose(np.abs(evecs_reference), np.abs(evecs_tst))

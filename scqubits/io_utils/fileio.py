@@ -1,7 +1,7 @@
 # fileio.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -17,14 +17,14 @@ import os
 
 from typing import TYPE_CHECKING, Any, Callable, Dict, Union
 
-import h5py
-
 from numpy import ndarray
 
 import scqubits.core.constants as const
 import scqubits.io_utils.fileio_serializers as io_serializers
 
 if TYPE_CHECKING:
+    import h5py
+
     from scqubits.io_utils.fileio_backends import CSVReader, H5Reader, IOWriter
     from scqubits.io_utils.fileio_serializers import Serializable
 
@@ -90,7 +90,7 @@ def deserialize(iodata: IOData) -> Any:
     )
 
 
-def write(the_object: Any, filename: str, file_handle: h5py.Group = None) -> None:
+def write(the_object: Any, filename: str, file_handle: "h5py.Group" = None) -> None:
     """
     Write `the_object` to a file with name `filename`. The optional `file_handle`
     parameter is used as a group name in case of h5 files.
@@ -109,7 +109,7 @@ def write(the_object: Any, filename: str, file_handle: h5py.Group = None) -> Non
     writer.to_file(iodata, file_handle=file_handle)
 
 
-def read(filename: str, file_handle: h5py.Group = None) -> Any:
+def read(filename: str, file_handle: "h5py.Group" = None) -> Any:
     """
     Read a Serializable object from file.
 
@@ -132,7 +132,9 @@ def read(filename: str, file_handle: h5py.Group = None) -> Any:
 class FileIOFactory:
     """Factory method for choosing reader/writer according to given format"""
 
-    def get_writer(self, file_name: str, file_handle: h5py.Group = None) -> "IOWriter":
+    def get_writer(
+        self, file_name: str, file_handle: "h5py.Group" = None
+    ) -> "IOWriter":
         """
         Based on the extension of the provided file name, return the appropriate
         writer engine.
@@ -152,7 +154,7 @@ class FileIOFactory:
     def get_reader(
         self,
         file_name: str,
-        file_handle: h5py.Group = None,
+        file_handle: "h5py.Group" = None,
         get_external_reader: Callable = None,
     ) -> Union["CSVReader", "H5Reader"]:
         """

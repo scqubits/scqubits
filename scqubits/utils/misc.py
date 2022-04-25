@@ -1,7 +1,7 @@
 # misc.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -276,11 +276,10 @@ def cite(print_info=True):
 
     """
     fs = StringIO()
-
-    fs.write(
-        "Peter Groszkowski and Jens Koch, 'scqubits: a Python package for "
-        "superconducting qubits', arXiv:2107.08552 (2021).\n"
-    )
+    fs.write("Peter Groszkowski and Jens Koch,\n")
+    fs.write("'scqubits: a Python package for superconducting qubits'\n")
+    fs.write("Quantum 5, 583 (2021).\n")
+    fs.write("https://quantum-journal.org/papers/q-2021-11-17-583/\n")
 
     if print_info:
         print(fs.getvalue())

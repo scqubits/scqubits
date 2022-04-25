@@ -1,7 +1,7 @@
 # central_dispatch.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -14,9 +14,8 @@
 import logging
 import warnings
 import weakref
-from types import MethodType
 
-from typing import Callable
+from types import MethodType
 from weakref import WeakKeyDictionary
 
 import scqubits.settings as settings
@@ -142,11 +141,9 @@ class CentralDispatch:
                     type(client).__name__, event
                 )
             )
-
+            # Using WeakMethod references:
             callback_ref()(event, sender=sender, **kwargs)
-            # When using WeakMethod references, this should rather be:
-            # callback_ref()(event, sender=sender, **kwargs)
-            #
+
             # Workaround if pickling fails, in conjunction with changes eliminating
             # weakrefs:
             # callback_ref(event, sender=sender, **kwargs)

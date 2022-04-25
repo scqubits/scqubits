@@ -1,7 +1,7 @@
 # generic_qubit.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -43,7 +43,6 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     """
 
     truncated_dim = 2  # type:ignore
-    _evec_dtype: type
     _sys_type: str
     _init_params: list
 
@@ -52,7 +51,6 @@ class GenericQubit(base.QuantumSystem, serializers.Serializable):
     def __init__(self, E: float, id_str: Optional[str] = None) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
         self.E = E
-        self._evec_dtype = np.float_
 
     @staticmethod
     def default_params() -> Dict[str, Any]:

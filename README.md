@@ -1,6 +1,11 @@
 scqubits: superconducting qubits in Python
 ===========================================
 
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/scqubits/badges/downloads.svg)](https://anaconda.org/conda-forge/scqubits)
+[![CodeFactor](https://www.codefactor.io/repository/github/scqubits/scqubits/badge)](https://www.codefactor.io/repository/github/scqubits/scqubits)
+[![codecov](https://codecov.io/gh/scqubits/scqubits/branch/master/graph/badge.svg?token=PUBXSHF6HU)](https://codecov.io/gh/scqubits/scqubits)
+
+
 [J. Koch](https://github.com/jkochNU), [P. Groszkowski](https://github.com/petergthatsme)
 
 
@@ -15,20 +20,18 @@ If scqubits is helpful to you in your research, please support its continued
 development and maintenance. Use of scqubits in research publications is 
 appropriately acknowledged by citing:
 
-_Peter Groszkowski and Jens Koch, 'scqubits:  a Python package for superconducting 
-qubits', arXiv:2107.08552 (2021)._ https://arxiv.org/abs/2107.08552
+>  Peter Groszkowski and Jens Koch,<br> 
+>  *scqubits:  a Python package for superconducting qubits*,<br>
+>  Quantum 5, 583 (2021).<br>
+>  https://quantum-journal.org/papers/q-2021-11-17-583/
 
 
-[![CodeFactor](https://www.codefactor.io/repository/github/scqubits/scqubits/badge)](https://www.codefactor.io/repository/github/scqubits/scqubits)
-[![codecov](https://codecov.io/gh/scqubits/scqubits/branch/master/graph/badge.svg?token=PUBXSHF6HU)](https://codecov.io/gh/scqubits/scqubits)
 
 
 Download and Installation
 -------------------------
 
-[![Anaconda-Server Badge](https://anaconda.org/conda-forge/scqubits/badges/downloads.svg)](https://anaconda.org/conda-forge/scqubits)
-
-For Python 3.6, 3.7 and 3.8, installation via conda is supported. 
+For Python 3.6, 3.7, 3.8, 3.9, and 3.10: installation via conda is supported. 
 ```
 conda install -c conda-forge scqubits
 ```

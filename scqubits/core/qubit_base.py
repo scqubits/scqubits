@@ -1,7 +1,7 @@
 # qubit_base.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -63,8 +63,9 @@ else:
     from tqdm import tqdm
 
 if TYPE_CHECKING:
-    from scqubits.core.storage import WaveFunction
     from typing_extensions import Literal
+
+    from scqubits.core.storage import WaveFunction
 
 
 LevelsTuple = Tuple[int, ...]
@@ -80,7 +81,6 @@ class QuantumSystem(DispatchClient, ABC):
     truncated_dim = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
     _init_params: List[str]
     _image_filename: str
-    _evec_dtype: type
     _sys_type: str
 
     # To facilitate warnings in set_units, introduce a counter keeping track of the
@@ -220,7 +220,6 @@ class QubitBaseClass(QuantumSystem, ABC):
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     truncated_dim: int  # type:ignore
     _default_grid: Grid1d
-    _evec_dtype: type
     _sys_type: str
     _init_params: list
 
@@ -644,8 +643,9 @@ class QubitBaseClass(QuantumSystem, ABC):
                 levels_tuple: Optional[LevelsTuple] = levels
                 transitions_tuple: TransitionsTuple = (transitions,)  # type:ignore
             else:
-                raise ValueError("Invalid `levels` specification: expect int or tuple "
-                                 "of int")
+                raise ValueError(
+                    "Invalid `levels` specification: expect int or tuple " "of int"
+                )
         elif isinstance(transitions[0], int):
             # transitions is inferred to be of form (i, j), so only a single one
             transitions_tuple = (transitions,)  # type:ignore
@@ -656,8 +656,10 @@ class QubitBaseClass(QuantumSystem, ABC):
             transitions_tuple = transitions
             levels_tuple = None
         else:
-            raise ValueError("Invalid `transitions` specification: expect either ("
-                             "int, int)  or ((int, int), ...)")
+            raise ValueError(
+                "Invalid `transitions` specification: expect either ("
+                "int, int)  or ((int, int), ...)"
+            )
 
         eigenenergies, dispersion = self._compute_dispersion(
             dispersion_name,
@@ -988,7 +990,6 @@ class QubitBaseClass1d(QubitBaseClass):
 
     # see PEP 526 https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations
     _default_grid: Grid1d
-    _evec_dtype = np.float_
 
     @abstractmethod
     def potential(self, phi: Union[float, ndarray]) -> Union[float, ndarray]:

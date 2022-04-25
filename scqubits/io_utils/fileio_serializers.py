@@ -1,7 +1,7 @@
 # fileio_serializers.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -15,7 +15,7 @@ Helper classes for writing data to files.
 
 import inspect
 
-from abc import ABC, ABCMeta
+from abc import ABCMeta
 from collections import OrderedDict
 from numbers import Number
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
@@ -24,6 +24,7 @@ import numpy as np
 
 from numpy import ndarray
 from scipy.sparse import csc_matrix
+from typing_extensions import Protocol, runtime_checkable
 
 import scqubits.utils.misc as utils
 
@@ -34,7 +35,8 @@ if TYPE_CHECKING:
 SERIALIZABLE_REGISTRY = {}
 
 
-class Serializable(ABC):
+@runtime_checkable
+class Serializable(Protocol):
     """Mix-in class that makes descendant classes serializable."""
 
     _subclasses: List[ABCMeta] = []
@@ -127,7 +129,7 @@ def _add_attribute(
     return attributes, ndarrays, objects
 
 
-TO_ATTRIBUTE = (str, Number, dict, list, tuple, bool, np.bool_)
+TO_ATTRIBUTE = (str, Number, dict, OrderedDict, list, tuple, bool, np.bool_)
 TO_NDARRAY = (np.ndarray,)
 TO_OBJECT = (Serializable,)
 
@@ -176,15 +178,17 @@ def OrderedDict_serialize(dict_instance: Dict[str, Any]) -> "IOData":
     import scqubits.io_utils.fileio as io
 
     dict_instance = utils.remove_nones(dict_instance)
+
     attributes: Dict[str, Any] = {}
     ndarrays: Dict[str, ndarray] = {}
     objects: Dict[str, object] = {}
     typename = "OrderedDict"
 
-    for name, content in dict_instance.items():
-        update_func = type_dispatch(content)
+    list_representation = list(dict_instance.items())
+    for index, item in enumerate(list_representation):
+        update_func = type_dispatch(item)
         attributes, ndarrays, objects = update_func(
-            name, content, attributes, ndarrays, objects
+            str(index), item, attributes, ndarrays, objects
         )
     return io.IOData(typename, attributes, ndarrays, objects)
 
@@ -280,7 +284,8 @@ def dict_deserialize(iodata: "IOData") -> Dict[str, Any]:
 
 def OrderedDict_deserialize(iodata: "IOData") -> Dict[str, Any]:
     """Turn IOData instance back into a dict"""
-    return OrderedDict([(name, values) for name, values in iodata.as_kwargs().items()])
+    dict_data = iodata.as_kwargs()
+    return OrderedDict([dict_data[key] for key in sorted(dict_data, key=int)])
 
 
 def csc_matrix_deserialize(iodata: "IOData") -> csc_matrix:
@@ -328,6 +333,4 @@ def get_init_params(obj: Serializable) -> List[str]:
         init_params.remove("self")
     if "kwargs" in init_params:
         init_params.remove("kwargs")
-    # if "id_str" in init_params:
-    #     init_params.remove("id_str")
     return init_params

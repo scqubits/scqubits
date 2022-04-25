@@ -1,7 +1,7 @@
 # flux_qubit.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -33,9 +33,8 @@ import scqubits.utils.spectrum_utils as spec_utils
 
 from scqubits.core.noise import NOISE_PARAMS, NoisySystem
 
+
 # -Flux qubit noise class
-
-
 class NoisyFluxQubit(NoisySystem, ABC):
     @abstractmethod
     def d_hamiltonian_d_EJ1(self) -> ndarray:
@@ -344,7 +343,6 @@ class FluxQubit(base.QubitBaseClass, serializers.Serializable, NoisyFluxQubit):
         self.flux = flux
         self.ncut = ncut
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.complex_
         self._default_grid = discretization.Grid1d(
             -np.pi / 2, 3 * np.pi / 2, 100
         )  # for plotting in phi_j basis

@@ -1,7 +1,7 @@
 # zeropi_full.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -183,7 +183,6 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         self.dEL = dEL
         self.zeta_cutoff = zeta_cutoff
         self.truncated_dim = truncated_dim
-        self._evec_dtype = np.complex_
         self._init_params.remove(
             "ECS"
         )  # used for file IO Serializable purposes; remove ECS as init parameter
@@ -226,7 +225,8 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         """Return a list of supported noise channels"""
         return [
             "tphi_1_over_f_cc",
-            "tphi_1_over_f_fluxt1_bias_flux_line"
+            "tphi_1_over_f_flux",
+            "t1_bias_flux_line",
             # 't1_capacitive',
             "t1_inductive",
         ]

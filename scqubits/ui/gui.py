@@ -1,7 +1,7 @@
 # gui.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -15,6 +15,7 @@ import inspect
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from matplotlib.figure import Axes, Figure
@@ -351,6 +352,7 @@ class GUI:
             subtract_ground=subtract_ground_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_evals_vs_paramvals_plot(
         self,
@@ -395,6 +397,7 @@ class GUI:
             subtract_ground=subtract_ground_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def matelem_vs_paramvals_plot(
         self,
@@ -442,6 +445,7 @@ class GUI:
             mode=mode_value,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_matelem_vs_paramvals_plot(
         self,
@@ -489,6 +493,8 @@ class GUI:
             select_elems=matrix_element_state_value,
             mode=mode_value,
         )
+        GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def scaled_wavefunction_plot(
         self,
@@ -530,6 +536,7 @@ class GUI:
             which=eigenvalue_states, mode=mode_value, scaling=scale_value
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def wavefunction_plot(
         self,
@@ -556,6 +563,7 @@ class GUI:
             which=eigenvalue_states, mode=mode_value
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_wavefunction_plot(
         self,
@@ -583,6 +591,7 @@ class GUI:
             which=eigenvalue_states, mode=mode_value
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def matrixelements_plot(
         self,
@@ -627,6 +636,7 @@ class GUI:
             show3d=show3d_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     def grid_matrixelements_plot(
         self,
@@ -672,6 +682,7 @@ class GUI:
             show3d=show3d_tf,
         )
         GUI.fig_ax = self.fig, ax
+        plt.show()
 
     # Methods for create_GUI -----------------------------------------------------------
     def display_qubit_info(self, qubit_info: bool) -> None:

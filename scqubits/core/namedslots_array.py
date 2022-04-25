@@ -1,7 +1,7 @@
 # namedslots_array.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
-# arXiv:2107.08552 (2021). https://arxiv.org/abs/2107.08552
+# Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
 #
 #    Copyright (c) 2019 and later, Jens Koch and Peter Groszkowski
 #    All rights reserved.
@@ -487,7 +487,7 @@ class NamedSlotsNdarray(np.ndarray, Serializable):
     def __new__(
         cls, input_array: np.ndarray, values_by_name: Dict[str, ndarray]
     ) -> "NamedSlotsNdarray":
-        implied_shape = tuple(len(values) for name, values in values_by_name.items())
+        implied_shape = tuple(len(values) for values in values_by_name.values())
         if input_array.shape[0 : len(values_by_name)] != implied_shape:
             raise ValueError(
                 "Given input array {} with shape {} not compatible with "
