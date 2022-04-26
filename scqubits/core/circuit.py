@@ -37,6 +37,7 @@ from scipy.sparse.csc import csc_matrix
 from matplotlib import pyplot as plt
 from scqubits.core import operators as op
 from scqubits import HilbertSpace, settings
+from scqubits.core import symboliccircuit
 import scqubits.core.oscillator as osc
 
 from scqubits.core.symboliccircuit import Branch, SymbolicCircuit
@@ -59,15 +60,17 @@ from scqubits.utils.spectrum_utils import (
 
 
 def generate_default_trunc_dims(index_list):
-    trunc_dims = {}
+    trunc_dims = []
     for x, subsystem_indices in enumerate(index_list):
         if subsystem_indices == flatten_list_recursive(subsystem_indices):
-            trunc_dims[x] = [10, {}]
+            trunc_dims.append([10])
         else:
-            trunc_dims[x] = [
-                50,
-                generate_default_trunc_dims(subsystem_indices),
-            ]
+            trunc_dims.append(
+                [
+                    50,
+                    generate_default_trunc_dims(subsystem_indices),
+                ]
+            )
     return trunc_dims
 
 
@@ -114,8 +117,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         initiate_sym_calc: bool = True,
         phi_basis: str = "discretized",
         hierarchical_diagonalization: bool = True,
-        hd_indices=[],
-        hd_trunc_dims=[],
+        hd_indices=None,
+        hd_trunc_dims=None,
         truncated_dim: int = None,
     ):
         """
@@ -140,12 +143,13 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         # attribute to check if this is a child circuit instance
         self.is_child = False
-        # inheriting all the attributes from SymbolicCircuit instance
+
+        self.symbolic_circuit: SymbolicCircuit = None
+
         self._sys_type = type(self).__name__
         # defining additional class properties
 
         self.vars = None
-        self.external_flux = []
 
         # setting truncated_dim for calculating energy dispersion
         self.truncated_dim = truncated_dim
@@ -155,8 +159,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             -6 * np.pi, 6 * np.pi, 200
         )
 
-        self.discretized_phi_range = {}
-        self.cutoffs_list: List[int] = []
+        self.discretized_phi_range: dict[int, tuple(float, float)] = {}
+        self.cutoffs_list: List[str] = []
         self.phi_basis = phi_basis
         self.hierarchical_diagonalization = hierarchical_diagonalization
         self.hd_indices = hd_indices
@@ -187,7 +191,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         parent,
         hamiltonian_symbolic,
         hd_indices: list,
-        hd_trunc_dims=[],
+        hd_trunc_dims=None,
         truncated_dim: int = None,
     ):
         """
@@ -631,14 +635,14 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         if not self.hierarchical_diagonalization:
             self.hamiltonian_function()
         else:
-            if hd_indices == None:
+            if hd_indices is None:
                 self.hd_indices = [
                     self.var_indices["periodic"] + self.var_indices["extended"]
                 ]
             else:
                 self.hd_indices = hd_indices
 
-            if hd_trunc_dims == None:
+            if hd_trunc_dims is None:
                 raise Exception(
                     "The truncated dimensions attribute for hierarchical diagonalization is not set."
                 )
@@ -733,7 +737,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                         systems_sym[index],
                         hd_indices=self.hd_indices[index],
                         truncated_dim=self.hd_trunc_dims[index][0],
-                        hd_trunc_dims=self.hd_trunc_dims[index][1],
+                        hd_trunc_dims=self.hd_trunc_dims[index][1]
+                        if len(self.hd_trunc_dims[index]) > 1
+                        else None,
                     )
                     for index in range(len(self.hd_indices))
                 ],
@@ -1770,7 +1776,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def _evals_calc(self, evals_count: int) -> ndarray:
         # dimension of the hamiltonian
         if self.hierarchical_diagonalization:
-            hilbertdim = np.prod([self.hd_trunc_dims[i][0] for i in self.hd_trunc_dims])
+            hilbertdim = np.prod(
+                [self.hd_trunc_dims[i][0] for i in range(len(self.hd_indices))]
+            )
         else:
             hilbertdim = self.hilbertdim()
 
@@ -1792,7 +1800,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         # dimension of the hamiltonian
         if self.hierarchical_diagonalization:
-            hilbertdim = np.prod([self.hd_trunc_dims[i][0] for i in self.hd_trunc_dims])
+            hilbertdim = np.prod(
+                [self.hd_trunc_dims[i][0] for i in range(len(self.hd_indices))]
+            )
         else:
             hilbertdim = self.hilbertdim()
 
