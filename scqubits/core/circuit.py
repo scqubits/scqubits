@@ -25,15 +25,13 @@ from typing import (
 )
 from matplotlib.cbook import flatten
 from matplotlib.text import OffsetFrom
-import sympy
 import sympy as sm
 import numpy as np
 import scipy as sp
 import regex as re
 
-from numpy import ndarray, reshape, var
+from numpy import ndarray
 from numpy.linalg import matrix_power
-from sympy import symbols, lambdify, parse_expr
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from matplotlib import pyplot as plt
@@ -41,7 +39,7 @@ from scqubits.core import operators as op
 from scqubits import HilbertSpace, settings
 import scqubits.core.oscillator as osc
 
-from scqubits.core.symboliccircuit import SymbolicCircuit
+from scqubits.core.symboliccircuit import Branch, SymbolicCircuit
 import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
 from scqubits.core.storage import DataStore
@@ -53,9 +51,6 @@ from scqubits.utils.spectrum_utils import (
     get_matrixelement_table,
     identity_wrap,
     order_eigensystem,
-    standardize_phases,
-    standardize_sign,
-    convert_evecs_to_ndarray,
 )
 
 # Causing a circular import
@@ -97,30 +92,20 @@ def get_trailing_number(input_str: str) -> int:
 
 
 class Circuit(base.QubitBaseClass, serializers.Serializable):
-    r"""
-    Class to numerically analyze an instance of CustomQCircuit.
+    """
+    Class to numerically analyze an instance of SymbolicCircuit.
 
-    Can be initialized using an input file. For a Transmon qubit for example the following input file can be used.
-    # file_name: transmon_num.inp
+    Can be initialized using an input file. For example, the following input file can be used to define a Transmon.
+    # file_name: transmon_num.yaml
         nodes: 2
         branches:
-        C	1,2	1
-        JJ	1,2	1	10
+        - [JJ,1,2,10,1e15]
+        - [L, 1,2,0.1]
+        - [C,1,2,0.2]
 
-    Circuit object can be initiated using:
-        CustomQCircuit.from_input_file("transmon_num.inp")
+    Circuit.from_input_file("transmon_num.yaml")
 
     A set of nodes with branches connecting them forms a circuit.
-    Parameters
-    ----------
-    nodes_list:
-        List of nodes in the circuit
-    branches_list:
-        List of branches connecting the above set of nodes.
-    phi_basis:
-        "discretized" or "harmonic": Choose whether to use discretized phi or harmonic oscillator basis for extended variables.
-    hierarchical_diagonalization:
-        Boolean which indicates if the HilbertSpace from scqubits is used for simplification
     """
 
     def __init__(
@@ -130,9 +115,29 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         phi_basis: str = "discretized",
         hierarchical_diagonalization: bool = True,
         hd_indices=[],
-        HD_trunc_dims=[],
+        hd_trunc_dims=[],
         truncated_dim: int = None,
     ):
+        """
+        _summary_
+
+        Parameters
+        ----------
+        circuit_data : dict
+            _description_
+        initiate_sym_calc : bool, optional
+            _description_, by default True
+        phi_basis : str, optional
+            _description_, by default "discretized"
+        hierarchical_diagonalization : bool, optional
+            _description_, by default True
+        hd_indices : list, optional
+            _description_, by default []
+        hd_trunc_dims : list, optional
+            _description_, by default []
+        truncated_dim : int, optional
+            _description_, by default None
+        """
         # attribute to check if this is a child circuit instance
         self.is_child = False
         # inheriting all the attributes from SymbolicCircuit instance
@@ -155,7 +160,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         self.phi_basis = phi_basis
         self.hierarchical_diagonalization = hierarchical_diagonalization
         self.hd_indices = hd_indices
-        self.HD_trunc_dims = HD_trunc_dims
+        self.hd_trunc_dims = hd_trunc_dims
 
         self.type_of_matrices = "sparse"  # type of matrices involved
 
@@ -181,13 +186,34 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         cls,
         parent,
         hamiltonian_symbolic,
-        hd_indices,
-        truncated_dim=None,
-        HD_trunc_dims=[],
+        hd_indices: list,
+        hd_trunc_dims=[],
+        truncated_dim: int = None,
     ):
+        """
+        Generates an instance of class Circuit by taking data from a SymbolicCircuit instance.
+
+        Parameters
+        ----------
+        parent : Circuit
+            An instance of a Circuit from which this child instance of Circuit is defined.
+        hamiltonian_symbolic :
+            sympy expression of a hamiltonian expression which is used to define a child of an instance Circuit
+        hd_indices : list, optional
+            A list of lists which is provided by the user to define subsystems, by default None
+        hd_trunc_dims : dict, optional
+            a dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        truncated_dim : int, optional
+            truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
+
+        Returns
+        -------
+        Circuit
+            Ans instance of class circuit
+        """
         hd_indices = hd_indices
         truncated_dim = truncated_dim
-        HD_trunc_dims = HD_trunc_dims
+        hd_trunc_dims = hd_trunc_dims
 
         is_child = True
         parent = parent
@@ -294,28 +320,45 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
             hd_indices=hd_indices,
-            HD_trunc_dims=HD_trunc_dims,
+            hd_trunc_dims=hd_trunc_dims,
             truncated_dim=truncated_dim,
         )
 
     @classmethod
-    def from_CustomQCircuit(
+    def from_SymbolicCircuit(
         cls,
         symbolic_circuit: SymbolicCircuit,
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
         phi_basis: str = "discretized",
-        hd_indices=None,
-        HD_trunc_dims=None,
+        hd_indices: list = None,
+        hd_trunc_dims: dict = None,
         truncated_dim: int = None,
     ):
         """
-        Initialize AnalyzeQCircuit using an instance of CustomQCircuit.
+        Generates an instance of class Circuit by taking data from a SymbolicCircuit instance.
 
         Parameters
         ----------
-        circuit:
-            An instance of CustomQCircuit
+        symbolic_circuit : SymbolicCircuit
+            instance from which circuit parameters and symbolic circuit expressions are fetched.
+        initiate_sym_calc : bool, optional
+            attribute to initiate Circuit instance, by default True
+        hierarchical_diagonalization : bool, optional
+            Boolean whether to use hierarchical diagonalization, by default False
+        phi_basis : str, optional
+            can be "discretized" or "harmonic" which chooses whether to use discretized phi or harmonic oscillator basis for extended variables, by default "discretized"
+        hd_indices : list, optional
+            A list of lists which is provided by the user to define subsystems, by default None
+        hd_trunc_dims : dict, optional
+            a dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        truncated_dim : int, optional
+            truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
+
+        Returns
+        -------
+        Circuit
+            Ans instance of class circuit
         """
         circuit_data = {
             "var_indices": symbolic_circuit.var_indices,
@@ -337,7 +380,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
             hd_indices=hd_indices,
-            HD_trunc_dims=HD_trunc_dims,
+            hd_trunc_dims=hd_trunc_dims,
             truncated_dim=truncated_dim,
         )
 
@@ -350,42 +393,48 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
         hd_indices=None,
-        HD_trunc_dims=None,
+        hd_trunc_dims=None,
         truncated_dim: int = None,
     ):
         """
-        Creates an instance of Circuit from a circuit described using an input string.
+        Create a Circuit class instance from a circuit graph described in an input string in YAML format.
 
         Parameters
         ----------
         input_string : str
-            string describing the graph of a circuit
+            string describing the graph of a circuit in the YAML format.
         phi_basis : str, optional
-            Choses the kind of basis used to construct the operators for extended variables. Can be "discretized" or "harmonic".
-        basis : str, optional
-            _description_, by default "simple"
+            can be "discretized" or "harmonic" which chooses whether to use discretized phi or harmonic oscillator basis for extended variables, by default "discretized"
+        basis_completion : str, optional
+            either "simple" or "standard", defines the matrix used for completing the transformation matrix. Sometimes used to change the variable transformation to result in a simpler symbolic Hamiltonian, by default "simple"
         initiate_sym_calc : bool, optional
-            _description_, by default True
+            attribute to initiate Circuit instance, by default True
         hierarchical_diagonalization : bool, optional
-            _description_, by default False
+            Boolean whether to use hierarchical diagonalization, by default False
+        hd_indices : list, optional
+            A list of lists which is provided by the user to define subsystems, by default None
+        hd_trunc_dims : dict, optional
+            a dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        truncated_dim : int, optional
+            truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
 
         Returns
         -------
-        _type_
-            _description_
+        Circuit
+            An instance of class Circuit
         """
 
         circuit = SymbolicCircuit.from_input_string(
             input_string, basis_completion=basis_completion, initiate_sym_calc=True
         )
 
-        return cls.from_CustomQCircuit(
+        return cls.from_SymbolicCircuit(
             circuit,
             initiate_sym_calc=initiate_sym_calc,
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
             hd_indices=hd_indices,
-            HD_trunc_dims=HD_trunc_dims,
+            hd_trunc_dims=hd_trunc_dims,
             truncated_dim=truncated_dim,
         )
 
@@ -398,21 +447,48 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
         hd_indices=None,
-        HD_trunc_dims=None,
+        hd_trunc_dims=None,
         truncated_dim: int = None,
     ):
+        """
+        Create a Circuit class instance from a circuit graph described in an input file in YAML format.
+
+        Parameters
+        ----------
+        input_string : str
+            string describing the graph of a circuit in the YAML format.
+        phi_basis : str, optional
+            can be "discretized" or "harmonic" which chooses whether to use discretized phi or harmonic oscillator basis for extended variables, by default "discretized"
+        basis_completion : str, optional
+            either "simple" or "standard", defines the matrix used for completing the transformation matrix. Sometimes used to change the variable transformation to result in a simpler symbolic Hamiltonian, by default "simple"
+        initiate_sym_calc : bool, optional
+            attribute to initiate Circuit instance, by default True
+        hierarchical_diagonalization : bool, optional
+            Boolean whether to use hierarchical diagonalization, by default False
+        hd_indices : list, optional
+            list of lists which is provided by the user to define subsystems, by default None
+        hd_trunc_dims : dict, optional
+            dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        truncated_dim : int, optional
+            truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
+
+        Returns
+        -------
+        Circuit
+            An instance of class Circuit
+        """
 
         circuit = SymbolicCircuit.from_input_file(
             filename, basis_completion=basis_completion, initiate_sym_calc=True
         )
 
-        return cls.from_CustomQCircuit(
+        return cls.from_SymbolicCircuit(
             circuit,
             initiate_sym_calc=initiate_sym_calc,
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
             hd_indices=hd_indices,
-            HD_trunc_dims=HD_trunc_dims,
+            hd_trunc_dims=hd_trunc_dims,
             truncated_dim=truncated_dim,
         )
 
@@ -447,21 +523,32 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def initiate_circuit(
         self,
-        transformation_matrix=None,
-        hd_indices=None,
-        HD_trunc_dims=None,
-        closure_branches=None,
+        transformation_matrix: ndarray = None,
+        hd_indices: list = None,
+        hd_trunc_dims: dict = None,
+        closure_branches: list[Branch] = None,
     ):
         """
-        Method to initialize the Circuit instance and initialize all the attributes needed before it can be passed on to AnalyzeQCircuit.
+        Method which re-initializes a circuit instance to update, hierarchical diagonalization parameters or closure branches or the variable transformation used to describe the circuit.
 
         Parameters
         ----------
-        transformation_matrix:
-            Takes an ndarray and is used to set an alternative transformation matrix than the one generated by the method variable_transformation_matrix.
+        transformation_matrix : ndarray, optional
+            A user defined variable transformation which has the dimensions of the number nodes(not counting the ground node), by default None
+        hd_indices : list, optional
+            A list of lists which is provided by the user to define subsystems, by default None
+        hd_trunc_dims : dict, optional
+            dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        closure_branches : list[Branch], optional
+            List of branches where external flux variables will be specified, by default None which then chooses closure branches by an internally generated spanning tree.
+
+        Raises
+        ------
+        Exception
+            when hd_indices is set and hd_trunc_dims is not set.
         """
         hd_indices = hd_indices or self.hd_indices
-        HD_trunc_dims = HD_trunc_dims or self.HD_trunc_dims
+        hd_trunc_dims = hd_trunc_dims or self.hd_trunc_dims
 
         self.hierarchical_diagonalization = True if hd_indices is not None else False
 
@@ -551,12 +638,12 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             else:
                 self.hd_indices = hd_indices
 
-            if HD_trunc_dims == None:
+            if hd_trunc_dims == None:
                 raise Exception(
                     "The truncated dimensions attribute for hierarchical diagonalization is not set."
                 )
             else:
-                self.HD_trunc_dims = HD_trunc_dims
+                self.hd_trunc_dims = hd_trunc_dims
             self.hamiltonian_function()
             self.hierarchical_diagonalization_func()
 
@@ -599,8 +686,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             expr_dict = H.as_coefficients_dict()
             terms_list = list(expr_dict.keys())
 
-            H_sys = 0 * symbols("x")
-            H_int = 0 * symbols("x")
+            H_sys = 0 * sm.symbols("x")
+            H_int = 0 * sm.symbols("x")
             for term in terms_list:
                 term_var_indices = []
                 for var in term.free_symbols:
@@ -645,8 +732,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                         self,
                         systems_sym[index],
                         hd_indices=self.hd_indices[index],
-                        truncated_dim=self.HD_trunc_dims[index][0],
-                        HD_trunc_dims=self.HD_trunc_dims[index][1],
+                        truncated_dim=self.hd_trunc_dims[index][0],
+                        hd_trunc_dims=self.hd_trunc_dims[index][1],
                     )
                     for index in range(len(self.hd_indices))
                 ],
@@ -703,9 +790,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             #   - substituting cos and sin operators with their own symbols
             for i in self.var_indices["extended"]:
                 interaction = interaction.replace(
-                    sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
+                    sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θc" + str(i))
                 ).replace(
-                    sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i))
+                    sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θs" + str(i))
                 )
 
             expr_dict = interaction.as_coefficients_dict()
@@ -763,35 +850,51 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         # Defining the list of variables for periodic operators
         periodic_symbols_sin = [
-            symbols("θs" + str(i)) for i in self.var_indices["periodic"]
+            sm.symbols("θs" + str(i)) for i in self.var_indices["periodic"]
         ]
         periodic_symbols_cos = [
-            symbols("θc" + str(i)) for i in self.var_indices["periodic"]
+            sm.symbols("θc" + str(i)) for i in self.var_indices["periodic"]
         ]
         periodic_symbols_n = [
-            symbols("n" + str(i)) for i in self.var_indices["periodic"]
+            sm.symbols("n" + str(i)) for i in self.var_indices["periodic"]
         ]
 
         # Defining the list of discretized_phi variables
-        y_symbols = [symbols("θ" + str(i)) for i in self.var_indices["extended"]]
-        p_symbols = [symbols("Q" + str(i)) for i in self.var_indices["extended"]]
+        y_symbols = [sm.symbols("θ" + str(i)) for i in self.var_indices["extended"]]
+        p_symbols = [sm.symbols("Q" + str(i)) for i in self.var_indices["extended"]]
 
         if self.phi_basis == "discretized":
 
-            ps_symbols = [symbols("Qs" + str(i)) for i in self.var_indices["extended"]]
-            sin_symbols = [symbols("θs" + str(i)) for i in self.var_indices["extended"]]
-            cos_symbols = [symbols("θc" + str(i)) for i in self.var_indices["extended"]]
+            ps_symbols = [
+                sm.symbols("Qs" + str(i)) for i in self.var_indices["extended"]
+            ]
+            sin_symbols = [
+                sm.symbols("θs" + str(i)) for i in self.var_indices["extended"]
+            ]
+            cos_symbols = [
+                sm.symbols("θc" + str(i)) for i in self.var_indices["extended"]
+            ]
 
         elif self.phi_basis == "harmonic":
 
-            a_symbols = [symbols("a" + str(i)) for i in self.var_indices["extended"]]
-            ad_symbols = [symbols("ad" + str(i)) for i in self.var_indices["extended"]]
-            Nh_symbols = [symbols("Nh" + str(i)) for i in self.var_indices["extended"]]
-            pos_symbols = [symbols("θ" + str(i)) for i in self.var_indices["extended"]]
-            sin_symbols = [symbols("θs" + str(i)) for i in self.var_indices["extended"]]
-            cos_symbols = [symbols("θc" + str(i)) for i in self.var_indices["extended"]]
+            a_symbols = [sm.symbols("a" + str(i)) for i in self.var_indices["extended"]]
+            ad_symbols = [
+                sm.symbols("ad" + str(i)) for i in self.var_indices["extended"]
+            ]
+            Nh_symbols = [
+                sm.symbols("Nh" + str(i)) for i in self.var_indices["extended"]
+            ]
+            pos_symbols = [
+                sm.symbols("θ" + str(i)) for i in self.var_indices["extended"]
+            ]
+            sin_symbols = [
+                sm.symbols("θs" + str(i)) for i in self.var_indices["extended"]
+            ]
+            cos_symbols = [
+                sm.symbols("θc" + str(i)) for i in self.var_indices["extended"]
+            ]
             momentum_symbols = [
-                symbols("Q" + str(i)) for i in self.var_indices["extended"]
+                sm.symbols("Q" + str(i)) for i in self.var_indices["extended"]
             ]
 
             extended_symbols = (
@@ -811,7 +914,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 "cos": periodic_symbols_cos,
                 "number": periodic_symbols_n,
             },
-            "identity": [symbols("I")],
+            "identity": [sm.symbols("I")],
         }
 
         if self.phi_basis == "discretized":
@@ -835,7 +938,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def hamiltonian_function(self):
         """
-        Outputs the function using lambdify in Sympy, which returns a Hamiltonian matrix by using the circuit attributes set in either the input file or the instance attributes.
+        Generates a symbolic expression which is ready for numerical evaluation starting from the expression stored in the attribute hamiltonian_symbolic.
         """
         H = (
             self.hamiltonian_symbolic.expand()
@@ -845,10 +948,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         flux_shift_vars = {}
         for var_index in self.var_indices["extended"]:
             if H.coeff("θ" + str(var_index)) != 0:
-                flux_shift_vars[var_index] = symbols("Δθ" + str(var_index))
+                flux_shift_vars[var_index] = sm.symbols("Δθ" + str(var_index))
                 H = H.replace(
-                    symbols("θ" + str(var_index)),
-                    symbols("θ" + str(var_index)) + flux_shift_vars[var_index],
+                    sm.symbols("θ" + str(var_index)),
+                    sm.symbols("θ" + str(var_index)) + flux_shift_vars[var_index],
                 )  # substituting the flux offset variable offsets to collect the coefficients later
         H = H.expand()
 
@@ -872,7 +975,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         H = H.subs(
             [
-                (symbols("Δθ" + str(var_index)), flux_shifts_dict[var_index])
+                (sm.symbols("Δθ" + str(var_index)), flux_shifts_dict[var_index])
                 for var_index in flux_shifts_dict.keys()
             ]
         )  # substituting the flux offsets to remove the linear terms
@@ -894,29 +997,29 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         # marking the sin and cos terms of the periodic variables with different symbols
         if len(self.var_indices["periodic"]) > 0:
-            H = sympy.expand_trig(H).expand()
+            H = sm.expand_trig(H).expand()
 
         for i in self.var_indices["periodic"]:
             H = H.replace(
-                sympy.cos(1.0 * symbols("θ" + str(i))), symbols("θc" + str(i))
-            ).replace(sympy.sin(1.0 * symbols("θ" + str(i))), symbols("θs" + str(i)))
+                sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θc" + str(i))
+            ).replace(sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θs" + str(i)))
 
         if self.phi_basis == "discretized":
 
             # marking the squared momentum operators with a separate symbol
             for i in self.var_indices["extended"]:
-                H = H.replace(symbols("Q" + str(i)) ** 2, symbols("Qs" + str(i)))
+                H = H.replace(sm.symbols("Q" + str(i)) ** 2, sm.symbols("Qs" + str(i)))
 
         elif self.phi_basis == "harmonic":
-            H = sympy.expand_trig(H).expand()
+            H = sm.expand_trig(H).expand()
 
             for i in self.var_indices["extended"]:
                 H = H.replace(
-                    sympy.cos(1.0 * symbols("θ" + str(i))),
-                    symbols("θc" + str(i)),
+                    sm.cos(1.0 * sm.symbols("θ" + str(i))),
+                    sm.symbols("θc" + str(i)),
                 ).replace(
-                    sympy.sin(1.0 * symbols("θ" + str(i))),
-                    symbols("θs" + str(i)),
+                    sm.sin(1.0 * sm.symbols("θ" + str(i))),
+                    sm.symbols("θs" + str(i)),
                 )
 
         # removing the constants from the Hamiltonian
@@ -931,16 +1034,16 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             and "Nh" not in str(i)
         ]
         for i in constants:
-            # + i*coeff_dict[i]*symbols("I")).expand()
+            # + i*coeff_dict[i]*sm.symbols("I")).expand()
             H = H - i * coeff_dict[i]
 
         # associate a identity matrix with the external flux vars
         for phi in self.external_flux_vars:
-            H = H.subs(phi, phi * symbols("I") * 2 * np.pi)
+            H = H.subs(phi, phi * sm.symbols("I") * 2 * np.pi)
 
         # associate a identity matrix with offset charge vars
         for offset_charge in self.offset_charge_vars:
-            H = H.subs(offset_charge, offset_charge * symbols("I"))
+            H = H.subs(offset_charge, offset_charge * sm.symbols("I"))
         setattr(self, "H_f", H)
 
     ##################################################################
@@ -1187,7 +1290,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def circuit_operators(self):
         """
-        Returns the set of operators which can be given to the Hamiltonian function to construct the Hamiltonian matrix
+        Returns the set of operators needed to evaluate the Hamiltonian of the current instance.
         """
         import scqubits.core.discretization as discretization
         from scipy import sparse
@@ -1399,7 +1502,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         operator_list.append(self._identity())
 
         if return_dict:
-            variable_symbols_list.append(symbols("I"))
+            variable_symbols_list.append(sm.symbols("I"))
             operator_dict = dict(zip(variable_symbols_list, operator_list))
             return operator_dict
 
@@ -1444,15 +1547,15 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############# Functions for eigen values and matrices ############
     ##################################################################
-    def is_mat_mul_replacement_necessary(self, term):
+    def _is_mat_mul_replacement_necessary(self, term):
         return (
             set(self.var_indices["extended"])
             & set([get_trailing_number(str(i)) for i in term.free_symbols])
         ) and "*" in str(term)
 
-    def replace_mat_mul_operator(self, term):
+    def _replace_mat_mul_operator(self, term):
 
-        if not self.is_mat_mul_replacement_necessary(term):
+        if not self._is_mat_mul_replacement_necessary(term):
             return str(term)
 
         if self.phi_basis == "discretized":
@@ -1504,7 +1607,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # )
         return term_string
 
-    def get_eval_hamiltonian_string(self, H):
+    def _get_eval_hamiltonian_string(self, H):
         """
         Returns the string which defines the expression for Hamiltonian in harmonic oscillator basis
         """
@@ -1514,7 +1617,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         H_string = ""
         for x, term in enumerate(terms_list):
-            term_string = str(coeff_list[x]) + "*" + self.replace_mat_mul_operator(term)
+            term_string = (
+                str(coeff_list[x]) + "*" + self._replace_mat_mul_operator(term)
+            )
             if float(coeff_list[x]) > 0:
                 term_string = "+" + term_string
             H_string += term_string
@@ -1566,15 +1671,15 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             H = (
                 (
                     H
-                    - ECi * 4 * symbols("Q" + str(var_index)) ** 2
-                    - ELi / 2 * symbols("θ" + str(var_index)) ** 2
-                    + osc_freq * (symbols("Nh" + str(var_index)))
+                    - ECi * 4 * sm.symbols("Q" + str(var_index)) ** 2
+                    - ELi / 2 * sm.symbols("θ" + str(var_index)) ** 2
+                    + osc_freq * (sm.symbols("Nh" + str(var_index)))
                 )
                 .cancel()
                 .expand()
             )
 
-        H_str = self.get_eval_hamiltonian_string(H)
+        H_str = self._get_eval_hamiltonian_string(H)
         self._H_str_harmonic = H_str
 
         variable_symbols_list = (
@@ -1616,7 +1721,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         H = H - H.as_coefficients_dict()[1]
         H = H.expand()
 
-        H_str = self.get_eval_hamiltonian_string(H)
+        H_str = self._get_eval_hamiltonian_string(H)
         self._H_str_sparse = H_str
 
         variable_dict = self.get_operators(return_dict=True)
@@ -1665,7 +1770,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def _evals_calc(self, evals_count: int) -> ndarray:
         # dimension of the hamiltonian
         if self.hierarchical_diagonalization:
-            hilbertdim = np.prod([self.HD_trunc_dims[i][0] for i in self.HD_trunc_dims])
+            hilbertdim = np.prod([self.hd_trunc_dims[i][0] for i in self.hd_trunc_dims])
         else:
             hilbertdim = self.hilbertdim()
 
@@ -1687,7 +1792,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         # dimension of the hamiltonian
         if self.hierarchical_diagonalization:
-            hilbertdim = np.prod([self.HD_trunc_dims[i][0] for i in self.HD_trunc_dims])
+            hilbertdim = np.prod([self.hd_trunc_dims[i][0] for i in self.hd_trunc_dims])
         else:
             hilbertdim = self.hilbertdim()
 
@@ -1811,7 +1916,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             for var_name in sweep_vars:
                 parameters[var_name] = sweep_vars[var_name]
 
-        potential_func = lambdify(parameters.keys(), potential_sym, "numpy")
+        potential_func = sm.lambdify(parameters.keys(), potential_sym, "numpy")
 
         return potential_func(*parameters.values())
 
@@ -1869,7 +1974,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############# Functions for plotting wavefunction ################
     ##################################################################
-    def recursice_basis_change(
+    def _recursice_basis_change(
         self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
     ):
         """
@@ -1900,7 +2005,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 subsystem.subsystems.values()
             ):
                 if len(set(relevant_indices) & set(sub_subsys.var_indices_list)) > 0:
-                    wf_new_basis = self.recursice_basis_change(
+                    wf_new_basis = self._recursice_basis_change(
                         wf_new_basis,
                         wf_dim + sub_subsys_index,
                         sub_subsys,
@@ -1918,7 +2023,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
         return wf_new_basis
 
-    def basis_change_harm_osc_to_phi(self, wf_original_basis, wf_dim, var_index):
+    def _basis_change_harm_osc_to_phi(self, wf_original_basis, wf_dim, var_index):
         """
         Method to change the basis from harmonic oscillator to phi basis
         """
@@ -1941,7 +2046,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         )
         return wf_phi_basis
 
-    def basis_change_n_to_phi(self, wf_original_basis, wf_dim, var_index):
+    def _basis_change_n_to_phi(self, wf_original_basis, wf_dim, var_index):
         """
         Method to change the basis from harmonic oscillator to phi basis
         """
@@ -1960,7 +2065,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         )
         return wf_phi_basis
 
-    def get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
+    def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
         wf_dim = 0
         subsystem_indices_for_vars_chosen = list(
             set([self.get_subsystem_index(index) for index in np.sort(wf_var_indices)])
@@ -2007,7 +2112,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                         wf_dim += len(self.subsystems[sys_index].var_indices_list)
                     else:
                         wf_dim += 1
-                wf_original_basis = self.recursice_basis_change(
+                wf_original_basis = self._recursice_basis_change(
                     wf_original_basis,
                     wf_dim,
                     self.subsystems[subsys_index],
@@ -2030,17 +2135,17 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             if not self.hierarchical_diagonalization:
                 wf_dim = var_index - 1
             else:
-                wf_dim = self.get_var_dim_for_reshaped_wf(var_indices, var_index)
+                wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
 
             if (
                 var_index in self.var_indices["extended"]
                 and self.phi_basis == "harmonic"
             ):
-                wf_phi_basis = self.basis_change_harm_osc_to_phi(
+                wf_phi_basis = self._basis_change_harm_osc_to_phi(
                     wf_phi_basis, wf_dim, var_index
                 )
             if var_index in self.var_indices["periodic"]:
-                wf_phi_basis = self.basis_change_n_to_phi(
+                wf_phi_basis = self._basis_change_n_to_phi(
                     wf_phi_basis, wf_dim, var_index
                 )
 
@@ -2086,7 +2191,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         mode="abs",
     ):
         """
-        Returns the plot of the wavefunction in the requested variables and for a specific eigen system calculation.
+        Returns the plot of the probability density of the wavefunction in the requested variables for the current Circuit instance.
 
         Parameters
         ----------
@@ -2157,92 +2262,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             plt.ylabel(var_types[1] + str(var_indices[1]))
             plt.colorbar()
         plt.title("Distribution of Wavefuntion along variables " + str(var_indices))
-
-
-class DataBuffer(Circuit):
-    def __init__(self, parent: Circuit):
-        self.parent = parent
-        self.stored_cutoffs = parent.get_cutoffs()
-        self.stored_param_vars = parent.param_vars
-        self.stored_param_vals = parent.get_params()
-
-        # operator dictionary to store operators
-        self.stored_operators = None
-
-        # setting class attributes
-        self.store_operators()
-
-    def did_cutoffs_change(self):
-        """
-        Method which checks if the cutoffs changed compared to the last time operators were stored in this instance of DataBuffer.
-        """
-        return all(
-            flatten_list(self.stored_cutoffs.values())
-            == flatten_list(self.parent.get_cutoffs())
-        )
-
-    def store_operators(self):
-        """
-        Method to store the operators from the parent, based on the current parameters.
-        """
-        self.parent.set_operators()
-        self.stored_operators = self.parent.get_operators()
-
-        if self.parent.phi_basis == "harmonic":
-            position_operators = []
-            momentum_operators = []
-            sin_operators = []
-            cos_operators = []
-            for index in self.parent.var_indices["extended"]:
-                θ = (
-                    (
-                        getattr(self.parent, "ad" + str(index))
-                        + getattr(self.parent, "a" - str(index))
-                    )
-                    * self.parent.osc_lengths[index]
-                    / (2 ** 0.5)
-                )
-                Q = (
-                    1j
-                    * (
-                        getattr(self.parent, "ad" + str(index))
-                        - getattr(self.parent, "a" - str(index))
-                    )
-                    / (self.parent.osc_lengths[index] * (2 ** 0.5))
-                )
-                sin_operators.append(sp.linalg.sinm(θ))
-                cos_operators.append(sp.linalg.cosm(θ))
-                position_operators.append(θ)
-                momentum_operators.append(Q)
-
-            self.stored_operators += (
-                position_operators + momentum_operators + sin_operators + cos_operators
-            )
-
-    def update_buffer(self):
-        """
-        Updates the instance of DataBuffer only if the cutoffs of the parent were updated.
-        """
-        if self.did_cutoffs_change():
-            self.store_operators()
-
-    def retrieve_operators(self):
-        """
-        Retrieve operators from the DataBuffer instance or the parent depending on the Bool returned by did_cutoffs_change method.
-        """
-        if not self.did_cutoffs_change():
-            return self.stored_operators
-        else:
-            self.update_buffer()
-            return self.store_operators()
-
-
-# function to find the differences in the energy levels
-def energy_split(levels):  # gives the energy splits given the energy levels
-    splits = []
-    for i in range(1, len(levels)):
-        splits.append(levels[i] - levels[i - 1])
-    return splits
 
 
 # example input strings
