@@ -32,7 +32,7 @@ def process_word(word: str) -> Union[float, symbols]:
     return symbols(word)
 
 
-def parse_branch_parameter(word: str) -> Union[float, Tuple[Symbol, float]]:
+def parse_branch_parameter(word: str) -> Union[list[float], list[Symbol, float]]:
     """
     If the string word only has a number, its float value is returned. Else, if the word has the form
     "EJ=10", no spaces before or after =, it will return the Symbol object EJ and the float 10.
@@ -161,7 +161,7 @@ class Branch:
         self.parameters = parameters
         # store info of current branch inside the provided nodes
         # setting the parameters if it is provided
-        if parameters != None:
+        if parameters is not None:
             self.set_parameters(parameters)
         # TODO: discuss - this is an unexpected side effect - Each node is also updated when a new branch is created. This helps for example when we want to get the list of all branches connected to a single node. Makes it easier to write code, but definitely makes it more complicated to deal with.
         self.nodes[0].branches.append(self)
@@ -263,6 +263,7 @@ class SymbolicCircuit(serializers.Serializable):
         self.closure_branches: List[Branch] = []
 
         self.param_vars: List[Symbol] = []
+        self.param_init_vals: List[float] = []
 
         self.hamiltonian_symbolic: Union[sympy.Add, sympy.Mul] = None
         # to store the internally used lagrangian
@@ -397,7 +398,11 @@ class SymbolicCircuit(serializers.Serializable):
         return [Node(id, 0) for id in range(1, num_nodes + 1)]
 
     @staticmethod
-    def _parse_branches(branches_list, nodes: List[Node]) -> Tuple[List[Branch], Node]:
+    def _parse_branches(
+        branches_list, nodes: List[Node]
+    ) -> Tuple[
+        List[Branch], Optional[Node], Dict[Union[Any, Symbol], Union[Any, float]]
+    ]:
 
         node_count = len(nodes)
         is_grounded = False
