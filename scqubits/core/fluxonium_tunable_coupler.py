@@ -1984,7 +1984,7 @@ class ConstructFullPulse(serializers.Serializable):
         inv_Z_matrix = inv(new_Z_matrix)
         alpha = cmath.phase(gate_[0, 0])
         beta = cmath.phase(gate_[1, 1])
-        gamma = cmath.phase(gate_[1, 2])
+        gamma = cmath.phase((-1)*gate_[1, 2])
         if which_gate == 'sqrtiswap':
             angles_to_correct = (
                 np.array([-alpha, -beta, gamma + np.pi / 2])
@@ -2068,7 +2068,7 @@ class ConstructFullPulse(serializers.Serializable):
 
     @staticmethod
     def amp_from_freq_sqrtiswap(omega, omega_d, n=1):
-        return (
+        return np.abs(
             0.125
             * np.pi
             * (omega_d ** 2 - omega ** 2)
