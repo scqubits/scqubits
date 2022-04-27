@@ -214,14 +214,12 @@ def display_cross_kerr(
         label_list = [tuple_to_short_str(pair) for pair in level_pairs]
     elif type_list.count(Oscillator) == 2:
         title = r"cross-Kerr: {} <-> {}".format(subsys1.id_str, subsys2.id_str)
-        ylabel = r"Kerr coefficient $K_{{},{}}$".format(
-            subsys1_index, subsys2_index
-        )
+        ylabel = r"Kerr coefficient $K_{{},{}}$".format(subsys1_index, subsys2_index)
         level_pairs = [(1, 1)]
         kerr_data = sweep["kerr"][subsys1_index, subsys2_index][param_slice.fixed]
         label_list = []
     else:
-        title = u"cross-Kerr: {} \u2194 {}".format(subsys1.id_str, subsys2.id_str)
+        title = "cross-Kerr: {} \u2194 {}".format(subsys1.id_str, subsys2.id_str)
         ylabel = r"Kerr coefficient $\Lambda^{{{},{}}}_{{ll'}}$".format(
             subsys1_index, subsys2_index
         )
@@ -255,8 +253,9 @@ def display_self_kerr(
     if isinstance(subsys, Oscillator):
         ylabel = "Kerr coefficient $K_{{{}}}$".format(subsys_index)
     else:
-        ylabel = r"Kerr coefficient $\Lambda^{{{},{}}}_{{ll'}}$".format(subsys_index,
-                                                                        subsys_index)
+        ylabel = r"Kerr coefficient $\Lambda^{{{},{}}}_{{ll'}}$".format(
+            subsys_index, subsys_index
+        )
 
     kerr_data = sweep["kerr"][subsys_index, subsys_index][param_slice.fixed]
 

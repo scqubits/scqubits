@@ -361,7 +361,7 @@ class Explorer(ipywidgets.VBox):
                 HTML("<br>"),
                 self.ui_hbox["panel_settings"],
             ],
-            layout=Layout(width="100%"), #width(900),
+            layout=Layout(width="100%"),  # width(900),
         )
 
     # +--parameters_panel_left-----+

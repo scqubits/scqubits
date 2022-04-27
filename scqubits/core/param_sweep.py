@@ -66,7 +66,7 @@ if settings.IN_IPYTHON:
 else:
     from tqdm import tqdm
 
-from scqubits.utils.typedefs import GIndexTuple, NpIndices, QuantumSys, QubitList
+from scqubits.utils.typedefs import GIndexTuple, NpIndices, QubitList
 
 BareLabel = Tuple[int, ...]
 DressedLabel = int
@@ -110,10 +110,10 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def hilbertspace(self) -> HilbertSpace:
         return self._hilbertspace
 
-    def get_subsys(self, index: int) -> QuantumSys:
+    def get_subsys(self, index: int) -> QuantumSystem:
         return self.hilbertspace[index]
 
-    def subsys_by_id_str(self, id_str: str) -> QuantumSys:
+    def subsys_by_id_str(self, id_str: str) -> QuantumSystem:
         return self.hilbertspace.subsys_by_id_str(id_str)
 
     def subsys_evals_count(self, subsys_index: int) -> int:
@@ -122,7 +122,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def dressed_evals_count(self) -> int:
         return self._evals_count
 
-    def get_subsys_index(self, subsys: QuantumSys) -> int:
+    def get_subsys_index(self, subsys: QuantumSystem) -> int:
         return self.hilbertspace.get_subsys_index(subsys)
 
     @property
@@ -284,7 +284,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         return len(reduced_parameters) == 1
 
     def _final_states_for_subsys_transition(
-        self, subsystem: QuantumSys, initial_tuple: BareLabel
+        self, subsystem: QuantumSystem, initial_tuple: BareLabel
     ) -> List[BareLabel]:
         """For given initial state of the composite quantum system, return the final
         states possible to reach by changing the energy level of the given
@@ -302,7 +302,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def _get_final_states_list(
         self,
         initial_state: Union[BareLabel, DressedLabel],
-        subsys_list: List[QuantumSys],
+        subsys_list: List[QuantumSystem],
         sidebands: bool,
     ) -> List[BareLabel]:
         """Construct and return the possible final states as a list, based on the
@@ -329,7 +329,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def _complete_state(
         self,
         partial_state: BareLabel,
-        subsys_list: List[QuantumSys],
+        subsys_list: List[QuantumSystem],
     ) -> BareLabel:
         """A partial state only includes entries for active subsystems. Complete this
         state by inserting 0 entries for all inactive subsystems."""
@@ -340,8 +340,8 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         return tuple(state_full)
 
     def _process_subsystems_option(
-        self, subsystems: Optional[Union[QuantumSys, List[QuantumSys]]]
-    ) -> List[QuantumSys]:
+        self, subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]]
+    ) -> List[QuantumSystem]:
         if subsystems is None:
             return self.hilbertspace.subsys_list
         if isinstance(subsystems, list):
@@ -353,7 +353,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def _process_initial_option(
         self,
         initial: Union[None, StateLabel],
-        subsys_list: List[QuantumSys],
+        subsys_list: List[QuantumSystem],
     ) -> Tuple[bool, Callable, StateLabel]:
         if isinstance(initial, DressedLabel):
             initial_dressed = True
@@ -378,7 +378,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         self,
         final: Union[None, StateLabel],
         initial: StateLabel,
-        subsys_list: List[QuantumSys],
+        subsys_list: List[QuantumSystem],
         sidebands: bool,
     ) -> Tuple[bool, Callable, Union[List[DressedLabel], List[BareLabel]]]:
         if final is None:
@@ -450,7 +450,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def transitions(
         self,
         as_specdata: Literal[True] = True,
-        subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
+        subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
         initial: Optional[StateLabel] = None,
         final: Optional[StateLabel] = None,
         sidebands: bool = False,
@@ -464,7 +464,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def transitions(
         self,
         as_specdata: Literal[False],
-        subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
+        subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
         initial: Optional[StateLabel] = None,
         final: Optional[StateLabel] = None,
         sidebands: bool = False,
@@ -477,7 +477,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def transitions(
         self,
         as_specdata: bool = False,
-        subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
+        subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
         initial: Optional[StateLabel] = None,
         final: Optional[StateLabel] = None,
         sidebands: bool = False,
@@ -608,7 +608,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
 
     def plot_transitions(
         self,
-        subsystems: Optional[Union[QuantumSys, List[QuantumSys]]] = None,
+        subsystems: Optional[Union[QuantumSystem, List[QuantumSystem]]] = None,
         initial: Optional[StateLabel] = None,
         final: Optional[StateLabel] = None,
         sidebands: bool = False,
@@ -817,24 +817,8 @@ class ParameterSweep(  # type:ignore
     ParameterSweepBase, dispatch.DispatchClient, serializers.Serializable
 ):
     """
-    `ParameterSweep` supports array-like access ("pre-slicing") and dict-like access.
-    With dict-like access via string-keywords `<ParameterSweep>[<str>]`,
-    the following data is returned:
-
-    `"evals"` and `"evecs"`
-        dressed eigenenergies and eigenstates as
-        `NamedSlotsNdarray`; eigenstates are decomposed in the bare product-state basis
-        of the non-interacting subsystems' eigenbases
-    `"bare_evals"` and `"bare_evecs"`
-        bare eigenenergies and eigenstates as `NamedSlotsNdarray`
-    `"lamb"`, `"chi"`, and `"kerr"`
-        dispersive energy coefficients
-    `"<custom sweep>"`
-        NamedSlotsNdarray for custom data generated with `add_sweep`.
-
-    Array-like access is responsible for "pre-slicing",
-    enable lookup functionality such as
-    `<Sweep>[p1, p2, ...].eigensys()`
+    Create multi-dimensional parameter sweeps for a quantum system described by a
+    `HilbertSpace` object.
 
     Parameters
     ----------
@@ -892,6 +876,27 @@ class ParameterSweep(  # type:ignore
         number of CPU cores requested for computing the sweep
         (default value `settings.NUM_CPUS`)
 
+
+    Notes
+    -----
+    `ParameterSweep` supports array-like access ("pre-slicing") and dict-like access.
+    With dict-like access via string-keywords `<ParameterSweep>[<str>]`,
+    the following data is returned:
+
+    `"evals"` and `"evecs"`
+        dressed eigenenergies and eigenstates as
+        `NamedSlotsNdarray`; eigenstates are decomposed in the bare product-state basis
+        of the non-interacting subsystems' eigenbases
+    `"bare_evals"` and `"bare_evecs"`
+        bare eigenenergies and eigenstates as `NamedSlotsNdarray`
+    `"lamb"`, `"chi"`, and `"kerr"`
+        dispersive energy coefficients
+    `"<custom sweep>"`
+        NamedSlotsNdarray for custom data generated with `add_sweep`.
+
+    Array-like access is responsible for "pre-slicing",
+    enable lookup functionality such as
+    `<Sweep>[p1, p2, ...].eigensys()`
     """
 
     def __init__(
@@ -900,7 +905,7 @@ class ParameterSweep(  # type:ignore
         paramvals_by_name: Dict[str, ndarray],
         update_hilbertspace: Callable,
         evals_count: int = 20,
-        subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
+        subsys_update_info: Optional[Dict[str, List[QuantumSystem]]] = None,
         bare_only: bool = False,
         ignore_low_overlap: bool = False,
         autorun: bool = settings.AUTORUN_SWEEP,
@@ -1020,7 +1025,7 @@ class ParameterSweep(  # type:ignore
         )
 
     def _update_subsys_compute_esys(
-        self, update_func: Callable, subsystem: QuantumSys, paramval_tuple: Tuple[float]
+        self, update_func: Callable, subsystem: QuantumSystem, paramval_tuple: Tuple[float]
     ) -> ndarray:
         update_func(self, *paramval_tuple)
         evals, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)
@@ -1328,7 +1333,7 @@ class StoredSweep(
         paramvals_by_name: Dict[str, ndarray],
         update_hilbertspace: Callable,
         evals_count: int = 6,
-        subsys_update_info: Optional[Dict[str, List[QuantumSys]]] = None,
+        subsys_update_info: Optional[Dict[str, List[QuantumSystem]]] = None,
         autorun: bool = settings.AUTORUN_SWEEP,
         num_cpus: Optional[int] = None,
     ) -> ParameterSweep:

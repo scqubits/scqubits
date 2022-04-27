@@ -159,7 +159,7 @@ subsys_panel_names = [
     "Wavefunctions",
     "Matrix elements",
     "Anharmonicity",
-    "Self-Kerr"
+    "Self-Kerr",
 ]
 
 composite_panel_names = ["Transitions", "Cross-Kerr, ac-Stark", "Custom data"]
@@ -170,7 +170,7 @@ mode_dropdown_list = [
     ("Re(·)", "real"),
     ("Im(·)", "imag"),
     ("|·|", "abs"),
-    (u"|\u00B7|\u00B2", "abs_sqr"),
+    ("|\u00B7|\u00B2", "abs_sqr"),
 ]
 
 default_panels = {qubit_name: common_panels for qubit_name in supported_qubits}

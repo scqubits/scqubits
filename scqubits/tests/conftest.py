@@ -8,7 +8,7 @@
 #
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
-#######################################################################################################################
+#######################################################################################
 
 
 import os
@@ -42,9 +42,9 @@ DATADIR = os.path.join(TESTDIR, "data", "")  # local data collection within scqu
 def pytest_addoption(parser):
     """
     This is to implement custom pytest command line options
-    1. multi-processing tests
-       When invoking pytest, simply add ` --num_cpus 2` to pytest calls
-    2. option for input-output file format
+    OPTION 1: multi-processing tests
+    When invoking pytest, simply add ` --num_cpus 2` to pytest calls
+    OPTION 2: input-output file format
     """
     parser.addoption(
         "--num_cpus", action="store", default=1, help="number of cores to be used"

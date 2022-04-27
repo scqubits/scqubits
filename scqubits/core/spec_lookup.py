@@ -322,7 +322,7 @@ class SpectrumLookupMixin(MixinCompatible):
             max_position = (np.abs(overlap_matrix[dressed_index, :])).argmax()
             max_overlap = np.abs(overlap_matrix[dressed_index, max_position])
             if self._ignore_low_overlap or (
-                max_overlap ** 2 > settings.OVERLAP_THRESHOLD
+                max_overlap**2 > settings.OVERLAP_THRESHOLD
             ):
                 overlap_matrix[:, max_position] = 0
                 dressed_indices[int(max_position)] = dressed_index

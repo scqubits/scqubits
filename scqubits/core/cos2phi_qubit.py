@@ -561,14 +561,14 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
         Returns
         -------
             inductive energy renormalized by with disorder"""
-        return self.EL / (1 - self.dL ** 2)
+        return self.EL / (1 - self.dL**2)
 
     def _disordered_ecj(self) -> float:
         """
         Returns
         -------
             junction capacitance energy renormalized by with disorder"""
-        return self.ECJ / (1 - self.dCJ ** 2)
+        return self.ECJ / (1 - self.dCJ**2)
 
     def phi_osc(self) -> float:
         """

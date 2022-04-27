@@ -324,8 +324,11 @@ def matrix_skyscraper(
 
 
 def matrix2d(
-    matrix: np.ndarray, mode: str = "abs", show_numbers: bool = True,
-        show_colorbar: bool = True, **kwargs
+    matrix: np.ndarray,
+    mode: str = "abs",
+    show_numbers: bool = True,
+    show_colorbar: bool = True,
+    **kwargs
 ) -> Tuple[Figure, Axes]:
     """Display a matrix as a color-coded 2d plot, optionally printing the numerical
     values of the matrix elements.

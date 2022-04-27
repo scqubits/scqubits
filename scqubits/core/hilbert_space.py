@@ -581,7 +581,9 @@ class HilbertSpace(
             bare_evecs, {"subsys": np.arange(self.subsystem_count)}
         )
 
-        evals, evecs = self.eigensys(evals_count=self.dimension, bare_esys=bare_esys_dict)
+        evals, evecs = self.eigensys(
+            evals_count=self.dimension, bare_esys=bare_esys_dict
+        )
         # The following workaround ensures that eigenvectors maintain QutipEigenstates
         # view when getting placed inside an outer array
         evecs_wrapped = np.empty(shape=1, dtype=object)

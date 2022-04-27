@@ -28,13 +28,7 @@ def test_explorer():
     )
 
     tmon2 = scq.TunableTransmon(
-        EJmax=15.0,
-        EC=0.15,
-        d=0.02,
-        flux=0.0,
-        ng=0.0,
-        ncut=30,
-        truncated_dim=5
+        EJmax=15.0, EC=0.15, d=0.02, flux=0.0, ng=0.0, ncut=30, truncated_dim=5
     )
 
     resonator = scq.Oscillator(E_osc=4.5, truncated_dim=4)  # up to 3 photons (0,1,2,3)
@@ -70,7 +64,7 @@ def test_explorer():
     area_ratio = 1.2
 
     def update_hilbertspace(
-            flux, ng
+        flux, ng
     ):  # function that defines how Hilbert space components are updated
         tmon1.flux = flux
         tmon2.flux = area_ratio * flux
