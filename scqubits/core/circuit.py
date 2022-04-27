@@ -37,7 +37,6 @@ from scipy.sparse.csc import csc_matrix
 from matplotlib import pyplot as plt
 from scqubits.core import operators as op
 from scqubits import HilbertSpace, settings
-from scqubits.core import symboliccircuit
 import scqubits.core.oscillator as osc
 
 from scqubits.core.symboliccircuit import Branch, SymbolicCircuit
@@ -122,24 +121,24 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         truncated_dim: int = None,
     ):
         """
-        _summary_
+        init method for class Circuit
 
         Parameters
         ----------
         circuit_data : dict
-            _description_
+            Dict containing all the attributes copied from SymbolicCircuit object or generated for a child using a symbolic Hamiltonian.
         initiate_sym_calc : bool, optional
-            _description_, by default True
+            Set to True if the symbolic calculations need to be initialized, by default True
         phi_basis : str, optional
-            _description_, by default "discretized"
+            can be "discretized" or "harmonic" which chooses whether to use discretized phi or harmonic oscillator basis for extended variables, by default "discretized"
         hierarchical_diagonalization : bool, optional
-            _description_, by default True
+            Boolean whether to use hierarchical diagonalization, by default False
         hd_indices : list, optional
-            _description_, by default []
-        hd_trunc_dims : list, optional
-            _description_, by default []
+            A list of lists which is provided by the user to define subsystems, by default None
+        hd_trunc_dims : dict, optional
+            a dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
-            _description_, by default None
+            truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
         """
         # attribute to check if this is a child circuit instance
         self.is_child = False
@@ -222,7 +221,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         is_child = True
         parent = parent
         hamiltonian_symbolic = hamiltonian_symbolic
-        H_f = hamiltonian_symbolic
+        _hamiltonian_sym_for_numerics = hamiltonian_symbolic
 
         # _sys_type = type(self).__name__  # for object description
         # TODO we talked about this... did you not fix this meanwhile? -  I think this is somehow needed for some method call. I will need to test it further
@@ -309,7 +308,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             "external_flux_vars": external_flux_vars,
             "offset_charge_vars": offset_charge_vars,
             "hamiltonian_symbolic": hamiltonian_symbolic,
-            "H_f": H_f,
+            "_hamiltonian_sym_for_numerics": _hamiltonian_sym_for_numerics,
             "param_vars": param_vars,
             "cutoffs_dict": cutoffs_dict,
             "cutoffs_list": cutoffs_list,
@@ -499,9 +498,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     # def set_param(self, param_name, value):
     #     if self.phi_basis == "harmonic":
     #         setattr(self, "_" + param_name, value)
-    #         self.hierarchical_diagonalization_func()
+    #         self.generate_subsystems()
     #         self.set_operators()
-    #         self.complete_hilbert_space()
+    #         self.build_hilbertspace()
 
     def initiate_child(self):
         for var in self.param_vars + self.offset_charge_vars + self.external_flux_vars:
@@ -519,9 +518,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         self.set_vars()
         if self.hierarchical_diagonalization:
-            self.hierarchical_diagonalization_func()
+            self.generate_subsystems()
             self.set_operators()
-            self.complete_hilbert_space()
+            self.build_hilbertspace()
         else:
             self.set_operators()
 
@@ -596,7 +595,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         for x, param in enumerate(self.param_vars):
             # storing the parameter values into a class attribute.
             # if harmonic oscillator basis is used, param vars become class properties.
-            setattr(self, param.name, self.params_init_vals[x])
+            setattr(self, param.name, self.param_init_vals[x])
 
             # param_gettr = lambda self, param_name=param.name: getattr(self,  "_" + param_name)
             # param_settr = lambda self, value, param_name=param.name: self.set_param(param_name, value)
@@ -633,7 +632,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         self.set_vars()  # setting the attribute vars to store operator symbols
 
         if not self.hierarchical_diagonalization:
-            self.hamiltonian_function()
+            self.generate_hamiltonian_sym_for_numerics()
         else:
             if hd_indices is None:
                 self.hd_indices = [
@@ -648,11 +647,14 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 )
             else:
                 self.hd_trunc_dims = hd_trunc_dims
-            self.hamiltonian_function()
-            self.hierarchical_diagonalization_func()
+            # only calculate the symbolic hamiltonian when the number of nodes is less than 3. Else, the calculation will be skipped to the end when numerical Hamiltonian of the circuit is requested.
+            if len(self.symbolic_circuit.nodes) <= 3:
+                self.generate_hamiltonian_sym_for_numerics()
+                self.generate_subsystems()
 
         # initilizing attributes for operators
-        self.set_operators()
+        if len(self.symbolic_circuit.nodes) <= 3:
+            self.set_operators()
 
     ##################################################################
     ##### Functions to construct the function for the Hamiltonian ####
@@ -678,9 +680,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         return sparse.diags(np.sin(x.diagonal())).tocsc()
 
-    def hierarchical_diagonalization_func(self):
+    def generate_subsystems(self):
         # H = self.hamiltonian_symbolic.expand()
-        H = self.H_f
+        H = self._hamiltonian_sym_for_numerics
 
         systems_sym = []
         interaction_sym = []
@@ -771,7 +773,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         )
         return operator_identity_wrapped.full()
 
-    def complete_hilbert_space(self):
+    def build_hilbertspace(self):
         hilbert_space = HilbertSpace(
             [self.subsystems[i] for i in range(len(self.hd_indices))]
         )
@@ -942,7 +944,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 "cos": cos_symbols,
             }
 
-    def hamiltonian_function(self):
+    def generate_hamiltonian_sym_for_numerics(self):
         """
         Generates a symbolic expression which is ready for numerical evaluation starting from the expression stored in the attribute hamiltonian_symbolic.
         """
@@ -1050,7 +1052,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # associate a identity matrix with offset charge vars
         for offset_charge in self.offset_charge_vars:
             H = H.subs(offset_charge, offset_charge * sm.symbols("I"))
-        setattr(self, "H_f", H)
+        setattr(self, "_hamiltonian_sym_for_numerics", H)
 
     ##################################################################
     ############### Functions to construct the operators #############
@@ -1351,7 +1353,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     self._kron_operator(ps_operator, index)
                 )
         elif self.phi_basis == "harmonic":
-            H = self.H_f
+            H = self._hamiltonian_sym_for_numerics
             index_list = [j for i in list(self.var_indices.values()) for j in i]
             cutoff_list = [j for i in list(self.get_cutoffs().values()) for j in i]
             cutoffs_dict = dict(zip(index_list, cutoff_list))
@@ -1495,7 +1497,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def get_operators(self, return_dict=False):
         """
-        Returns a list of operators which can be given as an argument to self.H_func. These operators are not calculated again and are fetched directly from the circuit attibutes. Use set_attributes instead if the paramaters, expecially cutoffs, are changed.
+        Returns a list of operators which can be given as an argument to self._hamiltonian_sym_for_numericsunc. These operators are not calculated again and are fetched directly from the circuit attibutes. Use set_attributes instead if the paramaters, expecially cutoffs, are changed.
         """
         variable_symbols_list = flatten_list(
             self.vars["periodic"].values()
@@ -1523,7 +1525,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def set_operators(self):
         """
         Sets the operator attributes of the circuit with new operators calculated using the paramaters set in the circuit attributes. Returns a list of operators similar to the method get_operators.
-        Returns nothing.
         """
 
         variable_symbols_list = (
@@ -1648,7 +1649,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def _hamiltonian_for_harmonic_extended_vars(self):
 
-        H = self.H_f
+        H = self._hamiltonian_sym_for_numerics
         index_list = [j for i in list(self.var_indices.values()) for j in i]
         cutoff_list = [j for i in list(self.get_cutoffs().values()) for j in i]
         cutoffs_dict = dict(zip(index_list, cutoff_list))
@@ -1714,7 +1715,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def _hamiltonian_for_discretized_extended_vars(self):
 
-        H = self.H_f
+        H = self._hamiltonian_sym_for_numerics
         H = H.subs(
             [
                 (param, getattr(self, str(param)))
@@ -1746,10 +1747,17 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         Returns the Hamiltonian of the Circuit.
         """
+        if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
+            self.hamiltonian_symbolic = (
+                self.symbolic_circuit.generate_symbolic_hamiltonian(
+                    substitute_params=True
+                )
+            )
+            self.generate_hamiltonian_sym_for_numerics()
         if self.hierarchical_diagonalization and not self.is_child:
-            self.hierarchical_diagonalization_func()
+            self.generate_subsystems()
             self.set_operators()
-            self.complete_hilbert_space()
+            self.build_hilbertspace()
         elif not self.is_child:
             self.set_operators()
 

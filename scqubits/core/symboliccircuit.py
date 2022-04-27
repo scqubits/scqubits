@@ -244,6 +244,7 @@ class SymbolicCircuit(serializers.Serializable):
         self,
         nodes_list: List[Node],
         branches_list: List[Branch],
+        branch_var_dict: dict,
         basis_completion: str = "simple",
         ground_node=None,
         initiate_sym_calc: bool = True,
@@ -262,8 +263,8 @@ class SymbolicCircuit(serializers.Serializable):
         self.external_flux_vars: List[Symbol] = []
         self.closure_branches: List[Branch] = []
 
-        self.param_vars: List[Symbol] = []
-        self.param_init_vals: List[float] = []
+        self.param_vars: List[Symbol] = list(branch_var_dict.keys())
+        self.param_init_vals: List[float] = list(branch_var_dict.values())
 
         self.hamiltonian_symbolic: Union[sympy.Add, sympy.Mul] = None
         # to store the internally used lagrangian
@@ -321,7 +322,7 @@ class SymbolicCircuit(serializers.Serializable):
         self._set_external_flux_vars(closure_branches=closure_branches)
         self._set_offset_charge_vars()
         # setting the branch parameter variables
-        self._set_param_vars()
+        # self._set_param_vars()
         # Calculate the Lagrangian
         (
             self._lagrangian_symbolic,
@@ -335,8 +336,11 @@ class SymbolicCircuit(serializers.Serializable):
             self.lagrangian_node_vars,
         ) = self._replace_energies_with_capacitances_L()
 
-        # calculating the Hamiltonian
-        self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian()
+        # calculating the Hamiltonian directly when the number of nodes is less than 3
+        if (
+            len(self.nodes) <= 3
+        ):  # only calculate the symbolic hamiltonian when the number of nodes is less than 3. Else, the calculation will be skipped to the end when numerical Hamiltonian of the circuit is requested.
+            self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian()
 
     def _replace_energies_with_capacitances_L(self):
         """
@@ -556,12 +560,11 @@ class SymbolicCircuit(serializers.Serializable):
             nodes,
             branches,
             ground_node=ground_node,
+            branch_var_dict=branch_var_dict,
             basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
             input_string=input_string,
         )
-        circuit.param_vars = list(branch_var_dict.keys())
-        circuit.params_init_vals = list(branch_var_dict.values())
 
         return circuit
 
@@ -1097,7 +1100,20 @@ class SymbolicCircuit(serializers.Serializable):
                 )
         return terms
 
-    def _capacitance_matrix(self):
+    def _capacitance_matrix(self, substitute_params=False):
+        """
+        Generate a capacitance matrix for the circuit
+
+        Parameters
+        ----------
+        substitute_params : bool, optional
+            when set to True all the symbolic branch parameters are substituted with their corresponding attributes in float, by default False
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         branches_with_capacitance = [
             branch for branch in self.branches if branch.type in ["C", "JJ", "JJ2"]
         ]
@@ -1107,37 +1123,39 @@ class SymbolicCircuit(serializers.Serializable):
             "JJ2": "ECJ",
         }
 
+        param_init_vals_dict = dict(zip(self.param_vars, self.param_init_vals))
+
         # filling the non-diagonal entries
         if not self.is_grounded:
             num_nodes = len(self.nodes)
-            if not self.is_any_branch_parameter_symbolic():
+            if not self.is_any_branch_parameter_symbolic() or substitute_params:
                 C_mat = np.zeros([num_nodes, num_nodes])
             else:
                 C_mat = sympy.zeros(num_nodes)
-            for branch in branches_with_capacitance:
-                if len(set(branch.nodes)) > 1:  # branch if shorted is not considered
-                    C_mat[branch.nodes[0].id - 1, branch.nodes[1].id - 1] += -1 / (
-                        branch.parameters[
-                            capacitance_param_for_branch_type[branch.type]
-                        ]
-                        * 8
-                    )
         else:
             num_nodes = len(self.nodes) + 1
-            if not self.is_any_branch_parameter_symbolic():
+            if not self.is_any_branch_parameter_symbolic() or substitute_params:
                 C_mat = np.zeros([num_nodes, num_nodes])
             else:
                 C_mat = sympy.zeros(num_nodes)
-            for branch in branches_with_capacitance:
-                if len(set(branch.nodes)) > 1:  # branch if shorted is not considered
+
+        for branch in branches_with_capacitance:
+            if len(set(branch.nodes)) > 1:  # branch if shorted is not considered
+                capacitance = branch.parameters[
+                    capacitance_param_for_branch_type[branch.type]
+                ]
+                if type(capacitance) != float and substitute_params:
+                    capacitance = param_init_vals_dict[capacitance]
+                if self.is_grounded:
                     C_mat[branch.nodes[0].id, branch.nodes[1].id] += -1 / (
-                        branch.parameters[
-                            capacitance_param_for_branch_type[branch.type]
-                        ]
-                        * 8
+                        capacitance * 8
+                    )
+                else:
+                    C_mat[branch.nodes[0].id - 1, branch.nodes[1].id - 1] += -1 / (
+                        capacitance * 8
                     )
 
-        if not self.is_any_branch_parameter_symbolic():
+        if not self.is_any_branch_parameter_symbolic() or substitute_params:
             C_mat = C_mat + C_mat.T - np.diag(C_mat.diagonal())
         else:
             C_mat = C_mat + C_mat.T - sympy.diag(*C_mat.diagonal())
@@ -1391,7 +1409,13 @@ class SymbolicCircuit(serializers.Serializable):
                 symbols("ng_" + str(p))
             ]
 
-    def generate_symbolic_lagrangian(self):
+    def generate_symbolic_lagrangian(
+        self,
+    ) -> Tuple[
+        Union[sympy.Add, sympy.Mul],
+        Union[sympy.Add, sympy.Mul],
+        Union[sympy.Add, sympy.Mul],
+    ]:
         r"""
         Returns three symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ
         where θ represents the set of new variables and φ represents the set of node variables
@@ -1466,14 +1490,16 @@ class SymbolicCircuit(serializers.Serializable):
 
         return lagrangian_θ, potential_θ, lagrangian_φ
 
-    def generate_symbolic_hamiltonian(self):
+    def generate_symbolic_hamiltonian(
+        self, substitute_params=False
+    ) -> Union[sympy.Add, sympy.Mul]:
         r"""
         Returns the Hamiltonian of the circuit in terms of the new variables :math:`\theta_i`.
 
         Parameters
         ----------
-        transformation_matrix:
-            None or an alternative transformation matrix to the one returned by the method variable_transformation_matrix
+        substitute_params: Bool
+            When set to True, the symbols defined for branch parameters will be substituted with the numerical values in the respective Circuit attributes.
         """
 
         transformation_matrix = self.trans_mat
@@ -1487,7 +1513,7 @@ class SymbolicCircuit(serializers.Serializable):
         num_nodes = len(self.nodes)
 
         # generating the C_mat_θ by inverting the capacitance matrix
-        if self.is_any_branch_parameter_symbolic():
+        if self.is_any_branch_parameter_symbolic() and not substitute_params:
             C_mat_θ = (
                 transformation_matrix.T
                 * self._capacitance_matrix()
@@ -1500,7 +1526,7 @@ class SymbolicCircuit(serializers.Serializable):
             C_mat_θ = np.linalg.inv(
                 (
                     transformation_matrix.T
-                    @ self._capacitance_matrix()
+                    @ self._capacitance_matrix(substitute_params=substitute_params)
                     @ transformation_matrix
                 )[
                     0 : num_nodes - num_frozen_modes,
