@@ -39,6 +39,7 @@ from scipy.sparse.csc import csc_matrix
 from matplotlib import pyplot as plt
 from scqubits.core import operators as op
 from scqubits import HilbertSpace, settings
+from scqubits.core import symboliccircuit
 import scqubits.core.oscillator as osc
 
 from scqubits.core.symboliccircuit import Branch, SymbolicCircuit
@@ -64,7 +65,7 @@ def generate_default_trunc_dims(index_list):
     trunc_dims = []
     for x, subsystem_indices in enumerate(index_list):
         if subsystem_indices == flatten_list_recursive(subsystem_indices):
-            trunc_dims.append([10])
+            trunc_dims.append(10)
         else:
             trunc_dims.append(
                 [
@@ -118,8 +119,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         initiate_sym_calc: bool = True,
         phi_basis: str = "discretized",
         hierarchical_diagonalization: bool = True,
-        subsystem_indices=None,
-        subsystem_trunc_dims=None,
+        subsystem_indices: list = None,
+        subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
     ):
         """
@@ -137,7 +138,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             Boolean whether to use hierarchical diagonalization, by default False
         subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        subsystem_trunc_dims : dict, optional
+        subsystem_trunc_dims : list, optional
             a dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
@@ -192,7 +193,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         parent,
         hamiltonian_symbolic,
         subsystem_indices: list,
-        subsystem_trunc_dims=None,
+        subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
     ):
         """
@@ -206,7 +207,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             sympy expression of a hamiltonian expression which is used to define a child of an instance Circuit
         subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        subsystem_trunc_dims : dict, optional
+        subsystem_trunc_dims : list, optional
             a dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
@@ -338,7 +339,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         hierarchical_diagonalization: bool = False,
         phi_basis: str = "discretized",
         subsystem_indices: list = None,
-        subsystem_trunc_dims: dict = None,
+        subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
     ):
         """
@@ -356,7 +357,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             can be "discretized" or "harmonic" which chooses whether to use discretized phi or harmonic oscillator basis for extended variables, by default "discretized"
         subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        subsystem_trunc_dims : dict, optional
+        subsystem_trunc_dims : list, optional
             a dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
@@ -398,8 +399,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         basis_completion="simple",
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
-        subsystem_indices=None,
-        subsystem_trunc_dims=None,
+        subsystem_indices: list = None,
+        subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
     ):
         """
@@ -419,7 +420,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             Boolean whether to use hierarchical diagonalization, by default False
         subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        subsystem_trunc_dims : dict, optional
+        subsystem_trunc_dims : list, optional
             a dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
@@ -452,8 +453,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         basis_completion="simple",
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
-        subsystem_indices=None,
-        subsystem_trunc_dims=None,
+        subsystem_indices: list = None,
+        subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
     ):
         """
@@ -473,7 +474,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             Boolean whether to use hierarchical diagonalization, by default False
         subsystem_indices : list, optional
             list of lists which is provided by the user to define subsystems, by default None
-        subsystem_trunc_dims : dict, optional
+        subsystem_trunc_dims : list, optional
             dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
@@ -521,7 +522,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for large circuits
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
-            self.set_operators()
             self.build_hilbertspace()
         else:
             self.set_operators()
@@ -534,7 +534,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # update all subsystem instances
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems.values():
-                setattr(subsys, param_name, value)
+                if hasattr(subsys, param_name):
+                    setattr(subsys, param_name, value)
 
     def _set_property_and_update_cutoffs(self, param_name, value):
         setattr(self, "_" + param_name, value)
@@ -542,7 +543,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # set operators and rebuild the hilbertspace object
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems.values():
-                setattr(subsys, param_name, value)
+                if hasattr(subsys, param_name):
+                    setattr(subsys, param_name, value)
             self.set_operators()
             self.build_hilbertspace()
         else:
@@ -611,7 +613,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         self,
         transformation_matrix: ndarray = None,
         subsystem_indices: list = None,
-        subsystem_trunc_dims: dict = None,
+        subsystem_trunc_dims: list = None,
         closure_branches: list[Branch] = None,
     ):
         """
@@ -623,7 +625,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             A user defined variable transformation which has the dimensions of the number nodes(not counting the ground node), by default None
         subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        subsystem_trunc_dims : dict, optional
+        subsystem_trunc_dims : list, optional
             dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         closure_branches : list[Branch], optional
             List of branches where external flux variables will be specified, by default None which then chooses closure branches by an internally generated spanning tree.
@@ -719,8 +721,16 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         self.set_vars()  # setting the attribute vars to store operator symbols
 
+        if len(self.symbolic_circuit.nodes) > 3:
+            self.hamiltonian_symbolic = (
+                self.symbolic_circuit.generate_symbolic_hamiltonian(
+                    substitute_params=True
+                )
+            )
+
         if not self.hierarchical_diagonalization:
             self.generate_hamiltonian_sym_for_numerics()
+            self.set_operators()
         else:
             if subsystem_indices is None:
                 self.subsystem_indices = [
@@ -735,18 +745,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 )
             else:
                 self.subsystem_trunc_dims = subsystem_trunc_dims
-            # only calculate the symbolic hamiltonian when the number of nodes is less than 3. Else, the calculation will be skipped to the end when numerical Hamiltonian of the circuit is requested.
-            if len(self.symbolic_circuit.nodes) > 3:
-                self.hamiltonian_symbolic = (
-                    self.symbolic_circuit.generate_symbolic_hamiltonian(
-                        substitute_params=True
-                    )
-                )
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
-
-        # initilizing attributes for operators
-        self.set_operators()
 
     ##################################################################
     ##### Functions to construct the function for the Hamiltonian ####
@@ -830,9 +830,11 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                         self,
                         systems_sym[index],
                         subsystem_indices=self.subsystem_indices[index],
-                        truncated_dim=self.subsystem_trunc_dims[index][0],
+                        truncated_dim=self.subsystem_trunc_dims[index][0]
+                        if type(self.subsystem_trunc_dims[index]) == list
+                        else self.subsystem_trunc_dims[index],
                         subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
-                        if len(self.subsystem_trunc_dims[index]) > 1
+                        if type(self.subsystem_trunc_dims[index]) == list
                         else None,
                     )
                     for index in range(len(self.subsystem_indices))
@@ -1623,29 +1625,26 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         Sets the operator attributes of the circuit with new operators calculated using the paramaters set in the circuit attributes. Returns a list of operators similar to the method get_operators.
         """
 
-        variable_symbols_list = (
-            flatten_list(self.vars["periodic"].values())
-            + flatten_list(self.vars["extended"].values())
-            + self.vars["identity"]
-        )
+        if self.hierarchical_diagonalization:
+            for subsys in self.subsystems.values():
+                subsys.set_operators()
+        else:
+            variable_symbols_list = (
+                flatten_list(self.vars["periodic"].values())
+                + flatten_list(self.vars["extended"].values())
+                + self.vars["identity"]
+            )
 
-        # if not self.is_child:
-        ops = self.circuit_operators()
-        operator_list = flatten_list(ops["periodic"].values()) + flatten_list(
-            ops["extended"].values()
-        )
+            # if not self.is_child:
+            ops = self.circuit_operators()
+            operator_list = flatten_list(ops["periodic"].values()) + flatten_list(
+                ops["extended"].values()
+            )
 
-        operator_list = operator_list + [self._identity()]
+            operator_list = operator_list + [self._identity()]
 
-        for x, operator in enumerate(variable_symbols_list):
-            setattr(self, operator.name, operator_list[x])
-
-        # if (
-        #     hasattr(self, "hierarchical_diagonalization")
-        #     and self.hierarchical_diagonalization
-        # ):
-        #     for index in range(len(self.subsystem_indices)):
-        #         self.subsystems[index][0].set_operators()
+            for x, operator in enumerate(variable_symbols_list):
+                setattr(self, operator.name, operator_list[x])
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
@@ -1870,6 +1869,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             hilbertdim = np.prod(
                 [
                     self.subsystem_trunc_dims[i][0]
+                    if type(self.subsystem_trunc_dims[i]) == list
+                    else self.subsystem_trunc_dims[i]
                     for i in range(len(self.subsystem_indices))
                 ]
             )
@@ -1897,6 +1898,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             hilbertdim = np.prod(
                 [
                     self.subsystem_trunc_dims[i][0]
+                    if type(self.subsystem_trunc_dims[i]) == list
+                    else self.subsystem_trunc_dims[i]
                     for i in range(len(self.subsystem_indices))
                 ]
             )
