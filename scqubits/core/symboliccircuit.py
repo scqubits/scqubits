@@ -1042,6 +1042,15 @@ class SymbolicCircuit(serializers.Serializable):
 
         self.param_vars = parameters
 
+    def update_param_init_val(self, param_name, value):
+        """
+        Updates the param init val for param_name
+        """
+        for index, param in enumerate(self.param_vars):
+            if param_name == param.name:
+                self.param_init_vals[index] = value
+                break
+
     def _junction_terms(self):
         terms = 0
         # looping over all the junction terms

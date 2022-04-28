@@ -23,8 +23,10 @@ from typing import (
     TYPE_CHECKING,
     Union,
 )
+from attr import has
 from matplotlib.cbook import flatten
 from matplotlib.text import OffsetFrom
+from pytest import param
 import sympy as sm
 import numpy as np
 import scipy as sp
@@ -116,8 +118,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         initiate_sym_calc: bool = True,
         phi_basis: str = "discretized",
         hierarchical_diagonalization: bool = True,
-        hd_indices=None,
-        hd_trunc_dims=None,
+        subsystem_indices=None,
+        subsystem_trunc_dims=None,
         truncated_dim: int = None,
     ):
         """
@@ -133,10 +135,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             can be "discretized" or "harmonic" which chooses whether to use discretized phi or harmonic oscillator basis for extended variables, by default "discretized"
         hierarchical_diagonalization : bool, optional
             Boolean whether to use hierarchical diagonalization, by default False
-        hd_indices : list, optional
+        subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        hd_trunc_dims : dict, optional
-            a dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        subsystem_trunc_dims : dict, optional
+            a dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
         """
@@ -162,8 +164,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         self.cutoffs_list: List[str] = []
         self.phi_basis = phi_basis
         self.hierarchical_diagonalization = hierarchical_diagonalization
-        self.hd_indices = hd_indices
-        self.hd_trunc_dims = hd_trunc_dims
+        self.subsystem_indices = subsystem_indices
+        self.subsystem_trunc_dims = subsystem_trunc_dims
 
         self.type_of_matrices = "sparse"  # type of matrices involved
 
@@ -176,7 +178,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # Hamiltonian function
         if initiate_sym_calc:
             if hasattr(self, "parent"):
-                self.initiate_child()
+                self._initiate_child()
             else:
                 self.initiate_circuit()
 
@@ -189,8 +191,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         cls,
         parent,
         hamiltonian_symbolic,
-        hd_indices: list,
-        hd_trunc_dims=None,
+        subsystem_indices: list,
+        subsystem_trunc_dims=None,
         truncated_dim: int = None,
     ):
         """
@@ -202,10 +204,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             An instance of a Circuit from which this child instance of Circuit is defined.
         hamiltonian_symbolic :
             sympy expression of a hamiltonian expression which is used to define a child of an instance Circuit
-        hd_indices : list, optional
+        subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        hd_trunc_dims : dict, optional
-            a dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        subsystem_trunc_dims : dict, optional
+            a dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
 
@@ -214,9 +216,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         Circuit
             Ans instance of class circuit
         """
-        hd_indices = hd_indices
+        subsystem_indices = subsystem_indices
         truncated_dim = truncated_dim
-        hd_trunc_dims = hd_trunc_dims
+        subsystem_trunc_dims = subsystem_trunc_dims
 
         is_child = True
         parent = parent
@@ -293,7 +295,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         # self.set_vars()
         hierarchical_diagonalization = (
-            hd_indices != [] and hd_indices != flatten_list_recursive(hd_indices)
+            subsystem_indices != []
+            and subsystem_indices != flatten_list_recursive(subsystem_indices)
         )
 
         if len(var_indices_list) == 1 and phi_basis == "harmonic":
@@ -322,8 +325,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             initiate_sym_calc=True,
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
-            hd_indices=hd_indices,
-            hd_trunc_dims=hd_trunc_dims,
+            subsystem_indices=subsystem_indices,
+            subsystem_trunc_dims=subsystem_trunc_dims,
             truncated_dim=truncated_dim,
         )
 
@@ -334,8 +337,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
         phi_basis: str = "discretized",
-        hd_indices: list = None,
-        hd_trunc_dims: dict = None,
+        subsystem_indices: list = None,
+        subsystem_trunc_dims: dict = None,
         truncated_dim: int = None,
     ):
         """
@@ -351,10 +354,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             Boolean whether to use hierarchical diagonalization, by default False
         phi_basis : str, optional
             can be "discretized" or "harmonic" which chooses whether to use discretized phi or harmonic oscillator basis for extended variables, by default "discretized"
-        hd_indices : list, optional
+        subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        hd_trunc_dims : dict, optional
-            a dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        subsystem_trunc_dims : dict, optional
+            a dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
 
@@ -382,8 +385,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             initiate_sym_calc=initiate_sym_calc,
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
-            hd_indices=hd_indices,
-            hd_trunc_dims=hd_trunc_dims,
+            subsystem_indices=subsystem_indices,
+            subsystem_trunc_dims=subsystem_trunc_dims,
             truncated_dim=truncated_dim,
         )
 
@@ -395,8 +398,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         basis_completion="simple",
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
-        hd_indices=None,
-        hd_trunc_dims=None,
+        subsystem_indices=None,
+        subsystem_trunc_dims=None,
         truncated_dim: int = None,
     ):
         """
@@ -414,10 +417,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             attribute to initiate Circuit instance, by default True
         hierarchical_diagonalization : bool, optional
             Boolean whether to use hierarchical diagonalization, by default False
-        hd_indices : list, optional
+        subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        hd_trunc_dims : dict, optional
-            a dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        subsystem_trunc_dims : dict, optional
+            a dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
 
@@ -436,8 +439,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             initiate_sym_calc=initiate_sym_calc,
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
-            hd_indices=hd_indices,
-            hd_trunc_dims=hd_trunc_dims,
+            subsystem_indices=subsystem_indices,
+            subsystem_trunc_dims=subsystem_trunc_dims,
             truncated_dim=truncated_dim,
         )
 
@@ -449,8 +452,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         basis_completion="simple",
         initiate_sym_calc=True,
         hierarchical_diagonalization: bool = False,
-        hd_indices=None,
-        hd_trunc_dims=None,
+        subsystem_indices=None,
+        subsystem_trunc_dims=None,
         truncated_dim: int = None,
     ):
         """
@@ -468,10 +471,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             attribute to initiate Circuit instance, by default True
         hierarchical_diagonalization : bool, optional
             Boolean whether to use hierarchical diagonalization, by default False
-        hd_indices : list, optional
+        subsystem_indices : list, optional
             list of lists which is provided by the user to define subsystems, by default None
-        hd_trunc_dims : dict, optional
-            dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        subsystem_trunc_dims : dict, optional
+            dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         truncated_dim : int, optional
             truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
 
@@ -490,24 +493,104 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             initiate_sym_calc=initiate_sym_calc,
             hierarchical_diagonalization=hierarchical_diagonalization,
             phi_basis=phi_basis,
-            hd_indices=hd_indices,
-            hd_trunc_dims=hd_trunc_dims,
+            subsystem_indices=subsystem_indices,
+            subsystem_trunc_dims=subsystem_trunc_dims,
             truncated_dim=truncated_dim,
         )
 
-    # def set_param(self, param_name, value):
-    #     if self.phi_basis == "harmonic":
-    #         setattr(self, "_" + param_name, value)
-    #         self.generate_subsystems()
-    #         self.set_operators()
-    #         self.build_hilbertspace()
+    def _regenerate_sym_hamiltonian(self):
+        # generate _hamiltonian_sym_for_numerics if not already generated(delayed for large circuits)
+        if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
+            self.hamiltonian_symbolic = (
+                self.symbolic_circuit.generate_symbolic_hamiltonian(
+                    substitute_params=True
+                )
+            )
+            self.generate_hamiltonian_sym_for_numerics()
 
-    def initiate_child(self):
-        for var in self.param_vars + self.offset_charge_vars + self.external_flux_vars:
-            setattr(self, str(var), getattr(self.parent, str(var)))
+    def _set_property_and_update_param_vars(self, param_name, value):
+
+        # update the attribute for the current instance
+        setattr(self, "_" + param_name, value)
+        # update the attribute for the instance in symboliccircuit
+        if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
+            self.symbolic_circuit.update_param_init_val(param_name, value)
+            self._regenerate_sym_hamiltonian()
+
+        ##### update Circuit instance
+        # generate _hamiltonian_sym_for_numerics if not already generated, delayed for large circuits
+        if self.hierarchical_diagonalization:
+            self.generate_subsystems()
+            self.set_operators()
+            self.build_hilbertspace()
+        else:
+            self.set_operators()
+
+    def _set_property_and_update_ext_flux_or_charge(self, param_name, value):
+
+        # update the attribute for the current instance
+        setattr(self, "_" + param_name, value)
+
+        # update all subsystem instances
+        if self.hierarchical_diagonalization:
+            for subsys in self.subsystems.values():
+                setattr(subsys, param_name, value)
+
+    def _set_property_and_update_cutoffs(self, param_name, value):
+        setattr(self, "_" + param_name, value)
+
+        # set operators and rebuild the hilbertspace object
+        if self.hierarchical_diagonalization:
+            for subsys in self.subsystems.values():
+                setattr(subsys, param_name, value)
+            self.set_operators()
+            self.build_hilbertspace()
+        else:
+            self.set_operators()
+
+    def _make_property(self, attrib_name, init_val, property_update_type):
+        setattr(self, "_" + attrib_name, init_val)
+        getter = lambda self, name=attrib_name: getattr(self, "_" + name)
+        if property_update_type == "update_param_vars":
+            setter = lambda self, value, name=attrib_name: self._set_property_and_update_param_vars(
+                name, value
+            )
+        elif property_update_type == "update_external_flux_or_charge":
+            setter = lambda self, value, name=attrib_name: self._set_property_and_update_ext_flux_or_charge(
+                name, value
+            )
+        elif property_update_type == "update_cutoffs":
+            setter = lambda self, value, name=attrib_name: self._set_property_and_update_cutoffs(
+                name, value
+            )
+        setattr(self.__class__, attrib_name, property(fget=getter, fset=setter))
+
+    def _initiate_child(self):
+
+        for x, param in enumerate(self.param_vars):
+            # if harmonic oscillator basis is used, param vars become class properties.
+            self._make_property(
+                param.name, getattr(self.parent, param.name), "update_param_vars"
+            )
+
+        # getting attributes from parent
+        for flux in self.external_flux_vars:
+            self._make_property(
+                flux.name,
+                getattr(self.parent, flux.name),
+                "update_external_flux_or_charge",
+            )
+        for offset_charge in self.offset_charge_vars:
+            self._make_property(
+                offset_charge.name,
+                getattr(self.parent, offset_charge.name),
+                "update_external_flux_or_charge",
+            )
 
         for cutoff_str in self.cutoffs_list:
-            setattr(self, cutoff_str, getattr(self.parent, cutoff_str))
+            self._make_property(
+                cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
+            )
 
         self._init_params = (
             [param.name for param in self.param_vars]
@@ -527,8 +610,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def initiate_circuit(
         self,
         transformation_matrix: ndarray = None,
-        hd_indices: list = None,
-        hd_trunc_dims: dict = None,
+        subsystem_indices: list = None,
+        subsystem_trunc_dims: dict = None,
         closure_branches: list[Branch] = None,
     ):
         """
@@ -538,22 +621,24 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         ----------
         transformation_matrix : ndarray, optional
             A user defined variable transformation which has the dimensions of the number nodes(not counting the ground node), by default None
-        hd_indices : list, optional
+        subsystem_indices : list, optional
             A list of lists which is provided by the user to define subsystems, by default None
-        hd_trunc_dims : dict, optional
-            dict object which can be generated for a specific hd_indices using the method generate_default_trunc_dims, by default None
+        subsystem_trunc_dims : dict, optional
+            dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims, by default None
         closure_branches : list[Branch], optional
             List of branches where external flux variables will be specified, by default None which then chooses closure branches by an internally generated spanning tree.
 
         Raises
         ------
         Exception
-            when hd_indices is set and hd_trunc_dims is not set.
+            when subsystem_indices is set and subsystem_trunc_dims is not set.
         """
-        hd_indices = hd_indices or self.hd_indices
-        hd_trunc_dims = hd_trunc_dims or self.hd_trunc_dims
+        subsystem_indices = subsystem_indices or self.subsystem_indices
+        subsystem_trunc_dims = subsystem_trunc_dims or self.subsystem_trunc_dims
 
-        self.hierarchical_diagonalization = True if hd_indices is not None else False
+        self.hierarchical_diagonalization = (
+            True if subsystem_indices is not None else False
+        )
 
         self.symbolic_circuit.initiate_symboliccircuit(
             transformation_matrix=transformation_matrix,
@@ -564,7 +649,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # removing any of the old cutoffs
         old_cutoffs = []
         for attr in self.__dict__:
-            if "cutoff_" in attr:
+            if "_cutoff_" in attr:
                 old_cutoffs.append(attr)
         for attr in old_cutoffs:
             delattr(self, attr)
@@ -579,7 +664,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                         if not hasattr(self, "parent")
                         else getattr(self.parent, "cutoff_n_" + str(var_index))
                     )
-                    setattr(self, "cutoff_n_" + str(var_index), cutoff)
+                    self._make_property(
+                        "cutoff_n_" + str(var_index), cutoff, "update_cutoffs"
+                    )
                     self.cutoffs_list.append("cutoff_n_" + str(var_index))
             if var_type == "extended":
                 for x, var_index in enumerate(self.var_indices["extended"]):
@@ -588,18 +675,17 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                         if not hasattr(self, "parent")
                         else getattr(self.parent, "cutoff_phi_" + str(var_index))
                     )
-                    setattr(self, "cutoff_phi_" + str(var_index), cutoff)
+                    self._make_property(
+                        "cutoff_phi_" + str(var_index), cutoff, "update_cutoffs"
+                    )
                     self.cutoffs_list.append("cutoff_phi_" + str(var_index))
 
         # default values for the parameters
         for x, param in enumerate(self.param_vars):
-            # storing the parameter values into a class attribute.
             # if harmonic oscillator basis is used, param vars become class properties.
-            setattr(self, param.name, self.param_init_vals[x])
-
-            # param_gettr = lambda self, param_name=param.name: getattr(self,  "_" + param_name)
-            # param_settr = lambda self, value, param_name=param.name: self.set_param(param_name, value)
-            # setattr(self.__class__, param.name, property(fget=param_gettr, fset=param_settr))
+            self._make_property(
+                param.name, self.param_init_vals[x], "update_param_vars"
+            )
 
         # setting the ranges for floux ranges used for discrete phi vars
         for v in self.var_indices["extended"]:
@@ -607,11 +693,13 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # default values for the external flux vars
         for flux in self.external_flux_vars:
             # setting the default to zero external flux
-            setattr(self, flux.name, 0.0)
+            self._make_property(flux.name, 0.0, "update_external_flux_or_charge")
         # default values for the offset charge vars
         for offset_charge in self.offset_charge_vars:
             # default to zero offset charge
-            setattr(self, offset_charge.name, 0.0)
+            self._make_property(
+                offset_charge.name, 0.0, "update_external_flux_or_charge"
+            )
 
         # changing the matrix type if necessary
         if (
@@ -634,27 +722,31 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         if not self.hierarchical_diagonalization:
             self.generate_hamiltonian_sym_for_numerics()
         else:
-            if hd_indices is None:
-                self.hd_indices = [
+            if subsystem_indices is None:
+                self.subsystem_indices = [
                     self.var_indices["periodic"] + self.var_indices["extended"]
                 ]
             else:
-                self.hd_indices = hd_indices
+                self.subsystem_indices = subsystem_indices
 
-            if hd_trunc_dims is None:
+            if subsystem_trunc_dims is None:
                 raise Exception(
                     "The truncated dimensions attribute for hierarchical diagonalization is not set."
                 )
             else:
-                self.hd_trunc_dims = hd_trunc_dims
+                self.subsystem_trunc_dims = subsystem_trunc_dims
             # only calculate the symbolic hamiltonian when the number of nodes is less than 3. Else, the calculation will be skipped to the end when numerical Hamiltonian of the circuit is requested.
-            if len(self.symbolic_circuit.nodes) <= 3:
-                self.generate_hamiltonian_sym_for_numerics()
-                self.generate_subsystems()
+            if len(self.symbolic_circuit.nodes) > 3:
+                self.hamiltonian_symbolic = (
+                    self.symbolic_circuit.generate_symbolic_hamiltonian(
+                        substitute_params=True
+                    )
+                )
+            self.generate_hamiltonian_sym_for_numerics()
+            self.generate_subsystems()
 
         # initilizing attributes for operators
-        if len(self.symbolic_circuit.nodes) <= 3:
-            self.set_operators()
+        self.set_operators()
 
     ##################################################################
     ##### Functions to construct the function for the Hamiltonian ####
@@ -687,7 +779,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         systems_sym = []
         interaction_sym = []
 
-        for subsys_index_list in self.hd_indices:
+        for subsys_index_list in self.subsystem_indices:
             subsys_index_list = flatten_list_recursive(subsys_index_list)
             expr_dict = H.as_coefficients_dict()
             terms_list = list(expr_dict.keys())
@@ -722,28 +814,28 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # storing data in class attributes
         self.subsystems_sym = dict(
             zip(
-                range(len(self.hd_indices)),
+                range(len(self.subsystem_indices)),
                 [
                     [systems_sym[index], interaction_sym[index]]
-                    for index in range(len(self.hd_indices))
+                    for index in range(len(self.subsystem_indices))
                 ],
             )
         )
 
         self.subsystems = dict(
             zip(
-                range(len(self.hd_indices)),
+                range(len(self.subsystem_indices)),
                 [
                     Circuit.from_symbolic_hamiltonian(
                         self,
                         systems_sym[index],
-                        hd_indices=self.hd_indices[index],
-                        truncated_dim=self.hd_trunc_dims[index][0],
-                        hd_trunc_dims=self.hd_trunc_dims[index][1]
-                        if len(self.hd_trunc_dims[index]) > 1
+                        subsystem_indices=self.subsystem_indices[index],
+                        truncated_dim=self.subsystem_trunc_dims[index][0],
+                        subsystem_trunc_dims=self.subsystem_trunc_dims[index][1]
+                        if len(self.subsystem_trunc_dims[index]) > 1
                         else None,
                     )
-                    for index in range(len(self.hd_indices))
+                    for index in range(len(self.subsystem_indices))
                 ],
             )
         )
@@ -757,7 +849,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         :return: int showing the subsystem
         :rtype: _type_
         """
-        for index, subsystem_indices in enumerate(self.hd_indices):
+        for index, subsystem_indices in enumerate(self.subsystem_indices):
             if var_index in flatten_list_recursive(subsystem_indices):
                 return index
 
@@ -775,11 +867,11 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def build_hilbertspace(self):
         hilbert_space = HilbertSpace(
-            [self.subsystems[i] for i in range(len(self.hd_indices))]
+            [self.subsystems[i] for i in range(len(self.subsystem_indices))]
         )
 
         # Adding interactions using the symbolic interaction term
-        for sys_index in range(len(self.hd_indices)):
+        for sys_index in range(len(self.subsystem_indices)):
             interaction = self.subsystems_sym[sys_index][1].expand()
             if interaction == 0:  # if the interaction term is zero
                 continue
@@ -822,7 +914,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     and (var not in self.param_vars)
                 ]
 
-                sys_op_dict = {index: [] for index in range(len(self.hd_indices))}
+                sys_op_dict = {
+                    index: [] for index in range(len(self.subsystem_indices))
+                }
                 for var in operator_symbols:
                     var_index = get_trailing_number(str(var))
                     subsystem_index = self.get_subsystem_index(var_index)
@@ -840,7 +934,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
                 operator_dict = {}
 
-                for index in range(len(self.hd_indices)):
+                for index in range(len(self.subsystem_indices)):
                     for op_index, operator in enumerate(sys_op_dict[index]):
                         operator_dict["op" + str(len(operator_dict) + 1)] = (
                             operator,
@@ -1083,7 +1177,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             and self.hierarchical_diagonalization
         ):
             subsystem_index = self.get_subsystem_index(index)
-            var_index_list = flatten_list_recursive(self.hd_indices[subsystem_index])
+            var_index_list = flatten_list_recursive(
+                self.subsystem_indices[subsystem_index]
+            )
         else:
             var_index_list = self.var_indices["periodic"] + self.var_indices["extended"]
 
@@ -1548,7 +1644,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         #     hasattr(self, "hierarchical_diagonalization")
         #     and self.hierarchical_diagonalization
         # ):
-        #     for index in range(len(self.hd_indices)):
+        #     for index in range(len(self.subsystem_indices)):
         #         self.subsystems[index][0].set_operators()
 
     ##################################################################
@@ -1747,19 +1843,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         Returns the Hamiltonian of the Circuit.
         """
-        if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
-            self.hamiltonian_symbolic = (
-                self.symbolic_circuit.generate_symbolic_hamiltonian(
-                    substitute_params=True
-                )
-            )
-            self.generate_hamiltonian_sym_for_numerics()
-        if self.hierarchical_diagonalization and not self.is_child:
-            self.generate_subsystems()
-            self.set_operators()
-            self.build_hilbertspace()
-        elif not self.is_child:
-            self.set_operators()
 
         if not self.hierarchical_diagonalization:
             if self.phi_basis == "harmonic":
@@ -1785,7 +1868,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # dimension of the hamiltonian
         if self.hierarchical_diagonalization:
             hilbertdim = np.prod(
-                [self.hd_trunc_dims[i][0] for i in range(len(self.hd_indices))]
+                [
+                    self.subsystem_trunc_dims[i][0]
+                    for i in range(len(self.subsystem_indices))
+                ]
             )
         else:
             hilbertdim = self.hilbertdim()
@@ -1809,7 +1895,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         # dimension of the hamiltonian
         if self.hierarchical_diagonalization:
             hilbertdim = np.prod(
-                [self.hd_trunc_dims[i][0] for i in range(len(self.hd_indices))]
+                [
+                    self.subsystem_trunc_dims[i][0]
+                    for i in range(len(self.subsystem_indices))
+                ]
             )
         else:
             hilbertdim = self.hilbertdim()
