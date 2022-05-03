@@ -16,8 +16,7 @@ import numpy as np
 import scipy as sp
 
 from numpy import ndarray
-from scipy.sparse.csc import csc_matrix
-from scipy.sparse.dia import dia_matrix
+from scipy.sparse import csc_matrix, dia_matrix
 
 
 def annihilation(dimension: int) -> ndarray:
