@@ -32,7 +32,7 @@ def process_word(word: str) -> Union[float, symbols]:
     return symbols(word)
 
 
-def parse_branch_parameter(word: str) -> Union[list[float], list[Symbol, float]]:
+def parse_branch_parameter(word: str) -> Union[list[float], list[Union[Symbol, float]]]:
     """
     If the string word only has a number, its float value is returned. Else, if the word has the form
     "EJ=10", no spaces before or after =, it will return the Symbol object EJ and the float 10.
@@ -73,14 +73,12 @@ def parse_branch_parameter(word: str) -> Union[list[float], list[Symbol, float]]
 class Node:
     """
     Class to represent a Node in a circuit handled by Circuit. The attribute
-    `<Node>.branches` is a list of Branch objects containing all branches connected
-    to the node.
-    Parameters
-    ----------
-    id:
+    `<Node>.branches` is a list of Branch objects containing all branches connected to
+    the node. Parameters ---------- id:
         integer identifier of the node
     marker:
-        An internal attribute used to group nodes and identify sub-circuits in the method independent_modes.
+        An internal attribute used to group nodes and identify sub-circuits in the
+        method independent_modes.
     """
 
     def __init__(self, id: int, marker: int):
@@ -257,7 +255,7 @@ class SymbolicCircuit(serializers.Serializable):
         self._sys_type = type(self).__name__  # for object description
 
         # attributes set by methods
-        self.trans_mat: ndarray = None
+        self.transformation_matrix: ndarray = None
 
         self.var_indices: List[int] = None
         self.external_flux_vars: List[Symbol] = []
@@ -308,11 +306,11 @@ class SymbolicCircuit(serializers.Serializable):
         # if the user provides a transformation matrix
         if transformation_matrix is not None:
             self.var_indices = self.check_transformation_matrix(transformation_matrix)
-            self.trans_mat = transformation_matrix
+            self.transformation_matrix = transformation_matrix
         # calculate the transformation matrix and identify the boundary conditions if the user does not provide a custom transformation matrix
         else:
             (
-                self.trans_mat,
+                self.transformation_matrix,
                 self.var_indices,
             ) = self.variable_transformation_matrix()
 
@@ -777,7 +775,7 @@ class SymbolicCircuit(serializers.Serializable):
             if not self._mode_in_subspace(m, modes):
                 modes.append(m)
 
-        var_indices_circuit = {
+        var_indices_circuit: Dict[str, list] = {
             "periodic": [],
             "extended": [],
             "cyclic": [],
@@ -811,7 +809,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         user_given_modes = transformation_matrix.transpose()
 
-        var_indices_user = {
+        var_indices_user: Dict[str, list] = {
             "periodic": [],
             "extended": [],
             "cyclic": [],
@@ -1435,7 +1433,7 @@ class SymbolicCircuit(serializers.Serializable):
             None or an alternative transformation matrix to the one returned by the method variable_transformation_matrix
         """
         transformation_matrix = (
-            self.trans_mat
+            self.transformation_matrix
         )  # .astype(int) allowing for fractional transformations needs revamp in circuit.py hamiltonian_function
 
         # defining the φ variables
@@ -1511,7 +1509,7 @@ class SymbolicCircuit(serializers.Serializable):
             When set to True, the symbols defined for branch parameters will be substituted with the numerical values in the respective Circuit attributes.
         """
 
-        transformation_matrix = self.trans_mat
+        transformation_matrix = self.transformation_matrix
         # basis_inv = np.linalg.inv(basis)[0 : N - n, 0 : N - n]
 
         # Excluding the frozen modes based on how they are organized in the method variable_transformation_matrix
