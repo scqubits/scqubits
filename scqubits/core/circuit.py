@@ -23,17 +23,13 @@ from typing import (
     TYPE_CHECKING,
     Union,
 )
-from attr import has
-from matplotlib.cbook import flatten
 from matplotlib.text import OffsetFrom
-from pytest import param
 import sympy as sm
 import numpy as np
 import scipy as sp
 import regex as re
 
 from numpy import ndarray
-from numpy.linalg import matrix_power
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from matplotlib import pyplot as plt
@@ -61,7 +57,7 @@ from scqubits.utils.spectrum_utils import (
 #     from scqubits.core.symboliccircuit import Circuit
 
 
-def generate_default_trunc_dims(index_list):
+def generate_trunc_dims_template(index_list):
     trunc_dims = []
     for x, subsystem_indices in enumerate(index_list):
         if subsystem_indices == flatten_list_recursive(subsystem_indices):
@@ -70,7 +66,7 @@ def generate_default_trunc_dims(index_list):
             trunc_dims.append(
                 [
                     50,
-                    generate_default_trunc_dims(subsystem_indices),
+                    generate_trunc_dims_template(subsystem_indices),
                 ]
             )
     return trunc_dims
@@ -518,7 +514,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             self.symbolic_circuit.update_param_init_val(param_name, value)
             self._regenerate_sym_hamiltonian()
 
-        ##### update Circuit instance
+        # update Circuit instance
         # generate _hamiltonian_sym_for_numerics if not already generated, delayed for large circuits
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
@@ -526,7 +522,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         else:
             self.set_operators()
 
-    def _set_property_and_update_ext_flux_or_charge(self, param_name, value):
+    def _set_property_and_update_ext_flux_or_charge(self, param_name, value) -> None:
 
         # update the attribute for the current instance
         setattr(self, "_" + param_name, value)
@@ -537,7 +533,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 if hasattr(subsys, param_name):
                     setattr(subsys, param_name, value)
 
-    def _set_property_and_update_cutoffs(self, param_name, value):
+    def _set_property_and_update_cutoffs(self, param_name, value) -> None:
         setattr(self, "_" + param_name, value)
 
         # set operators and rebuild the hilbertspace object
@@ -550,24 +546,30 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         else:
             self.set_operators()
 
-    def _make_property(self, attrib_name, init_val, property_update_type):
+    def _make_property(self, attrib_name, init_val, property_update_type) -> None:
         setattr(self, "_" + attrib_name, init_val)
-        getter = lambda self, name=attrib_name: getattr(self, "_" + name)
+
+        def getter(self, name=attrib_name):
+            return getattr(self, "_" + name)
+
         if property_update_type == "update_param_vars":
-            setter = lambda self, value, name=attrib_name: self._set_property_and_update_param_vars(
-                name, value
-            )
+
+            def setter(self, value, name=attrib_name):
+                return self._set_property_and_update_param_vars(name, value)
+
         elif property_update_type == "update_external_flux_or_charge":
-            setter = lambda self, value, name=attrib_name: self._set_property_and_update_ext_flux_or_charge(
-                name, value
-            )
+
+            def setter(self, value, name=attrib_name):
+                return self._set_property_and_update_ext_flux_or_charge(name, value)
+
         elif property_update_type == "update_cutoffs":
-            setter = lambda self, value, name=attrib_name: self._set_property_and_update_cutoffs(
-                name, value
-            )
+
+            def setter(self, value, name=attrib_name):
+                return self._set_property_and_update_cutoffs(name, value)
+
         setattr(self.__class__, attrib_name, property(fget=getter, fset=setter))
 
-    def _initiate_child(self):
+    def _initiate_child(self) -> None:
 
         for x, param in enumerate(self.param_vars):
             # if harmonic oscillator basis is used, param vars become class properties.
@@ -748,6 +750,33 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
 
+    def update_subsystem_hierarchy(
+        self, subsystem_indices: list, subsystem_trunc_dims: list
+    ) -> None:
+        """
+        Updates the subsystem hierarchy for the Circuit instance.
+
+        Parameters
+        ----------
+        subsystem_indices : list, optional
+            A list of lists which is provided by the user to define subsystems
+        subsystem_trunc_dims : list, optional
+            dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims
+        """
+        if len(self.symbolic_circuit.nodes) > 3:
+            self.hamiltonian_symbolic = (
+                self.symbolic_circuit.generate_symbolic_hamiltonian(
+                    substitute_params=True
+                )
+            )
+
+        self.hierarchical_diagonalization = True
+        self.subsystem_indices = subsystem_indices
+        self.subsystem_trunc_dims = subsystem_trunc_dims
+        self.generate_hamiltonian_sym_for_numerics()
+        self.generate_subsystems()
+        self.build_hilbertspace()
+
     ##################################################################
     ##### Functions to construct the function for the Hamiltonian ####
     ##################################################################
@@ -812,11 +841,18 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             H = H - H_sys - H_int  # removing the terms added to a subsystem
 
         # storing data in class attributes
-        self.subsystems_sym = dict(
+        self.subsystem_hamiltonians = dict(
+            zip(
+                range(len(self.subsystem_indices)),
+                [systems_sym[index] for index in range(len(self.subsystem_indices))],
+            )
+        )
+
+        self.subsystem_interactions = dict(
             zip(
                 range(len(self.subsystem_indices)),
                 [
-                    [systems_sym[index], interaction_sym[index]]
+                    interaction_sym[index]
                     for index in range(len(self.subsystem_indices))
                 ],
             )
@@ -874,7 +910,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         # Adding interactions using the symbolic interaction term
         for sys_index in range(len(self.subsystem_indices)):
-            interaction = self.subsystems_sym[sys_index][1].expand()
+            interaction = self.subsystem_interactions[sys_index].expand()
             if interaction == 0:  # if the interaction term is zero
                 continue
             # modifying interaction terms
@@ -1242,7 +1278,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         self, x: Union[csc_matrix, ndarray]
     ) -> Union[csc_matrix, ndarray]:
         """
-        Changes the sparsity of sparce csc matrix depending on the attribute type_of_matrices
+        Changes the sparsity of sparce csc matrix depending on the attribute
+        type_of_matrices
 
         Parameters
         ----------
@@ -1251,7 +1288,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         Returns
         -------
         Union[csc_matrix, ndarray]
-            returns the same or the dense matrix version if type_of_matrices is set to "dense"
+            returns the same or the dense matrix version if type_of_matrices is set to
+            "dense"
         """
         if sparse.issparse(x):
             if self.type_of_matrices == "sparse":
@@ -1727,6 +1765,13 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             H_string += term_string
 
         return H_string
+        
+    @staticmethod
+    def matrix_power_sparse(x, n: int):
+        res = x.copy()
+        for i in range(n-1):
+            res = res@x
+        return res
 
     @staticmethod
     def _cos_dia_dense(x):
@@ -1802,9 +1847,15 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         variable_dict = dict(zip(variable_str_list, variable_values_list))
 
         # adding matrix power to the dict
-        variable_dict["matrix_power"] = matrix_power
-        variable_dict["cos"] = self._cos_dia_dense
-        variable_dict["sin"] = self._sin_dia_dense
+        if self.type_of_matrices == "dense":
+            variable_dict["matrix_power"] = np.linalg.matrix_power
+            variable_dict["cos"] = self._cos_dia_dense
+            variable_dict["sin"] = self._sin_dia_dense
+        else:
+            variable_dict["matrix_power"] = self.matrix_power_sparse
+            variable_dict["cos"] = self._cos_dia
+            variable_dict["sin"] = self._sin_dia
+
 
         return eval(H_str, variable_dict)
 
@@ -2344,23 +2395,23 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         var_types = []
 
         for var_index in np.sort(var_indices):
-            if var_index in self.var_indices["periodic"]:
-                var_types.append("Charge in units of 2e, Variable:")
-            else:
-                var_types.append("Dimensionless Flux, Variable:")
+            # if var_index in self.var_indices["periodic"]:
+            #     var_types.append("Charge in units of 2e, Variable:")
+            # else:
+            var_types.append("Dimensionless Flux, Variable:")
 
         if len(var_indices) == 1:
-            if "Charge" in var_types[0]:
-                plt.bar(
-                    np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1)
-                    / (2 * np.pi),
-                    eval("np." + mode + "(wf_plot.T)"),
-                )
-            else:
-                plt.plot(
-                    np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
-                    eval("np." + mode + "(wf_plot.T)"),
-                )
+            # if "Charge" in var_types[0]:
+            #     plt.bar(
+            #         np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1)
+            #         / (2 * np.pi),
+            #         eval("np." + mode + "(wf_plot.T)"),
+            #     )
+            # else:
+            plt.plot(
+                np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
+                eval("np." + mode + "(wf_plot.T)"),
+            )
             plt.xlabel(var_types[0] + str(var_indices[0]))
         elif len(var_indices) == 2:
             x, y = np.meshgrid(
