@@ -176,7 +176,7 @@ class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         """
         return -self.EJ * np.cos(2*np.pi*q)
 
-    def plot_n_wavefunction(
+    def plot_phi_wavefunction(
         self,
         esys: Tuple[ndarray, ndarray] = None,
         mode: str = "real",
@@ -184,7 +184,7 @@ class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         nrange: Tuple[int, int] = None,
         **kwargs
     ) -> Tuple[Figure, Axes]:
-        """Plots transmon wave function in charge basis
+        """Plots Phasemon wave function in phase basis
 
         Parameters
         ----------
@@ -210,11 +210,11 @@ class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         }  # if any duplicates, later ones survive
         return plot.wavefunction1d_discrete(n_wavefunc, xlim=nrange, **kwargs)
 
-    def plot_phi_wavefunction(
+    def plot_n_wavefunction(
         self,
         esys: Tuple[ndarray, ndarray] = None,
         which: int = 0,
-        phi_grid: Grid1d = None,
+        n_grid: Grid1d = None,
         mode: str = "abs_sqr",
         scaling: float = None,
         **kwargs
@@ -223,7 +223,7 @@ class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return self.plot_wavefunction(
             esys=esys,
             which=which,
-            phi_grid=phi_grid,
+            phi_grid=n_grid,
             mode=mode,
             scaling=scaling,
             **kwargs
@@ -232,7 +232,7 @@ class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     def numberbasis_wavefunction(
         self, esys: Tuple[ndarray, ndarray] = None, which: int = 0
     ) -> WaveFunction:
-        """Return the transmon wave function in number basis. The specific index of the
+        """Return the Phasemon wave function in number basis. The specific index of the
         wave function to be returned is `which`.
 
         Parameters
@@ -256,9 +256,9 @@ class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         self,
         esys: Optional[Tuple[ndarray, ndarray]] = None,
         which: int = 0,
-        phi_grid: Grid1d = None,
+        n_grid: Grid1d = None,
     ) -> WaveFunction:
-        """Return the transmon wave function in phase basis. The specific index of the
+        """Return the Phasemon wave function in phase basis. The specific index of the
         wavefunction is `which`. `esys` can be provided, but if set to `None` then it is
         calculated on the fly.
 
@@ -280,17 +280,17 @@ class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
 
         n_wavefunc = self.numberbasis_wavefunction(esys, which=which)
 
-        phi_grid = phi_grid or self._default_grid
-        phi_basis_labels = phi_grid.make_linspace()
-        phi_wavefunc_amplitudes = np.empty(phi_grid.pt_count, dtype=np.complex_)
-        for k in range(phi_grid.pt_count):
-            phi_wavefunc_amplitudes[k] = (1j ** which / math.sqrt(2 * np.pi)) * np.sum(
+        n_grid = n_grid or self._default_grid
+        n_basis_labels = n_grid.make_linspace()
+        n_wavefunc_amplitudes = np.empty(n_grid.pt_count, dtype=np.complex_)
+        for k in range(n_grid.pt_count):
+            n_wavefunc_amplitudes[k] = (1j ** which / math.sqrt(2 * np.pi)) * np.sum(
                 n_wavefunc.amplitudes
-                * np.exp(1j * phi_basis_labels[k] * n_wavefunc.basis_labels)
+                * np.exp(1j * n_basis_labels[k] * n_wavefunc.basis_labels)
             )
         return storage.WaveFunction(
-            basis_labels=phi_basis_labels,
-            amplitudes=phi_wavefunc_amplitudes,
+            basis_labels=n_basis_labels,
+            amplitudes=n_wavefunc_amplitudes,
             energy=evals[which],
         )
 
@@ -318,60 +318,60 @@ class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         max_level = (
             np.max(transitions_tuple) if levels_tuple is None else np.max(levels_tuple)
         )
-        previous_ng = self.ng
-        self.ng = 0.0
-        specdata_ng_0 = self.get_spectrum_vs_paramvals(
+        previous_f = self.f
+        self.f = 0.0
+        specdata_f_0 = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
             evals_count=max_level + 1,
             get_eigenstates=False,
             num_cpus=num_cpus,
         )
-        self.ng = 0.5
-        specdata_ng_05 = self.get_spectrum_vs_paramvals(
+        self.f = 0.5
+        specdata_f_05 = self.get_spectrum_vs_paramvals(
             param_name,
             param_vals,
             evals_count=max_level + 1,
             get_eigenstates=False,
             num_cpus=num_cpus,
         )
-        self.ng = previous_ng
+        self.f = previous_f
 
         if levels_tuple is not None:
             dispersion = np.asarray(
                 [
                     [
                         np.abs(
-                            specdata_ng_0.energy_table[param_index, j]
-                            - specdata_ng_05.energy_table[param_index, j]
+                            specdata_f_0.energy_table[param_index, j]
+                            - specdata_f_05.energy_table[param_index, j]
                         )
                         for param_index, _ in enumerate(param_vals)
                     ]
                     for j in levels_tuple
                 ]
             )
-            return specdata_ng_0.energy_table, dispersion
+            return specdata_f_0.energy_table, dispersion
 
         dispersion_list = []
         for i, j in transitions_tuple:
             list_ij = []
             for param_index, _ in enumerate(param_vals):
-                ei_0 = specdata_ng_0.energy_table[param_index, i]
-                ei_05 = specdata_ng_05.energy_table[param_index, i]
-                ej_0 = specdata_ng_0.energy_table[param_index, j]
-                ej_05 = specdata_ng_05.energy_table[param_index, j]
+                ei_0 = specdata_f_0.energy_table[param_index, i]
+                ei_05 = specdata_f_05.energy_table[param_index, i]
+                ej_0 = specdata_f_0.energy_table[param_index, j]
+                ej_05 = specdata_f_05.energy_table[param_index, j]
                 list_ij.append(
                     np.max([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                     - np.min([np.abs(ei_0 - ej_0), np.abs(ei_05 - ej_05)])
                 )
             dispersion_list.append(list_ij)
-        return specdata_ng_0.energy_table, np.asarray(dispersion_list)
+        return specdata_f_0.energy_table, np.asarray(dispersion_list)
 
 
 # — Flux-tunable Cooper pair box / transmon———————————————————————————————————————————
 
 
-class TunableTransmon(Transmon, serializers.Serializable, NoisySystem):
+class TunablePhasemon(Phasemon, serializers.Serializable, NoisySystem):
     r"""Class for the flux-tunable transmon qubit. The Hamiltonian is represented in
     dense form in the number basis, :math:`H_\text{CPB}=4E_\text{C}(\hat{
     n}-n_g)^2-\frac{\mathcal{E}_\text{J}(\Phi)}{2}(|n\rangle\langle n+1|+\text{
