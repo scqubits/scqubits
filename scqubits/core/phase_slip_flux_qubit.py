@@ -38,13 +38,13 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
-# —Phase Slip Flux Qubits / Phase Slip Box / Phasemon (Dual Transmon) ——————————————————————————————————————————————
+# —Phase Slip Flux Qubits / QPS Box / Phasemon (Dual Transmon) ——————————————————————————————————————————————
 
 
 class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     r"""Class for the Phase Slip Box and phasemon qubit. The Hamiltonian is
     represented in dense form in the fluxoid number basis,
-    :math:`H_\text{PSFQ}=4E_\text{L}(\hat{n}-f)^2-\frac{E_\text{S}}{2}(
+    :math:`H_\text{QPSB}=4E_\text{L}(\hat{n}-f)^2-\frac{E_\text{S}}{2}(
     |n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
 
@@ -115,66 +115,66 @@ class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
         return noise_channels
 
     def n_operator(self) -> ndarray:
-        """Returns charge operator `n` in the charge basis"""
+        """Returns fluxoid operator `n` in the phase basis"""
         diag_elements = np.arange(-self.ncut, self.ncut + 1, 1)
         return np.diag(diag_elements)
 
-    def exp_i_phi_operator(self) -> ndarray:
-        """Returns operator :math:`e^{i\\varphi}` in the charge basis"""
+    def exp_i_2piq_operator(self) -> ndarray:
+        """Returns operator :math:`e^{i2\pi\\varn}` in the phase basis"""
         dimension = self.hilbertdim()
         entries = np.repeat(1.0, dimension - 1)
-        exp_op = np.diag(entries, -1)
+        exp_op = 2*np.pi*np.diag(entries, -1)
         return exp_op
 
-    def cos_phi_operator(self) -> ndarray:
-        """Returns operator :math:`\\cos \\varphi` in the charge basis"""
-        cos_op = 0.5 * self.exp_i_phi_operator()
+    def cos_piq_operator(self) -> ndarray:
+        """Returns operator :math:`\\cos \\var2\pin` in the phase basis"""
+        cos_op = 0.5 * self.exp_i_2piq_operator()
         cos_op += cos_op.T
         return cos_op
 
-    def sin_phi_operator(self) -> ndarray:
-        """Returns operator :math:`\\sin \\varphi` in the charge basis"""
-        sin_op = -1j * 0.5 * self.exp_i_phi_operator()
+    def sin_2piq_operator(self) -> ndarray:
+        """Returns operator :math:`\\sin 2\pi\\varn` in the charge basis"""
+        sin_op = -1j * 0.5 * self.exp_i_2piq_operator()
         sin_op += sin_op.conjugate().T
         return sin_op
 
     def hamiltonian(self) -> ndarray:
-        """Returns Hamiltonian in charge basis"""
+        """Returns Hamiltonian in phase basis"""
         dimension = self.hilbertdim()
         hamiltonian_mat = np.diag(
             [
-                4.0 * self.EC * (ind - self.ncut - self.ng) ** 2
+                4.0 * self.EL * (ind - self.ncut - self.f) ** 2
                 for ind in range(dimension)
             ]
         )
         ind = np.arange(dimension - 1)
-        hamiltonian_mat[ind, ind + 1] = -self.EJ / 2.0
-        hamiltonian_mat[ind + 1, ind] = -self.EJ / 2.0
+        hamiltonian_mat[ind, ind + 1] = -self.ES / 2.0
+        hamiltonian_mat[ind + 1, ind] = -self.ES / 2.0
         return hamiltonian_mat
 
     def d_hamiltonian_d_ng(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to
-        charge offset `ng`."""
-        return -8 * self.EC * self.n_operator()
+        applied flux offset `f`."""
+        return -8 * self.EL * self.n_operator()
 
     def d_hamiltonian_d_EJ(self) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
         to EJ."""
-        return -self.cos_phi_operator()
+        return -self.cos_2piq_operator()
 
     def hilbertdim(self) -> int:
         """Returns Hilbert space dimension"""
         return 2 * self.ncut + 1
 
-    def potential(self, phi: Union[float, ndarray]) -> ndarray:
-        """Transmon phase-basis potential evaluated at `phi`.
+    def potential(self, q: Union[float, ndarray]) -> ndarray:
+        """Phasemon phase-basis potential evaluated at `q`.
 
         Parameters
         ----------
-        phi:
-            phase variable value
+        q:
+            charge variable value
         """
-        return -self.EJ * np.cos(phi)
+        return -self.EJ * np.cos(2*np.pi*q)
 
     def plot_n_wavefunction(
         self,
