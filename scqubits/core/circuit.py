@@ -158,7 +158,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         )
 
         self.discretized_phi_range: dict[int, tuple(float, float)] = {}
-        self.cutoffs_list: List[str] = []
+        self.cutoff_list: List[str] = []
         self.phi_basis = phi_basis
         self.hierarchical_diagonalization = hierarchical_diagonalization
         self.subsystem_indices = subsystem_indices
@@ -255,7 +255,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     var_index = int(filtered_var[0])
                 # var_index = (int(re.findall('[0-9]+', str(v))[0]))
                 if var_index not in var_indices_list:
-                    for cutoff_name in parent.cutoffs_list:
+                    for cutoff_name in parent.cutoff_list:
                         if str(var_index) in cutoff_name:
                             cutoffs.append(getattr(parent, cutoff_name))
                     var_indices_list.append(var_index)
@@ -269,18 +269,18 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 if var_index in var_indices_list
             ]
 
-        cutoffs_list = []
+        cutoff_list = []
         for var_type in var_indices.keys():
             if var_type == "periodic":
                 for x, var_index in enumerate(var_indices["periodic"]):
-                    cutoffs_list.append("cutoff_n_" + str(var_index))
+                    cutoff_list.append("cutoff_n_" + str(var_index))
             if var_type == "extended":
                 for x, var_index in enumerate(var_indices["extended"]):
-                    cutoffs_list.append("cutoff_phi_" + str(var_index))
+                    cutoff_list.append("cutoff_phi_" + str(var_index))
 
         cutoffs_dict = {}
         for var_index in var_indices_list:
-            for cutoff_name in parent.cutoffs_list:
+            for cutoff_name in parent.cutoff_list:
                 if str(var_index) in cutoff_name:
                     cutoffs_dict[var_index] = getattr(parent, cutoff_name)
         cutoffs_dict = cutoffs_dict
@@ -311,7 +311,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             "_hamiltonian_sym_for_numerics": _hamiltonian_sym_for_numerics,
             "param_vars": param_vars,
             "cutoffs_dict": cutoffs_dict,
-            "cutoffs_list": cutoffs_list,
+            "cutoff_list": cutoff_list,
             "parent": parent,
             "discretized_phi_range": discretized_phi_range,
             "is_child": is_child,
@@ -591,7 +591,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 "update_external_flux_or_charge",
             )
 
-        for cutoff_str in self.cutoffs_list:
+        for cutoff_str in self.cutoff_list:
             self._make_property(
                 cutoff_str, getattr(self.parent, cutoff_str), "update_cutoffs"
             )
@@ -600,10 +600,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             [param.name for param in self.param_vars]
             + [flux.name for flux in self.external_flux_vars]
             + [offset_charge.name for offset_charge in self.offset_charge_vars]
-            + self.cutoffs_list
+            + self.cutoff_list
         )
 
-        self.set_vars()
+        self._set_vars()
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
             self.set_operators()
@@ -659,7 +659,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             delattr(self, attr)
 
         # initiating the class properties
-        self.cutoffs_list = []
+        self.cutoff_list = []
         for var_type in self.var_indices.keys():
             if var_type == "periodic":
                 for x, var_index in enumerate(self.var_indices["periodic"]):
@@ -671,7 +671,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     self._make_property(
                         "cutoff_n_" + str(var_index), cutoff, "update_cutoffs"
                     )
-                    self.cutoffs_list.append("cutoff_n_" + str(var_index))
+                    self.cutoff_list.append("cutoff_n_" + str(var_index))
             if var_type == "extended":
                 for x, var_index in enumerate(self.var_indices["extended"]):
                     cutoff = (
@@ -682,7 +682,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     self._make_property(
                         "cutoff_phi_" + str(var_index), cutoff, "update_cutoffs"
                     )
-                    self.cutoffs_list.append("cutoff_phi_" + str(var_index))
+                    self.cutoff_list.append("cutoff_phi_" + str(var_index))
 
         # default values for the parameters
         for x, param in enumerate(self.param_vars):
@@ -717,11 +717,11 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             [param.name for param in self.param_vars]
             + [flux.name for flux in self.external_flux_vars]
             + [offset_charge.name for offset_charge in self.offset_charge_vars]
-            + self.cutoffs_list
+            + self.cutoff_list
             + ["input_string"]
         )
 
-        self.set_vars()  # setting the attribute vars to store operator symbols
+        self._set_vars()  # setting the attribute vars to store operator symbols
 
         if len(self.symbolic_circuit.nodes) > 3:
             self.hamiltonian_symbolic = (
@@ -802,6 +802,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         return sparse.diags(np.sin(x.diagonal())).tocsc()
 
     def generate_subsystems(self):
+        """
+        Generates the subsystems (child instances of Circuit) depending on the setting self.subsystem_indices
+        """
         # H = self.hamiltonian_symbolic.expand()
         H = self._hamiltonian_sym_for_numerics
 
@@ -878,20 +881,26 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             )
         )
 
-    def get_subsystem_index(self, var_index):
+    def get_subsystem_index(self, var_index: int) -> int:
         """
-        Returns the index of the subsystem to which the var_index belongs to
+        Returns the subsystem index for the subsystem to which the given var_index belongs.
 
-        :param var_index: _description_
-        :type var_index: _type_
-        :return: int showing the subsystem
-        :rtype: _type_
+        Parameters
+        ----------
+        var_index : int
+            variable index in integer starting from 1.
+
+        Returns
+        -------
+        int
+            subsystem index which can be used to identify the subsystem index in the
+            list self.subsystems.
         """
         for index, subsystem_indices in enumerate(self.subsystem_indices):
             if var_index in flatten_list_recursive(subsystem_indices):
                 return index
 
-    def identity_wrap_operator(self, system, operator_symbol):
+    def _identity_wrap_operator(self, system, operator_symbol):
         operator = getattr(system, operator_symbol.name)
         subsystem_index = system.get_subsystem_index(
             get_trailing_number(operator_symbol.name)
@@ -904,6 +913,10 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         return operator_identity_wrapped.full()
 
     def build_hilbertspace(self):
+        """
+        Builds the HilbertSpace object for the Circuit instance if
+        hierarchical_diagonalization is set to true.
+        """
         hilbert_space = HilbertSpace(
             [self.subsystems[i] for i in range(len(self.subsystem_indices))]
         )
@@ -964,7 +977,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                         if subsystem.hierarchical_diagonalization and hasattr(
                             subsystem, "parent"
                         ):
-                            operator = self.identity_wrap_operator(subsystem, var)
+                            operator = self._identity_wrap_operator(subsystem, var)
 
                         sys_op_dict[subsystem_index].append(operator)
                     else:
@@ -984,7 +997,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         self.hilbert_space = hilbert_space
 
-    def set_vars(self):
+    def _set_vars(self):
         """
         Sets the attribute vars which is a dictionary containing all the Sympy symbol objects for all the operators present in the circuit
         """
@@ -1191,7 +1204,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     def hilbertdim(self):
         """
-        Returns the Hilbert dimension of the circuit used for calculations
+        Returns the Hilbert dimension of the Circuit instance
         """
         cutoff_list = []
         for cutoffs in self.get_cutoffs().keys():
@@ -1589,7 +1602,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ################ Functions for parameter queries #################
     ##################################################################
-    def get_params(self):
+    def get_params(self) -> list[float]:
         """
         Method to get the circuit parameters set using the instance attributes.
         """
@@ -1598,7 +1611,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             params.append(getattr(self, param.name))
         return params
 
-    def get_cutoffs(self):
+    def get_cutoffs(self) -> dict[str, list]:
         """
         Method to get the cutoffs for each of the circuit's degree of freedom.
         """
@@ -1608,7 +1621,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         }
 
         for cutoff_type in cutoffs_dict.keys():
-            attr_list = [x for x in self.cutoffs_list if cutoff_type in x]
+            attr_list = [x for x in self.cutoff_list if cutoff_type in x]
 
             if len(attr_list) > 0:
                 attr_list.sort()
@@ -1616,13 +1629,13 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         return cutoffs_dict
 
-    def get_external_flux(self):
+    def get_external_flux(self) -> list[float]:
         """
         Returns all the time independent external flux set using the circuit attributes for each of the independent loops detected.
         """
         return [getattr(self, flux.name) for flux in self.external_flux_vars]
 
-    def get_offset_charges(self):
+    def get_offset_charges(self) -> list[float]:
         """
         Returns all the offset charges set using the circuit attributes for each of the periodic degree of freedom.
         """
@@ -1631,9 +1644,18 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             for offset_charge in self.offset_charge_vars
         ]
 
-    def get_operators(self, return_dict=False):
+    def get_operators(self, return_dict: bool = False):
         """
-        Returns a list of operators which can be given as an argument to self._hamiltonian_sym_for_numericsunc. These operators are not calculated again and are fetched directly from the circuit attibutes. Use set_attributes instead if the paramaters, expecially cutoffs, are changed.
+        Returns a list of operators which can be given as an argument to
+        self._hamiltonian_sym_for_numericsunc. These operators are not calculated again
+        and are fetched directly from the circuit attibutes. Use set_attributes instead
+        if the paramaters, expecially cutoffs, are changed.
+
+        Parameters
+        ----------
+
+        return_dict: bool
+            returns the dictionary of operators if set to True.
         """
         variable_symbols_list = flatten_list(
             self.vars["periodic"].values()
@@ -1765,12 +1787,12 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             H_string += term_string
 
         return H_string
-        
+
     @staticmethod
     def matrix_power_sparse(x, n: int):
         res = x.copy()
-        for i in range(n-1):
-            res = res@x
+        for i in range(n - 1):
+            res = res @ x
         return res
 
     @staticmethod
@@ -1855,7 +1877,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             variable_dict["matrix_power"] = self.matrix_power_sparse
             variable_dict["cos"] = self._cos_dia
             variable_dict["sin"] = self._sin_dia
-
 
         return eval(H_str, variable_dict)
 
@@ -2021,9 +2042,15 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############### Functions for plotting potential #################
     ##################################################################
-    def potential_energy(self, **kwargs):
+    def potential_energy(self, **kwargs) -> ndarray:
         """
-        Returns the full potential of the circuit evaluated in a grid of points as chosen by the user or using default variable ranges.
+        Returns the full potential of the circuit evaluated in a grid of points as
+        chosen by the user or using default variable ranges.
+
+        Parameters
+        ----------
+        :math:`\theta_i`: Union[ndarray, float]
+            Numpy array or a Float, is the value set to the variable :math:`\theta_i` in the potential.
         """
         periodic_indices = self.var_indices["periodic"]
         discretized_phi_indices = self.var_indices["extended"]
@@ -2087,7 +2114,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        :math:`\theta_i`:
+        :math:`\theta_i`: Union[ndarray, float]
             Numpy array or a Float, is the value set to the variable :math:`\theta_i` in the potential.
         """
 
@@ -2179,7 +2206,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     getattr(subsystem, cutoff_attrib)
                     if "phi" in cutoff_attrib
                     else (2 * getattr(subsystem, cutoff_attrib) + 1)
-                    for cutoff_attrib in subsystem.cutoffs_list
+                    for cutoff_attrib in subsystem.cutoff_list
                 ]
                 wf_new_basis = wf_new_basis.reshape(flatten_list_recursive(wf_shape))
         return wf_new_basis
@@ -2243,7 +2270,32 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     break
         return wf_dim
 
-    def generate_wf_plot_data(self, n=0, var_indices=(1,), eigensys=None, mode="abs"):
+    def generate_wf_plot_data(
+        self,
+        n=0,
+        var_indices: tuple[int] = (1,),
+        eigensys=None,
+        mode: str = "abs",
+        change_discrete_charge_to_phi: bool = True,
+    ):
+        """
+        Returns the plot of the probability density of the wavefunction in the requested variables for the current Circuit instance.
+
+        Parameters
+        ----------
+        n: int
+            integer to choose which wavefunction to plot
+        var_indices: tuple(int)
+            A tuple containing the indices of the variables chosen to plot the wavefunction in. Should not have more than 2 entries.
+        mode: str
+            "abs" or "real" or "imag" for absolute, real or imaginary parts of the wavefunction.
+        eigensys:
+            The object returned by the method instance.eigensys, is used to avoid the
+            re-evaluation of the eigen systems if already evaluated.
+        change_discrete_charge_to_phi: bool
+            bolean to choose if the discreet charge basis for the periodic variable
+            needs to be changed to phi basis.
+        """
         # checking to see if eigensys needs to be generated
         if eigensys is None:
             _, wfs = self.eigensys()
@@ -2285,7 +2337,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                     getattr(self, cutoff_attrib)
                     if "phi" in cutoff_attrib
                     else (2 * getattr(self, cutoff_attrib) + 1)
-                    for cutoff_attrib in self.cutoffs_list
+                    for cutoff_attrib in self.cutoff_list
                 ]
             )
 
@@ -2305,10 +2357,11 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 wf_phi_basis = self._basis_change_harm_osc_to_phi(
                     wf_phi_basis, wf_dim, var_index
                 )
-            if var_index in self.var_indices["periodic"]:
-                wf_phi_basis = self._basis_change_n_to_phi(
-                    wf_phi_basis, wf_dim, var_index
-                )
+            if change_discrete_charge_to_phi:
+                if var_index in self.var_indices["periodic"]:
+                    wf_phi_basis = self._basis_change_n_to_phi(
+                        wf_phi_basis, wf_dim, var_index
+                    )
 
         # if a probability plot is requested, sum over the dimesnsions not relevant to the ones in var_indices
         if self.hierarchical_diagonalization:
@@ -2347,21 +2400,28 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     def plot_wavefunction(
         self,
         n=0,
-        var_indices=(1,),
+        var_indices: tuple[int] = (1,),
         eigensys=None,
-        mode="abs",
+        mode: str = "abs",
+        change_discrete_charge_to_phi: bool = True,
     ):
         """
         Returns the plot of the probability density of the wavefunction in the requested variables for the current Circuit instance.
 
         Parameters
         ----------
+        n: int
+            integer to choose which wavefunction to plot
         var_indices:
             A tuple containing the indices of the variables chosen to plot the wavefunction in. Should not have more than 2 entries.
         mode:
             "abs" or "real" or "imag" for absolute, real or imaginary parts of the wavefunction.
         eigensys:
-            The object returned by the method instance.eigensys, is used to avoid the re-evaluation of the eigen systems if already evaluated.
+            The object returned by the method instance.eigensys, is used to avoid the
+            re-evaluation of the eigen systems if already evaluated.
+        change_discrete_charge_to_phi: bool
+            bolean to choose if the discreet charge basis for the periodic variable
+            needs to be changed to phi basis.
         """
         if len(var_indices) > 2:
             raise AttributeError(
@@ -2371,7 +2431,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         cutoffs_dict = {}  # dictionary for cutoffs for each variable index
         grids_dict = {}
         var_index_dims_dict = {}
-        for cutoff_attrib in self.cutoffs_list:
+        for cutoff_attrib in self.cutoff_list:
             var_index = get_trailing_number(cutoff_attrib)
             cutoffs_dict[var_index] = getattr(self, cutoff_attrib)
             if "cutoff_n" in cutoff_attrib:
@@ -2389,29 +2449,37 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 grids_dict[var_index] = grid
 
         wf_plot = self.generate_wf_plot_data(
-            n=n, var_indices=var_indices, eigensys=eigensys
+            n=n,
+            var_indices=var_indices,
+            eigensys=eigensys,
+            change_discrete_charge_to_phi=change_discrete_charge_to_phi,
         )
 
         var_types = []
 
         for var_index in np.sort(var_indices):
-            # if var_index in self.var_indices["periodic"]:
-            #     var_types.append("Charge in units of 2e, Variable:")
-            # else:
-            var_types.append("Dimensionless Flux, Variable:")
+            if var_index in self.var_indices["periodic"]:
+                if not change_discrete_charge_to_phi:
+                    var_types.append("Charge in units of 2e, variable:")
+                else:
+                    var_types.append("Dimensionless flux, discreet charge variable:")
+            else:
+                var_types.append("Dimensionless flux, variable:")
 
         if len(var_indices) == 1:
-            # if "Charge" in var_types[0]:
-            #     plt.bar(
-            #         np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1)
-            #         / (2 * np.pi),
-            #         eval("np." + mode + "(wf_plot.T)"),
-            #     )
-            # else:
-            plt.plot(
-                np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
-                eval("np." + mode + "(wf_plot.T)"),
-            )
+            if not change_discrete_charge_to_phi and (
+                var_indices[0] in self.var_indices["periodic"]
+            ):
+                plt.bar(
+                    np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1)
+                    / (2 * np.pi),
+                    eval("np." + mode + "(wf_plot.T)"),
+                )
+            else:
+                plt.plot(
+                    np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
+                    eval("np." + mode + "(wf_plot.T)"),
+                )
             plt.xlabel(var_types[0] + str(var_indices[0]))
         elif len(var_indices) == 2:
             x, y = np.meshgrid(
