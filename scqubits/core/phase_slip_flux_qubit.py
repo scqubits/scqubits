@@ -1,4 +1,4 @@
-# transmon.py
+# phase_slip_flux_qubit.py
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
 # Quantum 5, 583 (2021). https://quantum-journal.org/papers/q-2021-11-17-583/
@@ -38,63 +38,63 @@ LevelsTuple = Tuple[int, ...]
 Transition = Tuple[int, int]
 TransitionsTuple = Tuple[Transition, ...]
 
-# —Cooper pair box / transmon——————————————————————————————————————————————
+# —Phase Slip Flux Qubits / Phase Slip Box / Phasemon (Dual Transmon) ——————————————————————————————————————————————
 
 
-class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
-    r"""Class for the Cooper-pair-box and transmon qubit. The Hamiltonian is
-    represented in dense form in the number basis,
-    :math:`H_\text{CPB}=4E_\text{C}(\hat{n}-n_g)^2-\frac{E_\text{J}}{2}(
+class Phasemon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
+    r"""Class for the Phase Slip Box and phasemon qubit. The Hamiltonian is
+    represented in dense form in the fluxoid number basis,
+    :math:`H_\text{PSFQ}=4E_\text{L}(\hat{n}-f)^2-\frac{E_\text{S}}{2}(
     |n\rangle\langle n+1|+\text{h.c.})`.
     Initialize with, for example::
 
-        Transmon(EJ=1.0, EC=2.0, ng=0.2, ncut=30)
+        Phasemon(ES=1.0, EL=2.0, f=0.2, ncut=30)
 
     Parameters
     ----------
-    EJ:
-       Josephson energy
-    EC:
-        charging energy
-    ng:
-        offset charge
+    ES:
+       phase slip energy
+    EL:
+       inductive energy
+    f:
+        applied flux
     ncut:
-        charge basis cutoff, `n = -ncut, ..., ncut`
+        fluxoid basis cutoff, `n = -ncut, ..., ncut`
     truncated_dim:
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
     id_str:
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
-    EJ = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    EC = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
-    ng = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    ES = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    EL = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
+    f = descriptors.WatchedProperty(float, "QUANTUMSYSTEM_UPDATE")
     ncut = descriptors.WatchedProperty(int, "QUANTUMSYSTEM_UPDATE")
 
     def __init__(
         self,
-        EJ: float,
-        EC: float,
-        ng: float,
+        ES: float,
+        EL: float,
+        f: float,
         ncut: int,
         truncated_dim: int = 6,
         id_str: Optional[str] = None,
     ) -> None:
         base.QuantumSystem.__init__(self, id_str=id_str)
-        self.EJ = EJ
-        self.EC = EC
-        self.ng = ng
+        self.ES = ES
+        self.EL = EL
+        self.f = f
         self.ncut = ncut
         self.truncated_dim = truncated_dim
         self._default_grid = discretization.Grid1d(-np.pi, np.pi, 151)
         self._default_n_range = (-5, 6)
         self._image_filename = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "qubit_img/fixed-transmon.jpg"
+            os.path.dirname(os.path.abspath(__file__)), "qubit_img/fixed-phasemon.jpg"
         )
 
     @staticmethod
     def default_params() -> Dict[str, Any]:
-        return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
+        return {"ES": 15.0, "EL": 0.3, "f": 0.0, "ncut": 30, "truncated_dim": 10}
 
     @classmethod
     def supported_noise_channels(cls) -> List[str]:
