@@ -53,12 +53,12 @@ class Fluxonium(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
     EL: float
         inductive energy
     flux: float
-        external magnetic flux in angular units, 2pi corresponds to one flux quantum
+        external magnetic flux in units of one flux quantum
     cutoff: int
         number of harm. osc. basis states used in diagonalization
-    truncated_dim:
+    truncated_dim: int
         desired dimension of the truncated quantum system; expected: truncated_dim > 1
-    id_str:
+    id_str: str
         optional string by which this instance can be referred to in `HilbertSpace`
         and `ParameterSweep`. If not provided, an id is auto-generated.
     """
