@@ -66,9 +66,11 @@ def make_bare_labels(subsystem_count: int, *args) -> Tuple[int, ...]:
     *args:
         each argument is a tuple of the form (subsys_index, label)
 
-    Returns ------- Suppose there are 5 subsys_list in total. Let (subsys_index1=0,
-    label1=3), (subsys_index2=2, label2=1). Then the returned bare-state tuple is:
-    (3,0,1,0,0)
+    Returns
+    -------
+        Suppose there are 5 subsys_list in total. Let (subsys_index1=0,
+        label1=3), (subsys_index2=2, label2=1). Then the returned bare-state tuple is:
+        (3,0,1,0,0)
     """
     bare_labels = [0] * subsystem_count
     for subsys_index, label in args:
