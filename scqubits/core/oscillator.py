@@ -57,13 +57,13 @@ def harm_osc_wavefunction(
 
 def convert_to_E_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator energy given a harmonic Hamiltonian of the form
-    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2`"""
     return np.sqrt(E_kin * E_pot)
 
 
 def convert_to_l_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator length given a harmonic Hamiltonian of the form
-    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2`"""
     return (E_kin / E_pot) ** (1 / 4)
 
 
