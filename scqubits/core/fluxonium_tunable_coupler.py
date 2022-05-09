@@ -1405,24 +1405,25 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         n_a = fluxonium_a.n_operator
         n_b = fluxonium_b.n_operator
         hilbert_space.add_interaction(
-            g_strength=-0.5 * self.ELa, op1=phi_a, op2=phi_plus
+            g_strength=-0.5 * self.ELa, op1=phi_a, op2=phi_plus, check_validity=False
         )
         hilbert_space.add_interaction(
-            g_strength=-0.5 * self.ELb, op1=phi_b, op2=phi_plus
+            g_strength=-0.5 * self.ELb, op1=phi_b, op2=phi_plus, check_validity=False
         )
         hilbert_space.add_interaction(
-            g_strength=-0.5 * self.ELa, op1=phi_a, op2=phi_minus
+            g_strength=-0.5 * self.ELa, op1=phi_a, op2=phi_minus, check_validity=False
         )
         hilbert_space.add_interaction(
-            g_strength=0.5 * self.ELb, op1=phi_b, op2=phi_minus
+            g_strength=0.5 * self.ELb, op1=phi_b, op2=phi_minus, check_validity=False
         )
         hilbert_space.add_interaction(
-            g_strength=-8.0 * self.off_diagonal_charging(), op1=n_a, op2=n_b
+            g_strength=-8.0 * self.off_diagonal_charging(), op1=n_a, op2=n_b, check_validity=False
         )
         hilbert_space.add_interaction(
             g_strength=(self.ELa - self.ELb + self.EL1 - self.EL2) / 2.0,
             op1=phi_plus,
             op2=phi_minus,
+            check_validity=False,
         )
         return hilbert_space
 
@@ -1615,10 +1616,16 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
     def off_location_coupler_flux(self, epsilon=1e-3):
         def _find_J(flux_c):
             self.flux_c = flux_c
-            return self.J_eff_total()
-
-        result = root(_find_J, x0=np.array([0.28]), tol=epsilon)
+            return np.abs(self.J_eff_total())
+        result = minimize(_find_J, x0=np.array([0.28]), bounds=((0.25, 0.5),),
+                          tol=epsilon)
         assert result.success
+        if not (np.abs(result.fun) < 0.001):
+            print(
+                warnings.warn(
+                    f"off value of J is {result.fun}", Warning
+                )
+            )
         return result.x[0]
 
     def _evals_zeroed(self):
@@ -1670,7 +1677,7 @@ class FluxoniumTunableCouplerFloating(base.QubitBaseClass, serializers.Serializa
         result = minimize(
             self._cost_function_off_and_shift_positions,
             x0=np.array([flux_c_seed, 0.5 + flux_shift_a_seed]),
-            bounds=((0.0, 0.5), (0.5, 0.6)),
+            bounds=((0.25, 0.5), (0.5, 0.6)),
             tol=epsilon,
         )
         assert result.success
