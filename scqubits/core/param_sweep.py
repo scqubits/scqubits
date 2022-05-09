@@ -54,7 +54,7 @@ from scqubits.core.namedslots_array import (
     convert_to_std_npindex,
 )
 from scqubits.core.oscillator import Oscillator
-from scqubits.core.qubit_base import QuantumSystem
+from scqubits.core.qubit_base import QuantumSystem, QubitBaseClass
 from scqubits.core.spec_lookup import SpectrumLookupMixin
 from scqubits.core.storage import SpectrumData
 
@@ -120,6 +120,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         return self["bare_evals"]["subsys":subsys_index].shape[-1]
 
     def dressed_evals_count(self) -> int:
+        """Returns number of dressed eigenvalues included in sweep."""
         return self._evals_count
 
     def get_subsys_index(self, subsys: QuantumSystem) -> int:
@@ -130,7 +131,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         return self.hilbertspace.osc_subsys_list
 
     @property
-    def qbt_subsys_list(self) -> QubitList:
+    def qbt_subsys_list(self) -> List[QubitBaseClass]:
         return self.hilbertspace.qbt_subsys_list
 
     @property
@@ -770,7 +771,7 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
         self,
         operator: Union[str, Qobj],
         sweep_name: str,
-        subsystem: "QuantumSys" = None,
+        subsystem: QuantumSystem = None,
     ) -> None:
         """Generate data for matrix elements with respect to a given operator, as a
         function of the sweep parameter(s)
@@ -823,9 +824,9 @@ class ParameterSweep(  # type:ignore
     Parameters
     ----------
     hilbertspace:
-        HilbertSpace object describing the quantum system of interest
+        `HilbertSpace` object describing the quantum system of interest
     paramvals_by_name:
-        Dictionary that, for each set of parameter values, specifies a parameter name
+        Dictionary which specifies a parameter name for each set of parameter values,
         and the set of values to be used in the sweep.
     update_hilbertspace:
         function that updates the associated `hilbertspace` object with a given
@@ -837,8 +838,8 @@ class ParameterSweep(  # type:ignore
         dict-like access to subsystems and interaction terms
     evals_count:
         number of dressed eigenvalues/eigenstates to keep. (The number of bare
-        eigenvalues/eigenstates is determined for each subsystems by `truncated_dim`.)
-        [default: 20]
+        eigenvalues/eigenstates is determined for each subsystem by `truncated_dim`.)
+        (default: 20)
     subsys_update_info:
         To speed up calculations, the user may provide information that specifies which
         subsystems are being updated for each of the given parameter sweeps. This
@@ -858,8 +859,9 @@ class ParameterSweep(  # type:ignore
         sweep for a single quantum system, no interaction (default: False)
     ignore_low_overlap:
         if set to False (default), bare product states and dressed eigenstates are
-        identified if |<psi_bare|psi_dressed>|^2 > 0.5; if True, then identification
-        will always take place based on which bare product state has the maximum overlap
+        identified if `\|<psi_bare\|psi_dressed>\|^2 > 0.5`; if True,
+        then identification will always take place based on which bare product state
+        has the maximum overlap
     autorun:
         Determines whether to directly run the sweep or delay it until `.run()` is
         called manually. (Default: `settings.AUTORUN_SWEEP=True`)
@@ -868,7 +870,7 @@ class ParameterSweep(  # type:ignore
         space; this ensures that all parameters after the sweep are identical to
         parameters before the sweep. Note: changing global HilbertSpace or
         QuantumSystem attributes will have no effect with this option; all updates
-        must be made via `<ParameterSweep>.hilbertspace[<id_str>] = ... If
+        must be made via `<ParameterSweep>.hilbertspace[<id_str>] = ...` If
         set to False (default), updates to global instances have the expected effect.
         The HilbertSpace object and all its constituent parts are left in the state
         reached by the very final parameter update.
