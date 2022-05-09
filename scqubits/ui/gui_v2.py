@@ -14,6 +14,7 @@
 from cProfile import label
 import inspect
 from itertools import dropwhile
+from re import I
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -35,6 +36,8 @@ try:
         SelectMultiple,
         Checkbox,
         Text,
+        IntText, 
+        FloatText,
         ToggleButtons,
         HBox,
         IntSlider,
@@ -94,6 +97,7 @@ class GUI_V2:
         
         self.active_defaults: Dict[str, Any] = {}
         self.qubit_params: Dict[str, Union[int, float, None]] = {}
+        self.qubit_param_ranges_widgets: Dict[str, Union[IntText, FloatText]] = {}
         self.qubit_scan_params: Dict[str, Union[int, float, None]] = {}
 
         self.qubit_and_plot_ToggleButtons: Dict[str, ToggleButtons] = {}
@@ -166,6 +170,7 @@ class GUI_V2:
         self.initialize_qubit_params_dicts()
         self.initialize_qubit_plot_options_widgets_dict()
         self.initialize_qubit_params_widgets_dict()
+        self.initialize_qubit_param_ranges_widgets_dict()
     
     def initialize_qubit(self, qubit_name: str) -> None:
         """Initializes self.active_qubit to the user's choice
@@ -318,6 +323,7 @@ class GUI_V2:
         for changing the parameter values for the specified qubit.
         """
         self.qubit_params_widgets.clear()
+        self.qubit_param_ranges_widgets.clear()
         std_layout = Layout(width=gui_defaults.SLIDER_WIDTH)
 
         if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
@@ -358,10 +364,27 @@ class GUI_V2:
                     continuous_update=False,
                     layout=std_layout
                 )
+    
+    def initialize_qubit_param_ranges_widgets_dict(self) -> None: 
+        self.qubit_param_ranges_widgets.clear()
+        param_range_text_layout = Layout(width=gui_defaults.RANGE_TEXT_WIDTH)
 
+        for param_name, param_widget in self.qubit_params_widgets.items():
+            param_min_text = None
+            param_max_text = None
+            
+            if isinstance(param_widget, IntSlider):
+                param_min_text = IntText(value = param_widget.min, description = "min=", layout=param_range_text_layout)
+                param_max_text = IntText(value = param_widget.max, description = "max=", layout=param_range_text_layout)
+            else: 
+                param_min_text = FloatText(value = param_widget.min, description = "min=", step = 0.01, layout=param_range_text_layout)
+                param_max_text = FloatText(value = param_widget.max, description = "max=", step = 0.01, layout=param_range_text_layout)
+            
+            self.qubit_param_ranges_widgets[param_name] = {"min": param_min_text, "max": param_max_text}
+    
     def initialize_tab_widget(self) -> None:
         qubit_plot_tab = self.qubit_plot_layout()
-        param_ranges_tab = Label(value = "TODO")
+        param_ranges_tab = self.qubit_param_ranges_layout()
         qubit_info_tab = self.qubit_info_layout()
 
         tab_titles = ["Qubit Plot", "Change Parameter Ranges", "Qubit Info"]
@@ -390,6 +413,7 @@ class GUI_V2:
         self.manual_update_and_save_widgets["save_button"].on_click(
             self.save_button_clicked_action
         )
+        self.observe_param_ranges()
         self.observe_plot()
 
     #Retrieval Methods------------------------------------------------------------------
@@ -428,6 +452,11 @@ class GUI_V2:
         return plot_option_refresh
 
     #Observe Methods-------------------------------------------------------------------
+    def observe_param_ranges(self): 
+        for text_widgets in self.qubit_param_ranges_widgets.values():
+            text_widgets["min"].observe(self.param_ranges_update, names="value")
+            text_widgets["max"].observe(self.param_ranges_update, names="value")
+    
     def observe_plot(self):
         self.qubit_plot_options_widgets["scan_dropdown"].observe(
             self.scan_dropdown_refresh, names="value"
@@ -459,6 +488,7 @@ class GUI_V2:
         self.unobserve_plot()
         self.set_qubit(change['new'])
         self.initialize_tab_widget()
+        self.observe_param_ranges()
         self.observe_plot()
         self.current_plot_option_refresh(None)
 
@@ -511,6 +541,12 @@ class GUI_V2:
             self.manual_update_and_save_widgets["update_button"].disabled = False 
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True 
+    
+    def param_ranges_update(self, change) -> None:
+        for param_name, text_widgets in self.qubit_param_ranges_widgets.items():
+            param_widget = self.qubit_params_widgets[param_name]
+            param_widget.min = text_widgets["min"].get_interact_value()
+            param_widget.max = text_widgets["max"].get_interact_value()
     
     def save_button_clicked_action(self, change):
         self.fig.savefig(self.manual_update_and_save_widgets["filename_text"].value)
@@ -656,6 +692,26 @@ class GUI_V2:
 
         return manual_update_and_save_HBox
     
+    def qubit_param_ranges_layout(self) -> HBox: 
+        param_range_hbox_layout = Layout(width=gui_defaults.RANGE_HBOX_WIDTH, justify_content='space-between')
+        HBox_layout = Layout(display='flex',
+                        flex_flow='column wrap',
+                        object_fit='contain',
+                        width='100%',
+                        height=gui_defaults.WRAP_HEIGHT)
+        qubit_param_ranges_grid = HBox(
+            layout = HBox_layout      
+        )
+
+        for param_name, text_widgets in self.qubit_param_ranges_widgets.items():
+            param_range_HBox = HBox(layout=param_range_hbox_layout)
+            param_label = Label(value=param_name + ":") 
+            param_range_HBox.children += (param_label, HBox([text_widgets["min"], text_widgets["max"]]),)
+
+            qubit_param_ranges_grid.children += (param_range_HBox,)
+
+        return qubit_param_ranges_grid
+
     def qubit_plot_layout(self) -> HBox:
         plot_option_vbox = self.plot_option_layout()
         qubit_params_grid = self.qubit_params_grid_layout()
