@@ -1984,6 +1984,52 @@ class ConstructFullPulse(serializers.Serializable):
         return Qobj((-1j * theta * Z / 2.0).expm().data, dims=[[4], [4]])
 
     @staticmethod
+    def construct_prop(prop_m, prop_p):
+        full_prop = np.zeros((4, 4), dtype=complex)
+        full_prop[0, 0] = prop_p[0, 0]
+        full_prop[3, 3] = prop_p[1, 1]
+        full_prop[3, 0] = prop_p[1, 0]
+        full_prop[0, 3] = prop_p[0, 1]
+        full_prop[1:3, 1:3] = prop_m
+        return Qobj(full_prop, dims=[[2, 2], [2, 2]])
+
+    @staticmethod
+    def epsilon(omega, omega_d, n, amp):
+        diffsq = omega_d ** 2 - omega ** 2
+        vartheta_val = np.pi * n * omega / omega_d
+        return (amp ** 2 * omega_d ** 2 * np.sin(2 * vartheta_val) / diffsq ** 2
+                + amp ** 2 * vartheta_val / diffsq)
+
+    def analytic_prop_p(self, omega, omega_d, n, m, amp):
+        if omega_d == omega / m:
+            vartheta_p = np.pi * n * m
+            epsilon_p = np.pi * n * m * amp ** 2 / ((1 - m ** 2) * omega_d ** 2)
+        else:
+            vartheta_p = np.pi * n * omega / omega_d
+            epsilon_p = self.epsilon(omega, omega_d, n, amp)
+        return np.cos(vartheta_p - epsilon_p) * qeye(2) + 1j * np.sin(vartheta_p - epsilon_p) * sigmaz()
+
+    def analytic_prop_m(self, omega, omega_d, n, m, amp):
+        vartheta_m = np.pi * n * omega / omega_d
+        epsilon_m = self.epsilon(omega, omega_d, n, amp)
+        angle_m = vartheta_m - 4 * epsilon_m / np.pi
+        return (1 / np.sqrt(2)) * (np.cos(angle_m) * qeye(2) + 1j * np.sin(angle_m) * sigmaz() - 1j * sigmay())
+
+    def analytic_prop_total(self, amp, omega_d, num_periods):
+        m = int(self.omega_plus() / omega_d)
+        prop_m = self.analytic_prop_m(self.omega_minus(), omega_d, num_periods, m, amp)
+        prop_p = self.analytic_prop_p(self.omega_plus(), omega_d, num_periods, m, amp)
+        return self.construct_prop(prop_m, prop_p)
+
+    def analytic_Z_angles(self, amp, omega_d, num_periods, which_Z_exclude, const_angle_val, which_gate='sqrtiswap'):
+        total_prop = self.analytic_prop_total(amp, omega_d, num_periods)
+        return self.fix_w_single_q_gates(total_prop, which_Z_exclude, const_angle_val, which_gate)
+
+    def analytic_Z_times(self, amp, omega_d, num_periods, which_Z_exclude, const_angle_val, which_gate='sqrtiswap'):
+        total_prop = self.analytic_prop_total(amp, omega_d, num_periods)
+        return self.times_to_correct_prop(total_prop, which_Z_exclude, const_angle_val, which_gate)
+
+    @staticmethod
     def fix_w_single_q_gates(gate_, which_Z_exclude=2, const_angle_val=0.0, which_gate='sqrtiswap'):
         Z_matrix = 0.5 * np.array([[-1, -1, -1, -1], [-1, 1, -1, 1], [1, -1, -1, 1]])
         const_angle_col = Z_matrix[:, which_Z_exclude]
@@ -1991,6 +2037,7 @@ class ConstructFullPulse(serializers.Serializable):
         inv_Z_matrix = inv(new_Z_matrix)
         alpha = cmath.phase(gate_[0, 0])
         beta = cmath.phase(gate_[1, 1])
+        print(alpha, beta)
         gamma = cmath.phase((-1)*gate_[1, 2])
         if which_gate == 'sqrtiswap':
             angles_to_correct = (
