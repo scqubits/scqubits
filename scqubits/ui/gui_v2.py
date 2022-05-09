@@ -141,7 +141,7 @@ class GUI_V2:
     def initialize_manual_update_and_save_widgets_dict(self):
         self.manual_update_and_save_widgets = {
             "manual_update_checkbox": Checkbox(
-                value=False, description="Manual Update", disabled=False
+                value=False, description="Manual Update", disabled=False, indent=False
             ),
             "update_button": Button(
                 description="Update", disabled=True
@@ -408,7 +408,10 @@ class GUI_V2:
             self.plot_option_layout_refresh, names="value"
         )
         self.manual_update_and_save_widgets["manual_update_checkbox"].observe(
-            self.manual_update, names="value"
+            self.manual_update_checkbox, names="value"
+        )
+        self.manual_update_and_save_widgets["update_button"].on_click(
+            self.manual_update_button_onclick
         )
         self.manual_update_and_save_widgets["save_button"].on_click(
             self.save_button_clicked_action
@@ -485,15 +488,18 @@ class GUI_V2:
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
-        self.unobserve_plot()
+        if not self.manual_update_and_save_widgets["manual_update_checkbox"].get_interact_value(): 
+            self.unobserve_plot()
         self.set_qubit(change['new'])
         self.initialize_tab_widget()
         self.observe_param_ranges()
-        self.observe_plot()
-        self.current_plot_option_refresh(None)
+        if not self.manual_update_and_save_widgets["manual_update_checkbox"].get_interact_value(): 
+            self.observe_plot()
+            self.current_plot_option_refresh(None)
 
     def scan_dropdown_refresh(self, change) -> None:
-        self.unobserve_plot()
+        if not self.manual_update_and_save_widgets["manual_update_checkbox"].get_interact_value(): 
+            self.unobserve_plot()
         self.qubit_params_widgets[change.old].disabled = False
         self.qubit_params_widgets[change.new].disabled = True
 
@@ -511,10 +517,13 @@ class GUI_V2:
         self.qubit_plot_options_widgets[
             "scan_range_slider"
         ].description = "{} range".format(change.new)
-        self.observe_plot()
+        if not self.manual_update_and_save_widgets["manual_update_checkbox"].get_interact_value(): 
+            self.observe_plot()
+            self.current_plot_option_refresh(None)
 
     def plot_option_layout_refresh(self, change) -> None:
-        self.unobserve_plot()
+        if not self.manual_update_and_save_widgets["manual_update_checkbox"].get_interact_value(): 
+            self.unobserve_plot()
         self.current_plot_option_refresh = self.get_plot_option_refresh()
 
         tab_widget_list = list(self.tab_widget.children)
@@ -523,8 +532,9 @@ class GUI_V2:
         plot_options_and_qubit_params_tuple = tuple(plot_options_and_qubit_params_list)
         tab_widget_list[0].children = plot_options_and_qubit_params_tuple
         
-        self.observe_plot()
-        self.current_plot_option_refresh(None)
+        if not self.manual_update_and_save_widgets["manual_update_checkbox"].get_interact_value(): 
+            self.observe_plot()
+            self.current_plot_option_refresh(None)
 
     def manual_scale_tf(self, change) -> None:
         if change["new"]:
@@ -536,11 +546,17 @@ class GUI_V2:
                 "wavefunction_scale_slider"
             ].disabled = True
 
-    def manual_update(self, change) -> None:
+    def manual_update_checkbox(self, change) -> None:
         if change['new']:
             self.manual_update_and_save_widgets["update_button"].disabled = False 
+            self.unobserve_plot()
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True 
+            self.observe_plot()
+            self.current_plot_option_refresh(None)
+    
+    def manual_update_button_onclick(self, change) -> None: 
+        self.current_plot_option_refresh(None)
     
     def param_ranges_update(self, change) -> None:
         for param_name, text_widgets in self.qubit_param_ranges_widgets.items():
@@ -685,9 +701,9 @@ class GUI_V2:
                 self.manual_update_and_save_widgets["manual_update_checkbox"],
                 self.manual_update_and_save_widgets["update_button"],
                 self.manual_update_and_save_widgets["save_button"],
-                self.manual_update_and_save_widgets["filename_text"]
+                self.manual_update_and_save_widgets["filename_text"],
             ],
-            layout=Layout(width=gui_defaults.WIDTH, align_items='flex-start')
+            layout=Layout(width=gui_defaults.WIDTH, justify_content='space-between')
         )
 
         return manual_update_and_save_HBox
