@@ -91,14 +91,20 @@ def boxed(pixels: int = 900) -> Layout:
     )
 
 
-@utils.Required(ipywidgets=_HAS_IPYWIDGETS)
-class Explorer(ipywidgets.VBox):
-    """Class for setup of Explorer."""
+class Explorer:
+    """
+    Generates the UI for exploring `ParameterSweep` objects.
 
+    Parameters
+    ----------
+    sweep:
+        the `ParameterSweep` object to be visualized.
+    """
+    @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
     def __init__(self, sweep: scq.ParameterSweep):
         """Set up all widget GUI elements and class attributes."""
-        super().__init__()
-        self.layout.width = "100%"
+        self.gui_display = ipywidgets.VBox()
+        self.gui_display.layout.width = "100%"
         if _HAS_WIDGET_BACKEND and StrictVersion(
             matplotlib.__version__
         ) < StrictVersion("3.5.1"):
@@ -148,7 +154,8 @@ class Explorer(ipywidgets.VBox):
 
         self.ui_main_tab = self.build_ui_main_tab()
         self.ui_hbox["main_display"] = self.build_ui_main_display()
-        self.children = [self.ui_main_tab, self.ui_hbox["main_display"]]
+        self.gui_display.children = [self.ui_main_tab, self.ui_hbox["main_display"]]
+        display(self.gui_display)
 
     def build_figure_and_axes_table(self) -> Tuple[Figure, np.ndarray]:
         px = 1 / plt.rcParams["figure.dpi"]
@@ -164,6 +171,9 @@ class Explorer(ipywidgets.VBox):
         fig.canvas.toolbar_position = "right"
         fig.canvas.header_visible = False
         fig.canvas.footer_visible = False
+        # canvas_width, _ = fig.canvas.get_width_height()
+        # self.figwidth = canvas_width * px
+
         plt.ion()
 
         axes_table = np.array([])
