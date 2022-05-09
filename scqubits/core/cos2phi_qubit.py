@@ -432,8 +432,7 @@ class Cos2PhiQubit(base.QubitBaseClass, serializers.Serializable, NoisyCos2PhiQu
     dEJ:
         disorder in junction energy
     flux:
-        external magnetic flux in angular units, 1 corresponds to one flux
-        quantum
+        external magnetic flux in units of one flux quantum
     ng:
         offset charge
     ncut:
