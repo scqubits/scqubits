@@ -90,7 +90,7 @@ class QuantumSystem(DispatchClient, ABC):
     # corresponding counts of instances
     _instance_counter: Dict[str, int] = {}
 
-    subclasses: List[ABCMeta] = []
+    _subclasses: List[ABCMeta] = []
 
     def __new__(cls, *args, **kwargs) -> "QuantumSystem":
         QuantumSystem._quantumsystem_counter += 1
@@ -117,11 +117,11 @@ class QuantumSystem(DispatchClient, ABC):
         self._id_str = id_str or self._autogenerate_id_str()
 
     def __init_subclass__(cls):
-        """Used to register all non-abstract subclasses as a list in
-        `QuantumSystem.subclasses`."""
+        """Used to register all non-abstract _subclasses as a list in
+        `QuantumSystem._subclasses`."""
         super().__init_subclass__()
         if not inspect.isabstract(cls):
-            cls.subclasses.append(cls)
+            cls._subclasses.append(cls)
 
     def __repr__(self) -> str:
         if hasattr(self, "_init_params"):
