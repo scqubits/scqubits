@@ -18,7 +18,7 @@ import numpy as np
 
 from numpy import ndarray
 from scipy import sparse
-from scipy.sparse.csc import csc_matrix
+from scipy.sparse import csc_matrix
 
 import scqubits
 import scqubits.core.central_dispatch as dispatch
