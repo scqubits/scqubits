@@ -18,7 +18,7 @@ import numpy as np
 
 from numpy import ndarray
 from scipy import sparse
-from scipy.sparse.csc import csc_matrix
+from scipy.sparse import csc_matrix
 
 import scqubits
 import scqubits.core.central_dispatch as dispatch
@@ -228,7 +228,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             "tphi_1_over_f_flux",
             "t1_bias_flux_line",
             # 't1_capacitive',
-            "t1_inductive"
+            "t1_inductive",
         ]
 
     def widget(self, params: Dict[str, Any] = None) -> None:

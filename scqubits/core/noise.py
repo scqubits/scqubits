@@ -24,7 +24,7 @@ import scipy.constants
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from numpy import ndarray
-from scipy.sparse.csc import csc_matrix
+from scipy.sparse import csc_matrix
 
 import scqubits.core.units as units
 import scqubits.settings as settings

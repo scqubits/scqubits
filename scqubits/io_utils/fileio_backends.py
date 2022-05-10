@@ -19,7 +19,7 @@ import os
 import re
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 import numpy as np
 
@@ -30,6 +30,7 @@ import scqubits.utils.misc as utils
 
 try:
     import h5py
+
     from h5py import AttributeManager, File, Group
 except ImportError:
     _HAS_H5PY = False
@@ -37,7 +38,7 @@ else:
     _HAS_H5PY = True
 
 if TYPE_CHECKING:
-    from h5py import Group, File
+    from h5py import File, Group
 
 
 class IOWriter(ABC):
