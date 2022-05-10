@@ -46,8 +46,11 @@ from scqubits.core.units import (
 )
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
-from scqubits.explorer.explorer import Explorer
 
+from scqubits.core.symboliccircuit import SymbolicCircuit
+from scqubits.core.circuit import Circuit
+
+from scqubits.explorer.explorer import Explorer
 # file IO
 from scqubits.io_utils.fileio import read, write
 
