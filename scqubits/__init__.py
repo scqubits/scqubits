@@ -50,25 +50,19 @@ from scqubits.core.zeropi_full import FullZeroPi
 from scqubits.core.symboliccircuit import SymbolicCircuit
 from scqubits.core.circuit import Circuit
 
-from scqubits.explorer.explorer import Explorer
 # file IO
 from scqubits.io_utils.fileio import read, write
 
 # GUI
 try:
     from scqubits.ui.gui import GUI
+    from scqubits.ui.explorer_widget import Explorer
 except NameError:
     warnings.warn(
-        "scqubits: could not import GUI - consider installing ipywidgets "
-        "(optional dependency)?"
+        "scqubits: could not import GUI/Explorer - consider installing ipywidgets "
+        "(optional dependency)?",
+        ImportWarning,
     )
-
-    def GUI():
-        warnings.warn(
-            "scqubits: could not import GUI - consider installing ipywidgets "
-            "(optional dependency)?",
-        )
-
 
 # for showing scqubits info
 from scqubits.utils.misc import about, cite

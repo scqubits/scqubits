@@ -48,8 +48,8 @@ class Serializable(Protocol):
         return super().__new__(cls)
 
     def __init_subclass__(cls) -> None:
-        """Used to register all non-abstract subclasses as a list in
-        `QuantumSystem.subclasses`."""
+        """Used to register all non-abstract _subclasses as a list in
+        `QuantumSystem._subclasses`."""
         super().__init_subclass__()
         if not inspect.isabstract(cls):
             cls._subclasses.append(cls)
