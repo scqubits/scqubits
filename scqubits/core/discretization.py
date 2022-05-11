@@ -16,7 +16,7 @@ import numpy as np
 
 from numpy import ndarray
 from scipy import sparse
-from scipy.sparse.dia import dia_matrix
+from scipy.sparse import dia_matrix
 
 import scqubits.core.central_dispatch as dispatch
 import scqubits.core.descriptors as descriptors
