@@ -21,7 +21,7 @@ from scqubits import settings
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSweep
-    from scqubits.core.qubit_base import QubitBaseClass, QubitBaseClass1d
+    from scqubits.core.qubit_base import QubitBaseClass, QubitBaseClass1d, QuantumSystem
     from scqubits.core.oscillator import Oscillator
 
 import scqubits.core.units as units

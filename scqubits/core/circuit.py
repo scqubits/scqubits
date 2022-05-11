@@ -14,13 +14,10 @@ from multiprocessing.spawn import old_main_modules
 from sys import settrace
 from typing import (
     Any,
-    Callable,
     Dict,
-    Iterable,
     List,
     Optional,
     Tuple,
-    TYPE_CHECKING,
     Union,
 )
 from matplotlib.text import OffsetFrom
@@ -33,11 +30,10 @@ from numpy import ndarray
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
 from matplotlib import pyplot as plt
+
 from scqubits.core import operators as op
 from scqubits import HilbertSpace, settings
-from scqubits.core import symboliccircuit
 import scqubits.core.oscillator as osc
-
 from scqubits.core.symboliccircuit import Branch, SymbolicCircuit
 import scqubits.core.discretization as discretization
 import scqubits.core.qubit_base as base
@@ -57,7 +53,7 @@ from scqubits.utils.spectrum_utils import (
 #     from scqubits.core.symboliccircuit import Circuit
 
 
-def truncation_template(system_hierarchy: list) -> list[object]:
+def truncation_template(system_hierarchy: list) -> list:
     """
     Function to generate a template for defining the truncated dimensions for subsystems
     when hierarchical diagonalization is used.
@@ -83,13 +79,13 @@ def truncation_template(system_hierarchy: list) -> list[object]:
 
 def get_trailing_number(input_str: str) -> int:
     """
-    Retuns the number trailing a string given as input. Example:
+    Returns the number trailing a string given as input. Example:
         $ get_trailing_number("a23")
         $ 23
 
     Parameters
     ----------
-    input_str : str
+    input_str :
         String which trails any number
 
     Returns
@@ -105,7 +101,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
     """
     Class to numerically analyze an instance of SymbolicCircuit.
 
-    Can be initialized using an input file. For example, the following input file can be used to define a Transmon.
+    Can be initialized using an input file. For example, the following input file can
+    be used to define a Transmon.
     # file_name: transmon_num.yaml
         nodes: 2
         branches:
@@ -126,18 +123,18 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         subsystem_trunc_dims: Optional[List] = None,
         truncated_dim: Optional[int] = 10,
     ):
-        self.system_hierarchy = system_hierarchy
-        self.truncated_dim = truncated_dim
-        self.subsystem_trunc_dims = subsystem_trunc_dims
+        self.system_hierarchy: list = system_hierarchy
+        self.truncated_dim: int = truncated_dim
+        self.subsystem_trunc_dims: list = subsystem_trunc_dims
 
-        self.is_child = True
-        self.parent = parent
-        self.hamiltonian_symbolic = hamiltonian_symbolic
-        self._hamiltonian_sym_for_numerics = hamiltonian_symbolic
+        self.is_child: bool = True
+        self.parent: "SubSystem" = parent
+        self.hamiltonian_symbolic: sm.core.expr.Expr = hamiltonian_symbolic
+        self._hamiltonian_sym_for_numerics: sm.core.expr.Expr = hamiltonian_symbolic
 
         # _sys_type = type(self).__name__  # for object description
         # TODO we talked about this... did you not fix this meanwhile? -  I think this is somehow needed for some method call. I will need to test it further
-        self.ext_basis = self.parent.ext_basis
+        self.ext_basis: str = self.parent.ext_basis
         self.external_fluxes = [
             var
             for var in self.parent.external_fluxes
@@ -1191,7 +1188,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ################ Functions for parameter queries #################
     ##################################################################
-    def get_params(self) -> list[float]:
+    def get_params(self) -> List[float]:
         """
         Method to get the circuit parameters set using the instance attributes.
         """
@@ -1218,13 +1215,13 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
         return cutoffs_dict
 
-    def get_external_flux(self) -> list[float]:
+    def get_external_flux(self) -> List[float]:
         """
         Returns all the time independent external flux set using the circuit attributes for each of the independent loops detected.
         """
         return [getattr(self, flux.name) for flux in self.external_fluxes]
 
-    def get_offset_charges(self) -> list[float]:
+    def get_offset_charges(self) -> List[float]:
         """
         Returns all the offset charges set using the circuit attributes for each of the periodic degree of freedom.
         """
@@ -1752,7 +1749,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############# Functions for plotting wavefunction ################
     ##################################################################
-    def _recursice_basis_change(
+    def _recursive_basis_change(
         self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
     ):
         """
@@ -1783,7 +1780,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                 subsystem.subsystems.values()
             ):
                 if len(set(relevant_indices) & set(sub_subsys.var_categories_list)) > 0:
-                    wf_new_basis = self._recursice_basis_change(
+                    wf_new_basis = self._recursive_basis_change(
                         wf_new_basis,
                         wf_dim + sub_subsys_index,
                         sub_subsys,
@@ -1869,9 +1866,9 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def generate_wf_plot_data(
         self,
-        n=0,
-        var_categories: tuple[int] = (1,),
-        eigensys=None,
+        n: int = 0,
+        var_categories: Tuple[int] = (1,),
+        eigensys: ndarray = None,
         mode: str = "abs",
         change_discrete_charge_to_phi: bool = True,
     ):
@@ -1927,7 +1924,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                         wf_dim += len(self.subsystems[sys_index].var_categories_list)
                     else:
                         wf_dim += 1
-                wf_original_basis = self._recursice_basis_change(
+                wf_original_basis = self._recursive_basis_change(
                     wf_original_basis,
                     wf_dim,
                     self.subsystems[subsys_index],
@@ -2004,7 +2001,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
     def plot_wavefunction(
         self,
         n=0,
-        var_categories: tuple[int] = (1,),
+        var_categories: Tuple[int] = (1,),
         eigensys=None,
         mode: str = "abs",
         change_discrete_charge_to_phi: bool = True,
@@ -2184,7 +2181,7 @@ class Circuit(SubSystem):
         transformation_matrix: ndarray = None,
         system_hierarchy: list = None,
         subsystem_trunc_dims: list = None,
-        closure_branches: list[Branch] = None,
+        closure_branches: List[Branch] = None,
     ):
         """
         Method which re-initializes a circuit instance to update, hierarchical diagonalization parameters or closure branches or the variable transformation used to describe the circuit.
@@ -2197,7 +2194,7 @@ class Circuit(SubSystem):
             A list of lists which is provided by the user to define subsystems, by default None
         subsystem_trunc_dims : list, optional
             dict object which can be generated for a specific system_hierarchy using the method generate_default_trunc_dims, by default None
-        closure_branches : list[Branch], optional
+        closure_branches : List[Branch], optional
             List of branches where external flux variables will be specified, by default None which then chooses closure branches by an internally generated spanning tree.
 
         Raises

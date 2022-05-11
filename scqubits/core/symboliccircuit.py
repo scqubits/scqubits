@@ -32,7 +32,7 @@ def process_word(word: str) -> Union[float, symbols]:
     return symbols(word)
 
 
-def parse_branch_parameter(word: str) -> Union[list[float], list[Union[Symbol, float]]]:
+def parse_branch_parameter(word: str) -> Union[list[float], List[Union[Symbol, float]]]:
     """
     If the string word only has a number, its float value is returned. Else, if the word has the form
     "EJ=10", no spaces before or after =, it will return the Symbol object EJ and the float 10.
@@ -853,7 +853,7 @@ class SymbolicCircuit(serializers.Serializable):
         -------
         ndarray
             transformation matrix for the node variables
-        dict[str, list[int]]
+        dict[str, List[int]]
             var_categories dict which calssifies the variable types for each variable index
         """
 
