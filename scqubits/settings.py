@@ -107,8 +107,8 @@ mpl.rcParams["axes.prop_cycle"] = cycler(
 
 # set matplotlib defaults
 mpl.rcParams["font.family"] = "sans-serif"
-mpl.rcParams["font.sans-serif"] = "Arial, Helvetica, DejaVu Sans"
-mpl.rcParams["figure.dpi"] = 150
+mpl.rcParams["font.sans-serif"] = "Roboto, Arial, Helvetica, DejaVu Sans"
+# mpl.rcParams["figure.dpi"] = 150
 mpl.rcParams["font.size"] = 11
 mpl.rcParams["axes.labelsize"] = 11
 mpl.rcParams["xtick.labelsize"] = 10
@@ -129,5 +129,9 @@ RANDOM_ARRAY = RNG.random(size=10000000)
 FUZZY_SLICING = False
 FUZZY_WARNING = True
 
-# should we show a warning about default used in t1 coherence calculations.
+# Enable/disable warning about default used in t1 coherence calculations
 T1_DEFAULT_WARNING = True
+
+# Overlap threshold in establishing a map between dressed states and bare product states
+# (lookups need to be manually regenerated for a change by the user to take effect
+OVERLAP_THRESHOLD = 0.5
