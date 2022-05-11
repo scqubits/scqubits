@@ -110,6 +110,16 @@ class ParameterSweepBase(ABC, SpectrumLookupMixin):
     def hilbertspace(self) -> HilbertSpace:
         return self._hilbertspace
 
+    @property
+    def parameters(self) -> Parameters:
+        """Return the Parameter object (access parameter values/indexing)"""
+        return self._parameters
+
+    @property
+    def param_info(self) -> Dict[str, ndarray]:
+        """Return a dictionary of the parameter names and values used in this sweep."""
+        return self._parameters.paramvals_by_name
+
     def get_subsys(self, index: int) -> QuantumSystem:
         return self.hilbertspace[index]
 
@@ -961,11 +971,6 @@ class ParameterSweep(  # type:ignore
         iodata = serializers.dict_serialize(initdata)
         iodata.typename = "StoredSweep"
         return iodata
-
-    @property
-    def param_info(self) -> Dict[str, ndarray]:
-        """Return a dictionary of the parameter names and values used in this sweep."""
-        return self._parameters.paramvals_by_name
 
     def run(self) -> None:
         """Create all sweep data: bare spectral data, dressed spectral data, lookup
