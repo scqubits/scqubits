@@ -636,7 +636,8 @@ class SymbolicCircuit(serializers.Serializable):
             for branch_set in max_connected_subgraphs
         ]
 
-        # using node.marker to mark the maximum connected subgraph to which a node belongs
+        # using node.marker to mark the maximum connected subgraph to which a node
+        # belongs
         for node_set_index, node_set in enumerate(nodes_in_max_connected_branchsets):
             for node in node_set:
                 node.marker = (
@@ -645,9 +646,14 @@ class SymbolicCircuit(serializers.Serializable):
 
         node_branch_set_indices = [
             node.marker for node in nodes_copy
-        ]  # identifies which node belongs to which maximum connected subgraphs; different numbers on two nodes indicates that they are not connected through any of the branches in branch_subset. 0 implies the node does not belong to any of the branches in max connected branch subsets and -1 implies the max connected branch set is connected to ground.
+        ]  # identifies which node belongs to which maximum connected subgraphs;
+        # different numbers on two nodes indicates that they are not connected through
+        # any of the branches in branch_subset. 0 implies the node does not belong to
+        # any of the branches in max connected branch subsets and -1 implies the max
+        # connected branch set is connected to ground.
 
-        # step 3: Finding the linearly independent vectors spanning the vector space represented by branch_set_index
+        # step 3: Finding the linearly independent vectors spanning the vector space
+        # represented by branch_set_index
         basis = []
 
         unique_branch_set_markers = list(set(node_branch_set_indices))
@@ -699,14 +705,16 @@ class SymbolicCircuit(serializers.Serializable):
     @staticmethod
     def _mode_in_subspace(mode, subspace) -> bool:
         """
-        Method to check if the vector mode is a part of the subspace provided as a set of vectors
+        Method to check if the vector mode is a part of the subspace provided as a set
+        of vectors
 
         Parameters
         ----------
         mode:
             numpy ndarray of one dimension.
         subspace:
-            numpy ndarray which represents a collection of basis vectors for a vector subspace
+            numpy ndarray which represents a collection of basis vectors for a vector
+            subspace
         """
         if len(subspace) == 0:
             return False
@@ -715,17 +723,20 @@ class SymbolicCircuit(serializers.Serializable):
 
     def check_transformation_matrix(self, transformation_matrix: ndarray):
         """
-        Method to identify the different modes in the transformation matrix provided by the user.
+        Method to identify the different modes in the transformation matrix provided by
+        the user.
 
         Parameters
         ----------
         transformation_matrix :
-            numpy ndarray which is a square matrix having the dimensions of the number of nodes present in the circuit.
+            numpy ndarray which is a square matrix having the dimensions of the number
+            of nodes present in the circuit.
 
         Returns
         -------
         var_indices:
-            A dictionary of lists which has the variable indices classified with var indices corresponding to the rows of the transformation matrix
+            A dictionary of lists which has the variable indices classified with var
+            indices corresponding to the rows of the transformation matrix
         """
         # basic check to see if the matrix is invertible
         if np.linalg.det(transformation_matrix) == 0:
@@ -861,7 +872,8 @@ class SymbolicCircuit(serializers.Serializable):
 
     def variable_transformation_matrix(self) -> ndarray:
         """
-        Evaluates the boundary conditions and constructs the variable transformation matrix, which is returned along with the dictionary var_indices which
+        Evaluates the boundary conditions and constructs the variable transformation
+        matrix, which is returned along with the dictionary var_indices which
         classifies the types of variables present in the circuit.
 
         Returns
@@ -872,23 +884,23 @@ class SymbolicCircuit(serializers.Serializable):
             var_indices dict which calssifies the variable types for each variable index
         """
 
-        ##################### Finding the Periodic Modes ##################
+        # ****************  Finding the Periodic Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type == "L"]
         periodic_modes = self._independent_modes(selected_branches)
 
-        ##################### Finding the frozen modes ##################
+        # ****************  Finding the frozen modes ****************
         selected_branches = [branch for branch in self.branches if branch.type != "L"]
         frozen_modes = self._independent_modes(selected_branches, single_nodes=True)
 
-        ##################### Finding the Cyclic Modes ##################
+        # **************** Finding the Cyclic Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type != "C"]
         cyclic_modes = self._independent_modes(selected_branches)
 
-        # ##################### Finding the extended Modes ##################
+        # **************** Finding the extended Modes ****************
         # extended_modes = self.get_extended_modes()
 
-        #################### including the Σ mode #################
-        Σ = [1 for n in self.nodes]
+        # ****************  including the Σ mode ****************
+        Σ = [1] * len(self.nodes)
         if not self.is_grounded:  # only append if the circuit is not grounded
             mat = np.array(frozen_modes + [Σ])
             # check to see if the vectors are still independent
@@ -897,13 +909,13 @@ class SymbolicCircuit(serializers.Serializable):
             else:
                 frozen_modes.append(Σ)
 
-        ###################### Finding the LC Modes ##################
+        # **************** Finding the LC Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
         LC_modes = self._independent_modes(
             selected_branches, single_nodes=False, basisvec_entries=[-1, 1]
         )
 
-        ################ Adding frozen, cyclic, periodic , LC and extended modes #############
+        # **************** Adding frozen, cyclic, periodic , LC and extended modes ****
         modes = []  # starting with an empty list
 
         for m in (
@@ -913,7 +925,7 @@ class SymbolicCircuit(serializers.Serializable):
             if np.linalg.matrix_rank(mat) == len(mat):
                 modes.append(m)
 
-        ####################### Completing the Basis ######################
+        # ********** Completing the Basis ****************
         # step 4: construct the new set of basis vectors
 
         # constructing a standard basis
@@ -950,7 +962,8 @@ class SymbolicCircuit(serializers.Serializable):
         new_basis = np.array(new_basis)
         # new_basis = np.array(modes)
 
-        # sorting the basis so that the cyclic, periodic and frozen variables occur at the beginning.
+        # sorting the basis so that the cyclic, periodic and frozen variables occur at
+        # the beginning.
         if not self.is_grounded:
             pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
         else:
@@ -1113,8 +1126,9 @@ class SymbolicCircuit(serializers.Serializable):
 
         Parameters
         ----------
-        substitute_params : bool, optional
-            when set to True all the symbolic branch parameters are substituted with their corresponding attributes in float, by default False
+        substitute_params:
+            when set to True all the symbolic branch parameters are substituted with
+            their corresponding attributes in float, by default False
 
         Returns
         -------
@@ -1252,7 +1266,7 @@ class SymbolicCircuit(serializers.Serializable):
             self.input_string, initiate_sym_calc=False
         )
 
-        ############# removing all the capacitive branches and updating the nodes ################
+        # **************** removing all the capacitive branches and updating the nodes *
         # identifying capacitive branches
         capacitor_branches = [
             branch for branch in list(circ_copy.branches) if branch.type == "C"
@@ -1262,7 +1276,8 @@ class SymbolicCircuit(serializers.Serializable):
                 node
             ) in (
                 c_branch.nodes
-            ):  # updating the branches attribute for each node that this branch connects
+            ):  # updating the branches attribute for each node that this branch
+                # connects
                 node.branches = [b for b in node.branches if b is not c_branch]
             circ_copy.branches.remove(c_branch)  # removing the branch
 
@@ -1291,15 +1306,15 @@ class SymbolicCircuit(serializers.Serializable):
 
         if circ_copy.nodes == []:
             return [], []
-        #######################################################################################
+        # *****************************************************************************
 
-        ################### Constructing the node_sets ###############
+        # **************** Constructing the node_sets ***************
         if circ_copy.is_grounded:
             node_sets = [[circ_copy.ground_node]]
         else:
             node_sets = [
                 [circ_copy.nodes[0]]
-            ]  # starting with the first set which has the first node as the only element
+            ]  # starting with the first set that has the first node as the only element
 
         num_nodes = len(circ_copy.nodes)
         # this needs to be done as the ground node is not included in self.nodes
@@ -1336,13 +1351,13 @@ class SymbolicCircuit(serializers.Serializable):
             node_set_index += 1
         #############################################################
 
-        ########## constructing the spanning tree ##########
+        # **************** constructing the spanning tree ##########
         tree_copy = []  # tree having branches of the instance that is copied
 
         def connecting_branches(n1, n2):
             return [branch for branch in n1.branches if branch in n2.branches]
 
-        # finding the branch which connects the node to another node in a previous node set.
+        # find the branch connecting this node to another node in a previous node set.
         for index, node_set in enumerate(node_sets):
             if index == 0:
                 continue
@@ -1352,7 +1367,7 @@ class SymbolicCircuit(serializers.Serializable):
                         tree_copy.append(connecting_branches(node, prev_node)[0])
                         break
 
-        ############## selecting the appropriate branches from circ as from circ_copy #######
+        # ************** selecting the appropriate branches from circ as from circ_copy
         def is_same_branch(branch_1, branch_2):
             branch_1_dict = branch_1.__dict__
             branch_2_dict = branch_2.__dict__
@@ -1406,12 +1421,12 @@ class SymbolicCircuit(serializers.Serializable):
 
     def _set_offset_charge_vars(self):
         """
-        Create the offset charge variables and store in class attribute offset_charge_vars
+        Create offset charge variables and store in class attribute offset_charge_vars
         """
         self.offset_charge_vars = []
         for p in self.var_indices[
             "periodic"
-        ]:  # same as above for periodic variables and adding the offset charge variables
+        ]:  # now for periodic variables; adding the offset charge variables
             self.offset_charge_vars = self.offset_charge_vars + [
                 symbols("ng_" + str(p))
             ]
@@ -1425,16 +1440,13 @@ class SymbolicCircuit(serializers.Serializable):
     ]:
         r"""
         Returns three symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ
-        where θ represents the set of new variables and φ represents the set of node variables
-
-        Parameters
-        ----------
-        transformation_matrix:
-            None or an alternative transformation matrix to the one returned by the method variable_transformation_matrix
+        where θ represents the set of new variables and φ represents the set of node
+        variables
         """
         transformation_matrix = (
             self.transformation_matrix
-        )  # .astype(int) allowing for fractional transformations needs revamp in circuit.py hamiltonian_function
+        )  # .astype(int) allowing for fractional transformations needs revamp in
+        # circuit.py hamiltonian_function
 
         # defining the φ variables
         φ_dot_vars = [symbols("vφ" + str(i)) for i in range(1, len(self.nodes) + 1)]
@@ -1444,28 +1456,26 @@ class SymbolicCircuit(serializers.Serializable):
         # defining the θ dot variables
         θ_dot_vars = [symbols("vθ" + str(i)) for i in range(1, len(self.nodes) + 1)]
         # writing φ in terms of θ variables
-        φ_vars_θ = (transformation_matrix).dot(θ_vars)
+        φ_vars_θ = transformation_matrix.dot(θ_vars)
         # writing φ dot vars in terms of θ variables
-        φ_dot_vars_θ = (transformation_matrix).dot(θ_dot_vars)
+        φ_dot_vars_θ = transformation_matrix.dot(θ_dot_vars)
 
         # C_terms = self._C_terms()
         C_mat = self._capacitance_matrix()
         if not self.is_any_branch_parameter_symbolic():
-            C_terms_φ = ((C_mat).dot(φ_dot_vars)).dot(
-                φ_dot_vars
-            ) * 0.5  # interms of node variables
-            C_terms_θ = ((C_mat).dot(φ_dot_vars_θ)).dot(
-                φ_dot_vars_θ
-            ) * 0.5  # interms of new variables
+            # in terms of node variables
+            C_terms_φ = C_mat.dot(φ_dot_vars).dot(φ_dot_vars) * 0.5
+            # in terms of new variables
+            C_terms_θ = C_mat.dot(φ_dot_vars_θ).dot(φ_dot_vars_θ) * 0.5
         else:
             C_terms_φ = (sympy.Matrix(φ_dot_vars).T * C_mat * sympy.Matrix(φ_dot_vars))[
                 0
-            ] * 0.5  # interms of node variables
+            ] * 0.5  # in terms of node variables
             C_terms_θ = (
                 sympy.Matrix(φ_dot_vars_θ).T * C_mat * sympy.Matrix(φ_dot_vars_θ)
             )[
                 0
-            ] * 0.5  # interms of new variables
+            ] * 0.5  # in terms of new variables
 
         inductor_terms_φ = self._inductor_terms()
 
@@ -1501,18 +1511,21 @@ class SymbolicCircuit(serializers.Serializable):
         self, substitute_params=False
     ) -> Union[sympy.Add, sympy.Mul]:
         r"""
-        Returns the Hamiltonian of the circuit in terms of the new variables :math:`\theta_i`.
+        Returns the Hamiltonian of the circuit in terms of the new variables
+        :math:`\theta_i`.
 
         Parameters
         ----------
-        substitute_params: Bool
-            When set to True, the symbols defined for branch parameters will be substituted with the numerical values in the respective Circuit attributes.
+        substitute_params:
+            When set to True, the symbols defined for branch parameters will be
+            substituted with the numerical values in the respective Circuit attributes.
         """
 
         transformation_matrix = self.transformation_matrix
         # basis_inv = np.linalg.inv(basis)[0 : N - n, 0 : N - n]
 
-        # Excluding the frozen modes based on how they are organized in the method variable_transformation_matrix
+        # Excluding the frozen modes based on how they are organized in the method
+        # variable_transformation_matrix
         if self.is_grounded:
             num_frozen_modes = len(self.var_indices["frozen"])
         else:
@@ -1528,7 +1541,7 @@ class SymbolicCircuit(serializers.Serializable):
             )[
                 0 : num_nodes - num_frozen_modes,
                 0 : num_nodes - num_frozen_modes,
-            ].inv()  # exlcluding the frozen modes
+            ].inv()  # excluding the frozen modes
         else:
             C_mat_θ = np.linalg.inv(
                 (
@@ -1539,11 +1552,12 @@ class SymbolicCircuit(serializers.Serializable):
                     0 : num_nodes - num_frozen_modes,
                     0 : num_nodes - num_frozen_modes,
                 ]
-            )  # exlcluding the frozen modes
+            )  # excluding the frozen modes
 
         p_θ_vars = [
             symbols("Q" + str(i)) if i not in self.var_indices["cyclic"]
-            # replacing the cyclic charge with 0, as it would not affect the circuit lagrangian.
+            # replacing the cyclic charge with 0, as it would not affect the circuit
+            # Lagrangian.
             else 0
             for i in range(1, len(self.nodes) + 1 - num_frozen_modes)
         ]  # defining the momentum variables
@@ -1552,19 +1566,19 @@ class SymbolicCircuit(serializers.Serializable):
         if not self.is_any_branch_parameter_symbolic():
             C_terms_new = (
                 C_mat_θ.dot(p_θ_vars).dot(p_θ_vars) * 0.5
-            )  # interms of new variables
+            )  # in terms of new variables
         else:
             C_terms_new = (sympy.Matrix(p_θ_vars).T * C_mat_θ * sympy.Matrix(p_θ_vars))[
                 0
-            ] * 0.5  # interms of new variables
+            ] * 0.5  # in terms of new variables
 
         hamiltonian_symbolic = C_terms_new + self.potential_symbolic
 
         # adding the offset charge variables
-        for p in self.var_indices["periodic"]:
+        for var_index in self.var_indices["periodic"]:
             hamiltonian_symbolic = hamiltonian_symbolic.subs(
-                symbols("Q" + str(p)),
-                symbols("n" + str(p)) + symbols("ng_" + str(p)),
+                symbols("Q" + str(var_index)),
+                symbols("n" + str(var_index)) + symbols("ng_" + str(var_index)),
             )
 
         return hamiltonian_symbolic
