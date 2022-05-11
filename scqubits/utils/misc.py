@@ -323,6 +323,7 @@ def is_float_string(the_string: str) -> bool:
 def list_intersection(list1: list, list2: list) -> list:
     return list(set(list1) & set(list2))
 
+
 def flatten_list(nested_list):
     """
     Flattens a list of lists once, not recursive.
@@ -337,7 +338,8 @@ def flatten_list(nested_list):
     -------
     Flattened list of objects
     """
-    return functools.reduce(lambda a,b: a + b, nested_list)
+    return functools.reduce(lambda a, b: a + b, nested_list)
+
 
 def flatten_list_recursive(S):
     """

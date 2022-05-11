@@ -1032,7 +1032,10 @@ class ParameterSweep(  # type:ignore
         )
 
     def _update_subsys_compute_esys(
-        self, update_func: Callable, subsystem: QuantumSystem, paramval_tuple: Tuple[float]
+        self,
+        update_func: Callable,
+        subsystem: QuantumSystem,
+        paramval_tuple: Tuple[float],
     ) -> ndarray:
         update_func(self, *paramval_tuple)
         evals, evecs = subsystem.eigensys(evals_count=subsystem.truncated_dim)

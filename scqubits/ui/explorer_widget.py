@@ -100,6 +100,7 @@ class Explorer:
     sweep:
         the `ParameterSweep` object to be visualized.
     """
+
     @utils.Required(ipywidgets=_HAS_IPYWIDGETS)
     def __init__(self, sweep: scq.ParameterSweep):
         """Set up all widget GUI elements and class attributes."""
