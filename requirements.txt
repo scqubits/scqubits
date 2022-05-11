@@ -1,9 +1,10 @@
 cycler
 matplotlib>=3.0.0
 numpy>=1.14.2
+pyyaml
 qutip>=4.3.1
+regex
 scipy>=1.1.0
+sympy
 tqdm
 typing_extensions
-sympy
-pyyaml
