@@ -244,7 +244,7 @@ class SymbolicCircuit(serializers.Serializable):
         branches_list: List[Branch],
         branch_var_dict: dict,
         basis_completion: str = "simple",
-        ground_node=None,
+        ground_node: Optional(Node) = None,
         initiate_sym_calc: bool = True,
         input_string: str = "",
     ):
@@ -257,8 +257,8 @@ class SymbolicCircuit(serializers.Serializable):
         # attributes set by methods
         self.transformation_matrix: ndarray = None
 
-        self.var_indices: List[int] = None
-        self.external_flux_vars: List[Symbol] = []
+        self.var_categories: List[int] = None
+        self.external_fluxes: List[Symbol] = []
         self.closure_branches: List[Branch] = []
 
         self.param_vars: List[Symbol] = list(branch_var_dict.keys())
@@ -305,20 +305,22 @@ class SymbolicCircuit(serializers.Serializable):
         """
         # if the user provides a transformation matrix
         if transformation_matrix is not None:
-            self.var_indices = self.check_transformation_matrix(transformation_matrix)
+            self.var_categories = self.check_transformation_matrix(
+                transformation_matrix
+            )
             self.transformation_matrix = transformation_matrix
         # calculate the transformation matrix and identify the boundary conditions if the user does not provide a custom transformation matrix
         else:
             (
                 self.transformation_matrix,
-                self.var_indices,
+                self.var_categories,
             ) = self.variable_transformation_matrix()
 
         # find the closure branches in the circuit
         self.closure_branches = closure_branches or self._closure_branches()
         # setting external flux and offset charge variables
-        self._set_external_flux_vars(closure_branches=closure_branches)
-        self._set_offset_charge_vars()
+        self._set_external_fluxes(closure_branches=closure_branches)
+        self._set_offset_charges()
         # setting the branch parameter variables
         # self._set_param_vars()
         # Calculate the Lagrangian
@@ -509,9 +511,10 @@ class SymbolicCircuit(serializers.Serializable):
         return branches, ground_node, branch_var_dict
 
     @classmethod
-    def from_input_string(
+    def from_yaml(
         cls,
         input_string: str,
+        is_file: bool = True,
         basis_completion: str = "simple",
         initiate_sym_calc: bool = True,
     ):
@@ -545,9 +548,14 @@ class SymbolicCircuit(serializers.Serializable):
         -------
         Instance of the class SymblicCircuit
         """
-        code_lines = input_string.split("\n")
+        if is_file:
+            file = open(input_string, "r")
+            circuit_desc = file.read()
+            file.close()
+        else:
+            circuit_desc = input_string
 
-        input_dictionary = yaml.load(input_string, Loader=yaml.FullLoader)
+        input_dictionary = yaml.load(circuit_desc, Loader=yaml.FullLoader)
 
         nodes = cls._parse_nodes(input_dictionary["nodes"])
         branches, ground_node, branch_var_dict = cls._parse_branches(
@@ -561,33 +569,10 @@ class SymbolicCircuit(serializers.Serializable):
             branch_var_dict=branch_var_dict,
             basis_completion=basis_completion,
             initiate_sym_calc=initiate_sym_calc,
-            input_string=input_string,
+            input_string=circuit_desc,
         )
 
         return circuit
-
-    @classmethod
-    def from_input_file(
-        cls,
-        filename: str,
-        basis_completion="simple",
-        initiate_sym_calc=True,
-    ):
-        """
-        Constructs the instance of Circuit from an input string.
-        Parameters
-        ----------
-        filename:
-            name of the file containing the text describing the number of nodes and branches connecting then along with their parameters
-        """
-        file = open(filename, "r")
-        input_string = file.read()
-        file.close()
-        return cls.from_input_string(
-            input_string,
-            basis_completion=basis_completion,
-            initiate_sym_calc=initiate_sym_calc,
-        )
 
     def _independent_modes(
         self,
@@ -724,7 +709,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         Returns
         -------
-        var_indices:
+        var_categories:
             A dictionary of lists which has the variable indices classified with var indices corresponding to the rows of the transformation matrix
         """
         # basic check to see if the matrix is invertible
@@ -775,7 +760,7 @@ class SymbolicCircuit(serializers.Serializable):
             if not self._mode_in_subspace(m, modes):
                 modes.append(m)
 
-        var_indices_circuit: Dict[str, list] = {
+        var_categories_circuit: Dict[str, list] = {
             "periodic": [],
             "extended": [],
             "cyclic": [],
@@ -789,27 +774,27 @@ class SymbolicCircuit(serializers.Serializable):
                 continue
 
             if self._mode_in_subspace(mode, frozen_modes):
-                var_indices_circuit["frozen"].append(x + 1)
+                var_categories_circuit["frozen"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, cyclic_modes):
-                var_indices_circuit["cyclic"].append(x + 1)
+                var_categories_circuit["cyclic"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, periodic_modes):
-                var_indices_circuit["periodic"].append(x + 1)
+                var_categories_circuit["periodic"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, LC_modes):
-                var_indices_circuit["osc"].append(x + 1)
+                var_categories_circuit["osc"].append(x + 1)
             # Any mode which survived the above conditionals is an extended mode
-            var_indices_circuit["extended"].append(x + 1)
+            var_categories_circuit["extended"].append(x + 1)
 
         # Classifying the modes given in the transformation by the user
 
         user_given_modes = transformation_matrix.transpose()
 
-        var_indices_user: Dict[str, list] = {
+        var_categories_user: Dict[str, list] = {
             "periodic": [],
             "extended": [],
             "cyclic": [],
@@ -823,30 +808,30 @@ class SymbolicCircuit(serializers.Serializable):
                 continue
 
             if self._mode_in_subspace(mode, frozen_modes):
-                var_indices_user["frozen"].append(x + 1)
+                var_categories_user["frozen"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, cyclic_modes):
-                var_indices_user["cyclic"].append(x + 1)
+                var_categories_user["cyclic"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, periodic_modes):
-                var_indices_user["periodic"].append(x + 1)
+                var_categories_user["periodic"].append(x + 1)
                 continue
 
             if self._mode_in_subspace(mode, LC_modes):
-                var_indices_user["osc"].append(x + 1)
+                var_categories_user["osc"].append(x + 1)
 
             # Any mode which survived the above conditionals is an extended mode
-            var_indices_user["extended"].append(x + 1)
+            var_categories_user["extended"].append(x + 1)
 
         # comparing the modes in the user defined and the code generated transformation
 
         mode_types = ["periodic", "extended", "cyclic", "frozen", "osc"]
 
         for mode_type in mode_types:
-            num_extra_modes = len(var_indices_circuit[mode_type]) - len(
-                var_indices_user[mode_type]
+            num_extra_modes = len(var_categories_circuit[mode_type]) - len(
+                var_categories_user[mode_type]
             )
             if num_extra_modes > 0:
                 warnings.warn(
@@ -857,11 +842,11 @@ class SymbolicCircuit(serializers.Serializable):
                     + "\n"
                 )
 
-        return var_indices_user
+        return var_categories_user
 
     def variable_transformation_matrix(self) -> ndarray:
         """
-        Evaluates the boundary conditions and constructs the variable transformation matrix, which is returned along with the dictionary var_indices which
+        Evaluates the boundary conditions and constructs the variable transformation matrix, which is returned along with the dictionary var_categories which
         classifies the types of variables present in the circuit.
 
         Returns
@@ -869,7 +854,7 @@ class SymbolicCircuit(serializers.Serializable):
         ndarray
             transformation matrix for the node variables
         dict[str, list[int]]
-            var_indices dict which calssifies the variable types for each variable index
+            var_categories dict which calssifies the variable types for each variable index
         """
 
         ##################### Finding the Periodic Modes ##################
@@ -999,7 +984,7 @@ class SymbolicCircuit(serializers.Serializable):
         new_basis = new_basis[pos_list].T
 
         # saving the vatriable identification to a dict
-        var_indices = {
+        var_categories = {
             "periodic": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_periodic
             ],
@@ -1015,7 +1000,7 @@ class SymbolicCircuit(serializers.Serializable):
             "osc": [i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_osc],
         }
 
-        return np.array(new_basis), var_indices
+        return np.array(new_basis), var_categories
 
     def _set_param_vars(self):
         """
@@ -1058,7 +1043,7 @@ class SymbolicCircuit(serializers.Serializable):
             phi_ext = 0
             if jj_branch in self.closure_branches:
                 index = self.closure_branches.index(jj_branch)
-                phi_ext += self.external_flux_vars[index]
+                phi_ext += self.external_fluxes[index]
 
             # if loop to check for the presence of ground node
             if jj_branch.nodes[1].id == 0:
@@ -1085,7 +1070,7 @@ class SymbolicCircuit(serializers.Serializable):
             phi_ext = 0
             if jj2_branch in self.closure_branches:
                 index = self.closure_branches.index(jj2_branch)
-                phi_ext += self.external_flux_vars[index]
+                phi_ext += self.external_fluxes[index]
 
             # if loop to check for the presence of ground node
             if jj2_branch.nodes[1].id == 0:
@@ -1107,7 +1092,7 @@ class SymbolicCircuit(serializers.Serializable):
                 )
         return terms
 
-    def _capacitance_matrix(self, substitute_params=False):
+    def _capacitance_matrix(self, substitute_params: bool = False):
         """
         Generate a capacitance matrix for the circuit
 
@@ -1215,7 +1200,7 @@ class SymbolicCircuit(serializers.Serializable):
             phi_ext = 0
             if l_branch in self.closure_branches:
                 index = self.closure_branches.index(l_branch)
-                phi_ext += self.external_flux_vars[index]
+                phi_ext += self.external_fluxes[index]
 
             if l_branch.nodes[0].id == 0:
                 terms += (
@@ -1248,8 +1233,8 @@ class SymbolicCircuit(serializers.Serializable):
         """
 
         # making a deep copy to make sure that the original instance is unaffected
-        circ_copy = SymbolicCircuit.from_input_string(
-            self.input_string, initiate_sym_calc=False
+        circ_copy = SymbolicCircuit.from_yaml(
+            self.input_string, is_file=False, initiate_sym_calc=False
         )
 
         ############# removing all the capacitive branches and updating the nodes ################
@@ -1339,7 +1324,7 @@ class SymbolicCircuit(serializers.Serializable):
         ########## constructing the spanning tree ##########
         tree_copy = []  # tree having branches of the instance that is copied
 
-        def connecting_branches(n1, n2):
+        def connecting_branches(n1: Node, n2: Node):
             return [branch for branch in n1.branches if branch in n2.branches]
 
         # finding the branch which connects the node to another node in a previous node set.
@@ -1353,7 +1338,7 @@ class SymbolicCircuit(serializers.Serializable):
                         break
 
         ############## selecting the appropriate branches from circ as from circ_copy #######
-        def is_same_branch(branch_1, branch_2):
+        def is_same_branch(branch_1: Branch, branch_2: Branch):
             branch_1_dict = branch_1.__dict__
             branch_2_dict = branch_2.__dict__
             if (
@@ -1392,7 +1377,7 @@ class SymbolicCircuit(serializers.Serializable):
             closure_branches = list(set(superconducting_loop_branches) - set(tree))
         return closure_branches
 
-    def _set_external_flux_vars(self, closure_branches=None):
+    def _set_external_fluxes(self, closure_branches: List[Branch] = None):
         # setting the class properties
 
         closure_branches = closure_branches or self._closure_branches()
@@ -1400,29 +1385,23 @@ class SymbolicCircuit(serializers.Serializable):
 
         if len(closure_branches) > 0:
             self.closure_branches = closure_branches
-            self.external_flux_vars = [
+            self.external_fluxes = [
                 symbols("Φ" + str(i + 1)) for i in range(len(closure_branches))
             ]
 
-    def _set_offset_charge_vars(self):
+    def _set_offset_charges(self):
         """
-        Create the offset charge variables and store in class attribute offset_charge_vars
+        Create the offset charge variables and store in class attribute offset_charges
         """
-        self.offset_charge_vars = []
-        for p in self.var_indices[
+        self.offset_charges = []
+        for p in self.var_categories[
             "periodic"
         ]:  # same as above for periodic variables and adding the offset charge variables
-            self.offset_charge_vars = self.offset_charge_vars + [
-                symbols("ng_" + str(p))
-            ]
+            self.offset_charges = self.offset_charges + [symbols("ng_" + str(p))]
 
     def generate_symbolic_lagrangian(
         self,
-    ) -> Tuple[
-        Union[sympy.Add, sympy.Mul],
-        Union[sympy.Add, sympy.Mul],
-        Union[sympy.Add, sympy.Mul],
-    ]:
+    ) -> Tuple[sympy.core.expr.Expr, sympy.core.expr.Expr, sympy.core.expr.Expr,]:
         r"""
         Returns three symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ
         where θ represents the set of new variables and φ represents the set of node variables
@@ -1484,7 +1463,7 @@ class SymbolicCircuit(serializers.Serializable):
             )
 
         # eliminating the frozen variables
-        for frozen_var_index in self.var_indices["frozen"]:
+        for frozen_var_index in self.var_categories["frozen"]:
             sub = sympy.solve(
                 potential_θ.diff(symbols("θ" + str(frozen_var_index))),
                 symbols("θ" + str(frozen_var_index)),
@@ -1499,7 +1478,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     def generate_symbolic_hamiltonian(
         self, substitute_params=False
-    ) -> Union[sympy.Add, sympy.Mul]:
+    ) -> sympy.core.expr.Expr:
         r"""
         Returns the Hamiltonian of the circuit in terms of the new variables :math:`\theta_i`.
 
@@ -1514,9 +1493,9 @@ class SymbolicCircuit(serializers.Serializable):
 
         # Excluding the frozen modes based on how they are organized in the method variable_transformation_matrix
         if self.is_grounded:
-            num_frozen_modes = len(self.var_indices["frozen"])
+            num_frozen_modes = len(self.var_categories["frozen"])
         else:
-            num_frozen_modes = len(self.var_indices["frozen"]) + 1
+            num_frozen_modes = len(self.var_categories["frozen"]) + 1
         num_nodes = len(self.nodes)
 
         # generating the C_mat_θ by inverting the capacitance matrix
@@ -1542,7 +1521,7 @@ class SymbolicCircuit(serializers.Serializable):
             )  # exlcluding the frozen modes
 
         p_θ_vars = [
-            symbols("Q" + str(i)) if i not in self.var_indices["cyclic"]
+            symbols("Q" + str(i)) if i not in self.var_categories["cyclic"]
             # replacing the cyclic charge with 0, as it would not affect the circuit lagrangian.
             else 0
             for i in range(1, len(self.nodes) + 1 - num_frozen_modes)
@@ -1561,7 +1540,7 @@ class SymbolicCircuit(serializers.Serializable):
         hamiltonian_symbolic = C_terms_new + self.potential_symbolic
 
         # adding the offset charge variables
-        for p in self.var_indices["periodic"]:
+        for p in self.var_categories["periodic"]:
             hamiltonian_symbolic = hamiltonian_symbolic.subs(
                 symbols("Q" + str(p)),
                 symbols("n" + str(p)) + symbols("ng_" + str(p)),
