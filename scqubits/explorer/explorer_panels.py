@@ -27,7 +27,7 @@ from scqubits.utils.misc import tuple_to_short_str
 
 if TYPE_CHECKING:
     from scqubits.core.param_sweep import ParameterSlice, ParameterSweep
-    from scqubits.core.qubit_base import QubitBaseClass, QubitBaseClass1d
+    from scqubits.core.qubit_base import QubitBaseClass, QubitBaseClass1d, QuantumSystem
 
 
 def display_bare_spectrum(
