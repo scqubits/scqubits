@@ -484,80 +484,75 @@ class GUI_V2:
             self.scan_dropdown_refresh, names="value"
         )
 
-        for widget in self.qubit_params_widgets.values():
-            widget.observe(self.current_plot_option_refresh, names="value")
-        for widget in self.qubit_plot_options_widgets.values():
-            widget.observe(self.current_plot_option_refresh, names="value")
+        if not self.manual_update_and_save_widgets[
+            "manual_update_checkbox"
+        ].get_interact_value():
+            for widget in self.qubit_params_widgets.values():
+                widget.observe(self.current_plot_option_refresh, names="value")
+            for widget in self.qubit_plot_options_widgets.values():
+                widget.observe(self.current_plot_option_refresh, names="value")
 
     def unobserve_plot(self):
         self.qubit_plot_options_widgets["scan_dropdown"].unobserve(
             self.scan_dropdown_refresh, names="value"
         )
 
-        for widget in self.qubit_params_widgets.values():
-            widget.unobserve(self.current_plot_option_refresh, names="value")
-        for widget in self.qubit_plot_options_widgets.values():
-            widget.unobserve(self.current_plot_option_refresh, names="value")
+        if not self.manual_update_and_save_widgets[
+            "manual_update_checkbox"
+        ].get_interact_value():
+            for widget in self.qubit_params_widgets.values():
+                widget.unobserve(self.current_plot_option_refresh, names="value")
+            for widget in self.qubit_plot_options_widgets.values():
+                widget.unobserve(self.current_plot_option_refresh, names="value")
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            self.unobserve_plot()
+        self.unobserve_plot()
         self.set_qubit(change["new"])
         self.initialize_tab_widget()
         self.observe_param_ranges()
+        self.observe_plot()
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
-            self.observe_plot()
             self.current_plot_option_refresh(None)
 
     def scan_dropdown_refresh(self, change) -> None:
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            self.unobserve_plot()
+        self.unobserve_plot()
         self.qubit_params_widgets[change.old].disabled = False
         self.qubit_params_widgets[change.new].disabled = True
 
-        self.qubit_plot_options_widgets["scan_range_slider"].min = self.active_defaults[
-            change.new
-        ]["min"]
-        self.qubit_plot_options_widgets["scan_range_slider"].max = self.active_defaults[
-            change.new
-        ]["max"]
+        self.param_ranges_update(None)
+        new_min = self.qubit_plot_options_widgets["scan_range_slider"].min
+        new_max = self.qubit_plot_options_widgets["scan_range_slider"].max
+
         self.qubit_plot_options_widgets["scan_range_slider"].value = [
-            self.active_defaults[change.new]["min"],
-            self.active_defaults[change.new]["max"],
+            new_min,
+            new_max,
         ]
 
         self.qubit_plot_options_widgets[
             "scan_range_slider"
         ].description = "{} range".format(change.new)
+        
+        self.observe_plot()
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
-            self.observe_plot()
             self.current_plot_option_refresh(None)
 
     def plot_option_layout_refresh(self, change) -> None:
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            self.unobserve_plot()
+        self.unobserve_plot()
         self.current_plot_option_refresh = self.get_plot_option_refresh()
         new_plot_option = self.plot_option_layout()
 
         self.tab_widget.children[0].children[0].children = tuple(
             new_plot_option.children
         )
-
+        self.observe_plot()
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
-            self.observe_plot()
             self.current_plot_option_refresh(None)
 
     def manual_scale_tf(self, change) -> None:
@@ -571,10 +566,18 @@ class GUI_V2:
     def manual_update_checkbox(self, change) -> None:
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
-            self.unobserve_plot()
+            
+            for widget in self.qubit_params_widgets.values():
+                widget.unobserve(self.current_plot_option_refresh, names="value")
+            for widget in self.qubit_plot_options_widgets.values():
+                widget.unobserve(self.current_plot_option_refresh, names="value")
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True
-            self.observe_plot()
+            
+            for widget in self.qubit_params_widgets.values():
+                widget.observe(self.current_plot_option_refresh, names="value")
+            for widget in self.qubit_plot_options_widgets.values():
+                widget.observe(self.current_plot_option_refresh, names="value")
             self.current_plot_option_refresh(None)
 
     def manual_update_button_onclick(self, change) -> None:
