@@ -58,7 +58,7 @@ def generate_trunc_dims_template(index_list: list) -> List[int]:
     return trunc_dims
 
 
-def get_trailing_number(input_str: str) -> int:
+def get_trailing_number(input_str: str) -> Union[int, None]:
     """
     Returns the number trailing a string given as input. Example:
         $ get_trailing_number("a23")
@@ -2064,9 +2064,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        :math:`\theta_i`: Union[ndarray, float]
-            Numpy array or a Float, is the value set to the variable :math:`\theta_i` in
-            the potential.
+        θ<index>:
+            value(s) for variable :math:`\theta_i` in the potential.
         """
         periodic_indices = self.var_indices["periodic"]
         discretized_phi_indices = self.var_indices["extended"]
@@ -2132,9 +2131,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        :math:`\theta_i`: Union[ndarray, float]
-            Numpy array or a Float, is the value set to the variable :math:`\theta_i` in
-            the potential.
+        θ<index>: Union[ndarray, float]
+            value(s) for the variable :math:`\theta_i` occurring in the potential.
         """
 
         periodic_indices = self.var_indices["periodic"]
