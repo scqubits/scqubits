@@ -246,7 +246,7 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
                 filtered_var = re.findall(
                     "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(var))
                 )  # filtering offset charges and external flux
-                if filtered_var == []:
+                if not filtered_var:
                     continue
                 else:
                     var_index = int(filtered_var[0])
@@ -532,7 +532,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             self._regenerate_sym_hamiltonian()
 
         # update Circuit instance
-        # generate _hamiltonian_sym_for_numerics if not already generated, delayed for large circuits
+        # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
+        # large circuits
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
             self.build_hilbertspace()
@@ -767,7 +768,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
             if subsystem_trunc_dims is None:
                 raise Exception(
-                    "The truncated dimensions attribute for hierarchical diagonalization is not set."
+                    "The truncated dimensions attribute for hierarchical "
+                    "diagonalization is not set."
                 )
             else:
                 self.subsystem_trunc_dims = subsystem_trunc_dims
@@ -782,10 +784,11 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        subsystem_indices : list, optional
+        subsystem_indices:
             A list of lists which is provided by the user to define subsystems
-        subsystem_trunc_dims : list, optional
-            dict object which can be generated for a specific subsystem_indices using the method generate_default_trunc_dims
+        subsystem_trunc_dims:
+            dict object which can be generated for a specific subsystem_indices using
+            the method generate_default_trunc_dims
         """
         if len(self.symbolic_circuit.nodes) > 3:
             self.hamiltonian_symbolic = (
@@ -827,9 +830,9 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def generate_subsystems(self):
         """
-        Generates the subsystems (child instances of Circuit) depending on the setting self.subsystem_indices
+        Generates the subsystems (child instances of Circuit) depending on the setting
+        `self.subsystem_indices`
         """
-        # H = self.hamiltonian_symbolic.expand()
         H = self._hamiltonian_sym_for_numerics
 
         systems_sym = []
@@ -907,16 +910,16 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def get_subsystem_index(self, var_index: int) -> int:
         """
-        Returns the subsystem index for the subsystem to which the given var_index belongs.
+        Returns the subsystem index for the subsystem to which the given var_index
+        belongs.
 
         Parameters
         ----------
-        var_index : int
+        var_index:
             variable index in integer starting from 1.
 
         Returns
         -------
-        int
             subsystem index which can be used to identify the subsystem index in the
             list self.subsystems.
         """
@@ -938,8 +941,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def build_hilbertspace(self):
         """
-        Builds the HilbertSpace object for the Circuit instance if
-        hierarchical_diagonalization is set to true.
+        Builds the HilbertSpace object for the `Circuit` instance if
+        `hierarchical_diagonalization` is set to true.
         """
         hilbert_space = HilbertSpace(
             [self.subsystems[i] for i in range(len(self.subsystem_indices))]
@@ -951,7 +954,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             if interaction == 0:  # if the interaction term is zero
                 continue
             # modifying interaction terms
-            #   - substituting all the external flux, offset charge and branch parameters.
+            #   - substituting all the external flux, offset charge and branch
+            #   parameters.
             interaction = interaction.subs(
                 [
                     (param, getattr(self, str(param)))
@@ -977,7 +981,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             for i, term in enumerate(terms_str):
                 coefficient_sympy = expr_dict[term]
 
-                # adding external flux, offset charge and branch parameters to coefficient
+                # adding external flux, offset charge and branch parameters to
+                # coefficient
                 for var in term.free_symbols:
                     if "Φ" in str(var) or "ng" in str(var) or var in self.param_vars:
                         coefficient_sympy = coefficient_sympy * getattr(self, str(var))
@@ -1023,7 +1028,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def _set_vars(self):
         """
-        Sets the attribute vars which is a dictionary containing all the Sympy symbol objects for all the operators present in the circuit
+        Sets the attribute vars which is a dictionary containing all the Sympy symbol
+        objects for all the operators present in the circuit
         """
         # Defining the list of variables for periodic operators
         periodic_symbols_sin = [
@@ -1073,16 +1079,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
             momentum_symbols = [
                 sm.symbols("Q" + str(i)) for i in self.var_indices["extended"]
             ]
-
-            extended_symbols = (
-                a_symbols
-                + ad_symbols
-                + Nh_symbols
-                + pos_symbols
-                + sin_symbols
-                + cos_symbols
-                + momentum_symbols
-            )
 
         # setting the attribute self.vars
         self.vars: Dict[str, Any] = {
@@ -1476,10 +1472,6 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
         """
         Returns the set of operators needed to evaluate the Hamiltonian of the current instance.
         """
-        from scipy import sparse
-
-        import scqubits.core.discretization as discretization
-
         periodic_vars = self.vars["periodic"]
         normal_vars = self.vars["extended"]
 
@@ -1659,7 +1651,8 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
 
     def get_external_flux(self) -> List[float]:
         """
-        Returns all the time independent external flux set using the circuit attributes for each of the independent loops detected.
+        Returns all the time independent external flux set using the circuit attributes
+        for each of the independent loops detected.
         """
         return [getattr(self, flux.name) for flux in self.external_flux_vars]
 
