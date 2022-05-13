@@ -72,15 +72,18 @@ def parse_branch_parameter(word: str) -> Union[List[float], List[Union[Symbol, f
 
 class Node:
     """
-    Class to represent a Node in a circuit handled by Circuit. The attribute
-    `<Node>.branches` is a list of Branch objects containing all branches connected to
-    the node. Parameters ---------- id:
+    Class representing a circuit node, and handled by `Circuit`. The attribute
+    `<Node>.branches` is a list of `Branch` objects containing all branches connected to
+    the node.
+
+    Parameters
+    ----------
+    id: int
         integer identifier of the node
-    marker:
+    marker: int
         An internal attribute used to group nodes and identify sub-circuits in the
         method independent_modes.
     """
-
     def __init__(self, id: int, marker: int):
         self.id = id
         self.marker = marker
@@ -95,10 +98,9 @@ class Node:
     def connected_nodes(self, branch_type: str) -> List["Node"]:
         """
         Returns a list of all nodes directly connected by branches to the current
-        node, either considering all branches or a specified branch type
-        branch_type:
-            "C", "L", "JJ", "all" for capacitive, inductive, Josephson junction,
-            or all types of branches.
+        node, either considering all branches or a specified `branch_type`:
+        "C", "L", "JJ", "all" for capacitive, inductive, Josephson junction,
+        or all types of branches.
         """
         result = []
         if branch_type == "all":
@@ -114,7 +116,7 @@ class Node:
                 result.append(branch.nodes[0])
         return result
 
-    def is_ground(self):
+    def is_ground(self) -> bool:
         """
         Returns a bool if the node is a ground node. It is ground if the id is set to 0.
         """
@@ -132,6 +134,7 @@ class Node:
 class Branch:
     """
     Class describing a circuit branch, used in the Circuit class.
+
     Parameters
     ----------
     n_i, n_f:
@@ -143,7 +146,10 @@ class Branch:
         capacitance: {"EC":  <value>};
         for inductance: {"EL": <value>};
         for Josephson Junction: {"EJ": <value>, "ECJ": <value>}
-    Example: `Branch("C", Node(1, 0), Node(2, 0))`
+
+    Examples
+    --------
+    `Branch("C", Node(1, 0), Node(2, 0))`
     is a capacitive branch connecting the nodes with indices 0 and 1.
     """
 
@@ -215,15 +221,21 @@ class Branch:
 class SymbolicCircuit(serializers.Serializable):
     r"""
     Describes a circuit consisting of nodes and branches.
-    Can be initialized using an input file. Examples: for a Transmon qubit the
-    input file would read:
-    # file_name: transmon_num.inp
+    
+    Examples
+    --------
+    For a transmon qubit, the input file reads:
+        ```
+        # file_name: transmon_num.inp
         nodes: 2
         branches:
         C	1,2	1
         JJ	1,2	1	10
-    Circuit object can be initiated using:
-        Circuit.from_input_file("transmon_num.inp")
+        ```
+        
+    The `Circuit` object can be initiated using:
+        `Circuit.from_input_file("transmon_num.inp")`
+        
     Parameters
     ----------
     nodes_list:
@@ -231,11 +243,16 @@ class SymbolicCircuit(serializers.Serializable):
     branches_list:
         List of branches connecting the above set of nodes.
     basis:
-        string; should be "simple" or "stadard" used to choose a type of basis for completing the transformation matrix. Set to "simple" by default. Name needs to be updated.
+        string; should be "simple" or "standard" used to choose a type of basis for 
+        completing the transformation matrix. Set to "simple" by default. Name needs to
+        be updated.
     ground_node:
-        If the circuit is grounded, the ground node is treated separately and should be provided to this parameter.
+        If the circuit is grounded, the ground node is treated separately and should be
+        provided to this parameter.
     initiate_sym_calc:
-        Boolean, set to True by default. Initiates the object attributes by calling the function initiate_symboliccircuit method when set to True. Set to False for debugging.
+        Boolean, set to True by default. Initiates the object attributes by calling the
+        function initiate_symboliccircuit method when set to True. Set to False for
+        debugging.
     """
 
     def __init__(
@@ -264,21 +281,22 @@ class SymbolicCircuit(serializers.Serializable):
         self.param_vars: List[Symbol] = list(branch_var_dict.keys())
         self.param_init_vals: List[float] = list(branch_var_dict.values())
 
-        self.hamiltonian_symbolic: Union[sympy.Add, sympy.Mul] = None
+        self.hamiltonian_symbolic: Optional[sympy.Expr] = None
         # to store the internally used lagrangian
-        self._lagrangian_symbolic: Union[sympy.Add, sympy.Mul] = None
-        self.lagrangian_symbolic: Union[sympy.Add, sympy.Mul] = None
+        self._lagrangian_symbolic: Optional[sympy.Expr] = None
+        self.lagrangian_symbolic: Optional[sympy.Expr] = None
         # symbolic lagrangian in terms of untransformed generalized flux variables
-        self.lagrangian_node_vars: Union[sympy.Add, sympy.Mul] = None
+        self.lagrangian_node_vars: Optional[sympy.Expr] = None
         # symbolic expression for potential energy
-        self.potential_symbolic: Union[sympy.Add, sympy.Mul] = None
+        self.potential_symbolic: Optional[sympy.Expr] = None
 
         # parameters for grounding the circuit
         self.ground_node = ground_node
         self.is_grounded = bool(self.ground_node)
 
-        # TODO comments in the following two lines are not helpful - Needs renaming and some refactoring in the method variable_transformation_matrix
-        # paramater for chosing the basis - needs to be rewritten
+        # TODO comments in the following two lines are not helpful - Needs renaming and 
+        # some refactoring in the method variable_transformation_matrix
+        # parameter for chosing the basis - needs to be rewritten
         self.basis_completion = (
             basis_completion  # default, the other choice is standard
         )
@@ -296,12 +314,14 @@ class SymbolicCircuit(serializers.Serializable):
         self, transformation_matrix=None, closure_branches=None
     ):
         """
-        Method to initialize the CustomQCircuit instance and initialize all the attributes needed before it can be passed on to AnalyzeQCircuit.
+        Method to initialize the CustomQCircuit instance and initialize all the
+        attributes needed before it can be passed on to AnalyzeQCircuit.
 
         Parameters
         ----------
         transformation_matrix:
-            Takes an ndarray and is used to set an alternative transformation matrix than the one generated by the method variable_transformation_matrix.
+            Takes an ndarray and is used to set an alternative transformation matrix
+            than the one generated by the method variable_transformation_matrix.
         """
         # if the user provides a transformation matrix
         if transformation_matrix is not None:
@@ -309,7 +329,8 @@ class SymbolicCircuit(serializers.Serializable):
                 transformation_matrix
             )
             self.transformation_matrix = transformation_matrix
-        # calculate the transformation matrix and identify the boundary conditions if the user does not provide a custom transformation matrix
+        # calculate the transformation matrix and identify the boundary conditions if
+        # the user does not provide a custom transformation matrix
         else:
             (
                 self.transformation_matrix,
@@ -339,12 +360,16 @@ class SymbolicCircuit(serializers.Serializable):
         # calculating the Hamiltonian directly when the number of nodes is less than 3
         if (
             len(self.nodes) <= 3
-        ):  # only calculate the symbolic hamiltonian when the number of nodes is less than 3. Else, the calculation will be skipped to the end when numerical Hamiltonian of the circuit is requested.
+        ):  # only calculate the symbolic hamiltonian when the number of nodes is less
+            # than 3. Else, the calculation will be skipped to the end when numerical
+            # Hamiltonian of the circuit is requested.
             self.hamiltonian_symbolic = self.generate_symbolic_hamiltonian()
 
     def _replace_energies_with_capacitances_L(self):
         """
-        Method replaces the energies in the Lagrangian with capacitances which are arbitrarily generated to make sure that the Lagrangian looks dimensionally correct.
+        Method replaces the energies in the Lagrangian with capacitances which are
+        arbitrarily generated to make sure that the Lagrangian looks dimensionally
+        correct.
         """
         # Replacing energies with capacitances if any branch parameters are symbolic
         L = self._lagrangian_symbolic.expand()
@@ -369,7 +394,8 @@ class SymbolicCircuit(serializers.Serializable):
                 L_old = L_old.subs(var, 1 / (8 * symbols("C" + str(index + 1))))
         return L, L_old
 
-    # TODO: what's going on here? - I thought something like this was necessary for serialize to make sure we can store this object onto a file in the HDD.
+    # TODO: what's going on here? - I thought something like this was necessary for
+    #  serialize to make sure we can store this object onto a file in the HDD.
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -415,7 +441,8 @@ class SymbolicCircuit(serializers.Serializable):
         branches = []
         branch_var_dict = (
             {}
-        )  # dictionary which stores the init values of all the variables defined in input string
+        )  # dictionary which stores the init values of all the variables defined in
+        # input string
         for branch_list_input in branches_list:
 
             branch_type = branch_list_input[0]
@@ -425,21 +452,26 @@ class SymbolicCircuit(serializers.Serializable):
                 branch_list_input
             ) != 5:
                 raise Exception(
-                    "Incorrect number of parameters specified for the JJ input in the line: "
-                    + str(branch_list_input)
+                    "Incorrect number of parameters specified for the JJ input in the "
+                    "line: " + str(branch_list_input)
                 )
             elif (branch_type == "L" or branch_type == "C") and len(
                 branch_list_input
             ) != 4:
                 raise Exception(
-                    "Incorrect number of parameters specified for the C or L input in the line: "
-                    + str(branch_list_input)
+                    "Incorrect number of parameters specified for the C or L input in "
+                    "the line: " + str(branch_list_input)
                 )
 
             if node_id1 * node_id2 == 0 and not is_grounded:
-                # Make a ground node when any of the branches in the input file has 0 as one of the nodes. This implies that ground node is included in the circuiit.
+                # Make a ground node when any of the branches in the input file has 0 as
+                # one of the nodes. This implies that ground node is included in the
+                # circuit.
                 # input file
-                # TODO: explain why? - The node count includes the set of all nodes including ground node. But, the numer of nodes in the input file should not include the ground node. I will change this unnecessary complication by refactoring that method slightly.
+                # TODO: explain why? - The node count includes the set of all nodes
+                #  including ground node. But, the numer of nodes in the input file
+                #  should not include the ground node. I will change this unnecessary
+                #  complication by refactoring that method slightly.
                 node_count += 1
                 ground_node = Node(0, 0)
                 is_grounded = True
@@ -454,7 +486,7 @@ class SymbolicCircuit(serializers.Serializable):
                             and params[0] not in branch_var_dict
                         ):
                             raise Exception(
-                                "The paramater "
+                                "The parameter "
                                 + str(str(params[0]) + " has not been initialized.")
                             )
                         branch_params.append(params[0])
@@ -472,7 +504,7 @@ class SymbolicCircuit(serializers.Serializable):
                         and params[0] not in branch_var_dict
                     ):
                         raise Exception(
-                            "The paramater "
+                            "The parameter "
                             + str(params[0] + " has not been initialized.")
                         )
                     branch_params.append(params[0])
@@ -519,34 +551,42 @@ class SymbolicCircuit(serializers.Serializable):
         initiate_sym_calc: bool = True,
     ):
         """
-        Constructs the instance of Circuit from an input string. Here is an example of an input string that is used to initiate an object of the class SymbolicCircuit:
-        ```
-        nodes: 7
-        branches:
-        JJ 0,1 5 1
-        JJ 1,2 5 1
-        JJ 3,4 EJ ECJ
-        JJ 5,6 4 1
-        L 2,3 1
-        L 4,0 2
-        L 3,5 3
-        L 6,7 4
-        C 3,4 5
-        C 5,6 1
-        C 7,0 1
-        ```
+        Constructs the instance of Circuit from an input string. Here is an example of
+        an input string that is used to initiate an object of the
+        class `SymbolicCircuit`:
+
+            ```
+            nodes: 7
+            branches:
+            JJ 0,1 5 1
+            JJ 1,2 5 1
+            JJ 3,4 EJ ECJ
+            JJ 5,6 4 1
+            L 2,3 1
+            L 4,0 2
+            L 3,5 3
+            L 6,7 4
+            C 3,4 5
+            C 5,6 1
+            C 7,0 1
+            ```
+
         Parameters
         ----------
         input_string:
-            String describing the number of nodes and branches connecting then along with their parameters
-        basis:
-            string; should be "simple" or "stadard" used to choose a type of basis for completing the transformation matrix. Set to "simple" by default. Name needs to be updated.
+            String describing the number of nodes and branches connecting then along
+            with their parameters
+        basis_completion:
+            choices: "simple" or "standard"; used to choose a type of basis
+            for completing the transformation matrix. Set to "simple" by default.
         initiate_sym_calc:
-            Boolean, set to True by default. Initiates the object attributes by calling the function initiate_symboliccircuit method when set to True. Set to False for debugging.
+            set to True by default. Initiates the object attributes by calling
+            the function `initiate_symboliccircuit` method when set to True.
+            Set to False for debugging.
 
         Returns
         -------
-        Instance of the class SymblicCircuit
+            Instance of the class `SymbolicCircuit`
         """
         if is_file:
             file = open(input_string, "r")
@@ -581,19 +621,24 @@ class SymbolicCircuit(serializers.Serializable):
         basisvec_entries: List[int] = [1, 0],
     ):
         """
-        Returns the vectors which span a subspace where there is no generalized flux difference across the branches present in the branch_subset.
-        Optional Variables:
-        single_nodes: Boolean, if the single nodes are taken into consideration for basis vectors.
+        Returns the vectors which span a subspace where there is no generalized flux
+        difference across the branches present in the branch_subset.
+
+        Parameters
+        ----------
+        single_nodes:
+            if the single nodes are taken into consideration for basis vectors.
         """
         nodes_copy = self.nodes.copy()  # copying self.nodes as it is being modified
 
-        if self.is_grounded:  # needed as gorund node is not included in self.nodes
+        if self.is_grounded:  # needed as ground node is not included in self.nodes
             nodes_copy.append(self.ground_node)
 
         for node in nodes_copy:  # reset the node markers
             node.marker = 0
 
-        # step 2: finding the maximum connected set of independent branches in branch_subset, then identifying the sets of nodes in each of thoses sets
+        # step 2: finding the maximum connected set of independent branches in
+        # branch_subset, then identifying the sets of nodes in each of those sets
         branch_subset_copy = branch_subset.copy()
 
         max_connected_subgraphs = []  # list containing the maximum connected subgraphs
@@ -621,7 +666,8 @@ class SymbolicCircuit(serializers.Serializable):
             for branch_set in max_connected_subgraphs
         ]
 
-        # using node.marker to mark the maximum connected subgraph to which a node belongs
+        # using node.marker to mark the maximum connected subgraph to which a node
+        # belongs
         for node_set_index, node_set in enumerate(nodes_in_max_connected_branchsets):
             for node in node_set:
                 node.marker = (
@@ -630,9 +676,14 @@ class SymbolicCircuit(serializers.Serializable):
 
         node_branch_set_indices = [
             node.marker for node in nodes_copy
-        ]  # identifies which node belongs to which maximum connected subgraphs; different numbers on two nodes indicates that they are not connected through any of the branches in branch_subset. 0 implies the node does not belong to any of the branches in max connected branch subsets and -1 implies the max connected branch set is connected to ground.
+        ]  # identifies which node belongs to which maximum connected subgraphs;
+        # different numbers on two nodes indicates that they are not connected through
+        # any of the branches in branch_subset. 0 implies the node does not belong to
+        # any of the branches in max connected branch subsets and -1 implies the max
+        # connected branch set is connected to ground.
 
-        # step 3: Finding the linearly independent vectors spanning the vector space represented by branch_set_index
+        # step 3: Finding the linearly independent vectors spanning the vector space
+        # represented by branch_set_index
         basis = []
 
         unique_branch_set_markers = list(set(node_branch_set_indices))
@@ -649,7 +700,7 @@ class SymbolicCircuit(serializers.Serializable):
                 ]
             )
 
-        if single_nodes == True:  # taking the case where the node_branch_set_index is 0
+        if single_nodes:  # taking the case where the node_branch_set_index is 0
             single_node_modes = []
             if node_branch_set_indices.count(0) > 0:
                 ref_vector = [
@@ -684,14 +735,16 @@ class SymbolicCircuit(serializers.Serializable):
     @staticmethod
     def _mode_in_subspace(mode, subspace) -> bool:
         """
-        Method to check if the vector mode is a part of the subspace provided as a set of vectors
+        Method to check if the vector mode is a part of the subspace provided as a set
+        of vectors
 
         Parameters
         ----------
         mode:
             numpy ndarray of one dimension.
         subspace:
-            numpy ndarray which represents a collection of basis vectors for a vector subspace
+            numpy ndarray which represents a collection of basis vectors for a vector
+            subspace
         """
         if len(subspace) == 0:
             return False
@@ -700,17 +753,24 @@ class SymbolicCircuit(serializers.Serializable):
 
     def check_transformation_matrix(self, transformation_matrix: ndarray):
         """
-        Method to identify the different modes in the transformation matrix provided by the user.
+        Method to identify the different modes in the transformation matrix provided by
+        the user.
 
         Parameters
         ----------
         transformation_matrix :
-            numpy ndarray which is a square matrix having the dimensions of the number of nodes present in the circuit.
+            numpy ndarray which is a square matrix having the dimensions of the number
+            of nodes present in the circuit.
 
         Returns
         -------
+<<<<<<< HEAD
         var_categories:
             A dictionary of lists which has the variable indices classified with var indices corresponding to the rows of the transformation matrix
+=======
+            A dictionary of lists which has the variable indices classified with var
+            indices corresponding to the rows of the transformation matrix
+>>>>>>> 215578989aca4a80679ad4e36d0475819cf6e00a
         """
         # basic check to see if the matrix is invertible
         if np.linalg.det(transformation_matrix) == 0:
@@ -718,22 +778,22 @@ class SymbolicCircuit(serializers.Serializable):
 
         # find all the different types of modes present in the circuit.
 
-        ##################### Finding the Periodic Modes ##################
+        # *************************** Finding the Periodic Modes ##################
         selected_branches = [branch for branch in self.branches if branch.type == "L"]
         periodic_modes = self._independent_modes(selected_branches)
 
-        ##################### Finding the frozen modes ##################
+        # *************************** Finding the frozen modes ##################
         selected_branches = [branch for branch in self.branches if branch.type != "L"]
         frozen_modes = self._independent_modes(selected_branches, single_nodes=True)
 
-        ##################### Finding the Cyclic Modes ##################
+        # *************************** Finding the Cyclic Modes ##################
         selected_branches = [branch for branch in self.branches if branch.type != "C"]
         cyclic_modes = self._independent_modes(selected_branches)
 
         #################### Finding the extended Modes ##################
         # extended_modes = self.get_extended_modes()
 
-        ###################### Finding the LC Modes ##################
+        # ***************************# Finding the LC Modes ##################
         selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
         LC_modes = self._independent_modes(selected_branches, single_nodes=False)
 
@@ -846,7 +906,12 @@ class SymbolicCircuit(serializers.Serializable):
 
     def variable_transformation_matrix(self) -> ndarray:
         """
+<<<<<<< HEAD
         Evaluates the boundary conditions and constructs the variable transformation matrix, which is returned along with the dictionary var_categories which
+=======
+        Evaluates the boundary conditions and constructs the variable transformation
+        matrix, which is returned along with the dictionary var_indices which
+>>>>>>> 215578989aca4a80679ad4e36d0475819cf6e00a
         classifies the types of variables present in the circuit.
 
         Returns
@@ -857,23 +922,23 @@ class SymbolicCircuit(serializers.Serializable):
             var_categories dict which calssifies the variable types for each variable index
         """
 
-        ##################### Finding the Periodic Modes ##################
+        # ****************  Finding the Periodic Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type == "L"]
         periodic_modes = self._independent_modes(selected_branches)
 
-        ##################### Finding the frozen modes ##################
+        # ****************  Finding the frozen modes ****************
         selected_branches = [branch for branch in self.branches if branch.type != "L"]
         frozen_modes = self._independent_modes(selected_branches, single_nodes=True)
 
-        ##################### Finding the Cyclic Modes ##################
+        # **************** Finding the Cyclic Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type != "C"]
         cyclic_modes = self._independent_modes(selected_branches)
 
-        # ##################### Finding the extended Modes ##################
+        # **************** Finding the extended Modes ****************
         # extended_modes = self.get_extended_modes()
 
-        #################### including the Σ mode #################
-        Σ = [1 for n in self.nodes]
+        # ****************  including the Σ mode ****************
+        Σ = [1] * len(self.nodes)
         if not self.is_grounded:  # only append if the circuit is not grounded
             mat = np.array(frozen_modes + [Σ])
             # check to see if the vectors are still independent
@@ -882,13 +947,13 @@ class SymbolicCircuit(serializers.Serializable):
             else:
                 frozen_modes.append(Σ)
 
-        ###################### Finding the LC Modes ##################
+        # **************** Finding the LC Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
         LC_modes = self._independent_modes(
             selected_branches, single_nodes=False, basisvec_entries=[-1, 1]
         )
 
-        ################ Adding frozen, cyclic, periodic , LC and extended modes #############
+        # **************** Adding frozen, cyclic, periodic , LC and extended modes ****
         modes = []  # starting with an empty list
 
         for m in (
@@ -898,7 +963,7 @@ class SymbolicCircuit(serializers.Serializable):
             if np.linalg.matrix_rank(mat) == len(mat):
                 modes.append(m)
 
-        ####################### Completing the Basis ######################
+        # ********** Completing the Basis ****************
         # step 4: construct the new set of basis vectors
 
         # constructing a standard basis
@@ -935,7 +1000,8 @@ class SymbolicCircuit(serializers.Serializable):
         new_basis = np.array(new_basis)
         # new_basis = np.array(modes)
 
-        # sorting the basis so that the cyclic, periodic and frozen variables occur at the beginning.
+        # sorting the basis so that the cyclic, periodic and frozen variables occur at
+        # the beginning.
         if not self.is_grounded:
             pos_Σ = [i for i in range(len(new_basis)) if new_basis[i].tolist() == Σ]
         else:
@@ -1098,8 +1164,9 @@ class SymbolicCircuit(serializers.Serializable):
 
         Parameters
         ----------
-        substitute_params : bool, optional
-            when set to True all the symbolic branch parameters are substituted with their corresponding attributes in float, by default False
+        substitute_params:
+            when set to True all the symbolic branch parameters are substituted with
+            their corresponding attributes in float, by default False
 
         Returns
         -------
@@ -1237,7 +1304,7 @@ class SymbolicCircuit(serializers.Serializable):
             self.input_string, is_file=False, initiate_sym_calc=False
         )
 
-        ############# removing all the capacitive branches and updating the nodes ################
+        # **************** removing all the capacitive branches and updating the nodes *
         # identifying capacitive branches
         capacitor_branches = [
             branch for branch in list(circ_copy.branches) if branch.type == "C"
@@ -1247,7 +1314,8 @@ class SymbolicCircuit(serializers.Serializable):
                 node
             ) in (
                 c_branch.nodes
-            ):  # updating the branches attribute for each node that this branch connects
+            ):  # updating the branches attribute for each node that this branch
+                # connects
                 node.branches = [b for b in node.branches if b is not c_branch]
             circ_copy.branches.remove(c_branch)  # removing the branch
 
@@ -1276,15 +1344,15 @@ class SymbolicCircuit(serializers.Serializable):
 
         if circ_copy.nodes == []:
             return [], []
-        #######################################################################################
+        # *****************************************************************************
 
-        ################### Constructing the node_sets ###############
+        # **************** Constructing the node_sets ***************
         if circ_copy.is_grounded:
             node_sets = [[circ_copy.ground_node]]
         else:
             node_sets = [
                 [circ_copy.nodes[0]]
-            ]  # starting with the first set which has the first node as the only element
+            ]  # starting with the first set that has the first node as the only element
 
         num_nodes = len(circ_copy.nodes)
         # this needs to be done as the ground node is not included in self.nodes
@@ -1319,15 +1387,15 @@ class SymbolicCircuit(serializers.Serializable):
 
             node_sets.append(node_set)
             node_set_index += 1
-        #############################################################
+        # ***************************
 
-        ########## constructing the spanning tree ##########
+        # **************** constructing the spanning tree ##########
         tree_copy = []  # tree having branches of the instance that is copied
 
         def connecting_branches(n1: Node, n2: Node):
             return [branch for branch in n1.branches if branch in n2.branches]
 
-        # finding the branch which connects the node to another node in a previous node set.
+        # find the branch connecting this node to another node in a previous node set.
         for index, node_set in enumerate(node_sets):
             if index == 0:
                 continue
@@ -1404,16 +1472,13 @@ class SymbolicCircuit(serializers.Serializable):
     ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr,]:
         r"""
         Returns three symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ
-        where θ represents the set of new variables and φ represents the set of node variables
-
-        Parameters
-        ----------
-        transformation_matrix:
-            None or an alternative transformation matrix to the one returned by the method variable_transformation_matrix
+        where θ represents the set of new variables and φ represents the set of node
+        variables
         """
         transformation_matrix = (
             self.transformation_matrix
-        )  # .astype(int) allowing for fractional transformations needs revamp in circuit.py hamiltonian_function
+        )  # .astype(int) allowing for fractional transformations needs revamp in
+        # circuit.py hamiltonian_function
 
         # defining the φ variables
         φ_dot_vars = [symbols("vφ" + str(i)) for i in range(1, len(self.nodes) + 1)]
@@ -1423,28 +1488,26 @@ class SymbolicCircuit(serializers.Serializable):
         # defining the θ dot variables
         θ_dot_vars = [symbols("vθ" + str(i)) for i in range(1, len(self.nodes) + 1)]
         # writing φ in terms of θ variables
-        φ_vars_θ = (transformation_matrix).dot(θ_vars)
+        φ_vars_θ = transformation_matrix.dot(θ_vars)
         # writing φ dot vars in terms of θ variables
-        φ_dot_vars_θ = (transformation_matrix).dot(θ_dot_vars)
+        φ_dot_vars_θ = transformation_matrix.dot(θ_dot_vars)
 
         # C_terms = self._C_terms()
         C_mat = self._capacitance_matrix()
         if not self.is_any_branch_parameter_symbolic():
-            C_terms_φ = ((C_mat).dot(φ_dot_vars)).dot(
-                φ_dot_vars
-            ) * 0.5  # interms of node variables
-            C_terms_θ = ((C_mat).dot(φ_dot_vars_θ)).dot(
-                φ_dot_vars_θ
-            ) * 0.5  # interms of new variables
+            # in terms of node variables
+            C_terms_φ = C_mat.dot(φ_dot_vars).dot(φ_dot_vars) * 0.5
+            # in terms of new variables
+            C_terms_θ = C_mat.dot(φ_dot_vars_θ).dot(φ_dot_vars_θ) * 0.5
         else:
             C_terms_φ = (sympy.Matrix(φ_dot_vars).T * C_mat * sympy.Matrix(φ_dot_vars))[
                 0
-            ] * 0.5  # interms of node variables
+            ] * 0.5  # in terms of node variables
             C_terms_θ = (
                 sympy.Matrix(φ_dot_vars_θ).T * C_mat * sympy.Matrix(φ_dot_vars_θ)
             )[
                 0
-            ] * 0.5  # interms of new variables
+            ] * 0.5  # in terms of new variables
 
         inductor_terms_φ = self._inductor_terms()
 
@@ -1478,18 +1541,21 @@ class SymbolicCircuit(serializers.Serializable):
 
     def generate_symbolic_hamiltonian(self, substitute_params=False) -> sympy.Expr:
         r"""
-        Returns the Hamiltonian of the circuit in terms of the new variables :math:`\theta_i`.
+        Returns the Hamiltonian of the circuit in terms of the new variables
+        :math:`\theta_i`.
 
         Parameters
         ----------
-        substitute_params: Bool
-            When set to True, the symbols defined for branch parameters will be substituted with the numerical values in the respective Circuit attributes.
+        substitute_params:
+            When set to True, the symbols defined for branch parameters will be
+            substituted with the numerical values in the respective Circuit attributes.
         """
 
         transformation_matrix = self.transformation_matrix
         # basis_inv = np.linalg.inv(basis)[0 : N - n, 0 : N - n]
 
-        # Excluding the frozen modes based on how they are organized in the method variable_transformation_matrix
+        # Excluding the frozen modes based on how they are organized in the method
+        # variable_transformation_matrix
         if self.is_grounded:
             num_frozen_modes = len(self.var_categories["frozen"])
         else:
@@ -1505,7 +1571,7 @@ class SymbolicCircuit(serializers.Serializable):
             )[
                 0 : num_nodes - num_frozen_modes,
                 0 : num_nodes - num_frozen_modes,
-            ].inv()  # exlcluding the frozen modes
+            ].inv()  # excluding the frozen modes
         else:
             C_mat_θ = np.linalg.inv(
                 (
@@ -1516,7 +1582,7 @@ class SymbolicCircuit(serializers.Serializable):
                     0 : num_nodes - num_frozen_modes,
                     0 : num_nodes - num_frozen_modes,
                 ]
-            )  # exlcluding the frozen modes
+            )  # excluding the frozen modes
 
         p_θ_vars = [
             symbols("Q" + str(i)) if i not in self.var_categories["cyclic"]
@@ -1529,19 +1595,19 @@ class SymbolicCircuit(serializers.Serializable):
         if not self.is_any_branch_parameter_symbolic():
             C_terms_new = (
                 C_mat_θ.dot(p_θ_vars).dot(p_θ_vars) * 0.5
-            )  # interms of new variables
+            )  # in terms of new variables
         else:
             C_terms_new = (sympy.Matrix(p_θ_vars).T * C_mat_θ * sympy.Matrix(p_θ_vars))[
                 0
-            ] * 0.5  # interms of new variables
+            ] * 0.5  # in terms of new variables
 
         hamiltonian_symbolic = C_terms_new + self.potential_symbolic
 
         # adding the offset charge variables
-        for p in self.var_categories["periodic"]:
+        for var_index in self.var_indices["periodic"]:
             hamiltonian_symbolic = hamiltonian_symbolic.subs(
-                symbols("Q" + str(p)),
-                symbols("n" + str(p)) + symbols("ng_" + str(p)),
+                symbols("Q" + str(var_index)),
+                symbols("n" + str(var_index)) + symbols("ng_" + str(var_index)),
             )
 
         return hamiltonian_symbolic

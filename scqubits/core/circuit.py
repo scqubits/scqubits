@@ -20,7 +20,12 @@ from typing import (
     Tuple,
     Union,
 )
-from matplotlib.text import OffsetFrom
+
+import numpy as np
+import regex as re
+
+# import re
+import scipy as sp
 import sympy as sm
 import numpy as np
 import scipy as sp
@@ -80,7 +85,7 @@ def truncation_template(system_hierarchy: list) -> list:
     return trunc_dims
 
 
-def get_trailing_number(input_str: str) -> int:
+def get_trailing_number(input_str: str) -> Union[int, None]:
     """
     Returns the number trailing a string given as input. Example:
         $ get_trailing_number("a23")
@@ -164,7 +169,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                 filtered_var = re.findall(
                     "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(var))
                 )  # filtering offset charges and external flux
-                if filtered_var == []:
+                if not filtered_var:
                     continue
                 else:
                     var_index = int(filtered_var[0])
@@ -244,7 +249,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             self._regenerate_sym_hamiltonian()
 
         # update Circuit instance
-        # generate _hamiltonian_sym_for_numerics if not already generated, delayed for large circuits
+        # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
+        # large circuits
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
             self.build_hilbertspace()
@@ -395,7 +401,6 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         """
         Generates the subsystems (child instances of Circuit) depending on the setting self.system_hierarchy
         """
-        # H = self.hamiltonian_symbolic.expand()
         H = self._hamiltonian_sym_for_numerics
 
         systems_sym = []
@@ -470,16 +475,16 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def get_subsystem_index(self, var_index: int) -> int:
         """
-        Returns the subsystem index for the subsystem to which the given var_index belongs.
+        Returns the subsystem index for the subsystem to which the given var_index
+        belongs.
 
         Parameters
         ----------
-        var_index : int
+        var_index:
             variable index in integer starting from 1.
 
         Returns
         -------
-        int
             subsystem index which can be used to identify the subsystem index in the
             list self.subsystems.
         """
@@ -489,8 +494,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def build_hilbertspace(self):
         """
-        Builds the HilbertSpace object for the Circuit instance if
-        hierarchical_diagonalization is set to true.
+        Builds the HilbertSpace object for the `Circuit` instance if
+        `hierarchical_diagonalization` is set to true.
         """
         hilbert_space = HilbertSpace(
             [self.subsystems[i] for i in range(len(self.system_hierarchy))]
@@ -502,7 +507,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             if interaction == 0:  # if the interaction term is zero
                 continue
             # modifying interaction terms
-            #   - substituting all the external flux, offset charge and branch parameters.
+            #   - substituting all the external flux, offset charge and branch
+            #   parameters.
             interaction = interaction.subs(
                 [
                     (param, getattr(self, str(param)))
@@ -528,7 +534,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             for i, term in enumerate(terms_str):
                 coefficient_sympy = expr_dict[term]
 
-                # adding external flux, offset charge and branch parameters to coefficient
+                # adding external flux, offset charge and branch parameters to
+                # coefficient
                 for var in term.free_symbols:
                     if "Φ" in str(var) or "ng" in str(var) or var in self.param_vars:
                         coefficient_sympy = coefficient_sympy * getattr(self, str(var))
@@ -571,7 +578,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def _set_vars(self):
         """
-        Sets the attribute vars which is a dictionary containing all the Sympy symbol objects for all the operators present in the circuit
+        Sets the attribute vars which is a dictionary containing all the Sympy symbol
+        objects for all the operators present in the circuit
         """
         # Defining the list of variables for periodic operators
         periodic_symbols_sin = [
@@ -624,18 +632,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                 sm.symbols("Q" + str(i)) for i in self.var_categories["extended"]
             ]
 
-            extended_symbols = (
-                a_symbols
-                + ad_symbols
-                + Nh_symbols
-                + pos_symbols
-                + sin_symbols
-                + cos_symbols
-                + momentum_symbols
-            )
-
         # setting the attribute self.vars
-        self.vars = {
+        self.vars: Dict[str, Any] = {
             "periodic": {
                 "sin": periodic_symbols_sin,
                 "cos": periodic_symbols_cos,
@@ -665,13 +663,15 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def generate_hamiltonian_sym_for_numerics(self):
         """
-        Generates a symbolic expression which is ready for numerical evaluation starting from the expression stored in the attribute hamiltonian_symbolic.
+        Generates a symbolic expression which is ready for numerical evaluation starting
+        from the expression stored in the attribute hamiltonian_symbolic.
         """
         H = (
             self.hamiltonian_symbolic.expand()
-        )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
+        )  # applying expand is critical; otherwise the replacement of p^2 with ps2
+        # would not succeed
 
-        ######## shifting the harmonic oscillator potential to the point of external fluxes #############
+        # shifting the harmonic oscillator potential to the point of external fluxes
         flux_shift_vars = {}
         for var_index in self.var_categories["extended"]:
             if H.coeff("θ" + str(var_index)) != 0:
@@ -679,7 +679,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                 H = H.replace(
                     sm.symbols("θ" + str(var_index)),
                     sm.symbols("θ" + str(var_index)) + flux_shift_vars[var_index],
-                )  # substituting the flux offset variable offsets to collect the coefficients later
+                )  # substituting the flux offset variable offsets to collect the
+                # coefficients later
         H = H.expand()
 
         flux_shift_equations = [
@@ -1211,13 +1212,15 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def get_external_flux(self) -> List[float]:
         """
-        Returns all the time independent external flux set using the circuit attributes for each of the independent loops detected.
+        Returns all the time independent external flux set using the circuit attributes
+        for each of the independent loops detected.
         """
         return [getattr(self, flux.name) for flux in self.external_fluxes]
 
     def get_offset_charges(self) -> List[float]:
         """
-        Returns all the offset charges set using the circuit attributes for each of the periodic degree of freedom.
+        Returns all the offset charges set using the circuit attributes for each of the
+        periodic degree of freedom.
         """
         return [
             getattr(self, offset_charge.name) for offset_charge in self.offset_charges
@@ -1261,7 +1264,9 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def set_operators(self):
         """
-        Sets the operator attributes of the circuit with new operators calculated using the paramaters set in the circuit attributes. Returns a list of operators similar to the method get_operators.
+        Sets the operator attributes of the circuit with new operators calculated using
+        the paramaters set in the circuit attributes. Returns a list of operators
+        similar to the method get_operators.
         """
 
         if self.hierarchical_diagonalization:
@@ -1390,7 +1395,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def _get_eval_hamiltonian_string(self, H):
         """
-        Returns the string which defines the expression for Hamiltonian in harmonic oscillator basis
+        Returns the string which defines the expression for Hamiltonian in harmonic
+        oscillator basis
         """
         expr_dict = H.as_coefficients_dict()
         terms_list = list(expr_dict.keys())
@@ -1445,7 +1451,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         )
         H = H.subs(
             "I", 1
-        )  # does not make a difference as all the trignometric expressions are expanded out.
+        )  # does not make a difference as all the trignometric expressions are
+        # expanded out.
         # remove constants from the Hamiltonian
         H = H - H.as_coefficients_dict()[1]
         H = H.expand()
@@ -1761,7 +1768,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
         if len(sweep_vars) > 2:
             raise AttributeError(
-                "Cannot plot with a dimension greater than 3; Only give a maximum of two grid inputs"
+                "Cannot plot with a dimension greater than 3; Only give a maximum of "
+                "two grid inputs"
             )
 
         potential_energies = self.potential_energy(**kwargs)
