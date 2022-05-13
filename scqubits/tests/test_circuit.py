@@ -31,13 +31,14 @@ for qubit_name in qubits_tested:
     )
     reference_data[qubit_name] = data_store.system_params
 
-    qubits[qubit_name] = Circuit.from_input_string(
+    qubits[qubit_name] = Circuit.from_yaml(
         reference_data[qubit_name]["input_string"],
-        phi_basis=reference_data[qubit_name]["phi_basis"],
+        is_file=False,
+        ext_basis=reference_data[qubit_name]["phi_basis"],
     )
     if "subsystem_indices" in reference_data[qubit_name]:
-        qubits[qubit_name].update_subsystem_hierarchy(
-            subsystem_indices=reference_data[qubit_name]["subsystem_indices"],
+        qubits[qubit_name].set_system_hierarchy(
+            system_hierarchy=reference_data[qubit_name]["subsystem_indices"],
             subsystem_trunc_dims=reference_data[qubit_name]["subsystem_trunc_dims"],
         )
 

@@ -48,7 +48,7 @@ def harm_osc_wavefunction(
         value of harmonic oscillator wave function
     """
     return (
-        (2.0 ** n * sp.special.gamma(n + 1.0) * l_osc) ** (-0.5)
+        (2.0**n * sp.special.gamma(n + 1.0) * l_osc) ** (-0.5)
         * np.pi ** (-0.25)
         * sp.special.eval_hermite(n, x / l_osc)
         * np.exp(-(x * x) / (2 * l_osc * l_osc))
@@ -57,13 +57,13 @@ def harm_osc_wavefunction(
 
 def convert_to_E_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator energy given a harmonic Hamiltonian of the form
-    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2`"""
     return np.sqrt(E_kin * E_pot)
 
 
 def convert_to_l_osc(E_kin: float, E_pot: float) -> float:
     r"""Returns the oscillator length given a harmonic Hamiltonian of the form
-    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2"""
+    :math:`H=\frac{1}{2}E_{\text{kin}}p^2 + \frac{1}{2}E_{\text{pot}}x^2`"""
     return (E_kin / E_pot) ** (1 / 4)
 
 
@@ -247,6 +247,6 @@ class KerrOscillator(Oscillator, serializers.Serializable):
             number of desired eigenvalues (default value = 6)
         """
         evals = [
-            (self.E_osc + self.K) * n - self.K * n ** 2 for n in range(evals_count)
+            (self.E_osc + self.K) * n - self.K * n**2 for n in range(evals_count)
         ]
         return np.asarray(evals)

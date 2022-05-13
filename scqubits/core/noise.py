@@ -94,7 +94,7 @@ NOISE_PARAMS = {
     "T": 0.015,  # Typical temperature for a superconducting circuit experiment. Units: K
     "M": 400,  # Mutual inductance between qubit and a flux line. Units: \Phi_0 / Ampere
     "R_k": sp.constants.h
-    / sp.constants.e ** 2.0,  # Normal quantum resistance, aka Klitzing constant.
+    / sp.constants.e**2.0,  # Normal quantum resistance, aka Klitzing constant.
     # Note, in some papers a superconducting quantum
     # resistance is used, and defined as: h/(2e)^2
 }
@@ -492,7 +492,7 @@ class NoisySystem(ABC):
             +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}}
 
         where :math:`k` (:math:`j`) run over the relevant pure dephasing (
-        depolariztion) channels that can contribute to the effective noise. By
+        depolarization) channels that can contribute to the effective noise. By
         default all noise channels given by the method `effective_noise_channels` are
         included.
 
@@ -827,7 +827,7 @@ class NoisySystem(ABC):
             +  \frac{1}{2} \sum_j \frac{1}{T_{1}^{j}},
 
         where :math:`k` (:math:`j`) run over the relevant pure dephasing (
-        depolariztion) channels that can contribute to the effective noise. By
+        depolarization) channels that can contribute to the effective noise. By
         default all the noise channels given by the method `effective_noise_channels`
         are included. Users can also provide specific noise channels, with selected
         options, to be included in the effective :math:`T_2` calculation. For
@@ -1229,7 +1229,8 @@ class NoisySystem(ABC):
         get_rate: bool = False,
     ) -> float:
         r"""
-        :math:`T_1` due to dielectric dissipation in the Jesephson junction capacitances.
+        :math:`T_1` due to dielectric dissipation in the Josephson junction
+        capacitances.
 
         References:  Nguyen et al (2019), Smith et al (2020)
 
@@ -1432,7 +1433,7 @@ class NoisySystem(ABC):
             s = (
                 2
                 * (2 * np.pi) ** 2
-                * M ** 2
+                * M**2
                 * omega
                 * sp.constants.hbar
                 / complex(Z_fun(omega)).real
