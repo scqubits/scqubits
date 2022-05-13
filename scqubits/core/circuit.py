@@ -25,6 +25,8 @@ import sympy as sm
 import numpy as np
 import scipy as sp
 import regex as re
+import qutip as qt
+
 
 from numpy import ndarray
 from scipy import sparse
@@ -40,12 +42,13 @@ import scqubits.core.qubit_base as base
 from scqubits.core.storage import DataStore
 import scqubits.io_utils.fileio_serializers as serializers
 from scqubits.utils.misc import list_intersection, flatten_list, flatten_list_recursive
-
+from scqubits.utils.typedefs import QuantumSys
 
 from scqubits.utils.spectrum_utils import (
     get_matrixelement_table,
     identity_wrap,
     order_eigensystem,
+    convert_matrix_to_qobj,
 )
 
 # Causing a circular import
@@ -484,18 +487,6 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             if var_index in flatten_list_recursive(system_hierarchy):
                 return index
 
-    def _identity_wrap_operator(self, system, operator_symbol):
-        operator = getattr(system, operator_symbol.name)
-        subsystem_index = system.get_subsystem_index(
-            get_trailing_number(operator_symbol.name)
-        )
-        subsystem = system.subsystems[subsystem_index]
-
-        operator_identity_wrapped = identity_wrap(
-            operator, subsystem, system.hilbert_space.subsys_list  # , evecs=evecs_bare
-        )
-        return operator_identity_wrapped.full()
-
     def build_hilbertspace(self):
         """
         Builds the HilbertSpace object for the Circuit instance if
@@ -554,12 +545,11 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                     var_index = get_trailing_number(str(var))
                     subsystem_index = self.get_subsystem_index(var_index)
                     if "I" not in str(var):
-                        operator = getattr(self.subsystems[subsystem_index], str(var))
-                        subsystem = self.subsystems[subsystem_index]
-                        if subsystem.hierarchical_diagonalization and hasattr(
-                            subsystem, "parent"
-                        ):
-                            operator = self._identity_wrap_operator(subsystem, var)
+                        operator = self.subsystems[subsystem_index].get_operator(
+                            var.name
+                        )
+                        if isinstance(operator, qt.Qobj):
+                            operator = operator.full()
 
                         sys_op_dict[subsystem_index].append(operator)
                     else:
@@ -790,35 +780,39 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         """
         Returns the Hilbert dimension of the Circuit instance
         """
-        cutoff_names = []
-        for cutoffs in self.get_cutoffs().keys():
-            if "cutoff_n" in cutoffs:
-                cutoff_names.append([2 * k + 1 for k in self.get_cutoffs()[cutoffs]])
-            elif "cutoff_ext" in cutoffs:
-                cutoff_names.append([k for k in self.get_cutoffs()[cutoffs]])
+        if not self.hierarchical_diagonalization:
+            cutoff_names = []
+            for cutoffs in self.get_cutoffs().keys():
+                if "cutoff_n" in cutoffs:
+                    cutoff_names.append(
+                        [2 * k + 1 for k in self.get_cutoffs()[cutoffs]]
+                    )
+                elif "cutoff_ext" in cutoffs:
+                    cutoff_names.append([k for k in self.get_cutoffs()[cutoffs]])
 
-        cutoff_names = [
-            j for i in list(cutoff_names) for j in i
-        ]  # concatenating the sublists
-        return np.prod(cutoff_names)
+            cutoff_names = [
+                j for i in list(cutoff_names) for j in i
+            ]  # concatenating the sublists
+            return np.prod(cutoff_names)
+        else:
+            return np.prod(
+                [subsystem.truncated_dim for subsystem in self.subsystems.values()]
+            )
 
     # helper functions
     def _kron_operator(self, operator, index):
         """
         Returns the final operator
         """
-        if (
-            hasattr(self, "hierarchical_diagonalization")
-            and self.hierarchical_diagonalization
-        ):
-            subsystem_index = self.get_subsystem_index(index)
-            var_index_list = flatten_list_recursive(
-                self.system_hierarchy[subsystem_index]
-            )
-        else:
-            var_index_list = (
-                self.var_categories["periodic"] + self.var_categories["extended"]
-            )
+        # if self.hierarchical_diagonalization:
+        #     subsystem_index = self.get_subsystem_index(index)
+        #     var_index_list = flatten_list_recursive(
+        #         self.system_hierarchy[subsystem_index]
+        #     )
+        # else:
+        var_index_list = (
+            self.var_categories["periodic"] + self.var_categories["extended"]
+        )
 
         var_index_list.sort()  # important to make sure that right cutoffs are chosen
         cutoff_dict = self.get_cutoffs()
@@ -1229,7 +1223,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             getattr(self, offset_charge.name) for offset_charge in self.offset_charges
         ]
 
-    def get_operators(self, return_dict: bool = False):
+    def get_all_operators(self, return_dict: bool = False):
         """
         Returns a list of operators which can be given as an argument to
         self._hamiltonian_sym_for_numericsunc. These operators are not calculated again
@@ -1290,6 +1284,44 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
             for x, operator in enumerate(variable_symbols_list):
                 setattr(self, operator.name, operator_list[x])
+
+    def get_operator(self, operator_name: str):
+        """
+        Returns the operator for the given operator symbol
+
+        Parameters
+        ----------
+        operator_name : str
+            A sympy Symbol object which should be one among the symbols in the attribute vars
+
+        Returns
+        -------
+        ndarray or csc_matrix
+        """
+        if not self.hierarchical_diagonalization:
+            return getattr(self, operator_name)
+        else:
+            var_index = get_trailing_number(operator_name)
+            subsystem_index = self.get_subsystem_index(var_index)
+            subsystem = self.subsystems[subsystem_index]
+            operator = subsystem.get_operator(operator_name)
+
+            if subsystem.hierarchical_diagonalization:
+                # repeat the calculation from convert_matrix_to_qobj
+                # take review from Jens. Also needs cleaning up.
+                dim = subsystem.truncated_dim
+                _, evecs = subsystem.eigensys(evals_count=dim)
+                operator = qt.Qobj(inpt=get_matrixelement_table(operator, evecs.T))
+                return identity_wrap(
+                    operator, subsystem, list(self.subsystems.values())
+                )
+            else:
+                operator = convert_matrix_to_qobj(
+                    operator, subsystem, op_in_eigenbasis=False, evecs=None
+                )
+                return identity_wrap(
+                    operator, subsystem, list(self.subsystems.values())
+                )
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
@@ -1451,7 +1483,9 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             + self.external_fluxes
         ]
         variable_values_list = (
-            self.get_operators() + self.get_offset_charges() + self.get_external_flux()
+            self.get_all_operators()
+            + self.get_offset_charges()
+            + self.get_external_flux()
         )
         variable_dict = dict(zip(variable_str_list, variable_values_list))
 
@@ -1485,7 +1519,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         H_str = self._get_eval_hamiltonian_string(H)
         self._H_str_sparse = H_str
 
-        variable_dict = self.get_operators(return_dict=True)
+        variable_dict = self.get_all_operators(return_dict=True)
         # changing variables to strings
         variable_dict_str = dict(
             zip([var.name for var in variable_dict.keys()], variable_dict.values())
@@ -2242,12 +2276,12 @@ class Circuit(SubSystem):
                     cutoff = (
                         30
                         if not hasattr(self, "parent")
-                        else getattr(self.parent, "cutoff_phi_" + str(var_index))
+                        else getattr(self.parent, "cutoff_ext_" + str(var_index))
                     )
                     self._make_property(
-                        "cutoff_phi_" + str(var_index), cutoff, "update_cutoffs"
+                        "cutoff_ext_" + str(var_index), cutoff, "update_cutoffs"
                     )
-                    self.cutoff_names.append("cutoff_phi_" + str(var_index))
+                    self.cutoff_names.append("cutoff_ext_" + str(var_index))
 
         # default values for the parameters
         for x, param in enumerate(self.param_vars):

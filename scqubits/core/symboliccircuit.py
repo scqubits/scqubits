@@ -244,7 +244,7 @@ class SymbolicCircuit(serializers.Serializable):
         branches_list: List[Branch],
         branch_var_dict: dict,
         basis_completion: str = "simple",
-        ground_node: Optional(Node) = None,
+        ground_node: Optional[Node] = None,
         initiate_sym_calc: bool = True,
         input_string: str = "",
     ):
@@ -1401,7 +1401,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     def generate_symbolic_lagrangian(
         self,
-    ) -> Tuple[sympy.core.expr.Expr, sympy.core.expr.Expr, sympy.core.expr.Expr,]:
+    ) -> Tuple[sympy.Expr, sympy.Expr, sympy.Expr,]:
         r"""
         Returns three symbolic expressions: lagrangian_θ, potential_θ, lagrangian_φ
         where θ represents the set of new variables and φ represents the set of node variables
@@ -1476,9 +1476,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         return lagrangian_θ, potential_θ, lagrangian_φ
 
-    def generate_symbolic_hamiltonian(
-        self, substitute_params=False
-    ) -> sympy.core.expr.Expr:
+    def generate_symbolic_hamiltonian(self, substitute_params=False) -> sympy.Expr:
         r"""
         Returns the Hamiltonian of the circuit in terms of the new variables :math:`\theta_i`.
 
