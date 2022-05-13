@@ -14,8 +14,8 @@
 import os
 import numpy as np
 import scqubits as scq
-from scqubits import DataStore, SpectrumData
-from scqubits import Circuit, SymbolicCircuit
+from scqubits import SpectrumData
+from scqubits import Circuit
 
 TESTDIR, _ = os.path.split(scq.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")
@@ -49,7 +49,7 @@ for qubit_name in qubits_tested:
             reference_data[qubit_name]["extra_attribs"][attrib],
         )
 
-########## tests #######
+# ********* Tests *********************************************************************
 def test_eigenvals():
     for qubit_name in qubits_tested:
         evals_ref = qubits[qubit_name].eigenvals()

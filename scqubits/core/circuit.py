@@ -23,6 +23,7 @@ import numpy as np
 import regex as re
 
 # import re
+import qutip as qt
 import scipy as sp
 import sympy as sm
 
@@ -213,7 +214,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         return self._id_str
 
     def _regenerate_sym_hamiltonian(self):
-        # generate _hamiltonian_sym_for_numerics if not already generated(delayed for large circuits)
+        # generate _hamiltonian_sym_for_numerics if not already generated (delayed
+        # for large circuits)
         if not self.is_child and len(self.symbolic_circuit.nodes) > 3:
             self.hamiltonian_symbolic = (
                 self.symbolic_circuit.generate_symbolic_hamiltonian(
@@ -513,7 +515,6 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
             expr_dict = interaction.as_coefficients_dict()
             terms_str = list(expr_dict.keys())
-            # coeff_str = list(expr_dict.values())
 
             for i, term in enumerate(terms_str):
                 coefficient_sympy = expr_dict[term]
@@ -1109,7 +1110,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                     )
                 )
                 x_operator = (
-                    (ad_operator + a_operator) * osc_lengths[var_index] / (2 ** 0.5)
+                    (ad_operator + a_operator) * osc_lengths[var_index] / (2**0.5)
                 )
                 extended_operators["position"].append(
                     self._kron_operator(x_operator, var_index)
@@ -1118,7 +1119,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                     self._kron_operator(
                         1j
                         * (ad_operator - a_operator)
-                        / (osc_lengths[var_index] * 2 ** 0.5),
+                        / (osc_lengths[var_index] * 2**0.5),
                         var_index,
                     )
                 )
@@ -1173,7 +1174,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             params.append(getattr(self, param.name))
         return params
 
-    def get_cutoffs(self) -> dict[str, list]:
+    def get_cutoffs(self) -> Dict[str, list]:
         """
         Method to get the cutoffs for each of the circuit's degree of freedom.
         """
@@ -2142,25 +2143,31 @@ class Circuit(SubSystem):
 
         Parameters
         ----------
-        symbolic_circuit : str
-            an instance of the class SymbolicCircuit
-        ext_basis : str, optional
-            can be "discretized" or "harmonic" which chooses whether to use discretized phi or harmonic oscillator basis for extended variables, by default "discretized"
-        basis_completion : str, optional
-            either "simple" or "standard", defines the matrix used for completing the transformation matrix. Sometimes used to change the variable transformation to result in a simpler symbolic Hamiltonian, by default "simple"
-        initiate_sym_calc : bool, optional
+        symbolic_circuit:
+            an instance of the class `SymbolicCircuit`
+        ext_basis:
+            can be "discretized" or "harmonic" which chooses whether to use discretized
+            phi or harmonic oscillator basis for extended variables,
+            by default "discretized"
+        basis_completion:
+            either "simple" or "standard", defines the matrix used for completing the
+            transformation matrix. Sometimes used to change the variable transformation
+            to result in a simpler symbolic Hamiltonian, by default "simple"
+        initiate_sym_calc:
             attribute to initiate Circuit instance, by default True
-        system_hierarchy : list, optional
-            A list of lists which is provided by the user to define subsystems, by default None
+        system_hierarchy:
+            A list of lists which is provided by the user to define subsystems,
+            by default None
         subsystem_trunc_dims : list, optional
-            a dict object which can be generated for a specific system_hierarchy using the method generate_default_trunc_dims, by default None
-        truncated_dim : int, optional
-            truncated dimension if the user wants to use this circuit instance in HilbertSpace, by default None
+            a dict object which can be generated for a specific system_hierarchy using
+            the method generate_default_trunc_dims, by default `None`
+        truncated_dim:
+            truncated dimension if the user wants to use this circuit instance in
+            HilbertSpace, by default `None`
 
         Returns
         -------
-        Circuit
-            An instance of class Circuit
+            An instance of class `Circuit`
         """
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
@@ -2170,7 +2177,7 @@ class Circuit(SubSystem):
         self.system_hierarchy: list = system_hierarchy
         self.subsystem_trunc_dims: list = subsystem_trunc_dims
 
-        self.discretized_phi_range: dict[int, tuple(float, float)] = {}
+        self.discretized_phi_range: Dict[int, Tuple[float, float]] = {}
         self.cutoff_names: List[str] = []
 
         # setting default grids for plotting
@@ -2217,18 +2224,25 @@ class Circuit(SubSystem):
         closure_branches: List[Branch] = None,
     ):
         """
-        Method which re-initializes a circuit instance to update, hierarchical diagonalization parameters or closure branches or the variable transformation used to describe the circuit.
+        Method which re-initializes a circuit instance to update, hierarchical
+        diagonalization parameters or closure branches or the variable transformation
+        used to describe the circuit.
 
         Parameters
         ----------
-        transformation_matrix : ndarray, optional
-            A user defined variable transformation which has the dimensions of the number nodes(not counting the ground node), by default None
-        system_hierarchy : list, optional
-            A list of lists which is provided by the user to define subsystems, by default None
-        subsystem_trunc_dims : list, optional
-            dict object which can be generated for a specific system_hierarchy using the method generate_default_trunc_dims, by default None
-        closure_branches : List[Branch], optional
-            List of branches where external flux variables will be specified, by default None which then chooses closure branches by an internally generated spanning tree.
+        transformation_matrix:
+            A user defined variable transformation which has the dimensions of the
+            number nodes(not counting the ground node), by default None
+        system_hierarchy:
+            A list of lists which is provided by the user to define subsystems,
+            by default `None`
+        subsystem_trunc_dims:
+            dict object which can be generated for a specific system_hierarchy using the
+            method `generate_default_trunc_dims`, by default `None`
+        closure_branches:
+            List of branches where external flux variables will be specified, by default
+            `None` which then chooses closure branches by an internally generated
+            spanning tree.
 
         Raises
         ------

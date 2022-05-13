@@ -84,6 +84,7 @@ class Node:
         An internal attribute used to group nodes and identify sub-circuits in the
         method independent_modes.
     """
+
     def __init__(self, id: int, marker: int):
         self.id = id
         self.marker = marker
@@ -221,7 +222,7 @@ class Branch:
 class SymbolicCircuit(serializers.Serializable):
     r"""
     Describes a circuit consisting of nodes and branches.
-    
+
     Examples
     --------
     For a transmon qubit, the input file reads:
@@ -232,10 +233,10 @@ class SymbolicCircuit(serializers.Serializable):
         C	1,2	1
         JJ	1,2	1	10
         ```
-        
+
     The `Circuit` object can be initiated using:
         `Circuit.from_input_file("transmon_num.inp")`
-        
+
     Parameters
     ----------
     nodes_list:
@@ -243,7 +244,7 @@ class SymbolicCircuit(serializers.Serializable):
     branches_list:
         List of branches connecting the above set of nodes.
     basis:
-        string; should be "simple" or "standard" used to choose a type of basis for 
+        string; should be "simple" or "standard" used to choose a type of basis for
         completing the transformation matrix. Set to "simple" by default. Name needs to
         be updated.
     ground_node:
@@ -294,7 +295,7 @@ class SymbolicCircuit(serializers.Serializable):
         self.ground_node = ground_node
         self.is_grounded = bool(self.ground_node)
 
-        # TODO comments in the following two lines are not helpful - Needs renaming and 
+        # TODO comments in the following two lines are not helpful - Needs renaming and
         # some refactoring in the method variable_transformation_matrix
         # parameter for chosing the basis - needs to be rewritten
         self.basis_completion = (
@@ -753,24 +754,24 @@ class SymbolicCircuit(serializers.Serializable):
 
     def check_transformation_matrix(self, transformation_matrix: ndarray):
         """
-        Method to identify the different modes in the transformation matrix provided by
-        the user.
+                Method to identify the different modes in the transformation matrix provided by
+                the user.
 
-        Parameters
-        ----------
-        transformation_matrix :
-            numpy ndarray which is a square matrix having the dimensions of the number
-            of nodes present in the circuit.
+                Parameters
+                ----------
+                transformation_matrix :
+                    numpy ndarray which is a square matrix having the dimensions of the number
+                    of nodes present in the circuit.
 
-        Returns
-        -------
-<<<<<<< HEAD
-        var_categories:
-            A dictionary of lists which has the variable indices classified with var indices corresponding to the rows of the transformation matrix
-=======
-            A dictionary of lists which has the variable indices classified with var
-            indices corresponding to the rows of the transformation matrix
->>>>>>> 215578989aca4a80679ad4e36d0475819cf6e00a
+                Returns
+                -------
+        <<<<<<< HEAD
+                var_categories:
+                    A dictionary of lists which has the variable indices classified with var indices corresponding to the rows of the transformation matrix
+        =======
+                    A dictionary of lists which has the variable indices classified with var
+                    indices corresponding to the rows of the transformation matrix
+        >>>>>>> 215578989aca4a80679ad4e36d0475819cf6e00a
         """
         # basic check to see if the matrix is invertible
         if np.linalg.det(transformation_matrix) == 0:
@@ -904,22 +905,16 @@ class SymbolicCircuit(serializers.Serializable):
 
         return var_categories_user
 
-    def variable_transformation_matrix(self) -> ndarray:
+    def variable_transformation_matrix(self) -> Tuple[ndarray, Dict[str, List[int]]]:
         """
-<<<<<<< HEAD
-        Evaluates the boundary conditions and constructs the variable transformation matrix, which is returned along with the dictionary var_categories which
-=======
         Evaluates the boundary conditions and constructs the variable transformation
-        matrix, which is returned along with the dictionary var_indices which
->>>>>>> 215578989aca4a80679ad4e36d0475819cf6e00a
+        matrix, which is returned along with the dictionary `var_categories` which
         classifies the types of variables present in the circuit.
 
         Returns
         -------
-        ndarray
-            transformation matrix for the node variables
-        dict[str, List[int]]
-            var_categories dict which calssifies the variable types for each variable index
+            tuple of transformation matrix for the node variables and `var_categories`
+            dict which classifies the variable types for each variable index
         """
 
         # ****************  Finding the Periodic Modes ****************
@@ -1604,7 +1599,7 @@ class SymbolicCircuit(serializers.Serializable):
         hamiltonian_symbolic = C_terms_new + self.potential_symbolic
 
         # adding the offset charge variables
-        for var_index in self.var_indices["periodic"]:
+        for var_index in self.var_categories["periodic"]:
             hamiltonian_symbolic = hamiltonian_symbolic.subs(
                 symbols("Q" + str(var_index)),
                 symbols("n" + str(var_index)) + symbols("ng_" + str(var_index)),
