@@ -49,7 +49,7 @@ from scqubits.utils.spectrum_utils import (
 
 
 def generate_trunc_dims_template(index_list: list) -> List[int]:
-    trunc_dims = []
+    trunc_dims: List[Union[int, list]] = []
     for x, subsystem_indices in enumerate(index_list):
         if subsystem_indices == flatten_list_recursive(subsystem_indices):
             trunc_dims.append(10)
@@ -82,15 +82,16 @@ class Circuit(base.QubitBaseClass, serializers.Serializable):
     Class to numerically analyze an instance of SymbolicCircuit.
 
     Can be initialized using an input file. For example, the following input file can be
-    used to define a Transmon.
-    # file_name: transmon_num.yaml
+    used to define a Transmon:
+
+        # file_name: transmon_num.yaml
         nodes: 2
         branches:
         - [JJ,1,2,10,1e15]
         - [L, 1,2,0.1]
         - [C,1,2,0.2]
 
-    Circuit.from_input_file("transmon_num.yaml")
+    `Circuit.from_input_file("transmon_num.yaml")`
 
     A set of nodes with branches connecting them forms a circuit.
     """
