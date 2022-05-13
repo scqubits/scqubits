@@ -10,6 +10,8 @@
 ############################################################################
 
 
+from multiprocessing.spawn import old_main_modules
+from sys import settrace
 from typing import (
     Any,
     Dict,
@@ -18,35 +20,40 @@ from typing import (
     Tuple,
     Union,
 )
-
-import numpy as np
-import regex as re
-
-# import re
-import scipy as sp
+from matplotlib.text import OffsetFrom
 import sympy as sm
+import numpy as np
+import scipy as sp
+import regex as re
+import qutip as qt
 
-from matplotlib import pyplot as plt
+
 from numpy import ndarray
 from scipy import sparse
 from scipy.sparse.csc import csc_matrix
+from matplotlib import pyplot as plt
 
-import scqubits.core.discretization as discretization
-import scqubits.core.oscillator as osc
-import scqubits.core.qubit_base as base
-import scqubits.io_utils.fileio_serializers as serializers
-
-from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
-from scqubits.core.storage import DataStore
+from scqubits import HilbertSpace, settings
+import scqubits.core.oscillator as osc
 from scqubits.core.symboliccircuit import Branch, SymbolicCircuit
-from scqubits.utils.misc import flatten_list, flatten_list_recursive, list_intersection
+import scqubits.core.discretization as discretization
+import scqubits.core.qubit_base as base
+from scqubits.core.storage import DataStore
+import scqubits.io_utils.fileio_serializers as serializers
+from scqubits.utils.misc import list_intersection, flatten_list, flatten_list_recursive
+from scqubits.utils.typedefs import QuantumSys
+
 from scqubits.utils.spectrum_utils import (
-    convert_matrix_to_qobj,
     get_matrixelement_table,
     identity_wrap,
     order_eigensystem,
+    convert_matrix_to_qobj,
 )
+
+# Causing a circular import
+# if TYPE_CHECKING:
+#     from scqubits.core.symboliccircuit import Circuit
 
 
 def truncation_template(system_hierarchy: list) -> list:
@@ -56,19 +63,24 @@ def truncation_template(system_hierarchy: list) -> list:
 
     Parameters
     ----------
-    system_hierarchy: list
+    index_list: list
         list of subsystem hierarchy
     """
-    trunc_dims: List[Union[int, list]] = []
-    for subsystem_hierarchy in system_hierarchy:
-        if subsystem_hierarchy == flatten_list_recursive(subsystem_hierarchy):
+    trunc_dims = []
+    for x, system_hierarchy in enumerate(system_hierarchy):
+        if system_hierarchy == flatten_list_recursive(system_hierarchy):
             trunc_dims.append(10)
         else:
-            trunc_dims.append([50, truncation_template(subsystem_hierarchy)])
+            trunc_dims.append(
+                [
+                    50,
+                    truncation_template(system_hierarchy),
+                ]
+            )
     return trunc_dims
 
 
-def get_trailing_number(input_str: str) -> Union[int, None]:
+def get_trailing_number(input_str: str) -> int:
     """
     Returns the number trailing a string given as input. Example:
         $ get_trailing_number("a23")
@@ -81,6 +93,7 @@ def get_trailing_number(input_str: str) -> Union[int, None]:
 
     Returns
     -------
+    int
         returns the trailing integer as int, else returns None
     """
     match = re.search(r"\d+$", input_str)
@@ -89,19 +102,18 @@ def get_trailing_number(input_str: str) -> Union[int, None]:
 
 class SubSystem(base.QubitBaseClass, serializers.Serializable):
     """
-    Class to numerically analyze an instance of `SymbolicCircuit`.
+    Class to numerically analyze an instance of SymbolicCircuit.
 
-    Can be initialized using an input file. For example, the following input file can be
-    used to define a Transmon:
-
-        # file_name: transmon_num.yaml
+    Can be initialized using an input file. For example, the following input file can
+    be used to define a Transmon.
+    # file_name: transmon_num.yaml
         nodes: 2
         branches:
         - [JJ,1,2,10,1e15]
         - [L, 1,2,0.1]
         - [C,1,2,0.2]
 
-    `Circuit.from_input_file("transmon_num.yaml")`
+    Circuit.from_input_file("transmon_num.yaml")
 
     A set of nodes with branches connecting them forms a circuit.
     """
@@ -152,7 +164,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                 filtered_var = re.findall(
                     "[0-9]+", re.sub(r"ng_[0-9]+|Φ[0-9]+", "", str(var))
                 )  # filtering offset charges and external flux
-                if not filtered_var:
+                if filtered_var == []:
                     continue
                 else:
                     var_index = int(filtered_var[0])
@@ -232,8 +244,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             self._regenerate_sym_hamiltonian()
 
         # update Circuit instance
-        # generate _hamiltonian_sym_for_numerics if not already generated, delayed for
-        # large circuits
+        # generate _hamiltonian_sym_for_numerics if not already generated, delayed for large circuits
         if self.hierarchical_diagonalization:
             self.generate_subsystems()
             self.build_hilbertspace()
@@ -382,9 +393,9 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def generate_subsystems(self):
         """
-        Generates the subsystems (child instances of Circuit) depending on the setting
-        self.system_hierarchy
+        Generates the subsystems (child instances of Circuit) depending on the setting self.system_hierarchy
         """
+        # H = self.hamiltonian_symbolic.expand()
         H = self._hamiltonian_sym_for_numerics
 
         systems_sym = []
@@ -459,16 +470,16 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def get_subsystem_index(self, var_index: int) -> int:
         """
-        Returns the subsystem index for the subsystem to which the given var_index
-        belongs.
+        Returns the subsystem index for the subsystem to which the given var_index belongs.
 
         Parameters
         ----------
-        var_index:
+        var_index : int
             variable index in integer starting from 1.
 
         Returns
         -------
+        int
             subsystem index which can be used to identify the subsystem index in the
             list self.subsystems.
         """
@@ -478,8 +489,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def build_hilbertspace(self):
         """
-        Builds the HilbertSpace object for the `Circuit` instance if
-        `hierarchical_diagonalization` is set to true.
+        Builds the HilbertSpace object for the Circuit instance if
+        hierarchical_diagonalization is set to true.
         """
         hilbert_space = HilbertSpace(
             [self.subsystems[i] for i in range(len(self.system_hierarchy))]
@@ -491,8 +502,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             if interaction == 0:  # if the interaction term is zero
                 continue
             # modifying interaction terms
-            #   - substituting all the external flux, offset charge and branch
-            #   parameters.
+            #   - substituting all the external flux, offset charge and branch parameters.
             interaction = interaction.subs(
                 [
                     (param, getattr(self, str(param)))
@@ -518,8 +528,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             for i, term in enumerate(terms_str):
                 coefficient_sympy = expr_dict[term]
 
-                # adding external flux, offset charge and branch parameters to
-                # coefficient
+                # adding external flux, offset charge and branch parameters to coefficient
                 for var in term.free_symbols:
                     if "Φ" in str(var) or "ng" in str(var) or var in self.param_vars:
                         coefficient_sympy = coefficient_sympy * getattr(self, str(var))
@@ -562,8 +571,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def _set_vars(self):
         """
-        Sets the attribute vars which is a dictionary containing all the Sympy symbol
-        objects for all the operators present in the circuit
+        Sets the attribute vars which is a dictionary containing all the Sympy symbol objects for all the operators present in the circuit
         """
         # Defining the list of variables for periodic operators
         periodic_symbols_sin = [
@@ -616,8 +624,18 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                 sm.symbols("Q" + str(i)) for i in self.var_categories["extended"]
             ]
 
+            extended_symbols = (
+                a_symbols
+                + ad_symbols
+                + Nh_symbols
+                + pos_symbols
+                + sin_symbols
+                + cos_symbols
+                + momentum_symbols
+            )
+
         # setting the attribute self.vars
-        self.vars: Dict[str, Any] = {
+        self.vars = {
             "periodic": {
                 "sin": periodic_symbols_sin,
                 "cos": periodic_symbols_cos,
@@ -647,15 +665,13 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def generate_hamiltonian_sym_for_numerics(self):
         """
-        Generates a symbolic expression which is ready for numerical evaluation starting
-        from the expression stored in the attribute hamiltonian_symbolic.
+        Generates a symbolic expression which is ready for numerical evaluation starting from the expression stored in the attribute hamiltonian_symbolic.
         """
         H = (
             self.hamiltonian_symbolic.expand()
-        )  # applying expand is critical; otherwise the replacement of p^2 with ps2
-        # would not succeed
+        )  # this expand method is critical to be applied, otherwise the replacemnt of the variables p^2 with ps2 will not be successful and the results would be incorrect
 
-        # shifting the harmonic oscillator potential to the point of external fluxes
+        ######## shifting the harmonic oscillator potential to the point of external fluxes #############
         flux_shift_vars = {}
         for var_index in self.var_categories["extended"]:
             if H.coeff("θ" + str(var_index)) != 0:
@@ -663,8 +679,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                 H = H.replace(
                     sm.symbols("θ" + str(var_index)),
                     sm.symbols("θ" + str(var_index)) + flux_shift_vars[var_index],
-                )  # substituting the flux offset variable offsets to collect the
-                # coefficients later
+                )  # substituting the flux offset variable offsets to collect the coefficients later
         H = H.expand()
 
         flux_shift_equations = [
@@ -1014,6 +1029,9 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         """
         Returns the set of operators needed to evaluate the Hamiltonian of the current instance.
         """
+        import scqubits.core.discretization as discretization
+        from scipy import sparse
+
         periodic_vars = self.vars["periodic"]
         normal_vars = self.vars["extended"]
 
@@ -1193,15 +1211,13 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def get_external_flux(self) -> List[float]:
         """
-        Returns all the time independent external flux set using the circuit attributes
-        for each of the independent loops detected.
+        Returns all the time independent external flux set using the circuit attributes for each of the independent loops detected.
         """
         return [getattr(self, flux.name) for flux in self.external_fluxes]
 
     def get_offset_charges(self) -> List[float]:
         """
-        Returns all the offset charges set using the circuit attributes for each of the
-        periodic degree of freedom.
+        Returns all the offset charges set using the circuit attributes for each of the periodic degree of freedom.
         """
         return [
             getattr(self, offset_charge.name) for offset_charge in self.offset_charges
@@ -1245,9 +1261,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def set_operators(self):
         """
-        Sets the operator attributes of the circuit with new operators calculated using
-        the paramaters set in the circuit attributes. Returns a list of operators
-        similar to the method get_operators.
+        Sets the operator attributes of the circuit with new operators calculated using the paramaters set in the circuit attributes. Returns a list of operators similar to the method get_operators.
         """
 
         if self.hierarchical_diagonalization:
@@ -1376,8 +1390,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def _get_eval_hamiltonian_string(self, H):
         """
-        Returns the string which defines the expression for Hamiltonian in harmonic
-        oscillator basis
+        Returns the string which defines the expression for Hamiltonian in harmonic oscillator basis
         """
         expr_dict = H.as_coefficients_dict()
         terms_list = list(expr_dict.keys())
@@ -1432,8 +1445,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         )
         H = H.subs(
             "I", 1
-        )  # does not make a difference as all the trignometric expressions are
-        # expanded out.
+        )  # does not make a difference as all the trignometric expressions are expanded out.
         # remove constants from the Hamiltonian
         H = H - H.as_coefficients_dict()[1]
         H = H.expand()
@@ -1658,8 +1670,8 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        θ<index>:
-            value(s) for variable :math:`\theta_i` in the potential.
+        :math:`\theta_i`: Union[ndarray, float]
+            Numpy array or a Float, is the value set to the variable :math:`\theta_i` in the potential.
         """
         periodic_indices = self.var_categories["periodic"]
         discretized_ext_indices = self.var_categories["extended"]
@@ -1719,14 +1731,12 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
     def plot_potential(self, **kwargs):
         r"""
-        Returns the plot of the potential for the circuit instance. Make sure to not set
-        more than two variables in the instance.potential to a Numpy array, as the the
-        code cannot plot with more than 3 dimensions.
+        Returns the plot of the potential for the circuit instance. Make sure to not set more than two variables in the instance.potential to a Numpy array, as the the code cannot plot with more than 3 dimensions.
 
         Parameters
         ----------
-        θ<index>: Union[ndarray, float]
-            value(s) for the variable :math:`\theta_i` occurring in the potential.
+        :math:`\theta_i`: Union[ndarray, float]
+            Numpy array or a Float, is the value set to the variable :math:`\theta_i` in the potential.
         """
 
         periodic_indices = self.var_categories["periodic"]
@@ -1751,8 +1761,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
 
         if len(sweep_vars) > 2:
             raise AttributeError(
-                "Cannot plot with a dimension greater than 3; Only give a maximum of "
-                "two grid inputs"
+                "Cannot plot with a dimension greater than 3; Only give a maximum of two grid inputs"
             )
 
         potential_energies = self.potential_energy(**kwargs)
@@ -1778,14 +1787,13 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
     ):
         """
-        Method to change the basis recursively, to reverse hierarchical diagonalization
-        and get to the basis in which the variables were initially defined.
+        Method to change the basis recursively, to reverse hierarchical diagonalization and
+        get to the basis in which the variables were initially defined.
 
         Parameters
         ----------
-        wf_dim:
-            The dimension of the wavefunction which needs to be rewritten in terms of
-            the initial basis
+        wf_dim: int
+            The dimension of the wavefunction which needs to be rewritten in terms of the inital basis
 
         """
         _, U_subsys = subsystem.eigensys(evals_count=subsystem.truncated_dim)
@@ -1899,22 +1907,19 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         change_discrete_charge_to_phi: bool = True,
     ):
         """
-        Returns the plot of the probability density of the wavefunction in the requested
-        variables for the current Circuit instance.
+        Returns the plot of the probability density of the wavefunction in the requested variables for the current Circuit instance.
 
         Parameters
         ----------
-        n:
+        n: int
             integer to choose which wavefunction to plot
-        var_categories:
-            A tuple containing the indices of the variables chosen to plot the
-            wavefunction in. Should not have more than 2 entries.
-        mode:
-            "abs" or "real" or "imag" for absolute, real or imaginary parts of the
-            wavefunction.
+        var_categories: tuple(int)
+            A tuple containing the indices of the variables chosen to plot the wavefunction in. Should not have more than 2 entries.
+        mode: str
+            "abs" or "real" or "imag" for absolute, real or imaginary parts of the wavefunction.
         eigensys:
-            The object returned by the method instance. eigensys is used to avoid the
-            re-evaluation of the eigensystems if already evaluated.
+            The object returned by the method instance.eigensys, is used to avoid the
+            re-evaluation of the eigen systems if already evaluated.
         change_discrete_charge_to_phi: bool
             bolean to choose if the discreet charge basis for the periodic variable
             needs to be changed to phi basis.
@@ -1991,8 +1996,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
                         wf_ext_basis, wf_dim, var_index
                     )
 
-        # if a probability plot is requested, sum over the dimesnsions not relevant to
-        # the ones in var_categories
+        # if a probability plot is requested, sum over the dimesnsions not relevant to the ones in var_categories
         if self.hierarchical_diagonalization:
             num_wf_dims = 0
             dims_to_be_summed = []
@@ -2037,29 +2041,26 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
         change_discrete_charge_to_phi: bool = True,
     ):
         """
-        Returns the plot of the probability density of the wavefunction in the requested
-        variables for the current Circuit instance.
+        Returns the plot of the probability density of the wavefunction in the requested variables for the current Circuit instance.
 
         Parameters
         ----------
-        n:
+        n: int
             integer to choose which wavefunction to plot
         var_categories:
             A tuple containing the indices of the variables chosen to plot the wavefunction in. Should not have more than 2 entries.
         mode:
-            "abs" or "real" or "imag" for absolute, real or imaginary parts of the
-            wavefunction.
+            "abs" or "real" or "imag" for absolute, real or imaginary parts of the wavefunction.
         eigensys:
             The object returned by the method instance.eigensys, is used to avoid the
             re-evaluation of the eigen systems if already evaluated.
-        change_discrete_charge_to_phi:
+        change_discrete_charge_to_phi: bool
             bolean to choose if the discreet charge basis for the periodic variable
             needs to be changed to phi basis.
         """
         if len(var_categories) > 2:
             raise AttributeError(
-                "Cannot plot wavefunction in more than 2 dimensions. The number of "
-                "dimensions should be less than 2."
+                "Cannot plot wavefunction in more than 2 dimensions. The number of dimensions should be less than 2."
             )
         var_categories = np.sort(var_categories)
         cutoffs_dict = {}  # dictionary for cutoffs for each variable index
@@ -2124,7 +2125,7 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             plt.xlabel(var_types[0] + str(var_categories[0]))
             plt.ylabel(var_types[1] + str(var_categories[1]))
             plt.colorbar()
-        plt.title("Distribution of wavefunction along variables " + str(var_categories))
+        plt.title("Distribution of Wavefuntion along variables " + str(var_categories))
 
 
 class Circuit(SubSystem):
@@ -2414,14 +2415,12 @@ class Circuit(SubSystem):
 # example input strings
 def example_circuit(qubit):
     """
-    Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of the
-    popular qubits.
+    Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of the popular qubits.
 
     Parameters
     ----------
     qubit:
-        "fluxonium" or "transmon" or "zero_pi" or "cos2phi" chosing the respective
-        xample input strings.
+        "fluxonium" or "transmon" or "zero_pi" or "cos2phi" chosing the respective example input strings.
     """
 
     # example input strings for popular qubits
@@ -2429,15 +2428,9 @@ def example_circuit(qubit):
 
     transmon = "nodes: 2\nbranches:\nC\t1,2\tEc\nJJ\t1,2\tEj\tEcj\n"
 
-    cos2phi = (
-        "nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\nJJ\t3,"
-        "4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n"
-    )
+    cos2phi = "nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\nJJ\t3,4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n"
 
-    zero_pi = (
-        "nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\nJJ\t3,"
-        "4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n"
-    )
+    zero_pi = "nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\nJJ\t3,4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n"
 
     if qubit == "transmon":
         return transmon
@@ -2448,4 +2441,4 @@ def example_circuit(qubit):
     elif qubit == "fluxonium":
         return fluxonium
     else:
-        raise AttributeError("Qubit not available or invalid input.")
+        raise (AttributeError()("Qubit not available or invalid input."))
