@@ -1455,22 +1455,16 @@ class SubSystem(base.QubitBaseClass, serializers.Serializable):
             subsystem = self.subsystems[subsystem_index]
             operator = subsystem.get_operator(operator_name)
 
-            if subsystem.hierarchical_diagonalization:
-                # repeat the calculation from convert_matrix_to_qobj
-                # take review from Jens. Also needs cleaning up.
-                dim = subsystem.truncated_dim
-                _, evecs = subsystem.eigensys(evals_count=dim)
-                operator = qt.Qobj(inpt=get_matrixelement_table(operator, evecs.T))
-                return identity_wrap(
-                    operator, subsystem, list(self.subsystems.values())
-                )
-            else:
-                operator = convert_matrix_to_qobj(
-                    operator, subsystem, op_in_eigenbasis=False, evecs=None
-                )
-                return identity_wrap(
-                    operator, subsystem, list(self.subsystems.values())
-                )
+            if isinstance(operator, qt.Qobj):
+                operator = operator.full()
+
+            operator = convert_matrix_to_qobj(
+                operator,
+                subsystem,
+                op_in_eigenbasis=False,
+                evecs=None,
+            )
+            return identity_wrap(operator, subsystem, list(self.subsystems.values()))
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
