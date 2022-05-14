@@ -168,7 +168,10 @@ class Branch:
         # setting the parameters if it is provided
         if parameters is not None:
             self.set_parameters(parameters)
-        # TODO: discuss - this is an unexpected side effect - Each node is also updated when a new branch is created. This helps for example when we want to get the list of all branches connected to a single node. Makes it easier to write code, but definitely makes it more complicated to deal with.
+        # TODO: discuss - this is an unexpected side effect - Each node is also updated
+        #  when a new branch is created. This helps for example when we want to get the
+        #  list of all branches connected to a single node. Makes it easier to write
+        #  code, but definitely makes it more complicated to deal with.
         self.nodes[0].branches.append(self)
         self.nodes[1].branches.append(self)
 
