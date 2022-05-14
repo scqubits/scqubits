@@ -2037,14 +2037,15 @@ class ConstructFullPulse(serializers.Serializable):
         inv_Z_matrix = inv(new_Z_matrix)
         alpha = cmath.phase(gate_[0, 0])
         beta = cmath.phase(gate_[1, 1])
-        print(alpha, beta)
-        gamma = cmath.phase((-1)*gate_[1, 2])
+        gamma = cmath.phase(gate_[1, 2])
+        print(alpha, beta, gamma)
         if which_gate == 'sqrtiswap':
             angles_to_correct = (
                 np.array([-alpha, -beta, gamma + np.pi / 2])
                 - const_angle_val * const_angle_col
             )
         elif which_gate == 'sqrtdswap':
+            gamma = cmath.phase((-1) * gate_[1, 2])
             angles_to_correct = (
                 np.array([-alpha, -beta, -gamma])
                 - const_angle_val * const_angle_col
@@ -2135,10 +2136,10 @@ class ConstructFullPulse(serializers.Serializable):
     def omega_minus(self):
         return np.abs(self.omega_b - self.omega_a)
 
-    def drive_freq_sqrtiswap(self, m=4):
+    def drive_freq_sqrtiswap(self, n=1, m=4):
         omega_a = np.real(self.H_0[2, 2])
         omega_b = np.real(self.H_0[1, 1])
-        return (omega_a + omega_b) / m
+        return n * (omega_a + omega_b) / m
 
     def optimize_amp_id_fidel(self, amp, freq, which_qubit="a"):
         times = np.linspace(0.0, 1.0 / freq, int(1.0 / freq / self.control_dt_fast) + 1)
