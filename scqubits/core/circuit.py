@@ -22,7 +22,6 @@ from typing import (
     Union,
 )
 from matplotlib.text import OffsetFrom
-import qoc
 import sympy as sm
 import numpy as np
 import regex as re
