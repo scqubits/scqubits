@@ -34,18 +34,19 @@ def process_word(word: str) -> Union[float, symbols]:
 
 def parse_branch_parameter(word: str) -> Union[List[float], List[Union[Symbol, float]]]:
     """
-    If the string word only has a number, its float value is returned. Else, if the word has the form
-    "EJ=10", no spaces before or after =, it will return the Symbol object EJ and the float 10.
+    If the string word only has a number, its float value is returned. Else, if the word
+    has the form "EJ=10", no spaces before or after =, it will return the Symbol object
+    EJ and the float 10.
 
     Parameters
     ----------
-    word : str
+    word:
         Should be a number "0.123" or a variable assignment of the form "EJ=10"
 
     Returns
     -------
-    Union[float, Tuple[Symbol, float]]
-        Returns a float if the string only has a number, else returns a tuple having (Symbol, float).
+        Returns a float if the string only has a number, else returns a tuple
+        of format `(Symbol, float)`.
 
     Raises
     ------
@@ -278,7 +279,7 @@ class SymbolicCircuit(serializers.Serializable):
         # attributes set by methods
         self.transformation_matrix: ndarray = None
 
-        self.var_categories: List[int] = None
+        self.var_categories: Optional[List[int]] = None
         self.external_fluxes: List[Symbol] = []
         self.closure_branches: List[Branch] = []
 
@@ -509,7 +510,7 @@ class SymbolicCircuit(serializers.Serializable):
                     ):
                         raise Exception(
                             "The parameter "
-                            + str(params[0] + " has not been initialized.")
+                            + str(params[0]) + " has not been initialized."
                         )
                     branch_params.append(params[0])
                 else:
@@ -757,24 +758,19 @@ class SymbolicCircuit(serializers.Serializable):
 
     def check_transformation_matrix(self, transformation_matrix: ndarray):
         """
-                Method to identify the different modes in the transformation matrix provided by
-                the user.
+        Method to identify the different modes in the transformation matrix provided by
+        the user.
 
-                Parameters
-                ----------
-                transformation_matrix :
-                    numpy ndarray which is a square matrix having the dimensions of the number
-                    of nodes present in the circuit.
+        Parameters
+        ----------
+        transformation_matrix :
+            numpy ndarray which is a square matrix having the dimensions of the number
+            of nodes present in the circuit.
 
-                Returns
-                -------
-        <<<<<<< HEAD
-                var_categories:
-                    A dictionary of lists which has the variable indices classified with var indices corresponding to the rows of the transformation matrix
-        =======
-                    A dictionary of lists which has the variable indices classified with var
-                    indices corresponding to the rows of the transformation matrix
-        >>>>>>> 215578989aca4a80679ad4e36d0475819cf6e00a
+        Returns
+        -------
+            A dictionary of lists which has the variable indices classified with
+            var indices corresponding to the rows of the transformation matrix
         """
         # basic check to see if the matrix is invertible
         if np.linalg.det(transformation_matrix) == 0:
@@ -790,19 +786,19 @@ class SymbolicCircuit(serializers.Serializable):
         selected_branches = [branch for branch in self.branches if branch.type != "L"]
         frozen_modes = self._independent_modes(selected_branches, single_nodes=True)
 
-        # *************************** Finding the Cyclic Modes ##################
+        # *************************** Finding the Cyclic Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type != "C"]
         cyclic_modes = self._independent_modes(selected_branches)
 
-        #################### Finding the extended Modes ##################
+        # ************************ Finding the extended Modes ****************
         # extended_modes = self.get_extended_modes()
 
-        # ***************************# Finding the LC Modes ##################
+        # ***************************# Finding the LC Modes ****************
         selected_branches = [branch for branch in self.branches if branch.type == "JJ"]
         LC_modes = self._independent_modes(selected_branches, single_nodes=False)
 
-        #################### including the Σ mode #################
-        Σ = [1 for n in self.nodes]
+        # ******************* including the Σ mode ****************
+        Σ = [1] * len(self.nodes)
         if not self.is_grounded:  # only append if the circuit is not grounded
             # check to see if the vectors are still independent
             if self._mode_in_subspace(Σ, frozen_modes):
@@ -810,7 +806,7 @@ class SymbolicCircuit(serializers.Serializable):
             else:
                 frozen_modes.append(Σ)
 
-        ################ Adding periodic, cyclic and extended modes to frozen #############
+        # *********** Adding periodic, cyclic and extended modes to frozen ************
         modes = []  # starting with the frozen modes
 
         for m in (
@@ -965,18 +961,18 @@ class SymbolicCircuit(serializers.Serializable):
         # step 4: construct the new set of basis vectors
 
         # constructing a standard basis
-        l = len(self.nodes)
-        standard_basis = [np.ones(l)]
+        node_count = len(self.nodes)
+        standard_basis = [np.ones(node_count)]
 
-        vector_ref = np.zeros(l)
-        if l > 2:
-            vector_ref[: l - 2] = 1
+        vector_ref = np.zeros(node_count)
+        if node_count > 2:
+            vector_ref[: node_count - 2] = 1
         else:
-            vector_ref[: l - 1] = 1
+            vector_ref[: node_count - 1] = 1
 
-        vector_set = list((itertools.permutations(vector_ref, l)))
+        vector_set = list((itertools.permutations(vector_ref, node_count)))
         item = 0
-        while np.linalg.matrix_rank(np.array(standard_basis)) < l:
+        while np.linalg.matrix_rank(np.array(standard_basis)) < node_count:
             a = vector_set[item]
             item += 1
             mat = np.array(standard_basis + [a])
@@ -1380,7 +1376,7 @@ class SymbolicCircuit(serializers.Serializable):
                 for x in list(set(node_set))
                 if x not in [q for p in node_sets[: node_set_index + 1] for q in p]
             ]
-            if node_set != []:
+            if node_set:
                 node_set.sort(key=lambda x: x.id)
 
             node_sets.append(node_set)
@@ -1403,7 +1399,7 @@ class SymbolicCircuit(serializers.Serializable):
                         tree_copy.append(connecting_branches(node, prev_node)[0])
                         break
 
-        ############## selecting the appropriate branches from circ as from circ_copy #######
+        ############## selecting the appropriate branches from circ as from circ_copy #
         def is_same_branch(branch_1: Branch, branch_2: Branch):
             branch_1_dict = branch_1.__dict__
             branch_2_dict = branch_2.__dict__
@@ -1567,8 +1563,8 @@ class SymbolicCircuit(serializers.Serializable):
                 * self._capacitance_matrix()
                 * transformation_matrix
             )[
-                0 : num_nodes - num_frozen_modes,
-                0 : num_nodes - num_frozen_modes,
+                0: num_nodes - num_frozen_modes,
+                0: num_nodes - num_frozen_modes,
             ].inv()  # excluding the frozen modes
         else:
             C_mat_θ = np.linalg.inv(
@@ -1577,14 +1573,15 @@ class SymbolicCircuit(serializers.Serializable):
                     @ self._capacitance_matrix(substitute_params=substitute_params)
                     @ transformation_matrix
                 )[
-                    0 : num_nodes - num_frozen_modes,
-                    0 : num_nodes - num_frozen_modes,
+                    0: num_nodes - num_frozen_modes,
+                    0: num_nodes - num_frozen_modes,
                 ]
             )  # excluding the frozen modes
 
         p_θ_vars = [
             symbols("Q" + str(i)) if i not in self.var_categories["cyclic"]
-            # replacing the cyclic charge with 0, as it would not affect the circuit lagrangian.
+            # replacing the cyclic charge with 0, as it would not affect the circuit
+            # Lagrangian.
             else 0
             for i in range(1, len(self.nodes) + 1 - num_frozen_modes)
         ]  # defining the momentum variables
