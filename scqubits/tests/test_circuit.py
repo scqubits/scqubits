@@ -1,4 +1,4 @@
-# test_zeropi.py
+# test_circuit.py
 # meant to be run with 'pytest'
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
@@ -54,7 +54,7 @@ def test_eigenvals():
     for qubit_name in qubits_tested:
         evals_ref = qubits[qubit_name].eigenvals()
         evals_test = reference_data[qubit_name]["eigenvals"]
-        np.allclose(evals_ref, evals_test)
+        assert np.allclose(evals_ref, evals_test)
 
 
 def test_eigenvecs():
@@ -62,4 +62,4 @@ def test_eigenvecs():
         evecs_ref = reference_data[qubit_name]["eigensys"][1]
         evals_count = evecs_ref.shape[1]
         evecs_test = qubits[qubit_name].eigensys(evals_count=evals_count)[1]
-        np.allclose(np.abs(evecs_ref), np.abs(evecs_test))
+        assert np.allclose(np.abs(evecs_ref), np.abs(evecs_test))
