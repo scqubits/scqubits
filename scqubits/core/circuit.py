@@ -114,6 +114,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         subsystem_trunc_dims: Optional[List] = None,
         truncated_dim: Optional[int] = 10,
     ):
+        base.QuantumSystem.__init__(self, id_str=None)
+
         self.system_hierarchy: list = system_hierarchy
         self.truncated_dim: int = truncated_dim
         self.subsystem_trunc_dims: list = subsystem_trunc_dims
@@ -123,9 +125,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.hamiltonian_symbolic: sm.core.expr.Expr = hamiltonian_symbolic
         self._hamiltonian_sym_for_numerics: sm.core.expr.Expr = hamiltonian_symbolic
 
-        # _sys_type = type(self).__name__  # for object description
-        # TODO we talked about this... did you not fix this meanwhile? -  I think this
-        #  is somehow needed for some method call. I will need to test it further
         self.ext_basis: str = self.parent.ext_basis
         self.external_fluxes = [
             var
@@ -1645,9 +1644,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for var_name in kwargs:
             if isinstance(kwargs[var_name], np.ndarray):
                 parameters[var_name] = kwargs[var_name]
-            elif isinstance(kwargs[var_name], int) or isinstance(
-                kwargs[var_name], float
-            ):
+            elif isinstance(kwargs[var_name], (int, float)):
                 parameters[var_name] = kwargs[var_name]
             else:
                 raise AttributeError(
@@ -2104,7 +2101,7 @@ class Circuit(Subsystem):
         truncated_dim: int = None,
     ):
         """
-        init for Circuit class
+        Class for analysis of custom superconducting circuits.
 
         Parameters
         ----------
@@ -2324,8 +2321,8 @@ class Circuit(Subsystem):
                     "The truncated dimensions attribute for hierarchical "
                     "diagonalization is not set."
                 )
-            else:
-                self.subsystem_trunc_dims = subsystem_trunc_dims
+
+            self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
 
