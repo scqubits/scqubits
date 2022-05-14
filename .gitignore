@@ -26,5 +26,9 @@
 /scqubits/core/hspace.py
 /scratch/
 
-scqubits/tests/explorer_run.py
 /.vscode/
+/.pytest_cache/
+/.coverage
+/.ipynb_checkpoints/
+/.pytest_cache/
+/example/

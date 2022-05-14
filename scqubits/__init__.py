@@ -47,7 +47,7 @@ from scqubits.core.units import (
 from scqubits.core.zeropi import ZeroPi
 from scqubits.core.zeropi_full import FullZeroPi
 
-from scqubits.core.symboliccircuit import SymbolicCircuit
+from scqubits.core.symbolic_circuit import SymbolicCircuit
 from scqubits.core.circuit import Circuit
 
 # file IO
