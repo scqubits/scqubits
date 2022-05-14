@@ -1,4 +1,4 @@
-# symboliccircuit.py
+# symbolic_circuit.py
 #
 # This file is part of scqubits.
 #
@@ -430,7 +430,7 @@ class SymbolicCircuit(serializers.Serializable):
 
     @staticmethod
     def _parse_nodes(num_nodes) -> List[Node]:
-        return [Node(id, 0) for id in range(1, num_nodes + 1)]
+        return [Node(idx, 0) for idx in range(1, num_nodes + 1)]
 
     @staticmethod
     def _parse_branches(
@@ -575,6 +575,7 @@ class SymbolicCircuit(serializers.Serializable):
             C 5,6 1
             C 7,0 1
             ```
+        # TODO docstring needs updates
 
         Parameters
         ----------
@@ -1458,7 +1459,7 @@ class SymbolicCircuit(serializers.Serializable):
         self.offset_charges = []
         for p in self.var_categories[
             "periodic"
-        ]:  # same as above for periodic variables and adding the offset charge variables
+        ]:
             self.offset_charges = self.offset_charges + [symbols("ng_" + str(p))]
 
     def generate_symbolic_lagrangian(

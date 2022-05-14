@@ -27,7 +27,6 @@ import qutip as qt
 import scipy as sp
 import sympy as sm
 
-from matplotlib.text import OffsetFrom
 from matplotlib import pyplot as plt
 from numpy import ndarray
 from scipy import sparse
@@ -41,7 +40,7 @@ import scqubits.io_utils.fileio_serializers as serializers
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.storage import DataStore
-from scqubits.core.symboliccircuit import Branch, SymbolicCircuit
+from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import flatten_list, flatten_list_recursive, list_intersection
 from scqubits.utils.spectrum_utils import (
     convert_matrix_to_qobj,
@@ -58,19 +57,6 @@ def truncation_template(
     Function to generate a template for defining the truncated dimensions for subsystems
     when hierarchical diagonalization is used.
 
-    Parameter
-    ---------
-    system_hierarchy:
-        list showing the system hierarchy
-    individual_trunc_dim:
-        The default used to set truncation dimension for the subsystem which does not
-        use hierarchical diagonalization.
-    combined_trunc_dim:
-    """
-    """
-    Function to generate a template for defining the truncated dimensions for subsystems
-    when hierarchical diagonalization is used.
-
     Parameters
     ----------
     system_hierarchy:
@@ -79,7 +65,8 @@ def truncation_template(
         The default used to set truncation dimension for subsystems which do not
         use hierarchical diagonalization, by default 6
     combined_trunc_dim:
-        The default used to set the truncated dim for subsystems which use hierarchical diagonalization, by default 50
+        The default used to set the truncated dim for subsystems which use hierarchical
+        diagonalization, by default 50
 
     Returns
     -------
@@ -91,8 +78,9 @@ def truncation_template(
         if subsystem_hierarchy == flatten_list_recursive(subsystem_hierarchy):
             trunc_dims.append(individual_trunc_dim)
         else:
-            trunc_dims.append([combined_trunc_dim, truncation_template(
-                subsystem_hierarchy)])
+            trunc_dims.append(
+                [combined_trunc_dim, truncation_template(subsystem_hierarchy)]
+            )
     return trunc_dims
 
 
@@ -122,18 +110,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     Parameters
     ----------
-    parent: SubSystem
+    parent: Subsystem
         the instance under which the new subsystem is defined.
     hamiltonian_symbolic: sm.Expr
         The symbolic expression which defines the Hamiltonian for the new subsystem
     system_hierarchy: Optional[List], optional
-        Defines the hierarchy of the new subsystem, is set to None when hierarchical diagonalization is not required. by default None
+        Defines the hierarchy of the new subsystem, is set to None when hierarchical
+        diagonalization is not required. by default None
     subsystem_trunc_dims: Optional[List], optional
         Defines the truncated dimensions for the subsystems inside the current
-        subsystem, is set to None when hierarchical diagonalization is not required.  , by default None
+        subsystem, is set to None when hierarchical diagonalization is not required,
+        by default `None`
     truncated_dim: Optional[int], optional
         sets the truncated dimension for the current subsystem, by default 10
-
     """
 
     def __init__(
@@ -190,7 +179,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     self.var_categories_list.append(var_index)
         # setting some class attributes
         self.var_categories_list.sort()
-        self.var_categories: Dict[str, List[Symbol]] = {}
+        self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
             self.var_categories[var_type] = [
                 var_index
@@ -284,7 +273,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self, param_name: str, value: float
     ) -> None:
         """
-        Setter method to set external flux or offset charge variables which are instance properties.
+        Setter method to set external flux or offset charge variables which are instance
+        properties.
 
         Parameters
         ----------
@@ -331,7 +321,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     ) -> None:
         """
         Creates a class instance property with the name attrib_name which is initialized
-        to init_val. The setter is set depending on the string in the property_update_type
+        to `init_val`. The setter is set depending on the string in the
+        `property_update_type`.
 
         Parameters
         ----------
@@ -417,10 +408,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        system_hierarchy : list, optional
+        system_hierarchy:
             A list of lists which is provided by the user to define subsystems
-        subsystem_trunc_dims : list, optional
-            dict object which can be generated for a specific system_hierarchy using the method generate_default_trunc_dims
+        subsystem_trunc_dims:
+            dict object which can be generated for a specific `system_hierarchy`
+            using the method `truncation_template`
         """
         if len(self.symbolic_circuit.nodes) > 3:
             self.hamiltonian_symbolic = (
@@ -463,7 +455,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def generate_subsystems(self):
         """
-        Generates the subsystems (child instances of Circuit) depending on the attribute self.system_hierarchy
+        Generates the subsystems (child instances of Circuit) depending on the attribute
+        `self.system_hierarchy`
         """
         hamiltonian = self._hamiltonian_sym_for_numerics
 
@@ -641,7 +634,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _set_vars(self):
         """
-        Sets the attribute vars which is a dictionary containing all the Sympy Symbol objects for all the operators present in the circuit
+        Sets the attribute vars which is a dictionary containing all the Sympy Symbol
+        objects for all the operators present in the circuit
         """
         # Defining the list of variables for periodic operators
         periodic_symbols_sin = [
@@ -729,7 +723,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         from the expression stored in the attribute hamiltonian_symbolic. Stores the
         result in the attribute _hamiltonian_sym_for_numerics.
         """
-        H = (
+        hamiltonian = (
             self.hamiltonian_symbolic.expand()
         )  # applying expand is critical; otherwise the replacement of p^2 with ps2
         # would not succeed
@@ -737,17 +731,17 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # shifting the harmonic oscillator potential to the point of external fluxes
         flux_shift_vars = {}
         for var_index in self.var_categories["extended"]:
-            if H.coeff("θ" + str(var_index)) != 0:
+            if hamiltonian.coeff("θ" + str(var_index)) != 0:
                 flux_shift_vars[var_index] = sm.symbols("Δθ" + str(var_index))
-                H = H.replace(
+                hamiltonian = hamiltonian.replace(
                     sm.symbols("θ" + str(var_index)),
                     sm.symbols("θ" + str(var_index)) + flux_shift_vars[var_index],
                 )  # substituting the flux offset variable offsets to collect the
                 # coefficients later
-        H = H.expand()
+        hamiltonian = hamiltonian.expand()
 
         flux_shift_equations = [
-            H.coeff("θ" + str(var_index)).subs(
+            hamiltonian.coeff("θ" + str(var_index)).subs(
                 [("θ" + str(i), 0) for i in self.var_categories["extended"]]
             )
             for var_index in flux_shift_vars.keys()
@@ -764,13 +758,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         flux_shifts_dict = dict(zip(list(flux_shift_vars.keys()), list(flux_shifts)))
 
-        H = H.subs(
+        hamiltonian = hamiltonian.subs(
             [
                 (sm.symbols("Δθ" + str(var_index)), flux_shifts_dict[var_index])
                 for var_index in flux_shifts_dict.keys()
             ]
         )  # substituting the flux offsets to remove the linear terms
-        H = H.subs(
+        hamiltonian = hamiltonian.subs(
             [(var, 0) for var in flux_shift_vars.values()]
         )  # removing the constants from the Hamiltonian
 
@@ -782,16 +776,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             }
         )
         # remove constants from Hamiltonian
-        H = H - H.as_coefficients_dict()[1]
-        H = H.expand()
+        hamiltonian -= hamiltonian.as_coefficients_dict()[1]
+        hamiltonian = hamiltonian.expand()
         #############################
 
         # marking the sin and cos terms of the periodic variables with different symbols
         if len(self.var_categories["periodic"]) > 0:
-            H = sm.expand_trig(H).expand()
+            hamiltonian = sm.expand_trig(hamiltonian).expand()
 
         for i in self.var_categories["periodic"]:
-            H = H.replace(
+            hamiltonian = hamiltonian.replace(
                 sm.cos(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θc" + str(i))
             ).replace(sm.sin(1.0 * sm.symbols("θ" + str(i))), sm.symbols("θs" + str(i)))
 
@@ -799,13 +793,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             # marking the squared momentum operators with a separate symbol
             for i in self.var_categories["extended"]:
-                H = H.replace(sm.symbols("Q" + str(i)) ** 2, sm.symbols("Qs" + str(i)))
+                hamiltonian = hamiltonian.replace(sm.symbols("Q" + str(i)) ** 2, sm.symbols("Qs" + str(i)))
 
         elif self.ext_basis == "harmonic":
-            H = sm.expand_trig(H).expand()
+            hamiltonian = sm.expand_trig(hamiltonian).expand()
 
             for i in self.var_categories["extended"]:
-                H = H.replace(
+                hamiltonian = hamiltonian.replace(
                     sm.cos(1.0 * sm.symbols("θ" + str(i))),
                     sm.symbols("θc" + str(i)),
                 ).replace(
@@ -814,7 +808,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
 
         # removing the constants from the Hamiltonian
-        coeff_dict = H.as_coefficients_dict()
+        coeff_dict = hamiltonian.as_coefficients_dict()
         constants = [
             i
             for i in coeff_dict
@@ -825,16 +819,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             and "Nh" not in str(i)
         ]
         for i in constants:
-            H = H - i * coeff_dict[i]
+            hamiltonian = hamiltonian - i * coeff_dict[i]
 
         # associate a identity matrix with the external flux vars
         for ext_flux in self.external_fluxes:
-            H = H.subs(ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi)
+            hamiltonian = hamiltonian.subs(ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi)
 
         # associate a identity matrix with offset charge vars
         for offset_charge in self.offset_charges:
-            H = H.subs(offset_charge, offset_charge * sm.symbols("I"))
-        setattr(self, "_hamiltonian_sym_for_numerics", H)
+            hamiltonian = hamiltonian.subs(offset_charge, offset_charge * sm.symbols("I"))
+        setattr(self, "_hamiltonian_sym_for_numerics", hamiltonian)
 
     ##################################################################
     ############### Functions to construct the operators #############
@@ -873,7 +867,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     ) -> Union[csc_matrix, ndarray]:
         """
         Identity wraps the operator with identities generated for all the other variable
-        indices present in the current SubSystem.
+        indices present in the current Subsystem.
 
         Parameters
         ----------
@@ -886,12 +880,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         -------
             Returns the operator which is identity wrapped for the current subsystem.
         """
-        # if self.hierarchical_diagonalization:
-        #     subsystem_index = self.get_subsystem_index(index)
-        #     var_index_list = flatten_list_recursive(
-        #         self.system_hierarchy[subsystem_index]
-        #     )
-        # else:
         var_index_list = (
             self.var_categories["periodic"] + self.var_categories["extended"]
         )
@@ -926,56 +914,57 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if len(var_index_list) > 1:
             if index > var_index_list[0]:
-                Identity_l = sparse.identity(
+                identity_left = sparse.identity(
                     np.prod(cutoff_names[: var_index_list.index(index)]),
                     format=matrix_format,
                 )
             if index < var_index_list[-1]:
-                Identity_r = sparse.identity(
+                identity_right = sparse.identity(
                     np.prod(cutoff_names[var_index_list.index(index) + 1 :]),
                     format=matrix_format,
                 )
 
             if index == var_index_list[0]:
-                return sparse.kron(operator, Identity_r, format=matrix_format)
+                return sparse.kron(operator, identity_right, format=matrix_format)
             elif index == var_index_list[-1]:
-                return sparse.kron(Identity_l, operator, format=matrix_format)
+                return sparse.kron(identity_left, operator, format=matrix_format)
             else:
                 return sparse.kron(
-                    sparse.kron(Identity_l, operator, format=matrix_format),
-                    Identity_r,
+                    sparse.kron(identity_left, operator, format=matrix_format),
+                    identity_right,
                     format=matrix_format,
                 )
         else:
             return self._change_sparsity(operator)
 
     def _change_sparsity(
-        self, x: Union[csc_matrix, ndarray]
+        self, matrix: Union[csc_matrix, ndarray]
     ) -> Union[csc_matrix, ndarray]:
         """
-        Changes the sparsity of sparce csc matrix depending on the attribute
+        # TODO description not consistent with type annotation
+
+        Changes the sparsity of sparse csc matrix depending on the attribute
         type_of_matrices
 
         Parameters
         ----------
-        x : Union[csc_matrix, ndarray]
+        matrix
 
         Returns
         -------
-        Union[csc_matrix, ndarray]
             returns the same or the dense matrix version if type_of_matrices is set to
             "dense"
         """
-        if sparse.issparse(x):
+        if sparse.issparse(matrix):
             if self.type_of_matrices == "sparse":
-                return x
+                return matrix
             elif self.type_of_matrices == "dense":
-                return x.toarray()
+                return matrix.toarray()
         else:
             if self.type_of_matrices == "sparse":
-                return sparse.csc_matrix(x)
+                return sparse.csc_matrix(matrix)
             elif self.type_of_matrices == "dense":
-                return x
+                return matrix
 
     # Identity Operator
     def _identity(self):
@@ -1163,7 +1152,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def circuit_operators(self):
         """
-        Returns the set of operators needed to evaluate the Hamiltonian of the current instance.
+        Returns the set of operators needed to evaluate the Hamiltonian of the current
+        instance.
         """
         periodic_vars = self.vars["periodic"]
         normal_vars = self.vars["extended"]
@@ -1260,7 +1250,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     )
                 )
                 x_operator = (
-                    (ad_operator + a_operator) * osc_lengths[var_index] / (2 ** 0.5)
+                    (ad_operator + a_operator) * osc_lengths[var_index] / (2**0.5)
                 )
                 extended_operators["position"].append(
                     self._kron_operator(x_operator, var_index)
@@ -1269,7 +1259,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     self._kron_operator(
                         1j
                         * (ad_operator - a_operator)
-                        / (osc_lengths[var_index] * 2 ** 0.5),
+                        / (osc_lengths[var_index] * 2**0.5),
                         var_index,
                     )
                 )
@@ -1419,8 +1409,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             operator_list = operator_list + [self._identity()]
 
-            for x, operator in enumerate(variable_symbols_list):
-                setattr(self, operator.name, operator_list[x])
+            for idx, operator in enumerate(variable_symbols_list):
+                setattr(self, operator.name, operator_list[idx])
 
     def get_operator(self, operator_name: str) -> qt.Qobj:
         """
@@ -1430,7 +1420,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         Parameters
         ----------
         operator_name:
-            Name of a sympy Symbol object which should be one among the symbols in the attribute vars
+            Name of a sympy Symbol object which should be one among the symbols in the
+            attribute vars
 
         Returns
         -------
@@ -1491,13 +1482,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 exponents = re.findall(r"(?<=\*{2})\d", str(term), re.MULTILINE)
 
                 new_string_list = []
-                for x, operator in enumerate(operators):
+                for idx, operator in enumerate(operators):
                     if get_trailing_number(operator) in self.var_categories["extended"]:
                         new_string_list.append(
-                            "matrix_power(" + operator + "," + exponents[x] + ")"
+                            "matrix_power(" + operator + "," + exponents[idx] + ")"
                         )
                     else:
-                        new_string_list.append(operator + "**" + exponents[x])
+                        new_string_list.append(operator + "**" + exponents[idx])
                 term_string = "*".join(new_string_list)
             else:
                 term_string = str(term)
@@ -1505,7 +1496,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             # replace * with @ in the entire term
             if len(term.free_symbols) > 1:
                 term_string = re.sub(
-                    r"(?<=[^*])\*{1}(?!\*)", "@", term_string, re.MULTILINE
+                    r"(?<=[^*])\*(?!\*)", "@", term_string, re.MULTILINE
                 )
         return term_string
 
@@ -1519,11 +1510,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         coeff_list = list(expr_dict.values())
 
         H_string = ""
-        for x, term in enumerate(terms_list):
+        for idx, term in enumerate(terms_list):
             term_string = (
-                str(coeff_list[x]) + "*" + self._replace_mat_mul_operator(term)
+                str(coeff_list[idx]) + "*" + self._replace_mat_mul_operator(term)
             )
-            if float(coeff_list[x]) > 0:
+            if float(coeff_list[idx]) > 0:
                 term_string = "+" + term_string
             H_string += term_string
 
@@ -1625,9 +1616,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return eval(H_str, variable_dict)
 
     def _hamiltonian_for_discretized_extended_vars(self):
-
-        H = self._hamiltonian_sym_for_numerics
-        H = H.subs(
+        hamiltonian = self._hamiltonian_sym_for_numerics
+        hamiltonian = hamiltonian.subs(
             [
                 (param, getattr(self, str(param)))
                 for param in self.param_vars
@@ -1636,10 +1626,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             ]
         )
         # remove constants from the Hamiltonian
-        H = H - H.as_coefficients_dict()[1]
-        H = H.expand()
+        hamiltonian -= hamiltonian.as_coefficients_dict()[1]
+        hamiltonian = hamiltonian.expand()
 
-        H_str = self._get_eval_hamiltonian_string(H)
+        H_str = self._get_eval_hamiltonian_string(hamiltonian)
         self._H_str_sparse = H_str
 
         variable_dict = self.get_all_operators(return_dict=True)
@@ -1673,7 +1663,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             hamiltonian = self.hilbert_space.hamiltonian(bare_esys=bare_esys)
             if self.type_of_matrices == "dense":
                 return hamiltonian.full()
-            elif self.type_of_matrices == "sparse":
+            if self.type_of_matrices == "sparse":
                 return hamiltonian.data.tocsc()
 
     ##################################################################
@@ -1885,7 +1875,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return plot
 
     ##################################################################
-    ############# Functions for plotting wavefunction ################
+    ############# Functions for plotting wave function ################
     ##################################################################
     def _recursive_basis_change(
         self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
@@ -1897,7 +1887,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         Parameters
         ----------
         wf_dim:
-            The dimension of the wavefunction which needs to be rewritten in terms of
+            The dimension of the wave function which needs to be rewritten in terms of
             the initial basis
 
         """
@@ -2012,19 +2002,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         change_discrete_charge_to_phi: bool = True,
     ):
         """
-        Returns the plot of the probability density of the wavefunction in the requested
-        variables for the current Circuit instance.
+        Returns the plot of the probability density of the wave function in the
+        requested variables for the current Circuit instance.
 
         Parameters
         ----------
         n:
-            integer to choose which wavefunction to plot
+            integer to choose which wave function to plot
         var_categories:
             A tuple containing the indices of the variables chosen to plot the
-            wavefunction in. Should not have more than 2 entries.
+            wave function in. Should not have more than 2 entries.
         mode:
             "abs" or "real" or "imag" for absolute, real or imaginary parts of the
-            wavefunction.
+            wave function.
         eigensys:
             The object returned by the method instance. `eigensys` is used to avoid the
             re-evaluation of the eigensystems if already evaluated.
@@ -2053,7 +2043,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 for sys_index in system_hierarchy_for_vars_chosen
             ]
             subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
-            # reshaping the wavefunctions to truncated dims of subsystems
+            # reshaping the wave functions to truncated dims of subsystems
             wf_hd_reshaped = wf.reshape(*subsys_trunc_dims)
 
             # **** Converting to the basis in which the variables are defined *****
@@ -2084,7 +2074,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # making a basis change to phi for every var_index
         wf_ext_basis = wf_original_basis
-        for x, var_index in enumerate(var_categories):
+        for var_index in var_categories:
             # finding the dimension corresponding to the var_index
             if not self.hierarchical_diagonalization:
                 wf_dim = var_index - 1
@@ -2109,7 +2099,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         if self.hierarchical_diagonalization:
             num_wf_dims = 0
             dims_to_be_summed = []
-            for x, subsys_index in enumerate(self.subsystems):
+            for subsys_index in self.subsystems:
                 if subsys_index in system_hierarchy_for_vars_chosen:
                     for index, var_index in enumerate(
                         self.subsystems[subsys_index].var_categories_list
@@ -2150,19 +2140,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         change_discrete_charge_to_phi: bool = True,
     ):
         """
-        Returns the plot of the probability density of the wavefunction in the requested
-        variables for the current Circuit instance.
+        Returns the plot of the probability density of the wave function in the
+        requested variables for the current Circuit instance.
 
         Parameters
         ----------
         n:
-            integer to choose which wavefunction to plot
+            integer to choose which wave function to plot
         var_categories:
             A tuple containing the indices of the variables chosen to plot the
-            wavefunction in. Should not have more than 2 entries.
+            wave function in. Should not have more than 2 entries.
         mode:
             "abs" or "real" or "imag" for absolute, real or imaginary parts of the
-            wavefunction.
+            wave function.
         eigensys:
             The object returned by the method `.eigensys`, is used to avoid the
             re-evaluation of the eigen systems if already evaluated.
@@ -2172,7 +2162,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if len(var_categories) > 2:
             raise AttributeError(
-                "Cannot plot wavefunction in more than 2 dimensions. The number of "
+                "Cannot plot wave function in more than 2 dimensions. The number of "
                 "dimensions should be less than 2."
             )
         var_categories = np.sort(var_categories)
@@ -2238,7 +2228,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             plt.xlabel(var_types[0] + str(var_categories[0]))
             plt.ylabel(var_types[1] + str(var_categories[1]))
             plt.colorbar()
-        plt.title("Distribution of wavefunction along variables " + str(var_categories))
+        plt.title("Wave function along variables " + str(var_categories))
 
 
 class Circuit(Subsystem):
@@ -2269,7 +2259,7 @@ class Circuit(Subsystem):
             by default `None`
         subsystem_trunc_dims : list, optional
             a dict object which can be generated for a specific system_hierarchy using
-            the method generate_default_trunc_dims, by default `None`
+            the method `truncation_template`, by default `None`
         truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
             HilbertSpace, by default `None`
@@ -2298,21 +2288,15 @@ class Circuit(Subsystem):
             "sparse"  # type of matrices used to construct the operators
         )
 
-        circuit_data = {
-            "var_categories": symbolic_circuit.var_categories,
-            "external_fluxes": symbolic_circuit.external_fluxes,
-            "offset_charges": symbolic_circuit.offset_charges,
-            "param_vars": symbolic_circuit.param_vars,
-            "branches": symbolic_circuit.branches,
-            "nodes": symbolic_circuit.nodes,
-            "lagrangian_symbolic": symbolic_circuit.lagrangian_symbolic,
-            "hamiltonian_symbolic": symbolic_circuit.hamiltonian_symbolic,
-            "lagrangian_node_vars": symbolic_circuit.lagrangian_node_vars,
-        }
-
-        self.__dict__.update(
-            circuit_data
-        )  # copying the necessary attributes from symbolic circuit.
+        self.var_categories = symbolic_circuit.var_categories
+        self.external_fluxes = symbolic_circuit.external_fluxes
+        self.offset_charges = symbolic_circuit.offset_charges
+        self.param_vars = symbolic_circuit.param_vars
+        self.branches = symbolic_circuit.branches
+        self.nodes = symbolic_circuit.nodes
+        self.lagrangian_symbolic = symbolic_circuit.lagrangian_symbolic
+        self.hamiltonian_symbolic = symbolic_circuit.hamiltonian_symbolic
+        self.lagrangian_node_vars = symbolic_circuit.lagrangian_node_vars
 
         self._sys_type = type(self).__name__
         self._id_str = self._autogenerate_id_str()
@@ -2346,7 +2330,7 @@ class Circuit(Subsystem):
             by default `None`
         subsystem_trunc_dims:
             dict object which can be generated for a specific system_hierarchy using the
-            method `generate_default_trunc_dims`, by default `None`
+            method `truncation_template`, by default `None`
         closure_branches:
             List of branches where external flux variables will be specified, by default
             `None` which then chooses closure branches by an internally generated
@@ -2512,7 +2496,7 @@ class Circuit(Subsystem):
             by default `None`
         subsystem_trunc_dims:
             a dict object which can be generated for a specific system_hierarchy using
-            the method generate_default_trunc_dims, by default `None`
+            the method `truncation_template`, by default `None`
         truncated_dim:
             truncated dimension if the user wants to use this circuit instance in
             `HilbertSpace`, by default `None`
@@ -2522,7 +2506,7 @@ class Circuit(Subsystem):
             An instance of class `Circuit`
         """
 
-        symboliccircuit = SymbolicCircuit.from_yaml(
+        symbolic_circuit = SymbolicCircuit.from_yaml(
             input_string,
             is_file=is_file,
             basis_completion=basis_completion,
@@ -2530,7 +2514,7 @@ class Circuit(Subsystem):
         )
 
         return cls(
-            symboliccircuit,
+            symbolic_circuit,
             initiate_sym_calc=initiate_sym_calc,
             ext_basis=ext_basis,
             system_hierarchy=system_hierarchy,
