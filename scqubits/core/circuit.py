@@ -13,14 +13,7 @@
 import re
 
 from symtable import Symbol
-from typing import (
-    Any,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
@@ -793,7 +786,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             # marking the squared momentum operators with a separate symbol
             for i in self.var_categories["extended"]:
-                hamiltonian = hamiltonian.replace(sm.symbols("Q" + str(i)) ** 2, sm.symbols("Qs" + str(i)))
+                hamiltonian = hamiltonian.replace(
+                    sm.symbols("Q" + str(i)) ** 2, sm.symbols("Qs" + str(i))
+                )
 
         elif self.ext_basis == "harmonic":
             hamiltonian = sm.expand_trig(hamiltonian).expand()
@@ -823,11 +818,15 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # associate a identity matrix with the external flux vars
         for ext_flux in self.external_fluxes:
-            hamiltonian = hamiltonian.subs(ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi)
+            hamiltonian = hamiltonian.subs(
+                ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi
+            )
 
         # associate a identity matrix with offset charge vars
         for offset_charge in self.offset_charges:
-            hamiltonian = hamiltonian.subs(offset_charge, offset_charge * sm.symbols("I"))
+            hamiltonian = hamiltonian.subs(
+                offset_charge, offset_charge * sm.symbols("I")
+            )
         setattr(self, "_hamiltonian_sym_for_numerics", hamiltonian)
 
     ##################################################################

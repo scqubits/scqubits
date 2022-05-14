@@ -9,21 +9,23 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
+import copy
+import itertools
+import warnings
+
 from symtable import Symbol
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
-import itertools
-import copy
 
-import yaml
-import sympy
 import numpy as np
+import sympy
+import yaml
+
 from numpy import ndarray
 from sympy import symbols
 
-from scqubits.utils.misc import is_float_string
 import scqubits.io_utils.fileio_serializers as serializers
 
-import warnings
+from scqubits.utils.misc import is_float_string
 
 
 def process_word(word: str) -> Union[float, symbols]:
@@ -510,7 +512,8 @@ class SymbolicCircuit(serializers.Serializable):
                     ):
                         raise Exception(
                             "The parameter "
-                            + str(params[0]) + " has not been initialized."
+                            + str(params[0])
+                            + " has not been initialized."
                         )
                     branch_params.append(params[0])
                 else:
@@ -1457,9 +1460,7 @@ class SymbolicCircuit(serializers.Serializable):
         Create the offset charge variables and store in class attribute offset_charges
         """
         self.offset_charges = []
-        for p in self.var_categories[
-            "periodic"
-        ]:
+        for p in self.var_categories["periodic"]:
             self.offset_charges = self.offset_charges + [symbols("ng_" + str(p))]
 
     def generate_symbolic_lagrangian(
@@ -1564,8 +1565,8 @@ class SymbolicCircuit(serializers.Serializable):
                 * self._capacitance_matrix()
                 * transformation_matrix
             )[
-                0: num_nodes - num_frozen_modes,
-                0: num_nodes - num_frozen_modes,
+                0 : num_nodes - num_frozen_modes,
+                0 : num_nodes - num_frozen_modes,
             ].inv()  # excluding the frozen modes
         else:
             C_mat_θ = np.linalg.inv(
@@ -1574,8 +1575,8 @@ class SymbolicCircuit(serializers.Serializable):
                     @ self._capacitance_matrix(substitute_params=substitute_params)
                     @ transformation_matrix
                 )[
-                    0: num_nodes - num_frozen_modes,
-                    0: num_nodes - num_frozen_modes,
+                    0 : num_nodes - num_frozen_modes,
+                    0 : num_nodes - num_frozen_modes,
                 ]
             )  # excluding the frozen modes
 
