@@ -64,7 +64,7 @@ def parse_branch_parameter(word: str) -> Union[List[float], List[Union[Symbol, f
             raise Exception(
                 "Proper syntax is not followed please follow the documentation."
             )
-        elif len(word.split("=")) == 2:
+        if len(word.split("=")) == 2:
             var_str, init_val = word.split("=")
             return [process_word(var_str), process_word(init_val)]
         elif len(word.split("=")) == 1:
@@ -315,7 +315,7 @@ class SymbolicCircuit(serializers.Serializable):
             self.initiate_symboliccircuit()
 
     def is_any_branch_parameter_symbolic(self):
-        return True if len(self.param_vars) else False
+        return True if len(self.param_vars) > 0 else False
 
     def initiate_symboliccircuit(
         self, transformation_matrix=None, closure_branches=None
