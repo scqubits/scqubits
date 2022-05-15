@@ -12,7 +12,6 @@
 
 import re
 
-from symtable import Symbol
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -32,12 +31,10 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
-from scqubits.core.storage import DataStore
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import flatten_list, flatten_list_recursive, list_intersection
 from scqubits.utils.spectrum_utils import (
     convert_matrix_to_qobj,
-    get_matrixelement_table,
     identity_wrap,
     order_eigensystem,
 )
@@ -86,6 +83,7 @@ def get_trailing_number(input_str: str) -> Union[int, None]:
     Parameters
     ----------
     input_str :
+    TODO: not intelligible/helpful
         String which trails any number
 
     Returns
@@ -537,6 +535,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for index, system_hierarchy in enumerate(self.system_hierarchy):
             if var_index in flatten_list_recursive(system_hierarchy):
                 return index
+        raise Exception("The var_index={} could not be identified with any subsystem.")
 
     def build_hilbertspace(self):
         """
@@ -812,13 +811,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for cnst in constants:
             hamiltonian -= i * coeff_dict[cnst]
 
-        # associate a identity matrix with the external flux vars
+        # associate an identity matrix with the external flux vars
         for ext_flux in self.external_fluxes:
             hamiltonian = hamiltonian.subs(
                 ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi
             )
 
-        # associate a identity matrix with offset charge vars
+        # associate an identity matrix with offset charge vars
         for offset_charge in self.offset_charges:
             hamiltonian = hamiltonian.subs(
                 offset_charge, offset_charge * sm.symbols("I")
@@ -946,6 +945,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             returns the same or the dense matrix version if type_of_matrices is set to
             "dense"
         """
+        # TODO: unless you allow anything other than "sparse" and "dense",
+        #  all of this can be simplified.
         if sparse.issparse(matrix):
             if self.type_of_matrices == "sparse":
                 return matrix
@@ -1309,7 +1310,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         Method to get the cutoffs for each of the circuit's degree of freedom.
         """
-        cutoffs_dict = {
+        cutoffs_dict: Dict[str, List[Any]] = {
             "cutoff_n": [],
             "cutoff_ext": [],
         }
@@ -1420,22 +1421,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if not self.hierarchical_diagonalization:
             return getattr(self, operator_name)
-        else:
-            var_index = get_trailing_number(operator_name)
-            subsystem_index = self.get_subsystem_index(var_index)
-            subsystem = self.subsystems[subsystem_index]
-            operator = subsystem.get_operator(operator_name)
 
-            if isinstance(operator, qt.Qobj):
-                operator = operator.full()
+        var_index = get_trailing_number(operator_name)
+        assert var_index
+        subsystem_index = self.get_subsystem_index(var_index)
+        subsystem = self.subsystems[subsystem_index]
+        operator = subsystem.get_operator(operator_name)
 
-            operator = convert_matrix_to_qobj(
-                operator,
-                subsystem,
-                op_in_eigenbasis=False,
-                evecs=None,
-            )
-            return identity_wrap(operator, subsystem, list(self.subsystems.values()))
+        if isinstance(operator, qt.Qobj):
+            operator = operator.full()
+
+        operator = convert_matrix_to_qobj(
+            operator,
+            subsystem,
+            op_in_eigenbasis=False,
+            evecs=None,
+        )
+        return identity_wrap(operator, subsystem, list(self.subsystems.values()))
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
@@ -1657,9 +1659,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if self.type_of_matrices == "sparse":
                 return hamiltonian.data.tocsc()
 
-    ##################################################################
-    ########### Functions from scqubits.core.qubit_base ##############
-    ##################################################################
     def _evals_calc(self, evals_count: int) -> ndarray:
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
@@ -1701,52 +1700,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def matrixelement_table(
-        self,
-        operator: str,
-        evecs: ndarray = None,
-        evals_count: int = 6,
-        filename: str = None,
-        return_datastore: bool = False,
-    ) -> ndarray:
-        """Returns table of matrix elements for `operator` with respect to the
-        eigenstates of the qubit. The operator is given as a string matching a class
-        method returning an operator matrix. E.g., for an instance `trm` of Transmon,
-        the matrix element table for the charge operator is given by
-        `trm.op_matrixelement_table('n_operator')`. When `esys` is set to `None`,
-        the eigensystem is calculated on-the-fly.
-
-        Parameters
-        ----------
-        operator:
-            name of class method in string form, returning operator matrix in
-            qubit-internal basis.
-        evecs:
-            if not provided, then the necessary eigenstates are calculated on the fly
-        evals_count:
-            number of desired matrix elements, starting with ground state
-            (default value = 6)
-        filename:
-            output file name
-        return_datastore:
-            if set to true, the returned data is provided as a DataStore object
-            (default value = False)
-        """
-        if evecs is None:
-            _, evecs = self.eigensys(evals_count=evals_count)
-        operator_matrix = getattr(self, operator)
-        table = get_matrixelement_table(operator_matrix, evecs)
-        if filename or return_datastore:
-            data_store = DataStore(
-                system_params=self.get_initdata(), matrixelem_table=table
-            )
-        if filename:
-            data_store.filewrite(filename)
-        return data_store if return_datastore else table
-
-    ##################################################################
-    ############### Functions for plotting potential #################
-    ##################################################################
+    # ****************************************************************
+    # ************* Functions for plotting potential *****************
+    # ****************************************************************
     def potential_energy(self, **kwargs) -> ndarray:
         """
         Returns the full potential of the circuit evaluated in a grid of points as
@@ -1865,9 +1821,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             cbar.set_label("Potential energy in GHz")
         return plot
 
-    ##################################################################
-    ############# Functions for plotting wave function ################
-    ##################################################################
+    # ****************************************************************
+    # ************* Functions for plotting wave function *************
+    # ****************************************************************
     def _recursive_basis_change(
         self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
     ):
