@@ -26,7 +26,6 @@ import sympy as sm
 import numpy as np
 import regex as re
 
-from symtable import Symbol
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -46,12 +45,10 @@ import scqubits.io_utils.fileio_serializers as serializers
 
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
-from scqubits.core.storage import DataStore
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
 from scqubits.utils.misc import flatten_list, flatten_list_recursive, list_intersection
 from scqubits.utils.spectrum_utils import (
     convert_matrix_to_qobj,
-    get_matrixelement_table,
     identity_wrap,
     order_eigensystem,
 )
@@ -100,6 +97,7 @@ def get_trailing_number(input_str: str) -> Union[int, None]:
     Parameters
     ----------
     input_str :
+    TODO: not intelligible/helpful
         String which trails any number
 
     Returns
@@ -142,27 +140,27 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     ):
         base.QuantumSystem.__init__(self, id_str=None)
 
-        self.system_hierarchy: list = system_hierarchy
-        self.truncated_dim: int = truncated_dim
-        self.subsystem_trunc_dims: list = subsystem_trunc_dims
+        self.system_hierarchy = system_hierarchy
+        self.truncated_dim = truncated_dim
+        self.subsystem_trunc_dims = subsystem_trunc_dims
 
-        self.is_child: bool = True
-        self.parent: "Subsystem" = parent
-        self.hamiltonian_symbolic: sm.Expr = hamiltonian_symbolic
-        self._hamiltonian_sym_for_numerics: sm.core.expr.Expr = hamiltonian_symbolic
+        self.is_child = True
+        self.parent = parent
+        self.hamiltonian_symbolic = hamiltonian_symbolic
+        self._hamiltonian_sym_for_numerics = hamiltonian_symbolic
 
         self.ext_basis: str = self.parent.ext_basis
-        self.external_fluxes: List[Symbol] = [
+        self.external_fluxes = [
             var
             for var in self.parent.external_fluxes
             if var in self.hamiltonian_symbolic.free_symbols
         ]
-        self.offset_charges: List[Symbol] = [
+        self.offset_charges = [
             var
             for var in self.parent.offset_charges
             if var in self.hamiltonian_symbolic.free_symbols
         ]
-        self.param_vars: List[Symbol] = [
+        self.param_vars = [
             var
             for var in self.parent.param_vars
             if var in self.hamiltonian_symbolic.free_symbols
@@ -184,8 +182,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                         if str(var_index) in cutoff_name:
                             cutoffs.append(getattr(self.parent, cutoff_name))
                     self.var_categories_list.append(var_index)
-        # setting some class attributes
         self.var_categories_list.sort()
+
         self.var_categories: Dict[str, List[int]] = {}
         for var_type in self.parent.var_categories:
             self.var_categories[var_type] = [
@@ -197,10 +195,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.cutoff_names: List[str] = []
         for var_type in self.var_categories.keys():
             if var_type == "periodic":
-                for x, var_index in enumerate(self.var_categories["periodic"]):
+                for var_index in self.var_categories["periodic"]:
                     self.cutoff_names.append("cutoff_n_" + str(var_index))
             if var_type == "extended":
-                for x, var_index in enumerate(self.var_categories["extended"]):
+                for var_index in self.var_categories["extended"]:
                     self.cutoff_names.append("cutoff_ext_" + str(var_index))
 
         self.cutoffs_dict: Dict[int, int] = {}
@@ -208,11 +206,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             for cutoff_name in self.parent.cutoff_names:
                 if str(var_index) in cutoff_name:
                     self.cutoffs_dict[var_index] = getattr(self.parent, cutoff_name)
-        self.cutoffs_dict = self.cutoffs_dict
+
         self.discretized_phi_range: Dict[int, Tuple[float]] = {
-            i: self.parent.discretized_phi_range[i]
-            for i in self.parent.discretized_phi_range
-            if i in self.var_categories_list
+            idx: self.parent.discretized_phi_range[idx]
+            for idx in self.parent.discretized_phi_range
+            if idx in self.var_categories_list
         }
 
         self.hierarchical_diagonalization: bool = (
@@ -221,12 +219,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         )
 
         if len(self.var_categories_list) == 1 and self.ext_basis == "harmonic":
-            self.type_of_matrices: str = "dense"
+            self.type_of_matrices = "dense"
         else:
-            self.type_of_matrices: str = "sparse"
-
-        self._sys_type: str = type(self).__name__
-        self._id_str: str = self._autogenerate_id_str()
+            self.type_of_matrices = "sparse"
 
         self._initiate_subsystem()
 
@@ -259,7 +254,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         value:
             The value to which the instance property is updated.
         """
-
         # update the attribute for the current instance
         setattr(self, "_" + param_name, value)
         # update the attribute for the instance in symboliccircuit
@@ -555,6 +549,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         for index, system_hierarchy in enumerate(self.system_hierarchy):
             if var_index in flatten_list_recursive(system_hierarchy):
                 return index
+        raise Exception("The var_index={} could not be identified with any subsystem.")
 
     def build_hilbertspace(self):
         """
@@ -827,16 +822,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             and "a" not in str(i)
             and "Nh" not in str(i)
         ]
-        for i in constants:
-            hamiltonian = hamiltonian - i * coeff_dict[i]
+        for cnst in constants:
+            hamiltonian -= i * coeff_dict[cnst]
 
-        # associate a identity matrix with the external flux vars
+        # associate an identity matrix with the external flux vars
         for ext_flux in self.external_fluxes:
             hamiltonian = hamiltonian.subs(
                 ext_flux, ext_flux * sm.symbols("I") * 2 * np.pi
             )
 
-        # associate a identity matrix with offset charge vars
+        # associate an identity matrix with offset charge vars
         for offset_charge in self.offset_charges:
             hamiltonian = hamiltonian.subs(
                 offset_charge, offset_charge * sm.symbols("I")
@@ -846,33 +841,28 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############### Functions to construct the operators #############
     ##################################################################
+    def _collect_cutoff_values(self):
+        if not self.hierarchical_diagonalization:
+            cutoff_dict = self.get_cutoffs()
+            for cutoff_name in cutoff_dict.keys():
+                for cutoff in cutoff_dict[cutoff_name]:
+                    if "cutoff_n" in cutoff_name:
+                        yield 2 * cutoff + 1
+                    elif "cutoff_ext" in cutoff_name:
+                        yield cutoff
+        else:
+            for idx, _ in enumerate(self.system_hierarchy):
+                if isinstance(self.subsystem_trunc_dims[idx], list):
+                    yield self.subsystem_trunc_dims[idx][0]
+                else:
+                    yield self.subsystem_trunc_dims[idx]
+
     def hilbertdim(self):
         """
         Returns the Hilbert dimension of the Circuit instance
         """
-        if not self.hierarchical_diagonalization:
-            cutoff_names = []
-            for cutoffs in self.get_cutoffs().keys():
-                if "cutoff_n" in cutoffs:
-                    cutoff_names.append(
-                        [2 * k + 1 for k in self.get_cutoffs()[cutoffs]]
-                    )
-                elif "cutoff_ext" in cutoffs:
-                    cutoff_names.append([k for k in self.get_cutoffs()[cutoffs]])
-
-            cutoff_names = [
-                j for i in list(cutoff_names) for j in i
-            ]  # concatenating the sublists
-            return np.prod(cutoff_names)
-        else:
-            return np.prod(
-                [
-                    self.subsystem_trunc_dims[i][0]
-                    if type(self.subsystem_trunc_dims[i]) == list
-                    else self.subsystem_trunc_dims[i]
-                    for i in range(len(self.system_hierarchy))
-                ]
-            )
+        cutoff_values = np.fromiter(self._collect_cutoff_values(), dtype=int)
+        return np.prod(cutoff_values)
 
     # helper functions
     def _kron_operator(
@@ -900,6 +890,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         var_index_list.sort()  # important to make sure that right cutoffs are chosen
         cutoff_dict = self.get_cutoffs()
 
+        # TODO code duplication needs to be reduced/eliminated
         cutoff_names = []
         for cutoff_type in cutoff_dict.keys():
             if "cutoff_n" in cutoff_type:
@@ -968,6 +959,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             returns the same or the dense matrix version if type_of_matrices is set to
             "dense"
         """
+        # TODO: unless you allow anything other than "sparse" and "dense",
+        #  all of this can be simplified.
         if sparse.issparse(matrix):
             if self.type_of_matrices == "sparse":
                 return matrix
@@ -1331,7 +1324,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         Method to get the cutoffs for each of the circuit's degree of freedom.
         """
-        cutoffs_dict = {
+        cutoffs_dict: Dict[str, List[Any]] = {
             "cutoff_n": [],
             "cutoff_ext": [],
         }
@@ -1442,22 +1435,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if not self.hierarchical_diagonalization:
             return getattr(self, operator_name)
-        else:
-            var_index = get_trailing_number(operator_name)
-            subsystem_index = self.get_subsystem_index(var_index)
-            subsystem = self.subsystems[subsystem_index]
-            operator = subsystem.get_operator(operator_name)
 
-            if isinstance(operator, qt.Qobj):
-                operator = operator.full()
+        var_index = get_trailing_number(operator_name)
+        assert var_index
+        subsystem_index = self.get_subsystem_index(var_index)
+        subsystem = self.subsystems[subsystem_index]
+        operator = subsystem.get_operator(operator_name)
 
-            operator = convert_matrix_to_qobj(
-                operator,
-                subsystem,
-                op_in_eigenbasis=False,
-                evecs=None,
-            )
-            return identity_wrap(operator, subsystem, list(self.subsystems.values()))
+        if isinstance(operator, qt.Qobj):
+            operator = operator.full()
+
+        operator = convert_matrix_to_qobj(
+            operator,
+            subsystem,
+            op_in_eigenbasis=False,
+            evecs=None,
+        )
+        return identity_wrap(operator, subsystem, list(self.subsystems.values()))
 
     ##################################################################
     ############# Functions for eigen values and matrices ############
@@ -1679,9 +1673,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if self.type_of_matrices == "sparse":
                 return hamiltonian.data.tocsc()
 
-    ##################################################################
-    ########### Functions from scqubits.core.qubit_base ##############
-    ##################################################################
     def _evals_calc(self, evals_count: int) -> ndarray:
         # dimension of the hamiltonian
         hilbertdim = self.hilbertdim()
@@ -1723,52 +1714,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
 
-    def matrixelement_table(
-        self,
-        operator: str,
-        evecs: ndarray = None,
-        evals_count: int = 6,
-        filename: str = None,
-        return_datastore: bool = False,
-    ) -> ndarray:
-        """Returns table of matrix elements for `operator` with respect to the
-        eigenstates of the qubit. The operator is given as a string matching a class
-        method returning an operator matrix. E.g., for an instance `trm` of Transmon,
-        the matrix element table for the charge operator is given by
-        `trm.op_matrixelement_table('n_operator')`. When `esys` is set to `None`,
-        the eigensystem is calculated on-the-fly.
-
-        Parameters
-        ----------
-        operator:
-            name of class method in string form, returning operator matrix in
-            qubit-internal basis.
-        evecs:
-            if not provided, then the necessary eigenstates are calculated on the fly
-        evals_count:
-            number of desired matrix elements, starting with ground state
-            (default value = 6)
-        filename:
-            output file name
-        return_datastore:
-            if set to true, the returned data is provided as a DataStore object
-            (default value = False)
-        """
-        if evecs is None:
-            _, evecs = self.eigensys(evals_count=evals_count)
-        operator_matrix = getattr(self, operator)
-        table = get_matrixelement_table(operator_matrix, evecs)
-        if filename or return_datastore:
-            data_store = DataStore(
-                system_params=self.get_initdata(), matrixelem_table=table
-            )
-        if filename:
-            data_store.filewrite(filename)
-        return data_store if return_datastore else table
-
-    ##################################################################
-    ############### Functions for plotting potential #################
-    ##################################################################
+    # ****************************************************************
+    # ************* Functions for plotting potential *****************
+    # ****************************************************************
     def potential_energy(self, **kwargs) -> ndarray:
         """
         Returns the full potential of the circuit evaluated in a grid of points as
@@ -1887,9 +1835,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             cbar.set_label("Potential energy in GHz")
         return plot
 
-    ##################################################################
-    ############# Functions for plotting wave function ################
-    ##################################################################
+    # ****************************************************************
+    # ************* Functions for plotting wave function *************
+    # ****************************************************************
     def _recursive_basis_change(
         self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
     ):
@@ -2537,7 +2485,7 @@ class Circuit(Subsystem):
 
 
 # example input strings
-def example_circuit(qubit):
+def example_circuit(qubit: str) -> str:
     """
     Returns example input strings for AnalyzeQCircuit and CustomQCircuit for some of the
     popular qubits.
@@ -2550,27 +2498,16 @@ def example_circuit(qubit):
     """
 
     # example input strings for popular qubits
-    fluxonium = "nodes: 2\nbranches:\nJJ	1,2	Ej	Ecj\nL	1,2	El\nC	1,2	Ec"
-
-    transmon = "nodes: 2\nbranches:\nC\t1,2\tEc\nJJ\t1,2\tEj\tEcj\n"
-
-    cos2phi = (
-        "nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\nJJ\t3,"
-        "4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n"
+    inputs_by_qubit_name = dict(
+        fluxonium="nodes: 2\nbranches:\nJJ	1,2	Ej	Ecj\nL	1,2	El\nC	1,2	Ec",
+        transmon="nodes: 2\nbranches:\nC\t1,2\tEc\nJJ\t1,2\tEj\tEcj\n",
+        cos2phi="nodes: 4\nbranches:\nC\t1,3\tEc\nJJ\t1,2\tEj\tEcj\nJJ\t3, "
+        "4\tEj\tEcj\nL\t1,4\tEl\nL\t2,3\tEl\n\n",
+        zero_pi="nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\nJJ\t3,"
+        "4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n",
     )
 
-    zero_pi = (
-        "nodes: 4\nbranches:\nJJ\t1,2\tEj\tEcj\nL\t2,3\tEl\nJJ\t3,"
-        "4\tEj\tEcj\nL\t4,1\tEl\nC\t1,3\tEc\nC\t2,4\tEc\n"
-    )
-
-    if qubit == "transmon":
-        return transmon
-    elif qubit == "cos2phi":
-        return cos2phi
-    elif qubit == "zero_pi":
-        return zero_pi
-    elif qubit == "fluxonium":
-        return fluxonium
+    if qubit in inputs_by_qubit_name:
+        return inputs_by_qubit_name[qubit]
     else:
         raise AttributeError("Qubit not available or invalid input.")
