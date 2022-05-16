@@ -1,4 +1,4 @@
-# test_circuit.py
+# test_circuit_temp.py
 # meant to be run with 'pytest'
 #
 # This file is part of scqubits: a Python package for superconducting qubits,
@@ -10,57 +10,48 @@
 #    This source code is licensed under the BSD-style license found in the
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
-
-import os
-import numpy as np
 import scqubits as scq
-from scqubits import SpectrumData
-from scqubits import Circuit
+import numpy as np
+import os
 
 TESTDIR, _ = os.path.split(scq.__file__)
 TESTDIR = os.path.join(TESTDIR, "tests", "")
 DATADIR = os.path.join(TESTDIR, "data", "")
 
+DFC = scq.Circuit.from_yaml(
+    DATADIR + "circuit_DFC.yaml",
+    ext_basis="harmonic",
+    initiate_sym_calc=False,
+    basis_completion="standard",
+)
 
-qubits_tested = ["fluxonium", "zeropi"]
-reference_data = dict.fromkeys(qubits_tested)
-qubits = dict.fromkeys(qubits_tested)
-for qubit_name in qubits_tested:
-    data_store = SpectrumData.create_from_file(
-        DATADIR + "circuit_" + qubit_name + ".h5"
-    )
-    reference_data[qubit_name] = data_store.system_params
+closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
+system_hierarchy = [[[1], [3]], [2], [4]]
+subsystem_trunc_dims = [[34, [6, 6]], 6, 6]
+# system_hierarchy = [[1], [2], [3], [4]]  # Simpler test case
+# subsystem_trunc_dims = [6, 6, 6, 6]
 
-    qubits[qubit_name] = Circuit.from_yaml(
-        reference_data[qubit_name]["input_string"],
-        is_file=False,
-        ext_basis=reference_data[qubit_name]["phi_basis"],
-    )
-    if "subsystem_indices" in reference_data[qubit_name]:
-        qubits[qubit_name].set_system_hierarchy(
-            system_hierarchy=reference_data[qubit_name]["subsystem_indices"],
-            subsystem_trunc_dims=reference_data[qubit_name]["subsystem_trunc_dims"],
-        )
+DFC.initiate_circuit(
+    closure_branches=closure_branches,
+    system_hierarchy=system_hierarchy,
+    subsystem_trunc_dims=subsystem_trunc_dims,
+)
 
-    for attrib in reference_data[qubit_name]["extra_attribs"]:
-        setattr(
-            qubits[qubit_name],
-            attrib,
-            reference_data[qubit_name]["extra_attribs"][attrib],
-        )
+DFC._Φ1 = 0.5 + 0.01768
+DFC._Φ2 = -0.2662
+DFC._Φ3 = -0.5 + 0.01768
+
+DFC._cutoff_ext_1 = 110
+DFC._cutoff_ext_2 = 110
+DFC._cutoff_ext_3 = 110
+DFC._cutoff_ext_4 = 110
+
+DFC.EJ = 4.6
 
 
-# ********* Tests *********************************************************************
 def test_eigenvals():
-    for qubit_name in qubits_tested:
-        evals_ref = qubits[qubit_name].eigenvals()
-        evals_test = reference_data[qubit_name]["eigenvals"]
-        assert np.allclose(evals_ref, evals_test)
-
-
-def test_eigenvecs():
-    for qubit_name in qubits_tested:
-        evecs_ref = reference_data[qubit_name]["eigensys"][1]
-        evals_count = evecs_ref.shape[1]
-        evecs_test = qubits[qubit_name].eigensys(evals_count=evals_count)[1]
-        assert np.allclose(np.abs(evecs_ref), np.abs(evecs_test))
+    ref_eigs = np.array([0., 0.03559404, 0.05819727, 0.09378676, 4.39927874,
+                         4.43488613])
+    eigs = DFC.eigenvals()
+    generated_eigs = eigs - eigs[0]
+    assert np.allclose(generated_eigs, ref_eigs)
