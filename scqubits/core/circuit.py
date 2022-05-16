@@ -494,7 +494,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     H_int += expr_dict[term] * term
             systems_sym.append(H_sys)
             interaction_sym.append(H_int)
-            hamiltonian -= H_sys - H_int  # removing the terms added to a subsystem
+            hamiltonian -= H_sys + H_int  # removing the terms added to a subsystem
 
         # storing data in class attributes
         self.subsystem_hamiltonians: Dict[int, sm.Expr] = dict(
