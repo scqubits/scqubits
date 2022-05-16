@@ -26,14 +26,14 @@ DFC = scq.Circuit.from_yaml(
 )
 
 closure_branches = [DFC.branches[0], DFC.branches[4], DFC.branches[-1]]
-# system_hierarchy = [[1], [2], [3], [4]]
-system_hierarchy = [[[[[1], [3]], [2]], [4]]]
+system_hierarchy = [[1], [2], [3], [4]]
+# system_hierarchy = [[[[[1], [3]], [2]], [4]]]
 
 DFC.initiate_circuit(
     closure_branches=closure_branches,
     system_hierarchy=system_hierarchy,
-    # subsystem_trunc_dims=[6, 6, 6, 6],
-    subsystem_trunc_dims=[[900, [[160, [[32, [6, 6]], 6]], 6]]],
+    subsystem_trunc_dims=[6, 6, 6, 6],
+    # subsystem_trunc_dims=[[900, [[160, [[32, [6, 6]], 6]], 6]]],
 )
 
 DFC._Φ1 = 0.5 + 0.01768
@@ -48,11 +48,21 @@ DFC._cutoff_ext_4 = 110
 DFC.EJ = 4.6
 
 
-def test_eigs():
-    eigs = DFC.eigenvals()
-    generated_eigs = eigs - eigs[0]
+eigs = DFC.eigenvals()
+generated_eigs = eigs - eigs[0]
 
+print(generated_eigs)
+print(scq.__file__)
+
+def test_eigs():
     ref_eigs = np.array(
-        [0.0, 0.03559404, 0.05819727, 0.09378676, 4.39927874, 4.43488613]
+        [
+            0.0,
+            0.03559403678019013028688277699984610080718994140625,
+            0.05819726893725007954571992740966379642486572265625,
+            0.09378676436454469467207673005759716033935546875,
+            4.399278742490064786352377268485724925994873046875,
+            4.43488612577317109497698766062967479228973388671875,
+        ]
     )
     assert np.allclose(generated_eigs, ref_eigs)
