@@ -62,7 +62,7 @@ def parse_branch_parameter(word: str) -> Union[List[float], List[Union[Symbol, f
     if not is_float_string(word):
         if len(word.split("=")) > 2:
             raise Exception(
-                "Proper syntax is not followed please follow the documentation."
+                "Syntax error in branch specification."
             )
         elif len(word.split("=")) == 2:
             var_str, init_val = word.split("=")
@@ -450,10 +450,8 @@ class SymbolicCircuit(serializers.Serializable):
         ground_node = None
 
         branches = []
-        branch_var_dict = (
-            {}
-        )  # dictionary which stores the init values of all the variables defined in
-        # input string
+        branch_var_dict = {}  # dict stores init values of all vars from input string
+
         for branch_list_input in branches_list:
 
             branch_type = branch_list_input[0]
@@ -463,15 +461,15 @@ class SymbolicCircuit(serializers.Serializable):
                 branch_list_input
             ) != 5:
                 raise Exception(
-                    "Incorrect number of parameters specified for the JJ input in the "
+                    "Incorrect number of parameters: specification of JJ input in "
                     "line: " + str(branch_list_input)
                 )
             elif (branch_type == "L" or branch_type == "C") and len(
                 branch_list_input
             ) != 4:
                 raise Exception(
-                    "Incorrect number of parameters specified for the C or L input in "
-                    "the line: " + str(branch_list_input)
+                    "Incorrect number of parameters: specification of C or L "
+                    "in line: " + str(branch_list_input)
                 )
 
             if node_id1 * node_id2 == 0 and not is_grounded:
@@ -582,6 +580,7 @@ class SymbolicCircuit(serializers.Serializable):
             C 5,6 1
             C 7,0 1
             ```
+
         # TODO docstring needs updates
 
         Parameters
@@ -782,7 +781,7 @@ class SymbolicCircuit(serializers.Serializable):
         """
         # basic check to see if the matrix is invertible
         if np.linalg.det(transformation_matrix) == 0:
-            raise Exception("The transformation matrix provided is not invertible")
+            raise Exception("The transformation matrix provided is not invertible.")
 
         # find all the different types of modes present in the circuit.
 
