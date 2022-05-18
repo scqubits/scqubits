@@ -25,6 +25,7 @@ from matplotlib.text import OffsetFrom
 import sympy as sm
 import numpy as np
 import regex as re
+import itertools
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -1715,6 +1716,113 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             )
         evals, evecs = order_eigensystem(evals, evecs)
         return evals, evecs
+    # ****************************************************************
+    # ***** Functions for pretty display of symbolic expressions *****
+    # ****************************************************************
+    def _make_expr_human_readable(self, expr: sm.Expr) -> sm.Expr:
+        """
+        Method returns a user readable symbolic expression for the current instance
+
+        Returns
+        -------
+        hamiltonian
+            Sympy expression which is simplified to make it human readable.
+        """
+        expr_modified = expr
+        # rounding the decimals in the coefficients
+        # citation:
+        # https://stackoverflow.com/questions/43804701/round-floats-within-an-expression
+        # accepted answer
+        for term in sm.preorder_traversal(expr):
+            if isinstance(term, sm.Float):
+                expr_modified = expr_modified.subs(term, round(term, 3))
+        
+        for var_index in self.var_categories_list:
+            # replace θs with sin(..) and similarly with cos
+            expr_modified = expr_modified.replace(
+                        sm.symbols("θc" + str(var_index)), sm.cos(1.0 * sm.symbols("θ" + str(var_index)))
+                    ).replace(
+                        sm.symbols("θs" + str(var_index)), sm.sin(1.0 * sm.symbols("θ" + str(var_index)))
+                    )
+            # replace Qs with Q^2 etc
+            expr_modified = expr_modified.replace(
+                    sm.symbols("Qs" + str(var_index)), sm.symbols("Q" + str(var_index)) ** 2
+                )
+        return expr_modified
+
+    def sym_hamiltonian(self, subsystem_index: Optional[int] = None ) -> sm.Expr:
+        """
+        Method returns a user readable symbolic Hamiltonian for the current instance
+
+        Parameters
+        ----------
+        subsystem_index:
+            when set to an index, the Hamiltonian for the corresponding subsystem is returned.
+        Returns
+        -------
+        hamiltonian
+            Sympy expression which is simplified to make it human readable.
+        """
+        if subsystem_index is not None:
+            if not self.hierarchical_diagonalization:
+                raise Exception("Current instance does not have any subsystems as hierarchical diagonalization is not utilized. If so, do not set subsystem_index keyword argument.")
+            return self._make_expr_human_readable(self.subsystems[subsystem_index].hamiltonian_symbolic)
+        return self._make_expr_human_readable(self.hamiltonian_symbolic.expand())
+
+    def sym_interaction(self, subsystem_indices: Tuple[int]):
+        """
+        Returns the interaction between any set of subsystems for the current instance.
+        It would return the interaction terms having operators from all the subsystems
+        mentioned in the tuple.
+
+        Parameters
+        ----------
+        subsystem_indices : 
+            Tuple of subsystem indices
+
+        Returns
+        -------
+        interaction
+            Sympy Expr object having interaction terms which have operators from all the
+            mentioned subsystems.
+        """
+        interaction = sm.symbols("x") * 0
+        for subsys_index_pair in itertools.combinations(subsystem_indices, 2):
+            for term in self.subsystem_interactions[min(subsys_index_pair)].as_ordered_terms():
+                term_mod = term.subs([(symbol, 1) for symbol in self.external_fluxes + self.offset_charges + [sm.symbols("I")]])
+                interaction_var_indices = [self.get_subsystem_index(get_trailing_number(symbol.name)) for symbol in term_mod.free_symbols]
+                if np.array_equal(np.sort(interaction_var_indices), np.sort(subsystem_indices)):
+                    interaction += term
+                    print(term)
+        return interaction
+
+    def sym_lagrangian(self, vars: str = "node") -> sm.Expr:
+        """
+        Method returns a user readable symbolic Lagrangian for the current instance
+
+        Parameters
+        ----------
+        vars : str, optional
+            "node" or "new", fixes the kind of lagrangian requested, by default "node"
+
+        Returns
+        -------
+        Human redeable form of the Lagrangian
+        """
+        if not isinstance(self, Circuit):
+                raise Exception("Lagrangian is only defined from a Circuit instance which is initiated from a circuit graph.")
+        if vars == "node":
+            lagrangian = self._make_expr_human_readable(self.lagrangian_node_vars)
+            # replave v\theta with \theta_dot
+            for var_index in range(1, 1 + len(self.symbolic_circuit.nodes)):
+                lagrangian = lagrangian.replace(sm.symbols("vφ" + str(var_index)), sm.symbols("\\dot{φ_"+ str(var_index)  + "}"))
+        elif vars == "new":
+            lagrangian = self._make_expr_human_readable(self.lagrangian_symbolic)
+            # replave v\theta with \theta_dot
+            for var_index in self.var_categories_list:
+                lagrangian = lagrangian.replace(sm.symbols("vθ" + str(var_index)), sm.symbols("\\dot{θ_"+ str(var_index)  + "}"))
+
+        return lagrangian
 
     # ****************************************************************
     # ************* Functions for plotting potential *****************
