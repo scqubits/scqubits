@@ -23,10 +23,27 @@ from matplotlib.figure import Axes, Figure
 from tables import Description
 
 try:
-    from ipywidgets import (Box, Button, Checkbox, Dropdown, FloatRangeSlider,
-                            FloatSlider, FloatText, HBox, Image, IntSlider,
-                            IntText, Label, Layout, Output, SelectMultiple,
-                            Tab, Text, ToggleButtons, VBox)
+    from ipywidgets import (
+        Box,
+        Button,
+        Checkbox,
+        Dropdown,
+        FloatRangeSlider,
+        FloatSlider,
+        FloatText,
+        HBox,
+        Image,
+        IntSlider,
+        IntText,
+        Label,
+        Layout,
+        Output,
+        SelectMultiple,
+        Tab,
+        Text,
+        ToggleButtons,
+        VBox,
+    )
 except ImportError:
     _HAS_IPYWIDGETS = False
 else:
@@ -65,9 +82,7 @@ class GUI_V2:
         self.plot_output: Output = Output(
             layout=Layout(height=gui_defaults.PLOT_HEIGHT)
         )
-        self.tab_widget: Tab = Tab(
-            layout=Layout(width='95%')
-        )
+        self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
         self.active_qubit: QubitBaseClass
 
@@ -112,7 +127,6 @@ class GUI_V2:
 
         self.current_plot_option_refresh(None)
 
-
     # Initialization Methods -----------------------------------------------------------
     def initialize_qubit_and_plot_ToggleButtons(self) -> None:
         """Creates all the ToggleButtons that controls
@@ -132,16 +146,21 @@ class GUI_V2:
     def initialize_manual_update_and_save_widgets_dict(self):
         self.manual_update_and_save_widgets = {
             "manual_update_checkbox": Checkbox(
-                value=False, description="Manual Update", disabled=False, indent=False,
-                layout=Layout(width='125px')
+                value=False,
+                description="Manual Update",
+                disabled=False,
+                indent=False,
+                layout=Layout(width="125px"),
             ),
-            "update_button": Button(description="Update", disabled=True, layout=Layout(width='100px')),
+            "update_button": Button(
+                description="Update", disabled=True, layout=Layout(width="100px")
+            ),
             "save_button": Button(icon="save", layout=Layout(width="35px")),
             "filename_text": Text(
                 value=str(Path.cwd().joinpath("plot.pdf")),
                 description="",
                 disabled=False,
-                layout=Layout(width='500px'),
+                layout=Layout(width="500px"),
             ),
         }
 
@@ -207,7 +226,7 @@ class GUI_V2:
         """
         Creates all the widgets that will be used for general plotting options.
         """
-        std_layout = Layout(width='95%')
+        std_layout = Layout(width="95%")
 
         operator_dropdown_list = self.get_operators()
         scan_dropdown_list = self.qubit_scan_params.keys()
@@ -222,7 +241,7 @@ class GUI_V2:
 
         self.qubit_plot_options_widgets = {
             "qubit_info_image_widget": Image(
-                value=image, format="jpg", layout=Layout(width='80%')
+                value=image, format="jpg", layout=Layout(width="80%")
             ),
             "scan_dropdown": Dropdown(
                 options=scan_dropdown_list,
@@ -304,7 +323,10 @@ class GUI_V2:
                 value=True, description="Show 3D", disabled=False, indent=False
             ),
             "subtract_ground_checkbox": Checkbox(
-                value=False, description="Subtract E\u2080", disabled=False, indent=False
+                value=False,
+                description="Subtract E\u2080",
+                disabled=False,
+                indent=False,
             ),
             "manual_scale_checkbox": Checkbox(
                 value=False, description="Manual Scaling", disabled=False, indent=False
@@ -317,7 +339,7 @@ class GUI_V2:
         """
         self.qubit_params_widgets.clear()
         self.qubit_param_ranges_widgets.clear()
-        std_layout = Layout(width='45%')
+        std_layout = Layout(width="45%")
 
         if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
             grid_min = gui_defaults.grid_defaults["grid_min_val"]
@@ -360,7 +382,7 @@ class GUI_V2:
 
     def initialize_qubit_param_ranges_widgets_dict(self) -> None:
         self.qubit_param_ranges_widgets.clear()
-        param_range_text_layout = Layout(width='45%')
+        param_range_text_layout = Layout(width="45%")
 
         for param_name, param_widget in self.qubit_params_widgets.items():
             param_min_text = None
@@ -539,7 +561,7 @@ class GUI_V2:
         self.qubit_plot_options_widgets[
             "scan_range_slider"
         ].description = "{} range".format(change.new)
-        
+
         self.observe_plot()
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
@@ -571,14 +593,14 @@ class GUI_V2:
     def manual_update_checkbox(self, change) -> None:
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
-            
+
             for widget in self.qubit_params_widgets.values():
                 widget.unobserve(self.current_plot_option_refresh, names="value")
             for widget in self.qubit_plot_options_widgets.values():
                 widget.unobserve(self.current_plot_option_refresh, names="value")
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True
-            
+
             for widget in self.qubit_params_widgets.values():
                 widget.observe(self.current_plot_option_refresh, names="value")
             for widget in self.qubit_plot_options_widgets.values():
@@ -739,57 +761,50 @@ class GUI_V2:
         qubit_choice_hbox = HBox([self.qubit_and_plot_ToggleButtons["qubit_buttons"]])
         plot_choice_hbox = HBox([self.qubit_and_plot_ToggleButtons["plot_buttons"]])
 
-        qubit_and_plot_choice_vbox = VBox(
-            [qubit_choice_hbox, plot_choice_hbox]
-        )
+        qubit_and_plot_choice_vbox = VBox([qubit_choice_hbox, plot_choice_hbox])
 
         return qubit_and_plot_choice_vbox
 
     def manual_update_and_save_layout(self) -> HBox:
         manual_update_HBox = HBox(
-            [                
+            [
                 self.manual_update_and_save_widgets["manual_update_checkbox"],
                 self.manual_update_and_save_widgets["update_button"],
             ],
-            layout=Layout(justify_content='flex-start')
+            layout=Layout(justify_content="flex-start"),
         )
 
         save_HBox = HBox(
-            [                
+            [
                 self.manual_update_and_save_widgets["save_button"],
                 self.manual_update_and_save_widgets["filename_text"],
             ],
-            layout=Layout(justify_content='flex-end')
+            layout=Layout(justify_content="flex-end"),
         )
-        
+
         manual_update_and_save_HBox = HBox(
-            [
-                manual_update_HBox, 
-                save_HBox,
-            ],
+            [manual_update_HBox, save_HBox,],
             layout=Layout(justify_content="space-between"),
         )
 
         return manual_update_and_save_HBox
 
     def qubit_param_ranges_layout(self) -> HBox:
-        param_range_hbox_layout = Layout(
-            width='50%', justify_content="space-between"
-        )
+        param_range_hbox_layout = Layout(width="50%", justify_content="space-between")
         HBox_layout = Layout(
-            display="flex",
-            flex_flow="row wrap",
-            object_fit="contain",
-            width="100%"
+            display="flex", flex_flow="row wrap", object_fit="contain", width="100%"
         )
         qubit_param_ranges_grid = HBox(layout=HBox_layout)
 
         for param_name, text_widgets in self.qubit_param_ranges_widgets.items():
             param_range_HBox = HBox(layout=param_range_hbox_layout)
-            param_label = Label(value=param_name + ":", layout=Layout(width='20%'))
+            param_label = Label(value=param_name + ":", layout=Layout(width="20%"))
             param_range_HBox.children += (
                 param_label,
-                HBox([text_widgets["min"], text_widgets["max"]], layout=Layout(width='80%')),
+                HBox(
+                    [text_widgets["min"], text_widgets["max"]],
+                    layout=Layout(width="80%"),
+                ),
             )
 
             qubit_param_ranges_grid.children += (param_range_HBox,)
@@ -816,7 +831,7 @@ class GUI_V2:
         current_plot_option = self.qubit_and_plot_ToggleButtons[
             "plot_buttons"
         ].get_interact_value()
-        VBox_layout = Layout(width='35%')
+        VBox_layout = Layout(width="35%")
         plot_option_vbox = VBox(layout=VBox_layout)
 
         if current_plot_option == "Energy spectrum":
@@ -832,10 +847,7 @@ class GUI_V2:
 
     def qubit_params_grid_layout(self) -> HBox:
         HBox_layout = Layout(
-            display="flex",
-            flex_flow="row wrap",
-            object_fit="contain",
-            width="65%"
+            display="flex", flex_flow="row wrap", object_fit="contain", width="65%"
         )
         qubit_params_grid = HBox(
             children=list(self.qubit_params_widgets.values()), layout=HBox_layout
