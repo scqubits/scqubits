@@ -2426,7 +2426,7 @@ class Circuit(Subsystem):
     def from_yaml(
         cls,
         input_string: str,
-        is_file: bool = True,
+        from_file: bool = True,
         ext_basis="discretized",
         basis_completion="simple",
         initiate_sym_calc=True,
@@ -2469,7 +2469,7 @@ class Circuit(Subsystem):
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
             input_string,
-            is_file=is_file,
+            is_file=from_file,
             basis_completion=basis_completion,
             initiate_sym_calc=True,
         )
