@@ -1796,7 +1796,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     print(term)
         return interaction
 
-    def sym_lagrangian(self, vars: str = "node") -> sm.Expr:
+    def sym_lagrangian(self, vars_type: str = "node") -> sm.Expr:
         """
         Method returns a user readable symbolic Lagrangian for the current instance
 
@@ -1811,12 +1811,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         if not isinstance(self, Circuit):
                 raise Exception("Lagrangian is only defined from a Circuit instance which is initiated from a circuit graph.")
-        if vars == "node":
+        if vars_type == "node":
             lagrangian = self._make_expr_human_readable(self.lagrangian_node_vars)
             # replave v\theta with \theta_dot
             for var_index in range(1, 1 + len(self.symbolic_circuit.nodes)):
                 lagrangian = lagrangian.replace(sm.symbols("vφ" + str(var_index)), sm.symbols("\\dot{φ_"+ str(var_index)  + "}"))
-        elif vars == "new":
+        elif vars_type == "new":
             lagrangian = self._make_expr_human_readable(self.lagrangian_symbolic)
             # replave v\theta with \theta_dot
             for var_index in self.var_categories_list:
