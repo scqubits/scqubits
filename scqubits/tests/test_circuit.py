@@ -33,7 +33,7 @@ for qubit_name in qubits_tested:
 
     qubits[qubit_name] = Circuit.from_yaml(
         reference_data[qubit_name]["input_string"],
-        is_file=False,
+        from_file=False,
         ext_basis=reference_data[qubit_name]["phi_basis"],
     )
     if "subsystem_indices" in reference_data[qubit_name]:
