@@ -22,8 +22,6 @@ import numpy as np
 from matplotlib.figure import Axes, Figure
 from tables import Description
 
-from scqubits.ui.gui_defaults import WIDTH
-
 try:
     from ipywidgets import (Box, Button, Checkbox, Dropdown, FloatRangeSlider,
                             FloatSlider, FloatText, HBox, Image, IntSlider,
@@ -155,6 +153,11 @@ class GUI_V2:
         ----------
         qubit_name:
         """
+        if qubit_name in gui_defaults.slow_qubits:
+            scq.settings.PROGRESSBAR_DISABLED = False
+        else:
+            scq.settings.PROGRESSBAR_DISABLED = True
+
         self.active_defaults = gui_defaults.qubit_defaults[qubit_name]
         self.initialize_qubit(qubit_name)
         self.initialize_qubit_params_dicts()
@@ -606,6 +609,7 @@ class GUI_V2:
         self.fig.savefig(self.manual_update_and_save_widgets["filename_text"].value)
 
     def evals_vs_paramvals_plot_refresh(self, change) -> None:
+        self.plot_output.clear_output()
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
                 "scan_dropdown"
@@ -632,6 +636,7 @@ class GUI_V2:
         self.evals_vs_paramvals_plot(**value_dict)
 
     def wavefunctions_plot_refresh(self, change) -> None:
+        self.plot_output.clear_output()
         value_dict = {
             "mode_value": self.qubit_plot_options_widgets[
                 "mode_dropdown"
@@ -640,7 +645,6 @@ class GUI_V2:
         }
 
         if isinstance(self.active_qubit, scq.FullZeroPi):
-            self.plot_output.clear_output()
             return
         elif isinstance(
             self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
@@ -671,6 +675,7 @@ class GUI_V2:
         self.wavefunctions_plot(**value_dict)
 
     def matelem_vs_paramvals_plot_refresh(self, change) -> None:
+        self.plot_output.clear_output()
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
                 "scan_dropdown"
@@ -700,6 +705,7 @@ class GUI_V2:
         self.matelem_vs_paramvals_plot(**value_dict)
 
     def matrixelements_plot_refresh(self, change):
+        self.plot_output.clear_output()
         value_dict = {
             "operator_value": self.qubit_plot_options_widgets[
                 "operator_dropdown"
