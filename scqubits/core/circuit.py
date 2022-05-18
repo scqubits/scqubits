@@ -2606,7 +2606,7 @@ class Circuit(Subsystem):
 
         symbolic_circuit = SymbolicCircuit.from_yaml(
             input_string,
-            is_file=from_file,
+            from_file=from_file,
             basis_completion=basis_completion,
             initiate_sym_calc=True,
         )

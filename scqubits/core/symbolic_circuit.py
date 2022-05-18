@@ -34,15 +34,17 @@ def process_word(word: str) -> Union[float, symbols]:
     return symbols(word)
 
 
-def parse_branch_parameters(words: List[str], branch_type: str) -> Union[List[float], List[Union[Symbol, float]]]:
+def parse_branch_parameters(
+    words: List[str], branch_type: str
+) -> Tuple[List[float], Dict[Symbol, float]]:
     """
     Parses the branch parameters depending on the branch type.
 
     Parameters
     ----------
-    words :
+    words:
         list of strings from which parameters need to be parsed
-    branch_type :
+    branch_type:
         str denoting the type of the branch
 
     Returns
@@ -50,7 +52,7 @@ def parse_branch_parameters(words: List[str], branch_type: str) -> Union[List[fl
     branch_params
         List of parameters which will be used to initiate a Branch object
     branch_var_dict
-        A dictioinary of variables defined for this current branch.
+        A dictionary of variables defined for this current branch.
 
     Raises
     ------
@@ -58,15 +60,13 @@ def parse_branch_parameters(words: List[str], branch_type: str) -> Union[List[fl
         An exception is raised if the proper syntax is not followed when using variables
         in the input file.
     """
-    branch_var_dict = {}
-    branch_params = []
+    branch_var_dict: Dict[Symbol, float] = {}
+    branch_params: List[float] = []
     num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
-    for word in words[0: num_params]:
+    for word in words[0:num_params]:
         if not is_float_string(word):
             if len(word.split("=")) > 2:
-                raise Exception(
-                    "Syntax error in branch specification."
-                )
+                raise Exception("Syntax error in branch specification.")
             if len(word.split("=")) == 2:
                 var_str, init_val = word.split("=")
                 params = [process_word(var_str), process_word(init_val)]
@@ -213,7 +213,7 @@ class Branch:
             self.parameters = {"EJ": parameters[0], "ECJ": parameters[1]}
 
     def node_ids(self) -> Tuple[int, int]:
-        return (self.nodes[0].id, self.nodes[1].id)
+        return self.nodes[0].id, self.nodes[1].id
 
     def is_connected(self, branch) -> bool:
         """Returns a boolean indicating whether the current branch is
@@ -315,7 +315,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # TODO comments in the following two lines are not helpful - Needs renaming and
         # some refactoring in the method variable_transformation_matrix
-        # parameter for chosing the basis - needs to be rewritten
+        # parameter for choosing the basis - needs to be rewritten
         self.basis_completion = (
             basis_completion  # default, the other choice is standard
         )
@@ -433,8 +433,10 @@ class SymbolicCircuit(serializers.Serializable):
 
         Parameters
         ----------
-        branch_list1 : List[Branch]
-        branch_list2 : List[Branch]
+        branch_list1:
+            first list of branches
+        branch_list2: 
+            second list of brannches
 
         Returns
         -------
@@ -496,13 +498,17 @@ class SymbolicCircuit(serializers.Serializable):
                 ground_node = Node(0, 0)
                 is_grounded = True
 
-            branch_params, var_dict = parse_branch_parameters(branch_list_input[3:], branch_type)
+            branch_params, var_dict = parse_branch_parameters(
+                branch_list_input[3:], branch_type
+            )
 
             for var in var_dict:
                 if var in branch_var_dict:
                     raise Exception(str(var) + " has already been initialized.")
                 branch_var_dict[var] = var_dict[var]
-            for param in [param for param in branch_params if not isinstance(param, float)]:
+            for param in [
+                param for param in branch_params if not isinstance(param, float)
+            ]:
                 if param not in branch_var_dict.keys():
                     raise Exception(str(param) + " has not been initialized.")
 
@@ -537,11 +543,12 @@ class SymbolicCircuit(serializers.Serializable):
                 )
         return branches, ground_node, branch_var_dict
 
+    # TODO: update docstring with `from_file`
     @classmethod
     def from_yaml(
         cls,
         input_string: str,
-        is_file: bool = True,
+        from_file: bool = True,
         basis_completion: str = "simple",
         initiate_sym_calc: bool = True,
     ):
@@ -584,7 +591,7 @@ class SymbolicCircuit(serializers.Serializable):
         -------
             Instance of the class `SymbolicCircuit`
         """
-        if is_file:
+        if from_file:
             file = open(input_string, "r")
             circuit_desc = file.read()
             file.close()
@@ -770,11 +777,11 @@ class SymbolicCircuit(serializers.Serializable):
 
         # find all the different types of modes present in the circuit.
 
-        # *************************** Finding the Periodic Modes ##################
+        # *************************** Finding the Periodic Modes **********************
         selected_branches = [branch for branch in self.branches if branch.type == "L"]
         periodic_modes = self._independent_modes(selected_branches)
 
-        # *************************** Finding the frozen modes ##################
+        # *************************** Finding the frozen modes **********************
         selected_branches = [branch for branch in self.branches if branch.type != "L"]
         frozen_modes = self._independent_modes(selected_branches, single_nodes=True)
 
@@ -1019,7 +1026,7 @@ class SymbolicCircuit(serializers.Serializable):
         # transforming the new_basis matrix
         new_basis = new_basis[pos_list].T
 
-        # saving the vatriable identification to a dict
+        # saving the variable identification to a dict
         var_categories = {
             "periodic": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_periodic
@@ -1270,7 +1277,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         # making a deep copy to make sure that the original instance is unaffected
         circ_copy = SymbolicCircuit.from_yaml(
-            self.input_string, is_file=False, initiate_sym_calc=False
+            self.input_string, from_file=False, initiate_sym_calc=False
         )
 
         # **************** removing all the capacitive branches and updating the nodes *
@@ -1374,7 +1381,7 @@ class SymbolicCircuit(serializers.Serializable):
                         tree_copy.append(connecting_branches(node, prev_node)[0])
                         break
 
-        ############## selecting the appropriate branches from circ as from circ_copy #
+        # ************* selecting the appropriate branches from circ as from circ_copy #
         def is_same_branch(branch_1: Branch, branch_2: Branch):
             branch_1_dict = branch_1.__dict__
             branch_2_dict = branch_2.__dict__
