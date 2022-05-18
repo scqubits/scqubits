@@ -34,43 +34,54 @@ def process_word(word: str) -> Union[float, symbols]:
     return symbols(word)
 
 
-def parse_branch_parameter(word: str) -> Union[List[float], List[Union[Symbol, float]]]:
+def parse_branch_parameters(words: List[str], branch_type: str) -> Union[List[float], List[Union[Symbol, float]]]:
     """
-    If the string word only has a number, its float value is returned. Else, if the word
-    has the form "EJ=10", no spaces before or after =, it will return the Symbol object
-    EJ and the float 10.
+    Parses the branch parameters depending on the branch type.
 
     Parameters
     ----------
-    word:
-        Should be a number "0.123" or a variable assignment of the form "EJ=10"
+    words :
+        list of strings from which parameters need to be parsed
+    branch_type :
+        str denoting the type of the branch
 
     Returns
     -------
-        Returns a float if the string only has a number, else returns a tuple
-        of format `(Symbol, float)`.
+    branch_params
+        List of parameters which will be used to initiate a Branch object
+    branch_var_dict
+        A dictioinary of variables defined for this current branch.
 
     Raises
     ------
     Exception
-        If the variable is not initialized.
-    Exception
-        if space was used before or after "="
-    Exception
-        Error if init value for a variable is not float.
+        An exception is raised if the proper syntax is not followed when using variables
+        in the input file.
     """
-    if not is_float_string(word):
-        if len(word.split("=")) > 2:
-            raise Exception(
-                "Syntax error in branch specification."
-            )
-        elif len(word.split("=")) == 2:
-            var_str, init_val = word.split("=")
-            return [process_word(var_str), process_word(init_val)]
-        elif len(word.split("=")) == 1:
-            return [process_word(word)]
-    else:
-        return [float(word)]
+    branch_var_dict = {}
+    branch_params = []
+    num_params = 2 if branch_type in ["JJ", "JJ2"] else 1
+    for word in words[0: num_params]:
+        if not is_float_string(word):
+            if len(word.split("=")) > 2:
+                raise Exception(
+                    "Syntax error in branch specification."
+                )
+            if len(word.split("=")) == 2:
+                var_str, init_val = word.split("=")
+                params = [process_word(var_str), process_word(init_val)]
+            elif len(word.split("=")) == 1:
+                params = [process_word(word)]
+        else:
+            params = [float(word)]
+
+        if len(params) == 1:
+            branch_params.append(params[0])
+        else:
+            branch_var_dict[params[0]] = params[1]
+            branch_params.append(params[0])
+
+    return branch_params, branch_var_dict
 
 
 class Node:
@@ -316,7 +327,7 @@ class SymbolicCircuit(serializers.Serializable):
             self.initiate_symboliccircuit()
 
     def is_any_branch_parameter_symbolic(self):
-        return True if len(self.param_vars) else False
+        return True if len(self.param_vars) > 0 else False
 
     # TODO: rename method. nobody wants to write
     #  symboliccircuit.initiate_symboliccircuit. and no more `initiate`.
@@ -485,43 +496,17 @@ class SymbolicCircuit(serializers.Serializable):
                 ground_node = Node(0, 0)
                 is_grounded = True
 
-            if branch_type in ["JJ", "JJ2"]:
-                branch_params = []
-                for word in branch_list_input[3:5]:
-                    params = parse_branch_parameter(word)
-                    if len(params) == 1:
-                        if (
-                            type(params[0]) is not float
-                            and params[0] not in branch_var_dict
-                        ):
-                            raise Exception(
-                                "The parameter "
-                                + str(str(params[0]) + " has not been initialized.")
-                            )
-                        branch_params.append(params[0])
-                    else:
-                        branch_var_dict[params[0]] = params[1]
-                        branch_params.append(params[0])
+            branch_params, var_dict = parse_branch_parameters(branch_list_input[3:], branch_type)
 
-                parameters = branch_params.copy()
-            else:
-                params = parse_branch_parameter(branch_list_input[3])
-                branch_params = []
-                if len(params) == 1:
-                    if (
-                        type(params[0]) is not float
-                        and params[0] not in branch_var_dict
-                    ):
-                        raise Exception(
-                            "The parameter "
-                            + str(params[0])
-                            + " has not been initialized."
-                        )
-                    branch_params.append(params[0])
-                else:
-                    branch_var_dict[params[0]] = params[1]
-                    branch_params.append(params[0])
-                parameters = branch_params
+            for var in var_dict:
+                if var in branch_var_dict:
+                    raise Exception(str(var) + " has already been initialized.")
+                branch_var_dict[var] = var_dict[var]
+            for param in [param for param in branch_params if not isinstance(param, float)]:
+                if param not in branch_var_dict.keys():
+                    raise Exception(str(param) + " has not been initialized.")
+
+            parameters = branch_params
 
             if node_id1 == 0:
                 branches.append(
@@ -580,7 +565,6 @@ class SymbolicCircuit(serializers.Serializable):
             C 5,6 1
             C 7,0 1
             ```
-
         # TODO docstring needs updates
 
         Parameters
@@ -833,7 +817,6 @@ class SymbolicCircuit(serializers.Serializable):
             "extended": [],
             "cyclic": [],
             "frozen": [],
-            "osc": [],
         }
 
         for x, mode in enumerate(modes):
@@ -853,8 +836,6 @@ class SymbolicCircuit(serializers.Serializable):
                 var_categories_circuit["periodic"].append(x + 1)
                 continue
 
-            if self._mode_in_subspace(mode, LC_modes):
-                var_categories_circuit["osc"].append(x + 1)
             # Any mode which survived the above conditionals is an extended mode
             var_categories_circuit["extended"].append(x + 1)
 
@@ -867,7 +848,6 @@ class SymbolicCircuit(serializers.Serializable):
             "extended": [],
             "cyclic": [],
             "frozen": [],
-            "osc": [],
         }
 
         for x, mode in enumerate(user_given_modes):
@@ -887,15 +867,12 @@ class SymbolicCircuit(serializers.Serializable):
                 var_categories_user["periodic"].append(x + 1)
                 continue
 
-            if self._mode_in_subspace(mode, LC_modes):
-                var_categories_user["osc"].append(x + 1)
-
             # Any mode which survived the above conditionals is an extended mode
             var_categories_user["extended"].append(x + 1)
 
         # comparing the modes in the user defined and the code generated transformation
 
-        mode_types = ["periodic", "extended", "cyclic", "frozen", "osc"]
+        mode_types = ["periodic", "extended", "cyclic", "frozen"]
 
         for mode_type in mode_types:
             num_extra_modes = len(var_categories_circuit[mode_type]) - len(
@@ -1030,15 +1007,6 @@ class SymbolicCircuit(serializers.Serializable):
             if i not in pos_periodic
             if new_basis[i].tolist() in frozen_modes
         ]
-        pos_osc = [
-            i
-            for i in range(len(new_basis))
-            if i not in pos_Σ
-            if i not in pos_cyclic
-            if i not in pos_periodic
-            if i not in pos_frozen
-            if new_basis[i].tolist() in LC_modes
-        ]
         pos_rest = [
             i
             for i in range(len(new_basis))
@@ -1065,7 +1033,6 @@ class SymbolicCircuit(serializers.Serializable):
             "frozen": [
                 i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_frozen
             ],
-            "osc": [i + 1 for i in range(len(pos_list)) if pos_list[i] in pos_osc],
         }
 
         return np.array(new_basis), var_categories
