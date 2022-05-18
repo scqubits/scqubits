@@ -36,6 +36,7 @@ import sympy as sm
 from matplotlib import pyplot as plt
 from numpy import ndarray
 from scipy import sparse
+from scipy import stats
 from scipy.sparse.csc import csc_matrix
 
 import scqubits.core.discretization as discretization
@@ -148,6 +149,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         self.parent = parent
         self.hamiltonian_symbolic = hamiltonian_symbolic
         self._hamiltonian_sym_for_numerics = hamiltonian_symbolic
+        self._default_grid_phi = self.parent._default_grid_phi
 
         self.ext_basis: str = self.parent.ext_basis
         self.external_fluxes = [
@@ -1838,6 +1840,30 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     # ****************************************************************
     # ************* Functions for plotting wave function *************
     # ****************************************************************
+    def get_osc_param(self, var_index: int, which_param: str = "length") -> float:
+        """
+        Returns the oscillator parameters based on the oscillator used to diagonalize
+        the Hamiltonian in the harmonic oscillator basis.
+
+        Parameters
+        ----------
+        var_index : int
+            var index whose oscillator parameter needs to be fetched
+        which_param : str, optional
+            "length" or "freq" - decides which parameter is returned, by default "length"
+
+        Returns
+        -------
+        float:
+            returns the float value which is the oscillator length or the frequency of
+            the oscillator corresponding to var_index depending on the string   which_param.
+        """
+        if not self.hierarchical_diagonalization:
+            return eval("self.osc_" + which_param + "s[" + str(var_index) + "]")
+
+        subsystem = self.subsystems[self.get_subsystem_index(var_index)]
+        return subsystem.get_osc_param(var_index, which_param=which_param)
+
     def _recursive_basis_change(
         self, wf_reshaped, wf_dim, subsystem, relevant_indices=None
     ):
@@ -1897,7 +1923,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc.harm_osc_wavefunction(
                     n,
                     self._default_grid_phi.make_linspace(),
-                    self.osc_lengths[var_index],
+                    abs(self.get_osc_param(var_index, which_param="length")),
                 )
                 for n in range(getattr(self, "cutoff_ext_" + str(var_index)))
             ]
@@ -1930,13 +1956,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         )
         return wf_ext_basis
 
-    def _get_var_dim_for_reshaped_wf(self, wf_var_categories, var_index):
+    def _get_var_dim_for_reshaped_wf(self, wf_var_indices, var_index):
         wf_dim = 0
         system_hierarchy_for_vars_chosen = list(
             set(
                 [
                     self.get_subsystem_index(index)
-                    for index in np.sort(wf_var_categories)
+                    for index in np.sort(wf_var_indices)
                 ]
             )
         )
@@ -1957,7 +1983,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def generate_wf_plot_data(
         self,
         n: int = 0,
-        var_categories: Tuple[int] = (1,),
+        var_indices: Tuple[int] = (1,),
         eigensys: ndarray = None,
         mode: str = "abs",
         change_discrete_charge_to_phi: bool = True,
@@ -1970,7 +1996,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ----------
         n:
             integer to choose which wave function to plot
-        var_categories:
+        var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. Should not have more than 2 entries.
         mode:
@@ -1995,14 +2021,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 set(
                     [
                         self.get_subsystem_index(index)
-                        for index in np.sort(var_categories)
+                        for index in np.sort(var_indices)
                     ]
                 )
             )  # getting the subsystem index for each of the index dimension
-            subsystems_for_vars_chosen = [
-                self.subsystems[sys_index]
-                for sys_index in system_hierarchy_for_vars_chosen
-            ]
+
             subsys_trunc_dims = [sys.truncated_dim for sys in self.subsystems.values()]
             # reshaping the wave functions to truncated dims of subsystems
             wf_hd_reshaped = wf.reshape(*subsys_trunc_dims)
@@ -2021,7 +2044,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     wf_original_basis,
                     wf_dim,
                     self.subsystems[subsys_index],
-                    relevant_indices=var_categories,
+                    relevant_indices=var_indices,
                 )
         else:
             wf_original_basis = wf.reshape(
@@ -2035,12 +2058,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # making a basis change to phi for every var_index
         wf_ext_basis = wf_original_basis
-        for var_index in var_categories:
+        for var_index in var_indices:
             # finding the dimension corresponding to the var_index
             if not self.hierarchical_diagonalization:
-                wf_dim = var_index - 1
+                wf_dim = (self.var_categories_list).index(var_index)#var_index - 1
             else:
-                wf_dim = self._get_var_dim_for_reshaped_wf(var_categories, var_index)
+                wf_dim = self._get_var_dim_for_reshaped_wf(var_indices, var_index)
 
             if (
                 var_index in self.var_categories["extended"]
@@ -2065,7 +2088,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     for index, var_index in enumerate(
                         self.subsystems[subsys_index].var_categories_list
                     ):
-                        if var_index not in var_categories:
+                        if var_index not in var_indices:
                             dims_to_be_summed += [num_wf_dims + index]
                     num_wf_dims += len(
                         self.subsystems[subsys_index].var_categories_list
@@ -2085,17 +2108,22 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                         var_index - 1
                         for var_index in self.var_categories["periodic"]
                         + self.var_categories["extended"]
-                        if var_index not in var_categories
+                        if var_index not in var_indices
                     ]
                 ),
             )
+        # reorder the array according to the order in var_indices
+        var_index_order = [flatten_list_recursive(self.system_hierarchy).index(var_index) for var_index in var_indices]
+        var_index_dims = (stats.rankdata(var_index_order) - 1).astype(int)
+        dims_reshape = np.array(wf_plot.shape)[var_index_dims]
+        wf_plot = wf_plot.reshape(*dims_reshape)
 
         return wf_plot
 
     def plot_wavefunction(
         self,
         n=0,
-        var_categories: Tuple[int] = (1,),
+        var_indices: Tuple[int] = (1,),
         eigensys=None,
         mode: str = "abs",
         change_discrete_charge_to_phi: bool = True,
@@ -2108,7 +2136,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         ----------
         n:
             integer to choose which wave function to plot
-        var_categories:
+        var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. Should not have more than 2 entries.
         mode:
@@ -2121,12 +2149,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             chooses if the discrete charge basis for the periodic variable
             needs to be changed to phi basis.
         """
-        if len(var_categories) > 2:
+        if len(var_indices) > 2:
             raise AttributeError(
                 "Cannot plot wave function in more than 2 dimensions. The number of "
                 "dimensions should be less than 2."
             )
-        var_categories = np.sort(var_categories)
+        var_indices = np.sort(var_indices)
         cutoffs_dict = {}  # dictionary for cutoffs for each variable index
         grids_dict = {}
         var_index_dims_dict = {}
@@ -2149,14 +2177,14 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         wf_plot = self.generate_wf_plot_data(
             n=n,
-            var_categories=var_categories,
+            var_indices=var_indices,
             eigensys=eigensys,
             change_discrete_charge_to_phi=change_discrete_charge_to_phi,
         )
 
         var_types = []
 
-        for var_index in np.sort(var_categories):
+        for var_index in np.sort(var_indices):
             if var_index in self.var_categories["periodic"]:
                 if not change_discrete_charge_to_phi:
                     var_types.append("Charge in units of 2e, variable:")
@@ -2165,9 +2193,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             else:
                 var_types.append("Dimensionless flux, variable:")
 
-        if len(var_categories) == 1:
+        if len(var_indices) == 1:
             if not change_discrete_charge_to_phi and (
-                var_categories[0] in self.var_categories["periodic"]
+                var_indices[0] in self.var_categories["periodic"]
             ):
                 plt.bar(
                     np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1)
@@ -2176,20 +2204,20 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
             else:
                 plt.plot(
-                    np.array(grids_dict[var_categories[0]]) / (2 * np.pi),
+                    np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
                     eval("np." + mode + "(wf_plot.T)"),
                 )
-            plt.xlabel(var_types[0] + str(var_categories[0]))
-        elif len(var_categories) == 2:
+            plt.xlabel(var_types[0] + str(var_indices[0]))
+        elif len(var_indices) == 2:
             x, y = np.meshgrid(
-                np.array(grids_dict[var_categories[0]]) / (2 * np.pi),
-                np.array(grids_dict[var_categories[1]]) / (2 * np.pi),
+                np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
+                np.array(grids_dict[var_indices[1]]) / (2 * np.pi),
             )
             plt.contourf(x, y, np.abs(wf_plot.T))
-            plt.xlabel(var_types[0] + str(var_categories[0]))
-            plt.ylabel(var_types[1] + str(var_categories[1]))
+            plt.xlabel(var_types[0] + str(var_indices[0]))
+            plt.ylabel(var_types[1] + str(var_indices[1]))
             plt.colorbar()
-        plt.title("Wave function along variables " + str(var_categories))
+        plt.title("Wave function along variables " + str(var_indices))
 
 
 class Circuit(Subsystem):
@@ -2348,6 +2376,7 @@ class Circuit(Subsystem):
                         "cutoff_ext_" + str(var_index), cutoff, "update_cutoffs"
                     )
                     self.cutoff_names.append("cutoff_ext_" + str(var_index))
+        self.var_categories_list = flatten_list(list(self.var_categories.values()))
 
         # default values for the parameters
         for idx, param in enumerate(self.param_vars):
