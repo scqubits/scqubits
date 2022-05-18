@@ -682,9 +682,10 @@ class SymbolicCircuit(serializers.Serializable):
         # belongs
         for node_set_index, node_set in enumerate(nodes_in_max_connected_branchsets):
             for node in node_set:
-                node.marker = (
-                    -1 if any([n.is_ground() for n in node_set]) else node_set_index + 1
-                )
+                if any([n.is_ground() for n in node_set]):
+                    node.marker = -1
+                else:
+                    node.marker = node_set_index + 1
 
         node_branch_set_indices = [
             node.marker for node in nodes_copy
@@ -770,7 +771,7 @@ class SymbolicCircuit(serializers.Serializable):
 
         Parameters
         ----------
-        transformation_matrix :
+        transformation_matrix:
             numpy ndarray which is a square matrix having the dimensions of the number
             of nodes present in the circuit.
 
