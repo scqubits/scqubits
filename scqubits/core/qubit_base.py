@@ -210,7 +210,7 @@ class QuantumSystem(DispatchClient, ABC):
 
     @staticmethod
     @abstractmethod
-    def default_params():
+    def default_params() -> Dict[str, Any]:
         """Return dictionary with default parameter values for initialization of
         class instance"""
 
