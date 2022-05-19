@@ -22,7 +22,7 @@ circ.initiate_circuit(
 
 circ.EJ = 10
 circ.Φ1 = 0.0
-circ.ng_1 = 0.6
+circ.ng1 = 0.6
 # circ.subsystem_truncated_dims["sys_2"] = 10
 circ.cutoff_n_1 = 10
 circ.cutoff_ext_2 = 40
