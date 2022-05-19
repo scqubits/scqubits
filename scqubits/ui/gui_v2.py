@@ -790,7 +790,7 @@ class GUI_V2:
         return manual_update_and_save_HBox
 
     def qubit_param_ranges_layout(self) -> HBox:
-        param_range_hbox_layout = Layout(width="50%", justify_content="space-between")
+        param_range_hbox_layout = Layout(width="50%", justify_content="flex-end")
         HBox_layout = Layout(
             display="flex", flex_flow="row wrap", object_fit="contain", width="100%"
         )
@@ -798,7 +798,7 @@ class GUI_V2:
 
         for param_name, text_widgets in self.qubit_param_ranges_widgets.items():
             param_range_HBox = HBox(layout=param_range_hbox_layout)
-            param_label = Label(value=param_name + ":", layout=Layout(width="20%"))
+            param_label = Label(value=param_name + ":", layout=Layout( justify_content='flex-end'))
             param_range_HBox.children += (
                 param_label,
                 HBox(
@@ -847,11 +847,35 @@ class GUI_V2:
 
     def qubit_params_grid_layout(self) -> HBox:
         HBox_layout = Layout(
-            display="flex", flex_flow="row wrap", object_fit="contain", width="65%"
+            display = 'flex', object_fit="contain", width="65%"
         )
-        qubit_params_grid = HBox(
-            children=list(self.qubit_params_widgets.values()), layout=HBox_layout
-        )
+        qubit_params_grid = HBox(layout=HBox_layout)
+
+        params_size = len(self.qubit_params_widgets)
+        if params_size > 6: 
+            left_right_HBox_layout = Layout(display = 'flex', flex_flow='column nowrap', object_fit="contain", width='50%')
+            left_HBox = HBox(layout=left_right_HBox_layout)
+            right_HBox = HBox(layout=left_right_HBox_layout)
+
+            counter = 1
+            for param_slider in self.qubit_params_widgets.values():
+                param_slider.layout.width='95%'
+                if params_size % 2 == 0: 
+                    if counter <= params_size/2:
+                        left_HBox.children += (param_slider,)
+                    else: 
+                        right_HBox.children += (param_slider,)
+                else: 
+                    if counter <= params_size/2 + 1:
+                        left_HBox.children += (param_slider,)
+                    else: 
+                        right_HBox.children += (param_slider,)
+                counter += 1
+            
+            qubit_params_grid.children += (left_HBox, right_HBox, )
+        else:
+            qubit_params_grid.layout.flex_flow="column nowrap"
+            qubit_params_grid.children = list(self.qubit_params_widgets.values())
 
         return qubit_params_grid
 
