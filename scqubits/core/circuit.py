@@ -609,9 +609,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             interaction = self.subsystem_interactions[sys_index].expand()
             if interaction == 0:  # if the interaction term is zero
                 continue
-            # modifying interaction terms
-            #   - substituting all the external flux, offset charge and branch
-            #   parameters.
+            # modifying interaction terms:
+            # substituting all the external flux, offset charge and branch parameters.
             interaction = interaction.subs(
                 [
                     (param, getattr(self, str(param)))
