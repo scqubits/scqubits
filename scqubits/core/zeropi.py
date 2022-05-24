@@ -46,7 +46,7 @@ class NoisyZeroPi(NoisySystem):
     pass
 
 
-# -Symmetric 0-pi qubit, phi discretized, theta in charge basis---------------------------------------------------------
+# -Symmetric 0-pi qubit, phi discretized, theta in charge basis-------------------------
 
 
 class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):

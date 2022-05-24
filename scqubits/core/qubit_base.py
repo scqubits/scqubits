@@ -210,7 +210,7 @@ class QuantumSystem(DispatchClient, ABC):
 
     @staticmethod
     @abstractmethod
-    def default_params():
+    def default_params() -> Dict[str, Any]:
         """Return dictionary with default parameter values for initialization of
         class instance"""
 
@@ -1072,7 +1072,8 @@ class QubitBaseClass1d(QubitBaseClass):
 
         if esys is None:
             evals_count = max(wavefunc_indices) + 1
-            evals = self.eigenvals(evals_count=evals_count)
+            esys = self.eigensys(evals_count=evals_count)
+            evals, _ = esys
         else:
             evals, _ = esys
 
