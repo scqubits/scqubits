@@ -89,6 +89,7 @@ class GUI_V2:
         self.active_defaults: Dict[str, Any] = {}
         self.qubit_params: Dict[str, Union[int, float, None]] = {}
         self.qubit_param_ranges_widgets: Dict[str, Union[IntText, FloatText]] = {}
+        self.qubit_plot_options_ranges_widgets = {}
         self.qubit_scan_params: Dict[str, Union[int, float, None]] = {}
 
         self.qubit_and_plot_ToggleButtons: Dict[str, ToggleButtons] = {}
@@ -275,27 +276,18 @@ class GUI_V2:
                 continuous_update=False,
                 layout=std_layout,
             ),
-            "eigenvalue_state_slider": IntSlider(
+            "state_slider": IntSlider(
                 min=1,
                 max=10,
-                value=7,
-                description="Highest state",
+                value=5,
                 continuous_update=False,
                 layout=std_layout,
             ),
-            "matrix_element_state_slider": IntSlider(
-                min=1,
-                max=6,
-                value=4,
-                description="Highest state",
-                continuous_update=False,
-                layout=std_layout,
-            ),
-            "wavefunction_single_state_selector": IntSlider(
-                min=0,
-                max=10,
-                value=0,
-                description="State no.",
+            "multi_state_selector": SelectMultiple(
+                options=range(0, 10),
+                value=[0, 1, 2, 3, 4],
+                description="States",
+                disabled=False,
                 continuous_update=False,
                 layout=std_layout,
             ),
@@ -305,14 +297,6 @@ class GUI_V2:
                 value=self.active_defaults["scale"],
                 disabled=True,
                 description="\u03c8 ampl.",
-                continuous_update=False,
-                layout=std_layout,
-            ),
-            "wavefunction_multi_state_selector": SelectMultiple(
-                options=range(0, 10),
-                value=[0, 1, 2, 3, 4],
-                description="States",
-                disabled=False,
                 continuous_update=False,
                 layout=std_layout,
             ),
@@ -338,7 +322,6 @@ class GUI_V2:
         for changing the parameter values for the specified qubit.
         """
         self.qubit_params_widgets.clear()
-        self.qubit_param_ranges_widgets.clear()
         std_layout = Layout(width="45%")
 
         if isinstance(self.active_qubit, (scq.ZeroPi, scq.FullZeroPi)):
@@ -643,7 +626,7 @@ class GUI_V2:
                 "subtract_ground_checkbox"
             ].get_interact_value(),
             "eigenvalue_state_value": self.qubit_plot_options_widgets[
-                "eigenvalue_state_slider"
+                "state_slider"
             ].get_interact_value(),
             **self.get_current_values(),
         }
@@ -673,7 +656,7 @@ class GUI_V2:
         ):
             value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.qubit_plot_options_widgets[
-                "wavefunction_single_state_selector"
+                "state_slider"
             ].get_interact_value()
 
             if isinstance(self.active_qubit, scq.ZeroPi):
@@ -687,11 +670,18 @@ class GUI_V2:
                     "grid_pt_count"
                 ]
         else:
-            value_dict["scale_value"] = self.qubit_plot_options_widgets[
-                "wavefunction_scale_slider"
+            manual_scale_tf_value = self.qubit_plot_options_widgets[
+                "manual_scale_checkbox"
             ].get_interact_value()
+
+            if manual_scale_tf_value:
+                value_dict["scale_value"] = self.qubit_plot_options_widgets[
+                    "wavefunction_scale_slider"
+                ].get_interact_value()
+            else: 
+                value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.qubit_plot_options_widgets[
-                "wavefunction_multi_state_selector"
+                "multi_state_selector"
             ].get_interact_value()
 
         self.wavefunctions_plot(**value_dict)
@@ -709,7 +699,7 @@ class GUI_V2:
                 "operator_dropdown"
             ].get_interact_value(),
             "matrix_element_state_value": self.qubit_plot_options_widgets[
-                "matrix_element_state_slider"
+                "state_slider"
             ].get_interact_value(),
             "mode_value": self.qubit_plot_options_widgets[
                 "mode_dropdown"
@@ -733,7 +723,7 @@ class GUI_V2:
                 "operator_dropdown"
             ].get_interact_value(),
             "eigenvalue_state_value": self.qubit_plot_options_widgets[
-                "eigenvalue_state_slider"
+                "state_slider"
             ].get_interact_value(),
             "mode_value": self.qubit_plot_options_widgets[
                 "mode_dropdown"
@@ -891,12 +881,13 @@ class GUI_V2:
         self.qubit_params_widgets[
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
+        self.qubit_plot_options_widgets["state_slider"].description = "Highest State"
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["scan_dropdown"],
             self.qubit_plot_options_widgets["scan_range_slider"],
             self.qubit_plot_options_widgets["subtract_ground_checkbox"],
-            self.qubit_plot_options_widgets["eigenvalue_state_slider"],
+            self.qubit_plot_options_widgets["state_slider"],
         )
 
         return plot_options_widgets_tuple
@@ -916,12 +907,13 @@ class GUI_V2:
         self.qubit_params_widgets[
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = True
+        self.qubit_plot_options_widgets["state_slider"].description = "Highest State"
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["operator_dropdown"],
             self.qubit_plot_options_widgets["scan_dropdown"],
             self.qubit_plot_options_widgets["scan_range_slider"],
-            self.qubit_plot_options_widgets["matrix_element_state_slider"],
+            self.qubit_plot_options_widgets["state_slider"],
             self.qubit_plot_options_widgets["mode_dropdown"],
         )
 
@@ -947,12 +939,13 @@ class GUI_V2:
             if isinstance(
                 self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
             ):
+                self.qubit_plot_options_widgets["state_slider"].description = "State No."
                 which_widget = self.qubit_plot_options_widgets[
-                    "wavefunction_single_state_selector"
+                    "state_slider"
                 ]
             else:
                 which_widget = self.qubit_plot_options_widgets[
-                    "wavefunction_multi_state_selector"
+                    "multi_state_selector"
                 ]
 
             if isinstance(
@@ -985,10 +978,11 @@ class GUI_V2:
         self.qubit_params_widgets[
             self.qubit_plot_options_widgets["scan_dropdown"].value
         ].disabled = False
+        self.qubit_plot_options_widgets["state_slider"].description = "Highest State"
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["operator_dropdown"],
-            self.qubit_plot_options_widgets["eigenvalue_state_slider"],
+            self.qubit_plot_options_widgets["state_slider"],
             self.qubit_plot_options_widgets["mode_dropdown"],
             self.qubit_plot_options_widgets["show_numbers_checkbox"],
             self.qubit_plot_options_widgets["show3d_checkbox"],
