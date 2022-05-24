@@ -24,7 +24,7 @@ from typing import (
 from matplotlib.text import OffsetFrom
 import sympy as sm
 import numpy as np
-import regex as re
+import re
 import itertools
 
 from typing import Any, Dict, List, Optional, Tuple, Union
