@@ -384,8 +384,12 @@ def identity_wrap(
     op_in_eigenbasis: bool = False,
     evecs: ndarray = None,
 ) -> Qobj:
-    """Wrap given operator in subspace `subsystem` in identity operators to form full
-    Hilbert-space operator.
+    """Takes the `operator` belonging to `subsystem` and "wraps" it in identities.
+    The full Hilbert space is taken to consist of all subsystems given as
+    `subsys_list`. `subsystem` must be one element in that list. For each of the
+    other subsystems in the list, an identity operator of the correct dimension is
+    generated and inserted into the appropriate Kronecker product "sandwiching" the
+    operator.
 
     Parameters
     ----------
@@ -397,10 +401,18 @@ def identity_wrap(
     subsys_list:
         list of all subsystems relevant to the Hilbert space.
     op_in_eigenbasis:
-        whether `operator` is given in the `subsystem` eigenbasis; otherwise, the
-        internal QuantumSys basis is assumed
+        whether `operator` is given in the `subsystem` eigenbasis; otherwise,
+        `operator` is assumed to be in the internal QuantumSystem basis. This
+        argument is ignored if `operator` is given as a Qobj.
     evecs:
-        internal QuantumSys eigenstates, used to convert `operator` into eigenbasis
+        internal `QuantumSystem` eigenstates, used to convert `operator` into eigenbasis
+
+    Returns
+    -------
+        operator in the full Hilbert space (as specified by `subsystem_list`). This
+        operator is expressed in the bare product basis consisting of the energy
+        eigenstates of each subsystem (unless `operator` is provided as a `Qobj`,
+        in which case no conversion takes place).
     """
     subsys_operator = convert_operator_to_qobj(
         operator, subsystem, op_in_eigenbasis, evecs  # type:ignore
