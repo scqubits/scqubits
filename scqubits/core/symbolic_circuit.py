@@ -291,7 +291,9 @@ class SymbolicCircuit(serializers.Serializable):
         self.external_fluxes: List[Symbol] = []
         self.closure_branches: List[Branch] = []
 
-        self.symbolic_params: Dict[Symbol, float] = dict(zip(list(branch_var_dict.keys()), list(branch_var_dict.values()))) 
+        self.symbolic_params: Dict[Symbol, float] = dict(
+            zip(list(branch_var_dict.keys()), list(branch_var_dict.values()))
+        )
 
         self.hamiltonian_symbolic: Optional[sympy.Expr] = None
         # to store the internally used lagrangian
@@ -321,9 +323,10 @@ class SymbolicCircuit(serializers.Serializable):
     def is_any_branch_parameter_symbolic(self):
         return True if len(self.symbolic_params) > 0 else False
 
-
     def initiate_symboliccircuit(
-        self, transformation_matrix: ndarray=None, closure_branches: List[Branch]=None
+        self,
+        transformation_matrix: ndarray = None,
+        closure_branches: List[Branch] = None,
     ):
         """
         Method to initialize the CustomQCircuit instance and initialize all the
@@ -406,7 +409,7 @@ class SymbolicCircuit(serializers.Serializable):
                 L = L.subs(var, 1 / (8 * symbols("C" + str(index + 1))))
                 L_old = L_old.subs(var, 1 / (8 * symbols("C" + str(index + 1))))
         return L, L_old
-    
+
     # TODO: what's going on here? - I thought something like this was necessary for
     #  serialize to make sure we can store this object onto a file in the HDD.
     @staticmethod
@@ -414,7 +417,6 @@ class SymbolicCircuit(serializers.Serializable):
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
 
         return {}
-
 
     @staticmethod
     def are_branchsets_disconnected(
@@ -427,7 +429,7 @@ class SymbolicCircuit(serializers.Serializable):
         ----------
         branch_list1:
             first list of branches
-        branch_list2: 
+        branch_list2:
             second list of brannches
 
         Returns
@@ -556,6 +558,7 @@ class SymbolicCircuit(serializers.Serializable):
             - [C, 1,3, 0.02]
             - [C, 2,4, 0.02]
             ```
+
         Parameters
         ----------
         input_string:
