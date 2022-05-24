@@ -1072,7 +1072,8 @@ class QubitBaseClass1d(QubitBaseClass):
 
         if esys is None:
             evals_count = max(wavefunc_indices) + 1
-            evals = self.eigenvals(evals_count=evals_count)
+            esys = self.eigensys(evals_count=evals_count)
+            evals, _ = esys
         else:
             evals, _ = esys
 
