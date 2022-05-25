@@ -440,9 +440,6 @@ class GUI_V2:
         self.manual_update_and_save_widgets["save_button"].on_click(
             self.save_button_clicked_action
         )
-        self.qubit_plot_options_widgets["manual_scale_checkbox"].observe(
-            self.manual_scale_tf, names="value"
-        )
         self.observe_param_ranges()
         self.observe_plot()
 
@@ -493,6 +490,9 @@ class GUI_V2:
         self.qubit_plot_options_widgets["scan_dropdown"].observe(
             self.scan_dropdown_refresh, names="value"
         )
+        self.qubit_plot_options_widgets["manual_scale_checkbox"].observe(
+            self.manual_scale_tf, names="value"
+        )
 
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
@@ -505,6 +505,9 @@ class GUI_V2:
     def unobserve_plot(self):
         self.qubit_plot_options_widgets["scan_dropdown"].unobserve(
             self.scan_dropdown_refresh, names="value"
+        )
+        self.qubit_plot_options_widgets["manual_scale_checkbox"].observe(
+            self.manual_scale_tf, names="value"
         )
 
         if not self.manual_update_and_save_widgets[
