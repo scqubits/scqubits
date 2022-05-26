@@ -184,13 +184,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             evectors = evecs[:, :self.truncated_dim]
         return get_matrixelement_table(hamiltonian_mat, evectors)
 
-    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         charge offset `ng`."""
         return -8 * self.EC * self.n_operator(use_energy_basis=use_energy_basis, evecs=evecs)
     # get rid of
 
-    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
+    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect to
         charge offset `ng`."""
         if not use_energy_basis:
@@ -201,13 +201,13 @@ class Transmon(base.QubitBaseClass1d, serializers.Serializable, NoisySystem):
             evectors = evecs[:, :self.truncated_dim]
         return get_matrixelement_table(-8 * self.EC * self.n_operator(), evectors)
 
-    def d_hamiltonian_d_EJ_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
+    def d_hamiltonian_d_EJ(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
         to EJ."""
         return -self.cos_phi_operator(use_energy_basis=use_energy_basis, evecs=evecs)
     # get rid of
 
-    def d_hamiltonian_d_EJ(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
+    def d_hamiltonian_d_EJ_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> ndarray:
         """Returns operator representing a derivative of the Hamiltonian with respect
         to EJ."""
         if not use_energy_basis:

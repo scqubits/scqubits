@@ -231,7 +231,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             v0=settings.RANDOM_ARRAY[: self.hilbertdim()],
         )
         return np.sort(evals)
-#this gives list of eiegevals for specficed evals_count, not just 6 by default^^
+
     def _esys_calc(self, evals_count: int) -> Tuple[ndarray, ndarray]:
         hamiltonian_mat = self.hamiltonian()
         evals, evecs = sparse.linalg.eigsh(
@@ -459,7 +459,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
             evectors = evecs[:, :self.truncated_dim]
         return spec_utils.get_matrixelement_table(self.sparse_d_potential_d_EJ_mat(), evectors)
 
-    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
 
@@ -471,7 +471,7 @@ class ZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyZeroPi):
 
     # get rid of
 
-    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
 

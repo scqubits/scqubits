@@ -387,7 +387,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             self._zeropi.d_hamiltonian_d_EJ(), zeropi_evecs=zeropi_evecs
         ), evectors)
 
-    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
 
@@ -399,7 +399,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
 
 # delete this
 
-    def d_hamiltonian_d_ng(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def d_hamiltonian_d_ng_other(self, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""Calculates a derivative of the Hamiltonian w.r.t ng.
         as stored in the object.
 
@@ -461,7 +461,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
             self._zeropi.i_d_dphi_operator(), zeropi_evecs=zeropi_evecs
         ), evectors)
 
-    def n_theta_operator_other(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def n_theta_operator(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
         Operator :math:`n_\theta`.
         """
@@ -470,7 +470,7 @@ class FullZeroPi(base.QubitBaseClass, serializers.Serializable, NoisyFullZeroPi)
         )
 # delete this
 
-    def n_theta_operator(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
+    def n_theta_operator_other(self, zeropi_evecs: ndarray = None, use_energy_basis: bool = False, evecs: ndarray = None) -> csc_matrix:
         r"""
         Operator :math:`n_\theta`.
         """
