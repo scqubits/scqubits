@@ -5,6 +5,7 @@ from typing import Optional, Callable, Tuple
 
 import numpy as np
 from numpy import ndarray
+import qutip
 from qutip import (
     qeye,
     sigmax,
@@ -17,6 +18,7 @@ from qutip import (
     sesolve,
     Options, mesolve, spre, spost,
 )
+qutip.settings.atol = 1e-8
 from scipy.interpolate import interp1d
 from scipy.special import jn_zeros
 from scipy.linalg import inv
@@ -2175,7 +2177,8 @@ class ConstructFullPulse(serializers.Serializable):
         """Assume ta <= tb"""
         tmax = 1.0 / self.max_freq
         tmin = 1.0 / self.min_freq
-        if ta == tb == 0.0:
+        if np.allclose(ta, tb, atol=1e-4, rtol=1e-4):
+            print("no Z required")
             return np.array([(None, None)]), (ta, tb)
         elif tmax <= (tb - ta) <= tmin:
             return np.array([(1.0 / (tb - ta), None)]), (ta, tb)
