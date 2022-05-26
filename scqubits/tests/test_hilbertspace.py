@@ -97,7 +97,7 @@ class TestHilbertSpace:
         )  # coupling constants for fluxonium
         nmat2 = get_matrixelement_table(
             zpifull.n_theta_operator(), evecs2
-        )  # coupling constants for zeropi
+        )  # coupling constants for the  zeropi
         hbd = hilbertspc.hubbard_operator
         vfl = sum(
             [
