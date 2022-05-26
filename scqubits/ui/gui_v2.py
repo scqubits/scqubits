@@ -15,6 +15,7 @@ import inspect
 from cProfile import label
 from itertools import dropwhile
 from re import I
+from socket import EAI_BADFLAGS
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -71,8 +72,7 @@ class GUI_V2:
 
         self.active_defaults: Dict[str, Any] = {}
         self.qubit_params: Dict[str, Union[int, float, None]] = {}
-        self.qubit_param_ranges_widgets: Dict[str, Union[IntText, FloatText]] = {}
-        self.qubit_plot_options_ranges_widgets = {}
+        self.ranges_widgets: Dict[str, Union[IntText, FloatText]] = {}
         self.qubit_scan_params: Dict[str, Union[int, float, None]] = {}
 
         self.qubit_and_plot_ToggleButtons: Dict[str, ToggleButtons] = {}
@@ -166,7 +166,7 @@ class GUI_V2:
         self.initialize_qubit_params_dicts()
         self.initialize_qubit_plot_options_widgets_dict()
         self.initialize_qubit_params_widgets_dict()
-        self.initialize_qubit_param_ranges_widgets_dict()
+        self.initialize_ranges_widgets_dict()
 
     def initialize_qubit(self, qubit_name: str) -> None:
         """Initializes self.active_qubit to the user's choice
@@ -266,23 +266,6 @@ class GUI_V2:
                 continuous_update=False,
                 layout=std_layout,
             ),
-            "multi_state_selector": SelectMultiple(
-                options=range(0, 10),
-                value=[0, 1, 2, 3, 4],
-                description="States",
-                disabled=False,
-                continuous_update=False,
-                layout=std_layout,
-            ),
-            "wavefunction_scale_slider": FloatSlider(
-                min=0.1,
-                max=4,
-                value=self.active_defaults["scale"],
-                disabled=True,
-                description="\u03c8 ampl.",
-                continuous_update=False,
-                layout=std_layout,
-            ),
             "show_numbers_checkbox": Checkbox(
                 value=False, description="Show values", disabled=False, indent=False
             ),
@@ -299,6 +282,25 @@ class GUI_V2:
                 value=False, description="Manual Scaling", disabled=False, indent=False
             ),
         }
+
+        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+            self.qubit_plot_options_widgets["multi_state_selector"] = SelectMultiple(
+                options=range(0, 10),
+                value=[0, 1, 2, 3, 4],
+                description="States",
+                disabled=False,
+                continuous_update=False,
+                layout=std_layout,
+            )
+            self.qubit_plot_options_widgets["wavefunction_scale_slider"] = FloatSlider(
+                min=0.1,
+                max=4,
+                value=self.active_defaults["scale"],
+                disabled=True,
+                description="\u03c8 ampl.",
+                continuous_update=False,
+                layout=std_layout,
+            )
 
     def initialize_qubit_params_widgets_dict(self) -> None:
         """Creates all the widgets that will be used
@@ -346,47 +348,64 @@ class GUI_V2:
                     layout=std_layout
                 )
 
-    def initialize_qubit_param_ranges_widgets_dict(self) -> None:
-        self.qubit_param_ranges_widgets.clear()
-        param_range_text_layout = Layout(width="45%")
+    def initialize_ranges_widgets_dict(self) -> None:
+        self.ranges_widgets.clear()
+        range_text_layout = Layout(width="45%")
+        total_dict = {**self.qubit_plot_options_widgets, **self.qubit_params_widgets}
 
-        for param_name, param_widget in self.qubit_params_widgets.items():
-            param_min_text = None
-            param_max_text = None
+        for widget_name, widget in total_dict.items():
+            widget_min_text = None
+            widget_max_text = None
 
-            if isinstance(param_widget, IntSlider):
-                param_min_text = IntText(
-                    value=param_widget.min,
+            if isinstance(widget, IntSlider):
+                widget_min_text = IntText(
+                    value=widget.min,
                     description="min=",
-                    layout=param_range_text_layout,
+                    layout=range_text_layout,
                 )
-                param_max_text = IntText(
-                    value=param_widget.max,
+                widget_max_text = IntText(
+                    value=widget.max,
                     description="max=",
-                    layout=param_range_text_layout,
+                    layout=range_text_layout,
+                )
+            elif isinstance(widget, FloatSlider):
+                widget_min_text = FloatText(
+                    value=widget.min,
+                    description="min=",
+                    step=0.01,
+                    layout=range_text_layout,
+                )
+                widget_max_text = FloatText(
+                    value=widget.max,
+                    description="max=",
+                    step=0.01,
+                    layout=range_text_layout,
+                )
+            elif isinstance(widget, SelectMultiple):
+                min = widget.options[0]
+                max = widget.options[-1]
+                
+                widget_min_text = IntText(
+                    value=min,
+                    description="min=",
+                    layout=range_text_layout,
+                )
+                widget_max_text = IntText(
+                    value=max,
+                    description="max=",
+                    layout=range_text_layout,
                 )
             else:
-                param_min_text = FloatText(
-                    value=param_widget.min,
-                    description="min=",
-                    step=0.01,
-                    layout=param_range_text_layout,
-                )
-                param_max_text = FloatText(
-                    value=param_widget.max,
-                    description="max=",
-                    step=0.01,
-                    layout=param_range_text_layout,
-                )
+                continue
 
-            self.qubit_param_ranges_widgets[param_name] = {
-                "min": param_min_text,
-                "max": param_max_text,
+            self.ranges_widgets[widget_name] = {
+                "min": widget_min_text,
+                "max": widget_max_text,
             }
 
     def initialize_tab_widget(self) -> None:
         qubit_plot_tab = self.qubit_plot_layout()
-        param_ranges_tab = self.qubit_param_ranges_layout()
+        param_ranges_tab = self.ranges_layout()
         qubit_info_tab = self.qubit_info_layout()
 
         tab_titles = ["Qubit Plot", "Ranges", "Qubit Info"]
@@ -423,7 +442,7 @@ class GUI_V2:
         self.manual_update_and_save_widgets["save_button"].on_click(
             self.save_button_clicked_action
         )
-        self.observe_param_ranges()
+        self.observe_ranges()
         self.observe_plot()
 
     # Retrieval Methods------------------------------------------------------------------
@@ -464,10 +483,10 @@ class GUI_V2:
         return plot_option_refresh
 
     # Observe Methods-------------------------------------------------------------------
-    def observe_param_ranges(self):
-        for text_widgets in self.qubit_param_ranges_widgets.values():
-            text_widgets["min"].observe(self.param_ranges_update, names="value")
-            text_widgets["max"].observe(self.param_ranges_update, names="value")
+    def observe_ranges(self):
+        for text_widgets in self.ranges_widgets.values():
+            text_widgets["min"].observe(self.ranges_update, names="value")
+            text_widgets["max"].observe(self.ranges_update, names="value")
 
     def observe_plot(self):
         self.qubit_plot_options_widgets["scan_dropdown"].observe(
@@ -489,7 +508,7 @@ class GUI_V2:
         self.qubit_plot_options_widgets["scan_dropdown"].unobserve(
             self.scan_dropdown_refresh, names="value"
         )
-        self.qubit_plot_options_widgets["manual_scale_checkbox"].observe(
+        self.qubit_plot_options_widgets["manual_scale_checkbox"].unobserve(
             self.manual_scale_tf, names="value"
         )
 
@@ -506,7 +525,7 @@ class GUI_V2:
         self.unobserve_plot()
         self.set_qubit(change["new"])
         self.initialize_tab_widget()
-        self.observe_param_ranges()
+        self.observe_ranges()
         self.observe_plot()
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
@@ -518,7 +537,7 @@ class GUI_V2:
         self.qubit_params_widgets[change.old].disabled = False
         self.qubit_params_widgets[change.new].disabled = True
 
-        self.param_ranges_update(None)
+        self.ranges_update(None)
         new_min = self.qubit_plot_options_widgets["scan_range_slider"].min
         new_max = self.qubit_plot_options_widgets["scan_range_slider"].max
 
@@ -579,22 +598,43 @@ class GUI_V2:
     def manual_update_button_onclick(self, change) -> None:
         self.current_plot_option_refresh(None)
 
-    def param_ranges_update(self, change) -> None:
+    def ranges_update(self, change) -> None:
+        self.unobserve_plot()
         scan_dropdown_value = self.qubit_plot_options_widgets[
             "scan_dropdown"
         ].get_interact_value()
 
-        for param_name, text_widgets in self.qubit_param_ranges_widgets.items():
-            param_widget = self.qubit_params_widgets[param_name]
-
+        for widget_name, text_widgets in self.ranges_widgets.items():
             new_min = text_widgets["min"].get_interact_value()
             new_max = text_widgets["max"].get_interact_value()
-            param_widget.min = new_min
-            param_widget.max = new_max
+            
+            if widget_name in self.qubit_plot_options_widgets.keys():
+                widget = self.qubit_plot_options_widgets[widget_name]
+            else:
+                widget = self.qubit_params_widgets[widget_name]
+            
+            if isinstance(widget, SelectMultiple):
+                current_values = list(widget.value)
+                new_values = []
+                widget.options = range(new_min, new_max+1)
+                for value in current_values:
+                    if value in widget.options:
+                        new_values.append(value)
+                if len(new_values) == 0:
+                    new_values.append(widget.options[0])
+                widget.value = new_values
+            else:
+                widget.min = new_min
+                widget.max = new_max
 
-            if param_name == scan_dropdown_value:
+            if widget_name == scan_dropdown_value:
                 self.qubit_plot_options_widgets["scan_range_slider"].min = new_min
                 self.qubit_plot_options_widgets["scan_range_slider"].max = new_max
+        self.observe_plot()
+        if not self.manual_update_and_save_widgets[
+            "manual_update_checkbox"
+        ].get_interact_value():
+            self.current_plot_option_refresh(None)
 
     def save_button_clicked_action(self, change):
         self.fig.savefig(self.manual_update_and_save_widgets["filename_text"].value)
@@ -765,27 +805,36 @@ class GUI_V2:
 
         return manual_update_and_save_HBox
 
-    def qubit_param_ranges_layout(self) -> HBox:
-        param_range_hbox_layout = Layout(width="50%", justify_content="flex-end")
-        HBox_layout = Layout(
+    def ranges_layout(self) -> HBox:
+        range_hbox_layout = Layout(width="50%", justify_content="flex-end")
+        grid_hbox_layout = Layout(
             display="flex", flex_flow="row wrap", object_fit="contain", width="100%"
         )
-        qubit_param_ranges_grid = HBox(layout=HBox_layout)
+        ranges_grid_hbox = HBox(layout=grid_hbox_layout)
 
-        for param_name, text_widgets in self.qubit_param_ranges_widgets.items():
-            param_range_HBox = HBox(layout=param_range_hbox_layout)
-            param_label = Label(value=param_name + ":", layout=Layout( justify_content='flex-end'))
-            param_range_HBox.children += (
-                param_label,
+        for widget_name, text_widgets in self.ranges_widgets.items():
+            if widget_name in self.qubit_plot_options_widgets.keys():
+                widget = self.qubit_plot_options_widgets[widget_name]
+                if isinstance(widget, IntSlider):
+                    widget_name = "Highest State"
+                elif isinstance(widget, SelectMultiple):
+                    widget_name = "States"
+                else:
+                    widget_name = "Scale"
+
+            range_hbox = HBox(layout=range_hbox_layout)
+            widget_label = Label(value=widget_name + ":", layout=Layout( justify_content='flex-end'))
+            range_hbox.children += (
+                widget_label,
                 HBox(
                     [text_widgets["min"], text_widgets["max"]],
                     layout=Layout(width="80%"),
                 ),
             )
 
-            qubit_param_ranges_grid.children += (param_range_HBox,)
+            ranges_grid_hbox.children += (range_hbox,)
 
-        return qubit_param_ranges_grid
+        return ranges_grid_hbox
 
     def qubit_plot_layout(self) -> HBox:
         plot_option_vbox = self.plot_option_layout()
