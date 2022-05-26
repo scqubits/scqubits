@@ -131,4 +131,4 @@ supported_qubits = [
 slow_qubits = ["FluxQubit", "ZeroPi", "FullZeroPi", "Cos2PhiQubit"]
 
 PLOT_HEIGHT = '500px'
-FIG_SIZE_INCHES = [6, 3]
+FIG_WIDTH_INCHES = 6

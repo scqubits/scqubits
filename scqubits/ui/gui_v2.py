@@ -23,27 +23,10 @@ from matplotlib.figure import Axes, Figure
 from tables import Description
 
 try:
-    from ipywidgets import (
-        Box,
-        Button,
-        Checkbox,
-        Dropdown,
-        FloatRangeSlider,
-        FloatSlider,
-        FloatText,
-        HBox,
-        Image,
-        IntSlider,
-        IntText,
-        Label,
-        Layout,
-        Output,
-        SelectMultiple,
-        Tab,
-        Text,
-        ToggleButtons,
-        VBox,
-    )
+    from ipywidgets import (Box, Button, Checkbox, Dropdown, FloatRangeSlider,
+                            FloatSlider, FloatText, HBox, Image, IntSlider,
+                            IntText, Label, Layout, Output, SelectMultiple,
+                            Tab, Text, ToggleButtons, VBox)
 except ImportError:
     _HAS_IPYWIDGETS = False
 else:
@@ -80,7 +63,7 @@ class GUI_V2:
         # Display Elements
         self.fig: Figure
         self.plot_output: Output = Output(
-            layout=Layout(height=gui_defaults.PLOT_HEIGHT)
+            layout=Layout(width='100%', justify_content='center')
         )
         self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
@@ -1036,7 +1019,7 @@ class GUI_V2:
                 subtract_ground=subtract_ground_tf,
             )
             self.fig.canvas.header_visible = False
-            self.fig.set_size_inches(*gui_defaults.FIG_SIZE_INCHES)
+            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.plot_output.clear_output()
             plt.close(1)
             plt.tight_layout()
@@ -1083,7 +1066,7 @@ class GUI_V2:
                     which=eigenvalue_states, mode=mode_value, scaling=scale_value
                 )
             self.fig.canvas.header_visible = False
-            self.fig.set_size_inches(*gui_defaults.FIG_SIZE_INCHES)
+            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.plot_output.clear_output()
             plt.close(1)
             plt.tight_layout()
@@ -1136,7 +1119,7 @@ class GUI_V2:
                 mode=mode_value,
             )
             self.fig.canvas.header_visible = False
-            self.fig.set_size_inches(*gui_defaults.FIG_SIZE_INCHES)
+            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.plot_output.clear_output()
             plt.close(1)
             plt.tight_layout()
@@ -1188,7 +1171,7 @@ class GUI_V2:
                 show3d=show3d_tf,
             )
             self.fig.canvas.header_visible = False
-            self.fig.set_size_inches(*gui_defaults.FIG_SIZE_INCHES)
+            self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
             self.plot_output.clear_output()
             plt.close(1)
             plt.show()
