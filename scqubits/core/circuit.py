@@ -681,63 +681,51 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         self.hilbert_space = hilbert_space
 
+    def _generate_symbols_list(self, var_str: str, iterable_list: List[int] or ndarray) -> List[Symbol]:
+        """
+        Returns the list of symbols generated using the var_str + iterable as the name
+        of the symbol.
+
+        Parameters
+        ----------
+        var_str : 
+            name of the variable which needs to be generated
+        iterable_list : 
+            The list of indices which generates the symbols
+        """
+        return [sm.symbols(var_str + str(iterable)) for iterable in iterable_list]
+
     def _set_vars(self):
         """
         Sets the attribute vars which is a dictionary containing all the Sympy Symbol
         objects for all the operators present in the circuit
         """
         # Defining the list of variables for periodic operators
-        periodic_symbols_sin = [
-            sm.symbols("θs" + str(i)) for i in self.var_categories["periodic"]
-        ]
-        periodic_symbols_cos = [
-            sm.symbols("θc" + str(i)) for i in self.var_categories["periodic"]
-        ]
-        periodic_symbols_n = [
-            sm.symbols("n" + str(i)) for i in self.var_categories["periodic"]
-        ]
+        periodic_symbols_sin = self._generate_symbols_list("θs", self.var_categories["periodic"])
+
+        periodic_symbols_cos = self._generate_symbols_list("θc", self.var_categories["periodic"])
+        periodic_symbols_n = self._generate_symbols_list("n", self.var_categories["periodic"])
 
         # Defining the list of discretized_ext variables
-        y_symbols = [sm.symbols("θ" + str(i))
-                     for i in self.var_categories["extended"]]
-        p_symbols = [sm.symbols("Q" + str(i))
-                     for i in self.var_categories["extended"]]
+        y_symbols = self._generate_symbols_list("θ", self.var_categories["extended"])
+        p_symbols = self._generate_symbols_list("Q", self.var_categories["extended"])
 
         if self.ext_basis == "discretized":
 
             ps_symbols = [
                 sm.symbols("Qs" + str(i)) for i in self.var_categories["extended"]
             ]
-            sin_symbols = [
-                sm.symbols("θs" + str(i)) for i in self.var_categories["extended"]
-            ]
-            cos_symbols = [
-                sm.symbols("θc" + str(i)) for i in self.var_categories["extended"]
-            ]
 
         elif self.ext_basis == "harmonic":
 
-            a_symbols = [
-                sm.symbols("a" + str(i)) for i in self.var_categories["extended"]
-            ]
-            ad_symbols = [
-                sm.symbols("ad" + str(i)) for i in self.var_categories["extended"]
-            ]
-            Nh_symbols = [
-                sm.symbols("Nh" + str(i)) for i in self.var_categories["extended"]
-            ]
-            pos_symbols = [
-                sm.symbols("θ" + str(i)) for i in self.var_categories["extended"]
-            ]
-            sin_symbols = [
-                sm.symbols("θs" + str(i)) for i in self.var_categories["extended"]
-            ]
-            cos_symbols = [
-                sm.symbols("θc" + str(i)) for i in self.var_categories["extended"]
-            ]
-            momentum_symbols = [
-                sm.symbols("Q" + str(i)) for i in self.var_categories["extended"]
-            ]
+            a_symbols = self._generate_symbols_list("a", self.var_categories["extended"])
+            ad_symbols = self._generate_symbols_list("ad", self.var_categories["extended"])
+            Nh_symbols = self._generate_symbols_list("Nh", self.var_categories["extended"])
+            pos_symbols = self._generate_symbols_list("θ", self.var_categories["extended"])
+            momentum_symbols = self._generate_symbols_list("Q", self.var_categories["extended"])
+
+        sin_symbols = self._generate_symbols_list("θs", self.var_categories["extended"])
+        cos_symbols = self._generate_symbols_list("θc", self.var_categories["extended"])
 
         # setting the attribute self.vars
         self.vars: Dict[str, Any] = {
@@ -768,17 +756,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 "cos": cos_symbols,
             }
 
-    def generate_hamiltonian_sym_for_numerics(self):
-        """
-        Generates a symbolic expression which is ready for numerical evaluation starting
-        from the expression stored in the attribute hamiltonian_symbolic. Stores the
-        result in the attribute _hamiltonian_sym_for_numerics.
-        """
-        hamiltonian = (
-            self.hamiltonian_symbolic.expand()
-        )  # applying expand is critical; otherwise the replacement of p^2 with ps2
-        # would not succeed
-
+    def _shift_harmonic_oscillator_potential(self, hamiltonian: sm.Expr) -> sm.Expr:
+        #*******************
         # shifting the harmonic oscillator potential to the point of external fluxes
         flux_shift_vars = {}
         for var_index in self.var_categories["extended"]:
@@ -831,8 +810,22 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         )
         # remove constants from Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        hamiltonian = hamiltonian.expand()
-        #############################
+        return hamiltonian.expand()
+        #************************************
+
+    def generate_hamiltonian_sym_for_numerics(self):
+        """
+        Generates a symbolic expression which is ready for numerical evaluation starting
+        from the expression stored in the attribute hamiltonian_symbolic. Stores the
+        result in the attribute _hamiltonian_sym_for_numerics.
+        """
+        hamiltonian = (
+            self.hamiltonian_symbolic.expand()
+        )  # applying expand is critical; otherwise the replacement of p^2 with ps2
+        # would not succeed
+
+        # shifting the potential to the point of external fluxes
+        hamiltonian = self._shift_harmonic_oscillator_potential(hamiltonian)
 
         # marking the sin and cos terms of the periodic variables with different symbols
         if len(self.var_categories["periodic"]) > 0:
@@ -894,6 +887,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############### Functions to construct the operators #############
     ##################################################################
+    def _cutoffs_by_index_dict(self):
+        variables = self.var_categories["periodic"] + self.var_categories["extended"]
+        cutoffs_by_index_list = np.fromiter(self._collect_cutoff_values(), dtype=int)
+        return dict(zip(variables, cutoffs_by_index_list))
+
     def _collect_cutoff_values(self):
         if not self.hierarchical_diagonalization:
             cutoff_dict = self.get_cutoffs()
@@ -940,31 +938,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.var_categories["periodic"] + self.var_categories["extended"]
         )
 
-        var_index_list.sort()  # important to make sure that right cutoffs are chosen
-        cutoff_dict = self.get_cutoffs()
-
-        # TODO code duplication needs to be reduced/eliminated
-        cutoff_names = []
-        for cutoff_type in cutoff_dict.keys():
-            if "cutoff_n" in cutoff_type:
-                cutoff_names.append(
-                    [2 * k + 1 for k in cutoff_dict[cutoff_type]])
-            elif "cutoff_ext" in cutoff_type:
-                cutoff_names.append([k for k in cutoff_dict[cutoff_type]])
-
-        cutoffs = [
-            j for i in list(cutoff_names) for j in i
-        ]  # concatenating the sublists
-        cutoffs_index_dict = dict(
-            zip(
-                self.var_categories["periodic"] +
-                self.var_categories["extended"],
-                cutoffs,
-            )
-        )
-        cutoff_names = [
-            cutoffs_index_dict[i] for i in var_index_list
-        ]  # selecting the cutoffs present in
+        cutoff_names = np.fromiter(self._collect_cutoff_values(), dtype=int)# [
 
         if self.type_of_matrices == "dense":
             matrix_format = "array"
@@ -2406,20 +2380,19 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             ):
                 plt.bar(
                     np.arange(-cutoffs_dict[var_index],
-                              cutoffs_dict[var_index] + 1)
-                    / (2 * np.pi),
+                              cutoffs_dict[var_index] + 1),
                     eval("np." + mode + "(wf_plot.T)"),
                 )
             else:
                 plt.plot(
-                    np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
+                    np.array(grids_dict[var_indices[0]]),
                     eval("np." + mode + "(wf_plot.T)"),
                 )
             plt.xlabel(var_types[0] + str(var_indices[0]))
         elif len(var_indices) == 2:
             x, y = np.meshgrid(
-                np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
-                np.array(grids_dict[var_indices[1]]) / (2 * np.pi),
+                np.array(grids_dict[var_indices[0]]),
+                np.array(grids_dict[var_indices[1]]),
             )
             plt.contourf(x, y, np.abs(wf_plot.T))
             plt.xlabel(var_types[0] + str(var_indices[0]))
