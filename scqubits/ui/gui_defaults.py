@@ -113,6 +113,65 @@ grid_defaults = {
     "grid_max_val": 6 * np.pi,
     "grid_pt_count": 50,
 }
+paramvals_from_papers = {
+    "Transmon": {
+        "Paik et al. [J1, 3d], PRL 107, 240501, 1779 (2011)": {
+            "EJ": 21.1,
+            "EC": 0.301,
+        },
+        "ibm_manila Q1 (04/2022)": {
+            "EJ": 11.34,
+            "EC": 0.293,
+        },
+        "[CPB] Bouchiat et al., Phys. Scr. 165 (1998)": {
+            "EJ": 4.167,
+            "EC": 52.09,
+        }
+    },
+    "TunableTransmon": {
+        "Arute et al. [mean], Nature 574, 505 (2019)": {
+            "EJmax": 32.7,
+            "EC": 0.195,
+        },
+    },
+    "Fluxonium": {
+        "Manucharyan et al., PRA 76, 042319 (2007)": {
+            "EJ": 9.0,
+            "EC": 2.5,
+            "EL": 0.52
+        },
+        "Zhang et al. [heavy], PRX 111, 011010 (2021)": {
+            "EJ": 3.395,
+            "EC": 0.479,
+            "EL": 0.132
+        },
+        "Pechenezhskiy et al. [blochnium], Nature 585, 368 (2020)": {
+            "EJ": 3.395,
+            "EC": 0.479,
+            "EL": 0.132
+        },
+    },
+    "ZeroPi": {
+        "Gyenis et al., PRX Quantum 2, 010339 (2021)": {
+            "EJ": 6.0,
+            "ECJ": 2.28,
+            "ECS": 0.184,
+            "EL": 0.38
+        },
+        "Groszkowski et al. [set 1, deep], NJP 20, 043053 (2018)": {
+            "EJ": 10.0,
+            "ECJ": 20.0,
+            "EC": 0.02,
+            "EL": 0.008
+        },
+        "Groszkowski et al. [set 2, soft],  NJP 20, 043053 (2018)": {
+            "EJ": 10.0,
+            "ECJ": 20.0,
+            "EC": 0.04,
+            "EL": 0.04
+        },
+    },
+}
 plot_choices = [
     "Energy spectrum",
     "Wavefunctions",

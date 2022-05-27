@@ -212,6 +212,9 @@ class GUI_V2:
         """
         std_layout = Layout(width="95%")
 
+        current_qubit = self.qubit_and_plot_ToggleButtons[
+            "qubit_buttons"
+        ].get_interact_value()
         operator_dropdown_list = self.get_operators()
         scan_dropdown_list = self.qubit_scan_params.keys()
         mode_dropdown_list = [
@@ -283,7 +286,7 @@ class GUI_V2:
             ),
         }
 
-        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+        if current_qubit in ["Transmon", "TunableTransmon", "Fluxonium"]:
             self.qubit_plot_options_widgets["multi_state_selector"] = SelectMultiple(
                 options=range(0, 10),
                 value=[0, 1, 2, 3, 4],
@@ -301,6 +304,17 @@ class GUI_V2:
                 continuous_update=False,
                 layout=std_layout,
             )
+        
+        if current_qubit in gui_defaults.paramvals_from_papers.keys():
+            common_params_dropdown_list = ["Manual"]
+            common_params_dropdown_list.extend(gui_defaults.paramvals_from_papers[current_qubit].keys())
+            self.qubit_plot_options_widgets["common_params_dropdown"] = Dropdown(
+                options=common_params_dropdown_list,
+                disabled=False,
+                layout=std_layout
+            )
+        else:
+            self.qubit_plot_options_widgets["common_params_dropdown"] = Label(value="None")
 
     def initialize_qubit_params_widgets_dict(self) -> None:
         """Creates all the widgets that will be used
@@ -407,9 +421,10 @@ class GUI_V2:
         qubit_plot_tab = self.qubit_plot_layout()
         param_ranges_tab = self.ranges_layout()
         qubit_info_tab = self.qubit_info_layout()
+        common_qubit_params_tab = self.common_qubit_params_layout()
 
-        tab_titles = ["Qubit Plot", "Ranges", "Qubit Info"]
-        self.tab_widget.children = [qubit_plot_tab, param_ranges_tab, qubit_info_tab]
+        tab_titles = ["Qubit Plot", "Ranges", "Qubit Info", 'Common Params']
+        self.tab_widget.children = [qubit_plot_tab, param_ranges_tab, qubit_info_tab, common_qubit_params_tab]
 
         for title_index in range(len(self.tab_widget.children)):
             self.tab_widget.set_title(title_index, tab_titles[title_index])
@@ -633,12 +648,12 @@ class GUI_V2:
                         max_value = new_min
                     text_widgets["max"].value = max_value
                     new_max = max_value
-            
+                    
             if widget_name in self.qubit_plot_options_widgets.keys():
                 widget = self.qubit_plot_options_widgets[widget_name]
             else:
                 widget = self.qubit_params_widgets[widget_name]
-
+                
             if isinstance(widget, SelectMultiple):
                 current_values = list(widget.value)
                 new_values = []
@@ -878,6 +893,13 @@ class GUI_V2:
         ]
 
         return qubit_info_box
+
+    def common_qubit_params_layout(self):
+        common_qubit_params_box = Box(
+            [self.qubit_plot_options_widgets["common_params_dropdown"]],
+            layout=Layout(width='50%'))
+        
+        return common_qubit_params_box
 
     def plot_option_layout(self) -> VBox:
         current_plot_option = self.qubit_and_plot_ToggleButtons[
