@@ -488,6 +488,11 @@ class GUI_V2:
             text_widgets["min"].observe(self.ranges_update, names="value")
             text_widgets["max"].observe(self.ranges_update, names="value")
 
+    def unobserve_ranges(self):
+        for text_widgets in self.ranges_widgets.values():
+            text_widgets["min"].unobserve(self.ranges_update, names="value")
+            text_widgets["max"].unobserve(self.ranges_update, names="value")
+
     def observe_plot(self):
         self.qubit_plot_options_widgets["scan_dropdown"].observe(
             self.scan_dropdown_refresh, names="value"
@@ -600,6 +605,7 @@ class GUI_V2:
 
     def ranges_update(self, change) -> None:
         self.unobserve_plot()
+        self.unobserve_ranges()
         scan_dropdown_value = self.qubit_plot_options_widgets[
             "scan_dropdown"
         ].get_interact_value()
@@ -607,12 +613,32 @@ class GUI_V2:
         for widget_name, text_widgets in self.ranges_widgets.items():
             new_min = text_widgets["min"].get_interact_value()
             new_max = text_widgets["max"].get_interact_value()
+
+            if new_min <= 0:
+                if widget_name == "state_slider":
+                    min_value = 1
+                else:
+                    min_value = 0
+                text_widgets["min"].value = min_value
+                new_min = min_value
+            if new_max <= new_min:
+                changed_widget_key = change["owner"].description
+                if changed_widget_key == "min=": 
+                    text_widgets["min"].value = new_max 
+                    new_min = new_max 
+                else:
+                    if new_max <= 0 and new_min == 0:
+                        max_value = change["old"]
+                    else:
+                        max_value = new_min
+                    text_widgets["max"].value = max_value
+                    new_max = max_value
             
             if widget_name in self.qubit_plot_options_widgets.keys():
                 widget = self.qubit_plot_options_widgets[widget_name]
             else:
                 widget = self.qubit_params_widgets[widget_name]
-            
+
             if isinstance(widget, SelectMultiple):
                 current_values = list(widget.value)
                 new_values = []
@@ -630,6 +656,7 @@ class GUI_V2:
             if widget_name == scan_dropdown_value:
                 self.qubit_plot_options_widgets["scan_range_slider"].min = new_min
                 self.qubit_plot_options_widgets["scan_range_slider"].max = new_max
+        self.observe_ranges()
         self.observe_plot()
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
