@@ -664,7 +664,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         self.hilbert_space = hilbert_space
 
-    def _generate_symbols_list(self, var_str: str, iterable_list: List[int] or ndarray) -> List[Symbol]:
+    def _generate_symbols_list(
+        self, var_str: str, iterable_list: List[int] or ndarray
+    ) -> List[Symbol]:
         """
         Returns the list of symbols generated using the var_str + iterable as the name
         of the symbol.
@@ -684,10 +686,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         objects for all the operators present in the circuit
         """
         # Defining the list of variables for periodic operators
-        periodic_symbols_sin = self._generate_symbols_list("θs", self.var_categories["periodic"])
+        periodic_symbols_sin = self._generate_symbols_list(
+            "θs", self.var_categories["periodic"]
+        )
 
-        periodic_symbols_cos = self._generate_symbols_list("θc", self.var_categories["periodic"])
-        periodic_symbols_n = self._generate_symbols_list("n", self.var_categories["periodic"])
+        periodic_symbols_cos = self._generate_symbols_list(
+            "θc", self.var_categories["periodic"]
+        )
+        periodic_symbols_n = self._generate_symbols_list(
+            "n", self.var_categories["periodic"]
+        )
 
         # Defining the list of discretized_ext variables
         y_symbols = self._generate_symbols_list("θ", self.var_categories["extended"])
@@ -809,7 +817,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # remove constants from Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
         return hamiltonian.expand()
-        #* ##########################################################################
+        # * ##########################################################################
 
     def generate_hamiltonian_sym_for_numerics(self):
         """
@@ -935,7 +943,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.var_categories["periodic"] + self.var_categories["extended"]
         )
 
-        cutoff_names = np.fromiter(self._collect_cutoff_values(), dtype=int)# [
+        cutoff_names = np.fromiter(self._collect_cutoff_values(), dtype=int)  # [
 
         if self.type_of_matrices == "dense":
             matrix_format = "array"
@@ -1788,7 +1796,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             expr_modified = expr_modified.replace(
                 sm.symbols("Qs" + str(var_index)), sm.symbols("Q" + str(var_index)) ** 2
             )
-        for ext_flux_var in self.external_fluxes: # removing 1.0 decimals from flux vars
+        for (
+            ext_flux_var
+        ) in self.external_fluxes:  # removing 1.0 decimals from flux vars
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
 
@@ -2364,8 +2374,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 var_indices[0] in self.var_categories["periodic"]
             ):
                 plt.bar(
-                    np.arange(-cutoffs_dict[var_index],
-                              cutoffs_dict[var_index] + 1),
+                    np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1),
                     eval("np." + mode + "(wf_plot.T)"),
                 )
             else:
