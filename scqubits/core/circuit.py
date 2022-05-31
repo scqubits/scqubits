@@ -1814,11 +1814,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sm.symbols("I"
                            ), 1
             )
-            # replace EC, EL, EJ, ECJ by those with subscripts
-            expr_modified = expr_modified.replace(
-                sm.symbols("I"
-                           ), 1
-            )
         for ext_flux_var in self.external_fluxes: # removing 1.0 decimals from flux vars
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
