@@ -1805,6 +1805,20 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sm.symbols("Qs" + str(var_index)
                            ), sm.symbols("Q" + str(var_index)) ** 2
             )
+            expr_modified = expr_modified.replace(
+                sm.symbols("ng" + str(var_index)
+                           ), sm.symbols("n_g" + str(var_index))
+            )
+            # replace I by 1
+            expr_modified = expr_modified.replace(
+                sm.symbols("I"
+                           ), 1
+            )
+            # replace EC, EL, EJ, ECJ by those with subscripts
+            expr_modified = expr_modified.replace(
+                sm.symbols("I"
+                           ), 1
+            )
         for ext_flux_var in self.external_fluxes: # removing 1.0 decimals from flux vars
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
@@ -2438,6 +2452,7 @@ class Circuit(Subsystem):
         -------
             An instance of class `Circuit`
         """
+        sm.init_printing()
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
@@ -2713,6 +2728,23 @@ class Circuit(Subsystem):
         for idx, node_var in enumerate(node_vars):
             node_var_eqns.append(sm.Eq(node_vars[idx] , np.sum(trans_mat[idx, :] * theta_vars)))
         return node_var_eqns
+
+    def offset_charge_transformation(self) -> List[sm.Equality]:
+        """
+        Returns the variable transformation between offset charges of periodic variables and the offset node charges
+
+        Returns
+        -------
+        sm.Expr
+            _description_
+        """
+        trans_mat = self.transformation_matrix
+        node_offset_charge_vars = [sm.symbols("q_g" + str(index)) for index in range(1, len(self.symbolic_circuit.nodes) + 1)]
+        periodic_offset_charge_vars = [sm.symbols("ng" + str(index)) for index in self.symbolic_circuit.var_categories['periodic']]
+        periodic_offset_charge_eqns = []
+        for idx, node_var in enumerate(periodic_offset_charge_vars):
+            periodic_offset_charge_eqns.append(self._make_expr_human_readable(sm.Eq(periodic_offset_charge_vars[idx] , np.sum(trans_mat[idx, :] * node_offset_charge_vars))))
+        return periodic_offset_charge_eqns
             
     def sym_lagrangian(self, vars_type: str = "node") -> sm.Expr:
         """
@@ -2743,6 +2775,26 @@ class Circuit(Subsystem):
                     "vθ" + str(var_index)), sm.symbols("\\dot{θ_" + str(var_index) + "}"))
 
         return lagrangian
+
+    def show_offset_charges(self) -> sm.Expr:
+        """
+        Method returns a user readable offset charges for the current instance
+
+        Returns
+        -------
+        Human redeable form of offset charges
+        """
+        return [self._make_expr_human_readable(offset_charge) for offset_charge in self.offset_charges]
+
+    def show_external_fluxes(self) -> sm.Expr:
+        """
+        Method returns a user readable external fluxes for the current instance
+
+        Returns
+        -------
+        Human redeable form of external fluxes
+        """
+        return [self._make_expr_human_readable(external_flux) for external_flux in self.external_fluxes]
 
 
 # example input strings
