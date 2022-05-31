@@ -681,7 +681,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         self.hilbert_space = hilbert_space
 
-    def _generate_symbols_list(self, var_str: str, iterable_list: List[int] or ndarray) -> List[Symbol]:
+    def _generate_symbols_list(self, var_str: str, iterable_list: List[int] or ndarray) -> List[sm.Symbol]:
         """
         Returns the list of symbols generated using the var_str + iterable as the name
         of the symbol.
