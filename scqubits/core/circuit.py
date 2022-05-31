@@ -82,7 +82,7 @@ def get_trailing_number(input_str: str) -> Union[int, None]:
 
     Parameters
     ----------
-    input_str :
+    input_str:
         String which ends with a number
 
     Returns
@@ -236,7 +236,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        term : sm.Expr
+        term: sm.Expr
             a single terms in the form of Sympy expression.
 
         Returns
@@ -666,16 +666,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
     def _generate_symbols_list(
         self, var_str: str, iterable_list: List[int] or ndarray
-    ) -> List[Symbol]:
+    ) -> List[sm.Symbol]:
         """
         Returns the list of symbols generated using the var_str + iterable as the name
         of the symbol.
 
         Parameters
         ----------
-        var_str :
+        var_str:
             name of the variable which needs to be generated
-        iterable_list :
+        iterable_list:
             The list of indices which generates the symbols
         """
         return [sm.symbols(var_str + str(iterable)) for iterable in iterable_list]
@@ -1808,8 +1808,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        vars : str, optional
-            "node" or "new", fixes the kind of lagrangian requested, by default "node"
         float_round:
             Number of digits after the decimal to which floats are rounded
 
@@ -2030,9 +2028,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        var_index : int
+        var_index:
             var index whose oscillator parameter needs to be fetched
-        which_param : str, optional
+        which_param:
             "length" or "freq" - decides which parameter is returned, by default "length"
 
         Returns
@@ -2396,6 +2394,34 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
 
 class Circuit(Subsystem):
+    """
+    Class for analysis of custom superconducting circuits.
+
+    Parameters
+    ----------
+    symbolic_circuit: SymbolicCircuit
+        an instance of the class `SymbolicCircuit`
+    ext_basis: str
+        can be "discretized" or "harmonic" which chooses whether to use discretized
+        phi or harmonic oscillator basis for extended variables,
+        by default "discretized"
+    initiate_sym_calc: bool
+        attribute to initiate Circuit instance, by default `True`
+    system_hierarchy: list
+        A list of lists which is provided by the user to define subsystems,
+        by default `None`
+    subsystem_trunc_dims: list, optional
+        a dict object which can be generated for a specific system_hierarchy using
+        the method `truncation_template`, by default `None`
+    truncated_dim: Optional[int]
+        truncated dimension if the user wants to use this circuit instance in
+        HilbertSpace, by default `None`
+
+    Returns
+    -------
+    Circuit
+        An instance of class `Circuit`
+    """
     def __init__(
         self,
         symbolic_circuit: SymbolicCircuit,
@@ -2405,33 +2431,6 @@ class Circuit(Subsystem):
         subsystem_trunc_dims: list = None,
         truncated_dim: int = None,
     ):
-        """
-        Class for analysis of custom superconducting circuits.
-
-        Parameters
-        ----------
-        symbolic_circuit:
-            an instance of the class `SymbolicCircuit`
-        ext_basis:
-            can be "discretized" or "harmonic" which chooses whether to use discretized
-            phi or harmonic oscillator basis for extended variables,
-            by default "discretized"
-        initiate_sym_calc:
-            attribute to initiate Circuit instance, by default `True`
-        system_hierarchy:
-            A list of lists which is provided by the user to define subsystems,
-            by default `None`
-        subsystem_trunc_dims : list, optional
-            a dict object which can be generated for a specific system_hierarchy using
-            the method `truncation_template`, by default `None`
-        truncated_dim:
-            truncated dimension if the user wants to use this circuit instance in
-            HilbertSpace, by default `None`
-
-        Returns
-        -------
-            An instance of class `Circuit`
-        """
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
@@ -2718,7 +2717,7 @@ class Circuit(Subsystem):
 
         Parameters
         ----------
-        vars : str, optional
+        vars:
             "node" or "new", fixes the kind of lagrangian requested, by default "node"
 
         Returns
