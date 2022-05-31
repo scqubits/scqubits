@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Axes, Figure
 from tables import Description
+from yaml import scan
 
 try:
     from ipywidgets import (Box, Button, Checkbox, Dropdown, FloatRangeSlider,
@@ -250,18 +251,6 @@ class GUI:
                 disabled=False,
                 layout=std_layout,
             ),
-            "scan_range_slider": FloatRangeSlider(
-                min=self.active_defaults[self.active_defaults["scan_param"]]["min"],
-                max=self.active_defaults[self.active_defaults["scan_param"]]["max"],
-                value=[
-                    self.active_defaults[self.active_defaults["scan_param"]]["min"],
-                    self.active_defaults[self.active_defaults["scan_param"]]["max"],
-                ],
-                step=0.05,
-                description="{} range".format(self.active_defaults["scan_param"]),
-                continuous_update=False,
-                layout=std_layout,
-            ),
             "state_slider": IntSlider(
                 min=1,
                 max=10,
@@ -423,7 +412,7 @@ class GUI:
         qubit_info_tab = self.qubit_info_layout()
         common_qubit_params_tab = self.common_qubit_params_layout()
 
-        tab_titles = ["Qubit Plot", "Ranges", "Qubit Info", 'Common Params']
+        tab_titles = ["Qubit Plot", "Slider Ranges", "Qubit Info", 'Common Params']
         self.tab_widget.children = [qubit_plot_tab, param_ranges_tab, qubit_info_tab, common_qubit_params_tab]
 
         for title_index in range(len(self.tab_widget.children)):
@@ -557,19 +546,6 @@ class GUI:
         self.qubit_params_widgets[change.old].disabled = False
         self.qubit_params_widgets[change.new].disabled = True
 
-        self.ranges_update(None)
-        new_min = self.qubit_plot_options_widgets["scan_range_slider"].min
-        new_max = self.qubit_plot_options_widgets["scan_range_slider"].max
-
-        self.qubit_plot_options_widgets["scan_range_slider"].value = [
-            new_min,
-            new_max,
-        ]
-
-        self.qubit_plot_options_widgets[
-            "scan_range_slider"
-        ].description = "{} range".format(change.new)
-
         self.observe_plot()
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
@@ -621,9 +597,6 @@ class GUI:
     def ranges_update(self, change) -> None:
         self.unobserve_plot()
         self.unobserve_ranges()
-        scan_dropdown_value = self.qubit_plot_options_widgets[
-            "scan_dropdown"
-        ].get_interact_value()
 
         for widget_name, text_widgets in self.ranges_widgets.items():
             new_min = text_widgets["min"].get_interact_value()
@@ -667,10 +640,6 @@ class GUI:
             else:
                 widget.min = new_min
                 widget.max = new_max
-
-            if widget_name == scan_dropdown_value:
-                self.qubit_plot_options_widgets["scan_range_slider"].min = new_min
-                self.qubit_plot_options_widgets["scan_range_slider"].max = new_max
         self.observe_ranges()
         self.observe_plot()
         if not self.manual_update_and_save_widgets[
@@ -682,14 +651,17 @@ class GUI:
         self.fig.savefig(self.manual_update_and_save_widgets["filename_text"].value)
 
     def evals_vs_paramvals_plot_refresh(self, change) -> None:
+        scan_dropdown_value = self.qubit_plot_options_widgets[
+            "scan_dropdown"
+        ].get_interact_value()
+        scan_slider = self.qubit_params_widgets[scan_dropdown_value]
+        
         self.plot_output.clear_output()
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
                 "scan_dropdown"
             ].get_interact_value(),
-            "scan_range": self.qubit_plot_options_widgets[
-                "scan_range_slider"
-            ].get_interact_value(),
+            "scan_range": (scan_slider.min, scan_slider.max),
             "subtract_ground_tf": self.qubit_plot_options_widgets[
                 "subtract_ground_checkbox"
             ].get_interact_value(),
@@ -755,14 +727,17 @@ class GUI:
         self.wavefunctions_plot(**value_dict)
 
     def matelem_vs_paramvals_plot_refresh(self, change) -> None:
+        scan_dropdown_value = self.qubit_plot_options_widgets[
+            "scan_dropdown"
+        ].get_interact_value()
+        scan_slider = self.qubit_params_widgets[scan_dropdown_value]
+        
         self.plot_output.clear_output()
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
                 "scan_dropdown"
             ].get_interact_value(),
-            "scan_range": self.qubit_plot_options_widgets[
-                "scan_range_slider"
-            ].get_interact_value(),
+            "scan_range": (scan_slider.min, scan_slider.max),
             "operator_value": self.qubit_plot_options_widgets[
                 "operator_dropdown"
             ].get_interact_value(),
@@ -969,7 +944,6 @@ class GUI:
 
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["scan_dropdown"],
-            self.qubit_plot_options_widgets["scan_range_slider"],
             self.qubit_plot_options_widgets["subtract_ground_checkbox"],
             self.qubit_plot_options_widgets["state_slider"],
         )
@@ -996,7 +970,6 @@ class GUI:
         plot_options_widgets_tuple = (
             self.qubit_plot_options_widgets["operator_dropdown"],
             self.qubit_plot_options_widgets["scan_dropdown"],
-            self.qubit_plot_options_widgets["scan_range_slider"],
             self.qubit_plot_options_widgets["state_slider"],
             self.qubit_plot_options_widgets["mode_dropdown"],
         )
