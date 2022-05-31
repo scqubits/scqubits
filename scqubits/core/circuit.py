@@ -664,25 +664,34 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         self.hilbert_space = hilbert_space
 
+    def _generate_symbols_list(self, var_str: str, iterable_list: List[int] or ndarray) -> List[Symbol]:
+        """
+        Returns the list of symbols generated using the var_str + iterable as the name
+        of the symbol.
+
+        Parameters
+        ----------
+        var_str :
+            name of the variable which needs to be generated
+        iterable_list :
+            The list of indices which generates the symbols
+        """
+        return [sm.symbols(var_str + str(iterable)) for iterable in iterable_list]
+
     def _set_vars(self):
         """
         Sets the attribute vars which is a dictionary containing all the Sympy Symbol
         objects for all the operators present in the circuit
         """
         # Defining the list of variables for periodic operators
-        periodic_symbols_sin = [
-            sm.symbols("θs" + str(i)) for i in self.var_categories["periodic"]
-        ]
-        periodic_symbols_cos = [
-            sm.symbols("θc" + str(i)) for i in self.var_categories["periodic"]
-        ]
-        periodic_symbols_n = [
-            sm.symbols("n" + str(i)) for i in self.var_categories["periodic"]
-        ]
+        periodic_symbols_sin = self._generate_symbols_list("θs", self.var_categories["periodic"])
+
+        periodic_symbols_cos = self._generate_symbols_list("θc", self.var_categories["periodic"])
+        periodic_symbols_n = self._generate_symbols_list("n", self.var_categories["periodic"])
 
         # Defining the list of discretized_ext variables
-        y_symbols = [sm.symbols("θ" + str(i)) for i in self.var_categories["extended"]]
-        p_symbols = [sm.symbols("Q" + str(i)) for i in self.var_categories["extended"]]
+        y_symbols = self._generate_symbols_list("θ", self.var_categories["extended"])
+        p_symbols = self._generate_symbols_list("Q", self.var_categories["extended"])
 
         if self.ext_basis == "discretized":
 
@@ -749,17 +758,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 "cos": cos_symbols,
             }
 
-    def generate_hamiltonian_sym_for_numerics(self):
-        """
-        Generates a symbolic expression which is ready for numerical evaluation starting
-        from the expression stored in the attribute hamiltonian_symbolic. Stores the
-        result in the attribute _hamiltonian_sym_for_numerics.
-        """
-        hamiltonian = (
-            self.hamiltonian_symbolic.expand()
-        )  # applying expand is critical; otherwise the replacement of p^2 with ps2
-        # would not succeed
-
+    def _shift_harmonic_oscillator_potential(self, hamiltonian: sm.Expr) -> sm.Expr:
         # shifting the harmonic oscillator potential to the point of external fluxes
         flux_shift_vars = {}
         for var_index in self.var_categories["extended"]:
@@ -809,8 +808,22 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         )
         # remove constants from Hamiltonian
         hamiltonian -= hamiltonian.as_coefficients_dict()[1]
-        hamiltonian = hamiltonian.expand()
-        #############################
+        return hamiltonian.expand()
+        #* ##########################################################################
+
+    def generate_hamiltonian_sym_for_numerics(self):
+        """
+        Generates a symbolic expression which is ready for numerical evaluation starting
+        from the expression stored in the attribute hamiltonian_symbolic. Stores the
+        result in the attribute _hamiltonian_sym_for_numerics.
+        """
+        hamiltonian = (
+            self.hamiltonian_symbolic.expand()
+        )  # applying expand is critical; otherwise the replacement of p^2 with ps2
+        # would not succeed
+
+        # shifting the potential to the point of external fluxes
+        hamiltonian = self._shift_harmonic_oscillator_potential(hamiltonian)
 
         # marking the sin and cos terms of the periodic variables with different symbols
         if len(self.var_categories["periodic"]) > 0:
@@ -871,6 +884,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############### Functions to construct the operators #############
     ##################################################################
+    def _cutoffs_by_index_dict(self):
+        variables = self.var_categories["periodic"] + self.var_categories["extended"]
+        cutoffs_by_index_list = np.fromiter(self._collect_cutoff_values(), dtype=int)
+        return dict(zip(variables, cutoffs_by_index_list))
+
     def _collect_cutoff_values(self):
         if not self.hierarchical_diagonalization:
             cutoff_dict = self.get_cutoffs()
@@ -917,29 +935,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.var_categories["periodic"] + self.var_categories["extended"]
         )
 
-        var_index_list.sort()  # important to make sure that right cutoffs are chosen
-        cutoff_dict = self.get_cutoffs()
-
-        # TODO code duplication needs to be reduced/eliminated
-        cutoff_names = []
-        for cutoff_type in cutoff_dict.keys():
-            if "cutoff_n" in cutoff_type:
-                cutoff_names.append([2 * k + 1 for k in cutoff_dict[cutoff_type]])
-            elif "cutoff_ext" in cutoff_type:
-                cutoff_names.append([k for k in cutoff_dict[cutoff_type]])
-
-        cutoffs = [
-            j for i in list(cutoff_names) for j in i
-        ]  # concatenating the sublists
-        cutoffs_index_dict = dict(
-            zip(
-                self.var_categories["periodic"] + self.var_categories["extended"],
-                cutoffs,
-            )
-        )
-        cutoff_names = [
-            cutoffs_index_dict[i] for i in var_index_list
-        ]  # selecting the cutoffs present in
+        cutoff_names = np.fromiter(self._collect_cutoff_values(), dtype=int)# [
 
         if self.type_of_matrices == "dense":
             matrix_format = "array"
@@ -1792,9 +1788,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             expr_modified = expr_modified.replace(
                 sm.symbols("Qs" + str(var_index)), sm.symbols("Q" + str(var_index)) ** 2
             )
-        for (
-            ext_flux_var
-        ) in self.external_fluxes:  # removing 1.0 decimals from flux vars
+        for ext_flux_var in self.external_fluxes: # removing 1.0 decimals from flux vars
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
 
@@ -1858,7 +1852,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         Parameters
         ----------
-        subsystem_indices :
+        subsystem_indices:
             Tuple of subsystem indices
         float_round:
             Number of digits after the decimal to which floats are rounded
@@ -2370,20 +2364,20 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 var_indices[0] in self.var_categories["periodic"]
             ):
                 plt.bar(
-                    np.arange(-cutoffs_dict[var_index], cutoffs_dict[var_index] + 1)
-                    / (2 * np.pi),
+                    np.arange(-cutoffs_dict[var_index],
+                              cutoffs_dict[var_index] + 1),
                     eval("np." + mode + "(wf_plot.T)"),
                 )
             else:
                 plt.plot(
-                    np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
+                    np.array(grids_dict[var_indices[0]]),
                     eval("np." + mode + "(wf_plot.T)"),
                 )
             plt.xlabel(var_types[0] + str(var_indices[0]))
         elif len(var_indices) == 2:
             x, y = np.meshgrid(
-                np.array(grids_dict[var_indices[0]]) / (2 * np.pi),
-                np.array(grids_dict[var_indices[1]]) / (2 * np.pi),
+                np.array(grids_dict[var_indices[0]]),
+                np.array(grids_dict[var_indices[1]]),
             )
             plt.contourf(x, y, np.abs(wf_plot.T))
             plt.xlabel(var_types[0] + str(var_indices[0]))
@@ -2720,11 +2714,11 @@ class Circuit(Subsystem):
 
         Returns
         -------
-        Human redeable form of the Lagrangian
+        Human readable form of the Lagrangian
         """
         if vars_type == "node":
             lagrangian = self._make_expr_human_readable(self.lagrangian_node_vars)
-            # replave v\theta with \theta_dot
+            # replace v\theta with \theta_dot
             for var_index in range(1, 1 + len(self.symbolic_circuit.nodes)):
                 lagrangian = lagrangian.replace(
                     sm.symbols("vφ" + str(var_index)),
@@ -2732,7 +2726,7 @@ class Circuit(Subsystem):
                 )
         elif vars_type == "new":
             lagrangian = self._make_expr_human_readable(self.lagrangian_symbolic)
-            # replave v\theta with \theta_dot
+            # replace v\theta with \theta_dot
             for var_index in self.var_categories_list:
                 lagrangian = lagrangian.replace(
                     sm.symbols("vθ" + str(var_index)),
