@@ -1463,8 +1463,9 @@ class SymbolicCircuit(serializers.Serializable):
         # same ancestor
         gen_last_same_ancestor = 0
         for igen in range(min(gen_1, gen_2)):
-            if ancestors_1[igen].id != ancestors_2[igen].id:
+            if ancestors_1[igen].id == ancestors_2[igen].id:
                 gen_last_same_ancestor = igen
+            elif ancestors_1[igen].id != ancestors_2[igen].id:
                 break 
         # get all the branches of the paths from the two nodes to the root, after the last
         # shared ancestor, and the closure branch itself
