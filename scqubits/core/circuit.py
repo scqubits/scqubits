@@ -203,13 +203,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 for var_index in self.var_categories["extended"]:
                     self.cutoff_names.append("cutoff_ext_" + str(var_index))
 
-        self.cutoffs_dict: Dict[int, int] = {}
-        for var_index in self.var_categories_list:
-            for cutoff_name in self.parent.cutoff_names:
-                if str(var_index) in cutoff_name:
-                    self.cutoffs_dict[var_index] = getattr(
-                        self.parent, cutoff_name)
-
         self.discretized_phi_range: Dict[int, Tuple[float]] = {
             idx: self.parent.discretized_phi_range[idx]
             for idx in self.parent.discretized_phi_range
@@ -244,6 +237,21 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.type_of_matrices = "sparse"
 
         self._initiate_subsystem()
+
+    def cutoffs_dict(self) -> Dict[int, int]:
+        cutoffs_dict= {}
+        
+        for var_index in self.var_categories_list:
+            if self.is_child:
+                for cutoff_name in self.parent.cutoff_names:
+                    if str(var_index) in cutoff_name:
+                        cutoffs_dict[var_index] = getattr(
+                            self.parent, cutoff_name)
+            else:
+                for cutoff_name in self.cutoff_names:
+                    if str(var_index) in cutoff_name:
+                        cutoffs_dict[var_index] = getattr(self, cutoff_name)
+        return cutoffs_dict
 
     def _is_potential_term(self, term: sm.Expr) -> bool:
         """
@@ -1190,11 +1198,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         """
         periodic_vars = self.vars["periodic"]
         normal_vars = self.vars["extended"]
-
-        index_list = [j for i in list(self.var_categories.values()) for j in i]
-        cutoff_names = [j for i in list(
-            self.get_cutoffs().values()) for j in i]
-        cutoffs = dict(zip(index_list, cutoff_names))
+        cutoffs = self.cutoffs_dict() #dict(zip(index_list, cutoff_names))
 
         grids = {}
         for i in self.var_categories["extended"]:
@@ -1240,11 +1244,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 )
         elif self.ext_basis == "harmonic":
             H = self._hamiltonian_sym_for_numerics
-            index_list = [j for i in list(
-                self.var_categories.values()) for j in i]
-            cutoff_names = [j for i in list(
-                self.get_cutoffs().values()) for j in i]
-            cutoffs_dict = dict(zip(index_list, cutoff_names))
+            cutoffs_dict = self.cutoffs_dict()#dict(zip(index_list, cutoff_names))
             # substitute all the parameter values
             H = H.subs(
                 [
@@ -1591,10 +1591,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     def _hamiltonian_for_harmonic_extended_vars(self):
 
         hamiltonian = self._hamiltonian_sym_for_numerics
-        index_list = [j for i in list(self.var_categories.values()) for j in i]
-        cutoff_names = [j for i in list(
-            self.get_cutoffs().values()) for j in i]
-        cutoffs_dict = dict(zip(index_list, cutoff_names))
+        cutoffs_dict = self.cutoffs_dict() #dict(zip(index_list, cutoff_names))
         # substitute all the parameter values
         hamiltonian = hamiltonian.subs(
             [
@@ -1922,7 +1919,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 parameters[var_name] = kwargs[var_name]
             else:
                 raise AttributeError(
-                    "Only float, Numpy ndarray or int assignments are allowed."
+                    "Only float, int or Numpy ndarray assignments are allowed."
                 )
 
         for var_name in parameters.keys():
@@ -2154,6 +2151,33 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     wf_dim += subsys_var_index_list.index(var_index)
                     break
         return wf_dim
+    
+    def _dims_to_be_summed(self, var_indices: List[int], system_hierarchy_for_vars_chosen) -> List[int]:
+        dims_to_be_summed = []
+        num_wf_dims = 0
+        if self.hierarchical_diagonalization:
+            for subsys_index in self.subsystems:
+                if subsys_index in system_hierarchy_for_vars_chosen:
+                    for index, var_index in enumerate(
+                        self.subsystems[subsys_index].var_categories_list
+                    ):
+                        if var_index not in var_indices:
+                            dims_to_be_summed += [num_wf_dims + index]
+                    num_wf_dims += len(
+                        self.subsystems[subsys_index].var_categories_list
+                    )
+                else:
+                    dims_to_be_summed += [num_wf_dims]
+                    num_wf_dims += 1
+            
+        else:
+            dims_to_be_summed = [
+                var_index - 1
+                for var_index in self.var_categories["periodic"]
+                + self.var_categories["extended"]
+                if var_index not in var_indices
+            ]
+        return dims_to_be_summed
 
     def generate_wf_plot_data(
         self,
@@ -2260,36 +2284,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         # if a probability plot is requested, sum over the dimesnsions not relevant to
         # the ones in var_categories
         if self.hierarchical_diagonalization:
-            num_wf_dims = 0
-            dims_to_be_summed = []
-            for subsys_index in self.subsystems:
-                if subsys_index in system_hierarchy_for_vars_chosen:
-                    for index, var_index in enumerate(
-                        self.subsystems[subsys_index].var_categories_list
-                    ):
-                        if var_index not in var_indices:
-                            dims_to_be_summed += [num_wf_dims + index]
-                    num_wf_dims += len(
-                        self.subsystems[subsys_index].var_categories_list
-                    )
-                else:
-                    dims_to_be_summed += [num_wf_dims]
-                    num_wf_dims += 1
+            dims_to_be_summed = self._dims_to_be_summed(var_indices, system_hierarchy_for_vars_chosen)
             wf_plot = np.sum(
                 np.abs(wf_ext_basis),
                 axis=tuple(dims_to_be_summed),
-            )
-        else:
-            wf_plot = np.sum(
-                np.abs(wf_ext_basis),
-                axis=tuple(
-                    [
-                        var_index - 1
-                        for var_index in self.var_categories["periodic"]
-                        + self.var_categories["extended"]
-                        if var_index not in var_indices
-                    ]
-                ),
             )
         # reorder the array according to the order in var_indices
         var_index_order = [flatten_list_recursive(self.system_hierarchy).index(
@@ -2335,12 +2333,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 "dimensions should be less than 2."
             )
         var_indices = np.sort(var_indices)
-        cutoffs_dict = {}  # dictionary for cutoffs for each variable index
+        cutoffs_dict = self.cutoffs_dict()  # dictionary for cutoffs for each variable index
         grids_dict = {}
         var_index_dims_dict = {}
         for cutoff_attrib in self.cutoff_names:
             var_index = get_trailing_number(cutoff_attrib)
-            cutoffs_dict[var_index] = getattr(self, cutoff_attrib)
             if "cutoff_n" in cutoff_attrib:
                 grids_dict[var_index] = self._default_grid_phi.make_linspace()
             else:
