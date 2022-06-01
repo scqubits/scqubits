@@ -2781,7 +2781,7 @@ class Circuit(Subsystem):
         A dictionary of Human redeable external fluxes with their associated branches and loops
         """
         # return a dictionary of sympy expressions that maps to a tuple of the associated branch and a list of branches that represent the loop
-        return {self._make_expr_human_readable(self.external_fluxes[ibranch]): (self.closure_branches[ibranch], self.symbolic_circuit._find_loop(self.closure_branches[ibranch]))  for ibranch in range(len(self.external_fluxes))}
+        return {self._make_expr_human_readable(self.external_fluxes[ibranch]): (self.closure_branches[ibranch], self.symbolic_circuit._find_loop(self.closure_branches[ibranch])) for ibranch in range(len(self.external_fluxes))}
 
 
 # example input strings
