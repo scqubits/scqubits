@@ -29,10 +29,8 @@ import itertools
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy as np
 import qutip as qt
 import scipy as sp
-import sympy as sm
 
 from matplotlib import pyplot as plt
 from numpy import ndarray
@@ -2447,6 +2445,7 @@ class Circuit(Subsystem):
         -------
             An instance of class `Circuit`
         """
+        # initialize the printing
         sm.init_printing()
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
@@ -2723,23 +2722,6 @@ class Circuit(Subsystem):
         for idx, node_var in enumerate(node_vars):
             node_var_eqns.append(sm.Eq(node_vars[idx] , np.sum(trans_mat[idx, :] * theta_vars)))
         return node_var_eqns
-
-    def offset_charge_transformation(self) -> List[sm.Equality]:
-        """
-        Returns the variable transformation between offset charges of periodic variables and the offset node charges
-
-        Returns
-        -------
-        sm.Expr
-            _description_
-        """
-        trans_mat = self.transformation_matrix
-        node_offset_charge_vars = [sm.symbols("q_g" + str(index)) for index in range(1, len(self.symbolic_circuit.nodes) + 1)]
-        periodic_offset_charge_vars = [sm.symbols("ng" + str(index)) for index in self.symbolic_circuit.var_categories['periodic']]
-        periodic_offset_charge_eqns = []
-        for idx, node_var in enumerate(periodic_offset_charge_vars):
-            periodic_offset_charge_eqns.append(self._make_expr_human_readable(sm.Eq(periodic_offset_charge_vars[idx] , np.sum(trans_mat[idx, :] * node_offset_charge_vars))))
-        return periodic_offset_charge_eqns
             
     def sym_lagrangian(self, vars_type: str = "node") -> sm.Expr:
         """
@@ -2771,25 +2753,35 @@ class Circuit(Subsystem):
 
         return lagrangian
 
-    def show_offset_charges(self) -> sm.Expr:
+    def show_offset_charges(self) -> List[sm.Equality]:
         """
-        Method returns a user readable offset charges for the current instance
+        Returns the variable transformation between offset charges of periodic variables and the 
+        offset node charges
 
         Returns
         -------
-        Human redeable form of offset charges
+        sm.Expr
+            Human redeable form of expressions of offset charges in terms of node offset charges
         """
-        return [self._make_expr_human_readable(offset_charge) for offset_charge in self.offset_charges]
+        trans_mat = self.transformation_matrix
+        node_offset_charge_vars = [sm.symbols("q_g" + str(index)) for index in range(1, len(self.symbolic_circuit.nodes) + 1)]
+        periodic_offset_charge_vars = [sm.symbols("ng" + str(index)) for index in self.symbolic_circuit.var_categories['periodic']]
+        periodic_offset_charge_eqns = []
+        for idx, node_var in enumerate(periodic_offset_charge_vars):
+            periodic_offset_charge_eqns.append(self._make_expr_human_readable(sm.Eq(periodic_offset_charge_vars[idx] , np.sum(trans_mat[idx, :] * node_offset_charge_vars))))
+        return periodic_offset_charge_eqns
 
-    def show_external_fluxes(self) -> sm.Expr:
+    def show_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch",List["Branch"]]]:
         """
-        Method returns a user readable external fluxes for the current instance
+        Method returns a dictionary of Human readable external fluxes with associated branches and
+        loops (represented as lists of branches) for the current instance
 
         Returns
         -------
-        Human redeable form of external fluxes
+        A dictionary of Human redeable external fluxes with their associated branches and loops
         """
-        return [self._make_expr_human_readable(external_flux) for external_flux in self.external_fluxes]
+        # return a dictionary of sympy expressions that maps to a tuple of the associated branch and a list of branches that represent the loop
+        return {self._make_expr_human_readable(self.external_fluxes[ibranch]): (self.closure_branches[ibranch], self.symbolic_circuit._find_loop(self.closure_branches[ibranch]))  for ibranch in range(len(self.external_fluxes))}
 
 
 # example input strings
