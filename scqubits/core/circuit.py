@@ -2290,7 +2290,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 axis=tuple(dims_to_be_summed),
             )
         # reorder the array according to the order in var_indices
-        var_index_order = [flatten_list_recursive(self.system_hierarchy).index(
+        all_var_indices = flatten_list_recursive(self.system_hierarchy) if self.hierarchical_diagonalization else self.var_categories_list
+        var_index_order = [all_var_indices.index(
             var_index) for var_index in var_indices]
         var_index_dims = (stats.rankdata(var_index_order) - 1).astype(int)
         dims_reshape = np.array(wf_plot.shape)[var_index_dims]
