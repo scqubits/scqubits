@@ -22,7 +22,7 @@ import sympy as sm
 from matplotlib import pyplot as plt
 from numpy import ndarray
 from scipy import sparse, stats
-from scipy.sparse.csc import csc_matrix
+from scipy.sparse import csc_matrix
 
 import scqubits.core.discretization as discretization
 import scqubits.core.oscillator as osc
