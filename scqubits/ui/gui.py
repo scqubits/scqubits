@@ -110,8 +110,6 @@ class GUI:
 
         self.initialize_observe()
 
-        self.current_plot_option_refresh(None)
-
     # Initialization Methods -----------------------------------------------------------
     def initialize_qubit_and_plot_ToggleButtons(self) -> None:
         """Creates all the ToggleButtons that controls
@@ -412,7 +410,7 @@ class GUI:
         qubit_info_tab = self.qubit_info_layout()
         common_qubit_params_tab = self.common_qubit_params_layout()
 
-        tab_titles = ["Qubit Plot", "Slider Ranges", "Qubit Info", 'Common Params']
+        tab_titles = ["Qubit Plot", "Ranges", "Qubit Info", 'Common Params']
         self.tab_widget.children = [qubit_plot_tab, param_ranges_tab, qubit_info_tab, common_qubit_params_tab]
 
         for title_index in range(len(self.tab_widget.children)):
@@ -513,6 +511,8 @@ class GUI:
             for widget in self.qubit_plot_options_widgets.values():
                 widget.observe(self.current_plot_option_refresh, names="value")
 
+            self.current_plot_option_refresh(None)
+
     def unobserve_plot(self):
         self.qubit_plot_options_widgets["scan_dropdown"].unobserve(
             self.scan_dropdown_refresh, names="value"
@@ -531,26 +531,16 @@ class GUI:
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
+        self.unobserve_ranges()
         self.unobserve_plot()
         self.set_qubit(change["new"])
         self.initialize_tab_widget()
         self.observe_ranges()
         self.observe_plot()
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            self.current_plot_option_refresh(None)
 
-    def scan_dropdown_refresh(self, change) -> None:
-        self.unobserve_plot()
+    def scan_dropdown_refresh(self, change) -> None:        
         self.qubit_params_widgets[change.old].disabled = False
         self.qubit_params_widgets[change.new].disabled = True
-
-        self.observe_plot()
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            self.current_plot_option_refresh(None)
 
     def plot_option_layout_refresh(self, change) -> None:
         self.unobserve_plot()
@@ -561,10 +551,6 @@ class GUI:
             new_plot_option.children
         )
         self.observe_plot()
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            self.current_plot_option_refresh(None)
 
     def manual_scale_tf(self, change) -> None:
         if change["new"]:
@@ -595,8 +581,8 @@ class GUI:
         self.current_plot_option_refresh(None)
 
     def ranges_update(self, change) -> None:
-        self.unobserve_plot()
         self.unobserve_ranges()
+        self.unobserve_plot()
 
         for widget_name, text_widgets in self.ranges_widgets.items():
             new_min = text_widgets["min"].get_interact_value()
@@ -642,10 +628,6 @@ class GUI:
                 widget.max = new_max
         self.observe_ranges()
         self.observe_plot()
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            self.current_plot_option_refresh(None)
 
     def save_button_clicked_action(self, change):
         self.fig.savefig(self.manual_update_and_save_widgets["filename_text"].value)
@@ -984,7 +966,7 @@ class GUI:
         widgets.interactive
         """
         if isinstance(self.active_qubit, scq.FullZeroPi):
-            plot_options_widgets_tuple = (Label(value="This not Implemented"),)
+            plot_options_widgets_tuple = (Label(value="This not implemented"),)
         else:
             self.qubit_plot_options_widgets[
                 "mode_dropdown"
@@ -1091,9 +1073,7 @@ class GUI:
             )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
-            self.plot_output.clear_output()
             plt.close(1)
-            plt.tight_layout()
             plt.show()
         GUI.fig_ax = self.fig, ax
 
@@ -1138,9 +1118,7 @@ class GUI:
                 )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
-            self.plot_output.clear_output()
             plt.close(1)
-            plt.tight_layout()
             plt.show()
         GUI.fig_ax = self.fig, ax
 
@@ -1191,9 +1169,7 @@ class GUI:
             )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
-            self.plot_output.clear_output()
             plt.close(1)
-            plt.tight_layout()
             plt.show()
         GUI.fig_ax = self.fig, ax
 
@@ -1243,7 +1219,6 @@ class GUI:
             )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
-            self.plot_output.clear_output()
             plt.close(1)
             plt.show()
         GUI.fig_ax = self.fig, ax
