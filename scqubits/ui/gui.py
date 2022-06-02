@@ -12,23 +12,35 @@
 
 
 import inspect
-from cProfile import label
-from itertools import dropwhile
-from re import I
-from socket import EAI_BADFLAGS
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Axes, Figure
-from tables import Description
-from yaml import scan
 
 try:
-    from ipywidgets import (Box, Button, Checkbox, Dropdown, FloatRangeSlider,
-                            FloatSlider, FloatText, HBox, Image, IntSlider,
-                            IntText, Label, Layout, Output, SelectMultiple,
-                            Tab, Text, ToggleButtons, VBox)
+    from ipywidgets import (
+        Box,
+        Button,
+        Checkbox,
+        Dropdown,
+        FloatRangeSlider,
+        FloatSlider,
+        FloatText,
+        HBox,
+        Image,
+        IntSlider,
+        IntText,
+        Label,
+        Layout,
+        Output,
+        SelectMultiple,
+        Tab,
+        Text,
+        ToggleButtons,
+        VBox,
+    )
 except ImportError:
     _HAS_IPYWIDGETS = False
 else:
@@ -41,17 +53,13 @@ except ImportError:
 else:
     _HAS_IPYTHON = True
 
-from pathlib import Path
-
-import gui_defaults
-
 import scqubits as scq
 import scqubits.utils.misc as utils
+import scqubits.ui.gui_defaults as gui_defaults
 from scqubits.core.qubit_base import QubitBaseClass
 
 
 class GUI:
-
     # Handle to the most recently generated Figure, Axes tuple
     fig_ax: Optional[Tuple[Figure, Axes]] = None
 
@@ -65,7 +73,7 @@ class GUI:
         # Display Elements
         self.fig: Figure
         self.plot_output: Output = Output(
-            layout=Layout(width='100%', justify_content='center')
+            layout=Layout(width="100%", justify_content="center")
         )
         self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
@@ -92,7 +100,9 @@ class GUI:
                 Checkbox,
             ],
         ] = {}
-        self.qubit_params_widgets: Dict[str, Union[IntSlider, FloatSlider]] = {}
+        self.qubit_params_widgets: Dict[
+            str, Union[IntSlider, FloatSlider, FloatRangeSlider]
+        ] = {}
 
         # ------------------------------------------------------------------------------
 
@@ -222,7 +232,7 @@ class GUI:
             ("Re(·)", "real"),
             ("Im(·)", "imag"),
             ("|·|", "abs"),
-            (u"|\u00B7|\u00B2", "abs_sqr"),
+            ("|\u00B7|\u00B2", "abs_sqr"),
         ]
         file = open(self.active_qubit._image_filename, "rb")
         image = file.read()
@@ -293,17 +303,19 @@ class GUI:
                 continuous_update=False,
                 layout=std_layout,
             )
-        
+
         if current_qubit in gui_defaults.paramvals_from_papers.keys():
             common_params_dropdown_list = ["Manual"]
-            common_params_dropdown_list.extend(gui_defaults.paramvals_from_papers[current_qubit].keys())
+            common_params_dropdown_list.extend(
+                gui_defaults.paramvals_from_papers[current_qubit].keys()
+            )
             self.qubit_plot_options_widgets["common_params_dropdown"] = Dropdown(
-                options=common_params_dropdown_list,
-                disabled=False,
-                layout=std_layout
+                options=common_params_dropdown_list, disabled=False, layout=std_layout
             )
         else:
-            self.qubit_plot_options_widgets["common_params_dropdown"] = Label(value="None")
+            self.qubit_plot_options_widgets["common_params_dropdown"] = Label(
+                value="None"
+            )
 
     def initialize_qubit_params_widgets_dict(self) -> None:
         """Creates all the widgets that will be used
@@ -387,7 +399,7 @@ class GUI:
             elif isinstance(widget, SelectMultiple):
                 min = widget.options[0]
                 max = widget.options[-1]
-                
+
                 widget_min_text = IntText(
                     value=min,
                     description="min=",
@@ -412,8 +424,13 @@ class GUI:
         qubit_info_tab = self.qubit_info_layout()
         common_qubit_params_tab = self.common_qubit_params_layout()
 
-        tab_titles = ["Qubit Plot", "Slider Ranges", "Qubit Info", 'Common Params']
-        self.tab_widget.children = [qubit_plot_tab, param_ranges_tab, qubit_info_tab, common_qubit_params_tab]
+        tab_titles = ["Qubit Plot", "Slider Ranges", "Qubit Info", "Common Params"]
+        self.tab_widget.children = [
+            qubit_plot_tab,
+            param_ranges_tab,
+            qubit_info_tab,
+            common_qubit_params_tab,
+        ]
 
         for title_index in range(len(self.tab_widget.children)):
             self.tab_widget.set_title(title_index, tab_titles[title_index])
@@ -611,9 +628,9 @@ class GUI:
                 new_min = min_value
             if new_max <= new_min:
                 changed_widget_key = change["owner"].description
-                if changed_widget_key == "min=": 
-                    text_widgets["min"].value = new_max 
-                    new_min = new_max 
+                if changed_widget_key == "min=":
+                    text_widgets["min"].value = new_max
+                    new_min = new_max
                 else:
                     if new_max <= 0 and new_min == 0:
                         max_value = change["old"]
@@ -621,16 +638,16 @@ class GUI:
                         max_value = new_min
                     text_widgets["max"].value = max_value
                     new_max = max_value
-                    
+
             if widget_name in self.qubit_plot_options_widgets.keys():
                 widget = self.qubit_plot_options_widgets[widget_name]
             else:
                 widget = self.qubit_params_widgets[widget_name]
-                
+
             if isinstance(widget, SelectMultiple):
                 current_values = list(widget.value)
                 new_values = []
-                widget.options = range(new_min, new_max+1)
+                widget.options = range(new_min, new_max + 1)
                 for value in current_values:
                     if value in widget.options:
                         new_values.append(value)
@@ -655,7 +672,7 @@ class GUI:
             "scan_dropdown"
         ].get_interact_value()
         scan_slider = self.qubit_params_widgets[scan_dropdown_value]
-        
+
         self.plot_output.clear_output()
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
@@ -718,7 +735,7 @@ class GUI:
                 value_dict["scale_value"] = self.qubit_plot_options_widgets[
                     "wavefunction_scale_slider"
                 ].get_interact_value()
-            else: 
+            else:
                 value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.qubit_plot_options_widgets[
                 "multi_state_selector"
@@ -731,7 +748,7 @@ class GUI:
             "scan_dropdown"
         ].get_interact_value()
         scan_slider = self.qubit_params_widgets[scan_dropdown_value]
-        
+
         self.plot_output.clear_output()
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
@@ -816,7 +833,10 @@ class GUI:
         )
 
         manual_update_and_save_HBox = HBox(
-            [manual_update_HBox, save_HBox,],
+            [
+                manual_update_HBox,
+                save_HBox,
+            ],
             layout=Layout(justify_content="space-between"),
         )
 
@@ -840,7 +860,9 @@ class GUI:
                     widget_name = "Scale"
 
             range_hbox = HBox(layout=range_hbox_layout)
-            widget_label = Label(value=widget_name + ":", layout=Layout( justify_content='flex-end'))
+            widget_label = Label(
+                value=widget_name + ":", layout=Layout(justify_content="flex-end")
+            )
             range_hbox.children += (
                 widget_label,
                 HBox(
@@ -872,8 +894,9 @@ class GUI:
     def common_qubit_params_layout(self):
         common_qubit_params_box = Box(
             [self.qubit_plot_options_widgets["common_params_dropdown"]],
-            layout=Layout(width='50%'))
-        
+            layout=Layout(width="50%"),
+        )
+
         return common_qubit_params_box
 
     def plot_option_layout(self) -> VBox:
@@ -895,35 +918,41 @@ class GUI:
         return plot_option_vbox
 
     def qubit_params_grid_layout(self) -> HBox:
-        HBox_layout = Layout(
-            display = 'flex', object_fit="contain", width="65%"
-        )
+        HBox_layout = Layout(display="flex", object_fit="contain", width="65%")
         qubit_params_grid = HBox(layout=HBox_layout)
 
         params_size = len(self.qubit_params_widgets)
-        if params_size > 6: 
-            left_right_HBox_layout = Layout(display = 'flex', flex_flow='column nowrap', object_fit="contain", width='50%')
+        if params_size > 6:
+            left_right_HBox_layout = Layout(
+                display="flex",
+                flex_flow="column nowrap",
+                object_fit="contain",
+                width="50%",
+            )
             left_HBox = HBox(layout=left_right_HBox_layout)
             right_HBox = HBox(layout=left_right_HBox_layout)
 
             counter = 1
             for param_slider in self.qubit_params_widgets.values():
-                param_slider.layout.width='95%'
-                if params_size % 2 == 0: 
-                    if counter <= params_size/2:
+                param_slider.layout.width = "95%"
+                if params_size % 2 == 0:
+                    if counter <= params_size / 2:
                         left_HBox.children += (param_slider,)
-                    else: 
+                    else:
                         right_HBox.children += (param_slider,)
-                else: 
-                    if counter <= params_size/2 + 1:
+                else:
+                    if counter <= params_size / 2 + 1:
                         left_HBox.children += (param_slider,)
-                    else: 
+                    else:
                         right_HBox.children += (param_slider,)
                 counter += 1
-            
-            qubit_params_grid.children += (left_HBox, right_HBox, )
+
+            qubit_params_grid.children += (
+                left_HBox,
+                right_HBox,
+            )
         else:
-            qubit_params_grid.layout.flex_flow="column nowrap"
+            qubit_params_grid.layout.flex_flow = "column nowrap"
             qubit_params_grid.children = list(self.qubit_params_widgets.values())
 
         return qubit_params_grid
@@ -996,14 +1025,12 @@ class GUI:
             if isinstance(
                 self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
             ):
-                self.qubit_plot_options_widgets["state_slider"].description = "State No."
-                which_widget = self.qubit_plot_options_widgets[
+                self.qubit_plot_options_widgets[
                     "state_slider"
-                ]
+                ].description = "State No."
+                which_widget = self.qubit_plot_options_widgets["state_slider"]
             else:
-                which_widget = self.qubit_plot_options_widgets[
-                    "multi_state_selector"
-                ]
+                which_widget = self.qubit_plot_options_widgets["multi_state_selector"]
 
             if isinstance(
                 self.active_qubit, (scq.ZeroPi, scq.FluxQubit, scq.Cos2PhiQubit)
