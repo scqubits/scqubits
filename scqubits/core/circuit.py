@@ -29,10 +29,8 @@ import itertools
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy as np
 import qutip as qt
 import scipy as sp
-import sympy as sm
 
 from matplotlib import pyplot as plt
 from numpy import ndarray
@@ -681,7 +679,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         self.hilbert_space = hilbert_space
 
-    def _generate_symbols_list(self, var_str: str, iterable_list: List[int] or ndarray) -> List[Symbol]:
+    def _generate_symbols_list(self, var_str: str, iterable_list: List[int] or ndarray) -> List[sm.Symbol]:
         """
         Returns the list of symbols generated using the var_str + iterable as the name
         of the symbol.
@@ -1805,6 +1803,15 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 sm.symbols("Qs" + str(var_index)
                            ), sm.symbols("Q" + str(var_index)) ** 2
             )
+            expr_modified = expr_modified.replace(
+                sm.symbols("ng" + str(var_index)
+                           ), sm.symbols("n_g" + str(var_index))
+            )
+            # replace I by 1
+            expr_modified = expr_modified.replace(
+                sm.symbols("I"
+                           ), 1
+            )
         for ext_flux_var in self.external_fluxes: # removing 1.0 decimals from flux vars
             expr_modified = expr_modified.replace(1.0 * ext_flux_var, ext_flux_var)
         return expr_modified
@@ -2438,6 +2445,8 @@ class Circuit(Subsystem):
         -------
             An instance of class `Circuit`
         """
+        # initialize the printing
+        sm.init_printing()
         self.is_child = False
         self.symbolic_circuit: SymbolicCircuit = symbolic_circuit
 
@@ -2743,6 +2752,36 @@ class Circuit(Subsystem):
                     "vθ" + str(var_index)), sm.symbols("\\dot{θ_" + str(var_index) + "}"))
 
         return lagrangian
+
+    def show_offset_charges(self) -> List[sm.Equality]:
+        """
+        Returns the variable transformation between offset charges of periodic variables and the 
+        offset node charges
+
+        Returns
+        -------
+        sm.Expr
+            Human redeable form of expressions of offset charges in terms of node offset charges
+        """
+        trans_mat = self.transformation_matrix
+        node_offset_charge_vars = [sm.symbols("q_g" + str(index)) for index in range(1, len(self.symbolic_circuit.nodes) + 1)]
+        periodic_offset_charge_vars = [sm.symbols("ng" + str(index)) for index in self.symbolic_circuit.var_categories['periodic']]
+        periodic_offset_charge_eqns = []
+        for idx, node_var in enumerate(periodic_offset_charge_vars):
+            periodic_offset_charge_eqns.append(self._make_expr_human_readable(sm.Eq(periodic_offset_charge_vars[idx] , np.sum(trans_mat[idx, :] * node_offset_charge_vars))))
+        return periodic_offset_charge_eqns
+
+    def show_external_fluxes(self) -> Dict[sm.Expr, Tuple["Branch",List["Branch"]]]:
+        """
+        Method returns a dictionary of Human readable external fluxes with associated branches and
+        loops (represented as lists of branches) for the current instance
+
+        Returns
+        -------
+        A dictionary of Human redeable external fluxes with their associated branches and loops
+        """
+        # return a dictionary of sympy expressions that maps to a tuple of the associated branch and a list of branches that represent the loop
+        return {self._make_expr_human_readable(self.external_fluxes[ibranch]): (self.closure_branches[ibranch], self.symbolic_circuit._find_loop(self.closure_branches[ibranch])) for ibranch in range(len(self.external_fluxes))}
 
 
 # example input strings
