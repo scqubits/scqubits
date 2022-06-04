@@ -364,8 +364,7 @@ def matrix2d(
         fig_width, fig_height = fig_width * fig.dpi, fig_height * fig.dpi
         number_of_boxes = matrix.shape[0] * matrix.shape[1]
         box_size = fig_width * fig_height / number_of_boxes
-        font_size = int(max(box_size, 8))
-        font_size = min(font_size, 2)
+        font_size = int(min(box_size / np.sqrt(2), 8))
         add_numbers_to_axes(axes, matrix, modefunction, fontsize=font_size)
 
     # shift the grid
