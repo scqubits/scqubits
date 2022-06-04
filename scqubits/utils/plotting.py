@@ -360,7 +360,13 @@ def matrix2d(
     mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.viridis, norm=nrm)
 
     if show_numbers:
-        add_numbers_to_axes(axes, matrix, modefunction)
+        fig_width, fig_height = fig.get_size_inches()
+        fig_width, fig_height = fig_width * fig.dpi, fig_height * fig.dpi
+        number_of_boxes = matrix.shape[0] * matrix.shape[1]
+        box_size = fig_width * fig_height / number_of_boxes
+        font_size = int(max(box_size, 8))
+        font_size = min(font_size, 2)
+        add_numbers_to_axes(axes, matrix, modefunction, fontsize=font_size)
 
     # shift the grid
     for axis, locs in [
