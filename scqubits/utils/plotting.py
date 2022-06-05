@@ -361,10 +361,10 @@ def matrix2d(
 
     if show_numbers:
         fig_width, fig_height = fig.get_size_inches()
-        fig_width, fig_height = fig_width * fig.dpi, fig_height * fig.dpi
+        fig_width, fig_height = fig_width, fig_height
         number_of_boxes = matrix.shape[0] * matrix.shape[1]
-        box_size = fig_width * fig_height / number_of_boxes
-        font_size = int(min(box_size / np.sqrt(2), 8))
+        min_scaling_size = np.round(fig.dpi * fig_width * fig_height / number_of_boxes) + 1  # font size of many boxes
+        font_size = min(min_scaling_size, 9)
         add_numbers_to_axes(axes, matrix, modefunction, fontsize=font_size)
 
     # shift the grid
