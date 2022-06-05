@@ -24,6 +24,8 @@ from matplotlib.figure import Axes, Figure
 from tables import Description
 from yaml import scan
 
+from scqubits.core.discretization import Grid1d
+
 try:
     from ipywidgets import (Box, Button, Checkbox, Dropdown, FloatRangeSlider,
                             FloatSlider, FloatText, HBox, Image, IntSlider,
@@ -404,13 +406,13 @@ class GUI:
         
         if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
             widget_min_text = FloatText(
-                value=-3,
+                value=gui_defaults.phi_grid_defaults["grid_min_val"],
                 description="min=",
                 step=0.01,
                 layout=range_text_layout,
             )
             widget_max_text = FloatText(
-                value=3,
+                value=gui_defaults.phi_grid_defaults["grid_max_val"],
                 description="max=",
                 step=0.01,
                 layout=range_text_layout,
@@ -811,7 +813,11 @@ class GUI:
             value_dict["eigenvalue_states"] = self.qubit_plot_options_widgets[
                 "multi_state_selector"
             ].get_interact_value()
-            value_dict["xlim"] = (self.ranges_widgets["Wavefunction"]["min"].get_interact_value(), self.ranges_widgets["Wavefunction"]["max"].get_interact_value())
+            value_dict["phi_grid"] = Grid1d(
+                min_val=self.ranges_widgets["Wavefunction"]["min"].get_interact_value(),
+                max_val=self.ranges_widgets["Wavefunction"]["max"].get_interact_value(),
+                pt_count=gui_defaults.phi_grid_defaults["grid_pt_count"]
+            )
 
         self.wavefunctions_plot(**value_dict)
 
@@ -1199,7 +1205,7 @@ class GUI:
         eigenvalue_states: Union[List[int], int],
         mode_value: str,
         scale_value: Optional[float],
-        xlim = None,
+        phi_grid: Optional[Grid1d],
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
         """This is the method associated with qubit_plot_interactive that allows for
@@ -1232,7 +1238,7 @@ class GUI:
                 )
             else:
                 self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
-                    which=eigenvalue_states, mode=mode_value, scaling=scale_value, xlim = xlim,
+                    which=eigenvalue_states, mode=mode_value, scaling=scale_value, phi_grid=phi_grid
                 )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
