@@ -10,67 +10,69 @@
 #    LICENSE file in the root directory of this source tree.
 ############################################################################
 
-
 import numpy as np
 
+EL_range = {"min": 1e-5, "max": 10.0}
+EJ_range = {"min": 1e-5, "max": 70.0}
+EC_range = {"min": 1e-5, "max": 10.0}
+flux_range = {"min": 0.0, "max": 1.0}
+ng_range = {"min": 0.0, "max": 1.0}
+int_range = {"min": 1, "max": 30}
+float_range = {"min": 0.0, "max": 30.0}
+ncut_range = {"min": 10, "max": 50}
 
 global_defaults = {
     "mode_wavefunc": "real",
     "mode_matrixelem": "abs",
-    "ng": {"min": 0, "max": 1},
-    "flux": {"min": 0, "max": 1},
-    "EJ": {"min": 1e-10, "max": 70},
-    "EC": {"min": 1e-10, "max": 5},
-    "int": {"min": 1, "max": 30},
-    "float": {"min": 0, "max": 30},
+    "ng": ng_range,
+    "flux": flux_range,
+    "EJ": EJ_range,
+    "EC": EC_range,
+    "int": int_range,
+    "float": float_range,
+    "scale": 1,
+    "num_sample": 150,
 }
 
 transmon_defaults = {
     **global_defaults,
     "scan_param": "ng",
     "operator": "n_operator",
-    "ncut": {"min": 10, "max": 50},
-    "scale": 1,
-    "num_sample": 150,
+    "ncut": ncut_range,
 }
 
 tunabletransmon_defaults = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_operator",
-    "EJmax": global_defaults["EJ"],
-    "d": {"min": 0, "max": 1},
-    "ncut": {"min": 10, "max": 50},
-    "scale": 1,
-    "num_sample": 150,
+    "EJmax": EJ_range,
+    "d": {"min": 0.0, "max": 1.0},
+    "ncut": ncut_range,
 }
 
 fluxonium_defaults = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_operator",
-    "EC": {"min": 1e-2, "max": 5},
-    "EL": {"min": 1e-10, "max": 2},
+    "EL": EL_range,
     "cutoff": {"min": 10, "max": 120},
-    "scale": 1,
-    "num_sample": 150,
 }
 
 fluxqubit_defaults = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_1_operator",
-    "ncut": {"min": 5, "max": 30},
-    "EJ1": global_defaults["EJ"],
-    "EJ2": global_defaults["EJ"],
-    "EJ3": global_defaults["EJ"],
-    "ECJ1": global_defaults["EC"],
-    "ECJ2": global_defaults["EC"],
-    "ECJ3": global_defaults["EC"],
-    "ECg1": global_defaults["EC"],
-    "ECg2": global_defaults["EC"],
-    "ng1": global_defaults["ng"],
-    "ng2": global_defaults["ng"],
+    "ncut": ncut_range,
+    "EJ1": EJ_range,
+    "EJ2": EJ_range,
+    "EJ3": EJ_range,
+    "ECJ1": EC_range,
+    "ECJ2": EC_range,
+    "ECJ3": EC_range,
+    "ECg1": EC_range,
+    "ECg2": EC_range,
+    "ng1": ng_range,
+    "ng2": ng_range,
     "scale": None,
     "num_sample": 100,
 }
@@ -79,11 +81,11 @@ zeropi_defaults = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_theta_operator",
-    "ncut": {"min": 5, "max": 50},
-    "EL": {"min": 1e-10, "max": 3},
-    "ECJ": {"min": 1e-10, "max": 30},
-    "dEJ": {"min": 0, "max": 1},
-    "dCJ": {"min": 0, "max": 1},
+    "ncut": ncut_range,
+    "EL": EL_range,
+    "ECJ": EC_range,
+    "dEJ": {"min": 0.0, "max": 1.0},
+    "dCJ": {"min": 0.0, "max": 1.0},
     "scale": None,
     "num_sample": 50,
 }
@@ -92,13 +94,13 @@ fullzeropi_defaults = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "n_theta_operator",
-    "ncut": {"min": 5, "max": 50},
-    "EL": {"min": 1e-10, "max": 3},
-    "ECJ": {"min": 1e-10, "max": 30},
-    "dEJ": {"min": 0, "max": 1},
-    "dCJ": {"min": 0, "max": 1},
-    "dEL": {"min": 0, "max": 1},
-    "dC": {"min": 0, "max": 1},
+    "ncut": ncut_range,
+    "EL": EL_range,
+    "ECJ": EC_range,
+    "dEJ": {"min": 0.0, "max": 1.0},
+    "dCJ": {"min": 0.0, "max": 1.0},
+    "dEL": {"min": 0.0, "max": 1.0},
+    "dC": {"min": 0.0, "max": 1.0},
     "zeropi_cutoff": {"min": 5, "max": 30},
     "zeta_cutoff": {"min": 5, "max": 30},
     "scale": None,
@@ -109,12 +111,12 @@ cos2phiqubit_defaults = {
     **global_defaults,
     "scan_param": "flux",
     "operator": "phi_operator",
-    "EL": {"min": 1e-10, "max": 5},
-    "ECJ": {"min": 1e-10, "max": 30},
+    "EL": EL_range,
+    "ECJ": EC_range,
     "dEJ": {"min": 0, "max": 0.99},
     "dL": {"min": 0, "max": 0.99},
     "dCJ": {"min": 0, "max": 0.99},
-    "ncut": {"min": 5, "max": 50},
+    "ncut": ncut_range,
     "zeta_cut": {"min": 10, "max": 50},
     "phi_cut": {"min": 5, "max": 30},
     "scale": None,
@@ -201,7 +203,7 @@ paramvals_from_papers = {
             "params": {
                 "EJ": 6.0,
                 "ECJ": 2.28,
-                "ECS": 0.184,
+                "EC": 0.184,
                 "EL": 0.38,
             },
             "link": "https://www.researchgate.net/publication/349840068_Experimental_Realization_of_a_Protected_Superconducting_Circuit_Derived_from_the_0_-_p_Qubit"

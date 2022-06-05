@@ -216,12 +216,6 @@ class GUI:
         ].get_interact_value()
         operator_dropdown_list = self.get_operators()
         scan_dropdown_list = self.qubit_scan_params.keys()
-        mode_dropdown_list = [
-            ("Re(·)", "real"),
-            ("Im(·)", "imag"),
-            ("|·|", "abs"),
-            (u"|\u00B7|\u00B2", "abs_sqr"),
-        ]
         file = open(self.active_qubit._image_filename, "rb")
         image = file.read()
 
@@ -237,7 +231,7 @@ class GUI:
                 layout=std_layout,
             ),
             "mode_dropdown": Dropdown(
-                options=mode_dropdown_list,
+                options=gui_defaults.mode_dropdown_list,
                 description="Plot as:",
                 disabled=False,
                 layout=std_layout,
@@ -603,29 +597,35 @@ class GUI:
             self.qubit_plot_options_widgets["wavefunction_scale_slider"].disabled = True
 
     def manual_update_checkbox(self, change) -> None:
+        qubit_plot_options_blacklist = ["qubit_info_image_widget", "common_params_dropdown", "link_HTML"]
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
 
             for widget in self.qubit_params_widgets.values():
                 widget.unobserve(self.current_plot_option_refresh, names="value")
-            for widget in self.qubit_plot_options_widgets.values():
-                widget.unobserve(self.current_plot_option_refresh, names="value")
+            for widget_name, widget in self.qubit_plot_options_widgets.items():
+                if widget_name not in qubit_plot_options_blacklist:
+                    widget.unobserve(self.current_plot_option_refresh, names="value")
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True
 
             for widget in self.qubit_params_widgets.values():
                 widget.observe(self.current_plot_option_refresh, names="value")
             for widget in self.qubit_plot_options_widgets.values():
-                widget.observe(self.current_plot_option_refresh, names="value")
+                if widget_name not in qubit_plot_options_blacklist:
+                    widget.observe(self.current_plot_option_refresh, names="value")
             self.current_plot_option_refresh(None)
 
     def manual_update_button_onclick(self, change) -> None:
         self.current_plot_option_refresh(None)
 
     def common_params_dropdown_value_refresh(self, change): 
-        self.qubit_plot_options_widgets["common_params_dropdown"].unobserve(
-            self.common_params_dropdown_params_refresh, names="value"
-        )
+        if not self.manual_update_and_save_widgets[
+            "manual_update_checkbox"
+        ].get_interact_value():
+            self.qubit_plot_options_widgets["common_params_dropdown"].unobserve(
+                self.common_params_dropdown_params_refresh, names="value"
+            )
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
@@ -635,10 +635,12 @@ class GUI:
             for param_name, param_val in gui_defaults.paramvals_from_papers[current_qubit][current_dropdown_value]["params"].items():
                 if self.qubit_params_widgets[param_name].get_interact_value() != param_val:
                     self.qubit_plot_options_widgets["common_params_dropdown"].value = "Manual"
-        self.qubit_plot_options_widgets["common_params_dropdown"].observe(
-            self.common_params_dropdown_params_refresh, names="value"
-        )
-
+        if not self.manual_update_and_save_widgets[
+            "manual_update_checkbox"
+        ].get_interact_value():
+            self.qubit_plot_options_widgets["common_params_dropdown"].observe(
+                self.common_params_dropdown_params_refresh, names="value"
+            )
 
     def common_params_dropdown_params_refresh(self, change): 
         self.unobserve_ranges()
