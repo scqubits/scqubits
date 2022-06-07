@@ -877,7 +877,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             and "Nh" not in str(i)
         ]
         for cnst in constants:
-            hamiltonian -= i * coeff_dict[cnst]
+            hamiltonian -= cnst * coeff_dict[cnst]
 
         # associate an identity matrix with the external flux vars
         for ext_flux in self.external_fluxes:
