@@ -25,7 +25,7 @@ from sympy import symbols
 
 import scqubits.io_utils.fileio_serializers as serializers
 
-from scqubits.utils.misc import is_float_string
+from scqubits.utils.misc import flatten_list, is_float_string
 
 
 def process_word(word: str) -> Union[float, symbols]:
@@ -1312,7 +1312,7 @@ class SymbolicCircuit(serializers.Serializable):
             # code to handle two different capacitive islands in the circuit.
             if node_sets[node_set_index] == []:
                 for node in circ_copy.nodes:
-                    if node not in [q for p in node_sets for q in p]:
+                    if node not in flatten_list(node_sets):
                         node_sets[node_set_index].append(node)
                         break
 
@@ -1368,6 +1368,9 @@ class SymbolicCircuit(serializers.Serializable):
         for c_branch in tree_copy:
             tree += [b for b in self.branches if is_same_branch(c_branch, b)]
 
+        # as the capacitors are removed to form the spanning tree, and as a result
+        # floating branches as well, the set of all branches which form the
+        # superconducting loops would be in circ_copy.
         superconducting_loop_branches = []
         for branch_copy in circ_copy.branches:
             for branch in self.branches:
