@@ -1167,7 +1167,8 @@ class NoisySystem(ABC):
         Returns
         -------
         time or rate: float
-            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate in inverse units.
+            decoherence time in units of :math:`2\pi ({\rm system\,\,units})`, or rate
+            in inverse units.
 
         """
 
@@ -1210,7 +1211,7 @@ class NoisySystem(ABC):
         ):  # Check if the operator is given in dense form
             # if so, use numpy's vdot and dot
             rate = np.abs(np.vdot(evecs[:, i], np.dot(noise_op, evecs[:, j]))) ** 2 * s
-        else:  # Else, we have a sparse operator, use it's own dot method.
+        else:  # Else, we have a sparse operator, use its own dot method.
             rate = np.abs(np.vdot(evecs[:, i], noise_op.dot(evecs[:, j]))) ** 2 * s
 
         if get_rate:

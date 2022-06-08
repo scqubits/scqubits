@@ -49,8 +49,9 @@ DFC.EJ = 4.6
 
 
 def test_eigenvals():
-    ref_eigs = np.array([0., 0.03559404, 0.05819727, 0.09378676, 4.39927874,
-                         4.43488613])
+    ref_eigs = np.array(
+        [0.0, 0.03559404, 0.05819727, 0.09378676, 4.39927874, 4.43488613]
+    )
     eigs = DFC.eigenvals()
     generated_eigs = eigs - eigs[0]
     assert np.allclose(generated_eigs, ref_eigs)
