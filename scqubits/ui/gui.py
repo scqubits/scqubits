@@ -12,25 +12,37 @@
 
 
 import inspect
-from cProfile import label
-from itertools import dropwhile
-from re import I
-from socket import EAI_BADFLAGS
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.figure import Axes, Figure
-from tables import Description
-from yaml import scan
 
 from scqubits.core.discretization import Grid1d
 
 try:
-    from ipywidgets import (Box, Button, Checkbox, Dropdown, FloatRangeSlider,
-                            FloatSlider, FloatText, HBox, Image, IntSlider,
-                            IntText, Label, Layout, Output, SelectMultiple,
-                            Tab, Text, ToggleButtons, VBox, HTML)
+    from ipywidgets import (
+        HTML,
+        Box,
+        Button,
+        Checkbox,
+        Dropdown,
+        FloatRangeSlider,
+        FloatSlider,
+        FloatText,
+        HBox,
+        Image,
+        IntSlider,
+        IntText,
+        Label,
+        Layout,
+        Output,
+        SelectMultiple,
+        Tab,
+        Text,
+        ToggleButtons,
+        VBox,
+    )
 except ImportError:
     _HAS_IPYWIDGETS = False
 else:
@@ -67,7 +79,7 @@ class GUI:
         # Display Elements
         self.fig: Figure
         self.plot_output: Output = Output(
-            layout=Layout(width='100%', justify_content='center')
+            layout=Layout(width="100%", justify_content="center")
         )
         self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
@@ -128,7 +140,10 @@ class GUI:
             ),
         }
 
-    def initialize_manual_update_and_save_widgets_dict(self):
+    def initialize_manual_update_and_save_widgets_dict(self) -> None:
+        """Creates all the widgets associated with manually updating and 
+        saving plots.
+        """
         self.manual_update_and_save_widgets = {
             "manual_update_checkbox": Checkbox(
                 value=False,
@@ -151,7 +166,8 @@ class GUI:
 
     def set_qubit(self, qubit_name: str) -> None:
         """Sets up the chosen qubit to be the active qubit
-        and updates the defaults and widgets accordingly.
+        and updates the activedefaults and widget dictionaries 
+        accordingly.
 
         Parameters
         ----------
@@ -193,7 +209,7 @@ class GUI:
         """
         Initializes qubit_params and qubit_scan_params.
         Note that qubit_scan_params will be used to create the
-        dropdown options.
+        scan parameter dropdown options.
         """
         self.qubit_params.clear()
         self.qubit_scan_params.clear()
@@ -208,8 +224,7 @@ class GUI:
                 self.qubit_scan_params[param_name] = param_val
 
     def initialize_qubit_plot_options_widgets_dict(self) -> None:
-        """
-        Creates all the widgets that will be used for general plotting options.
+        """Creates all the widgets that will be used for general plotting options.
         """
         std_layout = Layout(width="95%")
 
@@ -246,11 +261,7 @@ class GUI:
                 layout=std_layout,
             ),
             "state_slider": IntSlider(
-                min=1,
-                max=10,
-                value=5,
-                continuous_update=False,
-                layout=std_layout,
+                min=1, max=10, value=5, continuous_update=False, layout=std_layout,
             ),
             "show_numbers_checkbox": Checkbox(
                 value=False, description="Show values", disabled=False, indent=False
@@ -287,25 +298,25 @@ class GUI:
                 continuous_update=False,
                 layout=std_layout,
             )
-        
+
         if current_qubit in gui_defaults.paramvals_from_papers.keys():
             common_params_dropdown_list = ["Manual"]
-            common_params_dropdown_list.extend(gui_defaults.paramvals_from_papers[current_qubit].keys())
+            common_params_dropdown_list.extend(
+                gui_defaults.paramvals_from_papers[current_qubit].keys()
+            )
             self.qubit_plot_options_widgets["common_params_dropdown"] = Dropdown(
-                options=common_params_dropdown_list,
-                disabled=False,
-                layout=std_layout
+                options=common_params_dropdown_list, disabled=False, layout=std_layout
             )
         else:
-            self.qubit_plot_options_widgets["common_params_dropdown"] = Label(value="None")
-        
-        self.qubit_plot_options_widgets["link_HTML"] = HTML(
-            value=""
-        )
+            self.qubit_plot_options_widgets["common_params_dropdown"] = Label(
+                value="None"
+            )
+
+        self.qubit_plot_options_widgets["link_HTML"] = HTML(value="")
 
     def initialize_qubit_params_widgets_dict(self) -> None:
-        """Creates all the widgets that will be used
-        for changing the parameter values for the specified qubit.
+        """Creates all the widgets associated with the parameters of the 
+        chosen qubit.
         """
         self.qubit_params_widgets.clear()
         std_layout = Layout(width="45%")
@@ -350,6 +361,9 @@ class GUI:
                 )
 
     def initialize_ranges_widgets_dict(self) -> None:
+        """Creates all the widgets associated with changing the ranges of 
+        certain qubit plot options as well as all of the qubit's parameters. 
+        """
         self.ranges_widgets.clear()
         range_text_layout = Layout(width="45%")
         total_dict = {**self.qubit_plot_options_widgets, **self.qubit_params_widgets}
@@ -360,14 +374,10 @@ class GUI:
 
             if isinstance(widget, IntSlider):
                 widget_min_text = IntText(
-                    value=widget.min,
-                    description="min=",
-                    layout=range_text_layout,
+                    value=widget.min, description="min=", layout=range_text_layout,
                 )
                 widget_max_text = IntText(
-                    value=widget.max,
-                    description="max=",
-                    layout=range_text_layout,
+                    value=widget.max, description="max=", layout=range_text_layout,
                 )
             elif isinstance(widget, FloatSlider):
                 widget_min_text = FloatText(
@@ -385,16 +395,12 @@ class GUI:
             elif isinstance(widget, SelectMultiple):
                 min = widget.options[0]
                 max = widget.options[-1]
-                
+
                 widget_min_text = IntText(
-                    value=min,
-                    description="min=",
-                    layout=range_text_layout,
+                    value=min, description="min=", layout=range_text_layout,
                 )
                 widget_max_text = IntText(
-                    value=max,
-                    description="max=",
-                    layout=range_text_layout,
+                    value=max, description="max=", layout=range_text_layout,
                 )
             else:
                 continue
@@ -403,8 +409,10 @@ class GUI:
                 "min": widget_min_text,
                 "max": widget_max_text,
             }
-        
-        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+
+        if isinstance(
+            self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
+        ):
             widget_min_text = FloatText(
                 value=gui_defaults.phi_grid_defaults["grid_min_val"],
                 description="min=",
@@ -423,18 +431,27 @@ class GUI:
             }
 
     def initialize_tab_widget(self) -> None:
+        """Creates each of the tabs in self.tab_widget
+        """
         qubit_plot_tab = self.qubit_plot_layout()
         param_ranges_tab = self.ranges_layout()
         qubit_info_tab = self.qubit_info_layout()
         common_qubit_params_tab = self.common_qubit_params_layout()
 
-        tab_titles = ["Qubit Plot", "Ranges", "Qubit Info", 'Common Params']
-        self.tab_widget.children = [qubit_plot_tab, param_ranges_tab, qubit_info_tab, common_qubit_params_tab]
+        tab_titles = ["Qubit Plot", "Ranges", "Qubit Info", "Common Params"]
+        self.tab_widget.children = [
+            qubit_plot_tab,
+            param_ranges_tab,
+            qubit_info_tab,
+            common_qubit_params_tab,
+        ]
 
         for title_index in range(len(self.tab_widget.children)):
             self.tab_widget.set_title(title_index, tab_titles[title_index])
 
     def initialize_display(self) -> None:
+        """Creates the components of the GUI and displays all these components.
+        """
         qubit_and_plot_choice_display = self.qubit_and_plot_ToggleButtons_layout()
         self.initialize_tab_widget()
         manual_update_display = self.manual_update_and_save_layout()
@@ -447,6 +464,8 @@ class GUI:
         )
 
     def initialize_observe(self) -> None:
+        """Links all the necessary widgets to their desired function.
+        """
         self.qubit_and_plot_ToggleButtons["qubit_buttons"].observe(
             self.qubit_change, names="value"
         )
@@ -467,12 +486,12 @@ class GUI:
 
     # Retrieval Methods------------------------------------------------------------------
     def get_operators(self) -> List[str]:
-        """Returns a list of operators for the active_qubit.
+        """Obtains the operators for the active qubit.
         Note that this list omits any operators that start with "_".
 
         Returns
         -------
-        List[ str ]
+            List of operators for the active_qubit
         """
         operator_list = []
         for name, val in inspect.getmembers(self.active_qubit):
@@ -481,12 +500,25 @@ class GUI:
         return operator_list
 
     def get_current_values(self) -> Dict[str, Union[int, float]]:
+        """Obtains the current values from each of the qubit parameter 
+        sliders. 
+
+        Returns
+        -------
+            Dictionary of the current value for each of the qubit's parameters
+        """
         current_values_dict = {}
         for param_name, widget in self.qubit_params_widgets.items():
             current_values_dict[param_name] = widget.get_interact_value()
         return current_values_dict
 
-    def get_plot_option_refresh(self):
+    def get_plot_option_refresh(self) -> Callable[[Any], None]:
+        """Obtains the current plot option
+
+        Returns
+        -------
+            Method pertaining to refreshing the current plot option.
+        """
         current_plot_option = self.qubit_and_plot_ToggleButtons[
             "plot_buttons"
         ].get_interact_value()
@@ -503,17 +535,17 @@ class GUI:
         return plot_option_refresh
 
     # Observe Methods-------------------------------------------------------------------
-    def observe_ranges(self):
+    def observe_ranges(self) -> None:
         for text_widgets in self.ranges_widgets.values():
             text_widgets["min"].observe(self.ranges_update, names="value")
             text_widgets["max"].observe(self.ranges_update, names="value")
 
-    def unobserve_ranges(self):
+    def unobserve_ranges(self) -> None:
         for text_widgets in self.ranges_widgets.values():
             text_widgets["min"].unobserve(self.ranges_update, names="value")
             text_widgets["max"].unobserve(self.ranges_update, names="value")
 
-    def observe_plot(self):
+    def observe_plot(self) -> None:
         self.qubit_plot_options_widgets["scan_dropdown"].observe(
             self.scan_dropdown_refresh, names="value"
         )
@@ -530,7 +562,11 @@ class GUI:
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
-            qubit_plot_options_blacklist = ["qubit_info_image_widget", "common_params_dropdown", "link_HTML"]
+            qubit_plot_options_blacklist = [
+                "qubit_info_image_widget",
+                "common_params_dropdown",
+                "link_HTML",
+            ]
 
             for widget in self.qubit_params_widgets.values():
                 widget.observe(self.current_plot_option_refresh, names="value")
@@ -541,7 +577,7 @@ class GUI:
 
             self.current_plot_option_refresh(None)
 
-    def unobserve_plot(self):
+    def unobserve_plot(self) -> None:
         self.qubit_plot_options_widgets["scan_dropdown"].unobserve(
             self.scan_dropdown_refresh, names="value"
         )
@@ -558,11 +594,17 @@ class GUI:
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
-            qubit_plot_options_blacklist = ["qubit_info_image_widget", "common_params_dropdown", "link_HTML"]
+            qubit_plot_options_blacklist = [
+                "qubit_info_image_widget",
+                "common_params_dropdown",
+                "link_HTML",
+            ]
 
             for widget in self.qubit_params_widgets.values():
                 widget.unobserve(self.current_plot_option_refresh, names="value")
-                widget.unobserve(self.common_params_dropdown_value_refresh, names="value")
+                widget.unobserve(
+                    self.common_params_dropdown_value_refresh, names="value"
+                )
             for widget_name, widget in self.qubit_plot_options_widgets.items():
                 if widget_name not in qubit_plot_options_blacklist:
                     widget.unobserve(self.current_plot_option_refresh, names="value")
@@ -576,7 +618,7 @@ class GUI:
         self.observe_ranges()
         self.observe_plot()
 
-    def scan_dropdown_refresh(self, change) -> None:        
+    def scan_dropdown_refresh(self, change) -> None:
         self.qubit_params_widgets[change.old].disabled = False
         self.qubit_params_widgets[change.new].disabled = True
 
@@ -599,7 +641,11 @@ class GUI:
             self.qubit_plot_options_widgets["wavefunction_scale_slider"].disabled = True
 
     def manual_update_checkbox(self, change) -> None:
-        qubit_plot_options_blacklist = ["qubit_info_image_widget", "common_params_dropdown", "link_HTML"]
+        qubit_plot_options_blacklist = [
+            "qubit_info_image_widget",
+            "common_params_dropdown",
+            "link_HTML",
+        ]
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
 
@@ -621,7 +667,7 @@ class GUI:
     def manual_update_button_onclick(self, change) -> None:
         self.current_plot_option_refresh(None)
 
-    def common_params_dropdown_value_refresh(self, change): 
+    def common_params_dropdown_value_refresh(self, change) -> None:
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
@@ -631,12 +677,21 @@ class GUI:
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
-        current_dropdown_value = self.qubit_plot_options_widgets["common_params_dropdown"].get_interact_value()
+        current_dropdown_value = self.qubit_plot_options_widgets[
+            "common_params_dropdown"
+        ].get_interact_value()
 
-        if current_dropdown_value != "Manual": 
-            for param_name, param_val in gui_defaults.paramvals_from_papers[current_qubit][current_dropdown_value]["params"].items():
-                if self.qubit_params_widgets[param_name].get_interact_value() != param_val:
-                    self.qubit_plot_options_widgets["common_params_dropdown"].value = "Manual"
+        if current_dropdown_value != "Manual":
+            for param_name, param_val in gui_defaults.paramvals_from_papers[
+                current_qubit
+            ][current_dropdown_value]["params"].items():
+                if (
+                    self.qubit_params_widgets[param_name].get_interact_value()
+                    != param_val
+                ):
+                    self.qubit_plot_options_widgets[
+                        "common_params_dropdown"
+                    ].value = "Manual"
         if not self.manual_update_and_save_widgets[
             "manual_update_checkbox"
         ].get_interact_value():
@@ -644,26 +699,38 @@ class GUI:
                 self.common_params_dropdown_params_refresh, names="value"
             )
 
-    def common_params_dropdown_params_refresh(self, change): 
+    def common_params_dropdown_params_refresh(self, change) -> None:
         self.unobserve_ranges()
         self.unobserve_plot()
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
-        current_dropdown_value = self.qubit_plot_options_widgets["common_params_dropdown"].get_interact_value()
+        current_dropdown_value = self.qubit_plot_options_widgets[
+            "common_params_dropdown"
+        ].get_interact_value()
 
         if current_dropdown_value != "Manual":
-            params = gui_defaults.paramvals_from_papers[current_qubit][current_dropdown_value]["params"]
+            params = gui_defaults.paramvals_from_papers[current_qubit][
+                current_dropdown_value
+            ]["params"]
             for param_name, param_val in params.items():
                 param_max = self.ranges_widgets[param_name]["max"].get_interact_value()
                 param_min = self.ranges_widgets[param_name]["min"].get_interact_value()
 
                 if param_val < param_min:
-                    self.ranges_widgets[param_name]["min"].value = self.active_defaults[param_name]["min"]
-                    self.qubit_params_widgets[param_name].min = self.active_defaults[param_name]["min"]
-                if param_val > param_max: 
-                    self.ranges_widgets[param_name]["max"].value = np.ceil(param_val/10)*10
-                    self.qubit_params_widgets[param_name].max = np.ceil(param_val/10)*10
+                    self.ranges_widgets[param_name]["min"].value = self.active_defaults[
+                        param_name
+                    ]["min"]
+                    self.qubit_params_widgets[param_name].min = self.active_defaults[
+                        param_name
+                    ]["min"]
+                if param_val > param_max:
+                    self.ranges_widgets[param_name]["max"].value = (
+                        np.ceil(param_val / 10) * 10
+                    )
+                    self.qubit_params_widgets[param_name].max = (
+                        np.ceil(param_val / 10) * 10
+                    )
 
                 self.qubit_params_widgets[param_name].value = param_val
         self.observe_ranges()
@@ -681,7 +748,7 @@ class GUI:
                 if widget_name == "state_slider":
                     min_value = 1
                 elif widget_name == "Wavefunction":
-                    min_value=new_min
+                    min_value = new_min
                 elif widget_name in self.qubit_params_widgets.keys():
                     min_value = self.active_defaults[widget_name]["min"]
                 else:
@@ -690,27 +757,29 @@ class GUI:
                 new_min = min_value
             if new_max <= new_min:
                 changed_widget_key = change["owner"].description
-                if (widget_name == "state_slider" and new_min == 1) or (widget_name != "Wavefunction" and new_min == 0):
+                if (widget_name == "state_slider" and new_min == 1) or (
+                    widget_name != "Wavefunction" and new_min == 0
+                ):
                     text_widgets["max"].value = new_min + text_widgets["min"].step
                     new_max = new_min + text_widgets["min"].step
-                elif changed_widget_key == "min=": 
+                elif changed_widget_key == "min=":
                     text_widgets["min"].value = new_max - text_widgets["max"].step
                     new_min = new_max - text_widgets["max"].step
-                else: 
+                else:
                     text_widgets["max"].value = new_min + text_widgets["min"].step
                     new_max = new_min + text_widgets["min"].step
-                    
+
             if widget_name in self.qubit_plot_options_widgets.keys():
                 widget = self.qubit_plot_options_widgets[widget_name]
             elif widget_name in self.qubit_params_widgets.keys():
                 widget = self.qubit_params_widgets[widget_name]
             else:
                 widget = None
-                
+
             if isinstance(widget, SelectMultiple):
                 current_values = list(widget.value)
                 new_values = []
-                widget.options = range(new_min, new_max+1)
+                widget.options = range(new_min, new_max + 1)
                 for value in current_values:
                     if value in widget.options:
                         new_values.append(value)
@@ -718,34 +787,40 @@ class GUI:
                     new_values.append(widget.options[0])
                 widget.value = new_values
             elif widget == None:
-                pass 
+                pass
             else:
                 widget.min = new_min
                 widget.max = new_max
         self.observe_ranges()
         self.observe_plot()
 
-    def save_button_clicked_action(self, change):
+    def save_button_clicked_action(self, change) -> None:
         self.fig.savefig(self.manual_update_and_save_widgets["filename_text"].value)
 
-    def common_params_dropdown_link_refresh(self, change): 
+    def common_params_dropdown_link_refresh(self, change) -> None:
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
-        current_dropdown_value = self.qubit_plot_options_widgets["common_params_dropdown"].get_interact_value()
+        current_dropdown_value = self.qubit_plot_options_widgets[
+            "common_params_dropdown"
+        ].get_interact_value()
 
         if current_dropdown_value == "Manual":
-            self.qubit_plot_options_widgets["link_HTML"].value=""
-        else: 
-            link = gui_defaults.paramvals_from_papers[current_qubit][current_dropdown_value]["link"]
-            self.qubit_plot_options_widgets["link_HTML"].value = "<a href="+link+" target='_blank'>"+link+"</a>"
+            self.qubit_plot_options_widgets["link_HTML"].value = ""
+        else:
+            link = gui_defaults.paramvals_from_papers[current_qubit][
+                current_dropdown_value
+            ]["link"]
+            self.qubit_plot_options_widgets["link_HTML"].value = (
+                "<a href=" + link + " target='_blank'>" + link + "</a>"
+            )
 
     def evals_vs_paramvals_plot_refresh(self, change) -> None:
         scan_dropdown_value = self.qubit_plot_options_widgets[
             "scan_dropdown"
         ].get_interact_value()
         scan_slider = self.qubit_params_widgets[scan_dropdown_value]
-        
+
         self.plot_output.clear_output()
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
@@ -808,7 +883,7 @@ class GUI:
                 value_dict["scale_value"] = self.qubit_plot_options_widgets[
                     "wavefunction_scale_slider"
                 ].get_interact_value()
-            else: 
+            else:
                 value_dict["scale_value"] = None
             value_dict["eigenvalue_states"] = self.qubit_plot_options_widgets[
                 "multi_state_selector"
@@ -816,7 +891,7 @@ class GUI:
             value_dict["phi_grid"] = Grid1d(
                 min_val=self.ranges_widgets["Wavefunction"]["min"].get_interact_value(),
                 max_val=self.ranges_widgets["Wavefunction"]["max"].get_interact_value(),
-                pt_count=gui_defaults.phi_grid_defaults["grid_pt_count"]
+                pt_count=gui_defaults.phi_grid_defaults["grid_pt_count"],
             )
 
         self.wavefunctions_plot(**value_dict)
@@ -826,7 +901,7 @@ class GUI:
             "scan_dropdown"
         ].get_interact_value()
         scan_slider = self.qubit_params_widgets[scan_dropdown_value]
-        
+
         self.plot_output.clear_output()
         value_dict = {
             "scan_value": self.qubit_plot_options_widgets[
@@ -854,7 +929,7 @@ class GUI:
 
         self.matelem_vs_paramvals_plot(**value_dict)
 
-    def matrixelements_plot_refresh(self, change):
+    def matrixelements_plot_refresh(self, change) -> None:
         self.plot_output.clear_output()
         value_dict = {
             "operator_value": self.qubit_plot_options_widgets[
@@ -912,7 +987,7 @@ class GUI:
 
         manual_update_and_save_HBox = HBox(
             [manual_update_HBox, save_HBox,],
-            layout=Layout(width='95%', justify_content="space-between"),
+            layout=Layout(width="95%", justify_content="space-between"),
         )
 
         return manual_update_and_save_HBox
@@ -935,7 +1010,9 @@ class GUI:
                     widget_name = "Scale"
 
             range_hbox = HBox(layout=range_hbox_layout)
-            widget_label = Label(value=widget_name + ":", layout=Layout( justify_content='flex-end'))
+            widget_label = Label(
+                value=widget_name + ":", layout=Layout(justify_content="flex-end")
+            )
             range_hbox.children += (
                 widget_label,
                 HBox(
@@ -964,19 +1041,18 @@ class GUI:
 
         return qubit_info_box
 
-    def common_qubit_params_layout(self):
+    def common_qubit_params_layout(self) -> HBox:
         dropdown_box = Box(
             [self.qubit_plot_options_widgets["common_params_dropdown"]],
-            layout=Layout(width='50%')
+            layout=Layout(width="50%"),
         )
         link_box = Box(
             [self.qubit_plot_options_widgets["link_HTML"]],
-            layout=Layout(display='flex', width='50%')
+            layout=Layout(display="flex", width="50%"),
         )
 
         common_qubit_params_HBox = HBox(
-            [dropdown_box, link_box],
-            layout=Layout(width="100%")
+            [dropdown_box, link_box], layout=Layout(width="100%")
         )
 
         return common_qubit_params_HBox
@@ -1000,47 +1076,51 @@ class GUI:
         return plot_option_vbox
 
     def qubit_params_grid_layout(self) -> HBox:
-        HBox_layout = Layout(
-            display = 'flex', object_fit="contain", width="65%"
-        )
+        HBox_layout = Layout(display="flex", object_fit="contain", width="65%")
         qubit_params_grid = HBox(layout=HBox_layout)
 
         params_size = len(self.qubit_params_widgets)
-        if params_size > 6: 
-            left_right_HBox_layout = Layout(display = 'flex', flex_flow='column nowrap', object_fit="contain", width='50%')
+        if params_size > 6:
+            left_right_HBox_layout = Layout(
+                display="flex",
+                flex_flow="column nowrap",
+                object_fit="contain",
+                width="50%",
+            )
             left_HBox = HBox(layout=left_right_HBox_layout)
             right_HBox = HBox(layout=left_right_HBox_layout)
 
             counter = 1
             for param_slider in self.qubit_params_widgets.values():
-                param_slider.layout.width='95%'
-                if params_size % 2 == 0: 
-                    if counter <= params_size/2:
+                param_slider.layout.width = "95%"
+                if params_size % 2 == 0:
+                    if counter <= params_size / 2:
                         left_HBox.children += (param_slider,)
-                    else: 
+                    else:
                         right_HBox.children += (param_slider,)
-                else: 
-                    if counter <= params_size/2 + 1:
+                else:
+                    if counter <= params_size / 2 + 1:
                         left_HBox.children += (param_slider,)
-                    else: 
+                    else:
                         right_HBox.children += (param_slider,)
                 counter += 1
-            
-            qubit_params_grid.children += (left_HBox, right_HBox, )
+
+            qubit_params_grid.children += (
+                left_HBox,
+                right_HBox,
+            )
         else:
-            qubit_params_grid.layout.flex_flow="column nowrap"
+            qubit_params_grid.layout.flex_flow = "column nowrap"
             qubit_params_grid.children = list(self.qubit_params_widgets.values())
 
         return qubit_params_grid
 
-    def energy_scan_layout(
-        self,
-    ) -> Tuple[Dropdown, FloatRangeSlider, Checkbox, IntSlider]:
-        """Returns a tuple for the evals_vs_paramvals layout
+    def energy_scan_layout(self,) -> Tuple[Dropdown, Checkbox, IntSlider]:
+        """Creates the children for energy scan layout.
 
         Returns
         -------
-        Tuple
+            Tuple of plot options widgets
         """
         self.qubit_params_widgets[
             self.qubit_plot_options_widgets["scan_dropdown"].value
@@ -1055,14 +1135,12 @@ class GUI:
 
         return plot_options_widgets_tuple
 
-    def matelem_scan_layout(
-        self,
-    ) -> Tuple[Dropdown, Dropdown, FloatRangeSlider, IntSlider, Dropdown]:
-        """Returns an interactive for the matelem_vs_paramvals plot
+    def matelem_scan_layout(self,) -> Tuple[Dropdown, Dropdown, IntSlider, Dropdown]:
+        """Creates the children for matrix elements scan layout.
 
         Returns
         -------
-        widgets.interactive
+            Tuple of plot options widgets
         """
         self.qubit_plot_options_widgets["mode_dropdown"].value = self.active_defaults[
             "mode_matrixelem"
@@ -1081,12 +1159,18 @@ class GUI:
 
         return plot_options_widgets_tuple
 
-    def wavefunctions_layout(self):
-        """Returns an interactive for the wavefunction plot
+    def wavefunctions_layout(
+        self,
+    ) -> Union[
+        Tuple[Label],
+        Tuple[Union[IntSlider, SelectMultiple], Dropdown],
+        Tuple[Union[IntSlider, SelectMultiple], Dropdown, Checkbox, IntSlider],
+    ]:
+        """Creates the children for the wavefunctions layout.
 
         Returns
         -------
-        widgets.interactive
+            Tuple of plot options widgets
         """
         if isinstance(self.active_qubit, scq.FullZeroPi):
             plot_options_widgets_tuple = (Label(value="This not implemented"),)
@@ -1101,14 +1185,12 @@ class GUI:
             if isinstance(
                 self.active_qubit, (scq.FluxQubit, scq.ZeroPi, scq.Cos2PhiQubit)
             ):
-                self.qubit_plot_options_widgets["state_slider"].description = "State No."
-                which_widget = self.qubit_plot_options_widgets[
+                self.qubit_plot_options_widgets[
                     "state_slider"
-                ]
+                ].description = "State No."
+                which_widget = self.qubit_plot_options_widgets["state_slider"]
             else:
-                which_widget = self.qubit_plot_options_widgets[
-                    "multi_state_selector"
-                ]
+                which_widget = self.qubit_plot_options_widgets["multi_state_selector"]
 
             if isinstance(
                 self.active_qubit, (scq.ZeroPi, scq.FluxQubit, scq.Cos2PhiQubit)
@@ -1127,12 +1209,14 @@ class GUI:
 
         return plot_options_widgets_tuple
 
-    def matelem_layout(self):
-        """Returns an interactive for the matrix elements plot.
+    def matelem_layout(
+        self,
+    ) -> Tuple[Dropdown, IntSlider, Dropdown, Checkbox, Checkbox]:
+        """Creates the children for matrix elements layout.
 
         Returns
         -------
-        widgets.interactive
+            Tuple of plot options widgets
         """
         self.qubit_plot_options_widgets["mode_dropdown"].value = self.active_defaults[
             "mode_matrixelem"
@@ -1161,8 +1245,8 @@ class GUI:
         subtract_ground_tf: bool,
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for
-        us to interact with plot_evals_vs_paramvals().
+        """This method will refresh the energy vs paramvals plot using the current 
+        values of the plot options widgets as well as the qubit param widgets.
 
         Parameters
         ----------
@@ -1208,9 +1292,8 @@ class GUI:
         phi_grid: Optional[Grid1d],
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for
-        us to interact with plot_wavefunction(). Namely, this method is for
-        the qubits that have an option for scaling the wavefunction amplitudes.
+        """This method will refresh the wavefunctions plot using the current 
+        values of the plot options widgets as well as the qubit param widgets.
 
         Parameters
         ----------
@@ -1220,9 +1303,11 @@ class GUI:
         mode_value:
             Current value of the mode (e.g. real, imaginary, etc.)
 
-        manual_scale_tf:
-
         scale_value:
+            The current value for the wavefunction scale
+        
+        phi_grid: 
+            Specifies the domain over which the wavefunction will be plotted.
 
         **params:
             Dictionary of current qubit parameter values (taken from the sliders)
@@ -1238,7 +1323,10 @@ class GUI:
                 )
             else:
                 self.fig, ax = self.active_qubit.plot_wavefunction(  # type:ignore
-                    which=eigenvalue_states, mode=mode_value, scaling=scale_value, phi_grid=phi_grid
+                    which=eigenvalue_states,
+                    mode=mode_value,
+                    scaling=scale_value,
+                    phi_grid=phi_grid,
                 )
             self.fig.canvas.header_visible = False
             self.fig.set_figwidth(gui_defaults.FIG_WIDTH_INCHES)
@@ -1255,8 +1343,8 @@ class GUI:
         mode_value: str,
         **params: Union[Tuple[float, float], float, int]
     ) -> None:
-        """This is the method associated with qubit_plot_interactive that allows for
-        us  to interact with plot_matelem_vs_paramvals().
+        """This method will refresh the matrix elements vs paramvals plot using the 
+        current values of the plot options widgets as well as the qubit param widgets.
 
         Parameters
         ----------
@@ -1306,8 +1394,8 @@ class GUI:
         show3d_tf: bool,
         **params: Union[Tuple[float, float], float, int]
     ):
-        """This is the method associated with qubit_plot_interactive that allows for
-        us to interact with plot_matrixelements().
+        """This method will refresh the matrix elements plot using the current 
+        values of the plot options widgets as well as the qubit param widgets.
 
         Parameters
         ----------
