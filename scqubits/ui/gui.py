@@ -188,7 +188,7 @@ class GUI:
     def initialize_qubit(self, qubit_name: str) -> None:
         """Initializes self.active_qubit to the user's choice
         using the chosen qubit's default parameters.
-
+ 
         Parameters
         ----------
         qubit_name:
@@ -659,7 +659,7 @@ class GUI:
 
             for widget in self.qubit_params_widgets.values():
                 widget.observe(self.current_plot_option_refresh, names="value")
-            for widget in self.qubit_plot_options_widgets.values():
+            for widget_name, widget in self.qubit_plot_options_widgets.items():
                 if widget_name not in qubit_plot_options_blacklist:
                     widget.observe(self.current_plot_option_refresh, names="value")
             self.current_plot_option_refresh(None)
