@@ -519,7 +519,7 @@ class GUI:
         for param_name, widget in self.qubit_params_widgets.items():
             current_values_dict[param_name] = widget.get_interact_value()
         return current_values_dict
-    
+
     def get_plot_option_refresh(self) -> Callable[[Any], None]:
         """Obtains the current plot option
 
@@ -550,11 +550,20 @@ class GUI:
             grid_min, grid_max = self.qubit_params_widgets["grid"].get_interact_value()
             current_values["grid_min_val"] = grid_min
             current_values["grid_max_val"] = grid_max
-            current_values["grid_pt_count"] = gui_defaults.grid_defaults["grid_pt_count"]
-        
+            current_values["grid_pt_count"] = gui_defaults.grid_defaults[
+                "grid_pt_count"
+            ]
+
         self.active_qubit.set_params(**current_values)
 
-    def check_ranges(self, new_min: Union[int, float], new_max: Union[int, float], widget_name: str, text_widget: Dict[str, Union[IntText, FloatText]], changed_widget_key: str) -> Tuple[Union[int, float], Union[int, float]]:
+    def check_ranges(
+        self,
+        new_min: Union[int, float],
+        new_max: Union[int, float],
+        widget_name: str,
+        text_widget: Dict[str, Union[IntText, FloatText]],
+        changed_widget_key: str,
+    ) -> Tuple[Union[int, float], Union[int, float]]:
         if new_min <= 0 or ("cut" in widget_name and new_min == 1):
             if widget_name == "state_slider":
                 new_min = 1
@@ -580,9 +589,15 @@ class GUI:
                 new_max = new_min + text_widget["min"].step
         return (new_min, new_max)
 
-    def update_range_values(self, new_min: Union[int, float], new_max: Union[int, float], widget_name: str, text_widget: Dict[str, Union[IntText, FloatText]]):
+    def update_range_values(
+        self,
+        new_min: Union[int, float],
+        new_max: Union[int, float],
+        widget_name: str,
+        text_widget: Dict[str, Union[IntText, FloatText]],
+    ):
         text_widget["min"].value = new_min
-        text_widget["max"].value = new_max 
+        text_widget["max"].value = new_max
 
         if widget_name in self.qubit_plot_options_widgets.keys():
             widget = self.qubit_plot_options_widgets[widget_name]
@@ -645,7 +660,7 @@ class GUI:
         for widget_name, widget in self.qubit_plot_options_widgets.items():
             if widget_name not in qubit_plot_options_blacklist:
                 widget.unobserve(self.plot_refresh, names="value")
-    
+
     def observe_widgets(self) -> None:
         self.qubit_plot_options_widgets["scan_dropdown"].observe(
             self.scan_dropdown_refresh, names="value"
@@ -761,7 +776,7 @@ class GUI:
         current_dropdown_value = self.qubit_plot_options_widgets[
             "common_params_dropdown"
         ].get_interact_value()
-        
+
         if current_dropdown_value == "Manual":
             return
         self.unobserve_ranges()
@@ -786,9 +801,7 @@ class GUI:
                 self.ranges_widgets[param_name]["max"].value = (
                     np.ceil(param_val / 10) * 10
                 )
-                self.qubit_params_widgets[param_name].max = (
-                    np.ceil(param_val / 10) * 10
-                )
+                self.qubit_params_widgets[param_name].max = np.ceil(param_val / 10) * 10
 
             self.qubit_params_widgets[param_name].value = param_val
         self.observe_ranges()
@@ -796,7 +809,7 @@ class GUI:
         self.observe_widgets()
         self.plot_refresh(None)
 
-    def adjust_state_widgets(self, change) -> None: 
+    def adjust_state_widgets(self, change) -> None:
         self.unobserve_ranges()
         self.unobserve_plot_refresh()
         self.update_params()
@@ -806,20 +819,34 @@ class GUI:
         if state_slider_text["max"].get_interact_value() >= hilbertdim - 1:
             new_min = state_slider_text["min"].get_interact_value()
             new_max = hilbertdim - 2
-            new_min, new_max = self.check_ranges(new_min, new_max, "state_slider", state_slider_text, "min=")
-            self.update_range_values(new_min, new_max, "state_slider", state_slider_text)
+            new_min, new_max = self.check_ranges(
+                new_min, new_max, "state_slider", state_slider_text, "min="
+            )
+            self.update_range_values(
+                new_min, new_max, "state_slider", state_slider_text
+            )
 
-        if isinstance(self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)):
+        if isinstance(
+            self.active_qubit, (scq.Transmon, scq.TunableTransmon, scq.Fluxonium)
+        ):
             multi_state_selector_text = self.ranges_widgets["multi_state_selector"]
-            
-            if multi_state_selector_text["max"].get_interact_value() >= hilbertdim - 1: 
+
+            if multi_state_selector_text["max"].get_interact_value() >= hilbertdim - 1:
                 new_min = multi_state_selector_text["min"].get_interact_value()
                 new_max = hilbertdim - 2
-                new_min, new_max = self.check_ranges(new_min, new_max, "multi_state_selector", multi_state_selector_text, "min=")
-                self.update_range_values(new_min, new_max, "multi_state_selector", multi_state_selector_text)
+                new_min, new_max = self.check_ranges(
+                    new_min,
+                    new_max,
+                    "multi_state_selector",
+                    multi_state_selector_text,
+                    "min=",
+                )
+                self.update_range_values(
+                    new_min, new_max, "multi_state_selector", multi_state_selector_text
+                )
         self.observe_ranges()
         self.observe_plot_refresh()
-    
+
     def ranges_update(self, change) -> None:
         self.unobserve_ranges()
         self.unobserve_plot_refresh()
@@ -828,7 +855,9 @@ class GUI:
             new_max = text_widgets["max"].get_interact_value()
             changed_widget_key = change["owner"].description
 
-            new_min, new_max = self.check_ranges(new_min, new_max, widget_name, text_widgets, changed_widget_key)
+            new_min, new_max = self.check_ranges(
+                new_min, new_max, widget_name, text_widgets, changed_widget_key
+            )
 
             self.update_range_values(new_min, new_max, widget_name, text_widgets)
         self.observe_ranges()
@@ -845,7 +874,7 @@ class GUI:
             "manual_update_checkbox"
         ].get_interact_value():
             self.current_plot_option_refresh(None)
-    
+
     def common_params_dropdown_link_refresh(self, change) -> None:
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
