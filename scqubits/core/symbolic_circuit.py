@@ -1285,7 +1285,7 @@ class SymbolicCircuit(serializers.Serializable):
                             circ_copy.nodes.remove(node)
 
         if circ_copy.nodes == []:
-            return [], []
+            return [], [], []
         # *****************************************************************************
 
         # **************** Constructing the node_sets ***************
