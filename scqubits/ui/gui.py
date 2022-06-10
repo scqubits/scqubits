@@ -83,11 +83,12 @@ class GUI:
         # Display Elements
         self.fig: Figure
         self.plot_output: Output = Output(
-            layout=Layout(width="100%", justify_content="center")
+            layout={"width": "100%", "align_content": "center"}
         )
         self.tab_widget: Tab = Tab(layout=Layout(width="95%"))
 
         self.active_qubit: QubitBaseClass
+        self.manual_update_bool: bool = False
 
         self.active_defaults: Dict[str, Any] = {}
         self.qubit_params: Dict[str, Union[int, float, None]] = {}
@@ -488,7 +489,8 @@ class GUI:
             self.save_button_clicked_action
         )
         self.observe_ranges()
-        self.observe_plot()
+        self.observe_widgets()
+        self.observe_plot_refresh()
 
     # Retrieval Methods------------------------------------------------------------------
     def get_operators(self) -> List[str]:
@@ -616,7 +618,35 @@ class GUI:
             text_widgets["min"].unobserve(self.ranges_update, names="value")
             text_widgets["max"].unobserve(self.ranges_update, names="value")
 
-    def observe_plot(self) -> None:
+    def observe_plot_refresh(self) -> None:
+        if self.manual_update_bool:
+            return
+        qubit_plot_options_blacklist = [
+            "qubit_info_image_widget",
+            "common_params_dropdown",
+            "link_HTML",
+        ]
+        for widget_name, widget in self.qubit_params_widgets.items():
+            widget.observe(self.plot_refresh, names="value")
+        for widget_name, widget in self.qubit_plot_options_widgets.items():
+            if widget_name not in qubit_plot_options_blacklist:
+                widget.observe(self.plot_refresh, names="value")
+
+    def unobserve_plot_refresh(self) -> None:
+        if self.manual_update_bool:
+            return
+        qubit_plot_options_blacklist = [
+            "qubit_info_image_widget",
+            "common_params_dropdown",
+            "link_HTML",
+        ]
+        for widget_name, widget in self.qubit_params_widgets.items():
+            widget.unobserve(self.plot_refresh, names="value")
+        for widget_name, widget in self.qubit_plot_options_widgets.items():
+            if widget_name not in qubit_plot_options_blacklist:
+                widget.unobserve(self.plot_refresh, names="value")
+    
+    def observe_widgets(self) -> None:
         self.qubit_plot_options_widgets["scan_dropdown"].observe(
             self.scan_dropdown_refresh, names="value"
         )
@@ -630,25 +660,12 @@ class GUI:
             self.common_params_dropdown_params_refresh, names="value"
         )
 
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            qubit_plot_options_blacklist = [
-                "qubit_info_image_widget",
-                "common_params_dropdown",
-                "link_HTML",
-            ]
+        for widget_name, widget in self.qubit_params_widgets.items():
+            if "cut" in widget_name:
+                widget.observe(self.adjust_state_widgets, names="value")
+            widget.observe(self.common_params_dropdown_value_refresh, names="value")
 
-            for widget_name, widget in self.qubit_params_widgets.items():
-                if "cut" in widget_name:
-                    widget.observe(self.adjust_state_widgets, names="value")
-                widget.observe(self.plot_refresh, names="value")
-                widget.observe(self.common_params_dropdown_value_refresh, names="value")
-            for widget_name, widget in self.qubit_plot_options_widgets.items():
-                if widget_name not in qubit_plot_options_blacklist:
-                    widget.observe(self.plot_refresh, names="value")
-
-    def unobserve_plot(self) -> None:
+    def unobserve_widgets(self) -> None:
         self.qubit_plot_options_widgets["scan_dropdown"].unobserve(
             self.scan_dropdown_refresh, names="value"
         )
@@ -662,50 +679,35 @@ class GUI:
             self.common_params_dropdown_params_refresh, names="value"
         )
 
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            qubit_plot_options_blacklist = [
-                "qubit_info_image_widget",
-                "common_params_dropdown",
-                "link_HTML",
-            ]
-
-            for widget_name, widget in self.qubit_params_widgets.items():
-                if "cut" in widget_name:
-                    widget.unobserve(self.adjust_state_widgets, names="value")
-                widget.unobserve(self.plot_refresh, names="value")
-                widget.unobserve(
-                    self.common_params_dropdown_value_refresh, names="value"
-                )
-            for widget_name, widget in self.qubit_plot_options_widgets.items():
-                if widget_name not in qubit_plot_options_blacklist:
-                    widget.unobserve(self.plot_refresh, names="value")
+        for widget_name, widget in self.qubit_params_widgets.items():
+            if "cut" in widget_name:
+                widget.unobserve(self.adjust_state_widgets, names="value")
+            widget.unobserve(self.common_params_dropdown_value_refresh, names="value")
 
     # Eventhandler Methods -------------------------------------------------------------
     def qubit_change(self, change) -> None:
         self.unobserve_ranges()
-        self.unobserve_plot()
+        self.unobserve_widgets()
+        self.unobserve_plot_refresh()
         self.set_qubit(change["new"])
         self.initialize_tab_widget()
         self.observe_ranges()
-        self.observe_plot()
-        self.current_plot_option_refresh(None)
+        self.observe_widgets()
+        self.observe_plot_refresh()
+        self.plot_refresh(None)
 
     def scan_dropdown_refresh(self, change) -> None:
         self.qubit_params_widgets[change.old].disabled = False
         self.qubit_params_widgets[change.new].disabled = True
 
     def plot_option_layout_refresh(self, change) -> None:
-        self.unobserve_plot()
         self.current_plot_option_refresh = self.get_plot_option_refresh()
         new_plot_option = self.plot_option_layout()
 
         self.tab_widget.children[0].children[0].children = tuple(
             new_plot_option.children
         )
-        self.observe_plot()
-        self.current_plot_option_refresh(None)
+        self.plot_refresh(None)
 
     def manual_scale_tf(self, change) -> None:
         if change["new"]:
@@ -718,20 +720,19 @@ class GUI:
     def manual_update_checkbox(self, change) -> None:
         if change["new"]:
             self.manual_update_and_save_widgets["update_button"].disabled = False
+            self.unobserve_plot_refresh()
+            self.manual_update_bool = True
         else:
             self.manual_update_and_save_widgets["update_button"].disabled = True
-            self.current_plot_option_refresh(None)
+            self.manual_update_bool = False
+            self.observe_plot_refresh()
+            self.plot_refresh(None)
 
     def manual_update_button_onclick(self, change) -> None:
+        self.update_params()
         self.current_plot_option_refresh(None)
 
     def common_params_dropdown_value_refresh(self, change) -> None:
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            self.qubit_plot_options_widgets["common_params_dropdown"].unobserve(
-                self.common_params_dropdown_params_refresh, names="value"
-            )
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
@@ -739,6 +740,8 @@ class GUI:
             "common_params_dropdown"
         ].get_interact_value()
 
+        if current_qubit not in gui_defaults.paramvals_from_papers.keys():
+            return
         if current_dropdown_value != "Manual":
             for param_name, param_val in gui_defaults.paramvals_from_papers[
                 current_qubit
@@ -750,54 +753,52 @@ class GUI:
                     self.qubit_plot_options_widgets[
                         "common_params_dropdown"
                     ].value = "Manual"
-        if not self.manual_update_and_save_widgets[
-            "manual_update_checkbox"
-        ].get_interact_value():
-            self.qubit_plot_options_widgets["common_params_dropdown"].observe(
-                self.common_params_dropdown_params_refresh, names="value"
-            )
 
     def common_params_dropdown_params_refresh(self, change) -> None:
-        self.unobserve_ranges()
-        self.unobserve_plot()
         current_qubit = self.qubit_and_plot_ToggleButtons[
             "qubit_buttons"
         ].get_interact_value()
         current_dropdown_value = self.qubit_plot_options_widgets[
             "common_params_dropdown"
         ].get_interact_value()
+        
+        if current_dropdown_value == "Manual":
+            return
+        self.unobserve_ranges()
+        self.unobserve_plot_refresh()
+        self.unobserve_widgets()
 
-        if current_dropdown_value != "Manual":
-            params = gui_defaults.paramvals_from_papers[current_qubit][
-                current_dropdown_value
-            ]["params"]
-            for param_name, param_val in params.items():
-                param_max = self.ranges_widgets[param_name]["max"].get_interact_value()
-                param_min = self.ranges_widgets[param_name]["min"].get_interact_value()
+        params = gui_defaults.paramvals_from_papers[current_qubit][
+            current_dropdown_value
+        ]["params"]
+        for param_name, param_val in params.items():
+            param_max = self.ranges_widgets[param_name]["max"].get_interact_value()
+            param_min = self.ranges_widgets[param_name]["min"].get_interact_value()
 
-                if param_val < param_min:
-                    self.ranges_widgets[param_name]["min"].value = self.active_defaults[
-                        param_name
-                    ]["min"]
-                    self.qubit_params_widgets[param_name].min = self.active_defaults[
-                        param_name
-                    ]["min"]
-                if param_val > param_max:
-                    self.ranges_widgets[param_name]["max"].value = (
-                        np.ceil(param_val / 10) * 10
-                    )
-                    self.qubit_params_widgets[param_name].max = (
-                        np.ceil(param_val / 10) * 10
-                    )
+            if param_val < param_min:
+                self.ranges_widgets[param_name]["min"].value = self.active_defaults[
+                    param_name
+                ]["min"]
+                self.qubit_params_widgets[param_name].min = self.active_defaults[
+                    param_name
+                ]["min"]
+            if param_val > param_max:
+                self.ranges_widgets[param_name]["max"].value = (
+                    np.ceil(param_val / 10) * 10
+                )
+                self.qubit_params_widgets[param_name].max = (
+                    np.ceil(param_val / 10) * 10
+                )
 
-                self.qubit_params_widgets[param_name].value = param_val
+            self.qubit_params_widgets[param_name].value = param_val
         self.observe_ranges()
-        self.observe_plot()
+        self.observe_plot_refresh()
+        self.observe_widgets()
         self.plot_refresh(None)
 
     def adjust_state_widgets(self, change) -> None: 
         self.unobserve_ranges()
-        self.unobserve_plot()
+        self.unobserve_plot_refresh()
         self.update_params()
         hilbertdim = self.active_qubit.hilbertdim()
         state_slider_text = self.ranges_widgets["state_slider"]
@@ -817,11 +818,11 @@ class GUI:
                 new_min, new_max = self.check_ranges(new_min, new_max, "multi_state_selector", multi_state_selector_text, "min=")
                 self.update_range_values(new_min, new_max, "multi_state_selector", multi_state_selector_text)
         self.observe_ranges()
-        self.observe_plot()
+        self.observe_plot_refresh()
     
     def ranges_update(self, change) -> None:
         self.unobserve_ranges()
-        self.unobserve_plot()
+        self.unobserve_plot_refresh()
         for widget_name, text_widgets in self.ranges_widgets.items():
             new_min = text_widgets["min"].get_interact_value()
             new_max = text_widgets["max"].get_interact_value()
@@ -831,7 +832,7 @@ class GUI:
 
             self.update_range_values(new_min, new_max, widget_name, text_widgets)
         self.observe_ranges()
-        self.observe_plot()
+        self.observe_plot_refresh()
         self.plot_refresh(None)
 
     def save_button_clicked_action(self, change) -> None:
