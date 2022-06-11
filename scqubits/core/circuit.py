@@ -11,25 +11,23 @@
 import functools
 import itertools
 import re
-from types import MethodType
 
+from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import qutip as qt
 import scipy as sp
+import scqubits.core.discretization as discretization
+import scqubits.core.oscillator as osc
+import scqubits.core.qubit_base as base
+import scqubits.io_utils.fileio_serializers as serializers
 import sympy as sm
 
 from matplotlib import pyplot as plt
 from numpy import ndarray
 from scipy import sparse, stats
 from scipy.sparse import csc_matrix
-
-import scqubits.core.discretization as discretization
-import scqubits.core.oscillator as osc
-import scqubits.core.qubit_base as base
-import scqubits.io_utils.fileio_serializers as serializers
-
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
@@ -656,9 +654,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     var_index = get_trailing_number(str(var))
                     subsystem_index = self.get_subsystem_index(var_index)
                     if "I" not in str(var):
-                        operator = self.subsystems[subsystem_index].get_operator_by_name(
-                            var.name
-                        )
+                        operator = self.subsystems[
+                            subsystem_index
+                        ].get_operator_by_name(var.name)
                         if isinstance(operator, qt.Qobj):
                             operator = operator.full()
 
@@ -924,8 +922,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
             if len(attr_list) > 0:
                 attr_list.sort()
-                cutoffs_dict[cutoff_type] = [
-                    getattr(self, attr) for attr in attr_list]
+                cutoffs_dict[cutoff_type] = [getattr(self, attr) for attr in attr_list]
 
         return cutoffs_dict
 
@@ -1289,23 +1286,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -1507,11 +1504,20 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         H_string = re.sub(r"(?P<x>(θ\d)|(cosθ\d))", "\g<x>_operator(self)", H_string)
 
         # replace all other operators with methods
-        operator_symbols_list = flatten_list_recursive([list(short_op_dict.values()) if isinstance(short_op_dict, dict) else short_op_dict for short_op_dict in list(self.vars.values())])
-        operator_name_list = [symbol.name for symbol in operator_symbols_list] 
+        operator_symbols_list = flatten_list_recursive(
+            [
+                list(short_op_dict.values())
+                if isinstance(short_op_dict, dict)
+                else short_op_dict
+                for short_op_dict in list(self.vars.values())
+            ]
+        )
+        operator_name_list = [symbol.name for symbol in operator_symbols_list]
         for operator_name in operator_name_list:
             if "θ" not in operator_name:
-                H_string = H_string.replace(operator_name, operator_name + "_operator(self)")
+                H_string = H_string.replace(
+                    operator_name, operator_name + "_operator(self)"
+                )
         return H_string
 
     @staticmethod
@@ -2371,7 +2377,8 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         return [
             symbol.name
             for symbol in self.hamiltonian_symbolic.free_symbols
-            if ("ng" not in symbol.name and "Φ" not in symbol.name) and symbol not in self.symbolic_params
+            if ("ng" not in symbol.name and "Φ" not in symbol.name)
+            and symbol not in self.symbolic_params
         ]
 
 
