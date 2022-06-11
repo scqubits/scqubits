@@ -11,12 +11,16 @@
 import functools
 import itertools
 import re
-from types import MethodType
 
+from types import MethodType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import qutip as qt
 import scipy as sp
+import scqubits.core.discretization as discretization
+import scqubits.core.oscillator as osc
+import scqubits.core.qubit_base as base
+import scqubits.io_utils.fileio_serializers as serializers
 import sympy as sm
 import numpy as np
 
@@ -24,13 +28,6 @@ from matplotlib import pyplot as plt
 from numpy import ndarray
 from scipy import sparse, stats
 from scipy.sparse import csc_matrix
-
-
-import scqubits.core.discretization as discretization
-import scqubits.core.oscillator as osc
-import scqubits.core.qubit_base as base
-import scqubits.io_utils.fileio_serializers as serializers
-
 from scqubits import HilbertSpace, settings
 from scqubits.core import operators as op
 from scqubits.core.symbolic_circuit import Branch, SymbolicCircuit
@@ -178,11 +175,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         self.var_categories_list: List[int] = []
         cutoffs: List[int] = []
-        for var_name in self.hamiltonian_variables_momenta():
+        for var_name in self.operator_names_in_hamiltonian_symbolic():
             var_index = get_trailing_number(var_name)
-            if var_index not in self.var_categories_list:
+            if var_index not in self.var_categories_list and var_index is not None:
                 self.var_categories_list.append(var_index)
-                cutoffs += self._get_cutoff_value(var_index)
+                cutoffs += [self.cutoffs_dict()[var_index]]
 
         self.var_categories_list.sort()
 
@@ -238,7 +235,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         else:
             self.type_of_matrices = "sparse"
 
-        self._initiate_subsystem()
+        self._configure()
 
     def cutoffs_dict(self) -> Dict[int, int]:
         cutoffs_dict = {}
@@ -316,7 +313,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             self.generate_subsystems()
             self.build_hilbertspace()
         else:
-            self.set_operators()
+            self.operators_by_name = self.set_operators()
 
     def _set_property_and_update_ext_flux_or_charge(
         self, param_name: str, value: float
@@ -360,10 +357,10 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             for subsys in self.subsystems.values():
                 if hasattr(subsys, param_name):
                     setattr(subsys, param_name, value)
-            self.set_operators()
+            self.operators_by_name = self.set_operators()
             self.build_hilbertspace()
         else:
-            self.set_operators()
+            self.operators_by_name = self.set_operators()
 
     def _make_property(
         self, attrib_name: str, init_val: Union[int, float], property_update_type: str
@@ -404,7 +401,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         setattr(self.__class__, attrib_name, property(fget=getter, fset=setter))
 
-    def _initiate_subsystem(self) -> None:
+    def _configure(self) -> None:
         """
         Function which is used to initiate the subsystem instance.
         """
@@ -657,9 +654,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                     var_index = get_trailing_number(str(var))
                     subsystem_index = self.get_subsystem_index(var_index)
                     if "I" not in str(var):
-                        operator = self.subsystems[subsystem_index].get_operator(
-                            var.name
-                        )
+                        operator = self.subsystems[
+                            subsystem_index
+                        ].get_operator_by_name(var.name)
                         if isinstance(operator, qt.Qobj):
                             operator = operator.full()
 
@@ -911,10 +908,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
     ##################################################################
     ############### Functions to construct the operators #############
     ##################################################################
-    def _cutoffs_by_index_dict(self):
-        variables = self.var_categories["periodic"] + self.var_categories["extended"]
-        cutoffs_by_index_list = np.fromiter(self._collect_cutoff_values(), dtype=int)
-        return dict(zip(variables, cutoffs_by_index_list))
+    def get_cutoffs(self) -> Dict[str, list]:
+        """
+        Method to get the cutoffs for each of the circuit's degree of freedom.
+        """
+        cutoffs_dict: Dict[str, List[Any]] = {
+            "cutoff_n": [],
+            "cutoff_ext": [],
+        }
+
+        for cutoff_type in cutoffs_dict.keys():
+            attr_list = [x for x in self.cutoff_names if cutoff_type in x]
+
+            if len(attr_list) > 0:
+                attr_list.sort()
+                cutoffs_dict[cutoff_type] = [getattr(self, attr) for attr in attr_list]
+
+        return cutoffs_dict
 
     def _collect_cutoff_values(self):
         if not self.hierarchical_diagonalization:
@@ -1276,23 +1286,23 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 osc_freqs[var_index] = (8 * ELi * ECi) ** 0.5
                 osc_lengths[var_index] = (8.0 * ECi / ELi) ** 0.25
                 nonwrapped_ops["position"] = functools.partial(
-                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2**0.5)
+                    op.a_plus_adag_sparse, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                 )
                 nonwrapped_ops["sin"] = compose(
                     sp.linalg.sinm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["cos"] = compose(
                     sp.linalg.cosm,
                     functools.partial(
-                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2**0.5)
+                        op.a_plus_adag, prefactor=osc_lengths[var_index] / (2 ** 0.5)
                     ),
                 )
                 nonwrapped_ops["momentum"] = functools.partial(
                     op.ia_minus_iadag_sparse,
-                    prefactor=1 / (osc_lengths[var_index] * 2**0.5),
+                    prefactor=1 / (osc_lengths[var_index] * 2 ** 0.5),
                 )
 
                 for short_op_name in nonwrapped_ops.keys():
@@ -1339,24 +1349,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             params.append(getattr(self, param.name))
         return params
 
-    def get_cutoffs(self) -> Dict[str, list]:
-        """
-        Method to get the cutoffs for each of the circuit's degree of freedom.
-        """
-        cutoffs_dict: Dict[str, List[Any]] = {
-            "cutoff_n": [],
-            "cutoff_ext": [],
-        }
-
-        for cutoff_type in cutoffs_dict.keys():
-            attr_list = [x for x in self.cutoff_names if cutoff_type in x]
-
-            if len(attr_list) > 0:
-                attr_list.sort()
-                cutoffs_dict[cutoff_type] = [getattr(self, attr) for attr in attr_list]
-
-        return cutoffs_dict
-
     def external_flux_values(self) -> List[float]:
         """
         Returns all the time independent external flux set using the circuit attributes
@@ -1373,42 +1365,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             getattr(self, offset_charge.name) for offset_charge in self.offset_charges
         ]
 
-    # def get_all_operators(
-    #     self, return_dict: bool = False
-    # ) -> Union[List[Callable], Dict[str, Callable]]:
-    #     """
-    #     Returns a list of operators which can be given as an argument to
-    #     `self._hamiltonian_sym_for_numerics`. These operators are not calculated again
-    #     and are fetched directly from the circuit attributes. Use set_attributes instead
-    #     if the parameters, especially cutoffs, are changed.
-    #
-    #     Parameters
-    #     ----------
-    #     return_dict: bool
-    #         returns the dictionary of operators if set to True.
-    #
-    #     Returns
-    #     -------
-    #         Either a list of operator functions, or a dict mapping operator names to
-    #         operator functions.
-    #     """
-    #     variable_symbols_list = flatten_list(
-    #         self.vars["periodic"].values()
-    #     ) + flatten_list(self.vars["extended"].values())
-    #     operator_list = []
-    #     for operator in variable_symbols_list:
-    #         operator_list.append(getattr(self, operator.name))
-    #
-    #     # adding the identity operator
-    #     operator_list.append(self._identity())
-    #
-    #     if return_dict:
-    #         variable_symbols_list.append(sm.symbols("I"))
-    #         operator_dict = dict(zip(variable_symbols_list, operator_list))
-    #         return operator_dict
-    #
-    #     return self.operators_by_name.values()
-
     @staticmethod
     def default_params() -> Dict[str, Any]:
         # return {"EJ": 15.0, "EC": 0.3, "ng": 0.0, "ncut": 30, "truncated_dim": 10}
@@ -1422,7 +1378,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         if self.hierarchical_diagonalization:
             for subsys in self.subsystems.values():
-                subsys.set_operators()
+                subsys.operators_by_name = subsys.set_operators()
             return
 
         variable_symbols_list = (
@@ -1453,13 +1409,13 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             operator
         """
         if not self.hierarchical_diagonalization:
-            return getattr(self, operator_name)
+            return getattr(self, operator_name + "_operator")()
 
         var_index = get_trailing_number(operator_name)
         assert var_index
         subsystem_index = self.get_subsystem_index(var_index)
         subsystem = self.subsystems[subsystem_index]
-        operator = subsystem.get_operator(operator_name)
+        operator = subsystem.get_operator_by_name(operator_name)
 
         if isinstance(operator, qt.Qobj):
             operator = operator.full()
@@ -1544,6 +1500,24 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 term_string = "+" + term_string
             H_string += term_string
 
+        # replace all position, sin and cos operators with methods
+        H_string = re.sub(r"(?P<x>(θ\d)|(cosθ\d))", "\g<x>_operator(self)", H_string)
+
+        # replace all other operators with methods
+        operator_symbols_list = flatten_list_recursive(
+            [
+                list(short_op_dict.values())
+                if isinstance(short_op_dict, dict)
+                else short_op_dict
+                for short_op_dict in list(self.vars.values())
+            ]
+        )
+        operator_name_list = [symbol.name for symbol in operator_symbols_list]
+        for operator_name in operator_name_list:
+            if "θ" not in operator_name:
+                H_string = H_string.replace(
+                    operator_name, operator_name + "_operator(self)"
+                )
         return H_string
 
     @staticmethod
@@ -1635,6 +1609,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             replacement_dict["cos"] = self._cos_dia
             replacement_dict["sin"] = self._sin_dia
 
+        # adding self to the list
+        replacement_dict["self"] = self
+
         return eval(H_str, replacement_dict)
 
     def _hamiltonian_for_discretized_extended_vars(self):
@@ -1658,6 +1635,9 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         replacement_dict["cos"] = self._cos_dia
         replacement_dict["sin"] = self._sin_dia
+
+        # adding self to the list
+        replacement_dict["self"] = self
 
         return eval(H_str, replacement_dict)
 
@@ -2390,15 +2370,16 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
             if str(var_index) in cutoff_name:
                 return getattr(self.parent, cutoff_name)
 
-    def hamiltonian_variables_momenta(self) -> List[str]:
+    def operator_names_in_hamiltonian_symbolic(self) -> List[str]:
         """
-        Returns a list of the names (strings) of all generalized fluxes and charges
+        Returns a list of the names (strings) of all operators
         occurring in the symbolic Hamiltonian.
         """
         return [
             symbol.name
             for symbol in self.hamiltonian_symbolic.free_symbols
-            if "Q" in symbol.name or "θ" in symbol.name
+            if ("ng" not in symbol.name and "Φ" not in symbol.name)
+            and symbol not in self.symbolic_params
         ]
 
 
@@ -2616,7 +2597,7 @@ class Circuit(Subsystem):
 
         if not self.hierarchical_diagonalization:
             self.generate_hamiltonian_sym_for_numerics()
-            self.set_operators()
+            self.operators_by_name = self.set_operators()
         else:
             if system_hierarchy is None:
                 self.system_hierarchy = [
@@ -2634,6 +2615,8 @@ class Circuit(Subsystem):
             self.subsystem_trunc_dims = subsystem_trunc_dims
             self.generate_hamiltonian_sym_for_numerics()
             self.generate_subsystems()
+            self.operators_by_name = self.set_operators()
+            self.build_hilbertspace()
 
     @classmethod
     def from_yaml(
