@@ -2191,7 +2191,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         n: int = 0,
         var_indices: Tuple[int] = (1,),
         eigensys: ndarray = None,
-        mode: str = "abs",
         change_discrete_charge_to_phi: bool = True,
     ):
         """
@@ -2205,9 +2204,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. Should not have more than 2 entries.
-        mode:
-            "abs" or "real" or "imag" for absolute, real or imaginary parts of the
-            wave function.
         eigensys:
             The object returned by the method instance. `eigensys` is used to avoid the
             re-evaluation of the eigensystems if already evaluated.
@@ -2290,12 +2286,11 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
 
         # if a probability plot is requested, sum over the dimesnsions not relevant to
         # the ones in var_categories
-        if self.hierarchical_diagonalization:
-            dims_to_be_summed = self._dims_to_be_summed(var_indices, system_hierarchy_for_vars_chosen)
-            wf_plot = np.sum(
-                np.abs(wf_ext_basis),
-                axis=tuple(dims_to_be_summed),
-            )
+        dims_to_be_summed = self._dims_to_be_summed(var_indices, system_hierarchy_for_vars_chosen)
+        wf_plot = np.sum(
+        np.abs(wf_ext_basis)**2,
+        axis=tuple(dims_to_be_summed),
+        )
         # reorder the array according to the order in var_indices
         all_var_indices = flatten_list_recursive(self.system_hierarchy) if self.hierarchical_diagonalization else self.var_categories_list
         var_index_order = [all_var_indices.index(
@@ -2311,7 +2306,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         n=0,
         var_indices: Tuple[int] = (1,),
         eigensys=None,
-        mode: str = "abs",
         change_discrete_charge_to_phi: bool = True,
     ):
         """
@@ -2325,9 +2319,6 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
         var_indices:
             A tuple containing the indices of the variables chosen to plot the
             wave function in. Should not have more than 2 entries.
-        mode:
-            "abs" or "real" or "imag" for absolute, real or imaginary parts of the
-            wave function.
         eigensys:
             The object returned by the method `.eigensys`, is used to avoid the
             re-evaluation of the eigen systems if already evaluated.
@@ -2386,12 +2377,12 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 plt.bar(
                     np.arange(-cutoffs_dict[var_index],
                               cutoffs_dict[var_index] + 1),
-                    eval("np." + mode + "(wf_plot.T)"),
+                    wf_plot.T,
                 )
             else:
                 plt.plot(
                     np.array(grids_dict[var_indices[0]]),
-                    eval("np." + mode + "(wf_plot.T)"),
+                    wf_plot.T,
                 )
             plt.xlabel(var_types[0] + str(var_indices[0]))
         elif len(var_indices) == 2:
@@ -2399,7 +2390,7 @@ class Subsystem(base.QubitBaseClass, serializers.Serializable):
                 np.array(grids_dict[var_indices[0]]),
                 np.array(grids_dict[var_indices[1]]),
             )
-            plt.contourf(x, y, np.abs(wf_plot.T))
+            plt.contourf(x, y, wf_plot.T)
             plt.xlabel(var_types[0] + str(var_indices[0]))
             plt.ylabel(var_types[1] + str(var_indices[1]))
             plt.colorbar()
